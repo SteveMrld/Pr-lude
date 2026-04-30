@@ -57,16 +57,14 @@ export async function POST(req: NextRequest) {
           const patternMatching = await matchPatterns(extraction, team, market, macro);
           send('engine-done', { engine: 'pattern', output: patternMatching });
 
-          // Moteur 6 : Retournement Causal
+          // Moteurs 6, 7, 8 en parallèle : Causal + Aveuglement + Singularités
+          // Tous trois consomment les sorties précédentes mais sont indépendants entre eux
           send('engine-start', { engine: 'causal', label: 'Retournement causal et identification des angles morts' });
-          const causalReversal = await performCausalReversal(extraction, team, market, macro, patternMatching);
-          send('engine-done', { engine: 'causal', output: causalReversal });
-
-          // Moteurs 7 et 8 en parallèle : Aveuglement collectif et Singularités contrariennes
           send('engine-start', { engine: 'blindspot', label: 'Détection des patterns d\'aveuglement collectif (10 patterns)' });
           send('engine-start', { engine: 'contrarian', label: 'Détection des singularités contrariennes (10 signaux)' });
 
-          const [blindspotAnalysis, contrarianAnalysis] = await Promise.all([
+          const [causalReversal, blindspotAnalysis, contrarianAnalysis] = await Promise.all([
+            performCausalReversal(extraction, team, market, macro, patternMatching).then(r => { send('engine-done', { engine: 'causal', output: r }); return r; }),
             analyzeBlindspots(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'blindspot', output: r }); return r; }),
             analyzeContrarian(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'contrarian', output: r }); return r; }),
           ]);
