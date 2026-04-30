@@ -975,6 +975,77 @@ export default function Home() {
                       </ul>
                     </div>
                   </div>
+
+                  {result.team?.founderMarketFit?.length > 0 && (
+                    <>
+                      <h3 style={{ marginTop: 32 }}>Founder-Market Fit · Évaluation par fondateur</h3>
+                      <p style={{ fontSize: 13, opacity: 0.8, marginTop: -6, marginBottom: 16 }}>
+                        Cadre Eisenmann (2020). Pour chaque fondateur : trajectoire, signaux positifs, gaps, expertise tacite asymétrique, expériences transposables.
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16 }}>
+                        {result.team.founderMarketFit.map((f: any, i: number) => (
+                          <div key={i} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>{f.name}</div>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500 }}>{f.overallFitScore}<span style={{ fontSize: 12, opacity: 0.6 }}>/100</span></div>
+                            </div>
+                            <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{f.role}</div>
+                            <div style={{ height: 3, background: 'rgba(0,0,0,0.06)', marginBottom: 14 }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${f.overallFitScore}%`,
+                                background: f.overallFitScore >= 70 ? '#3a5a3a' : f.overallFitScore >= 45 ? '#888' : '#a04040',
+                              }} />
+                            </div>
+                            <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>{f.trajectorySummary}</div>
+
+                            {f.tacitExpertise && (
+                              <div style={{ marginBottom: 12, padding: '10px 12px', background: 'rgba(0,0,0,0.03)', fontSize: 12 }}>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>Expertise tacite asymétrique</div>
+                                <div>{f.tacitExpertise}</div>
+                              </div>
+                            )}
+
+                            {f.fitSignals?.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#3a5a3a' }}>Signaux positifs</div>
+                                <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                                  {f.fitSignals.map((s: string, j: number) => <li key={j}>{s}</li>)}
+                                </ul>
+                              </div>
+                            )}
+
+                            {f.fitGaps?.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#a04040' }}>Gaps identifiés</div>
+                                <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                                  {f.fitGaps.map((g: string, j: number) => <li key={j}>{g}</li>)}
+                                </ul>
+                              </div>
+                            )}
+
+                            {f.transposedExperiences?.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>Expériences transposables</div>
+                                <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                                  {f.transposedExperiences.map((e: string, j: number) => <li key={j}>{e}</li>)}
+                                </ul>
+                              </div>
+                            )}
+
+                            {f.redFlagsForRole?.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#a04040' }}>Red flags pour le rôle</div>
+                                <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                                  {f.redFlagsForRole.map((r: string, j: number) => <li key={j}>{r}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1182,7 +1253,72 @@ export default function Home() {
                     </div>
                   ))}
 
-                  <h3>Dynamique compétitive</h3>
+                  {result.market?.competitiveMatrix?.dimensions?.length > 0 && (
+                    <>
+                      <h3 style={{ marginTop: 32 }}>Matrice concurrentielle</h3>
+                      <p style={{ fontSize: 13, opacity: 0.8, marginTop: -6, marginBottom: 14 }}>
+                        Évaluation binaire de la couverture fonctionnelle de la société analysée vs ses concurrents directs sur les dimensions critiques du secteur.
+                      </p>
+                      <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+                        <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', minWidth: 600 }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '2px solid var(--ink)', fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 13, position: 'sticky', left: 0, background: 'var(--bg)' }}>Player</th>
+                              {result.market.competitiveMatrix.dimensions.map((d: string, i: number) => (
+                                <th key={i} style={{ padding: '10px 8px', borderBottom: '2px solid var(--ink)', fontWeight: 500, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--muted)' }}>
+                                  {d}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {result.market.competitiveMatrix.players.map((p: any, i: number) => (
+                              <tr key={i} style={{
+                                background: p.isTargetCompany ? 'rgba(0,0,0,0.04)' : 'transparent',
+                                fontWeight: p.isTargetCompany ? 500 : 400,
+                              }}>
+                                <td style={{
+                                  padding: '10px 12px',
+                                  borderBottom: '1px solid var(--hairline)',
+                                  fontFamily: p.isTargetCompany ? 'var(--serif)' : 'inherit',
+                                  fontSize: p.isTargetCompany ? 14 : 12,
+                                  position: 'sticky',
+                                  left: 0,
+                                  background: p.isTargetCompany ? 'rgba(0,0,0,0.04)' : 'var(--bg)',
+                                }}>
+                                  {p.name}
+                                  {p.isTargetCompany && <span style={{ marginLeft: 6, fontSize: 9, opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>· cible</span>}
+                                </td>
+                                {p.coverage.map((c: boolean, j: number) => (
+                                  <td key={j} style={{
+                                    textAlign: 'center',
+                                    padding: '10px 8px',
+                                    borderBottom: '1px solid var(--hairline)',
+                                    fontSize: 14,
+                                    color: c ? '#3a5a3a' : '#a04040',
+                                    fontWeight: c ? 600 : 400,
+                                  }}>
+                                    {c ? '√' : '×'}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{ padding: '14px 16px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8 }}>
+                          <div>
+                            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score différenciation </span>
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.market.competitiveMatrix.differentiationScore}/100</span>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: 13, margin: 0 }}>{result.market.competitiveMatrix.differentiationRationale}</p>
+                      </div>
+                    </>
+                  )}
+
+                  <h3 style={{ marginTop: 32 }}>Dynamique compétitive</h3>
                   <p>{result.market?.competitiveDynamic}</p>
                 </div>
               )}

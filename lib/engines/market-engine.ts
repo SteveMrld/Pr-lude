@@ -33,6 +33,14 @@ Identifie les moats potentiels (effet de réseau, intégration verticale, donné
 ## Comparables internationaux
 Identifie 2-3 comparables internationaux pertinents par structure de défi.
 
+## Matrice concurrentielle binaire
+Tu produis une matrice concurrentielle de référence (modèle factsheet conseil M&A type Idinvest) :
+- 8-12 dimensions sectorielles pertinentes (capacités, fonctionnalités, géographies, segments servis, etc.) ADAPTÉES au secteur du dossier. Pas de dimensions génériques fades. Les dimensions doivent être les CRITÈRES DE DÉCISION D'ACHAT des clients du secteur.
+- 5-8 players évalués : la startup analysée + ses concurrents directs cités dans le deck + les concurrents réels du marché que tu connais
+- Pour chaque combinaison player × dimension, true (capacité présente) ou false (absent)
+- Calcul du score de différenciation : combien de dimensions où la startup a un √ alors qu'aucun concurrent ne l'a
+- Exemple type IDVIU-VR : dimensions = ['distribution', 'playback multiplatform', 'platform channels', 'interactivity', '3d engine', 'secure video', 'tracking/analysis', 'tag', 'billing', 'synch', 'api/sdk']. Players = ['IDVIU-VR', 'Jaunt', 'NextVR', 'Oculus', 'Google', etc.]
+
 ## Cohérence déclaré vs vérifié
 NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitch (signaux organiques mesurables, écosystème actif), les zones non vérifiables (taille TAM annoncée invérifiable), et les écarts (concurrents cités versus concurrents réels du marché).
 
@@ -60,7 +68,16 @@ NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitc
   "internationalBenchmarks": [
     { "name": "nom", "geography": "pays", "relevance": "pertinence de l'analogie" }
   ],
-  "competitiveDynamic": "phrase qui décrit la dynamique compétitive actuelle"
+  "competitiveDynamic": "phrase qui décrit la dynamique compétitive actuelle",
+  "competitiveMatrix": {
+    "dimensions": ["distribution", "playback multiplatform", "platform channels", "interactivity", "3d engine", "secure video", "tracking/analysis", "tag", "billing", "synch", "api/sdk"],
+    "players": [
+      { "name": "[Société analysée]", "isTargetCompany": true, "coverage": [true, true, true, true, true, true, true, true, true, true, true] },
+      { "name": "Concurrent A", "isTargetCompany": false, "coverage": [true, true, false, false, false, false, false, false, false, false, false] }
+    ],
+    "differentiationScore": 0-100,
+    "differentiationRationale": "phrase qui explique en quoi la startup se différencie selon la matrice"
+  }
 }`;
 
 export async function analyzeMarket(extraction: ExtractionOutput): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
@@ -150,7 +167,7 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

@@ -26,6 +26,20 @@ Si les fondateurs viennent de secteurs différents du secteur cible, évalue si 
 ## Cohérence déclaration vs vérification
 NOUVEAU PILIER. À partir du croisement entre les données du pitch deck et les données vérifiées, identifie les zones de cohérence forte et les zones d'écart.
 
+# FOUNDER-MARKET FIT (Eisenmann 2020)
+
+POUR CHAQUE FONDATEUR, tu produis une fiche structurée d'évaluation founder-market fit. C'est l'un des prédicteurs les plus puissants du succès startup selon les méta-études récentes.
+
+Pour chaque fondateur, évalue :
+- Trajectoire : narratif dense de son parcours (pas une liste à puces, une vraie phrase qui raconte la progression)
+- Signaux positifs de founder-market fit : profondeur sectorielle, accès à des données rares, expériences vécues du problème, reconnaissance par des pairs du secteur
+- Gaps : ce qui manque dans son profil pour ce dossier précis (manque de scale, pas de track record d'exit, ignorance d'un volet critique du business)
+- Expertise tacite asymétrique : ce que ce fondateur sait que personne d'autre ne peut apprendre facilement (3-6 mois d'immersion ne le donneraient pas)
+- Expériences transposables : situations antérieures dont la structure de défi est analogue au défi présent
+- Red flags spécifiques à son rôle : ex un CEO qui n'a jamais vendu en B2B, un CTO qui n'a jamais scalé une équipe d'ingénieurs, un COO qui n'a jamais structuré d'opérations à 100+ FTE
+
+Score founder-market fit individuel : 0-100. Sois rigoureux, ne sois pas complaisant. Un pedigree prestigieux ne fait pas un founder-market fit. Un brillant fondateur en biotech n'a pas automatiquement le founder-market fit pour un projet AI.
+
 # FORMAT JSON OBLIGATOIRE
 
 {
@@ -59,7 +73,20 @@ NOUVEAU PILIER. À partir du croisement entre les données du pitch deck et les 
     "discrepancies": ["écarts identifiés"]
   },
   "redFlags": ["liste des signaux d'alerte"],
-  "greenFlags": ["liste des signaux positifs forts"]
+  "greenFlags": ["liste des signaux positifs forts"],
+  "founderMarketFit": [
+    {
+      "name": "nom complet",
+      "role": "rôle (CEO, CTO, etc.)",
+      "overallFitScore": 0-100,
+      "trajectorySummary": "narratif dense de la trajectoire en 2-3 phrases liées",
+      "fitSignals": ["signal 1 spécifique et factuel", "signal 2"],
+      "fitGaps": ["gap 1 identifié", "gap 2"],
+      "tacitExpertise": "phrase précise sur l'expertise tacite que ce fondateur a accumulée et que personne d'autre ne peut apprendre rapidement",
+      "transposedExperiences": ["expérience 1 transposable au défi présent", "expérience 2"],
+      "redFlagsForRole": ["red flag spécifique au rôle si applicable, sinon liste vide"]
+    }
+  ]
 }
 
 Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.`;
@@ -135,7 +162,7 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3500);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 4500);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

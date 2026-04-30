@@ -64,6 +64,18 @@ export interface TeamAnalysisOutput {
   };
   redFlags: string[];
   greenFlags: string[];
+  // Analyse founder-market fit par fondateur (Eisenmann 2020)
+  founderMarketFit: Array<{
+    name: string;
+    role: string;
+    overallFitScore: number; // 0-100
+    trajectorySummary: string; // narratif dense de la trajectoire
+    fitSignals: string[]; // signaux positifs de founder-market fit
+    fitGaps: string[]; // gaps de founder-market fit
+    tacitExpertise: string; // expertise tacite asymétrique (ce que le fondateur sait que personne d'autre ne sait facilement)
+    transposedExperiences: string[]; // expériences antérieures transposables
+    redFlagsForRole: string[]; // red flags spécifiques pour son rôle
+  }>;
   realData?: any[]; // FounderRealData[] - voir lib/data-fetchers/sources.ts
 }
 
@@ -92,6 +104,21 @@ export interface MarketAnalysisOutput {
     relevance: string;
   }>;
   competitiveDynamic: string;
+  // Matrice concurrentielle binaire type Idinvest factsheet
+  competitiveMatrix: {
+    // Dimensions évaluées (8-12 max selon le secteur)
+    dimensions: string[];
+    // Players évalués : la startup analysée + ses concurrents directs
+    players: Array<{
+      name: string;
+      isTargetCompany: boolean;
+      // Pour chaque dimension dans le même ordre que dimensions[], une case présente (true) ou absente (false)
+      coverage: boolean[];
+    }>;
+    // Synthèse : combien de dimensions distingue la startup de ses concurrents
+    differentiationScore: number; // 0-100
+    differentiationRationale: string;
+  };
   realData?: any;
 }
 
