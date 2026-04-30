@@ -7,7 +7,10 @@ import { matchPatterns } from '@/lib/engines/pattern-engine';
 import { performCausalReversal } from '@/lib/engines/causal-engine';
 import { analyzeBlindspots } from '@/lib/engines/blindspot-engine';
 import { analyzeContrarian } from '@/lib/engines/contrarian-engine';
+import { extractFinancialData } from '@/lib/engines/financial-extraction-engine';
+import { analyzeFinancialCoherence } from '@/lib/engines/financial-coherence-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
+import { processFiles } from '@/lib/file-processor';
 
 export const maxDuration = 300; // 5 minutes max
 export const dynamic = 'force-dynamic';
@@ -15,15 +18,30 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get('pitchdeck') as File;
 
-    if (!file || !file.type.includes('pdf')) {
-      return new Response(JSON.stringify({ error: 'PDF requis' }), { status: 400 });
+    // Récupérer tous les fichiers (clé "files" multiple, ou ancien "pitchdeck" pour compat)
+    const files: File[] = [];
+    const filesEntries = formData.getAll('files');
+    for (const entry of filesEntries) {
+      if (entry instanceof File) files.push(entry);
+    }
+    // Compat ascendante : ancien champ "pitchdeck"
+    const legacyFile = formData.get('pitchdeck');
+    if (legacyFile instanceof File) files.push(legacyFile);
+
+    if (files.length === 0) {
+      return new Response(JSON.stringify({ error: 'Au moins un fichier requis' }), { status: 400 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Pdf = Buffer.from(arrayBuffer).toString('base64');
+    // Classification et extraction du contenu
+    const { pitchDeck, businessPlan, others } = await processFiles(files);
+
+    if (!pitchDeck) {
+      return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
+    }
+
     const startTime = Date.now();
+    const allFileNames = [pitchDeck.name, ...(businessPlan ? [businessPlan.name] : []), ...others.map(o => o.name)];
 
     // Streaming SSE
     const stream = new ReadableStream({
@@ -36,40 +54,50 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          // Moteur 1 : Extraction
+          // Indication des fichiers reçus
+          send('files-received', {
+            pitchDeck: pitchDeck.name,
+            businessPlan: businessPlan?.name || null,
+            others: others.map(o => o.name),
+          });
+
+          // Moteur 1 : Extraction du pitch deck
           send('engine-start', { engine: 'extraction', label: 'Extraction du contenu du pitch deck' });
-          const extraction = await extractFromDeck(base64Pdf);
+          const extraction = await extractFromDeck(pitchDeck.payload);
           send('engine-done', { engine: 'extraction', output: extraction });
 
-          // Moteurs 2, 3, 4 en parallèle (équipe, marché, macro)
+          // Moteurs 2, 3, 4 + Extraction financière en parallèle
           send('engine-start', { engine: 'team', label: 'Analyse de l\'équipe fondatrice' });
           send('engine-start', { engine: 'market', label: 'Analyse du marché et de la concurrence' });
           send('engine-start', { engine: 'macro', label: 'Lecture macro et géopolitique' });
+          send('engine-start', { engine: 'financial-extraction', label: businessPlan ? 'Extraction des données financières (deck + BP)' : 'Extraction des données financières (deck)' });
 
-          const [team, market, macro] = await Promise.all([
+          const [team, market, macro, financialData] = await Promise.all([
             analyzeTeam(extraction).then(r => { send('engine-done', { engine: 'team', output: r }); return r; }),
             analyzeMarket(extraction).then(r => { send('engine-done', { engine: 'market', output: r }); return r; }),
             analyzeMacro(extraction).then(r => { send('engine-done', { engine: 'macro', output: r }); return r; }),
+            extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { send('engine-done', { engine: 'financial-extraction', output: r }); return r; }),
           ]);
 
-          // Moteur 5 : Pattern Matching (consomme outputs 1, 2, 3, 4)
+          // Moteur 5 : Pattern Matching
           send('engine-start', { engine: 'pattern', label: 'Pattern matching contre le corpus de cas' });
           const patternMatching = await matchPatterns(extraction, team, market, macro);
           send('engine-done', { engine: 'pattern', output: patternMatching });
 
-          // Moteurs 6, 7, 8 en parallèle : Causal + Aveuglement + Singularités
-          // Tous trois consomment les sorties précédentes mais sont indépendants entre eux
+          // Moteurs 6, 7, 8, 14 en parallèle
           send('engine-start', { engine: 'causal', label: 'Retournement causal et identification des angles morts' });
           send('engine-start', { engine: 'blindspot', label: 'Détection des patterns d\'aveuglement collectif (10 patterns)' });
           send('engine-start', { engine: 'contrarian', label: 'Détection des singularités contrariennes (10 signaux)' });
+          send('engine-start', { engine: 'financial-coherence', label: 'Tests de cohérence financière (7 tests)' });
 
-          const [causalReversal, blindspotAnalysis, contrarianAnalysis] = await Promise.all([
+          const [causalReversal, blindspotAnalysis, contrarianAnalysis, financialCoherence] = await Promise.all([
             performCausalReversal(extraction, team, market, macro, patternMatching).then(r => { send('engine-done', { engine: 'causal', output: r }); return r; }),
             analyzeBlindspots(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'blindspot', output: r }); return r; }),
             analyzeContrarian(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'contrarian', output: r }); return r; }),
+            analyzeFinancialCoherence(extraction, financialData, market).then(r => { send('engine-done', { engine: 'financial-coherence', output: r }); return r; }),
           ]);
 
-          // Moteur 9 : Orchestration finale enrichie (probabilités chiffrées, tension dialectique)
+          // Moteur 9 : Orchestration finale
           send('engine-start', { engine: 'orchestrate', label: 'Synthèse finale avec probabilités chiffrées et résolution dialectique' });
           const finalRecommendation = await orchestrateFinalRecommendation(
             extraction, team, market, macro, patternMatching, causalReversal,
@@ -77,14 +105,15 @@ export async function POST(req: NextRequest) {
           );
           send('engine-done', { engine: 'orchestrate', output: finalRecommendation });
 
-          // Résultat final consolidé
           const result = {
             meta: {
-              filename: file.name,
+              filename: pitchDeck.name,
+              additionalFiles: allFileNames.filter(n => n !== pitchDeck.name),
               analyzedAt: new Date().toISOString(),
               durationMs: Date.now() - startTime,
             },
             extraction,
+            financialData,
             team,
             market,
             macro,
@@ -92,6 +121,7 @@ export async function POST(req: NextRequest) {
             causalReversal,
             blindspotAnalysis,
             contrarianAnalysis,
+            financialCoherence,
             finalRecommendation,
           };
 

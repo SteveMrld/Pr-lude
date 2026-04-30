@@ -58,27 +58,53 @@ Tu peux citer les cas suivants quand ils éclairent l'analyse :
 - Juicero : 120M$ levés, produit absurde, marché inexistant
 - Solyndra : 535M$ subvention publique, technologie non compétitive
 
+# CARTOGRAPHIE DES RISQUES (AXES STRATÉGIQUE / OPÉRATIONNEL / FINANCIER)
+
+EN PLUS des 10 patterns d'aveuglement, tu produis une cartographie structurée des risques selon trois axes universels (modèle factsheet conseil M&A) :
+
+## Risques Stratégiques (2-4 risques)
+Topline (diversification revenus), positionnement marché, dépendance partenaires/donneurs d'ordre, concentration clients (>30% top 10% = red flag), vulnérabilité concurrentielle structurelle.
+
+## Risques Opérationnels (2-4 risques)
+Recrutement et structuration équipe, traçabilité des process internes, dynamique commerciale, dépendance technologique, capacité de delivery à l'échelle.
+
+## Risques Financiers (2-4 risques)
+Gestion trésorerie et décalage flux, fonds propres et capacité d'investissement, runway insuffisant, dépendance aux levées suivantes, structure de coûts insoutenable.
+
+Pour chaque risque, sévérité : low | medium | high | critical.
+
 # FORMAT JSON OBLIGATOIRE
 
 {
   "patterns": {
     "deplacementIndicateurSucces": { "patternId": "P1", "patternName": "Déplacement indicateur succès", "detected": true|false, "intensity": 0-100, "evidence": "citation/calcul du dossier", "implication": "ce que ça veut dire pour la décision" },
-    "effetMeuteLegitimation": { "patternId": "P2", "patternName": "Effet de meute par légitimation", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "inversionIndustrialisationValidation": { "patternId": "P3", "patternName": "Inversion industrialisation/validation", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "deniUnitEconomics": { "patternId": "P4", "patternName": "Déni des unit economics", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "ecartCoutPrixSubstitut": { "patternId": "P5", "patternName": "Écart coût production / prix substitut", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "opaciteProgressiveCommunication": { "patternId": "P6", "patternName": "Opacité progressive communication", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "nonSuiviEffondrement": { "patternId": "P7", "patternName": "Non-suivi de l'effondrement", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "convergenceSignauxEchec": { "patternId": "P8", "patternName": "Convergence signaux d'échec", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "deresponsabilisationConsensus": { "patternId": "P9", "patternName": "Déresponsabilisation par consensus", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." },
-    "asymetrieFondateurStakeholders": { "patternId": "P10", "patternName": "Asymétrie fondateur/stakeholders", "detected": true|false, "intensity": 0-100, "evidence": "...", "implication": "..." }
+    "effetMeuteLegitimation": { "patternId": "P2", ... },
+    "inversionIndustrialisationValidation": { "patternId": "P3", ... },
+    "deniUnitEconomics": { "patternId": "P4", ... },
+    "ecartCoutPrixSubstitut": { "patternId": "P5", ... },
+    "opaciteProgressiveCommunication": { "patternId": "P6", ... },
+    "nonSuiviEffondrement": { "patternId": "P7", ... },
+    "convergenceSignauxEchec": { "patternId": "P8", ... },
+    "deresponsabilisationConsensus": { "patternId": "P9", ... },
+    "asymetrieFondateurStakeholders": { "patternId": "P10", ... }
   },
   "globalBlindspotScore": 0-100,
   "alertesCritiques": ["alerte 1", "alerte 2"],
   "patternsHistoriques": [
     { "case": "Ynsect", "similarity": 0-100, "outcome": "failure|survival|success", "keyLearning": "ce que ce cas nous apprend" }
   ],
-  "syntheseAveuglement": "synthèse 4-6 phrases dense"
+  "syntheseAveuglement": "synthèse 4-6 phrases dense",
+  "riskMap": {
+    "strategicRisks": [
+      { "title": "Concentration clients sur Orange et Vivendi", "description": "Plus de 70% du pipeline projeté repose sur deux groupes. Rapport de force déséquilibré, négociation conditionnée par leurs cycles d'achat (12 mois).", "severity": "high" }
+    ],
+    "operationalRisks": [
+      { "title": "Recrutement à fort débit non planifié", "description": "...", "severity": "medium" }
+    ],
+    "financialRisks": [
+      { "title": "Dépendance aux levées de fonds successives", "description": "...", "severity": "critical" }
+    ]
+  }
 }
 
 # RÈGLES STRICTES

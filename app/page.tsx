@@ -7,11 +7,13 @@ const ENGINES = [
   { id: 'team', name: 'Moteur 2 · Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience' },
   { id: 'market', name: 'Moteur 3 · Marché', label: 'Intensité du besoin, défensibilité, comparables internationaux' },
   { id: 'macro', name: 'Moteur 4 · Macro', label: 'Position cycle, géopolitique, fenêtre temporelle critique' },
-  { id: 'pattern', name: 'Moteur 5 · Pattern matching', label: 'Confrontation au corpus de cas instruits' },
-  { id: 'causal', name: 'Moteur 6 · Retournement causal', label: 'Sept angles morts et questions à instruire' },
-  { id: 'blindspot', name: 'Moteur 7 · Aveuglement collectif', label: 'Détection des dix patterns d\'erreur de jugement VC' },
-  { id: 'contrarian', name: 'Moteur 8 · Singularités contrariennes', label: 'Détection des dix signaux qui justifient le pari à contre-courant' },
-  { id: 'orchestrate', name: 'Moteur 9 · Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
+  { id: 'financial-extraction', name: 'Moteur 5 · Extraction financière', label: 'Données financières du deck et du business plan' },
+  { id: 'pattern', name: 'Moteur 6 · Pattern matching', label: 'Confrontation au corpus de cas instruits' },
+  { id: 'causal', name: 'Moteur 7 · Retournement causal', label: 'Sept angles morts et questions à instruire' },
+  { id: 'blindspot', name: 'Moteur 8 · Aveuglement collectif', label: 'Détection des dix patterns d\'erreur de jugement VC' },
+  { id: 'contrarian', name: 'Moteur 9 · Singularités contrariennes', label: 'Détection des dix signaux qui justifient le pari à contre-courant' },
+  { id: 'financial-coherence', name: 'Moteur 10 · Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics' },
+  { id: 'orchestrate', name: 'Moteur 11 · Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
 ];
 
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -39,7 +41,7 @@ type EngineState = {
 };
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [engineStates, setEngineStates] = useState<Record<string, EngineState>>(
     Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }]))
@@ -50,17 +52,45 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('synthesis');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function handleFileSelect(f: File | null) {
-    if (!f) return;
-    if (!f.type.includes('pdf')) { setError('Le fichier doit être un PDF'); return; }
-    if (f.size > 32 * 1024 * 1024) { setError('Le fichier dépasse 32 Mo'); return; }
-    setFile(f);
-    setError(null);
+  function handleFilesSelect(newFiles: FileList | null) {
+    if (!newFiles || newFiles.length === 0) return;
+    const accepted: File[] = [];
+    const rejected: string[] = [];
+    for (const f of Array.from(newFiles)) {
+      const lower = f.name.toLowerCase();
+      const isPdf = f.type.includes('pdf') || lower.endsWith('.pdf');
+      const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv');
+      if (!isPdf && !isExcel) {
+        rejected.push(f.name);
+        continue;
+      }
+      if (f.size > 32 * 1024 * 1024) {
+        rejected.push(f.name + ' (dépasse 32 Mo)');
+        continue;
+      }
+      accepted.push(f);
+    }
+    if (rejected.length > 0) {
+      setError('Fichiers refusés : ' + rejected.join(', ') + '. Formats acceptés : PDF, XLSX, XLS, CSV.');
+    } else {
+      setError(null);
+    }
+    setFiles(prev => [...prev, ...accepted]);
+    setResult(null);
+  }
+
+  function removeFile(index: number) {
+    setFiles(prev => prev.filter((_, i) => i !== index));
     setResult(null);
   }
 
   async function analyze() {
-    if (!file) return;
+    if (files.length === 0) return;
+    const hasPdf = files.some(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
+    if (!hasPdf) {
+      setError('Au moins un fichier PDF (pitch deck) est requis');
+      return;
+    }
     setAnalyzing(true);
     setError(null);
     setResult(null);
@@ -68,7 +98,9 @@ export default function Home() {
 
     try {
       const formData = new FormData();
-      formData.append('pitchdeck', file);
+      for (const f of files) {
+        formData.append('files', f);
+      }
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
 
@@ -132,7 +164,7 @@ export default function Home() {
   }
 
   function reset() {
-    setFile(null);
+    setFiles([]);
     setResult(null);
     setError(null);
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
@@ -155,7 +187,7 @@ export default function Home() {
       <header className="header">
         <div>
           <div className="brand">Prélude</div>
-          <div className="brand-meta">Plateforme d'instruction · Neuf moteurs interconnectés</div>
+          <div className="brand-meta">Plateforme d'instruction · Dix moteurs interconnectés</div>
         </div>
       </header>
 
@@ -164,32 +196,49 @@ export default function Home() {
           <>
             <h1 className="page-title">Le moteur d'instruction.</h1>
             <p className="page-subtitle">
-              Déposez un pitch deck. Neuf moteurs interconnectés analysent le dossier en pipeline :
+              Déposez un dossier d'investissement complet : pitch deck PDF, business plan Excel/CSV, et tout autre document utile.
+              Dix moteurs interconnectés analysent le dossier en pipeline :
               extraction, équipe, marché, lecture macro, pattern matching, retournement causal,
-              aveuglement collectif, singularités contrariennes, et synthèse finale chiffrée.
+              aveuglement collectif, singularités contrariennes, cohérence financière, et synthèse finale chiffrée.
             </p>
 
-            {!file ? (
+            {files.length === 0 ? (
               <div className={`upload-box ${dragging ? 'dragging' : ''}`}
                 onClick={() => inputRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileSelect(e.dataTransfer.files[0]); }}>
+                onDrop={(e) => { e.preventDefault(); setDragging(false); handleFilesSelect(e.dataTransfer.files); }}>
                 <div className="upload-icon">▤</div>
-                <div className="upload-label">Déposer un pitch deck</div>
-                <div className="upload-hint">Format PDF · 32 Mo maximum · Cliquer ou glisser-déposer</div>
-                <input ref={inputRef} type="file" accept="application/pdf,.pdf"
+                <div className="upload-label">Déposer un dossier d'investissement</div>
+                <div className="upload-hint">PDF (deck), XLSX/CSV (BP), 32 Mo max par fichier · Cliquer ou glisser-déposer · Plusieurs fichiers acceptés</div>
+                <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
                   className="upload-input"
-                  onChange={(e) => handleFileSelect(e.target.files?.[0] || null)} />
+                  onChange={(e) => handleFilesSelect(e.target.files)} />
               </div>
             ) : (
               <>
-                <div className="file-info">
-                  <div>
-                    <div className="file-name">{file.name}</div>
-                    <div className="file-size">{(file.size / 1024 / 1024).toFixed(2)} Mo</div>
-                  </div>
-                  <button className="btn" onClick={reset}>Changer</button>
+                <div style={{ marginBottom: 16 }}>
+                  {files.map((f, i) => {
+                    const lower = f.name.toLowerCase();
+                    const isPdf = f.type.includes('pdf') || lower.endsWith('.pdf');
+                    const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv');
+                    const nature = lower.includes('business plan') || lower.includes('bp ') || lower.includes('financial') || isExcel
+                      ? 'Business Plan'
+                      : (lower.includes('pitch') || lower.includes('deck') || lower.includes('teaser') || isPdf ? 'Pitch Deck' : 'Document');
+                    return (
+                      <div key={i} className="file-info" style={{ marginBottom: 8 }}>
+                        <div>
+                          <div className="file-name">{f.name}</div>
+                          <div className="file-size">{(f.size / 1024 / 1024).toFixed(2)} Mo · <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10, opacity: 0.7 }}>{nature}</span></div>
+                        </div>
+                        <button className="btn" onClick={() => removeFile(i)}>Retirer</button>
+                      </div>
+                    );
+                  })}
+                  <button className="btn" style={{ marginTop: 8 }} onClick={() => inputRef.current?.click()}>+ Ajouter un fichier</button>
+                  <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                    style={{ display: 'none' }}
+                    onChange={(e) => { handleFilesSelect(e.target.files); if (inputRef.current) inputRef.current.value = ''; }} />
                 </div>
                 <div className="cta-row">
                   <button className="btn btn-primary" onClick={analyze}>Lancer le pipeline →</button>
@@ -205,7 +254,7 @@ export default function Home() {
           <div className="pipeline">
             <div className="pipeline-head">
               <div className="pipeline-title">Pipeline en cours d'exécution</div>
-              <div className="pipeline-sub">Neuf moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
+              <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
             </div>
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
@@ -352,6 +401,8 @@ export default function Home() {
                 {[
                   { id: 'synthesis', label: 'Synthèse' },
                   { id: 'dimensions', label: 'Dimensions chiffrées' },
+                  { id: 'financial', label: 'Cohérence financière' },
+                  { id: 'risksplan', label: 'Risques & Plan' },
                   { id: 'blindspots', label: 'Angles morts' },
                   { id: 'aveuglement', label: 'Aveuglement' },
                   { id: 'singularite', label: 'Singularités' },
@@ -460,6 +511,216 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'financial' && (
+                <div style={{ padding: '28px 32px' }}>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                    Cohérence financière · Sept tests structurés
+                  </h3>
+
+                  {(!result.financialCoherence || !result.financialCoherence.hasFinancialData) ? (
+                    <div style={{ padding: '20px 24px', background: '#faf3ec', border: '1px solid #c4a484', marginBottom: 20 }}>
+                      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#7c4d2c', marginBottom: 6 }}>Données financières insuffisantes</div>
+                      <p style={{ fontSize: 14, margin: 0 }}>
+                        Aucun business plan exploitable n'a été fourni avec ce dossier. La cohérence financière ne peut pas être testée en l'état.
+                        Demander au fondateur un BP structuré au format Excel ou CSV avant de poursuivre l'instruction.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ marginBottom: 20, padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)' }}>
+                        <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
+                          <div>
+                            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score global cohérence </span>
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.financialCoherence.globalCoherenceScore}/100</span>
+                          </div>
+                          <div style={{ fontSize: 12, opacity: 0.7 }}>
+                            Source : {result.financialCoherence.dataSource === 'both' ? 'Pitch deck + Business plan' : result.financialCoherence.dataSource === 'bp' ? 'Business plan' : 'Pitch deck uniquement'}
+                          </div>
+                          <div style={{ fontSize: 12, opacity: 0.7 }}>
+                            Tests passés : {Object.values(result.financialCoherence.tests || {}).filter((t: any) => t?.passed).length}/7
+                          </div>
+                        </div>
+                        <p style={{ fontSize: 14, margin: 0 }}>{result.financialCoherence.syntheseCoherence}</p>
+                      </div>
+
+                      {result.financialCoherence.alertesCritiques?.length > 0 && (
+                        <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid #c4a484', background: '#faf3ec' }}>
+                          <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: '#7c4d2c' }}>Alertes critiques</div>
+                          <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+                            {result.financialCoherence.alertesCritiques.map((a: string, i: number) => <li key={i}>{a}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, marginBottom: 24 }}>
+                        {Object.values(result.financialCoherence.tests || {}).map((t: any, i: number) => (
+                          <div key={i} style={{
+                            padding: 16,
+                            border: '1px solid var(--hairline)',
+                            background: 'var(--surface)',
+                            borderLeft: t?.passed ? '3px solid #3a5a3a' : '3px solid #a04040',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>
+                                {t.testId} · {t.testName}
+                              </div>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{t.score}/100</div>
+                            </div>
+                            <div style={{ height: 3, background: 'rgba(0,0,0,0.06)', marginBottom: 10 }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${t.score}%`,
+                                background: t.score >= 70 ? '#3a5a3a' : t.score >= 40 ? '#888' : '#a04040',
+                              }} />
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
+                              <strong style={{ fontWeight: 500 }}>Calcul / observation :</strong> {t.evidence}
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>
+                              <strong style={{ fontWeight: 500 }}>Benchmark :</strong> {t.benchmark}
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.75 }}>
+                              <strong style={{ fontWeight: 500 }}>Implication :</strong> {t.implication}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {result.financialCoherence.recalculsEffectues?.length > 0 && (
+                        <div style={{ marginBottom: 24 }}>
+                          <h4 style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Recalculs effectués</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                            {result.financialCoherence.recalculsEffectues.map((r: any, i: number) => (
+                              <div key={i} style={{ padding: 14, border: '1px solid var(--hairline)' }}>
+                                <div style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>{r.metric}</div>
+                                <div style={{ display: 'flex', gap: 16, marginBottom: 6 }}>
+                                  <div>
+                                    <div style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Déclaré</div>
+                                    <div style={{ fontSize: 14 }}>{r.declaredValue}</div>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recalculé</div>
+                                    <div style={{ fontSize: 14 }}>{r.recalculatedValue}</div>
+                                  </div>
+                                </div>
+                                <div style={{ fontSize: 12, opacity: 0.8 }}>{r.discrepancy}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {result.financialCoherence.incoherenceDeckVsBP?.length > 0 && (
+                        <div>
+                          <h4 style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Incohérences entre pitch deck et business plan</h4>
+                          <ul style={{ paddingLeft: 18, lineHeight: 1.6, fontSize: 13 }}>
+                            {result.financialCoherence.incoherenceDeckVsBP.map((inc: string, i: number) => <li key={i}>{inc}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'risksplan' && (
+                <div style={{ padding: '28px 32px' }}>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                    Cartographie des risques · Trois axes
+                  </h3>
+                  <p style={{ fontSize: 13, opacity: 0.8, marginTop: -4, marginBottom: 18 }}>
+                    Évaluation préliminaire structurée selon le cadre conseil M&A : risques stratégiques, opérationnels, financiers.
+                  </p>
+
+                  {result.blindspotAnalysis?.riskMap ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
+                      {[
+                        { key: 'strategicRisks', title: 'Risques stratégiques', color: '#1F2D3D' },
+                        { key: 'operationalRisks', title: 'Risques opérationnels', color: '#3a5a3a' },
+                        { key: 'financialRisks', title: 'Risques financiers', color: '#a04040' },
+                      ].map(cat => {
+                        const risks = result.blindspotAnalysis.riskMap[cat.key] || [];
+                        return (
+                          <div key={cat.key} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                            <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 14, paddingBottom: 10, borderBottom: `2px solid ${cat.color}` }}>
+                              {cat.title}
+                            </div>
+                            {risks.length === 0 ? (
+                              <div style={{ fontSize: 12, opacity: 0.6, fontStyle: 'italic' }}>Aucun risque identifié dans cette catégorie</div>
+                            ) : (
+                              <div>
+                                {risks.map((r: any, i: number) => {
+                                  const sevColor = r.severity === 'critical' ? '#a04040' : r.severity === 'high' ? '#c4a484' : r.severity === 'medium' ? '#888' : '#bbb';
+                                  return (
+                                    <div key={i} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: i < risks.length - 1 ? '1px solid var(--hairline)' : 'none' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                                        <div style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500 }}>{r.title}</div>
+                                        <div style={{ fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: sevColor, fontWeight: 600 }}>{r.severity}</div>
+                                      </div>
+                                      <div style={{ fontSize: 12, opacity: 0.85, lineHeight: 1.5 }}>{r.description}</div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 13, opacity: 0.6, fontStyle: 'italic', marginBottom: 32 }}>
+                      Cartographie des risques non disponible.
+                    </div>
+                  )}
+
+                  {result.finalRecommendation?.structuringPlan ? (
+                    <>
+                      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                        Plan de chantiers de structuration
+                      </h3>
+                      <p style={{ fontSize: 13, opacity: 0.8, marginTop: -4, marginBottom: 18 }}>
+                        Trois horizons d'action structurants si la décision est d'investir avec conditions ou d'approfondir.
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+                        {[
+                          { key: 'shortTerm', title: 'Court terme · 0-3 mois', subtitle: 'Pré-requis et clarté' },
+                          { key: 'mediumTerm', title: 'Moyen terme · 3-12 mois', subtitle: 'Structuration & développement' },
+                          { key: 'longTerm', title: 'Long terme · 12+ mois', subtitle: 'Maturité & vision groupe' },
+                        ].map(horizon => {
+                          const actions = result.finalRecommendation.structuringPlan[horizon.key] || [];
+                          return (
+                            <div key={horizon.key} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                              <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>{horizon.title}</div>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid var(--hairline)' }}>
+                                {horizon.subtitle}
+                              </div>
+                              {actions.length === 0 ? (
+                                <div style={{ fontSize: 12, opacity: 0.6, fontStyle: 'italic' }}>Aucune action sur cet horizon</div>
+                              ) : (
+                                <div>
+                                  {actions.map((a: any, i: number) => (
+                                    <div key={i} style={{ marginBottom: 12 }}>
+                                      <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: 'var(--ink)', marginBottom: 3 }}>
+                                        {a.axis}
+                                      </div>
+                                      <div style={{ fontSize: 13, lineHeight: 1.5 }}>{a.action}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 13, opacity: 0.6, fontStyle: 'italic' }}>
+                      Plan de chantiers non applicable pour ce verdict (réservé aux verdicts "investir avec conditions" et "approfondir").
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1005,7 +1266,81 @@ export default function Home() {
                     ))}
                   </div>
 
-                  <h3>Benchmark rétrospectif</h3>
+                  {result.patternMatching?.internationalBenchmarks?.length > 0 && (
+                    <>
+                      <h3 style={{ marginTop: 32 }}>Comparables internationaux étayés</h3>
+                      <p style={{ fontSize: 13, opacity: 0.8, marginTop: -6, marginBottom: 16 }}>
+                        Trois cas internationaux dont la trajectoire éclaire le dossier en cours, avec données chiffrées et facteurs clés.
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
+                        {result.patternMatching.internationalBenchmarks.map((b: any, i: number) => (
+                          <div key={i} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500 }}>{b.name}</div>
+                              <div style={{ fontSize: 11, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{b.geography}</div>
+                            </div>
+                            <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              {b.sector} · fondé en {b.foundedYear}
+                            </div>
+                            <div style={{ marginBottom: 12, padding: '10px 12px', background: 'rgba(0,0,0,0.03)', fontSize: 13 }}>
+                              <strong style={{ fontWeight: 500 }}>Pari initial :</strong> {b.initialBet}
+                            </div>
+                            {b.trajectory?.length > 0 && (
+                              <div style={{ marginBottom: 14 }}>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 8 }}>Trajectoire chiffrée</div>
+                                {b.trajectory.map((t: any, j: number) => (
+                                  <div key={j} style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: 12 }}>
+                                    <div style={{ minWidth: 50, fontFamily: 'var(--serif)', fontWeight: 500 }}>{t.year}</div>
+                                    <div style={{ flex: 1 }}>
+                                      <div>{t.milestone}</div>
+                                      <div style={{ opacity: 0.7, fontSize: 11 }}>{t.revenueOrFunding}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div style={{ marginBottom: 10, paddingTop: 10, borderTop: '1px solid var(--hairline)' }}>
+                              <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
+                                <div>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Outcome</div>
+                                  <div style={{ fontSize: 13 }}>{b.outcome}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Valuation finale</div>
+                                  <div style={{ fontSize: 13 }}>{b.finalValuation}</div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Multiple exit</div>
+                                  <div style={{ fontSize: 13 }}>{b.multipleAtExit}</div>
+                                </div>
+                              </div>
+                            </div>
+                            {b.keySuccessFactors?.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>Facteurs de succès</div>
+                                <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                                  {b.keySuccessFactors.map((f: string, j: number) => <li key={j}>{f}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {b.keyFailureFactors?.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>Facteurs d'échec</div>
+                                <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                                  {b.keyFailureFactors.map((f: string, j: number) => <li key={j}>{f}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--hairline)', fontSize: 12, fontStyle: 'italic', opacity: 0.85 }}>
+                              <strong style={{ fontWeight: 500, fontStyle: 'normal' }}>Pertinence pour ce dossier :</strong> {b.relevanceToCurrentDeal}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <h3 style={{ marginTop: 32 }}>Benchmark rétrospectif</h3>
                   <p><strong>Score moyen des comparables :</strong> {result.patternMatching?.retrospectiveBenchmark?.averageScore}/100</p>
                   <p>{result.patternMatching?.retrospectiveBenchmark?.successRate}</p>
                   <p>{result.patternMatching?.retrospectiveBenchmark?.insights}</p>

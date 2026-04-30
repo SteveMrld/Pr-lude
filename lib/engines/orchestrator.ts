@@ -78,6 +78,21 @@ Dense, contraignante, 5-7 phrases qui synthétisent :
 Si verdict = "investir avec conditions", liste 3-5 conditions précises et négociables, actionnables.
 Pour TOUS les verdicts, identifie 3-5 decision drivers : les facteurs qui font basculer la décision dans un sens ou l'autre.
 
+# PLAN DE CHANTIERS DE STRUCTURATION
+
+Si verdict = "investir avec conditions" OU "approfondir", tu produis EN PLUS un plan de chantiers structurant à 3 horizons. C'est un livrable de partner senior qui transforme une recommandation en plan d'action.
+
+5 axes possibles : gouvernance, finance, opérations, communication, ESG.
+
+Pour chaque axe pertinent au dossier, tu produis 1-3 actions par horizon :
+- Court terme (0-3 mois) : actions immédiates, low-hanging fruits, pré-requis avant signature
+- Moyen terme (3-12 mois) : structuration progressive
+- Long terme (12+ mois) : maturité et passage à l'échelle
+
+Format pour chaque action : { "axis": "gouvernance|finance|opérations|communication|esg", "action": "description précise et actionnable" }.
+
+Si verdict = "investir" ou "refuser", structuringPlan = null.
+
 # FORMAT JSON OBLIGATOIRE
 
 {
@@ -115,7 +130,18 @@ Pour TOUS les verdicts, identifie 3-5 decision drivers : les facteurs qui font b
   },
   "argumentation": "argumentation dense de 5-7 phrases",
   "keyConditions": ["condition 1 actionnable", "condition 2", ...],
-  "decisionDrivers": ["facteur décisif 1", "facteur décisif 2", "facteur décisif 3"]
+  "decisionDrivers": ["facteur décisif 1", "facteur décisif 2", "facteur décisif 3"],
+  "structuringPlan": {
+    "shortTerm": [
+      { "axis": "gouvernance", "action": "Formaliser pacte d'actionnaires avec clauses de protection investor (drag-along, tag-along, anti-dilution)" }
+    ],
+    "mediumTerm": [
+      { "axis": "finance", "action": "Mettre en place tableau de bord cash-flow rolling 24 mois et reporting mensuel CODIR" }
+    ],
+    "longTerm": [
+      { "axis": "opérations", "action": "Automatisation des workflows commerciaux avec ERP intégré CRM/facturation/reporting" }
+    ]
+  }
 }
 
 Sois rigoureux. Pas de complaisance. Pas de surévaluation par enthousiasme. La plateforme tire sa valeur de la rigueur de ses verdicts ET de la précision de ses probabilités chiffrées.
@@ -221,6 +247,6 @@ Produis la recommandation finale avec :
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 5000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
   return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
 }

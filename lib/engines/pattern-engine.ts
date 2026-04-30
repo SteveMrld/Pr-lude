@@ -95,17 +95,36 @@ Liste de patterns récurrents que tu peux invoquer :
 4. Identifie les patterns transversaux qui s'appliquent au dossier
 5. Calcule un benchmark rétrospectif basé sur les cas du corpus avec patterns similaires
 
+# COMPARABLES INTERNATIONAUX ÉTAYÉS
+
+EN PLUS des comparables du corpus, tu produis 3 COMPARABLES INTERNATIONAUX ÉTAYÉS qui éclairent le dossier de l'extérieur. Au moins UN comparable hors Europe (US ou Asie). Pour chaque comparable international, tu fournis une fiche structurée avec :
+- Pays/géographie
+- Secteur
+- Année fondation
+- Pari stratégique initial pris
+- Trajectoire chiffrée (3-5 jalons clés avec dates et chiffres : revenue, funding, customers, exit)
+- Outcome final (success-public IPO, success-acquired M&A, survival-private, failed, pivot, ongoing)
+- Valuation finale chiffrée
+- Multiple à l'exit (ex: 1000x pour Series A investors)
+- Si succès : facteurs clés de succès (3-4 points)
+- Si échec : facteurs clés d'échec (3-4 points)
+- Pertinence pour le dossier en cours : ce que ce cas nous apprend concrètement
+
+Ces comparables doivent être RÉELS et VÉRIFIABLES. Tu peux citer : Stripe, Datadog, Snowflake, Notion, Figma, Airtable, Toast, Klaviyo, Wiz, Anthropic, OpenAI, Stability AI, Hugging Face, MongoDB, Twilio, Zoom, Slack, Atlassian (US/Asia/Europe), Sea Limited, Grab, Coupang, Nio, BYD, Sea AI, Nubank (Asia/LatAm), Paystack, Flutterwave, Andela (Africa), Klarna, Spotify, Adyen, UiPath (Europe), Toast, Shopify (US/Canada). Aussi des échecs documentés : Quibi, Jawbone, Theranos, Better.com, Solyndra, Ynsect.
+
+Tu choisis les comparables LES PLUS PERTINENTS pour le dossier en cours, en cherchant des analogies structurelles fortes (modèle économique, marché, timing, équipe).
+
 # FORMAT JSON OBLIGATOIRE
 
 {
-  "archetypeDominant": "interpretive" ou "depth" ou "capacity" ou "cumulative-mid" ou "cumulative-long",
+  "archetypeDominant": "interpretive" | "depth" | "capacity" | "cumulative-mid" | "cumulative-long",
   "archetypeRationale": "phrase qui justifie le choix d'archétype",
   "comparables": [
     {
       "caseId": "id du cas (helsing, doctolib, etc.)",
       "name": "nom",
       "year": année,
-      "proximity": 0-100 (raffine la proximité algorithmique avec ton jugement structurel),
+      "proximity": 0-100,
       "structuralAnalogy": "phrase précise sur l'analogie structurelle",
       "sharedPatterns": ["patterns partagés"],
       "divergences": ["points où le dossier diverge du cas"]
@@ -116,7 +135,28 @@ Liste de patterns récurrents que tu peux invoquer :
     "averageScore": moyenne des retrospectiveScore des 3 comparables,
     "successRate": "phrase qui qualifie le taux de succès des cas comparables",
     "insights": "phrase qui synthétise ce que les comparables nous apprennent sur ce dossier"
-  }
+  },
+  "internationalBenchmarks": [
+    {
+      "name": "Stripe",
+      "geography": "US",
+      "sector": "Online payments infrastructure",
+      "foundedYear": 2010,
+      "initialBet": "API-first developer experience pour paiements en ligne, contre PayPal qui dominait le marché en B2C",
+      "trajectory": [
+        { "year": "2010", "milestone": "Fondation par Patrick et John Collison", "revenueOrFunding": "Seed 2M$ a16z" },
+        { "year": "2012", "milestone": "Series A", "revenueOrFunding": "20M$ valuation 100M$" },
+        { "year": "2016", "milestone": "Series D Atlas (incorporation API)", "revenueOrFunding": "150M$ valuation 9Md$" },
+        { "year": "2021", "milestone": "Series H peak valuation", "revenueOrFunding": "600M$ valuation 95Md$" }
+      ],
+      "outcome": "ongoing",
+      "finalValuation": "65Md$ (valuation 2024 après ajustements)",
+      "multipleAtExit": "~3000x pour Series Seed investors (paper)",
+      "keySuccessFactors": ["Founder-market fit exceptionnel (Collison brothers ex-fondateurs Auctomatic)", "Obsession DX pendant 5 ans avant scaling", "Recrutements early de top-tier engineering"],
+      "keyFailureFactors": [],
+      "relevanceToCurrentDeal": "Si le dossier en cours présente le même pattern API-first sur un marché dominé par un acteur grand public, Stripe montre que la fenêtre B2B/dev existe sur 5-7 ans"
+    }
+  ]
 }`;
 
 export async function matchPatterns(
@@ -176,6 +216,6 @@ ${top8.map(s => `- ${s.case.id} (${s.case.name}, ${s.case.yearOfRefusal}, ${s.ca
 
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3500);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 4500);
   return parseJSON<PatternMatchingOutput>(rawResponse);
 }
