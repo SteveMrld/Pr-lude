@@ -109,6 +109,7 @@ export default function Home() {
 
     try {
       localStorage.setItem('prelude_active_job', jobId);
+      localStorage.setItem('prelude_active_job_started_at', String(Date.now()));
     } catch (e) {}
 
     // Lance la POST. On garde la promesse dans une variable pour éviter le garbage collection
@@ -223,7 +224,19 @@ export default function Home() {
   function resumeActiveJob() {
     try {
       const activeJobId = localStorage.getItem('prelude_active_job');
+      const startedAt = localStorage.getItem('prelude_active_job_started_at');
       if (!activeJobId) return;
+
+      // Si le job a plus de 10 minutes, on le considère perdu et on nettoie le localStorage
+      const startTime = startedAt ? parseInt(startedAt, 10) : 0;
+      const ageMinutes = (Date.now() - startTime) / 60000;
+      if (!startTime || ageMinutes > 10) {
+        try {
+          localStorage.removeItem('prelude_active_job');
+          localStorage.removeItem('prelude_active_job_started_at');
+        } catch (e) {}
+        return;
+      }
 
       setAnalyzing(true);
       let attempts = 0;
@@ -369,6 +382,29 @@ export default function Home() {
               <strong>Sur mobile :</strong> tu peux mettre l'écran en veille, recevoir un appel ou changer d'application sans risque.
               L'analyse continue côté serveur. Quand tu reviens, la page se met automatiquement à jour.
               Le pipeline prend généralement 3 à 4 minutes.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('prelude_active_job');
+                    localStorage.removeItem('prelude_active_job_started_at');
+                  } catch (e) {}
+                  setAnalyzing(false);
+                  setFiles([]);
+                  setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
+                }}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  background: 'transparent',
+                  border: '1px solid var(--ink)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  color: 'var(--ink)',
+                }}>
+                Annuler et recommencer
+              </button>
             </div>
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
