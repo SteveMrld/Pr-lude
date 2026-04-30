@@ -55,7 +55,7 @@ export interface ArxivPaper {
   url: string;
 }
 
-const HEADERS = { 'User-Agent': 'PréludeVC/1.0 (research)' };
+const HEADERS = { 'User-Agent': 'Prelude-VC/1.0 (research; contact@prelude.example)' };
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, ms = 10000): Promise<Response | null> {
   try {
