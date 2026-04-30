@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import InvestmentNoteView from './components/InvestmentNoteView';
 
 const ENGINES = [
   { id: 'extraction', name: 'Moteur 1 · Extraction', label: 'Lecture du pitch deck et structuration des données' },
@@ -50,6 +51,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState('synthesis');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelect(newFiles: FileList | null) {
@@ -281,6 +283,45 @@ export default function Home() {
 
         {result && (
           <>
+            {/* Toggle de vue : Dashboard vs Note d'investissement */}
+            <div style={{ display: 'flex', gap: 0, marginBottom: 16, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setViewMode('dashboard')}
+                style={{
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  background: viewMode === 'dashboard' ? 'var(--ink)' : 'transparent',
+                  color: viewMode === 'dashboard' ? '#fefefe' : 'var(--ink)',
+                  border: '1px solid var(--ink)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}>
+                Dashboard analytique
+              </button>
+              <button
+                onClick={() => setViewMode('note')}
+                style={{
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  background: viewMode === 'note' ? 'var(--ink)' : 'transparent',
+                  color: viewMode === 'note' ? '#fefefe' : 'var(--ink)',
+                  border: '1px solid var(--ink)',
+                  borderLeft: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}>
+                Note d'investissement
+              </button>
+            </div>
+
+            {viewMode === 'note' ? (
+              <InvestmentNoteView result={result} />
+            ) : (
+              <>
             {/* Recommandation hero enrichie */}
             <div className="reco-card">
               <div className="small-caps" style={{ opacity: 0.7, marginBottom: 8 }}>Recommandation finale du pipeline</div>
@@ -1512,6 +1553,8 @@ export default function Home() {
                 </div>
               )}
             </div>
+              </>
+            )}
 
             <div className="reset-row">
               <button className="btn" onClick={reset}>Analyser un nouveau dossier</button>
