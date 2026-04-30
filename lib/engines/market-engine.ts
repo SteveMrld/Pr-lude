@@ -86,11 +86,17 @@ export async function analyzeMarket(extraction: ExtractionOutput): Promise<Marke
   const sectorKeyword = extraction.subSector || extraction.sector || 'technology';
   const productKeyword = extraction.productDescription?.split('.')[0]?.slice(0, 50);
 
-  const realData = await gatherMarketRealData(
-    extraction.companyName || '',
-    sectorKeyword,
-    productKeyword
-  );
+  const realData = await Promise.race([
+    gatherMarketRealData(
+      extraction.companyName || '',
+      sectorKeyword,
+      productKeyword
+    ),
+    new Promise<MarketRealData>((resolve) => setTimeout(() => resolve({
+      sourcesQueried: ['timeout'],
+      sourcesFound: [],
+    } as any), 10000)),
+  ]);
 
   // ÉTAPE 2 : Construire le résumé pour Claude
   let realDataSummary = `\n--- DONNÉES VÉRIFIÉES PAR SOURCES PUBLIQUES ---\n`;
@@ -167,7 +173,7 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3000);
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

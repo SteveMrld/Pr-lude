@@ -247,6 +247,6 @@ Produis la recommandation finale avec :
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
   return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
 }

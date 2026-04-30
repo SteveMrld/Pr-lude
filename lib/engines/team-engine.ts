@@ -92,7 +92,7 @@ Score founder-market fit individuel : 0-100. Sois rigoureux, ne sois pas complai
 Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.`;
 
 export async function analyzeTeam(extraction: ExtractionOutput): Promise<TeamAnalysisOutput & { realData?: FounderRealData[] }> {
-  // ÉTAPE 1 : Récupération de data réelle pour chaque fondateur
+  // ÉTAPE 1 : Récupération de data réelle pour chaque fondateur (timeout 8s par fondateur)
   const realDataPromises = (extraction.founders || []).map(async (founder) => {
     let hint: string | undefined;
     const bg = (founder.background || '').toLowerCase();
@@ -100,7 +100,15 @@ export async function analyzeTeam(extraction: ExtractionOutput): Promise<TeamAna
     for (const aff of knownAffs) {
       if (bg.includes(aff)) { hint = aff; break; }
     }
-    return await gatherFounderRealData(founder.name, hint);
+    return await Promise.race([
+      gatherFounderRealData(founder.name, hint),
+      new Promise<FounderRealData>((resolve) => setTimeout(() => resolve({
+        name: founder.name,
+        sourcesQueried: ['timeout'],
+        sourcesFound: [],
+        verifiableFacts: {},
+      } as any), 8000)),
+    ]);
   });
 
   const realData: FounderRealData[] = await Promise.all(realDataPromises);
@@ -162,7 +170,7 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 4500);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3500);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

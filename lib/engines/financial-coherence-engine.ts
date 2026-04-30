@@ -161,6 +161,6 @@ Applique les 7 tests de cohérence avec recalculs explicites. Identifie les inco
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3500);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 2500);
   return parseJSON<FinancialCoherenceOutput>(rawResponse);
 }

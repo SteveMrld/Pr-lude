@@ -61,8 +61,16 @@ Décris l'environnement réglementaire pertinent. Régulation peut être barriè
 Note : tu disposes de connaissance jusqu'à début 2026. Sois explicite sur les bascules récentes.`;
 
 export async function analyzeMacro(extraction: ExtractionOutput): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot }> {
-  // ÉTAPE 1 : Récupération des indicateurs macro réels du pays
-  const realData = await gatherMacroRealData(extraction.country || 'France');
+  // ÉTAPE 1 : Récupération des indicateurs macro réels du pays (timeout 8s pour éviter de bloquer le pipeline)
+  const realData = await Promise.race([
+    gatherMacroRealData(extraction.country || 'France'),
+    new Promise<MacroSnapshot>((resolve) => setTimeout(() => resolve({
+      country: extraction.country || 'France',
+      sourcesQueried: ['timeout'],
+      sourcesFound: [],
+      indicators: {},
+    } as any), 8000)),
+  ]);
 
   // ÉTAPE 2 : Construire le résumé pour Claude
   let summary = `\n--- DONNÉES MACRO RÉELLES (World Bank API) ---\n`;

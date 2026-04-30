@@ -133,7 +133,7 @@ ${bpContent.slice(0, 8000)}
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 3500);
+  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500);
   const result = parseJSON<FinancialDataExtraction>(rawResponse);
   // Garantir que tous les champs requis existent
   result.hasBP = true;
