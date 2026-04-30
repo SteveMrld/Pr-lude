@@ -155,7 +155,7 @@ export default function Home() {
       <header className="header">
         <div>
           <div className="brand">Prélude</div>
-          <div className="brand-meta">Plateforme d'instruction · Sept moteurs interconnectés</div>
+          <div className="brand-meta">Plateforme d'instruction · Neuf moteurs interconnectés</div>
         </div>
       </header>
 
@@ -164,9 +164,9 @@ export default function Home() {
           <>
             <h1 className="page-title">Le moteur d'instruction.</h1>
             <p className="page-subtitle">
-              Déposez un pitch deck. Sept moteurs interconnectés analysent le dossier en pipeline :
-              extraction structurée, équipe, marché, lecture macro, pattern matching contre 32 cas historiques,
-              retournement causal des sept angles morts, recommandation finale stratifiée.
+              Déposez un pitch deck. Neuf moteurs interconnectés analysent le dossier en pipeline :
+              extraction, équipe, marché, lecture macro, pattern matching, retournement causal,
+              aveuglement collectif, singularités contrariennes, et synthèse finale chiffrée.
             </p>
 
             {!file ? (
