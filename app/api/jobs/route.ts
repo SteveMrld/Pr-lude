@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
     }
 
     const store = getJobStore();
-    store.createWithId(clientJobId);
-    store.update(clientJobId, {
+    await store.createWithId(clientJobId);
+    await store.update(clientJobId, {
       status: 'running',
       filesReceived: {
         pitchDeck: pitchDeck.name,
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       otherFileNames: others.map(o => o.name),
     });
 
-    const finalJob = store.get(clientJobId);
+    const finalJob = await store.get(clientJobId);
     return new Response(
       JSON.stringify({ jobId: clientJobId, status: finalJob?.status || 'complete' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

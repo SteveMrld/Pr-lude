@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const store = getJobStore();
-  const job = store.get(params.id);
+  const job = await store.get(params.id);
 
   if (!job) {
     return new Response(JSON.stringify({ error: 'Job introuvable', status: 'not_found' }), {

@@ -1,7 +1,7 @@
-// Store de jobs en mémoire pour découpler client/serveur
-// Permet au client de poller le status sans maintenir une connexion ouverte
-// Limitation : si Vercel redémarre la fonction (cold start), les jobs sont perdus
-// C'est acceptable pour un test mobile, à remplacer par Vercel KV ou Supabase pour prod
+// Store de jobs persistant via Supabase
+// Remplace l'ancien store en mémoire qui ne marchait pas en multi-instance Vercel
+
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export type JobStatus = 'pending' | 'running' | 'complete' | 'error';
 
@@ -23,24 +23,24 @@ export interface Job {
   error?: string;
 }
 
-// Singleton store en mémoire
-class JobStore {
-  private jobs: Map<string, Job> = new Map();
-  private maxJobs = 100; // limite mémoire
+const TABLE = 'prelude_jobs';
 
-  create(): Job {
-    return this.createWithId(`job_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
+let _client: SupabaseClient | null = null;
+function client(): SupabaseClient {
+  if (_client) return _client;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquant');
   }
+  _client = createClient(url, key, {
+    auth: { persistSession: false },
+  });
+  return _client;
+}
 
-  createWithId(id: string): Job {
-    // Nettoyage : si trop de jobs, supprimer les plus vieux
-    if (this.jobs.size >= this.maxJobs) {
-      const sorted = Array.from(this.jobs.entries()).sort((a, b) => a[1].updatedAt - b[1].updatedAt);
-      for (let i = 0; i < 10 && i < sorted.length; i++) {
-        this.jobs.delete(sorted[i][0]);
-      }
-    }
-
+class JobStore {
+  async createWithId(id: string): Promise<Job> {
     const job: Job = {
       id,
       status: 'pending',
@@ -48,35 +48,62 @@ class JobStore {
       updatedAt: Date.now(),
       engineStates: {},
     };
-    this.jobs.set(id, job);
+    const { error } = await client().from(TABLE).insert({
+      id,
+      status: 'pending',
+      created_at: new Date(job.createdAt).toISOString(),
+      updated_at: new Date(job.updatedAt).toISOString(),
+      engine_states: {},
+      files_received: null,
+      result: null,
+      error_message: null,
+    });
+    if (error && error.code !== '23505') {
+      console.error('createWithId error:', error);
+    }
     return job;
   }
 
-  get(id: string): Job | undefined {
-    return this.jobs.get(id);
-  }
-
-  update(id: string, patch: Partial<Job>): Job | undefined {
-    const job = this.jobs.get(id);
-    if (!job) return undefined;
-    const updated = { ...job, ...patch, updatedAt: Date.now() };
-    this.jobs.set(id, updated);
-    return updated;
-  }
-
-  setEngineRunning(id: string, engine: string, label?: string): void {
-    const job = this.jobs.get(id);
-    if (!job) return;
-    job.engineStates[engine] = {
-      status: 'running',
-      startedAt: Date.now(),
+  async get(id: string): Promise<Job | undefined> {
+    const { data, error } = await client().from(TABLE).select('*').eq('id', id).maybeSingle();
+    if (error) {
+      console.error('get error:', error);
+      return undefined;
+    }
+    if (!data) return undefined;
+    return {
+      id: data.id,
+      status: data.status,
+      createdAt: new Date(data.created_at).getTime(),
+      updatedAt: new Date(data.updated_at).getTime(),
+      engineStates: data.engine_states || {},
+      filesReceived: data.files_received || undefined,
+      result: data.result || undefined,
+      error: data.error_message || undefined,
     };
-    job.status = 'running';
-    job.updatedAt = Date.now();
   }
 
-  setEngineDone(id: string, engine: string, output: any): void {
-    const job = this.jobs.get(id);
+  async update(id: string, patch: Partial<Job>): Promise<void> {
+    const dbPatch: any = { updated_at: new Date().toISOString() };
+    if (patch.status !== undefined) dbPatch.status = patch.status;
+    if (patch.engineStates !== undefined) dbPatch.engine_states = patch.engineStates;
+    if (patch.filesReceived !== undefined) dbPatch.files_received = patch.filesReceived;
+    if (patch.result !== undefined) dbPatch.result = patch.result;
+    if (patch.error !== undefined) dbPatch.error_message = patch.error;
+
+    const { error } = await client().from(TABLE).update(dbPatch).eq('id', id);
+    if (error) console.error('update error:', error);
+  }
+
+  async setEngineRunning(id: string, engine: string): Promise<void> {
+    const job = await this.get(id);
+    if (!job) return;
+    job.engineStates[engine] = { status: 'running', startedAt: Date.now() };
+    await this.update(id, { engineStates: job.engineStates, status: 'running' });
+  }
+
+  async setEngineDone(id: string, engine: string, output: any): Promise<void> {
+    const job = await this.get(id);
     if (!job) return;
     const prev = job.engineStates[engine] || {};
     job.engineStates[engine] = {
@@ -85,35 +112,20 @@ class JobStore {
       completedAt: Date.now(),
       output,
     };
-    job.updatedAt = Date.now();
+    await this.update(id, { engineStates: job.engineStates });
   }
 
-  setComplete(id: string, result: any): void {
-    const job = this.jobs.get(id);
-    if (!job) return;
-    job.status = 'complete';
-    job.result = result;
-    job.updatedAt = Date.now();
+  async setComplete(id: string, result: any): Promise<void> {
+    await this.update(id, { status: 'complete', result });
   }
 
-  setError(id: string, error: string): void {
-    const job = this.jobs.get(id);
-    if (!job) return;
-    job.status = 'error';
-    job.error = error;
-    job.updatedAt = Date.now();
+  async setError(id: string, error: string): Promise<void> {
+    await this.update(id, { status: 'error', error });
   }
 }
 
-// Singleton global qui persiste entre les invocations dans la même instance Vercel
-declare global {
-  // eslint-disable-next-line no-var
-  var __preludeJobStore: JobStore | undefined;
-}
-
+let _store: JobStore | null = null;
 export function getJobStore(): JobStore {
-  if (!globalThis.__preludeJobStore) {
-    globalThis.__preludeJobStore = new JobStore();
-  }
-  return globalThis.__preludeJobStore;
+  if (!_store) _store = new JobStore();
+  return _store;
 }
