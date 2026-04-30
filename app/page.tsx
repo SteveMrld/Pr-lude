@@ -107,24 +107,37 @@ export default function Home() {
     // Génère un jobId côté client pour pouvoir poller même si la POST se coupe
     const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
-    // Stocke le jobId dans localStorage : si l'utilisateur ferme l'onglet et revient,
-    // on peut reprendre le polling
     try {
       localStorage.setItem('prelude_active_job', jobId);
     } catch (e) {}
 
-    // Lance la POST en arrière-plan SANS await (la connexion peut se couper côté mobile, on s'en moque)
+    // Lance la POST. On garde la promesse dans une variable pour éviter le garbage collection
     const formData = new FormData();
     formData.append('jobId', jobId);
     for (const f of files) {
       formData.append('files', f);
     }
-    fetch('/api/jobs', { method: 'POST', body: formData }).catch(err => {
-      console.warn('POST job failed (client-side, pipeline may continue server-side):', err);
+
+    // Variable globale pour empêcher le GC mobile
+    // @ts-ignore
+    window.__preludePostPromise = fetch('/api/jobs', {
+      method: 'POST',
+      body: formData,
+      // Augmenter timeout côté client (Chrome Mobile a parfois 60s par défaut)
+    }).then(async r => {
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        console.error('POST job failed:', r.status, errText);
+      } else {
+        console.log('POST job succeeded');
+      }
+    }).catch(err => {
+      console.warn('POST job network error:', err.message);
     });
 
     // Démarre le polling immédiatement
     let attempts = 0;
+    let consecutive404 = 0;
     const maxAttempts = 90; // 90 * 4s = 360s max
     let pollTimer: any = null;
 
@@ -134,18 +147,26 @@ export default function Home() {
         const r = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
 
         if (r.status === 404) {
-          // Le serveur n'a pas encore créé le job (POST en cours d'upload)
+          consecutive404++;
+          // Si on a 8 fois de suite "job non trouvé" (32 secondes), c'est qu'il y a un problème
+          if (consecutive404 >= 8) {
+            setError(`Le serveur ne trouve pas le job après 30s. Vérifie ta connexion ou réessaie. JobId: ${jobId}`);
+            setAnalyzing(false);
+            return;
+          }
           if (attempts < maxAttempts) {
             pollTimer = setTimeout(poll, 4000);
           } else {
-            setError('Le serveur n\'a pas créé le job. Vérifie la connexion réseau.');
+            setError('Le pipeline n\'a pas démarré dans le temps imparti.');
             setAnalyzing(false);
           }
           return;
         }
 
+        consecutive404 = 0;
+
         if (!r.ok) {
-          throw new Error('Erreur polling : ' + r.status);
+          throw new Error('Erreur polling : HTTP ' + r.status);
         }
 
         const data = await r.json();
@@ -183,8 +204,7 @@ export default function Home() {
           setAnalyzing(false);
         }
       } catch (e: any) {
-        // Erreur réseau (ex: téléphone en veille). On continue de poller, on ne laisse pas tomber.
-        console.warn('Polling error (will retry):', e);
+        console.warn('Polling error (will retry):', e.message);
         if (attempts < maxAttempts) {
           pollTimer = setTimeout(poll, 4000);
         } else {
@@ -194,8 +214,8 @@ export default function Home() {
       }
     };
 
-    // Démarre le polling après un court délai pour laisser le serveur créer le job
-    pollTimer = setTimeout(poll, 2000);
+    // Démarre le polling après 3 secondes (laisse le temps à l'upload de partir)
+    pollTimer = setTimeout(poll, 3000);
   }
 
   // Au montage : vérifier s'il y a un job actif en cours dans localStorage
