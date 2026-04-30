@@ -496,7 +496,7 @@ export default function Home() {
                         <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.blindspotAnalysis.globalBlindspotScore}/100</span>
                       </div>
                       <div style={{ fontSize: 12, opacity: 0.7 }}>
-                        Patterns détectés : {Object.values(result.blindspotAnalysis.patterns).filter((p: any) => p.detected).length}/10
+                        Patterns détectés : {Object.values(result.blindspotAnalysis.patterns || {}).filter((p: any) => p?.detected).length}/10
                       </div>
                     </div>
                     <p style={{ fontSize: 14, margin: 0 }}>{result.blindspotAnalysis.syntheseAveuglement}</p>
@@ -512,7 +512,7 @@ export default function Home() {
                   )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
-                    {Object.values(result.blindspotAnalysis.patterns).map((p: any, i: number) => (
+                    {Object.values(result.blindspotAnalysis.patterns || {}).map((p: any, i: number) => (
                       <div key={i} style={{
                         padding: 16,
                         border: '1px solid var(--hairline)',
@@ -584,7 +584,7 @@ export default function Home() {
                         <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.contrarianAnalysis.globalContrarianScore}/100</span>
                       </div>
                       <div style={{ fontSize: 12, opacity: 0.7 }}>
-                        Signaux détectés : {Object.values(result.contrarianAnalysis.signals).filter((s: any) => s.detected).length}/10
+                        Signaux détectés : {Object.values(result.contrarianAnalysis.signals || {}).filter((s: any) => s?.detected).length}/10
                       </div>
                     </div>
                     <p style={{ fontSize: 14, margin: '0 0 10px 0' }}>{result.contrarianAnalysis.syntheseSingularite}</p>
@@ -594,7 +594,7 @@ export default function Home() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
-                    {Object.values(result.contrarianAnalysis.signals).map((s: any, i: number) => (
+                    {Object.values(result.contrarianAnalysis.signals || {}).map((s: any, i: number) => (
                       <div key={i} style={{
                         padding: 16,
                         border: '1px solid var(--hairline)',
