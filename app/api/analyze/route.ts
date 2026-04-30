@@ -5,6 +5,8 @@ import { analyzeMarket } from '@/lib/engines/market-engine';
 import { analyzeMacro } from '@/lib/engines/macro-engine';
 import { matchPatterns } from '@/lib/engines/pattern-engine';
 import { performCausalReversal } from '@/lib/engines/causal-engine';
+import { analyzeBlindspots } from '@/lib/engines/blindspot-engine';
+import { analyzeContrarian } from '@/lib/engines/contrarian-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 
 export const maxDuration = 300; // 5 minutes max
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
           ]);
 
           // Moteur 5 : Pattern Matching (consomme outputs 1, 2, 3, 4)
-          send('engine-start', { engine: 'pattern', label: 'Pattern matching contre le corpus de 32 cas' });
+          send('engine-start', { engine: 'pattern', label: 'Pattern matching contre le corpus de cas' });
           const patternMatching = await matchPatterns(extraction, team, market, macro);
           send('engine-done', { engine: 'pattern', output: patternMatching });
 
@@ -60,10 +62,20 @@ export async function POST(req: NextRequest) {
           const causalReversal = await performCausalReversal(extraction, team, market, macro, patternMatching);
           send('engine-done', { engine: 'causal', output: causalReversal });
 
-          // Moteur 7 : Orchestration
-          send('engine-start', { engine: 'orchestrate', label: 'Synthèse et recommandation finale' });
+          // Moteurs 7 et 8 en parallèle : Aveuglement collectif et Singularités contrariennes
+          send('engine-start', { engine: 'blindspot', label: 'Détection des patterns d\'aveuglement collectif (10 patterns)' });
+          send('engine-start', { engine: 'contrarian', label: 'Détection des singularités contrariennes (10 signaux)' });
+
+          const [blindspotAnalysis, contrarianAnalysis] = await Promise.all([
+            analyzeBlindspots(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'blindspot', output: r }); return r; }),
+            analyzeContrarian(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'contrarian', output: r }); return r; }),
+          ]);
+
+          // Moteur 9 : Orchestration finale enrichie (probabilités chiffrées, tension dialectique)
+          send('engine-start', { engine: 'orchestrate', label: 'Synthèse finale avec probabilités chiffrées et résolution dialectique' });
           const finalRecommendation = await orchestrateFinalRecommendation(
-            extraction, team, market, macro, patternMatching, causalReversal
+            extraction, team, market, macro, patternMatching, causalReversal,
+            blindspotAnalysis, contrarianAnalysis
           );
           send('engine-done', { engine: 'orchestrate', output: finalRecommendation });
 
@@ -80,6 +92,8 @@ export async function POST(req: NextRequest) {
             macro,
             patternMatching,
             causalReversal,
+            blindspotAnalysis,
+            contrarianAnalysis,
             finalRecommendation,
           };
 

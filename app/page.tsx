@@ -7,9 +7,11 @@ const ENGINES = [
   { id: 'team', name: 'Moteur 2 · Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience' },
   { id: 'market', name: 'Moteur 3 · Marché', label: 'Intensité du besoin, défensibilité, comparables internationaux' },
   { id: 'macro', name: 'Moteur 4 · Macro', label: 'Position cycle, géopolitique, fenêtre temporelle critique' },
-  { id: 'pattern', name: 'Moteur 5 · Pattern matching', label: 'Confrontation au corpus de 32 cas instruits' },
+  { id: 'pattern', name: 'Moteur 5 · Pattern matching', label: 'Confrontation au corpus de cas instruits' },
   { id: 'causal', name: 'Moteur 6 · Retournement causal', label: 'Sept angles morts et questions à instruire' },
-  { id: 'orchestrate', name: 'Moteur 7 · Orchestration', label: 'Synthèse et recommandation finale' },
+  { id: 'blindspot', name: 'Moteur 7 · Aveuglement collectif', label: 'Détection des dix patterns d\'erreur de jugement VC' },
+  { id: 'contrarian', name: 'Moteur 8 · Singularités contrariennes', label: 'Détection des dix signaux qui justifient le pari à contre-courant' },
+  { id: 'orchestrate', name: 'Moteur 9 · Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
 ];
 
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -203,7 +205,7 @@ export default function Home() {
           <div className="pipeline">
             <div className="pipeline-head">
               <div className="pipeline-title">Pipeline en cours d'exécution</div>
-              <div className="pipeline-sub">Sept moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
+              <div className="pipeline-sub">Neuf moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
             </div>
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
@@ -230,15 +232,112 @@ export default function Home() {
 
         {result && (
           <>
-            {/* Recommandation hero */}
+            {/* Recommandation hero enrichie */}
             <div className="reco-card">
               <div className="small-caps" style={{ opacity: 0.7, marginBottom: 8 }}>Recommandation finale du pipeline</div>
               <div className="reco-verdict">{result.finalRecommendation?.verdict || '—'}</div>
+
+              {/* Probabilités chiffrées success/failure */}
+              {result.finalRecommendation?.successProbability !== undefined && (
+                <div style={{ display: 'flex', gap: 32, marginTop: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 200px' }}>
+                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>Probabilité de succès</div>
+                    <div style={{ fontSize: 42, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1 }}>
+                      {result.finalRecommendation.successProbability}<span style={{ fontSize: 20, opacity: 0.7 }}>%</span>
+                    </div>
+                  </div>
+                  <div style={{ flex: '1 1 200px' }}>
+                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>Probabilité d'échec</div>
+                    <div style={{ fontSize: 42, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1, opacity: 0.85 }}>
+                      {result.finalRecommendation.failureProbability}<span style={{ fontSize: 20, opacity: 0.7 }}>%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Jauge avec seuils */}
+              {result.finalRecommendation?.investmentThreshold && (
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
+                    Score global · Seuils de décision
+                  </div>
+                  <div style={{ position: 'relative', height: 32, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
+                    {/* Seuils marqués */}
+                    {[
+                      { v: result.finalRecommendation.investmentThreshold.thresholdToInvestigate, label: 'Approfondir' },
+                      { v: result.finalRecommendation.investmentThreshold.thresholdToCondition, label: 'Conditions' },
+                      { v: result.finalRecommendation.investmentThreshold.thresholdToInvest, label: 'Investir' },
+                    ].map((t, i) => (
+                      <div key={i} style={{
+                        position: 'absolute', left: `${t.v}%`, top: 0, height: '100%',
+                        borderLeft: '1px dashed rgba(255,255,255,0.3)',
+                      }}>
+                        <div style={{ position: 'absolute', top: -16, left: 4, fontSize: 10, opacity: 0.6 }}>
+                          {t.v}
+                        </div>
+                      </div>
+                    ))}
+                    {/* Niveau actuel */}
+                    <div style={{
+                      position: 'absolute', left: 0, top: 0, height: '100%',
+                      width: `${result.finalRecommendation.investmentThreshold.currentLevel || result.finalRecommendation.globalScore}%`,
+                      background: 'rgba(255,255,255,0.25)',
+                    }} />
+                    {/* Pointer */}
+                    <div style={{
+                      position: 'absolute',
+                      left: `${result.finalRecommendation.investmentThreshold.currentLevel || result.finalRecommendation.globalScore}%`,
+                      top: 0, height: '100%', width: 3, background: '#fff',
+                      transform: 'translateX(-1px)',
+                    }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, opacity: 0.5, marginTop: 6 }}>
+                    <span>0</span><span>50</span><span>100</span>
+                  </div>
+                </div>
+              )}
+
               <div className="reco-score">
                 <div className="reco-score-num">{result.finalRecommendation?.globalScore || 0}</div>
                 <div className="reco-score-label">Score global / 100</div>
               </div>
+
               <div className="reco-arg">{result.finalRecommendation?.argumentation}</div>
+
+              {/* Tension dialectique blindspots/contrarian */}
+              {result.finalRecommendation?.blindspotsVsContrarian && (
+                <div style={{ marginTop: 24, padding: '20px 24px', background: 'rgba(255,255,255,0.06)', borderLeft: '2px solid rgba(255,255,255,0.4)' }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
+                    Résolution dialectique · Aveuglement vs Singularité
+                  </div>
+                  <div style={{ display: 'flex', gap: 24, marginBottom: 12 }}>
+                    <div>
+                      <span style={{ opacity: 0.7, fontSize: 12 }}>Poids aveuglement : </span>
+                      <span style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{result.finalRecommendation.blindspotsVsContrarian.blindspotsWeight}</span>
+                    </div>
+                    <div>
+                      <span style={{ opacity: 0.7, fontSize: 12 }}>Poids singularité : </span>
+                      <span style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{result.finalRecommendation.blindspotsVsContrarian.contrarianWeight}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 14, opacity: 0.9 }}>
+                    {result.finalRecommendation.blindspotsVsContrarian.resolution}
+                  </div>
+                </div>
+              )}
+
+              {/* Decision drivers */}
+              {result.finalRecommendation?.decisionDrivers?.length > 0 && (
+                <div style={{ marginTop: 24 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 10 }}>
+                    Facteurs décisifs
+                  </div>
+                  <ul style={{ paddingLeft: 18, lineHeight: 1.6 }}>
+                    {result.finalRecommendation.decisionDrivers.map((d: string, i: number) => <li key={i}>{d}</li>)}
+                  </ul>
+                </div>
+              )}
+
               {result.finalRecommendation?.keyConditions?.length > 0 && (
                 <div className="reco-conditions">
                   <h4>Conditions clés</h4>
@@ -252,7 +351,10 @@ export default function Home() {
               <div className="tabs">
                 {[
                   { id: 'synthesis', label: 'Synthèse' },
+                  { id: 'dimensions', label: 'Dimensions chiffrées' },
                   { id: 'blindspots', label: 'Angles morts' },
+                  { id: 'aveuglement', label: 'Aveuglement' },
+                  { id: 'singularite', label: 'Singularités' },
                   { id: 'team', label: 'Équipe' },
                   { id: 'verified', label: 'Données vérifiées' },
                   { id: 'market', label: 'Marché' },
@@ -305,6 +407,62 @@ export default function Home() {
                 </div>
               )}
 
+              {activeTab === 'dimensions' && (
+                <div style={{ padding: '28px 32px' }}>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 18 }}>
+                    Probabilités de succès par dimension
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                    {(result.finalRecommendation?.dimensionProbabilities || []).map((dim: any, i: number) => (
+                      <div key={i} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                          <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>{dim.dimensionName}</div>
+                          <div style={{ fontSize: 11, opacity: 0.6 }}>poids {Math.round(dim.weight * 100)}%</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Succès</div>
+                            <div style={{ fontSize: 28, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1.1 }}>
+                              {dim.successProbability}<span style={{ fontSize: 14, opacity: 0.6 }}>%</span>
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Risque</div>
+                            <div style={{ fontSize: 28, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1.1, opacity: 0.85 }}>
+                              {dim.riskScore}<span style={{ fontSize: 14, opacity: 0.6 }}>/100</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ height: 4, background: 'rgba(0,0,0,0.06)', marginBottom: 12 }}>
+                          <div style={{
+                            height: '100%',
+                            width: `${dim.successProbability}%`,
+                            background: dim.successProbability >= 65 ? 'var(--ink)' : dim.successProbability >= 45 ? '#888' : '#ccc',
+                          }} />
+                        </div>
+                        <div style={{ fontSize: 13, marginBottom: 10, opacity: 0.85 }}>{dim.rationale}</div>
+                        {dim.keyDrivers?.length > 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.5, marginBottom: 4 }}>Drivers</div>
+                            <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                              {dim.keyDrivers.map((d: string, j: number) => <li key={j}>{d}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {dim.keyRisks?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.5, marginBottom: 4 }}>Risques</div>
+                            <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                              {dim.keyRisks.map((r: string, j: number) => <li key={j}>{r}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'blindspots' && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 14 }}>
@@ -323,6 +481,186 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'aveuglement' && result.blindspotAnalysis && (
+                <div style={{ padding: '28px 32px' }}>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                    Aveuglement collectif · Dix patterns d'erreur de jugement VC
+                  </h3>
+                  <div style={{ marginBottom: 20, padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)' }}>
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div>
+                        <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score global aveuglement </span>
+                        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.blindspotAnalysis.globalBlindspotScore}/100</span>
+                      </div>
+                      <div style={{ fontSize: 12, opacity: 0.7 }}>
+                        Patterns détectés : {Object.values(result.blindspotAnalysis.patterns).filter((p: any) => p.detected).length}/10
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 14, margin: 0 }}>{result.blindspotAnalysis.syntheseAveuglement}</p>
+                  </div>
+
+                  {result.blindspotAnalysis.alertesCritiques?.length > 0 && (
+                    <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid #c4a484', background: '#faf3ec' }}>
+                      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: '#7c4d2c' }}>Alertes critiques</div>
+                      <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+                        {result.blindspotAnalysis.alertesCritiques.map((a: string, i: number) => <li key={i}>{a}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
+                    {Object.values(result.blindspotAnalysis.patterns).map((p: any, i: number) => (
+                      <div key={i} style={{
+                        padding: 16,
+                        border: '1px solid var(--hairline)',
+                        background: p.detected ? 'var(--surface)' : 'transparent',
+                        opacity: p.detected ? 1 : 0.55,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                          <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>
+                            {p.patternId} · {p.patternName}
+                          </div>
+                          {p.detected && (
+                            <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{p.intensity}</div>
+                          )}
+                        </div>
+                        {p.detected ? (
+                          <>
+                            <div style={{ height: 3, background: 'rgba(0,0,0,0.06)', marginBottom: 10 }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${p.intensity}%`,
+                                background: p.intensity >= 70 ? '#a04040' : p.intensity >= 40 ? '#888' : '#bbb',
+                              }} />
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
+                              <strong style={{ fontWeight: 500 }}>Evidence :</strong> {p.evidence}
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.75 }}>
+                              <strong style={{ fontWeight: 500 }}>Implication :</strong> {p.implication}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: 11, opacity: 0.6, fontStyle: 'italic' }}>Pattern non détecté</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {result.blindspotAnalysis.patternsHistoriques?.length > 0 && (
+                    <div>
+                      <h4 style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Patterns historiques comparables</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+                        {result.blindspotAnalysis.patternsHistoriques.map((c: any, i: number) => (
+                          <div key={i} style={{ padding: 14, border: '1px solid var(--hairline)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>{c.case}</div>
+                              <div style={{ fontSize: 11, opacity: 0.6 }}>{c.similarity}%</div>
+                            </div>
+                            <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {c.outcome === 'failure' ? 'Échec' : c.outcome === 'survival' ? 'Survie' : 'Succès'}
+                            </div>
+                            <div style={{ fontSize: 12 }}>{c.keyLearning}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'singularite' && result.contrarianAnalysis && (
+                <div style={{ padding: '28px 32px' }}>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                    Singularités contrariennes · Dix signaux qui justifient le pari
+                  </h3>
+                  <div style={{ marginBottom: 20, padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)' }}>
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div>
+                        <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score global contrarien </span>
+                        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.contrarianAnalysis.globalContrarianScore}/100</span>
+                      </div>
+                      <div style={{ fontSize: 12, opacity: 0.7 }}>
+                        Signaux détectés : {Object.values(result.contrarianAnalysis.signals).filter((s: any) => s.detected).length}/10
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 14, margin: '0 0 10px 0' }}>{result.contrarianAnalysis.syntheseSingularite}</p>
+                    <p style={{ fontSize: 13, margin: 0, fontStyle: 'italic', opacity: 0.85 }}>
+                      <strong style={{ fontStyle: 'normal' }}>Recommandation contrarienne :</strong> {result.contrarianAnalysis.recommandationContrarienne}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
+                    {Object.values(result.contrarianAnalysis.signals).map((s: any, i: number) => (
+                      <div key={i} style={{
+                        padding: 16,
+                        border: '1px solid var(--hairline)',
+                        background: s.detected ? 'var(--surface)' : 'transparent',
+                        opacity: s.detected ? 1 : 0.55,
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                          <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>
+                            {s.signalId} · {s.signalName}
+                          </div>
+                          {s.detected && (
+                            <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{s.strength}</div>
+                          )}
+                        </div>
+                        {s.detected ? (
+                          <>
+                            <div style={{ height: 3, background: 'rgba(0,0,0,0.06)', marginBottom: 10 }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${s.strength}%`,
+                                background: s.strength >= 70 ? '#3a5a3a' : s.strength >= 40 ? '#888' : '#bbb',
+                              }} />
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
+                              <strong style={{ fontWeight: 500 }}>Evidence :</strong> {s.evidence}
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.75 }}>
+                              <strong style={{ fontWeight: 500 }}>Implication :</strong> {s.implication}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: 11, opacity: 0.6, fontStyle: 'italic' }}>Signal non détecté</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {result.contrarianAnalysis.comparablesContrariens?.length > 0 && (
+                    <div>
+                      <h4 style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 12 }}>
+                        Comparables contrariens · Cas où le consensus s'est trompé
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                        {result.contrarianAnalysis.comparablesContrariens.map((c: any, i: number) => (
+                          <div key={i} style={{ padding: 16, border: '1px solid var(--hairline)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>{c.name}</div>
+                              <div style={{ fontSize: 11, opacity: 0.6 }}>{c.multipleAtExit}</div>
+                            </div>
+                            <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {c.sectorContext}
+                            </div>
+                            <div style={{ fontSize: 12, marginBottom: 6 }}>
+                              <strong style={{ fontWeight: 500 }}>Consensus initial :</strong> {c.initialConsensus}
+                            </div>
+                            <div style={{ fontSize: 12, marginBottom: 6 }}>
+                              <strong style={{ fontWeight: 500 }}>Pari contrarien :</strong> {c.contrarianBet}
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.85 }}>
+                              <strong style={{ fontWeight: 500 }}>Outcome :</strong> {c.outcome}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
