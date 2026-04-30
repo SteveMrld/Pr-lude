@@ -1,4 +1,4 @@
-import { callClaudeWithPDF, parseJSON } from './anthropic-client';
+import { callClaudeWithPDF, parseJSON, MODEL } from './anthropic-client';
 import type { ExtractionOutput } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction de la plateforme Prélude. Ton seul rôle est de lire un pitch deck PDF et d'extraire les informations factuelles présentes, structurées en JSON.
@@ -41,6 +41,6 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
 
 export async function extractFromDeck(pdfBase64: string): Promise<ExtractionOutput> {
   const userPrompt = 'Extrais les informations factuelles de ce pitch deck. Retourne uniquement le JSON structuré demandé.';
-  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, pdfBase64, 3000);
+  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, pdfBase64, 3000, MODEL);
   return parseJSON<ExtractionOutput>(rawResponse);
 }

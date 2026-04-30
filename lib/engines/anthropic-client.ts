@@ -13,8 +13,45 @@ export function getClient(): Anthropic {
 }
 
 export const MODEL = 'claude-sonnet-4-5';
+export const FAST_MODEL = 'claude-haiku-4-5-20251001';
 
-// Parser JSON robuste qui extrait le JSON même si Claude ajoute du texte autour
+// Helper appel texte simple
+export async function callClaude(systemPrompt: string, userPrompt: string, maxTokens = 2000, model: string = FAST_MODEL): Promise<string> {
+  const client = getClient();
+  const response = await client.messages.create({
+    model,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+  });
+  const textBlock = response.content.find(c => c.type === 'text');
+  if (!textBlock || textBlock.type !== 'text') {
+    throw new Error('Réponse Claude vide ou invalide');
+  }
+  return textBlock.text;
+}
+
+// Helper appel avec PDF (toujours Sonnet pour la qualité d'extraction)
+export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string, pdfBase64: string, maxTokens = 3000, model: string = FAST_MODEL): Promise<string> {
+  const client = getClient();
+  const response = await client.messages.create({
+    model,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } } as any,
+        { type: 'text', text: userPrompt },
+      ],
+    }],
+  });
+  const textBlock = response.content.find(c => c.type === 'text');
+  if (!textBlock || textBlock.type !== 'text') {
+    throw new Error('Réponse Claude vide ou invalide');
+  }
+  return textBlock.text;
+}
 export function parseJSON<T = any>(rawText: string): T {
   let cleaned = rawText.trim();
 
@@ -119,42 +156,4 @@ export function parseJSON<T = any>(rawText: string): T {
       throw new Error('Impossible de parser le JSON extrait : ' + e2.message + '. Début : ' + extracted.slice(0, 200));
     }
   }
-}
-
-// Helper appel texte simple
-export async function callClaude(systemPrompt: string, userPrompt: string, maxTokens = 2000): Promise<string> {
-  const client = getClient();
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
-  });
-  const textBlock = response.content.find(c => c.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('Réponse Claude vide ou invalide');
-  }
-  return textBlock.text;
-}
-
-// Helper appel avec PDF
-export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string, pdfBase64: string, maxTokens = 3000): Promise<string> {
-  const client = getClient();
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } } as any,
-        { type: 'text', text: userPrompt },
-      ],
-    }],
-  });
-  const textBlock = response.content.find(c => c.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('Réponse Claude vide ou invalide');
-  }
-  return textBlock.text;
 }
