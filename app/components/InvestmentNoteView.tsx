@@ -110,30 +110,30 @@ export default function InvestmentNoteView({ result }: Props) {
               <thead>
                 <tr>
                   <th></th>
-                  {fd.revenueProjection.map((r: any, i: number) => <th key={i}>{r.year}</th>)}
+                  {(fd.revenueProjection || []).map((r: any, i: number) => <th key={i}>{r.year}</th>)}
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td className="row-label">CA (M€)</td>
-                  {fd.revenueProjection.map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                  {(fd.revenueProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
                 </tr>
                 {fd.grossMarginProjection?.length > 0 && (
                   <tr>
                     <td className="row-label">Marge brute (%)</td>
-                    {fd.grossMarginProjection.map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                    {(fd.grossMarginProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
                   </tr>
                 )}
                 {fd.ebitdaProjection?.length > 0 && (
                   <tr>
                     <td className="row-label">EBITDA (M€)</td>
-                    {fd.ebitdaProjection.map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                    {(fd.ebitdaProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
                   </tr>
                 )}
                 {fd.fcfProjection?.length > 0 && (
                   <tr>
                     <td className="row-label">Free Cash Flow (M€)</td>
-                    {fd.fcfProjection.map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                    {(fd.fcfProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
                   </tr>
                 )}
               </tbody>
@@ -217,7 +217,7 @@ export default function InvestmentNoteView({ result }: Props) {
             <h4 className="note-h4">Strategic risks</h4>
             {(ba.riskMap.strategicRisks || []).length === 0 ? <p className="note-paragraph muted">Aucun risque stratégique identifié.</p> : (
               <ul className="risk-list">
-                {ba.riskMap.strategicRisks.map((r: any, i: number) => (
+                {(ba.riskMap.strategicRisks || []).map((r: any, i: number) => (
                   <li key={i}>
                     <span className={`risk-sev sev-${r.severity}`}>{r.severity}</span>
                     <strong>{r.title}.</strong> {r.description}
@@ -228,7 +228,7 @@ export default function InvestmentNoteView({ result }: Props) {
             <h4 className="note-h4">Operational risks</h4>
             {(ba.riskMap.operationalRisks || []).length === 0 ? <p className="note-paragraph muted">Aucun risque opérationnel identifié.</p> : (
               <ul className="risk-list">
-                {ba.riskMap.operationalRisks.map((r: any, i: number) => (
+                {(ba.riskMap.operationalRisks || []).map((r: any, i: number) => (
                   <li key={i}>
                     <span className={`risk-sev sev-${r.severity}`}>{r.severity}</span>
                     <strong>{r.title}.</strong> {r.description}
@@ -239,7 +239,7 @@ export default function InvestmentNoteView({ result }: Props) {
             <h4 className="note-h4">Financial risks</h4>
             {(ba.riskMap.financialRisks || []).length === 0 ? <p className="note-paragraph muted">Aucun risque financier identifié.</p> : (
               <ul className="risk-list">
-                {ba.riskMap.financialRisks.map((r: any, i: number) => (
+                {(ba.riskMap.financialRisks || []).map((r: any, i: number) => (
                   <li key={i}>
                     <span className={`risk-sev sev-${r.severity}`}>{r.severity}</span>
                     <strong>{r.title}.</strong> {r.description}
@@ -258,16 +258,16 @@ export default function InvestmentNoteView({ result }: Props) {
                 <thead>
                   <tr>
                     <th></th>
-                    {m.competitiveMatrix.dimensions.map((d: string, i: number) => (
+                    {(m.competitiveMatrix.dimensions || []).map((d: string, i: number) => (
                       <th key={i} className="matrix-dim">{d}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {m.competitiveMatrix.players.map((p: any, i: number) => (
+                  {(m.competitiveMatrix.players || []).map((p: any, i: number) => (
                     <tr key={i} className={p.isTargetCompany ? 'target' : ''}>
                       <td className="matrix-player">{p.name}</td>
-                      {p.coverage.map((c: boolean, j: number) => (
+                      {(p.coverage || []).map((c: boolean, j: number) => (
                         <td key={j} className={c ? 'cov-yes' : 'cov-no'}>{c ? '√' : '×'}</td>
                       ))}
                     </tr>
@@ -286,7 +286,7 @@ export default function InvestmentNoteView({ result }: Props) {
             {fc.alertesCritiques?.length > 0 && (
               <div className="alert-box">
                 <strong>Alertes critiques :</strong>
-                <ul>{fc.alertesCritiques.map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>
+                <ul>{(fc.alertesCritiques || []).map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>
               </div>
             )}
           </>
@@ -295,14 +295,14 @@ export default function InvestmentNoteView({ result }: Props) {
         <h3 className="note-h3">Decision drivers</h3>
         {reco.decisionDrivers?.length > 0 ? (
           <ol className="ordered-list">
-            {reco.decisionDrivers.map((d: string, i: number) => <li key={i}>{d}</li>)}
+            {(reco.decisionDrivers || []).map((d: string, i: number) => <li key={i}>{d}</li>)}
           </ol>
         ) : <p className="note-paragraph muted">Decision drivers non disponibles.</p>}
 
         {pm?.internationalBenchmarks?.length > 0 && (
           <>
             <h3 className="note-h3">International benchmarks</h3>
-            {pm.internationalBenchmarks.map((b: any, i: number) => (
+            {(pm.internationalBenchmarks || []).map((b: any, i: number) => (
               <div key={i} className="benchmark-block">
                 <div className="benchmark-header">
                   <span className="benchmark-name">{b.name}</span>
@@ -351,7 +351,7 @@ export default function InvestmentNoteView({ result }: Props) {
           <>
             <h3 className="note-h3">Key conditions before signature</h3>
             <ol className="ordered-list">
-              {reco.keyConditions.map((c: string, i: number) => <li key={i}>{c}</li>)}
+              {(reco.keyConditions || []).map((c: string, i: number) => <li key={i}>{c}</li>)}
             </ol>
           </>
         )}
@@ -362,7 +362,7 @@ export default function InvestmentNoteView({ result }: Props) {
             <h4 className="note-h4">Court terme · 0-3 mois</h4>
             {(reco.structuringPlan.shortTerm || []).length === 0 ? <p className="note-paragraph muted">Aucune action court terme.</p> : (
               <ul className="action-list">
-                {reco.structuringPlan.shortTerm.map((a: any, i: number) => (
+                {(reco.structuringPlan.shortTerm || []).map((a: any, i: number) => (
                   <li key={i}><span className="action-axis">{a.axis}</span>{a.action}</li>
                 ))}
               </ul>
@@ -370,7 +370,7 @@ export default function InvestmentNoteView({ result }: Props) {
             <h4 className="note-h4">Moyen terme · 3-12 mois</h4>
             {(reco.structuringPlan.mediumTerm || []).length === 0 ? <p className="note-paragraph muted">Aucune action moyen terme.</p> : (
               <ul className="action-list">
-                {reco.structuringPlan.mediumTerm.map((a: any, i: number) => (
+                {(reco.structuringPlan.mediumTerm || []).map((a: any, i: number) => (
                   <li key={i}><span className="action-axis">{a.axis}</span>{a.action}</li>
                 ))}
               </ul>
@@ -378,7 +378,7 @@ export default function InvestmentNoteView({ result }: Props) {
             <h4 className="note-h4">Long terme · 12+ mois</h4>
             {(reco.structuringPlan.longTerm || []).length === 0 ? <p className="note-paragraph muted">Aucune action long terme.</p> : (
               <ul className="action-list">
-                {reco.structuringPlan.longTerm.map((a: any, i: number) => (
+                {(reco.structuringPlan.longTerm || []).map((a: any, i: number) => (
                   <li key={i}><span className="action-axis">{a.axis}</span>{a.action}</li>
                 ))}
               </ul>

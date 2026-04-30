@@ -98,6 +98,27 @@ export default function Home() {
     setResult(null);
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
+    // Wake Lock : empêche la mise en veille mobile pendant le pipeline (3-5 min)
+    let wakeLock: any = null;
+    try {
+      // @ts-ignore - WakeLock API non typée par défaut
+      if ('wakeLock' in navigator) {
+        // @ts-ignore
+        wakeLock = await navigator.wakeLock.request('screen');
+        // Re-acquire si la page repasse au premier plan
+        document.addEventListener('visibilitychange', async () => {
+          if (wakeLock !== null && document.visibilityState === 'visible') {
+            try {
+              // @ts-ignore
+              wakeLock = await navigator.wakeLock.request('screen');
+            } catch (e) {}
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Wake Lock indisponible:', e);
+    }
+
     try {
       const formData = new FormData();
       for (const f of files) {
@@ -161,6 +182,10 @@ export default function Home() {
     } catch (e: any) {
       setError(e.message || 'Erreur réseau');
     } finally {
+      // Libérer Wake Lock
+      if (wakeLock) {
+        try { await wakeLock.release(); } catch (e) {}
+      }
       setAnalyzing(false);
     }
   }
@@ -257,6 +282,10 @@ export default function Home() {
             <div className="pipeline-head">
               <div className="pipeline-title">Pipeline en cours d'exécution</div>
               <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
+            </div>
+            <div style={{ padding: '12px 18px', background: '#faf3ec', border: '1px solid #c4a484', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
+              <strong>Sur mobile :</strong> ne verrouille pas l'écran et ne change pas d'application pendant les 3-4 minutes du pipeline.
+              La connexion au serveur se coupe si le téléphone passe en veille. Pose le téléphone à plat avec l'écran allumé.
             </div>
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
@@ -423,7 +452,7 @@ export default function Home() {
                     Facteurs décisifs
                   </div>
                   <ul style={{ paddingLeft: 18, lineHeight: 1.6 }}>
-                    {result.finalRecommendation.decisionDrivers.map((d: string, i: number) => <li key={i}>{d}</li>)}
+                    {(result.finalRecommendation.decisionDrivers || []).map((d: string, i: number) => <li key={i}>{d}</li>)}
                   </ul>
                 </div>
               )}
@@ -431,7 +460,7 @@ export default function Home() {
               {result.finalRecommendation?.keyConditions?.length > 0 && (
                 <div className="reco-conditions">
                   <h4>Conditions clés</h4>
-                  <ul>{result.finalRecommendation.keyConditions.map((c: string, i: number) => <li key={i}>{c}</li>)}</ul>
+                  <ul>{(result.finalRecommendation.keyConditions || []).map((c: string, i: number) => <li key={i}>{c}</li>)}</ul>
                 </div>
               )}
             </div>
@@ -537,7 +566,7 @@ export default function Home() {
                           <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.5, marginBottom: 4 }}>Drivers</div>
                             <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
-                              {dim.keyDrivers.map((d: string, j: number) => <li key={j}>{d}</li>)}
+                              {(dim.keyDrivers || []).map((d: string, j: number) => <li key={j}>{d}</li>)}
                             </ul>
                           </div>
                         )}
@@ -545,7 +574,7 @@ export default function Home() {
                           <div>
                             <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.5, marginBottom: 4 }}>Risques</div>
                             <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
-                              {dim.keyRisks.map((r: string, j: number) => <li key={j}>{r}</li>)}
+                              {(dim.keyRisks || []).map((r: string, j: number) => <li key={j}>{r}</li>)}
                             </ul>
                           </div>
                         )}
@@ -591,7 +620,7 @@ export default function Home() {
                         <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid #c4a484', background: '#faf3ec' }}>
                           <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: '#7c4d2c' }}>Alertes critiques</div>
                           <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-                            {result.financialCoherence.alertesCritiques.map((a: string, i: number) => <li key={i}>{a}</li>)}
+                            {(result.financialCoherence.alertesCritiques || []).map((a: string, i: number) => <li key={i}>{a}</li>)}
                           </ul>
                         </div>
                       )}
@@ -634,7 +663,7 @@ export default function Home() {
                         <div style={{ marginBottom: 24 }}>
                           <h4 style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Recalculs effectués</h4>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-                            {result.financialCoherence.recalculsEffectues.map((r: any, i: number) => (
+                            {(result.financialCoherence.recalculsEffectues || []).map((r: any, i: number) => (
                               <div key={i} style={{ padding: 14, border: '1px solid var(--hairline)' }}>
                                 <div style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>{r.metric}</div>
                                 <div style={{ display: 'flex', gap: 16, marginBottom: 6 }}>
@@ -658,7 +687,7 @@ export default function Home() {
                         <div>
                           <h4 style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Incohérences entre pitch deck et business plan</h4>
                           <ul style={{ paddingLeft: 18, lineHeight: 1.6, fontSize: 13 }}>
-                            {result.financialCoherence.incoherenceDeckVsBP.map((inc: string, i: number) => <li key={i}>{inc}</li>)}
+                            {(result.financialCoherence.incoherenceDeckVsBP || []).map((inc: string, i: number) => <li key={i}>{inc}</li>)}
                           </ul>
                         </div>
                       )}
@@ -808,7 +837,7 @@ export default function Home() {
                     <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid #c4a484', background: '#faf3ec' }}>
                       <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: '#7c4d2c' }}>Alertes critiques</div>
                       <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-                        {result.blindspotAnalysis.alertesCritiques.map((a: string, i: number) => <li key={i}>{a}</li>)}
+                        {(result.blindspotAnalysis.alertesCritiques || []).map((a: string, i: number) => <li key={i}>{a}</li>)}
                       </ul>
                     </div>
                   )}
@@ -856,7 +885,7 @@ export default function Home() {
                     <div>
                       <h4 style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 12 }}>Patterns historiques comparables</h4>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
-                        {result.blindspotAnalysis.patternsHistoriques.map((c: any, i: number) => (
+                        {(result.blindspotAnalysis.patternsHistoriques || []).map((c: any, i: number) => (
                           <div key={i} style={{ padding: 14, border: '1px solid var(--hairline)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>{c.case}</div>
@@ -940,7 +969,7 @@ export default function Home() {
                         Comparables contrariens · Cas où le consensus s'est trompé
                       </h4>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-                        {result.contrarianAnalysis.comparablesContrariens.map((c: any, i: number) => (
+                        {(result.contrarianAnalysis.comparablesContrariens || []).map((c: any, i: number) => (
                           <div key={i} style={{ padding: 16, border: '1px solid var(--hairline)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>{c.name}</div>
@@ -1024,7 +1053,7 @@ export default function Home() {
                         Cadre Eisenmann (2020). Pour chaque fondateur : trajectoire, signaux positifs, gaps, expertise tacite asymétrique, expériences transposables.
                       </p>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16 }}>
-                        {result.team.founderMarketFit.map((f: any, i: number) => (
+                        {(result.team.founderMarketFit || []).map((f: any, i: number) => (
                           <div key={i} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>{f.name}</div>
@@ -1051,7 +1080,7 @@ export default function Home() {
                               <div style={{ marginBottom: 10 }}>
                                 <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#3a5a3a' }}>Signaux positifs</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
-                                  {f.fitSignals.map((s: string, j: number) => <li key={j}>{s}</li>)}
+                                  {(f.fitSignals || []).map((s: string, j: number) => <li key={j}>{s}</li>)}
                                 </ul>
                               </div>
                             )}
@@ -1060,7 +1089,7 @@ export default function Home() {
                               <div style={{ marginBottom: 10 }}>
                                 <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#a04040' }}>Gaps identifiés</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
-                                  {f.fitGaps.map((g: string, j: number) => <li key={j}>{g}</li>)}
+                                  {(f.fitGaps || []).map((g: string, j: number) => <li key={j}>{g}</li>)}
                                 </ul>
                               </div>
                             )}
@@ -1069,7 +1098,7 @@ export default function Home() {
                               <div style={{ marginBottom: 10 }}>
                                 <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4 }}>Expériences transposables</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
-                                  {f.transposedExperiences.map((e: string, j: number) => <li key={j}>{e}</li>)}
+                                  {(f.transposedExperiences || []).map((e: string, j: number) => <li key={j}>{e}</li>)}
                                 </ul>
                               </div>
                             )}
@@ -1078,7 +1107,7 @@ export default function Home() {
                               <div>
                                 <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#a04040' }}>Red flags pour le rôle</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
-                                  {f.redFlagsForRole.map((r: string, j: number) => <li key={j}>{r}</li>)}
+                                  {(f.redFlagsForRole || []).map((r: string, j: number) => <li key={j}>{r}</li>)}
                                 </ul>
                               </div>
                             )}
@@ -1305,7 +1334,7 @@ export default function Home() {
                           <thead>
                             <tr>
                               <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '2px solid var(--ink)', fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 13, position: 'sticky', left: 0, background: 'var(--bg)' }}>Player</th>
-                              {result.market.competitiveMatrix.dimensions.map((d: string, i: number) => (
+                              {(result.market.competitiveMatrix.dimensions || []).map((d: string, i: number) => (
                                 <th key={i} style={{ padding: '10px 8px', borderBottom: '2px solid var(--ink)', fontWeight: 500, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--muted)' }}>
                                   {d}
                                 </th>
@@ -1313,7 +1342,7 @@ export default function Home() {
                             </tr>
                           </thead>
                           <tbody>
-                            {result.market.competitiveMatrix.players.map((p: any, i: number) => (
+                            {(result.market.competitiveMatrix.players || []).map((p: any, i: number) => (
                               <tr key={i} style={{
                                 background: p.isTargetCompany ? 'rgba(0,0,0,0.04)' : 'transparent',
                                 fontWeight: p.isTargetCompany ? 500 : 400,
@@ -1330,7 +1359,7 @@ export default function Home() {
                                   {p.name}
                                   {p.isTargetCompany && <span style={{ marginLeft: 6, fontSize: 9, opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>· cible</span>}
                                 </td>
-                                {p.coverage.map((c: boolean, j: number) => (
+                                {(p.coverage || []).map((c: boolean, j: number) => (
                                   <td key={j} style={{
                                     textAlign: 'center',
                                     padding: '10px 8px',
@@ -1450,7 +1479,7 @@ export default function Home() {
                         Trois cas internationaux dont la trajectoire éclaire le dossier en cours, avec données chiffrées et facteurs clés.
                       </p>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
-                        {result.patternMatching.internationalBenchmarks.map((b: any, i: number) => (
+                        {(result.patternMatching.internationalBenchmarks || []).map((b: any, i: number) => (
                           <div key={i} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500 }}>{b.name}</div>
