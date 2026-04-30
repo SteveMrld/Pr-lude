@@ -53,7 +53,7 @@ class JobStore {
       engine_states: job.engineStates,
       files_received: null,
       result: null,
-      error: null,
+      error_message: null,
     });
     if (error && error.code !== '23505') {
       console.error('Failed to create job:', error);
@@ -82,7 +82,7 @@ class JobStore {
       engineStates: data.engine_states || {},
       filesReceived: data.files_received || undefined,
       result: data.result || undefined,
-      error: data.error || undefined,
+      error: data.error_message || undefined,
     };
   }
 
@@ -93,7 +93,7 @@ class JobStore {
     if (patch.engineStates !== undefined) dbPatch.engine_states = patch.engineStates;
     if (patch.filesReceived !== undefined) dbPatch.files_received = patch.filesReceived;
     if (patch.result !== undefined) dbPatch.result = patch.result;
-    if (patch.error !== undefined) dbPatch.error = patch.error;
+    if (patch.error !== undefined) dbPatch.error_message = patch.error;
     const { error } = await client.from('prelude_jobs').update(dbPatch).eq('id', id);
     if (error) console.error('Failed to update job:', error);
   }
