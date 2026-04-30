@@ -95,7 +95,18 @@ Retourne uniquement le JSON.`;
 
     const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 3000);
     const result = parseJSON<FinancialDataExtraction>(rawResponse);
+    // Garantir que tous les champs requis existent (Claude peut omettre un champ)
     result.hasBP = false;
+    result.revenueProjection = result.revenueProjection || [];
+    result.grossMarginProjection = result.grossMarginProjection || [];
+    result.ebitdaProjection = result.ebitdaProjection || [];
+    result.fcfProjection = result.fcfProjection || [];
+    result.opexProjection = result.opexProjection || [];
+    result.headcount = result.headcount || [];
+    result.unitEconomics = result.unitEconomics || { estimatedCAC: '', estimatedLTV: '', estimatedLtvCacRatio: '', averageContractValue: '', grossMarginPerUnit: '' };
+    result.currentRound = result.currentRound || { amount: '', runwayMonths: '', monthlyBurn: '' };
+    result.marketAssumptions = result.marketAssumptions || { tamCited: '', samCited: '', targetMarketShare: '', targetCustomersByYearN: '' };
+    result.rawNotes = result.rawNotes || '';
     result.fileSource = result.revenueProjection.length > 0 || result.unitEconomics.averageContractValue !== '' ? 'deck' : 'none';
     return result;
   }
@@ -124,7 +135,18 @@ Retourne uniquement le JSON structuré.`;
 
   const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 3500);
   const result = parseJSON<FinancialDataExtraction>(rawResponse);
+  // Garantir que tous les champs requis existent
   result.hasBP = true;
   result.fileSource = 'both';
+  result.revenueProjection = result.revenueProjection || [];
+  result.grossMarginProjection = result.grossMarginProjection || [];
+  result.ebitdaProjection = result.ebitdaProjection || [];
+  result.fcfProjection = result.fcfProjection || [];
+  result.opexProjection = result.opexProjection || [];
+  result.headcount = result.headcount || [];
+  result.unitEconomics = result.unitEconomics || { estimatedCAC: '', estimatedLTV: '', estimatedLtvCacRatio: '', averageContractValue: '', grossMarginPerUnit: '' };
+  result.currentRound = result.currentRound || { amount: '', runwayMonths: '', monthlyBurn: '' };
+  result.marketAssumptions = result.marketAssumptions || { tamCited: '', samCited: '', targetMarketShare: '', targetCustomersByYearN: '' };
+  result.rawNotes = result.rawNotes || '';
   return result;
 }

@@ -214,7 +214,7 @@ export default function Home() {
       <header className="header">
         <div>
           <div className="brand">Prélude</div>
-          <div className="brand-meta">Plateforme d'instruction · Dix moteurs interconnectés</div>
+          <div className="brand-meta">Plateforme d'instruction · Onze moteurs interconnectés</div>
         </div>
       </header>
 
@@ -224,7 +224,7 @@ export default function Home() {
             <h1 className="page-title">Le moteur d'instruction.</h1>
             <p className="page-subtitle">
               Déposez un dossier d'investissement complet : pitch deck PDF, business plan Excel/CSV, et tout autre document utile.
-              Dix moteurs interconnectés analysent le dossier en pipeline :
+              Onze moteurs interconnectés analysent le dossier en pipeline :
               extraction, équipe, marché, lecture macro, pattern matching, retournement causal,
               aveuglement collectif, singularités contrariennes, cohérence financière, et synthèse finale chiffrée.
             </p>

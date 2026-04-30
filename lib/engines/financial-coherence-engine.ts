@@ -80,7 +80,7 @@ export async function analyzeFinancialCoherence(
 ): Promise<FinancialCoherenceOutput> {
 
   // Si aucune donnée financière, retour court-circuit
-  if (!financialData.hasBP && financialData.revenueProjection.length === 0) {
+  if (!financialData.hasBP && (!financialData.revenueProjection || financialData.revenueProjection.length === 0)) {
     return {
       hasFinancialData: false,
       dataSource: 'none',

@@ -165,11 +165,11 @@ export async function orchestrateFinalRecommendation(
   );
   const blindspotsAlertes = Object.values(causalReversal.blindspotsScores).filter(b => b.alerte).length;
 
-  const aveuglementPatternsDetected = Object.values(blindspotAnalysis.patterns).filter(p => p.detected).length;
-  const aveuglementHighIntensity = Object.values(blindspotAnalysis.patterns).filter(p => p.detected && p.intensity >= 60).length;
+  const aveuglementPatternsDetected = Object.values(blindspotAnalysis.patterns || {}).filter((p: any) => p?.detected).length;
+  const aveuglementHighIntensity = Object.values(blindspotAnalysis.patterns || {}).filter((p: any) => p?.detected && p.intensity >= 60).length;
 
-  const contrarianSignalsDetected = Object.values(contrarianAnalysis.signals).filter(s => s.detected).length;
-  const contrarianHighStrength = Object.values(contrarianAnalysis.signals).filter(s => s.detected && s.strength >= 60).length;
+  const contrarianSignalsDetected = Object.values(contrarianAnalysis.signals || {}).filter((s: any) => s?.detected).length;
+  const contrarianHighStrength = Object.values(contrarianAnalysis.signals || {}).filter((s: any) => s?.detected && s.strength >= 60).length;
 
   const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction.companyName} :
 
@@ -199,41 +199,41 @@ Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 
 # MOTEUR PATTERN MATCHING
 - Archétype : ${patternMatching.archetypeDominant}
-- Top comparables : ${patternMatching.comparables.slice(0, 3).map(c => `${c.name} (${c.proximity}%)`).join(' · ')}
+- Top comparables : ${(patternMatching.comparables || []).slice(0, 3).map(c => `${c.name} (${c.proximity}%)`).join(' · ')}
 - Benchmark rétrospectif : ${patternMatching.retrospectiveBenchmark.averageScore}/100
 - Insight : ${patternMatching.retrospectiveBenchmark.insights}
 
 # MOTEUR RETOURNEMENT CAUSAL
 - Score moyen angles morts (7 dimensions) : ${blindspotsAvg}/100
 - Alertes : ${blindspotsAlertes}/7
-- Narratif : ${causalReversal.reversalNarrative}
+- Narratif : ${causalReversal.reversalNarrative || ''}
 
 # MOTEUR AVEUGLEMENT (12)
-- Score global aveuglement : ${blindspotAnalysis.globalBlindspotScore}/100
+- Score global aveuglement : ${blindspotAnalysis.globalBlindspotScore || 0}/100
 - Patterns détectés : ${aveuglementPatternsDetected}/10
 - Patterns haute intensité : ${aveuglementHighIntensity}/10
-- Alertes critiques : ${blindspotAnalysis.alertesCritiques.join(' · ') || 'aucune'}
-- Patterns historiques : ${blindspotAnalysis.patternsHistoriques.map(p => `${p.case} (${p.outcome}, ${p.similarity}%)`).join(' · ')}
-- Synthèse : ${blindspotAnalysis.syntheseAveuglement}
+- Alertes critiques : ${(blindspotAnalysis.alertesCritiques || []).join(' · ') || 'aucune'}
+- Patterns historiques : ${(blindspotAnalysis.patternsHistoriques || []).map(p => `${p.case} (${p.outcome}, ${p.similarity}%)`).join(' · ') || 'aucun'}
+- Synthèse : ${blindspotAnalysis.syntheseAveuglement || ''}
 
 # MOTEUR SINGULARITÉS CONTRARIENNES (13)
-- Score global contrarien : ${contrarianAnalysis.globalContrarianScore}/100
+- Score global contrarien : ${contrarianAnalysis.globalContrarianScore || 0}/100
 - Signaux détectés : ${contrarianSignalsDetected}/10
 - Signaux haute force : ${contrarianHighStrength}/10
-- Comparables contrariens : ${contrarianAnalysis.comparablesContrariens.map(c => `${c.name} (${c.outcome})`).join(' · ')}
-- Synthèse : ${contrarianAnalysis.syntheseSingularite}
-- Recommandation contrarienne : ${contrarianAnalysis.recommandationContrarienne}
+- Comparables contrariens : ${(contrarianAnalysis.comparablesContrariens || []).map(c => `${c.name} (${c.outcome})`).join(' · ') || 'aucun'}
+- Synthèse : ${contrarianAnalysis.syntheseSingularite || ''}
+- Recommandation contrarienne : ${contrarianAnalysis.recommandationContrarienne || ''}
 
 # DÉTAILS PATTERNS AVEUGLEMENT (haute intensité uniquement)
-${Object.values(blindspotAnalysis.patterns)
-  .filter(p => p.detected && p.intensity >= 50)
-  .map(p => `- ${p.patternName} (intensité ${p.intensity}/100) : ${p.evidence}`)
+${Object.values(blindspotAnalysis.patterns || {})
+  .filter((p: any) => p?.detected && p.intensity >= 50)
+  .map((p: any) => `- ${p.patternName} (intensité ${p.intensity}/100) : ${p.evidence}`)
   .join('\n') || 'Aucun pattern haute intensité détecté'}
 
 # DÉTAILS SIGNAUX CONTRARIENS (haute force uniquement)
-${Object.values(contrarianAnalysis.signals)
-  .filter(s => s.detected && s.strength >= 50)
-  .map(s => `- ${s.signalName} (force ${s.strength}/100) : ${s.evidence}`)
+${Object.values(contrarianAnalysis.signals || {})
+  .filter((s: any) => s?.detected && s.strength >= 50)
+  .map((s: any) => `- ${s.signalName} (force ${s.strength}/100) : ${s.evidence}`)
   .join('\n') || 'Aucun signal contrarien fort détecté'}
 
 Produis la recommandation finale avec :

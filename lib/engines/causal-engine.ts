@@ -135,8 +135,8 @@ Score opportunité contracyclique : ${macro.contraryclicalOpportunity.score}/100
 # Pattern Matching
 Archétype dominant : ${patternMatching.archetypeDominant}
 Comparables identifiés :
-${patternMatching.comparables.map(c => `- ${c.name} (${c.year}) · proximité ${c.proximity}% · ${c.structuralAnalogy}`).join('\n')}
-Patterns transversaux : ${patternMatching.matchingPatterns.join(' | ')}
+${(patternMatching.comparables || []).map(c => `- ${c.name} (${c.year}) · proximité ${c.proximity}% · ${c.structuralAnalogy}`).join('\n')}
+Patterns transversaux : ${(patternMatching.matchingPatterns || []).join(' | ')}
 Benchmark rétrospectif : ${patternMatching.retrospectiveBenchmark.averageScore}/100 · ${patternMatching.retrospectiveBenchmark.insights}
 
 Produis le retournement causal complet. Retourne uniquement le JSON structuré.`;
