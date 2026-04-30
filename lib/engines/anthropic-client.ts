@@ -69,7 +69,47 @@ export function parseJSON<T = any>(rawText: string): T {
     }
 
     if (end === -1) {
-      throw new Error('JSON malformé dans la réponse Claude. Début : ' + cleaned.slice(start, start + 200));
+      // JSON tronqué (réponse Claude coupée par max_tokens). Tentative de récupération en complétant.
+      let recovered = cleaned.slice(start);
+
+      // Supprimer la dernière chaîne ouverte non terminée si présente
+      // Compter les guillemets non échappés
+      let quoteCount = 0;
+      let escape2 = false;
+      for (let i = 0; i < recovered.length; i++) {
+        const c = recovered[i];
+        if (escape2) { escape2 = false; continue; }
+        if (c === '\\') { escape2 = true; continue; }
+        if (c === '"') quoteCount++;
+      }
+      // Si nombre impair de guillemets, fermer la chaîne
+      if (quoteCount % 2 === 1) recovered += '"';
+
+      // Compter les accolades/crochets ouverts non fermés et les fermer
+      let curDepth = 0;
+      let curIn = false;
+      let curEsc = false;
+      const stack: string[] = [];
+      for (let i = 0; i < recovered.length; i++) {
+        const c = recovered[i];
+        if (curEsc) { curEsc = false; continue; }
+        if (c === '\\') { curEsc = true; continue; }
+        if (c === '"') { curIn = !curIn; continue; }
+        if (curIn) continue;
+        if (c === '{') stack.push('}');
+        else if (c === '[') stack.push(']');
+        else if (c === '}' || c === ']') stack.pop();
+      }
+      // Retirer la dernière virgule éventuelle qui suivrait une valeur incomplète
+      recovered = recovered.replace(/,\s*$/, '');
+      // Fermer toutes les structures
+      while (stack.length) recovered += stack.pop();
+
+      try {
+        return JSON.parse(recovered) as T;
+      } catch (e3: any) {
+        throw new Error('JSON tronqué et non récupérable. Début : ' + cleaned.slice(start, start + 300));
+      }
     }
 
     const extracted = cleaned.slice(start, end + 1);

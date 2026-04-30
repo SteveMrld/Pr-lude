@@ -114,6 +114,6 @@ Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 
 Produis la recommandation finale. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 1500);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 2500);
   return parseJSON(rawResponse);
 }

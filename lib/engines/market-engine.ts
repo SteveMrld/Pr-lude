@@ -150,7 +150,7 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 2000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3000);
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

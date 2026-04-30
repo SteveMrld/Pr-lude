@@ -176,6 +176,6 @@ ${top8.map(s => `- ${s.case.id} (${s.case.name}, ${s.case.yearOfRefusal}, ${s.ca
 
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 2000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3500);
   return parseJSON<PatternMatchingOutput>(rawResponse);
 }
