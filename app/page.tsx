@@ -52,6 +52,7 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState('synthesis');
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
+  const [pollStatus, setPollStatus] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Au montage : si un job était en cours quand l'utilisateur a fermé l'onglet, reprendre le polling
@@ -102,6 +103,7 @@ export default function Home() {
     setAnalyzing(true);
     setError(null);
     setResult(null);
+    setPollStatus('Initialisation...');
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
     // Génère un jobId côté client pour pouvoir poller même si la POST se coupe
@@ -149,9 +151,11 @@ export default function Home() {
 
         if (r.status === 404) {
           consecutive404++;
-          // Si on a 8 fois de suite "job non trouvé" (32 secondes), c'est qu'il y a un problème
-          if (consecutive404 >= 8) {
-            setError(`Le serveur ne trouve pas le job après 30s. Vérifie ta connexion ou réessaie. JobId: ${jobId}`);
+          setPollStatus(`Upload en cours, attente de la création du job côté serveur (${consecutive404}/25)...`);
+          // Sur mobile lent, l'upload du PDF peut prendre 60-90s.
+          // On attend jusqu'à 25 essais (100s) avant d'abandonner.
+          if (consecutive404 >= 25) {
+            setError(`Le serveur n'a pas reçu les fichiers après 100s. Vérifie ta connexion ou réessaie. JobId: ${jobId}`);
             setAnalyzing(false);
             return;
           }
@@ -165,6 +169,7 @@ export default function Home() {
         }
 
         consecutive404 = 0;
+        setPollStatus(`Pipeline en cours... ${attempts * 4}s`);
 
         if (!r.ok) {
           throw new Error('Erreur polling : HTTP ' + r.status);
@@ -383,6 +388,19 @@ export default function Home() {
               L'analyse continue côté serveur. Quand tu reviens, la page se met automatiquement à jour.
               Le pipeline prend généralement 3 à 4 minutes.
             </div>
+            {pollStatus && (
+              <div style={{
+                padding: '10px 16px',
+                background: '#f0f4f8',
+                border: '1px solid #b0c4d4',
+                marginBottom: 16,
+                fontSize: 13,
+                fontFamily: 'monospace',
+                color: '#2c4f6e',
+              }}>
+                ◉ {pollStatus}
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
               <button
                 onClick={() => {
