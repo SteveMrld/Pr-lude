@@ -545,6 +545,227 @@ export const CORPUS: CaseRecord[] = [
     retrospectiveScore: 86, outcome: 'acquired',
     comparablePatterns: ['mafia-paypal', 'patience-saas-pro', 'reseau-densifiant']
   },
+  // ============ AJOUTS INTERNATIONAUX (US/Asia/Africa/LatAm) ============
+  {
+    id: 'stripe', num: '033', name: 'Stripe', country: 'États-Unis', geographicHub: 'San Francisco',
+    sector: 'Fintech', subSector: 'Paiements en ligne / API infrastructure', yearFounded: 2010, yearOfRefusal: 2011,
+    archetype: 'depth', blindspots: ['marche-percu-sature-paypal', 'fondateurs-tres-jeunes', 'developpeurs-pas-decideurs'],
+    proxies: ['founder-market-fit-collison', 'obsession-DX-API', 'traction-organique-developpeurs'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'young', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'extreme', saturation: 'saturated', regulatoryComplexity: 'high', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'balanced' },
+    retrospectiveScore: 96, outcome: 'unicorn',
+    comparablePatterns: ['api-first', 'developer-experience-obsession', 'founder-brothers-tech']
+  },
+  {
+    id: 'shopify', num: '034', name: 'Shopify', country: 'Canada', geographicHub: 'Ottawa',
+    sector: 'E-commerce', subSector: 'Plateforme SaaS marchands indépendants', yearFounded: 2006, yearOfRefusal: 2010,
+    archetype: 'cumulative-mid', blindspots: ['amazon-domine-ecommerce', 'canada-hors-radar-vc', 'merchants-petits-segment'],
+    proxies: ['founder-skiing-product', 'long-tail-merchants', 'patience-canadienne'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'young', sectorExperience: 'medium', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'low', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'underweight' },
+    retrospectiveScore: 88, outcome: 'public',
+    comparablePatterns: ['anti-leader', 'long-tail-saas', 'founder-from-product-need']
+  },
+  {
+    id: 'sea-limited', num: '035', name: 'Sea Limited', country: 'Singapour', geographicHub: 'Singapour',
+    sector: 'Tech consumer', subSector: 'Gaming + e-commerce + fintech (Garena, Shopee, SeaMoney)', yearFounded: 2009, yearOfRefusal: 2014,
+    archetype: 'capacity', blindspots: ['asean-fragmente', 'gaming-pas-investable', 'concurrence-tencent'],
+    proxies: ['fondateur-li-xiaodong-vision', 'asean-mobile-first', 'capital-tencent-soutien'],
+    teamProfile: { foundersCount: 1, pedigreeCanonical: true, averageAge: 'mid', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'extreme', saturation: 'fragmented', regulatoryComplexity: 'medium', capitalIntensity: 'medium' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'tensions', vcCapital: 'underweight' },
+    retrospectiveScore: 84, outcome: 'public',
+    comparablePatterns: ['asean-leader', 'multi-vertical-conglomerat', 'gaming-as-distribution']
+  },
+  {
+    id: 'nubank', num: '036', name: 'Nubank', country: 'Brésil', geographicHub: 'São Paulo',
+    sector: 'Fintech', subSector: 'Néobanque mobile-first LatAm', yearFounded: 2013, yearOfRefusal: 2014,
+    archetype: 'capacity', blindspots: ['banques-bresiliennes-domine', 'regulation-imprevisible', 'latam-pas-mainstream-vc'],
+    proxies: ['founder-velez-sequoia', 'frustration-clients-banques', 'mobile-first-emerging-mkt'],
+    teamProfile: { foundersCount: 3, pedigreeCanonical: true, averageAge: 'mid', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'extreme', saturation: 'saturated', regulatoryComplexity: 'high', capitalIntensity: 'medium' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'tensions', vcCapital: 'underweight' },
+    retrospectiveScore: 91, outcome: 'public',
+    comparablePatterns: ['neobank-emerging', 'frustrant-incumbent', 'mobile-first-leapfrog']
+  },
+  {
+    id: 'flutterwave', num: '037', name: 'Flutterwave', country: 'Nigeria', geographicHub: 'Lagos',
+    sector: 'Fintech', subSector: 'API paiements pan-africaine', yearFounded: 2016, yearOfRefusal: 2018,
+    archetype: 'capacity', blindspots: ['afrique-pas-investable', 'fragmentation-monetaire', 'risk-perceived-extreme'],
+    proxies: ['founder-aboyeji-ex-andela', 'demande-api-merchants-cross-border', 'soutien-y-combinator'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'mid', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'extreme', saturation: 'fragmented', regulatoryComplexity: 'high', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'tensions', vcCapital: 'underweight' },
+    retrospectiveScore: 80, outcome: 'unicorn',
+    comparablePatterns: ['emerging-mkt-fintech', 'api-cross-border', 'panafricain-leader']
+  },
+  {
+    id: 'zoom', num: '038', name: 'Zoom', country: 'États-Unis', geographicHub: 'San Jose',
+    sector: 'SaaS', subSector: 'Vidéoconférence enterprise', yearFounded: 2011, yearOfRefusal: 2013,
+    archetype: 'depth', blindspots: ['skype-webex-occupent-marche', 'commodity-perceived', 'video-pas-investable-vc'],
+    proxies: ['founder-yuan-ex-webex', 'qualite-experience-utilisateur', 'gross-margin-saas-elevee'],
+    teamProfile: { foundersCount: 1, pedigreeCanonical: true, averageAge: 'senior', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'low', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'balanced' },
+    retrospectiveScore: 85, outcome: 'public',
+    comparablePatterns: ['anti-leader-experience', 'commodity-disruption-by-quality', 'founder-from-incumbent']
+  },
+  {
+    id: 'figma', num: '039', name: 'Figma', country: 'États-Unis', geographicHub: 'San Francisco',
+    sector: 'SaaS', subSector: 'Design collaboratif browser-based', yearFounded: 2012, yearOfRefusal: 2014,
+    archetype: 'cumulative-long', blindspots: ['adope-imbattable-design', 'browser-pas-pour-pro', 'wasm-pas-mature'],
+    proxies: ['fondateurs-tres-jeunes-thiel-fellow', 'patience-2-ans-tech-pure', 'collaboration-realtime'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'young', sectorExperience: 'medium', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'low', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'balanced' },
+    retrospectiveScore: 89, outcome: 'acquired',
+    comparablePatterns: ['anti-adobe', 'collaboration-first-design', 'browser-tech-as-moat']
+  },
+  {
+    id: 'snowflake', num: '040', name: 'Snowflake', country: 'États-Unis', geographicHub: 'San Mateo',
+    sector: 'Cloud', subSector: 'Data warehouse cloud-native', yearFounded: 2012, yearOfRefusal: 2014,
+    archetype: 'depth', blindspots: ['oracle-aws-domine', 'separation-compute-storage-trop-tech', 'enterprise-data-conservatism'],
+    proxies: ['founders-ex-oracle', 'gross-margin-saas-tres-elevee', 'thiele-bock-frenchies'],
+    teamProfile: { foundersCount: 3, pedigreeCanonical: true, averageAge: 'senior', sectorExperience: 'high', riskTaken: 'medium' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'low', capitalIntensity: 'high' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'balanced' },
+    retrospectiveScore: 92, outcome: 'public',
+    comparablePatterns: ['ex-incumbent-founders', 'cloud-native-against-legacy', 'separation-architecturale']
+  },
+  {
+    id: 'klaviyo', num: '041', name: 'Klaviyo', country: 'États-Unis', geographicHub: 'Boston',
+    sector: 'SaaS', subSector: 'Email marketing pour e-commerce', yearFounded: 2012, yearOfRefusal: 2014,
+    archetype: 'cumulative-mid', blindspots: ['mailchimp-leader', 'email-marketing-saturated', 'boston-hors-bay-area'],
+    proxies: ['shopify-integration-deep', 'data-driven-personalisation', 'bootstrapped-5-ans'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'mid', sectorExperience: 'high', riskTaken: 'medium' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'low', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'balanced' },
+    retrospectiveScore: 81, outcome: 'public',
+    comparablePatterns: ['vertical-saas', 'integration-platform-deep', 'bootstrapped-then-vc']
+  },
+  {
+    id: 'datadog', num: '042', name: 'Datadog', country: 'États-Unis', geographicHub: 'New York',
+    sector: 'SaaS', subSector: 'Monitoring infrastructure cloud', yearFounded: 2010, yearOfRefusal: 2012,
+    archetype: 'cumulative-long', blindspots: ['nagios-domine-monitoring', 'devops-emerging-only', 'french-founders-NY'],
+    proxies: ['founders-ex-french-amazon-wireless-generation', 'intersection-dev-ops', 'dashboard-elegance'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'mid', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'extreme', saturation: 'fragmented', regulatoryComplexity: 'low', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'underweight' },
+    retrospectiveScore: 90, outcome: 'public',
+    comparablePatterns: ['intersection-categories', 'devops-wave', 'french-fondateurs-ny']
+  },
+  {
+    id: 'twilio', num: '043', name: 'Twilio', country: 'États-Unis', geographicHub: 'San Francisco',
+    sector: 'SaaS', subSector: 'API communication (SMS/voice)', yearFounded: 2008, yearOfRefusal: 2010,
+    archetype: 'depth', blindspots: ['telco-tres-fermes', 'developers-pas-decideurs', 'api-trop-niche'],
+    proxies: ['founder-jeff-lawson-ex-amazon-aws', 'api-first-religion', 'developer-evangelism'],
+    teamProfile: { foundersCount: 3, pedigreeCanonical: false, averageAge: 'mid', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'high', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'balanced' },
+    retrospectiveScore: 87, outcome: 'public',
+    comparablePatterns: ['api-first', 'developer-evangelism', 'aws-mafia']
+  },
+  {
+    id: 'mongodb', num: '044', name: 'MongoDB', country: 'États-Unis', geographicHub: 'New York',
+    sector: 'Cloud', subSector: 'Base de données NoSQL document', yearFounded: 2007, yearOfRefusal: 2010,
+    archetype: 'cumulative-long', blindspots: ['oracle-mysql-postgres-domine', 'nosql-pas-mature', 'open-source-monetization'],
+    proxies: ['fondateurs-ex-doubleclick-acquired', 'open-source-then-cloud', 'developer-adoption-organic'],
+    teamProfile: { foundersCount: 3, pedigreeCanonical: false, averageAge: 'senior', sectorExperience: 'high', riskTaken: 'medium' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'low', capitalIntensity: 'medium' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'balanced' },
+    retrospectiveScore: 84, outcome: 'public',
+    comparablePatterns: ['open-source-cloud', 'paradigm-shift-architecture', 'nosql-wave']
+  },
+  {
+    id: 'unity', num: '045', name: 'Unity Technologies', country: 'Danemark', geographicHub: 'Copenhague',
+    sector: 'Cloud', subSector: 'Moteur 3D temps réel multi-plateforme', yearFounded: 2004, yearOfRefusal: 2010,
+    archetype: 'cumulative-long', blindspots: ['unreal-domine-aaa', 'gaming-niche-vc', 'denmark-far-from-bay-area'],
+    proxies: ['democratisation-3d', 'mobile-gaming-wave', 'longue-traine-developpeurs'],
+    teamProfile: { foundersCount: 3, pedigreeCanonical: false, averageAge: 'mid', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'low', capitalIntensity: 'medium' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'underweight' },
+    retrospectiveScore: 80, outcome: 'public',
+    comparablePatterns: ['democratisation-tool', 'long-tail-creator', 'eu-tech-success']
+  },
+  {
+    id: 'klarna', num: '046', name: 'Klarna', country: 'Suède', geographicHub: 'Stockholm',
+    sector: 'Fintech', subSector: 'Buy Now Pay Later e-commerce', yearFounded: 2005, yearOfRefusal: 2010,
+    archetype: 'cumulative-mid', blindspots: ['credit-card-domine-payment', 'bnpl-pas-mature', 'nordic-mkt-trop-petit'],
+    proxies: ['nordic-test-mkt-mature', 'merchant-conversion-uplift', 'vente-au-detail-friction'],
+    teamProfile: { foundersCount: 3, pedigreeCanonical: false, averageAge: 'young', sectorExperience: 'medium', riskTaken: 'medium' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'saturated', regulatoryComplexity: 'high', capitalIntensity: 'medium' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'underweight' },
+    retrospectiveScore: 76, outcome: 'unicorn',
+    comparablePatterns: ['bnpl-wave', 'nordic-test-bed', 'merchant-uplift']
+  },
+  {
+    id: 'spotify-early', num: '047', name: 'Spotify (early years)', country: 'Suède', geographicHub: 'Stockholm',
+    sector: 'Media', subSector: 'Streaming musical par abonnement', yearFounded: 2006, yearOfRefusal: 2009,
+    archetype: 'cumulative-long', blindspots: ['itunes-domine-music', 'streaming-pas-rentable', 'majors-records-bloquent-licences'],
+    proxies: ['founder-ek-vision', 'sweden-music-tradition', 'freemium-acquisition'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'young', sectorExperience: 'medium', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'extreme', saturation: 'saturated', regulatoryComplexity: 'high', capitalIntensity: 'high' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'underweight' },
+    retrospectiveScore: 85, outcome: 'public',
+    comparablePatterns: ['freemium-content', 'eu-then-us', 'patient-licensing']
+  },
+  {
+    id: 'adyen', num: '048', name: 'Adyen', country: 'Pays-Bas', geographicHub: 'Amsterdam',
+    sector: 'Fintech', subSector: 'Plateforme paiements globale enterprise', yearFounded: 2006, yearOfRefusal: 2010,
+    archetype: 'depth', blindspots: ['paypal-stripe-occupent', 'amsterdam-hors-radar', 'enterprise-cycles-longs'],
+    proxies: ['founders-ex-bibit-acquired', 'unified-platform-thesis', 'enterprise-discipline'],
+    teamProfile: { foundersCount: 6, pedigreeCanonical: false, averageAge: 'senior', sectorExperience: 'high', riskTaken: 'medium' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'extreme', saturation: 'saturated', regulatoryComplexity: 'high', capitalIntensity: 'medium' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'stable', vcCapital: 'underweight' },
+    retrospectiveScore: 88, outcome: 'public',
+    comparablePatterns: ['enterprise-fintech', 'eu-discipline', 'serial-founders-payments']
+  },
+  {
+    id: 'uipath', num: '049', name: 'UiPath', country: 'Roumanie', geographicHub: 'Bucarest',
+    sector: 'IA', subSector: 'RPA (Robotic Process Automation)', yearFounded: 2005, yearOfRefusal: 2014,
+    archetype: 'capacity', blindspots: ['rpa-niche-perceived', 'romania-hors-radar', 'pivot-multiple-decennies'],
+    proxies: ['fondateur-dines-vision', 'enterprise-ops-friction', 'eu-est-tech-talent'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'senior', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'fragmented', regulatoryComplexity: 'low', capitalIntensity: 'medium' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'tensions', vcCapital: 'underweight' },
+    retrospectiveScore: 78, outcome: 'public',
+    comparablePatterns: ['eastern-europe-tech', 'rpa-wave', 'long-pivot-success']
+  },
+  {
+    id: 'paystack', num: '050', name: 'Paystack', country: 'Nigeria', geographicHub: 'Lagos',
+    sector: 'Fintech', subSector: 'API paiements Afrique de l\'Ouest', yearFounded: 2015, yearOfRefusal: 2017,
+    archetype: 'depth', blindspots: ['afrique-ouest-pas-mainstream', 'flutterwave-concurrent', 'merchants-petits'],
+    proxies: ['ycombinator-graduates', 'stripe-exit-2020', 'african-developers-rising'],
+    teamProfile: { foundersCount: 2, pedigreeCanonical: false, averageAge: 'young', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'large', realIntensity: 'high', saturation: 'fragmented', regulatoryComplexity: 'high', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'tensions', vcCapital: 'underweight' },
+    retrospectiveScore: 82, outcome: 'acquired',
+    comparablePatterns: ['african-fintech', 'ycombinator-graduate', 'stripe-acquisition']
+  },
+  {
+    id: 'wiz-cybersec', num: '051', name: 'Wiz', country: 'Israël', geographicHub: 'Tel Aviv',
+    sector: 'IA', subSector: 'Cybersécurité cloud (CNAPP)', yearFounded: 2020, yearOfRefusal: 2020,
+    archetype: 'capacity', blindspots: ['cybersec-saturated', 'cloud-security-fragmented', 'crowdstrike-palo-alto-domine'],
+    proxies: ['fondateurs-ex-microsoft-cloud-security', 'unit-8200-mafia', 'agentless-architecture'],
+    teamProfile: { foundersCount: 4, pedigreeCanonical: true, averageAge: 'senior', sectorExperience: 'high', riskTaken: 'medium' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'extreme', saturation: 'saturated', regulatoryComplexity: 'medium', capitalIntensity: 'low' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'tensions', vcCapital: 'overweight' },
+    retrospectiveScore: 94, outcome: 'unicorn',
+    comparablePatterns: ['unit-8200-mafia', 'serial-cybersec-founders', 'fastest-unicorn']
+  },
+  {
+    id: 'anthropic-self', num: '052', name: 'Anthropic', country: 'États-Unis', geographicHub: 'San Francisco',
+    sector: 'IA', subSector: 'AI safety research / API LLM', yearFounded: 2021, yearOfRefusal: 2021,
+    archetype: 'depth', blindspots: ['openai-gpt-domine', 'safety-pas-monetisable', 'capital-needs-extreme'],
+    proxies: ['founders-ex-openai-research', 'constitutional-ai-vision', 'enterprise-trust-positioning'],
+    teamProfile: { foundersCount: 7, pedigreeCanonical: true, averageAge: 'senior', sectorExperience: 'high', riskTaken: 'high' },
+    marketProfile: { perceivedSize: 'massive', realIntensity: 'extreme', saturation: 'fragmented', regulatoryComplexity: 'high', capitalIntensity: 'high' },
+    macroAtRefusal: { cyclePosition: 'pre-bascule', geopolitics: 'tensions', vcCapital: 'overweight' },
+    retrospectiveScore: 92, outcome: 'unicorn',
+    comparablePatterns: ['openai-mafia', 'safety-as-moat', 'enterprise-trust-vs-consumer']
+  },
 ];
 
 export function findCorpusById(id: string): CaseRecord | undefined {
