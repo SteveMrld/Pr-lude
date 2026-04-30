@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
 
 const ENGINES = [
@@ -54,6 +54,12 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Au montage : si un job était en cours quand l'utilisateur a fermé l'onglet, reprendre le polling
+  useEffect(() => {
+    resumeActiveJob();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleFilesSelect(newFiles: FileList | null) {
     if (!newFiles || newFiles.length === 0) return;
     const accepted: File[] = [];
@@ -98,96 +104,152 @@ export default function Home() {
     setResult(null);
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
-    // Wake Lock : empêche la mise en veille mobile pendant le pipeline (3-5 min)
-    let wakeLock: any = null;
+    // Génère un jobId côté client pour pouvoir poller même si la POST se coupe
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    // Stocke le jobId dans localStorage : si l'utilisateur ferme l'onglet et revient,
+    // on peut reprendre le polling
     try {
-      // @ts-ignore - WakeLock API non typée par défaut
-      if ('wakeLock' in navigator) {
-        // @ts-ignore
-        wakeLock = await navigator.wakeLock.request('screen');
-        // Re-acquire si la page repasse au premier plan
-        document.addEventListener('visibilitychange', async () => {
-          if (wakeLock !== null && document.visibilityState === 'visible') {
-            try {
-              // @ts-ignore
-              wakeLock = await navigator.wakeLock.request('screen');
-            } catch (e) {}
-          }
-        });
-      }
-    } catch (e) {
-      console.warn('Wake Lock indisponible:', e);
+      localStorage.setItem('prelude_active_job', jobId);
+    } catch (e) {}
+
+    // Lance la POST en arrière-plan SANS await (la connexion peut se couper côté mobile, on s'en moque)
+    const formData = new FormData();
+    formData.append('jobId', jobId);
+    for (const f of files) {
+      formData.append('files', f);
     }
+    fetch('/api/jobs', { method: 'POST', body: formData }).catch(err => {
+      console.warn('POST job failed (client-side, pipeline may continue server-side):', err);
+    });
 
-    try {
-      const formData = new FormData();
-      for (const f of files) {
-        formData.append('files', f);
-      }
+    // Démarre le polling immédiatement
+    let attempts = 0;
+    const maxAttempts = 90; // 90 * 4s = 360s max
+    let pollTimer: any = null;
 
-      const response = await fetch('/api/analyze', { method: 'POST', body: formData });
+    const poll = async () => {
+      attempts++;
+      try {
+        const r = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
 
-      if (!response.ok || !response.body) {
-        const errBody = await response.text();
-        throw new Error(errBody || 'Erreur réseau');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        // Parse SSE events
-        const events = buffer.split('\n\n');
-        buffer = events.pop() || '';
-
-        for (const event of events) {
-          if (!event.trim()) continue;
-          const lines = event.split('\n');
-          let eventType = '';
-          let dataStr = '';
-          for (const line of lines) {
-            if (line.startsWith('event: ')) eventType = line.slice(7).trim();
-            else if (line.startsWith('data: ')) dataStr = line.slice(6);
+        if (r.status === 404) {
+          // Le serveur n'a pas encore créé le job (POST en cours d'upload)
+          if (attempts < maxAttempts) {
+            pollTimer = setTimeout(poll, 4000);
+          } else {
+            setError('Le serveur n\'a pas créé le job. Vérifie la connexion réseau.');
+            setAnalyzing(false);
           }
-          if (!eventType || !dataStr) continue;
+          return;
+        }
 
-          try {
-            const data = JSON.parse(dataStr);
+        if (!r.ok) {
+          throw new Error('Erreur polling : ' + r.status);
+        }
 
-            if (eventType === 'engine-start') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: { status: 'running', startedAt: Date.now() }
-              }));
-            } else if (eventType === 'engine-done') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: { ...prev[data.engine], status: 'done', completedAt: Date.now() }
-              }));
-            } else if (eventType === 'complete') {
-              setResult(data);
-            } else if (eventType === 'error') {
-              setError(data.message);
+        const data = await r.json();
+
+        // Mise à jour des états moteurs
+        if (data.engineStates) {
+          setEngineStates(prev => {
+            const next = { ...prev };
+            for (const [engine, state] of Object.entries(data.engineStates as any)) {
+              next[engine] = state as any;
             }
-          } catch (e) {
-            console.error('Parse error:', e);
-          }
+            return next;
+          });
+        }
+
+        if (data.status === 'complete' && data.result) {
+          setResult(data.result);
+          setAnalyzing(false);
+          try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
+          return;
+        }
+
+        if (data.status === 'error') {
+          setError(data.error || 'Erreur pipeline');
+          setAnalyzing(false);
+          try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
+          return;
+        }
+
+        // Continue le polling
+        if (attempts < maxAttempts) {
+          pollTimer = setTimeout(poll, 4000);
+        } else {
+          setError('Le pipeline a dépassé la durée maximale.');
+          setAnalyzing(false);
+        }
+      } catch (e: any) {
+        // Erreur réseau (ex: téléphone en veille). On continue de poller, on ne laisse pas tomber.
+        console.warn('Polling error (will retry):', e);
+        if (attempts < maxAttempts) {
+          pollTimer = setTimeout(poll, 4000);
+        } else {
+          setError(e.message || 'Erreur de polling');
+          setAnalyzing(false);
         }
       }
-    } catch (e: any) {
-      setError(e.message || 'Erreur réseau');
-    } finally {
-      // Libérer Wake Lock
-      if (wakeLock) {
-        try { await wakeLock.release(); } catch (e) {}
-      }
-      setAnalyzing(false);
-    }
+    };
+
+    // Démarre le polling après un court délai pour laisser le serveur créer le job
+    pollTimer = setTimeout(poll, 2000);
+  }
+
+  // Au montage : vérifier s'il y a un job actif en cours dans localStorage
+  // (cas où l'utilisateur ferme l'onglet et revient)
+  function resumeActiveJob() {
+    try {
+      const activeJobId = localStorage.getItem('prelude_active_job');
+      if (!activeJobId) return;
+
+      setAnalyzing(true);
+      let attempts = 0;
+      const maxAttempts = 90;
+
+      const poll = async () => {
+        attempts++;
+        try {
+          const r = await fetch(`/api/jobs/${activeJobId}`, { cache: 'no-store' });
+          if (r.status === 404) {
+            // Job perdu côté serveur (cold start Vercel ou trop ancien)
+            try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
+            setAnalyzing(false);
+            return;
+          }
+          const data = await r.json();
+          if (data.engineStates) {
+            setEngineStates(prev => {
+              const next = { ...prev };
+              for (const [engine, state] of Object.entries(data.engineStates as any)) {
+                next[engine] = state as any;
+              }
+              return next;
+            });
+          }
+          if (data.status === 'complete' && data.result) {
+            setResult(data.result);
+            setAnalyzing(false);
+            try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
+            return;
+          }
+          if (data.status === 'error') {
+            setError(data.error || 'Erreur pipeline');
+            setAnalyzing(false);
+            try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
+            return;
+          }
+          if (attempts < maxAttempts) setTimeout(poll, 4000);
+          else setAnalyzing(false);
+        } catch (e) {
+          if (attempts < maxAttempts) setTimeout(poll, 4000);
+          else setAnalyzing(false);
+        }
+      };
+      poll();
+    } catch (e) {}
   }
 
   function reset() {
@@ -284,8 +346,9 @@ export default function Home() {
               <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
             </div>
             <div style={{ padding: '12px 18px', background: '#faf3ec', border: '1px solid #c4a484', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
-              <strong>Sur mobile :</strong> ne verrouille pas l'écran et ne change pas d'application pendant les 3-4 minutes du pipeline.
-              La connexion au serveur se coupe si le téléphone passe en veille. Pose le téléphone à plat avec l'écran allumé.
+              <strong>Sur mobile :</strong> tu peux mettre l'écran en veille, recevoir un appel ou changer d'application sans risque.
+              L'analyse continue côté serveur. Quand tu reviens, la page se met automatiquement à jour.
+              Le pipeline prend généralement 3 à 4 minutes.
             </div>
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
