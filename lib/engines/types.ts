@@ -69,6 +69,16 @@ export interface ReferenceChecksOutput {
     affiliation?: string;
     keyQuestions: string[];
   }>;
+  // 5e categorie : signaux faibles (traction organique, recrutement, presence
+  // produit). Inspire des fonds debusqueurs d outsiders qui utilisent la data
+  // pure pour detecter les pepites avant qu elles ne deviennent consensus.
+  // Optionnel pour retro-compatibilite (UI peut ne pas l afficher).
+  weakSignalsChecks?: Array<{
+    signalType: 'github' | 'similarweb' | 'product_hunt' | 'hacker_news' | 'recruiting' | 'app_store';
+    target: string; // ce qu il faut chercher (URL, handle, nom de produit)
+    rationale: string; // pourquoi ce signal est pertinent pour ce dossier
+    expectedFinding: string; // ce qu une traction reelle ressemblerait
+  }>;
   redFlagsToProbe: string[]; // alertes specifiques sortantes des autres moteurs a verifier en DD
   priorityOrder: string[]; // ordre recommande des appels (qui d'abord, pourquoi)
 }
