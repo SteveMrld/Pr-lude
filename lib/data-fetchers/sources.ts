@@ -285,6 +285,17 @@ export interface FounderRealData {
 }
 
 export async function gatherFounderRealData(name: string, affiliationHint?: string): Promise<FounderRealData> {
+  // DÉSACTIVÉ: les appels externes ralentissent trop le pipeline sur Vercel.
+  // On retourne immédiatement un résultat vide. Claude se base uniquement sur le pitch deck.
+  return {
+    name,
+    affiliationHint,
+    sourcesQueried: [],
+    sourcesFound: [],
+  } as FounderRealData;
+
+  // Code original désactivé ci-dessous
+  /*
   const result: any = {
     name,
     affiliationHint,
@@ -388,6 +399,7 @@ export async function gatherFounderRealData(name: string, affiliationHint?: stri
   result.profileSignals = profileSignals;
 
   return result as FounderRealData;
+  */
 }
 
 // ============================================================
@@ -589,6 +601,14 @@ export async function gatherMarketRealData(
   sectorKeyword: string,
   productKeyword?: string
 ): Promise<MarketRealData> {
+  // DÉSACTIVÉ pour les performances Vercel (sources externes trop lentes)
+  return {
+    query: `${companyName} | ${sectorKeyword}${productKeyword ? ' | ' + productKeyword : ''}`,
+    sourcesQueried: [],
+    sourcesFound: [],
+  } as MarketRealData;
+
+  /*
   const result: any = {
     query: `${companyName} | ${sectorKeyword}${productKeyword ? ' | ' + productKeyword : ''}`,
     sourcesQueried: ['hackernews', 'hackernews-trend', 'openalex-concept', 'wikipedia-sector', 'wikipedia-related', 'github-topic'],
@@ -696,6 +716,7 @@ export async function gatherMarketRealData(
   };
 
   return result as MarketRealData;
+  */
 }
 
 // ============================================================
@@ -791,6 +812,17 @@ export interface MacroSnapshot {
 }
 
 export async function gatherMacroRealData(country: string): Promise<MacroSnapshot> {
+  // DÉSACTIVÉ pour les performances Vercel
+  return {
+    country,
+    countryCode: country.toUpperCase().slice(0, 3),
+    sourcesQueried: [],
+    sourcesFound: [],
+    indicators: {},
+    derivedMetrics: {},
+  } as MacroSnapshot;
+
+  /*
   // Mapping country code (FRA, DEU, USA, GBR, etc.)
   const countryCodeMap: Record<string, string> = {
     'france': 'FRA', 'fr': 'FRA',
@@ -871,4 +903,5 @@ export async function gatherMacroRealData(country: string): Promise<MacroSnapsho
   }
 
   return result;
+*/
 }

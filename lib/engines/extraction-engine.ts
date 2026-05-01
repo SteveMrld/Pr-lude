@@ -41,6 +41,6 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
 
 export async function extractFromDeck(pdfBase64: string): Promise<ExtractionOutput> {
   const userPrompt = 'Extrais les informations factuelles de ce pitch deck. Retourne uniquement le JSON structuré demandé.';
-  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, pdfBase64, 3000, MODEL);
+  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, pdfBase64, 3000);
   return parseJSON<ExtractionOutput>(rawResponse);
 }

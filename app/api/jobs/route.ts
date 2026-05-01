@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
     });
 
     // Lancer le pipeline. La fonction POST attend sa fin (jusqu'au maxDuration de 300s).
-    // Si le client se déconnecte (mobile), le pipeline continue côté serveur et écrit dans le store.
-    // Le client peut ensuite poller GET /api/jobs/[id] pour récupérer l'état.
+    // Le client polle GET /api/jobs/[id] indépendamment.
+    // Si la POST timeout côté Vercel mais le pipeline a écrit le résultat dans Supabase, le client le voit.
     await runPipeline({
       jobId: clientJobId,
       pitchDeckPayload: pitchDeck.payload,
