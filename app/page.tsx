@@ -2,6 +2,9 @@
 
 import { useState, useRef } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
+import RadarDimensions from './components/RadarDimensions';
+import GaugeProbability from './components/GaugeProbability';
+import CompetitiveMatrix from './components/CompetitiveMatrix';
 
 const ENGINES = [
   { id: 'extraction', name: 'Moteur 1 · Extraction', label: 'Lecture du pitch deck et structuration des données' },
@@ -514,6 +517,57 @@ export default function Home() {
               {/* Tab content */}
               {activeTab === 'synthesis' && (
                 <div style={{ padding: '28px 32px' }}>
+                  {/* Bloc visuel : jauge probabilite + radar 6 dimensions */}
+                  {(result.finalRecommendation?.successProbability != null || (result.finalRecommendation?.dimensionProbabilities || []).length > 0) && (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                      gap: 24,
+                      marginBottom: 32,
+                      padding: '24px 0',
+                      borderBottom: '1px solid var(--hairline)',
+                      alignItems: 'center',
+                    }}>
+                      {result.finalRecommendation?.successProbability != null && (
+                        <div style={{ textAlign: 'center' }}>
+                          <GaugeProbability
+                            successProbability={result.finalRecommendation.successProbability}
+                            failureProbability={result.finalRecommendation?.failureProbability}
+                            size={260}
+                          />
+                          {result.finalRecommendation?.verdict && (
+                            <div style={{
+                              marginTop: 4,
+                              fontSize: 11,
+                              letterSpacing: '0.08em',
+                              textTransform: 'uppercase',
+                              opacity: 0.6,
+                            }}>
+                              Verdict · <strong style={{ fontWeight: 500, opacity: 0.95 }}>{result.finalRecommendation.verdict}</strong>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {(result.finalRecommendation?.dimensionProbabilities || []).length > 0 && (
+                        <div>
+                          <div style={{
+                            fontSize: 10,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            opacity: 0.55,
+                            marginBottom: 4,
+                            textAlign: 'center',
+                          }}>
+                            Probabilités par dimension
+                          </div>
+                          <RadarDimensions
+                            dimensions={result.finalRecommendation.dimensionProbabilities}
+                            verdict={result.finalRecommendation?.verdict}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="archetype-badge">
                     Archétype dominant · {ARCHETYPE_LABELS[result.patternMatching?.archetypeDominant] || result.patternMatching?.archetypeDominant}
                   </div>
@@ -1351,60 +1405,14 @@ export default function Home() {
                       <p style={{ fontSize: 13, opacity: 0.8, marginTop: -6, marginBottom: 14 }}>
                         Évaluation binaire de la couverture fonctionnelle de la société analysée vs ses concurrents directs sur les dimensions critiques du secteur.
                       </p>
-                      <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-                        <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', minWidth: 600 }}>
-                          <thead>
-                            <tr>
-                              <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '2px solid var(--ink)', fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 13, position: 'sticky', left: 0, background: 'var(--bg)' }}>Player</th>
-                              {(result.market.competitiveMatrix.dimensions || []).map((d: string, i: number) => (
-                                <th key={i} style={{ padding: '10px 8px', borderBottom: '2px solid var(--ink)', fontWeight: 500, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--muted)' }}>
-                                  {d}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(result.market.competitiveMatrix.players || []).map((p: any, i: number) => (
-                              <tr key={i} style={{
-                                background: p.isTargetCompany ? 'rgba(0,0,0,0.04)' : 'transparent',
-                                fontWeight: p.isTargetCompany ? 500 : 400,
-                              }}>
-                                <td style={{
-                                  padding: '10px 12px',
-                                  borderBottom: '1px solid var(--hairline)',
-                                  fontFamily: p.isTargetCompany ? 'var(--serif)' : 'inherit',
-                                  fontSize: p.isTargetCompany ? 14 : 12,
-                                  position: 'sticky',
-                                  left: 0,
-                                  background: p.isTargetCompany ? 'rgba(0,0,0,0.04)' : 'var(--bg)',
-                                }}>
-                                  {p.name}
-                                  {p.isTargetCompany && <span style={{ marginLeft: 6, fontSize: 9, opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>· cible</span>}
-                                </td>
-                                {(p.coverage || []).map((c: boolean, j: number) => (
-                                  <td key={j} style={{
-                                    textAlign: 'center',
-                                    padding: '10px 8px',
-                                    borderBottom: '1px solid var(--hairline)',
-                                    fontSize: 14,
-                                    color: c ? '#3a5a3a' : '#a04040',
-                                    fontWeight: c ? 600 : 400,
-                                  }}>
-                                    {c ? '√' : '×'}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <div style={{ marginBottom: 16 }}>
+                        <CompetitiveMatrix
+                          dimensions={result.market.competitiveMatrix.dimensions || []}
+                          players={result.market.competitiveMatrix.players || []}
+                          differentiationScore={result.market.competitiveMatrix.differentiationScore}
+                        />
                       </div>
                       <div style={{ padding: '14px 16px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', marginBottom: 8 }}>
-                        <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8 }}>
-                          <div>
-                            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score différenciation </span>
-                            <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.market.competitiveMatrix.differentiationScore}/100</span>
-                          </div>
-                        </div>
                         <p style={{ fontSize: 13, margin: 0 }}>{result.market.competitiveMatrix.differentiationRationale}</p>
                       </div>
                     </>
