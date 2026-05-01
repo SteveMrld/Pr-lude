@@ -4,7 +4,7 @@ import { processFiles } from '@/lib/file-processor';
 import { getJobStore } from '@/lib/job-store';
 import { runPipeline } from '@/lib/pipeline-runner';
 
-export const maxDuration = 600; // 10 minutes max (couvre les pipelines les plus longs)
+export const maxDuration = 300; // 5 minutes max (Vercel Hobby plan limit)
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
