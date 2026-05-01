@@ -10,6 +10,7 @@ import { extractFinancialData } from './engines/financial-extraction-engine';
 import { analyzeFinancialCoherence } from './engines/financial-coherence-engine';
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
+import { analyzeBenchmarks } from './engines/benchmark-engine';
 import { getJobStore } from './job-store';
 
 interface RunOpts {
@@ -44,6 +45,20 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       analyzeMacro(extraction).then(async r => { await store.setEngineDone(jobId, 'macro', r); return r; }),
       extractFinancialData(pitchDeckPayload, businessPlanPayload, extraction).then(async r => { await store.setEngineDone(jobId, 'financial-extraction', r); return r; }),
     ]);
+
+    // Moteur Benchmarks (Session 2/4) : positionnement chiffre du dossier vs marche.
+    // 100% deterministe (pas d appel LLM), execution instantanee. Sortie consommee
+    // par les moteurs en aval pour enrichir leur raisonnement.
+    // Si echec, on continue sans bloquer le pipeline.
+    await store.setEngineRunning(jobId, 'benchmarks');
+    let benchmarks: any = null;
+    try {
+      benchmarks = await analyzeBenchmarks(extraction, financialData);
+      await store.setEngineDone(jobId, 'benchmarks', benchmarks);
+    } catch (err: any) {
+      console.warn('[benchmarks] engine failed, continuing without:', err?.message);
+      await store.setEngineDone(jobId, 'benchmarks', null);
+    }
 
     // Moteur 5 : Pattern Matching
     await store.setEngineRunning(jobId, 'pattern');
@@ -98,6 +113,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       team,
       market,
       macro,
+      benchmarks,
       patternMatching,
       causalReversal,
       blindspotAnalysis,

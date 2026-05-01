@@ -459,6 +459,60 @@ export interface OrchestratedResult {
   };
 }
 
+// Sortie du moteur Benchmarks : positionnement chiffre du dossier vs marche.
+// Calcul deterministe en TypeScript pur (pas d appel LLM). Les moteurs en aval
+// (Coherence financiere, Macro, Pattern) consomment cette sortie pour
+// enrichir leur raisonnement.
+export interface BenchmarkPositioning {
+  stage: 'seed' | 'seriesA' | 'seriesB' | 'seriesC' | 'seriesDPlus' | 'unknown';
+  isAi: boolean;
+  region: 'US' | 'Europe' | 'Other' | 'unknown';
+
+  // Positionnement valorisation pre-money
+  preMoney: {
+    dossierValueMillionsUsd: number | null; // null si non extractible
+    benchmarkMedianMillionsUsd: number | null;
+    benchmarkSegment: string; // ex: "US Series A IA Q1 2026"
+    deviationPercent: number | null;
+    verdict: 'below_market' | 'in_line' | 'above_market' | 'extreme_outlier' | 'no_data';
+    summary: string; // 1-2 phrases naturelles
+  };
+
+  // Positionnement taille du tour
+  dealSize: {
+    dossierValueMillionsUsd: number | null;
+    benchmarkMedianMillionsUsd: number | null;
+    deviationPercent: number | null;
+    verdict: 'below_market' | 'in_line' | 'above_market' | 'extreme_outlier' | 'no_data';
+    summary: string;
+  };
+
+  // Donnees marche pertinentes pour le contexte
+  marketContext: {
+    aiShareOfDealValuePercent?: number;
+    medianStepUp?: number;
+    yearsBetweenRounds?: number;
+    notes: string[];
+  };
+
+  // Comparables europeens suggeres si dossier europeen
+  europeanComparables?: Array<{
+    name: string;
+    sector: string;
+    relevance: string;
+  }>;
+
+  // Citations des sources utilisees pour traçabilite dans la note
+  citations: Array<{
+    sourceId: string;
+    name: string;
+    asOf: string;
+  }>;
+
+  // Warnings et limitations
+  warnings: string[];
+}
+
 // Step status pour le streaming UI
 export type EngineStatus = 'idle' | 'running' | 'done' | 'error';
 
