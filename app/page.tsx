@@ -128,10 +128,24 @@ export default function Home() {
 
         const job = await r.json();
 
-        if (job.engineStates) {
-          // Conversion : le job-store ne stocke pas les memes types que notre UI.
-          // On recopie le status et les timestamps tels quels.
-          setEngineStates(job.engineStates);
+        if (job.engineStates && typeof job.engineStates === 'object') {
+          // Le serveur ne stocke que les engines qui ont commence. L'UI a besoin
+          // d'un objet pre-rempli avec TOUS les engines (idle par defaut), sinon
+          // les composants enfants peuvent planter sur un engineStates[id] undefined.
+          setEngineStates(prev => {
+            const merged: Record<string, EngineState> = { ...prev };
+            for (const eid of Object.keys(job.engineStates)) {
+              const incoming = job.engineStates[eid];
+              if (incoming && typeof incoming === 'object') {
+                merged[eid] = {
+                  status: incoming.status || 'idle',
+                  startedAt: incoming.startedAt,
+                  completedAt: incoming.completedAt,
+                };
+              }
+            }
+            return merged;
+          });
         }
 
         // Detection de stuck : si updatedAt ne progresse plus depuis 90s, le pipeline
@@ -165,17 +179,32 @@ export default function Home() {
 
   // Resume-on-mount : si un job actif est present en localStorage, on reprend le polling.
   // Permet a l'utilisateur de recharger la page pendant un pipeline sans tout perdre.
+  // BLINDAGE : tout est encapsule dans des try/catch successifs. Si le localStorage
+  // contient des donnees invalides ou si le polling explose, la page doit quand meme
+  // s'afficher normalement (etat initial), pas crasher avec une page blanche.
   useEffect(() => {
+    let activeJob: string | null = null;
     try {
-      const activeJob = localStorage.getItem('prelude_active_job');
-      if (activeJob) {
-        setAnalyzing(true);
-        pollJob(activeJob).catch(e => {
-          setError(e?.message || 'Erreur de reprise');
-          try { localStorage.removeItem('prelude_active_job'); } catch (_e) {}
-        });
-      }
-    } catch (_e) {}
+      if (typeof window === 'undefined') return;
+      activeJob = window.localStorage?.getItem('prelude_active_job') || null;
+    } catch (_e) {
+      return; // localStorage inaccessible (incognito strict, etc.)
+    }
+    if (!activeJob) return;
+    // Si le jobId stocke est invalide, on le purge sans tenter de poller.
+    if (!/^job_\d+_[a-z0-9]+$/i.test(activeJob)) {
+      try { window.localStorage.removeItem('prelude_active_job'); } catch (_e) {}
+      return;
+    }
+    try {
+      setAnalyzing(true);
+      pollJob(activeJob).catch(e => {
+        setError(e?.message || 'Erreur de reprise');
+        try { window.localStorage.removeItem('prelude_active_job'); } catch (_e) {}
+      });
+    } catch (_e) {
+      try { window.localStorage.removeItem('prelude_active_job'); } catch (_e2) {}
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
