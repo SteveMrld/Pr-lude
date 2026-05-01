@@ -152,10 +152,14 @@ export async function analyzeMarket(extraction: ExtractionOutput): Promise<Marke
   }
 
   realDataSummary += `\n--- SCORES OBJECTIFS BASÉS SUR LES FAITS ---\n`;
-  realDataSummary += `Signaux organiques (HN) : ${realData.objectiveScores.organic_signals}/100\n`;
-  realDataSummary += `Émergence académique (OpenAlex) : ${realData.objectiveScores.academic_emergence}/100\n`;
-  realDataSummary += `Écosystème technique (GitHub) : ${realData.objectiveScores.technical_ecosystem}/100\n`;
-  realDataSummary += `Visibilité publique (Wikipedia) : ${realData.objectiveScores.public_visibility}/100\n`;
+  if (realData.objectiveScores) {
+    realDataSummary += `Signaux organiques (HN) : ${realData.objectiveScores.organic_signals}/100\n`;
+    realDataSummary += `Émergence académique (OpenAlex) : ${realData.objectiveScores.academic_emergence}/100\n`;
+    realDataSummary += `Écosystème technique (GitHub) : ${realData.objectiveScores.technical_ecosystem}/100\n`;
+    realDataSummary += `Visibilité publique (Wikipedia) : ${realData.objectiveScores.public_visibility}/100\n`;
+  } else {
+    realDataSummary += `Sources externes désactivées : analyse uniquement basée sur le pitch deck.\n`;
+  }
 
   const userPrompt = `# DONNÉES DÉCLARÉES (extraction du pitch deck)
 Société : ${extraction.companyName}
