@@ -174,7 +174,7 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3500);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

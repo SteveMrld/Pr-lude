@@ -156,6 +156,6 @@ Détecte les 10 signaux de singularité contrarienne. Pour chaque signal, sois r
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
   return parseJSON<ContrarianAnalysisOutput>(rawResponse);
 }

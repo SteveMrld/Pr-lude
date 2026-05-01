@@ -135,7 +135,7 @@ ${summary}
 
 Produis la lecture macro complète au format JSON structuré demandé. Croise les données réelles récupérées avec ta connaissance des bascules sectorielles récentes.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 3000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };
