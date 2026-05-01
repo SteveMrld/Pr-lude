@@ -1,4 +1,4 @@
-import { callClaudeWithPDF, callClaude, parseJSON } from './anthropic-client';
+import { callClaudeWithPDF, callClaude, parseJSON, MODEL } from './anthropic-client';
 import type { FinancialDataExtraction, ExtractionOutput } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction Financière de la plateforme Prélude. Ton rôle est d'extraire les données financières structurées d'un dossier (pitch deck et/ou business plan).
@@ -93,7 +93,7 @@ Pour chaque donnée extraite, source = "deck". Si une donnée typique du BP (pro
 
 Retourne uniquement le JSON.`;
 
-    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500);
+    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL);
     const result = parseJSON<FinancialDataExtraction>(rawResponse);
     // Garantir que tous les champs requis existent (Claude peut omettre un champ)
     result.hasBP = false;
@@ -133,7 +133,7 @@ ${bpContent.slice(0, 8000)}
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500);
+  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL);
   const result = parseJSON<FinancialDataExtraction>(rawResponse);
   // Garantir que tous les champs requis existent
   result.hasBP = true;
