@@ -262,7 +262,7 @@ Produis la lecture macro complète au format JSON structuré demandé. Croise :
 Region detectee du dossier: ${region}.
 Le cadrage doit etre differencie selon cette region. Pour un dossier europeen, mentionne explicitement les benchmarks Atomico et le pipeline reglementaire EU 2026. Pour un dossier US, mentionne la concentration extreme et le sentiment public.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 7000);
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

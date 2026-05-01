@@ -205,6 +205,6 @@ Détecte les 10 patterns d'aveuglement collectif. Pour chaque pattern, sois rigo
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
   return parseJSON<BlindspotAnalysisOutput>(rawResponse);
 }

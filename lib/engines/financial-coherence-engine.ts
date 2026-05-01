@@ -204,6 +204,6 @@ Intègre dans 'syntheseCoherence' :
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 5000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 7000);
   return parseJSON<FinancialCoherenceOutput>(rawResponse);
 }

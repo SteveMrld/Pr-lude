@@ -246,7 +246,7 @@ Intègre dans ton analyse :
 - L'insight propriétaire dans tacitExpertise du fondateur concerné
 - Le founder commitment et la team chemistry dans collectiveAntiFragility et redFlags/greenFlags`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };
