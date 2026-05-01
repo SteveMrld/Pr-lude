@@ -126,6 +126,7 @@ export default function Home() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let receivedTerminal = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -161,13 +162,20 @@ export default function Home() {
               }));
             } else if (eventType === 'complete') {
               setResult(data);
+              receivedTerminal = true;
             } else if (eventType === 'error') {
               setError(data.message);
+              receivedTerminal = true;
             }
           } catch (e) {
             console.error('Parse error:', e);
           }
         }
+      }
+
+      // Stream termine sans event complete ni error : probable timeout serveur
+      if (!receivedTerminal) {
+        throw new Error('Le pipeline s\'est interrompu avant la fin (probable timeout serveur). Recharge la page et réessaie. Si le problème persiste, le pipeline prend trop de temps et il faut réduire la charge.');
       }
     } catch (e: any) {
       setError(e.message || 'Erreur reseau');

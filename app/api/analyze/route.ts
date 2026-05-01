@@ -12,7 +12,7 @@ import { analyzeFinancialCoherence } from '@/lib/engines/financial-coherence-eng
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { processFiles } from '@/lib/file-processor';
 
-export const maxDuration = 300; // 5 minutes max
+export const maxDuration = 600; // 10 minutes max (Vercel Pro)
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
