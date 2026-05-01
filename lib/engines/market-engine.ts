@@ -100,8 +100,8 @@ export async function analyzeMarket(extraction: ExtractionOutput): Promise<Marke
 
   // ÉTAPE 2 : Construire le résumé pour Claude
   let realDataSummary = `\n--- DONNÉES VÉRIFIÉES PAR SOURCES PUBLIQUES ---\n`;
-  realDataSummary += `Sources interrogées : ${realData.sourcesQueried.join(', ')}\n`;
-  realDataSummary += `Sources avec résultats : ${realData.sourcesFound.join(', ') || 'AUCUNE'}\n\n`;
+  realDataSummary += `Sources interrogées : ${(realData.sourcesQueried || []).join(', ') || 'aucune'}\n`;
+  realDataSummary += `Sources avec résultats : ${(realData.sourcesFound || []).join(', ') || 'AUCUNE'}\n\n`;
 
   if (realData.hackerNews) {
     realDataSummary += `Hacker News (mentions de "${extraction.companyName}") :\n`;

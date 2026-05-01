@@ -75,47 +75,50 @@ export async function analyzeMacro(extraction: ExtractionOutput): Promise<MacroA
   // ÉTAPE 2 : Construire le résumé pour Claude
   let summary = `\n--- DONNÉES MACRO RÉELLES (World Bank API) ---\n`;
   summary += `Pays : ${realData.country}\n`;
-  summary += `Sources interrogées : ${realData.sourcesQueried.join(', ')}\n`;
-  summary += `Sources avec résultats : ${realData.sourcesFound.join(', ') || 'aucune'}\n\n`;
+  summary += `Sources interrogées : ${(realData.sourcesQueried || []).join(', ') || 'aucune'}\n`;
+  summary += `Sources avec résultats : ${(realData.sourcesFound || []).join(', ') || 'aucune'}\n\n`;
 
-  if (realData.indicators.gdpGrowth && realData.indicators.gdpGrowth.length > 0) {
+  const indicators = realData.indicators || {};
+  const derivedMetrics = realData.derivedMetrics || {};
+
+  if (indicators.gdpGrowth && indicators.gdpGrowth.length > 0) {
     summary += `Croissance PIB (5 dernières années) :\n`;
-    realData.indicators.gdpGrowth.slice(0, 5).forEach(d => {
+    indicators.gdpGrowth.slice(0, 5).forEach(d => {
       summary += `  ${d.date} : ${Number(d.value).toFixed(2)}%\n`;
     });
-    if (realData.derivedMetrics.growth_trend) {
-      summary += `  → Tendance dérivée : ${realData.derivedMetrics.growth_trend}\n`;
+    if (derivedMetrics.growth_trend) {
+      summary += `  → Tendance dérivée : ${derivedMetrics.growth_trend}\n`;
     }
   }
 
-  if (realData.indicators.inflation && realData.indicators.inflation.length > 0) {
+  if (indicators.inflation && indicators.inflation.length > 0) {
     summary += `\nInflation (5 dernières années) :\n`;
-    realData.indicators.inflation.slice(0, 5).forEach(d => {
+    indicators.inflation.slice(0, 5).forEach(d => {
       summary += `  ${d.date} : ${Number(d.value).toFixed(2)}%\n`;
     });
-    if (realData.derivedMetrics.inflation_status) {
-      summary += `  → Statut dérivé : ${realData.derivedMetrics.inflation_status}\n`;
+    if (derivedMetrics.inflation_status) {
+      summary += `  → Statut dérivé : ${derivedMetrics.inflation_status}\n`;
     }
   }
 
-  if (realData.indicators.interestRate && realData.indicators.interestRate.length > 0) {
+  if (indicators.interestRate && indicators.interestRate.length > 0) {
     summary += `\nTaux d'intérêt réel (5 dernières années) :\n`;
-    realData.indicators.interestRate.slice(0, 5).forEach(d => {
+    indicators.interestRate.slice(0, 5).forEach(d => {
       summary += `  ${d.date} : ${Number(d.value).toFixed(2)}%\n`;
     });
-    if (realData.derivedMetrics.rate_regime) {
-      summary += `  → Régime dérivé : ${realData.derivedMetrics.rate_regime}\n`;
+    if (derivedMetrics.rate_regime) {
+      summary += `  → Régime dérivé : ${derivedMetrics.rate_regime}\n`;
     }
   }
 
-  if (realData.indicators.rdSpending && realData.indicators.rdSpending.length > 0) {
+  if (indicators.rdSpending && indicators.rdSpending.length > 0) {
     summary += `\nDépenses R&D (% du PIB, dernière donnée disponible) :\n`;
-    summary += `  ${realData.indicators.rdSpending[0].date} : ${Number(realData.indicators.rdSpending[0].value).toFixed(2)}%\n`;
+    summary += `  ${indicators.rdSpending[0].date} : ${Number(indicators.rdSpending[0].value).toFixed(2)}%\n`;
   }
 
-  if (realData.indicators.fdiInflows && realData.indicators.fdiInflows.length > 0) {
+  if (indicators.fdiInflows && indicators.fdiInflows.length > 0) {
     summary += `\nFlux IDE entrants (% du PIB, dernière donnée) :\n`;
-    summary += `  ${realData.indicators.fdiInflows[0].date} : ${Number(realData.indicators.fdiInflows[0].value).toFixed(2)}%\n`;
+    summary += `  ${indicators.fdiInflows[0].date} : ${Number(indicators.fdiInflows[0].value).toFixed(2)}%\n`;
   }
 
   const userPrompt = `# DOSSIER À ANALYSER (extraction du pitch deck)

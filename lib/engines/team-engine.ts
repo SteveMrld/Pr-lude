@@ -115,10 +115,10 @@ export async function analyzeTeam(extraction: ExtractionOutput): Promise<TeamAna
 
   // ÉTAPE 2 : Construire le résumé des données vérifiées
   const realDataSummary = realData.map(rd => {
-    const v = rd.verifiableFacts;
+    const v = rd.verifiableFacts || {} as any;
     let s = `\n--- ${rd.name} ---\n`;
-    s += `Sources interrogées : ${rd.sourcesQueried.join(', ')}\n`;
-    s += `Sources avec résultats : ${rd.sourcesFound.join(', ') || 'AUCUNE'}\n`;
+    s += `Sources interrogées : ${(rd.sourcesQueried || []).join(', ') || 'aucune'}\n`;
+    s += `Sources avec résultats : ${(rd.sourcesFound || []).join(', ') || 'AUCUNE'}\n`;
 
     if (rd.openalex) {
       s += `OpenAlex : ${v.openalex_pubs} publications, h-index ${v.openalex_h_index}, ${v.openalex_citations} citations\n`;
@@ -149,7 +149,11 @@ export async function analyzeTeam(extraction: ExtractionOutput): Promise<TeamAna
         s += `  - ${p.title.slice(0, 80)} (${p.published})\n`;
       });
     }
-    s += `Scores objectifs : Sci ${rd.objectiveScores.scientific_signature}/100, Tech ${rd.objectiveScores.technical_signature}/100, Public ${rd.objectiveScores.public_presence}/100, Activité ${rd.objectiveScores.recent_activity}/100\n`;
+    if (rd.objectiveScores) {
+      s += `Scores objectifs : Sci ${rd.objectiveScores.scientific_signature}/100, Tech ${rd.objectiveScores.technical_signature}/100, Public ${rd.objectiveScores.public_presence}/100, Activité ${rd.objectiveScores.recent_activity}/100\n`;
+    } else {
+      s += `(Sources externes désactivées : analyse basée sur le pitch deck uniquement)\n`;
+    }
     return s;
   }).join('\n');
 
