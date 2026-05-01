@@ -122,7 +122,7 @@ export async function analyzeTeam(extraction: ExtractionOutput): Promise<TeamAna
 
     if (rd.openalex) {
       s += `OpenAlex : ${v.openalex_pubs} publications, h-index ${v.openalex_h_index}, ${v.openalex_citations} citations\n`;
-      s += `Institutions : ${v.openalex_institutions.join(' / ') || 'non renseigné'}\n`;
+      s += `Institutions : ${(v.openalex_institutions || []).join(' / ') || 'non renseigné'}\n`;
       if (rd.recentPublications && rd.recentPublications.length > 0) {
         s += `Publications récentes :\n`;
         rd.recentPublications.forEach(p => {

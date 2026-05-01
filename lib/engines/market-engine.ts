@@ -171,7 +171,7 @@ Produit : ${extraction.productDescription}
 Business model : ${extraction.businessModel}
 
 Traction : ${JSON.stringify(extraction.traction)}
-Concurrents cités dans le pitch : ${extraction.competitorsCited.join(', ') || 'Aucun'}
+Concurrents cités dans le pitch : ${(extraction.competitorsCited || []).join(', ') || 'Aucun'}
 
 ${realDataSummary}
 

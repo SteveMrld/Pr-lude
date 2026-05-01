@@ -114,8 +114,8 @@ Anti-fragilité collective : ${team.collectiveAntiFragility.score}/100 - ${team.
 Transposition d'expérience : ${team.experienceTransposition.score}/100
 Obsession produit : ${team.founderObsession.score}/100
 Pedigree canonique : ${team.pedigreeCanonical}
-Green flags : ${team.greenFlags.join(' | ')}
-Red flags : ${team.redFlags.join(' | ')}
+Green flags : ${(team.greenFlags || []).join(' | ')}
+Red flags : ${(team.redFlags || []).join(' | ')}
 
 # Marché
 Taille perçue / Intensité réelle : ${market.perceivedSize} / ${market.realIntensity}
@@ -123,8 +123,8 @@ Saturation : ${market.saturation}
 Score signaux organiques : ${market.organicSignals.score}/100
 Score intensité besoin : ${market.needIntensity.score}/100
 Score défensibilité : ${market.defensibility.score}/100
-Moats : ${market.defensibility.moats.join(', ')}
-Vulnérabilités : ${market.defensibility.vulnerabilities.join(', ')}
+Moats : ${(market.defensibility?.moats || []).join(', ')}
+Vulnérabilités : ${(market.defensibility?.vulnerabilities || []).join(', ')}
 
 # Macro
 Position cycle : ${macro.cyclePosition}

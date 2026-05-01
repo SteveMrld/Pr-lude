@@ -140,7 +140,7 @@ Co-investisseurs : ${(extraction.fundraise.coInvestors || []).join(', ') || 'non
 Revenue : ${extraction.traction.revenue || 'non communiqué'}
 Croissance : ${extraction.traction.growth || 'non communiquée'}
 Clients : ${extraction.traction.customers || 'non communiqués'}
-Métriques citées : ${extraction.traction.metrics.join(' · ') || 'aucune'}
+Métriques citées : ${(extraction.traction.metrics || []).join(' · ') || 'aucune'}
 
 # MODÈLE ÉCONOMIQUE
 ${extraction.businessModel}
@@ -152,7 +152,7 @@ ${extraction.productDescription}
 ${extraction.marketPitch}
 
 # CONCURRENTS CITÉS
-${extraction.competitorsCited.join(', ') || 'aucun'}
+${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 
 # SIGNAUX MARCHÉ
 - Taille perçue : ${market.perceivedSize} / Réelle : ${market.realIntensity}
@@ -167,9 +167,9 @@ ${extraction.competitorsCited.join(', ') || 'aucun'}
 - Régulation : ${macro.regulatoryEnvironment}
 
 # SIGNAUX ÉQUIPE
-- Red flags équipe : ${team.redFlags.join(' · ') || 'aucun identifié'}
+- Red flags équipe : ${(team.redFlags || []).join(' · ') || 'aucun identifié'}
 - Cohérence déclaratif/vérifiable : ${team.declaredVsVerified?.alignmentScore || 'N/A'}/100
-- Discrepancies : ${team.declaredVsVerified?.discrepancies.join(' · ') || 'aucune'}
+- Discrepancies : ${(team.declaredVsVerified?.discrepancies || []).join(' · ') || 'aucune'}
 
 # RÉSUMÉ BRUT DOSSIER
 ${extraction.rawSummary}

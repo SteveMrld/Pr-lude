@@ -119,9 +119,9 @@ ${extraction.founders.map(f => `- ${f.name} (${f.role}) : ${f.background}`).join
 # ANALYSE ÉQUIPE (output moteur Team)
 - Couverture systémique : ${team.systemicCoverage.score}/100
 - Anti-fragilité : ${team.collectiveAntiFragility.score}/100
-- Transposition expérience : ${team.experienceTransposition.score}/100 (secteurs analogues : ${team.experienceTransposition.analogousSectors.join(', ')})
+- Transposition expérience : ${team.experienceTransposition.score}/100 (secteurs analogues : ${(team.experienceTransposition?.analogousSectors || []).join(', ')})
 - Obsession fondateur : ${team.founderObsession.score}/100
-- Green flags : ${team.greenFlags.join(' · ')}
+- Green flags : ${(team.greenFlags || []).join(' · ')}
 
 # PRODUIT ET THÈSE
 ${extraction.productDescription}
@@ -133,21 +133,21 @@ ${extraction.marketPitch}
 ${extraction.businessModel}
 
 # CONCURRENTS CITÉS
-${extraction.competitorsCited.join(', ') || 'aucun'}
+${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 
 # ANALYSE MARCHÉ
 - Saturation perçue : ${market.saturation}
 - Intensité besoin : ${market.needIntensity.score}/100 (gap : ${market.needIntensity.gap})
-- Signaux organiques : ${market.organicSignals.score}/100 (evidence : ${market.organicSignals.evidence.join(', ')})
-- Défensibilité moats : ${market.defensibility.moats.join(' · ')}
-- Benchmarks internationaux : ${market.internationalBenchmarks.map(b => `${b.name} (${b.geography})`).join(' · ')}
+- Signaux organiques : ${market.organicSignals.score}/100 (evidence : ${(market.organicSignals?.evidence || []).join(', ')})
+- Défensibilité moats : ${(market.defensibility?.moats || []).join(' · ')}
+- Benchmarks internationaux : ${(market.internationalBenchmarks || []).map(b => `${b.name} (${b.geography})`).join(' · ')}
 
 # CONTEXTE MACRO
 - Position cycle : ${macro.cyclePosition}
 - VC segment : ${macro.vcCapitalOnSegment}
 - Fenêtre critique : ${macro.criticalTimingWindow.exists ? 'OUI' : 'Non'}
 - Opportunité contracyclique : ${macro.contraryclicalOpportunity.score}/100
-- Tendances structurelles : ${macro.structuralTrends.join(' · ')}
+- Tendances structurelles : ${(macro.structuralTrends || []).join(' · ')}
 
 # RÉSUMÉ BRUT DOSSIER
 ${extraction.rawSummary}
