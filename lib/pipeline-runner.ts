@@ -75,7 +75,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       performCausalReversal(extraction, team, market, macro, patternMatching).then(async r => { await store.setEngineDone(jobId, 'causal', r); return r; }),
       analyzeBlindspots(extraction, team, market, macro).then(async r => { await store.setEngineDone(jobId, 'blindspot', r); return r; }),
       analyzeContrarian(extraction, team, market, macro).then(async r => { await store.setEngineDone(jobId, 'contrarian', r); return r; }),
-      analyzeFinancialCoherence(extraction, financialData, market).then(async r => { await store.setEngineDone(jobId, 'financial-coherence', r); return r; }),
+      analyzeFinancialCoherence(extraction, financialData, market, benchmarks).then(async r => { await store.setEngineDone(jobId, 'financial-coherence', r); return r; }),
     ]);
 
     // Moteur 9 : Orchestration finale

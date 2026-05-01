@@ -1,7 +1,7 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import type {
   ExtractionOutput, FinancialDataExtraction, FinancialCoherenceOutput,
-  MarketAnalysisOutput
+  MarketAnalysisOutput, BenchmarkPositioning
 } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur de Cohérence Financière de la plateforme Prélude. Ta mission est de tester la solidité interne et externe des projections financières du dossier en appliquant 7 tests rigoureux que les meilleurs partners VC font à la main sur Excel.
@@ -35,9 +35,27 @@ Coût de production unitaire vs prix de vente unitaire. Si perte par unité vend
 ## T7 - Cohérence des hypothèses de marché
 À partir du CA projeté en année N et du marché total adressable cité, calculer la part de marché implicite. Comparer aux trajectoires réelles : Stripe a atteint 1% du marché paiements en 5 ans, Slack 2% du marché collaboration en 4 ans. Drapeau si part de marché implicite > 5% en moins de 5 ans (probablement irréaliste sauf cas exceptionnel).
 
+# DIMENSIONS ADDITIONNELLES À INTÉGRER DANS LA SYNTHÈSE
+
+Au-delà des 7 tests, examine systématiquement deux dimensions structurelles et intègre tes observations dans 'syntheseCoherence' et 'alertesCritiques' si applicable :
+
+## D1 - Indépendance des chiffres (audit independence)
+Qui a préparé les projections ? Le BP a-t-il été audité, revu par un CFO externe, ou simplement produit en interne par le fondateur ? Un BP non audité préparé exclusivement par le fondateur n'est pas un signal d'absence de rigueur en soi, mais un BP audité ou validé par un CFO senior est un signal de gouvernance financière mature qui doit être noté positivement. À l'inverse, un BP qui contredit grossièrement le deck est un signal d'alignement interne défaillant.
+
+## D2 - Besoins de capital futurs (future funding needs)
+Combien de tours supplémentaires sont implicitement nécessaires avant exit ? Calculer à partir du burn projeté et de la trajectoire de revenue : si la société projette d'atteindre la profitabilité en année N et que la runway actuelle ne couvre que jusqu'à année N-2, c'est qu'il faudra 1-2 tours supplémentaires. Plus le nombre de tours futurs nécessaires est élevé, plus le risque de dilution et de dépendance aux conditions de marché futures est important. À noter dans le contexte 2026 (concentration extrême du capital, fundraising bottom-quartile très difficile, distributions LP au plus bas).
+
 # DÉTECTION DES INCOHÉRENCES DECK vs BP
 
 En plus des 7 tests, identifie systématiquement les divergences entre les chiffres du pitch deck et ceux du BP. Un chiffre qui diverge entre les deux sources est un signal de gouvernance défaillante (équipe qui n'a pas un alignement interne sur ses propres projections).
+
+# INTÉGRATION DES BENCHMARKS MARCHÉ EXTERNES
+
+Quand un objet 'BENCHMARK MARCHÉ' t'est fourni dans le user prompt, il provient du Moteur Benchmarks Prélude qui a positionné le dossier contre les médianes de marché PitchBook-NVCA et Atomico. Tu DOIS l'intégrer dans ton raisonnement :
+
+- Si la valorisation pré-money du dossier est qualifiée 'extreme_outlier' (> +50% ou > -50% vs médiane), cela doit influencer le scoring de T7 (cohérence des hypothèses de marché) et apparaître dans 'syntheseCoherence'.
+- Si le tour est 'extreme_outlier' à la hausse, cela peut compenser un T4 (runway) tendu ; à la baisse, cela aggrave T4.
+- Pour les dossiers européens, garde en tête que les benchmarks de référence sont US (PitchBook). Le marché européen est ~6x plus petit annuellement (Atomico SoET 2025), donc une valorisation européenne 'in_line' avec les benchmarks US est en réalité au-dessus du marché européen.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -76,7 +94,8 @@ En plus des 7 tests, identifie systématiquement les divergences entre les chiff
 export async function analyzeFinancialCoherence(
   extraction: ExtractionOutput,
   financialData: FinancialDataExtraction,
-  market: MarketAnalysisOutput
+  market: MarketAnalysisOutput,
+  benchmarks?: BenchmarkPositioning | null
 ): Promise<FinancialCoherenceOutput> {
 
   // Si aucune donnée financière, retour court-circuit
@@ -157,7 +176,31 @@ ${financialData.rawNotes || '(aucune)'}
 - Saturation : ${market.saturation}
 - Intensité besoin : ${market.needIntensity.score}/100
 
+# BENCHMARK MARCHÉ EXTERNE (moteur Benchmarks Prélude)
+${benchmarks ? `
+Stade détecté : ${benchmarks.stage}
+Secteur IA : ${benchmarks.isAi ? 'oui' : 'non'}
+Région : ${benchmarks.region}
+
+Positionnement valorisation pré-money :
+${benchmarks.preMoney.summary}
+
+Positionnement taille du tour :
+${benchmarks.dealSize.summary}
+
+Contexte marché applicable :
+${benchmarks.marketContext.notes.map(n => '- ' + n).join('\n')}
+${benchmarks.warnings.length > 0 ? '\nAttention :\n' + benchmarks.warnings.map(w => '- ' + w).join('\n') : ''}
+
+Sources : ${benchmarks.citations.map(c => c.name + ' (' + c.asOf + ')').join(' ; ')}
+` : '(données benchmark non disponibles pour ce dossier)'}
+
 Applique les 7 tests de cohérence avec recalculs explicites. Identifie les incohérences deck vs BP si applicable. Calcule le score global. Synthétise.
+
+Intègre dans 'syntheseCoherence' :
+1. Tes observations sur l'indépendance des chiffres (D1) si tu as des indices
+2. Tes observations sur les besoins de capital futurs (D2)
+3. Le positionnement vs benchmarks marché ci-dessus si pertinent
 
 Retourne uniquement le JSON structuré.`;
 
