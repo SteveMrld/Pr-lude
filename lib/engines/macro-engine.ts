@@ -1,8 +1,21 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMacroRealData, type MacroSnapshot } from '../data-fetchers/sources';
 import type { ExtractionOutput, MacroAnalysisOutput } from './types';
+import {
+  LP_LIQUIDITY_PRESSURE,
+  MARKET_CONCENTRATION_2026_Q1,
+  DRY_POWDER_2024_2025,
+  FUNDRAISING_BIFURCATION_2026,
+  EUROPEAN_MACRO_2025,
+  US_MARKET_SENTIMENT_2026_Q1,
+  EUROPEAN_REGULATORY_PIPELINE_2026,
+  MARKET_DEPTH_2025_2026,
+  PENSION_FUND_VC_ALLOCATION_2024,
+  EUROPEAN_TECH_SENTIMENT_2025,
+  EXIT_CHANNELS_2026,
+} from '../benchmarks';
 
-const SYSTEM_PROMPT = `Tu es le Moteur Macro & Géopolitique de la plateforme Prélude. Tu produis la lecture du régime macro applicable au segment du dossier en croisant cinq dimensions structurées et des données économiques réelles récupérées de World Bank API.
+const SYSTEM_PROMPT = `Tu es le Moteur Macro & Géopolitique de la plateforme Prélude. Tu produis la lecture du régime macro applicable au segment du dossier en croisant cinq dimensions structurées et des données économiques réelles récupérées de World Bank API ET les bornes consolidées du marché VC/PE 2026 (PitchBook-NVCA Q1 2026, Atomico SoET 2025, Bain PE 2025).
 
 # CADRE MACRO
 
@@ -37,6 +50,37 @@ Identifie 3-5 tendances structurelles macro pertinentes pour le segment, en t'ap
 ## Environnement réglementaire
 Décris l'environnement réglementaire pertinent. Régulation peut être barrière protectrice ou contrainte qui affaiblit.
 
+# CADRAGE STRUCTUREL 2026 (à intégrer dans toutes tes analyses)
+
+Tu reçois dans le user prompt un bloc "CADRAGE PRELUDE 2026" qui consolide les bornes du marché VC/PE actuel. Tu DOIS l'intégrer dans ton raisonnement, en différenciant explicitement US versus Europe selon la région du dossier :
+
+## Pour un dossier US
+- Concentration extrême : top 5 deals = 73,2% du capital Q1 2026, top 5 fonds = 73,1% du fundraising
+- 88,8% du capital Q1 2026 va à l'IA
+- Bay Area + NY + LA + Boston = 90,9% du capital
+- Sentiment marché public à cran post-volatilité février 2026
+- Fed tient les taux dans la fourchette 3,50%-3,75%
+
+## Pour un dossier européen
+- Marché européen ~6x plus petit annuellement que US (Atomico)
+- Pension funds européens sous-allouent au VC (0,009% AUM vs 0,028% US, gap de 3x)
+- Sentiment communautaire en hausse (50% optimiste, niveau le plus haut depuis une décennie)
+- 28e régime EU-INC attendu Q1 2026, peut être Regulation ou Directive
+- Pipeline réglementaire européen 2026 dense (Innovation Act, Savings & Investment Union, AI Development Act, Quantum Act)
+- Diversification deeptech (36% du capital VC en deeptech, vs concentration AI labs aux US)
+
+## Voies de sortie 2026 (à mentionner systématiquement dans la lecture macro)
+- IPO : fenêtre rouverte mais sélective, réservée aux plus grandes entreprises et secteurs alignés avec priorités politiques (IA, défense, crypto, aerospace)
+- M&A par strategique : volume 2025 stable
+- Sponsor-to-sponsor : reprise structurelle (+141% vs 2023, base basse)
+- Acquisitions par startups VC-backed : nouvelle voie en croissance (38,4% des acquisitions 2025)
+- Secondaires (direct + GP-led + continuation funds) : croissance forte, devenu 3e jambe crédible
+
+## Liquidité LP (à mentionner si pertinent pour le contexte du fonds qui instruira le dossier)
+- Distributions to NAV à 11% en 2024, plus bas niveau en 10+ ans (Bain)
+- Cash flows aux LPs négatifs sur 5 des 6 dernières années
+- Fonds bottom quartile peinent à lever leur prochain véhicule (gap 53 points avec top quartile)
+
 # FORMAT JSON OBLIGATOIRE
 
 {
@@ -57,6 +101,14 @@ Décris l'environnement réglementaire pertinent. Régulation peut être barriè
   "structuralTrends": ["tendances structurelles identifiées"],
   "regulatoryEnvironment": "phrase qui qualifie l'environnement réglementaire"
 }
+
+# RÈGLES STRICTES POUR L'INTÉGRATION DU CADRAGE 2026
+
+1. structuralTrends doit inclure au moins une tendance issue du cadrage 2026 (concentration, bifurcation marché, voies de sortie alternatives, réglementaire EU si applicable).
+2. regulatoryEnvironment doit mentionner explicitement le pipeline EU 2026 si dossier européen, ou les enjeux Section 301 / IEEPA / AI Executive Order si dossier US.
+3. geopolitics doit intégrer le sentiment marché applicable (cran US vs optimisme EU).
+4. vcCapitalOnSegment doit prendre en compte la concentration : un segment IA aux US est techniquement overweight pour les cinq licornes top mais peut être underweight pour les challengers hors top 5.
+5. Citations : tu peux référencer "PitchBook Q1 2026" ou "Atomico SoET 2025" ou "Bain PE 2025" dans tes phrases sans les détailler.
 
 Note : tu disposes de connaissance jusqu'à début 2026. Sois explicite sur les bascules récentes.`;
 
@@ -121,6 +173,73 @@ export async function analyzeMacro(extraction: ExtractionOutput): Promise<MacroA
     summary += `  ${indicators.fdiInflows[0].date} : ${Number(indicators.fdiInflows[0].value).toFixed(2)}%\n`;
   }
 
+  // Detection rapide de la region a partir du pays (logique simplifiee, le moteur
+  // benchmarks fait la detection complete mais il s execute en aval).
+  const countryLower = (extraction.country || '').toLowerCase();
+  const isUs = countryLower.includes('united states') || countryLower === 'us' || countryLower === 'usa' || countryLower.includes('états-unis');
+  const europeKeywords = ['france', 'germany', 'allemagne', 'united kingdom', 'uk', 'spain', 'espagne', 'italy', 'italie', 'netherlands', 'pays-bas', 'belgium', 'belgique', 'sweden', 'suède', 'denmark', 'danemark', 'finland', 'finlande', 'ireland', 'irlande', 'portugal', 'austria', 'autriche', 'switzerland', 'suisse', 'poland', 'pologne', 'estonia'];
+  const isEurope = europeKeywords.some(kw => countryLower.includes(kw));
+  const region: 'US' | 'Europe' | 'Other' = isUs ? 'US' : (isEurope ? 'Europe' : 'Other');
+
+  // Construction du bloc cadrage 2026 differencie selon region
+  const cadrageBlock = `
+--- CADRAGE PRELUDE 2026 (sources: PitchBook-NVCA Q1 2026, Atomico SoET 2025, Bain PE 2025) ---
+
+## Concentration extreme du marche US Q1 2026
+- Top 5 deals = ${MARKET_CONCENTRATION_2026_Q1.topFiveDealsShareOfDealValuePercent}% du capital deploye
+  (${MARKET_CONCENTRATION_2026_Q1.topFiveCompaniesNamed.join(', ')})
+- Top 5 fonds = ${MARKET_CONCENTRATION_2026_Q1.topFiveFundsShareOfFundraisingPercent}% du fundraising
+  (${MARKET_CONCENTRATION_2026_Q1.topFundsNamed.slice(0, 5).join(', ')})
+- Experienced firms = ${MARKET_CONCENTRATION_2026_Q1.experiencedFirmsShareOfCapitalRaisedPercent}% du capital leve (record historique)
+
+## Profondeur de marche US vs Europe
+- US deploiement Q1 2026 = ${MARKET_DEPTH_2025_2026.us.q1_2026_investmentBillionsUsd} milliards
+- Europe deploiement annuel 2025 ~${MARKET_DEPTH_2025_2026.europe.annualInvestmentBillionsUsd2025} milliards
+- Ratio : le marche US deploie en 1 trimestre ~${MARKET_DEPTH_2025_2026.ratio.usQ1OverEuropeAnnual.toFixed(1)}x ce que l Europe deploie en 1 an
+
+## Liquidite LP (toutes geos)
+- Distributions to NAV 2024 = ${LP_LIQUIDITY_PRESSURE.distributionsToNavPercent2024}% (plus bas niveau en 10+ ans)
+- Cash flows aux LPs negatifs sur ${LP_LIQUIDITY_PRESSURE.cashFlowsNegativeYearsOutOfLast6} des 6 dernieres annees
+- Top quartile fonds: +53% sur fund successeur ; bottom quartile: 0%
+
+## Fundraising bifurque 2026
+- Median fund size US Q1 2026: ${FUNDRAISING_BIFURCATION_2026.medianFundSizeMillionsUsdQ1_2026}M$ (vs ${FUNDRAISING_BIFURCATION_2026.medianFundSizeMillionsUsd2025}M$ en 2025)
+- Average fund size US Q1 2026: ${FUNDRAISING_BIFURCATION_2026.averageFundSizeMillionsUsdQ1_2026}M$ (la moyenne explose, la mediane chute = bifurcation extreme)
+- First-time funds Q1 2026: ${FUNDRAISING_BIFURCATION_2026.firstTimeFundsCountQ1_2026} seulement
+
+## Voies de sortie 2026
+- IPO: fenetre rouverte mais selective (15 IPOs Q1 2026, pace ~60/an)
+- M&A par strategique: stable
+- Sponsor-to-sponsor: reprise (+141% vs 2023, base basse)
+- Acquisitions par startups VC-backed: nouvelle voie en croissance
+- Secondaires: 94,9 milliards TTM Q3 2025, devenu 3eme jambe credible
+
+## Pension funds VC allocation (% AUM)
+- US: ${PENSION_FUND_VC_ALLOCATION_2024.usPercentOfAum}% | Europe: ${PENSION_FUND_VC_ALLOCATION_2024.europePercentOfAum}% (gap 3x)
+- France-Benelux: ${PENSION_FUND_VC_ALLOCATION_2024.byEuropeanRegion.franceBenelux}% | UK-Ireland: ${PENSION_FUND_VC_ALLOCATION_2024.byEuropeanRegion.ukAndIreland}%
+
+${region === 'US' ? `
+## Specifique US (dossier ${extraction.country})
+- Sentiment: ${US_MARKET_SENTIMENT_2026_Q1.publicSoftwareEquityMultiples} sur les multiples software publics
+- Narratif IA en mutation: ${US_MARKET_SENTIMENT_2026_Q1.aiNarrative}
+- Job cuts attribuees a l IA Q1 2026: ${US_MARKET_SENTIMENT_2026_Q1.techJobCutsAttributedToAi2026Q1Percent}%
+- Fed: taux maintenus dans la fourchette ${US_MARKET_SENTIMENT_2026_Q1.fedRateRangeExpected2026}
+` : ''}
+
+${region === 'Europe' ? `
+## Specifique Europe (dossier ${extraction.country})
+- Investissement total 2025: ${EUROPEAN_MACRO_2025.totalInvestmentBillionsUsd} milliards
+- Sentiment ecosysteme: ${EUROPEAN_TECH_SENTIMENT_2025.optimisticPercent}% optimistes (vs ${EUROPEAN_TECH_SENTIMENT_2025.optimisticPercentPriorYear}% en 2024) - niveau le plus haut depuis une decennie
+- Ecosysteme valorise a ${EUROPEAN_TECH_SENTIMENT_2025.ecosystemValueTrillionsUsd}T$ = ${EUROPEAN_TECH_SENTIMENT_2025.ecosystemValueShareOfGdpPercent}% du PIB europeen
+- Nouveaux fondateurs 2025: ${EUROPEAN_MACRO_2025.newFoundersCount} (+${EUROPEAN_MACRO_2025.newFoundersGrowthVs2023Percent}% vs 2023)
+
+Pipeline reglementaire EU 2026:
+${EUROPEAN_REGULATORY_PIPELINE_2026.initiatives.map(i => `- ${i.name} (${i.timeline})`).join('\n')}
+
+Attention: ${EUROPEAN_REGULATORY_PIPELINE_2026.founderSurveyRestrictivePercent}% des fondateurs jugent l environnement EU restrictif.
+` : ''}
+`;
+
   const userPrompt = `# DOSSIER À ANALYSER (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
@@ -133,7 +252,15 @@ Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 
 ${summary}
 
-Produis la lecture macro complète au format JSON structuré demandé. Croise les données réelles récupérées avec ta connaissance des bascules sectorielles récentes.`;
+${cadrageBlock}
+
+Produis la lecture macro complète au format JSON structuré demandé. Croise :
+1. Les données réelles World Bank récupérées
+2. Le cadrage Prélude 2026 ci-dessus (concentration, liquidité LP, voies de sortie, spécificités régionales)
+3. Ta connaissance des bascules sectorielles récentes
+
+Region detectee du dossier: ${region}.
+Le cadrage doit etre differencie selon cette region. Pour un dossier europeen, mentionne explicitement les benchmarks Atomico et le pipeline reglementaire EU 2026. Pour un dossier US, mentionne la concentration extreme et le sentiment public.`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
