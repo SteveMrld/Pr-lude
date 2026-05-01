@@ -55,9 +55,135 @@ export interface ArxivPaper {
   url: string;
 }
 
-const HEADERS = { 'User-Agent': 'Prelude-VC/1.0 (research; contact@prelude.example)' };
+const HEADERS = { 'User-Agent': 'Prelude/1.0 (+https://pr-lude.vercel.app)' };
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, ms = 10000): Promise<Response | null> {
+// ============================================================
+// INFRASTRUCTURE FETCHERS (cache, flag, budget, tracking)
+// ============================================================
+
+export type FetcherEvent =
+  | 'fetcher:start'
+  | 'fetcher:hit'
+  | 'fetcher:miss'
+  | 'fetcher:timeout'
+  | 'fetcher:skipped'
+  | 'fetcher:budget_exceeded';
+
+export interface FetcherOpts {
+  emit?: (event: FetcherEvent, data: Record<string, unknown>) => void;
+  budgetMs?: number;
+}
+
+// Sources connues (whitelist pour le flag)
+export type SourceName =
+  | 'wikipedia'
+  | 'github'
+  | 'hackernews'
+  | 'openalex'
+  | 'arxiv'
+  | 'worldbank';
+
+const DEFAULT_ENABLED_SOURCES: SourceName[] = ['wikipedia'];
+
+function readEnabledSources(): SourceName[] | 'all' | 'none' {
+  const raw = process.env.PRELUDE_ENABLED_SOURCES?.trim();
+  if (!raw) return DEFAULT_ENABLED_SOURCES;
+  const lower = raw.toLowerCase();
+  if (lower === 'all') return 'all';
+  if (lower === 'none') return 'none';
+  return raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean) as SourceName[];
+}
+
+export function isSourceEnabled(source: SourceName): boolean {
+  const cfg = readEnabledSources();
+  if (cfg === 'all') return true;
+  if (cfg === 'none') return false;
+  return cfg.includes(source);
+}
+
+// Cache mémoire process-local. Sur Vercel serverless, vit le temps d'une
+// invocation. C'est exactement ce qu'on veut : déduplication intra-pipeline,
+// pas de partage inter-pipeline (qui poserait des problèmes de fraîcheur).
+const fetchCache = new Map<string, Promise<unknown>>();
+
+export function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const existing = fetchCache.get(key);
+  if (existing) return existing as Promise<T>;
+  const p = fn().catch((e) => {
+    fetchCache.delete(key);
+    throw e;
+  });
+  fetchCache.set(key, p);
+  return p as Promise<T>;
+}
+
+// Budget global par moteur. Si la promesse passée dépasse `ms`, on logue
+// un warning, on émet l'event SSE, et on retourne `fallback` sans annuler
+// les fetches sous-jacents (qui ont déjà leur propre AbortController).
+export async function withBudget<T>(
+  engineLabel: string,
+  ms: number,
+  promise: Promise<T>,
+  fallback: T,
+  opts?: FetcherOpts,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(
+        `[Prelude] Fetchers ${engineLabel} budget dépassé après ${ms}ms, on continue avec sources partielles`,
+      );
+      opts?.emit?.('fetcher:budget_exceeded', { engine: engineLabel, budgetMs: ms });
+      resolve(fallback);
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// Wrapper qui émet start/hit/miss/timeout autour d'un fetch source.
+// `isEmpty` permet de distinguer une réponse vide d'une réponse utile.
+export async function trackedSource<T>(
+  engine: string,
+  source: SourceName,
+  fn: () => Promise<T>,
+  isEmpty: (result: T) => boolean,
+  emptyValue: T,
+  opts?: FetcherOpts,
+  sourceTimeoutMs: number = 5000,
+): Promise<T> {
+  if (!isSourceEnabled(source)) {
+    opts?.emit?.('fetcher:skipped', { engine, source });
+    return emptyValue;
+  }
+  const t0 = Date.now();
+  opts?.emit?.('fetcher:start', { engine, source });
+  try {
+    const result = await fn();
+    const elapsedMs = Date.now() - t0;
+    // Heuristique : si on est très près du timeout source, c'est probablement un timeout
+    if (isEmpty(result) && elapsedMs >= sourceTimeoutMs - 200) {
+      opts?.emit?.('fetcher:timeout', { engine, source, elapsedMs });
+    } else if (isEmpty(result)) {
+      opts?.emit?.('fetcher:miss', { engine, source, elapsedMs });
+    } else {
+      opts?.emit?.('fetcher:hit', { engine, source, elapsedMs });
+    }
+    return result;
+  } catch (e) {
+    const elapsedMs = Date.now() - t0;
+    opts?.emit?.('fetcher:timeout', { engine, source, elapsedMs });
+    return emptyValue;
+  }
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, ms = 5000): Promise<Response | null> {
   try {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), ms);
@@ -284,38 +410,93 @@ export interface FounderRealData {
   profileSignals: string[];
 }
 
-export async function gatherFounderRealData(name: string, affiliationHint?: string): Promise<FounderRealData> {
-  // DÉSACTIVÉ: les appels externes ralentissent trop le pipeline sur Vercel.
-  // On retourne immédiatement un résultat vide. Claude se base uniquement sur le pitch deck.
-  return {
-    name,
-    affiliationHint,
-    sourcesQueried: [],
-    sourcesFound: [],
-  } as FounderRealData;
+export async function gatherFounderRealData(
+  name: string,
+  affiliationHint?: string,
+  opts?: FetcherOpts,
+): Promise<FounderRealData> {
+  const queriedSources: string[] = [];
+  if (isSourceEnabled('openalex')) queriedSources.push('openalex');
+  if (isSourceEnabled('github')) queriedSources.push('github');
+  if (isSourceEnabled('wikipedia')) queriedSources.push('wikipedia');
+  if (isSourceEnabled('arxiv')) queriedSources.push('arxiv');
 
-  // Code original désactivé ci-dessous
-  /*
   const result: any = {
     name,
     affiliationHint,
-    sourcesQueried: ['openalex', 'github', 'wikipedia', 'arxiv'],
+    sourcesQueried: queriedSources,
     sourcesFound: [],
   };
 
-  // Lance les requêtes en parallèle pour gagner du temps
-  const [openalex, github, wikipedia, arxiv] = await Promise.all([
-    searchOpenAlexAuthor(name, affiliationHint).catch(() => null),
-    searchGitHubUser(name).catch(() => null),
-    searchWikipedia(name).catch(() => null),
-    searchArxiv(name, 3).catch(() => []),
-  ]);
+  // Aucune source active : retour structuré minimal (compat consommateurs)
+  if (queriedSources.length === 0) {
+    result.verifiableFacts = {
+      openalex_pubs: 0, openalex_h_index: 0, openalex_citations: 0, openalex_institutions: [],
+      github_login: null, github_followers: 0, github_repos: 0,
+      top_github_repo_stars: 0, top_github_repo_name: null,
+      wikipedia_present: false, recent_arxiv_count: 0,
+    };
+    result.objectiveScores = { scientific_signature: 0, technical_signature: 0, public_presence: 0, recent_activity: 0 };
+    result.profileSignals = [];
+    return result as FounderRealData;
+  }
+
+  const budgetMs = opts?.budgetMs ?? 8000;
+
+  // Phase parallèle. Chaque source est bornée par son propre AbortController 5s
+  // côté fetchWithTimeout, et par le budget global ici.
+  const mainCollection = Promise.all([
+    trackedSource<OpenAlexAuthor | null>(
+      'team', 'openalex',
+      () => cached(`openalex:author:${name}|${affiliationHint || ''}`,
+        () => searchOpenAlexAuthor(name, affiliationHint).catch(() => null)),
+      (r) => r === null,
+      null,
+      opts,
+    ),
+    trackedSource<GitHubUser | null>(
+      'team', 'github',
+      () => cached(`github:user:${name}`,
+        () => searchGitHubUser(name).catch(() => null)),
+      (r) => r === null,
+      null,
+      opts,
+    ),
+    trackedSource<WikipediaSummary | null>(
+      'team', 'wikipedia',
+      () => cached(`wikipedia:${name}`,
+        () => searchWikipedia(name).catch(() => null)),
+      (r) => r === null,
+      null,
+      opts,
+    ),
+    trackedSource<ArxivPaper[]>(
+      'team', 'arxiv',
+      () => cached(`arxiv:${name}:3`,
+        () => searchArxiv(name, 3).catch(() => [] as ArxivPaper[])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+  ]).then(([openalex, github, wikipedia, arxiv]) => ({ openalex, github, wikipedia, arxiv }));
+
+  const fallback = { openalex: null as OpenAlexAuthor | null, github: null as GitHubUser | null, wikipedia: null as WikipediaSummary | null, arxiv: [] as ArxivPaper[] };
+  const { openalex, github, wikipedia, arxiv } = await withBudget(
+    'team', budgetMs, mainCollection, fallback, opts,
+  );
 
   if (openalex && openalex.works_count > 0) {
     result.openalex = openalex;
     result.sourcesFound.push('openalex');
     if (openalex.id) {
-      result.recentPublications = await getOpenAlexRecentWorks(openalex.id, 3).catch(() => []);
+      result.recentPublications = await trackedSource<OpenAlexWork[]>(
+        'team', 'openalex',
+        () => cached(`openalex:works:${openalex.id}:3`,
+          () => getOpenAlexRecentWorks(openalex.id, 3).catch(() => [])),
+        (r) => r.length === 0,
+        [],
+        opts,
+      );
     }
   }
 
@@ -323,7 +504,14 @@ export async function gatherFounderRealData(name: string, affiliationHint?: stri
     result.github = github;
     result.sourcesFound.push('github');
     if (github.login) {
-      result.topRepos = await getGitHubTopRepos(github.login, 3).catch(() => []);
+      result.topRepos = await trackedSource<GitHubRepo[]>(
+        'team', 'github',
+        () => cached(`github:repos:${github.login}:3`,
+          () => getGitHubTopRepos(github.login, 3).catch(() => [])),
+        (r) => r.length === 0,
+        [],
+        opts,
+      );
     }
   }
 
@@ -399,7 +587,6 @@ export async function gatherFounderRealData(name: string, affiliationHint?: stri
   result.profileSignals = profileSignals;
 
   return result as FounderRealData;
-  */
 }
 
 // ============================================================
@@ -599,31 +786,97 @@ export interface MarketRealData {
 export async function gatherMarketRealData(
   companyName: string,
   sectorKeyword: string,
-  productKeyword?: string
+  productKeyword?: string,
+  opts?: FetcherOpts,
 ): Promise<MarketRealData> {
-  // DÉSACTIVÉ pour les performances Vercel (sources externes trop lentes)
-  return {
-    query: `${companyName} | ${sectorKeyword}${productKeyword ? ' | ' + productKeyword : ''}`,
-    sourcesQueried: [],
-    sourcesFound: [],
-  } as MarketRealData;
+  // Mapping fine-grained → high-level flag :
+  //  hackernews + hackernews-trend → 'hackernews'
+  //  openalex-concept              → 'openalex'
+  //  wikipedia-sector + related    → 'wikipedia'
+  //  github-topic                  → 'github'
+  const queriedSources: string[] = [];
+  if (isSourceEnabled('hackernews')) queriedSources.push('hackernews', 'hackernews-trend');
+  if (isSourceEnabled('openalex')) queriedSources.push('openalex-concept');
+  if (isSourceEnabled('wikipedia')) queriedSources.push('wikipedia-sector', 'wikipedia-related');
+  if (isSourceEnabled('github')) queriedSources.push('github-topic');
 
-  /*
   const result: any = {
     query: `${companyName} | ${sectorKeyword}${productKeyword ? ' | ' + productKeyword : ''}`,
-    sourcesQueried: ['hackernews', 'hackernews-trend', 'openalex-concept', 'wikipedia-sector', 'wikipedia-related', 'github-topic'],
+    sourcesQueried: queriedSources,
     sourcesFound: [],
   };
 
-  // Lance toutes les requêtes en parallèle
-  const [hn, hnTrend, openalex, wiki, wikiRel, gh] = await Promise.all([
-    searchHackerNewsAdvanced(companyName, 10).catch(() => ({ hits: [], nbHits: 0, topPoints: 0, recentDate: '' })),
-    getHackerNewsTrend(productKeyword || sectorKeyword).catch(() => ({ recent: 0, older: 0, trend: 'stable' as const })),
-    getOpenAlexConceptTrend(sectorKeyword).catch(() => ({ totalWorks: 0, recentWorks: 0, topConcepts: [], trend: 'stable' as const })),
-    getWikipediaSector(sectorKeyword).catch(() => null),
-    getWikipediaRelated(sectorKeyword, 8).catch(() => [] as string[]),
-    searchGitHubByTopic(sectorKeyword.toLowerCase().replace(/\s+/g, '-'), 5).catch(() => [] as any[]),
-  ]);
+  if (queriedSources.length === 0) {
+    result.objectiveScores = { organic_signals: 0, academic_emergence: 0, technical_ecosystem: 0, public_visibility: 0 };
+    return result as MarketRealData;
+  }
+
+  const budgetMs = opts?.budgetMs ?? 8000;
+  const trendKey = productKeyword || sectorKeyword;
+  const ghTopic = sectorKeyword.toLowerCase().replace(/\s+/g, '-');
+
+  const mainCollection = Promise.all([
+    trackedSource(
+      'market', 'hackernews',
+      () => cached(`hn:adv:${companyName}:10`,
+        () => searchHackerNewsAdvanced(companyName, 10).catch(() => ({ hits: [], nbHits: 0, topPoints: 0, recentDate: '' }))),
+      (r) => r.nbHits === 0,
+      { hits: [] as any[], nbHits: 0, topPoints: 0, recentDate: '' },
+      opts,
+    ),
+    trackedSource(
+      'market', 'hackernews',
+      () => cached(`hn:trend:${trendKey}`,
+        () => getHackerNewsTrend(trendKey).catch(() => ({ recent: 0, older: 0, trend: 'stable' as const }))),
+      (r) => r.recent === 0 && r.older === 0,
+      { recent: 0, older: 0, trend: 'stable' as const },
+      opts,
+    ),
+    trackedSource(
+      'market', 'openalex',
+      () => cached(`openalex:concept:${sectorKeyword}`,
+        () => getOpenAlexConceptTrend(sectorKeyword).catch(() => ({ totalWorks: 0, recentWorks: 0, topConcepts: [] as string[], trend: 'stable' as const }))),
+      (r) => r.totalWorks === 0,
+      { totalWorks: 0, recentWorks: 0, topConcepts: [] as string[], trend: 'stable' as const },
+      opts,
+    ),
+    trackedSource(
+      'market', 'wikipedia',
+      () => cached(`wikipedia:sector:${sectorKeyword}`,
+        () => getWikipediaSector(sectorKeyword).catch(() => null)),
+      (r) => r === null,
+      null as { summary: string; relatedTopics: string[]; url: string } | null,
+      opts,
+    ),
+    trackedSource<string[]>(
+      'market', 'wikipedia',
+      () => cached(`wikipedia:related:${sectorKeyword}:8`,
+        () => getWikipediaRelated(sectorKeyword, 8).catch(() => [] as string[])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+    trackedSource<{ name: string; stars: number; description: string; url: string; language: string | null }[]>(
+      'market', 'github',
+      () => cached(`github:topic:${ghTopic}:5`,
+        () => searchGitHubByTopic(ghTopic, 5).catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+  ]).then(([hn, hnTrend, openalex, wiki, wikiRel, gh]) => ({ hn, hnTrend, openalex, wiki, wikiRel, gh }));
+
+  const fallback = {
+    hn: { hits: [] as any[], nbHits: 0, topPoints: 0, recentDate: '' },
+    hnTrend: { recent: 0, older: 0, trend: 'stable' as const },
+    openalex: { totalWorks: 0, recentWorks: 0, topConcepts: [] as string[], trend: 'stable' as const },
+    wiki: null as { summary: string; relatedTopics: string[]; url: string } | null,
+    wikiRel: [] as string[],
+    gh: [] as { name: string; stars: number; description: string; url: string; language: string | null }[],
+  };
+  const { hn, hnTrend, openalex, wiki, wikiRel, gh } = await withBudget(
+    'market', budgetMs, mainCollection, fallback, opts,
+  );
 
   if (hn.nbHits > 0) {
     result.hackerNews = {
@@ -678,7 +931,6 @@ export async function gatherMarketRealData(
   else if (hnMentions >= 15 || hnTopPts >= 200) organic = 70;
   else if (hnMentions >= 5 || hnTopPts >= 50) organic = 50;
   else if (hnMentions >= 1) organic = 30;
-  // Bonus si trend up
   if (result.hackerNewsTrend?.trend === 'up' && organic < 90) organic += 10;
 
   // Émergence académique : volume publications + tendance
@@ -700,7 +952,7 @@ export async function gatherMarketRealData(
   else if (cumStars >= 1000) technical = 45;
   else if (cumStars > 0) technical = 25;
 
-  // Visibilité publique : présence Wikipedia secteur + société + nombre de concurrents identifiés
+  // Visibilité publique
   let visibility = 0;
   const hasWikiSector = !!result.wikipediaSector;
   const wikiRelatedCount = (result.wikipediaRelated || []).length;
@@ -716,7 +968,6 @@ export async function gatherMarketRealData(
   };
 
   return result as MarketRealData;
-  */
 }
 
 // ============================================================
@@ -811,19 +1062,10 @@ export interface MacroSnapshot {
   };
 }
 
-export async function gatherMacroRealData(country: string): Promise<MacroSnapshot> {
-  // DÉSACTIVÉ pour les performances Vercel
-  return {
-    country,
-    countryCode: country.toUpperCase().slice(0, 3),
-    sourcesQueried: [],
-    sourcesFound: [],
-    indicators: {},
-    derivedMetrics: {},
-  } as MacroSnapshot;
-
-  /*
-  // Mapping country code (FRA, DEU, USA, GBR, etc.)
+export async function gatherMacroRealData(
+  country: string,
+  opts?: FetcherOpts,
+): Promise<MacroSnapshot> {
   const countryCodeMap: Record<string, string> = {
     'france': 'FRA', 'fr': 'FRA',
     'allemagne': 'DEU', 'germany': 'DEU', 'de': 'DEU',
@@ -842,27 +1084,81 @@ export async function gatherMacroRealData(country: string): Promise<MacroSnapsho
 
   const code = countryCodeMap[country.toLowerCase()] || country.toUpperCase().slice(0, 3);
 
+  const wbEnabled = isSourceEnabled('worldbank');
   const result: MacroSnapshot = {
     country: code,
-    sourcesQueried: ['worldbank-gdp', 'worldbank-inflation', 'worldbank-interest', 'worldbank-rd', 'worldbank-fdi'],
+    sourcesQueried: wbEnabled
+      ? ['worldbank-gdp', 'worldbank-inflation', 'worldbank-interest', 'worldbank-rd', 'worldbank-fdi']
+      : [],
     sourcesFound: [],
     indicators: {},
     derivedMetrics: {},
   };
 
-  // Lancer les requêtes en parallèle
-  const [gdpGrowth, inflation, interestRate, rdSpending, fdiInflows] = await Promise.all([
-    getWorldBankIndicator(code, 'NY.GDP.MKTP.KD.ZG', 5).catch(() => []),
-    getWorldBankIndicator(code, 'FP.CPI.TOTL.ZG', 5).catch(() => []),
-    getWorldBankIndicator(code, 'FR.INR.RINR', 5).catch(() => []),
-    getWorldBankIndicator(code, 'GB.XPD.RSDV.GD.ZS', 5).catch(() => []),
-    getWorldBankIndicator(code, 'BX.KLT.DINV.WD.GD.ZS', 5).catch(() => []),
-  ]);
+  if (!wbEnabled) {
+    return result;
+  }
+
+  const budgetMs = opts?.budgetMs ?? 8000;
+
+  const mainCollection = Promise.all([
+    trackedSource<MacroIndicator[]>(
+      'macro', 'worldbank',
+      () => cached(`wb:${code}:NY.GDP.MKTP.KD.ZG:5`,
+        () => getWorldBankIndicator(code, 'NY.GDP.MKTP.KD.ZG', 5).catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+    trackedSource<MacroIndicator[]>(
+      'macro', 'worldbank',
+      () => cached(`wb:${code}:FP.CPI.TOTL.ZG:5`,
+        () => getWorldBankIndicator(code, 'FP.CPI.TOTL.ZG', 5).catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+    trackedSource<MacroIndicator[]>(
+      'macro', 'worldbank',
+      () => cached(`wb:${code}:FR.INR.RINR:5`,
+        () => getWorldBankIndicator(code, 'FR.INR.RINR', 5).catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+    trackedSource<MacroIndicator[]>(
+      'macro', 'worldbank',
+      () => cached(`wb:${code}:GB.XPD.RSDV.GD.ZS:5`,
+        () => getWorldBankIndicator(code, 'GB.XPD.RSDV.GD.ZS', 5).catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+    trackedSource<MacroIndicator[]>(
+      'macro', 'worldbank',
+      () => cached(`wb:${code}:BX.KLT.DINV.WD.GD.ZS:5`,
+        () => getWorldBankIndicator(code, 'BX.KLT.DINV.WD.GD.ZS', 5).catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+  ]).then(([gdpGrowth, inflation, interestRate, rdSpending, fdiInflows]) =>
+    ({ gdpGrowth, inflation, interestRate, rdSpending, fdiInflows }));
+
+  const fallback = {
+    gdpGrowth: [] as MacroIndicator[],
+    inflation: [] as MacroIndicator[],
+    interestRate: [] as MacroIndicator[],
+    rdSpending: [] as MacroIndicator[],
+    fdiInflows: [] as MacroIndicator[],
+  };
+  const { gdpGrowth, inflation, interestRate, rdSpending, fdiInflows } = await withBudget(
+    'macro', budgetMs, mainCollection, fallback, opts,
+  );
 
   if (gdpGrowth.length > 0) {
     result.indicators.gdpGrowth = gdpGrowth;
     result.sourcesFound.push('worldbank-gdp');
-    // Tendance simple : moyenne 2 dernières années vs 2 précédentes
     const recent = gdpGrowth.slice(0, 2).map(d => Number(d.value));
     const older = gdpGrowth.slice(2, 4).map(d => Number(d.value));
     if (recent.length > 0 && older.length > 0) {
@@ -903,5 +1199,4 @@ export async function gatherMacroRealData(country: string): Promise<MacroSnapsho
   }
 
   return result;
-*/
 }
