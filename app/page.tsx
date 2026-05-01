@@ -18,6 +18,7 @@ const ENGINES = [
   { id: 'contrarian', name: 'Moteur 9 · Singularités contrariennes', label: 'Détection des dix signaux qui justifient le pari à contre-courant' },
   { id: 'financial-coherence', name: 'Moteur 10 · Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics' },
   { id: 'orchestrate', name: 'Moteur 11 · Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
+  { id: 'reference-checks', name: 'Moteur 12 · Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance' },
 ];
 
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -506,6 +507,7 @@ export default function Home() {
                   { id: 'market', label: 'Marché' },
                   { id: 'macro', label: 'Macro' },
                   { id: 'pattern', label: 'Pattern matching' },
+                  { id: 'refchecks', label: 'Reference checks' },
                   { id: 'instruction', label: 'À instruire' },
                 ].map(t => (
                   <div key={t.id} className={`tab ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>
@@ -1580,6 +1582,145 @@ export default function Home() {
                   <p><strong>Score moyen des comparables :</strong> {result.patternMatching?.retrospectiveBenchmark?.averageScore}/100</p>
                   <p>{result.patternMatching?.retrospectiveBenchmark?.successRate}</p>
                   <p>{result.patternMatching?.retrospectiveBenchmark?.insights}</p>
+                </div>
+              )}
+
+              {activeTab === 'refchecks' && (
+                <div style={{ padding: '28px 32px' }}>
+                  {!result.referenceChecks ? (
+                    <p style={{ opacity: 0.7, fontStyle: 'italic' }}>
+                      Reference checks non disponibles pour ce dossier.
+                    </p>
+                  ) : (
+                    <>
+                      <p style={{ marginTop: 0, marginBottom: 18, fontSize: 13, opacity: 0.75 }}>
+                        Plan d&apos;appels de due diligence terrain. Liste structurée des contacts à appeler, profils à identifier, et questions-types pour valider l&apos;équipe, les clients et la gouvernance.
+                      </p>
+
+                      {(result.referenceChecks.priorityOrder || []).length > 0 && (
+                        <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', marginBottom: 28 }}>
+                          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 8 }}>
+                            Ordre de priorité recommandé
+                          </div>
+                          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
+                            {(result.referenceChecks.priorityOrder || []).map((p: string, i: number) => (
+                              <li key={i} style={{ marginBottom: 4 }}>{p}</li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+
+                      {(result.referenceChecks.founderChecks || []).length > 0 && (
+                        <div style={{ marginBottom: 32 }}>
+                          <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 14 }}>
+                            Appels fondateurs
+                          </h3>
+                          {(result.referenceChecks.founderChecks || []).map((fc: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 22, padding: '16px 18px', border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500, marginBottom: 12 }}>
+                                {fc.founderName}
+                              </div>
+                              {(fc.contactsToFind || []).length > 0 && (
+                                <div style={{ marginBottom: 12 }}>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 6 }}>
+                                    Contacts à identifier
+                                  </div>
+                                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.55 }}>
+                                    {(fc.contactsToFind || []).map((c: any, j: number) => (
+                                      <li key={j} style={{ marginBottom: 4 }}>
+                                        <strong style={{ fontWeight: 500, textTransform: 'capitalize' }}>{c.type}</strong> · {c.profile}
+                                        {c.hint && <span style={{ display: 'block', fontSize: 12, opacity: 0.65, marginTop: 2 }}>↳ {c.hint}</span>}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {(fc.keyQuestions || []).length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 6 }}>
+                                    Questions clés
+                                  </div>
+                                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.55 }}>
+                                    {(fc.keyQuestions || []).map((q: string, j: number) => <li key={j}>{q}</li>)}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(result.referenceChecks.customerChecks || []).length > 0 && (
+                        <div style={{ marginBottom: 32 }}>
+                          <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 14 }}>
+                            Appels clients
+                          </h3>
+                          {(result.referenceChecks.customerChecks || []).map((cc: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 18, padding: '14px 18px', border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                                <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500 }}>
+                                  {cc.clientName}{cc.company ? <span style={{ fontWeight: 400, opacity: 0.7 }}> · {cc.company}</span> : null}
+                                </div>
+                                {cc.contractStatus && (
+                                  <span style={{
+                                    fontSize: 10,
+                                    letterSpacing: '0.06em',
+                                    textTransform: 'uppercase',
+                                    padding: '2px 8px',
+                                    background: cc.contractStatus === 'contract' ? 'rgba(26,77,46,0.12)' : cc.contractStatus === 'pilot' ? 'rgba(122,92,31,0.12)' : 'rgba(0,0,0,0.06)',
+                                    color: cc.contractStatus === 'contract' ? '#1a4d2e' : cc.contractStatus === 'pilot' ? '#7a5c1f' : 'inherit',
+                                  }}>
+                                    {cc.contractStatus}
+                                  </span>
+                                )}
+                              </div>
+                              {(cc.keyQuestions || []).length > 0 && (
+                                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.55 }}>
+                                  {(cc.keyQuestions || []).map((q: string, j: number) => <li key={j}>{q}</li>)}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(result.referenceChecks.boardChecks || []).length > 0 && (
+                        <div style={{ marginBottom: 32 }}>
+                          <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 14 }}>
+                            Appels gouvernance
+                          </h3>
+                          {(result.referenceChecks.boardChecks || []).map((bc: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 18, padding: '14px 18px', border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 500, marginBottom: 4 }}>
+                                {bc.memberName}
+                              </div>
+                              <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+                                {bc.role}{bc.affiliation ? ' · ' + bc.affiliation : ''}
+                              </div>
+                              {(bc.keyQuestions || []).length > 0 && (
+                                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.55 }}>
+                                  {(bc.keyQuestions || []).map((q: string, j: number) => <li key={j}>{q}</li>)}
+                                </ul>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(result.referenceChecks.redFlagsToProbe || []).length > 0 && (
+                        <div style={{ padding: '16px 18px', background: 'rgba(122,31,31,0.05)', borderLeft: '3px solid #7a1f1f' }}>
+                          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7a1f1f', marginBottom: 8, fontWeight: 500 }}>
+                            Red flags à sonder en priorité
+                          </div>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
+                            {(result.referenceChecks.redFlagsToProbe || []).map((r: string, i: number) => (
+                              <li key={i} style={{ marginBottom: 4 }}>{r}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 

@@ -9,6 +9,7 @@ import { analyzeContrarian } from './engines/contrarian-engine';
 import { extractFinancialData } from './engines/financial-extraction-engine';
 import { analyzeFinancialCoherence } from './engines/financial-coherence-engine';
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
+import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { getJobStore } from './job-store';
 
 interface RunOpts {
@@ -70,6 +71,21 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     );
     await store.setEngineDone(jobId, 'orchestrate', finalRecommendation);
 
+    // Moteur 12 : Reference Checks. Genere le plan d'appels de DD terrain
+    // (founders, customers, board) avec questions-types et profils a identifier.
+    // Ne bloque pas le pipeline : si echec, on continue sans cette section.
+    await store.setEngineRunning(jobId, 'reference-checks');
+    let referenceChecks: any = null;
+    try {
+      referenceChecks = await generateReferenceChecks(
+        extraction, team, blindspotAnalysis, causalReversal,
+      );
+      await store.setEngineDone(jobId, 'reference-checks', referenceChecks);
+    } catch (err: any) {
+      console.warn('[reference-checks] engine failed, continuing without:', err?.message);
+      await store.setEngineDone(jobId, 'reference-checks', null);
+    }
+
     const result = {
       meta: {
         filename: pitchDeckName,
@@ -88,6 +104,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       contrarianAnalysis,
       financialCoherence,
       finalRecommendation,
+      referenceChecks,
     };
 
     await store.setComplete(jobId, result);

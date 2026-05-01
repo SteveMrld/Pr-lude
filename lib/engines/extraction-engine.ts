@@ -36,6 +36,12 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
     "coInvestors": ["liste des co-investisseurs si annoncés"]
   },
   "competitorsCited": ["liste des concurrents cités explicitement dans le deck"],
+  "clientsNamed": [
+    { "name": "nom du client si présenté nommément", "company": "entreprise du client si différent du nom", "relationship": "nature du lien : pilot, contrat signé, partenariat, LOI, mentionné" }
+  ],
+  "boardMembers": [
+    { "name": "nom complet", "role": "role : board member, advisor, chairman, observer", "affiliation": "entreprise actuelle ou affiliation principale si connue" }
+  ],
   "rawSummary": "résumé global du deck en 4-5 phrases denses, factuel, sans interprétation"
 }`;
 

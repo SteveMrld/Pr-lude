@@ -29,7 +29,48 @@ export interface ExtractionOutput {
     coInvestors?: string[];
   };
   competitorsCited: string[];
+  // Clients nommes dans le deck : noms + entreprise + nature du lien (pilote, contrat,
+  // partenariat). Sert au moteur reference-checks pour identifier les appels clients.
+  clientsNamed?: Array<{
+    name: string;
+    company?: string;
+    relationship?: string;
+  }>;
+  // Membres du board ou advisors mentionnes dans le deck.
+  boardMembers?: Array<{
+    name: string;
+    role: string;
+    affiliation?: string;
+  }>;
   rawSummary: string;
+}
+
+// Sortie du moteur reference-checks : liste structuree des contacts a appeler
+// pendant la due diligence terrain. Inspire des playbooks Golden Seeds et GCV.
+export interface ReferenceChecksOutput {
+  founderChecks: Array<{
+    founderName: string;
+    contactsToFind: Array<{
+      type: 'superior' | 'peer' | 'subordinate';
+      profile: string; // qui chercher : "ex-CTO d'une startup ou Boura a travaille avant fondation"
+      hint: string; // indice pour le retrouver
+    }>;
+    keyQuestions: string[];
+  }>;
+  customerChecks: Array<{
+    clientName: string;
+    company?: string;
+    contractStatus: 'unknown' | 'pilot' | 'contract' | 'announced';
+    keyQuestions: string[];
+  }>;
+  boardChecks: Array<{
+    memberName: string;
+    role: string;
+    affiliation?: string;
+    keyQuestions: string[];
+  }>;
+  redFlagsToProbe: string[]; // alertes specifiques sortantes des autres moteurs a verifier en DD
+  priorityOrder: string[]; // ordre recommande des appels (qui d'abord, pourquoi)
 }
 
 export interface TeamAnalysisOutput {
