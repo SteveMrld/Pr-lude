@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
 
 const ENGINES = [
@@ -87,6 +87,98 @@ export default function Home() {
   }
 
 
+  // Polling d'un job existant. Extrait dans useCallback pour pouvoir etre rappele
+  // depuis useEffect (resume-on-mount apres reload de page).
+  const pollJob = useCallback(async (jobId: string, opts?: { wakeLock?: any }) => {
+    const startedAt = Date.now();
+    let consecutive404 = 0;
+    let lastSeenUpdatedAt = 0;
+    let lastForwardLocalTime = Date.now();
+
+    try {
+      while (true) {
+        // Hard cap de securite : 15 minutes
+        if (Date.now() - startedAt > 15 * 60 * 1000) {
+          throw new Error('Le pipeline a depasse 15 minutes, on abandonne. Recharge la page et reessaie.');
+        }
+
+        let r: Response;
+        try {
+          r = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
+        } catch (_e) {
+          // Coupure reseau passagere : on retente apres 2s
+          await new Promise(res => setTimeout(res, 2000));
+          continue;
+        }
+
+        if (r.status === 404) {
+          consecutive404++;
+          // 30 essais a 4s = 2 min de tolerance pour que le job apparaisse en DB.
+          if (consecutive404 >= 30) {
+            throw new Error("Le serveur n'a pas reussi a enregistrer le job. Reessaie.");
+          }
+          await new Promise(res => setTimeout(res, 4000));
+          continue;
+        }
+        consecutive404 = 0;
+
+        if (!r.ok) {
+          throw new Error('Erreur serveur HTTP ' + r.status);
+        }
+
+        const job = await r.json();
+
+        if (job.engineStates) {
+          // Conversion : le job-store ne stocke pas les memes types que notre UI.
+          // On recopie le status et les timestamps tels quels.
+          setEngineStates(job.engineStates);
+        }
+
+        // Detection de stuck : si updatedAt ne progresse plus depuis 90s, le pipeline
+        // est probablement mort cote Vercel (cold-kill, OOM, etc.)
+        if (job.updatedAt && job.updatedAt > lastSeenUpdatedAt) {
+          lastSeenUpdatedAt = job.updatedAt;
+          lastForwardLocalTime = Date.now();
+        } else if (job.status === 'running' && Date.now() - lastForwardLocalTime > 90000) {
+          throw new Error('Le pipeline est bloque (aucun progres depuis 90s). Le serveur a probablement timeout. Recharge et reessaie.');
+        }
+
+        if (job.status === 'complete') {
+          setResult(job.result);
+          try { localStorage.removeItem('prelude_active_job'); } catch (_e) {}
+          return;
+        }
+        if (job.status === 'error') {
+          throw new Error(job.error || 'Erreur pipeline');
+        }
+
+        // pending | running : on continue le polling toutes les 4s.
+        await new Promise(res => setTimeout(res, 4000));
+      }
+    } finally {
+      setAnalyzing(false);
+      if (opts?.wakeLock) {
+        try { await opts.wakeLock.release(); } catch (_e) {}
+      }
+    }
+  }, []);
+
+  // Resume-on-mount : si un job actif est present en localStorage, on reprend le polling.
+  // Permet a l'utilisateur de recharger la page pendant un pipeline sans tout perdre.
+  useEffect(() => {
+    try {
+      const activeJob = localStorage.getItem('prelude_active_job');
+      if (activeJob) {
+        setAnalyzing(true);
+        pollJob(activeJob).catch(e => {
+          setError(e?.message || 'Erreur de reprise');
+          try { localStorage.removeItem('prelude_active_job'); } catch (_e) {}
+        });
+      }
+    } catch (_e) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function analyze() {
     if (files.length === 0) return;
     const hasPdf = files.some(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
@@ -99,94 +191,50 @@ export default function Home() {
     setResult(null);
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
-    // Wake Lock : empeche l'ecran de dormir pendant le pipeline.
-    // Non bloquant : si le navigateur ne supporte pas ou refuse, on continue.
+    // Wake Lock : empeche l'ecran de dormir pendant l'upload (non bloquant).
     let wakeLock: any = null;
     try {
       if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
         wakeLock = await (navigator as any).wakeLock.request('screen');
       }
-    } catch (_e) {
-      // Wake Lock non disponible : on continue sans
-    }
+    } catch (_e) {}
+
+    // jobId genere cote client. Permet :
+    //  - de poller des reception du POST sans race condition
+    //  - de reprendre apres un reload (jobId stocke en localStorage)
+    //  - de continuer si la connexion mobile coupe pendant l'upload, des qu'elle revient
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    try { localStorage.setItem('prelude_active_job', jobId); } catch (_e) {}
 
     try {
       const formData = new FormData();
+      formData.append('jobId', jobId);
       for (const f of files) {
         formData.append('files', f);
       }
 
-      const response = await fetch('/api/analyze', { method: 'POST', body: formData });
-
-      if (!response.ok || !response.body) {
-        const errBody = await response.text();
-        throw new Error(errBody || 'Erreur reseau');
+      // Etape 1 : POST /api/jobs. Le serveur cree le job en DB, schedule le pipeline
+      // en arriere-plan via unstable_after, et retourne immediatement.
+      const uploadResp = await fetch('/api/jobs', { method: 'POST', body: formData });
+      if (!uploadResp.ok) {
+        const errBody = await uploadResp.text();
+        throw new Error(errBody || 'Upload echoue');
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let receivedTerminal = false;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const events = buffer.split('\n\n');
-        buffer = events.pop() || '';
-
-        for (const event of events) {
-          if (!event.trim()) continue;
-          const evtLines = event.split('\n');
-          let eventType = '';
-          let dataStr = '';
-          for (const line of evtLines) {
-            if (line.startsWith('event: ')) eventType = line.slice(7).trim();
-            else if (line.startsWith('data: ')) dataStr = line.slice(6);
-          }
-          if (!eventType || !dataStr) continue;
-
-          try {
-            const data = JSON.parse(dataStr);
-
-            if (eventType === 'engine-start') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: { status: 'running', startedAt: Date.now() }
-              }));
-            } else if (eventType === 'engine-done') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: { ...prev[data.engine], status: 'done', completedAt: Date.now() }
-              }));
-            } else if (eventType === 'complete') {
-              setResult(data);
-              receivedTerminal = true;
-            } else if (eventType === 'error') {
-              setError(data.message);
-              receivedTerminal = true;
-            }
-          } catch (e) {
-            console.error('Parse error:', e);
-          }
-        }
-      }
-
-      // Stream termine sans event complete ni error : probable timeout serveur
-      if (!receivedTerminal) {
-        throw new Error('Le pipeline s\'est interrompu avant la fin (probable timeout serveur). Recharge la page et réessaie. Si le problème persiste, le pipeline prend trop de temps et il faut réduire la charge.');
-      }
+      // Etape 2 : polling. Le pipeline tourne maintenant cote serveur, independamment
+      // du client. Si le mobile coupe ou met l'onglet en arriere-plan, le pipeline
+      // continue et le client reprendra des qu'il pourra recommuniquer.
+      await pollJob(jobId, { wakeLock });
     } catch (e: any) {
-      setError(e.message || 'Erreur reseau');
-    } finally {
+      setError(e?.message || 'Erreur reseau');
       setAnalyzing(false);
-      // Release Wake Lock
+      try { localStorage.removeItem('prelude_active_job'); } catch (_e) {}
       if (wakeLock) {
         try { await wakeLock.release(); } catch (_e) {}
       }
     }
   }
+
 
 
   function reset() {
