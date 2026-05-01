@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
 
 const ENGINES = [
@@ -52,14 +52,7 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState('synthesis');
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
-  const [pollStatus, setPollStatus] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Au montage : si un job était en cours quand l'utilisateur a fermé l'onglet, reprendre le polling
-  useEffect(() => {
-    resumeActiveJob();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   function handleFilesSelect(newFiles: FileList | null) {
     if (!newFiles || newFiles.length === 0) return;
@@ -93,6 +86,7 @@ export default function Home() {
     setResult(null);
   }
 
+
   async function analyze() {
     if (files.length === 0) return;
     const hasPdf = files.some(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
@@ -103,192 +97,74 @@ export default function Home() {
     setAnalyzing(true);
     setError(null);
     setResult(null);
-    setPollStatus('Initialisation...');
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
-    // Génère un jobId côté client pour pouvoir poller même si la POST se coupe
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-
     try {
-      localStorage.setItem('prelude_active_job', jobId);
-      localStorage.setItem('prelude_active_job_started_at', String(Date.now()));
-    } catch (e) {}
-
-    // Lance la POST. On garde la promesse dans une variable pour éviter le garbage collection
-    const formData = new FormData();
-    formData.append('jobId', jobId);
-    for (const f of files) {
-      formData.append('files', f);
-    }
-
-    // Variable globale pour empêcher le GC mobile
-    // @ts-ignore
-    window.__preludePostPromise = fetch('/api/jobs', {
-      method: 'POST',
-      body: formData,
-      // Augmenter timeout côté client (Chrome Mobile a parfois 60s par défaut)
-    }).then(async r => {
-      if (!r.ok) {
-        const errText = await r.text().catch(() => '');
-        console.error('POST job failed:', r.status, errText);
-      } else {
-        console.log('POST job succeeded');
+      const formData = new FormData();
+      for (const f of files) {
+        formData.append('files', f);
       }
-    }).catch(err => {
-      console.warn('POST job network error:', err.message);
-    });
 
-    // Démarre le polling immédiatement
-    let attempts = 0;
-    let consecutive404 = 0;
-    const maxAttempts = 90; // 90 * 4s = 360s max
-    let pollTimer: any = null;
+      const response = await fetch('/api/analyze', { method: 'POST', body: formData });
 
-    const poll = async () => {
-      attempts++;
-      try {
-        const r = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
+      if (!response.ok || !response.body) {
+        const errBody = await response.text();
+        throw new Error(errBody || 'Erreur reseau');
+      }
 
-        if (r.status === 404) {
-          consecutive404++;
-          setPollStatus(`Upload en cours, attente de la création du job côté serveur (${consecutive404}/25)...`);
-          // Sur mobile lent, l'upload du PDF peut prendre 60-90s.
-          // On attend jusqu'à 25 essais (100s) avant d'abandonner.
-          if (consecutive404 >= 25) {
-            setError(`Le serveur n'a pas reçu les fichiers après 100s. Vérifie ta connexion ou réessaie. JobId: ${jobId}`);
-            setAnalyzing(false);
-            return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const event of events) {
+          if (!event.trim()) continue;
+          const evtLines = event.split('\n');
+          let eventType = '';
+          let dataStr = '';
+          for (const line of evtLines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+            else if (line.startsWith('data: ')) dataStr = line.slice(6);
           }
-          if (attempts < maxAttempts) {
-            pollTimer = setTimeout(poll, 4000);
-          } else {
-            setError('Le pipeline n\'a pas démarré dans le temps imparti.');
-            setAnalyzing(false);
-          }
-          return;
-        }
+          if (!eventType || !dataStr) continue;
 
-        consecutive404 = 0;
-        setPollStatus(`Pipeline en cours... ${attempts * 4}s`);
+          try {
+            const data = JSON.parse(dataStr);
 
-        if (!r.ok) {
-          throw new Error('Erreur polling : HTTP ' + r.status);
-        }
-
-        const data = await r.json();
-
-        // Mise à jour des états moteurs
-        if (data.engineStates) {
-          setEngineStates(prev => {
-            const next = { ...prev };
-            for (const [engine, state] of Object.entries(data.engineStates as any)) {
-              next[engine] = state as any;
+            if (eventType === 'engine-start') {
+              setEngineStates(prev => ({
+                ...prev,
+                [data.engine]: { status: 'running', startedAt: Date.now() }
+              }));
+            } else if (eventType === 'engine-done') {
+              setEngineStates(prev => ({
+                ...prev,
+                [data.engine]: { ...prev[data.engine], status: 'done', completedAt: Date.now() }
+              }));
+            } else if (eventType === 'complete') {
+              setResult(data);
+            } else if (eventType === 'error') {
+              setError(data.message);
             }
-            return next;
-          });
-        }
-
-        if (data.status === 'complete' && data.result) {
-          setResult(data.result);
-          setAnalyzing(false);
-          try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
-          return;
-        }
-
-        if (data.status === 'error') {
-          setError(data.error || 'Erreur pipeline');
-          setAnalyzing(false);
-          try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
-          return;
-        }
-
-        // Continue le polling
-        if (attempts < maxAttempts) {
-          pollTimer = setTimeout(poll, 4000);
-        } else {
-          setError('Le pipeline a dépassé la durée maximale.');
-          setAnalyzing(false);
-        }
-      } catch (e: any) {
-        console.warn('Polling error (will retry):', e.message);
-        if (attempts < maxAttempts) {
-          pollTimer = setTimeout(poll, 4000);
-        } else {
-          setError(e.message || 'Erreur de polling');
-          setAnalyzing(false);
+          } catch (e) {
+            console.error('Parse error:', e);
+          }
         }
       }
-    };
-
-    // Démarre le polling après 3 secondes (laisse le temps à l'upload de partir)
-    pollTimer = setTimeout(poll, 3000);
+    } catch (e: any) {
+      setError(e.message || 'Erreur reseau');
+    } finally {
+      setAnalyzing(false);
+    }
   }
 
-  // Au montage : vérifier s'il y a un job actif en cours dans localStorage
-  // (cas où l'utilisateur ferme l'onglet et revient)
-  function resumeActiveJob() {
-    try {
-      const activeJobId = localStorage.getItem('prelude_active_job');
-      const startedAt = localStorage.getItem('prelude_active_job_started_at');
-      if (!activeJobId) return;
-
-      // Si le job a plus de 10 minutes, on le considère perdu et on nettoie le localStorage
-      const startTime = startedAt ? parseInt(startedAt, 10) : 0;
-      const ageMinutes = (Date.now() - startTime) / 60000;
-      if (!startTime || ageMinutes > 10) {
-        try {
-          localStorage.removeItem('prelude_active_job');
-          localStorage.removeItem('prelude_active_job_started_at');
-        } catch (e) {}
-        return;
-      }
-
-      setAnalyzing(true);
-      let attempts = 0;
-      const maxAttempts = 90;
-
-      const poll = async () => {
-        attempts++;
-        try {
-          const r = await fetch(`/api/jobs/${activeJobId}`, { cache: 'no-store' });
-          if (r.status === 404) {
-            // Job perdu côté serveur (cold start Vercel ou trop ancien)
-            try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
-            setAnalyzing(false);
-            return;
-          }
-          const data = await r.json();
-          if (data.engineStates) {
-            setEngineStates(prev => {
-              const next = { ...prev };
-              for (const [engine, state] of Object.entries(data.engineStates as any)) {
-                next[engine] = state as any;
-              }
-              return next;
-            });
-          }
-          if (data.status === 'complete' && data.result) {
-            setResult(data.result);
-            setAnalyzing(false);
-            try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
-            return;
-          }
-          if (data.status === 'error') {
-            setError(data.error || 'Erreur pipeline');
-            setAnalyzing(false);
-            try { localStorage.removeItem('prelude_active_job'); } catch (e) {}
-            return;
-          }
-          if (attempts < maxAttempts) setTimeout(poll, 4000);
-          else setAnalyzing(false);
-        } catch (e) {
-          if (attempts < maxAttempts) setTimeout(poll, 4000);
-          else setAnalyzing(false);
-        }
-      };
-      poll();
-    } catch (e) {}
-  }
 
   function reset() {
     setFiles([]);
@@ -384,23 +260,9 @@ export default function Home() {
               <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
             </div>
             <div style={{ padding: '12px 18px', background: '#faf3ec', border: '1px solid #c4a484', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
-              <strong>Sur mobile :</strong> tu peux mettre l'écran en veille, recevoir un appel ou changer d'application sans risque.
-              L'analyse continue côté serveur. Quand tu reviens, la page se met automatiquement à jour.
-              Le pipeline prend généralement 3 à 4 minutes.
+              <strong>Sur mobile :</strong> ne verrouille pas l'écran et ne change pas d'application pendant les 3-4 minutes du pipeline.
+              La connexion au serveur se coupe si le téléphone passe en veille. Pose le téléphone à plat avec l'écran allumé.
             </div>
-            {pollStatus && (
-              <div style={{
-                padding: '10px 16px',
-                background: '#f0f4f8',
-                border: '1px solid #b0c4d4',
-                marginBottom: 16,
-                fontSize: 13,
-                fontFamily: 'monospace',
-                color: '#2c4f6e',
-              }}>
-                ◉ {pollStatus}
-              </div>
-            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
               <button
                 onClick={() => {
