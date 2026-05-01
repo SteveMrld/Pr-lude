@@ -56,6 +56,7 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState('synthesis');
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
+  const [printMode, setPrintMode] = useState(false); // quand true, toutes les sections rendues simultanement pour export PDF complet
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelect(newFiles: FileList | null) {
@@ -371,15 +372,20 @@ export default function Home() {
                 }}>
                 Note d&apos;investissement
               </button>
-              {/* Bouton export PDF : passe en vue Note puis lance window.print().
-                  L'utilisateur choisit "Enregistrer en PDF" dans la boite de dialogue. */}
+              {/* Bouton export PDF : active printMode qui rend toutes les sections
+                  (dashboard analytique + note d investissement) simultanement,
+                  puis lance window.print(). Apres impression, retour au mode normal. */}
               <button
                 onClick={() => {
-                  setViewMode('note');
-                  // petite attente pour laisser React rendre la vue Note avant l'impression
-                  setTimeout(() => window.print(), 200);
+                  setPrintMode(true);
+                  // attente pour laisser React rendre toutes les sections avant impression
+                  setTimeout(() => {
+                    window.print();
+                    // rétablir le mode normal apres impression
+                    setTimeout(() => setPrintMode(false), 500);
+                  }, 400);
                 }}
-                title="Imprimer ou enregistrer la note en PDF"
+                title="Exporter le dashboard analytique complet et la note d investissement en PDF"
                 style={{
                   padding: '8px 18px',
                   fontSize: 12,
@@ -396,7 +402,8 @@ export default function Home() {
               </button>
             </div>
 
-            {viewMode === 'note' ? (
+            {/* En mode normal: bascule selon viewMode. En mode print: rend dashboard + note en cascade. */}
+            {(viewMode === 'note' && !printMode) ? (
               <InvestmentNoteView result={result} />
             ) : (
               <>
@@ -540,7 +547,7 @@ export default function Home() {
               </div>
 
               {/* Tab content */}
-              {activeTab === 'synthesis' && (
+              {(activeTab === 'synthesis' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   {/* Bloc visuel : jauge probabilite + radar 6 dimensions */}
                   {(result.finalRecommendation?.successProbability != null || (result.finalRecommendation?.dimensionProbabilities || []).length > 0) && (
@@ -629,7 +636,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'dimensions' && (
+              {(activeTab === 'dimensions' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 18 }}>
                     Probabilités de succès par dimension
@@ -685,7 +692,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'financial' && (
+              {(activeTab === 'financial' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Cohérence financière · Sept tests structurés
@@ -797,7 +804,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'risksplan' && (
+              {(activeTab === 'risksplan' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Cartographie des risques · Trois axes
@@ -895,7 +902,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'blindspots' && (
+              {(activeTab === 'blindspots' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 14 }}>
                     Sept angles morts du métier VC européen
@@ -916,7 +923,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'aveuglement' && result.blindspotAnalysis && (
+              {(activeTab === 'aveuglement' || printMode) && result.blindspotAnalysis && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Aveuglement collectif · Dix patterns d'erreur de jugement VC
@@ -1004,7 +1011,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'singularite' && result.contrarianAnalysis && (
+              {(activeTab === 'singularite' || printMode) && result.contrarianAnalysis && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Singularités contrariennes · Dix signaux qui justifient le pari
@@ -1096,7 +1103,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'team' && (
+              {(activeTab === 'team' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <div className="kv-grid" style={{ marginBottom: 22 }}>
                     <div className="kv-item">
@@ -1220,7 +1227,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'verified' && (
+              {(activeTab === 'verified' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Données vérifiées par sources publiques
@@ -1370,7 +1377,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'market' && (
+              {(activeTab === 'market' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <div className="kv-grid" style={{ marginBottom: 22 }}>
                     <div className="kv-item">
@@ -1448,7 +1455,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'macro' && (
+              {(activeTab === 'macro' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <div className="kv-grid" style={{ marginBottom: 22 }}>
                     <div className="kv-item">
@@ -1491,7 +1498,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'pattern' && (
+              {(activeTab === 'pattern' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <div className="archetype-badge">
                     {ARCHETYPE_LABELS[result.patternMatching?.archetypeDominant]}
@@ -1608,7 +1615,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'refchecks' && (
+              {(activeTab === 'refchecks' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   {!result.referenceChecks ? (
                     <p style={{ opacity: 0.7, fontStyle: 'italic' }}>
@@ -1747,7 +1754,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'instruction' && (
+              {(activeTab === 'instruction' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3>Questions à instruire avant décision</h3>
                   <ol className="questions-list" style={{ marginTop: 12 }}>
@@ -1779,15 +1786,26 @@ export default function Home() {
               </>
             )}
 
+            {/* En mode print, on rend aussi la note d investissement apres le dashboard
+                pour que l export PDF contienne TOUT (dashboard analytique + note). */}
+            {printMode && (
+              <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
+                <InvestmentNoteView result={result} />
+              </div>
+            )}
+
             <div className="reset-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn" onClick={reset}>Analyser un nouveau dossier</button>
               <button
                 className="btn"
                 onClick={() => {
-                  setViewMode('note');
-                  setTimeout(() => window.print(), 200);
+                  setPrintMode(true);
+                  setTimeout(() => {
+                    window.print();
+                    setTimeout(() => setPrintMode(false), 500);
+                  }, 400);
                 }}
-                title="Imprimer ou enregistrer la note en PDF">
+                title="Exporter le dashboard analytique complet et la note d investissement en PDF">
                 ⤓ Exporter en PDF
               </button>
             </div>

@@ -331,4 +331,27 @@ ul, ol { list-style: none; }
     color: #1a1a1a !important;
     text-decoration: none !important;
   }
+
+  /* Adaptation des cards sombres du dashboard pour l impression sur papier blanc.
+     Les sections .reco-card et autres blocs sombres sont basculees en fond clair
+     avec texte fonce pour rester lisibles en PDF. */
+  .reco-card,
+  .reco-card * {
+    background: #f8f7f4 !important;
+    color: #1a1a1a !important;
+  }
+  .reco-card .small-caps {
+    opacity: 0.7 !important;
+  }
+
+  /* Saut de page entre dashboard et note d investissement en mode export complet */
+  .investment-note {
+    page-break-before: always;
+  }
+
+  /* Eviter que les onglets se couvrent au print */
+  [class*="activeTab"], .tab-content {
+    display: block !important;
+    page-break-inside: auto;
+  }
 }
