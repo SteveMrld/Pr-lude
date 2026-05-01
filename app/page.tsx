@@ -99,6 +99,17 @@ export default function Home() {
     setResult(null);
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
+    // Wake Lock : empeche l'ecran de dormir pendant le pipeline.
+    // Non bloquant : si le navigateur ne supporte pas ou refuse, on continue.
+    let wakeLock: any = null;
+    try {
+      if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+        wakeLock = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (_e) {
+      // Wake Lock non disponible : on continue sans
+    }
+
     try {
       const formData = new FormData();
       for (const f of files) {
@@ -162,6 +173,10 @@ export default function Home() {
       setError(e.message || 'Erreur reseau');
     } finally {
       setAnalyzing(false);
+      // Release Wake Lock
+      if (wakeLock) {
+        try { await wakeLock.release(); } catch (_e) {}
+      }
     }
   }
 
