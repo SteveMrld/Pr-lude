@@ -254,3 +254,81 @@ ul, ol { list-style: none; }
   .cta-row .btn { width: 100%; }
   .tabs { padding: 0 18px; gap: 16px; flex-wrap: wrap; }
 }
+
+/* PRINT : export PDF de la note d'investissement.
+   Au clic sur "Exporter en PDF", le navigateur ouvre la boîte d'impression.
+   L'utilisateur choisit "Enregistrer en PDF" comme destination. */
+@media print {
+  /* Page A4 avec marges propres */
+  @page {
+    size: A4;
+    margin: 14mm 14mm 16mm 14mm;
+  }
+
+  /* Reset general : couleurs print-friendly */
+  body, html {
+    background: #ffffff !important;
+    color: #1a1a1a !important;
+  }
+
+  /* Cacher tout le chrome de l'application en print */
+  .header,
+  .upload-box,
+  .upload-box-active,
+  .pipeline,
+  .reset-row,
+  .tabs,
+  .toggle-row-print-hide,
+  .print-hide,
+  button {
+    display: none !important;
+  }
+
+  /* La zone main pleine largeur sans padding fantaisiste en print */
+  .main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Investment note : laisser respirer */
+  .investment-note {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Sauts de page : eviter de couper en plein milieu d'une section */
+  .note-section,
+  .note-block,
+  .reco-card,
+  h1, h2, h3 {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Forcer l'impression des couleurs (sinon Chrome enleve les fonds) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Cacher le toggle dashboard/note pendant le print */
+  .view-toggle-row {
+    display: none !important;
+  }
+
+  /* En mode dashboard, on cache tous les onglets sauf la synthese et reference checks
+     pour que le PDF soit lisible meme sans passer en mode note */
+  .result-section {
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+  }
+
+  /* Liens en noir et sans soulignement */
+  a {
+    color: #1a1a1a !important;
+    text-decoration: none !important;
+  }
+}

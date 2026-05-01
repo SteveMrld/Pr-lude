@@ -338,8 +338,8 @@ export default function Home() {
 
         {result && (
           <>
-            {/* Toggle de vue : Dashboard vs Note d'investissement */}
-            <div style={{ display: 'flex', gap: 0, marginBottom: 16, justifyContent: 'flex-end' }}>
+            {/* Toggle de vue : Dashboard vs Note d'investissement, plus bouton export */}
+            <div className="view-toggle-row" style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'flex-end', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 onClick={() => setViewMode('dashboard')}
                 style={{
@@ -369,7 +369,30 @@ export default function Home() {
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                 }}>
-                Note d'investissement
+                Note d&apos;investissement
+              </button>
+              {/* Bouton export PDF : passe en vue Note puis lance window.print().
+                  L'utilisateur choisit "Enregistrer en PDF" dans la boite de dialogue. */}
+              <button
+                onClick={() => {
+                  setViewMode('note');
+                  // petite attente pour laisser React rendre la vue Note avant l'impression
+                  setTimeout(() => window.print(), 200);
+                }}
+                title="Imprimer ou enregistrer la note en PDF"
+                style={{
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  background: 'transparent',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--ink)',
+                  marginLeft: 8,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}>
+                ⤓ Exporter en PDF
               </button>
             </div>
 
