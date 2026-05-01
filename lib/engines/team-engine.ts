@@ -1,6 +1,6 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
-import type { ExtractionOutput, TeamAnalysisOutput } from './types';
+import type { ExtractionOutput, TeamAnalysisOutput, BenchmarkPositioning } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
 
@@ -24,7 +24,46 @@ Si les fondateurs viennent de secteurs différents du secteur cible, évalue si 
 À partir des données vérifiées (publications récentes, repos GitHub actifs), évalue la profondeur de l'obsession sur le problème adressé.
 
 ## Cohérence déclaration vs vérification
-NOUVEAU PILIER. À partir du croisement entre les données du pitch deck et les données vérifiées, identifie les zones de cohérence forte et les zones d'écart.
+À partir du croisement entre les données du pitch deck et les données vérifiées, identifie les zones de cohérence forte et les zones d'écart.
+
+# DIMENSIONS ADDITIONNELLES À INTÉGRER (heuristiques de débusqueurs d'outsiders)
+
+## Slope versus Y-Intercept
+Y Combinator et First Round Capital théorisent l'évaluation des fondateurs en deux dimensions distinctes :
+- Y-Intercept : le pedigree, le point de départ (CV, diplômes, expériences passées)
+- Slope : la pente de progression du fondateur sur les 12-24 derniers mois
+
+La règle : "L'éducation et le CV, c'est le Y-Intercept. Ce qui nous intéresse, c'est le Slope."
+Un fondateur autodidacte passé de 0 à 5M€ ARR en 18 mois a un Slope exceptionnel même avec un Y-Intercept faible. Inversement, un ex-Google qui a fait progresser sa boîte de 80 à 90 sur la même période a un Y-Intercept élevé mais un Slope médiocre.
+
+Pour CHAQUE fondateur, examine :
+- Le Y-Intercept : quel est son point de départ déclaré et vérifié ?
+- Le Slope : quelle est la vitesse de progression observable sur les derniers mois ? (publications GitHub récentes, projets lancés, levées précédentes, traction documentée)
+Tu peux mentionner ce différentiel dans 'fitSignals' (slope fort) ou 'fitGaps' (slope faible) du fondateur.
+
+## Capacité d'attraction
+Le talent attire le talent. Quand un fondateur réussit à recruter sans argent (ou avec un salaire bien en dessous du marché) un ingénieur senior d'une boîte prestigieuse (OpenAI, Mistral, Tesla, Stripe, etc.), c'est un signal de leadership de classe mondiale.
+
+Examine la composition de l'équipe au-delà des fondateurs si l'information est disponible :
+- Y a-t-il des early hires venus de boîtes prestigieuses ?
+- À quel stade ont-ils rejoint (très tôt = signal fort) ?
+- Quelle est leur séniorité avant l'arrivée chez le projet ?
+Mentionne ce signal dans 'greenFlags' s'il est présent et notable.
+
+## Insight propriétaire (founder-market fit profond)
+Si un fondateur articule en quelques phrases pourquoi son secteur se trompe depuis 10-20 ans et comment il a la solution technique, c'est un signal d'insight propriétaire fort. Cela compte plus qu'un beau diplôme. C'est ce que les fonds débusqueurs cherchent dans les secteurs "moches" et complexes.
+
+Examine si le pitch deck donne des indices d'un tel insight :
+- Le fondateur a-t-il vécu personnellement le problème pendant des années ?
+- A-t-il une perspective contre-intuitive sur le secteur ?
+- A-t-il accès à une donnée rare grâce à son parcours ?
+Mentionne dans 'tacitExpertise' du fondateur concerné.
+
+## Founder commitment et team chemistry
+Examine deux signaux supplémentaires :
+- Founder commitment : les fondateurs ont-ils quitté un emploi stable pour ce projet ? Investi leurs propres économies ? Pris un salaire significativement inférieur au marché ?
+- Team chemistry : depuis combien de temps les fondateurs se connaissent-ils ? Ont-ils déjà travaillé ensemble ? Une équipe qui se connaît depuis 5+ ans a une chemistry vérifiée. Une équipe formée juste avant le pitch est plus risquée.
+Ces signaux entrent dans 'collectiveAntiFragility' et peuvent générer green flags ou red flags.
 
 # FOUNDER-MARKET FIT (Eisenmann 2020)
 
@@ -39,6 +78,14 @@ Pour chaque fondateur, évalue :
 - Red flags spécifiques à son rôle : ex un CEO qui n'a jamais vendu en B2B, un CTO qui n'a jamais scalé une équipe d'ingénieurs, un COO qui n'a jamais structuré d'opérations à 100+ FTE
 
 Score founder-market fit individuel : 0-100. Sois rigoureux, ne sois pas complaisant. Un pedigree prestigieux ne fait pas un founder-market fit. Un brillant fondateur en biotech n'a pas automatiquement le founder-market fit pour un projet AI.
+
+# BENCHMARK ARR SERIES A IA 2026 (Menlo Ventures)
+
+Si le dossier est en Series A IA, applique le benchmark Menlo Ventures pour évaluer la qualité de la traction :
+"Trajectoire ARR exceptionnelle : 0 → 3M$ → 15M$ → 60M$ sur période courte (typiquement 18-36 mois)."
+
+Si la traction du dossier dépasse ou approche cette trajectoire, c'est un signal de slope exceptionnel à mentionner dans greenFlags.
+Si la traction du dossier est nettement en dessous (ex: 0 → 500K → 1.5M en 24 mois), c'est un signal de slope faible à mentionner dans fitGaps.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -91,7 +138,10 @@ Score founder-market fit individuel : 0-100. Sois rigoureux, ne sois pas complai
 
 Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.`;
 
-export async function analyzeTeam(extraction: ExtractionOutput): Promise<TeamAnalysisOutput & { realData?: FounderRealData[] }> {
+export async function analyzeTeam(
+  extraction: ExtractionOutput,
+  benchmarks?: BenchmarkPositioning | null
+): Promise<TeamAnalysisOutput & { realData?: FounderRealData[] }> {
   // ÉTAPE 1 : Récupération de data réelle pour chaque fondateur (timeout 8s par fondateur)
   const realDataPromises = (extraction.founders || []).map(async (founder) => {
     let hint: string | undefined;
@@ -172,7 +222,29 @@ Produit : ${extraction.productDescription}
 # DONNÉES VÉRIFIÉES (interrogation de sources publiques en temps réel)
 ${realDataSummary}
 
-Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
+# CONTEXTE BENCHMARK MARCHÉ (moteur Benchmarks Prélude)
+${benchmarks ? `
+Stade : ${benchmarks.stage} ${benchmarks.isAi ? '(IA)' : '(non-IA)'}
+Région : ${benchmarks.region}
+
+${benchmarks.isAi && (benchmarks.stage === 'seriesA' || benchmarks.stage === 'seed') ? `
+Benchmark Menlo Ventures applicable au dossier :
+Trajectoire ARR exceptionnelle pour Series A IA = 0 → 3M$ → 15M$ → 60M$ sur 18-36 mois.
+Compare la traction documentée du pitch (revenue, growth, customers) à cette trajectoire pour évaluer le slope.
+` : ''}
+
+${benchmarks.region === 'Europe' ? `
+Note Europe : Le dossier est européen. Les seasoned founders européens incorporent de plus en plus aux US (10% en 2016 -> 18% en 2025, source Atomico). Si les fondateurs ont choisi de rester en Europe, c'est un signal positif d'engagement local à mentionner.
+` : ''}
+` : '(données benchmark non disponibles pour ce dossier)'}
+
+Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.
+
+Intègre dans ton analyse :
+- Le différentiel Slope vs Y-Intercept de chaque fondateur (visible dans fitSignals/fitGaps)
+- La capacité d'attraction si tu as des indices (greenFlags ou commentaire dans systemicCoverage)
+- L'insight propriétaire dans tacitExpertise du fondateur concerné
+- Le founder commitment et la team chemistry dans collectiveAntiFragility et redFlags/greenFlags`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
