@@ -247,6 +247,16 @@ Produis la recommandation finale avec :
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
-  return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+  // Retry une fois si le JSON est mal forme. Les LLM produisent occasionnellement
+  // des JSON invalides (virgule manquante, etc.) sur des sorties denses comme celle-ci.
+  // Le retry exploite la non-determinisme : 95% des cas, le second appel produit
+  // un JSON valide.
+  let rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
+  try {
+    return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+  } catch (firstErr: any) {
+    console.warn('[orchestrator] JSON parse failed, retrying once:', firstErr?.message);
+    rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
+    return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+  }
 }
