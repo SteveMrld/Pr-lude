@@ -171,6 +171,15 @@ export async function orchestrateFinalRecommendation(
   const contrarianSignalsDetected = Object.values(contrarianAnalysis.signals || {}).filter((s: any) => s?.detected).length;
   const contrarianHighStrength = Object.values(contrarianAnalysis.signals || {}).filter((s: any) => s?.detected && s.strength >= 60).length;
 
+  // Helper pour tronquer les longues syntheses textuelles avant injection dans le prompt.
+  // Les enrichissements sessions 3-4 ont allonge les sorties Blindspot/Contrarian/Causal.
+  // L orchestrator n a pas besoin de la prose complete, juste de l essentiel.
+  const truncate = (s: string | undefined, max: number = 400): string => {
+    if (!s) return '';
+    if (s.length <= max) return s;
+    return s.slice(0, max) + '...';
+  };
+
   const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction.companyName} :
 
 # CONTEXTE
@@ -201,39 +210,38 @@ Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 - Archétype : ${patternMatching.archetypeDominant}
 - Top comparables : ${(patternMatching.comparables || []).slice(0, 3).map(c => `${c.name} (${c.proximity}%)`).join(' · ')}
 - Benchmark rétrospectif : ${patternMatching.retrospectiveBenchmark.averageScore}/100
-- Insight : ${patternMatching.retrospectiveBenchmark.insights}
 
 # MOTEUR RETOURNEMENT CAUSAL
 - Score moyen angles morts (7 dimensions) : ${blindspotsAvg}/100
 - Alertes : ${blindspotsAlertes}/7
-- Narratif : ${causalReversal.reversalNarrative || ''}
 
 # MOTEUR AVEUGLEMENT (12)
 - Score global aveuglement : ${blindspotAnalysis.globalBlindspotScore || 0}/100
 - Patterns détectés : ${aveuglementPatternsDetected}/10
 - Patterns haute intensité : ${aveuglementHighIntensity}/10
-- Alertes critiques : ${(blindspotAnalysis.alertesCritiques || []).join(' · ') || 'aucune'}
+- Alertes critiques : ${(blindspotAnalysis.alertesCritiques || []).slice(0, 5).join(' · ') || 'aucune'}
 - Patterns historiques : ${(blindspotAnalysis.patternsHistoriques || []).map(p => `${p.case} (${p.outcome}, ${p.similarity}%)`).join(' · ') || 'aucun'}
-- Synthèse : ${blindspotAnalysis.syntheseAveuglement || ''}
+- Synthèse : ${truncate(blindspotAnalysis.syntheseAveuglement, 500)}
 
 # MOTEUR SINGULARITÉS CONTRARIENNES (13)
 - Score global contrarien : ${contrarianAnalysis.globalContrarianScore || 0}/100
 - Signaux détectés : ${contrarianSignalsDetected}/10
 - Signaux haute force : ${contrarianHighStrength}/10
-- Comparables contrariens : ${(contrarianAnalysis.comparablesContrariens || []).map(c => `${c.name} (${c.outcome})`).join(' · ') || 'aucun'}
-- Synthèse : ${contrarianAnalysis.syntheseSingularite || ''}
-- Recommandation contrarienne : ${contrarianAnalysis.recommandationContrarienne || ''}
+- Comparables contrariens : ${(contrarianAnalysis.comparablesContrariens || []).slice(0, 3).map(c => `${c.name} (${c.outcome})`).join(' · ') || 'aucun'}
+- Synthèse : ${truncate(contrarianAnalysis.syntheseSingularite, 500)}
 
-# DÉTAILS PATTERNS AVEUGLEMENT (haute intensité uniquement)
+# DÉTAILS PATTERNS AVEUGLEMENT (top 5 haute intensité)
 ${Object.values(blindspotAnalysis.patterns || {})
   .filter((p: any) => p?.detected && p.intensity >= 50)
-  .map((p: any) => `- ${p.patternName} (intensité ${p.intensity}/100) : ${p.evidence}`)
+  .slice(0, 5)
+  .map((p: any) => `- ${p.patternName} (${p.intensity}/100) : ${truncate(p.evidence, 200)}`)
   .join('\n') || 'Aucun pattern haute intensité détecté'}
 
-# DÉTAILS SIGNAUX CONTRARIENS (haute force uniquement)
+# DÉTAILS SIGNAUX CONTRARIENS (top 5 haute force)
 ${Object.values(contrarianAnalysis.signals || {})
   .filter((s: any) => s?.detected && s.strength >= 50)
-  .map((s: any) => `- ${s.signalName} (force ${s.strength}/100) : ${s.evidence}`)
+  .slice(0, 5)
+  .map((s: any) => `- ${s.signalName} (${s.strength}/100) : ${truncate(s.evidence, 200)}`)
   .join('\n') || 'Aucun signal contrarien fort détecté'}
 
 Produis la recommandation finale avec :
@@ -247,16 +255,15 @@ Produis la recommandation finale avec :
 
 Retourne uniquement le JSON structuré.`;
 
-  // Retry une fois si le JSON est mal forme. Les LLM produisent occasionnellement
-  // des JSON invalides (virgule manquante, etc.) sur des sorties denses comme celle-ci.
-  // Le retry exploite la non-determinisme : 95% des cas, le second appel produit
-  // un JSON valide.
-  let rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
+  // maxTokens reduit de 8000 a 5000 : la sortie de l orchestrator est un JSON
+  // de synthese compact, pas besoin de plus. Le retry est conserve mais
+  // utilise le meme maxTokens reduit pour eviter de doubler le temps en pire cas.
+  let rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 5000, MODEL);
   try {
     return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   } catch (firstErr: any) {
     console.warn('[orchestrator] JSON parse failed, retrying once:', firstErr?.message);
-    rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
+    rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 5000, MODEL);
     return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   }
 }
