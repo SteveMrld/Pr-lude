@@ -1779,8 +1779,17 @@ export default function Home() {
               </>
             )}
 
-            <div className="reset-row">
+            <div className="reset-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn" onClick={reset}>Analyser un nouveau dossier</button>
+              <button
+                className="btn"
+                onClick={() => {
+                  setViewMode('note');
+                  setTimeout(() => window.print(), 200);
+                }}
+                title="Imprimer ou enregistrer la note en PDF">
+                ⤓ Exporter en PDF
+              </button>
             </div>
           </>
         )}
