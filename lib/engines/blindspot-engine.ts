@@ -46,6 +46,25 @@ Le dossier s'appuie-t-il sur une convergence excessive (tous les acteurs publics
 ## P10 - Asymétrie fondateur / parties prenantes
 Le dossier présente-t-il des structures juridiques permettant aux fondateurs de récupérer des actifs après faillite, pendant que les autres parties prenantes encaissent les pertes ? Pattern Antoine Hubert (Ynsect) : création de Keprea et reprise du site de Dole après faillite. Signal de gouvernance.
 
+# CHECKS SYSTÉMATIQUES DE BIAIS DE MARCHÉ (à effectuer pour CHAQUE dossier)
+
+En plus des 10 patterns d'aveuglement, tu effectues systématiquement trois vérifications structurelles de biais de marché. Ces vérifications NE génèrent PAS de nouveaux patterns numérotés. Si elles déclenchent un signal, tu ajoutes une entrée correspondante dans 'alertesCritiques' ET un risque dans la cartographie 'riskMap' (catégorie strategicRisks ou financialRisks selon pertinence).
+
+## Check S1 - Biais de financement féminin
+Examine la composition du fondateur : y a-t-il une fondatrice ou une équipe mixte ? Si oui, signale dans alertesCritiques :
+"Statistiquement, ce dossier fait face à un sous-financement systémique. Les équipes 100% féminines captent seulement 1,1% du capital VC US 2025 (PitchBook). Les équipes mixtes captent 35-62% selon les données récentes mais avec une forte concentration sur quelques deals géants (OpenAI, Anthropic). À intégrer dans les hypothèses de capacité de levée future."
+N'enclenche PAS ce signal si l'équipe est 100% masculine.
+
+## Check S2 - Biais comparables zombies
+Examine les comparables cités par le pitch (extraction.competitorsCited) ou évoqués dans le pitch. Si les comparables citées sont des unicornes des cohortes 2016-2020 sans IPO réalisée, signale :
+"44,6% des unicornes Q1 2026 ont eu leur first VC round en 2016 ou avant et n'ont toujours pas trouvé de path liquidité (PitchBook Q1 2026). Vérifier que les comparables [LISTE] ne sont pas des zombies dont la valorisation papier ne reflète plus la valeur réelle. Pour des comparables crédibles, privilégier des entreprises ayant levé en 2024-2025 ou réalisé une sortie récente."
+N'enclenche PAS ce signal si les comparables cités sont des entreprises sorties (IPO/M&A) ou très récentes (post-2022).
+
+## Check S3 - Biais Europe vs US
+Si le dossier est européen (extraction.country dans la liste : France, Allemagne, UK, Espagne, Italie, Pays-Bas, Belgique, pays nordiques, Irlande, Portugal, etc.) ET que les comparables cités sont majoritairement américains (OpenAI, Anthropic, Stripe, Databricks, etc. plutôt que Mistral, Lovable, Synthesia, Helsing, etc.), signale :
+"Dossier européen comparé à des références américaines. Le marché US est structurellement ~6x plus profond annuellement que le marché européen (Atomico SoET 2025 : 44 milliards Europe 2025 vs 267 milliards US sur Q1 2026 seul). Les pension funds européens sous-allouent 3x moins au VC que leurs pairs US. Privilégier des comparables européens (Mighty 50 Atomico) pour calibrer les hypothèses de valorisation et trajectoire."
+N'enclenche PAS ce signal si le dossier est US ou si les comparables sont déjà majoritairement européens.
+
 # PATTERNS HISTORIQUES À UTILISER COMME COMPARABLES
 
 Tu peux citer les cas suivants quand ils éclairent l'analyse :
@@ -174,7 +193,15 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 # RÉSUMÉ BRUT DOSSIER
 ${extraction.rawSummary}
 
-Détecte les 10 patterns d'aveuglement collectif. Pour chaque pattern, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Calcule le score global d'aveuglement. Identifie les comparables historiques pertinents. Synthétise.
+# COMPOSITION FONDATEURS (pour check S1 - biais financement féminin)
+${extraction.founders.map(f => `- ${f.name} (${f.role})`).join('\n')}
+
+# RAPPEL CHECKS SYSTÉMATIQUES À EXÉCUTER
+- S1 : si une fondatrice ou équipe mixte présente, signal sous-financement systémique
+- S2 : si comparables cités sont unicornes 2016-2020 sans IPO, signal comparables zombies
+- S3 : si dossier européen avec comparables US majoritaires, signal biais profondeur de marché
+
+Détecte les 10 patterns d'aveuglement collectif. Pour chaque pattern, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Effectue aussi les 3 checks systématiques S1/S2/S3 et alimente alertesCritiques + riskMap si déclenchés. Calcule le score global d'aveuglement. Identifie les comparables historiques pertinents. Synthétise.
 
 Retourne uniquement le JSON structuré.`;
 
