@@ -172,9 +172,42 @@ export async function analyzeTeam(
   const realData: FounderRealData[] = await Promise.all(realDataPromises);
 
   // ÉTAPE 1.5 : Collecte d evidence Tier 1 (registres officiels, brevets,
-  // procedures collectives). Ces sources sont decisives au sens editorial.
-  // Best-effort : timeout court par appel, aucune erreur ne casse le flux.
-  const tieredEvidence = await collectTieredEvidence(extraction);
+  // procedures collectives). Ces sources sont decisives au sens editorial
+  // mais STRICTEMENT non bloquantes pour le pipeline.
+  //
+  // Defense en profondeur :
+  //   1. Chaque adapter a deja son budget interne (8-10s)
+  //   2. Promise.race global de 6s ici - si la collecte n a pas fini, on
+  //      abandonne avec un evidence vide (instructionLevel = 'insufficient')
+  //   3. try/catch externe qui swallow toute erreur non geree
+  //
+  // L objectif est qu un EPO/Pappers/BODACC HS ou lent ne puisse JAMAIS
+  // faire timeout le pipeline complet, qui doit terminer en moins de 60s
+  // (limite Vercel hobby/pro standard).
+  const TIER1_BUDGET_MS = 6000;
+  const emptyEvidence = (): NonNullable<TeamAnalysisOutput['tieredEvidence']> => ({
+    citations: [],
+    instructionLevel: 'insufficient',
+    perFounder: (extraction.founders || []).map(f => ({
+      name: f.name,
+      epoPatentsCount: 0,
+      epoPatentsSample: [],
+      pappersMatch: null,
+      bodaccProcedures: 0,
+    })),
+  });
+  let tieredEvidence: NonNullable<TeamAnalysisOutput['tieredEvidence']>;
+  try {
+    tieredEvidence = await Promise.race([
+      collectTieredEvidence(extraction),
+      new Promise<NonNullable<TeamAnalysisOutput['tieredEvidence']>>((resolve) =>
+        setTimeout(() => resolve(emptyEvidence()), TIER1_BUDGET_MS),
+      ),
+    ]);
+  } catch (e) {
+    console.warn('[team-engine] Tier 1 collection failed, continuing without:', e);
+    tieredEvidence = emptyEvidence();
+  }
 
   // ÉTAPE 2 : Construire le résumé des données vérifiées
   const realDataSummary = realData.map(rd => {
@@ -237,7 +270,10 @@ ${realDataSummary}
 
 # EVIDENCE TIER 1 (registres officiels, brevets, BODACC)
 Niveau d'instruction global pour le moteur Équipe : ${tieredEvidence.instructionLevel.toUpperCase()}
-${formatTieredEvidenceForPrompt(tieredEvidence)}
+${(() => {
+  try { return formatTieredEvidenceForPrompt(tieredEvidence); }
+  catch { return '(formatage Tier 1 indisponible)'; }
+})()}
 
 RÈGLES D'INTERPRÉTATION TIER 1 :
 - Absence totale de brevet EPO sur 5+ ans d'activité déclarée en deeptech = drapeau rouge majeur
@@ -289,38 +325,64 @@ async function collectTieredEvidence(
 ): Promise<TieredEvidence> {
   const citations: AdapterCitation[] = [];
   const sourceIdsUsed: string[] = [];
-  const perFounder: TieredEvidence['perFounder'] = [];
 
-  // 1. Pappers : si la societe est francaise, on cherche par nom
+  // BUDGET PAR APPEL : court et strict. Le wrapper Promise.race amont
+  // garantit deja qu on n excede pas TIER1_BUDGET_MS au total.
+  const PER_CALL_BUDGET_MS = 4000;
+
+  // 1 + 2 + 3 : tous les appels lancés EN PARALLELE pour minimiser le
+  // temps total. Cle : Pappers (par nom), EPO (un par fondateur).
+  // BODACC est sequenttiel car il a besoin du SIREN renvoye par Pappers.
+
+  // 1. Pappers : si la societe est francaise
+  const pappersPromise = isFrenchCompany(extraction)
+    ? searchPappersCompany(extraction.companyName, {
+        maxResults: 3,
+        budgetMs: PER_CALL_BUDGET_MS,
+      }).catch(() => [])
+    : Promise.resolve([]);
+
+  // 3. EPO Espacenet : par fondateur, en parallele.
+  // Skip silencieux si pas de credentials.
+  const epoPromises = (extraction.founders || []).map((founder) =>
+    searchEpoPatents(founder.name, {
+      maxResults: 5,
+      budgetMs: PER_CALL_BUDGET_MS,
+    })
+      .catch(() => [])
+      .then((patents) => ({ name: founder.name, patents })),
+  );
+
+  // On attend Pappers + EPO en parallele.
+  const [pappersHits, epoResults] = await Promise.all([
+    pappersPromise,
+    Promise.all(epoPromises),
+  ]);
+
+  // Materialise Pappers
   let pappersHit: { siren: string; name: string; url: string } | null = null;
-  if (isFrenchCompany(extraction)) {
-    try {
-      const hits = await searchPappersCompany(extraction.companyName, { maxResults: 3 });
-      if (hits.length > 0) {
-        const best = hits[0];
-        pappersHit = { siren: best.siren, name: best.name, url: best.url };
-        citations.push({
-          sourceId: 'pappers',
-          url: best.url,
-          title: `${best.name} (SIREN ${best.siren})`,
-          tier: 1,
-        });
-        sourceIdsUsed.push('pappers');
-      }
-    } catch {
-      // silencieux : Pappers n a pas repondu, on continue
-    }
+  if (pappersHits.length > 0) {
+    const best = pappersHits[0];
+    pappersHit = { siren: best.siren, name: best.name, url: best.url };
+    citations.push({
+      sourceId: 'pappers',
+      url: best.url,
+      title: `${best.name} (SIREN ${best.siren})`,
+      tier: 1,
+    });
+    sourceIdsUsed.push('pappers');
   }
 
-  // 2. BODACC : si on a un SIREN identifie, on cherche les annonces
+  // 2. BODACC : ne se lance que si Pappers a trouve un SIREN.
   let bodaccProceduresCount = 0;
   if (pappersHit?.siren) {
     try {
-      const ann = await searchBodaccBySiren(pappersHit.siren, { maxResults: 10 });
-      const procedures = ann.filter(a => a.type === 'procedure-collective');
+      const ann = await searchBodaccBySiren(pappersHit.siren, {
+        maxResults: 10,
+        budgetMs: PER_CALL_BUDGET_MS,
+      });
+      const procedures = ann.filter((a) => a.type === 'procedure-collective');
       bodaccProceduresCount = procedures.length;
-      // On ne cite que les procedures collectives (signal decisif).
-      // Les depots de comptes ou modifications ne sont pas portes en citation.
       for (const p of procedures.slice(0, 3)) {
         citations.push({
           sourceId: 'bodacc',
@@ -336,54 +398,38 @@ async function collectTieredEvidence(
     }
   }
 
-  // 3. EPO Espacenet : par fondateur (verifie la trace IP reelle).
-  // Skip si pas de credentials EPO_OPS_KEY/_SECRET (silencieux).
-  for (const founder of extraction.founders || []) {
-    let epoCount = 0;
+  // Materialise EPO par fondateur
+  const perFounder: TieredEvidence['perFounder'] = epoResults.map((r) => {
+    const epoCount = r.patents.length;
     let epoSample: string[] = [];
-    try {
-      const patents = await searchEpoPatents(founder.name, { maxResults: 5 });
-      epoCount = patents.length;
-      if (patents.length > 0) {
-        sourceIdsUsed.push('epo-espacenet');
-        epoSample = patents.slice(0, 3).map(p => `${p.publicationNumber} — ${p.title.slice(0, 80)}`);
-        for (const p of patents.slice(0, 3)) {
-          citations.push({
-            sourceId: 'epo-espacenet',
-            url: p.url,
-            title: `${p.publicationNumber} — ${p.title}`,
-            date: p.publicationDate,
-            tier: 1,
-          });
-        }
+    if (epoCount > 0) {
+      if (!sourceIdsUsed.includes('epo-espacenet')) sourceIdsUsed.push('epo-espacenet');
+      epoSample = r.patents
+        .slice(0, 3)
+        .map((p) => `${p.publicationNumber} — ${p.title.slice(0, 80)}`);
+      for (const p of r.patents.slice(0, 3)) {
+        citations.push({
+          sourceId: 'epo-espacenet',
+          url: p.url,
+          title: `${p.publicationNumber} — ${p.title}`,
+          date: p.publicationDate,
+          tier: 1,
+        });
       }
-    } catch {
-      // silencieux
     }
-    perFounder.push({
-      name: founder.name,
+    return {
+      name: r.name,
       epoPatentsCount: epoCount,
       epoPatentsSample: epoSample,
-      pappersMatch: null, // reserve usage futur si on enrichit founder par founder
+      pappersMatch: null,
       bodaccProcedures: 0,
-    });
-  }
+    };
+  });
 
-  // 4. Construction du niveau d instruction.
-  // On considere les sources reellement consommees (avec resultats),
-  // PAS uniquement celles theoriquement disponibles. On ajoute les
-  // sources legacy realData (OpenAlex, GitHub, Wikipedia) en Tier 1
-  // quand elles ont matche, pour une evaluation honnete.
-  const legacySources: string[] = [];
-  // On ne reflete pas legacy ici car realData est passe en parametre du
-  // moteur, pas accessible dans ce helper sans refacto. C est gere via
-  // le prompt qui consulte les deux. Pour le calcul d instructionLevel,
-  // on prend uniquement les nouvelles sources. Le moteur global pourra
-  // enrichir au commit ulterieur.
+  // 4. Niveau d instruction (sur les sources Tier 1 reellement consommees).
+  const level = instructionLevel(sourceIdsUsed);
 
-  const level = instructionLevel(sourceIdsUsed.concat(legacySources));
-
-  // Affecte BODACC procedures sur le founder owner si pertinent
+  // Affecte BODACC procedures sur le 1er fondateur
   if (bodaccProceduresCount > 0 && perFounder.length > 0) {
     perFounder[0].bodaccProcedures = bodaccProceduresCount;
     perFounder[0].pappersMatch = pappersHit;
