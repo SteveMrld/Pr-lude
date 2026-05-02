@@ -1,14 +1,6 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import type { ExtractionOutput, TeamAnalysisOutput, BenchmarkPositioning } from './types';
-import {
-  searchEpoPatents,
-  searchPappersCompany,
-  searchBodaccBySiren,
-  searchBodaccProceduresByCompanyName,
-  type AdapterCitation,
-} from '../sources/adapters';
-import { instructionLevel } from '../sources';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
 
@@ -171,11 +163,6 @@ export async function analyzeTeam(
 
   const realData: FounderRealData[] = await Promise.all(realDataPromises);
 
-  // ÉTAPE 1.5 : Collecte d evidence Tier 1 (registres officiels, brevets,
-  // procedures collectives). Ces sources sont decisives au sens editorial.
-  // Best-effort : timeout court par appel, aucune erreur ne casse le flux.
-  const tieredEvidence = await collectTieredEvidence(extraction);
-
   // ÉTAPE 2 : Construire le résumé des données vérifiées
   const realDataSummary = realData.map(rd => {
     const v = rd.verifiableFacts || {} as any;
@@ -235,16 +222,6 @@ Produit : ${extraction.productDescription}
 # DONNÉES VÉRIFIÉES (interrogation de sources publiques en temps réel)
 ${realDataSummary}
 
-# EVIDENCE TIER 1 (registres officiels, brevets, BODACC)
-Niveau d'instruction global pour le moteur Équipe : ${tieredEvidence.instructionLevel.toUpperCase()}
-${formatTieredEvidenceForPrompt(tieredEvidence)}
-
-RÈGLES D'INTERPRÉTATION TIER 1 :
-- Absence totale de brevet EPO sur 5+ ans d'activité déclarée en deeptech = drapeau rouge majeur
-- Absence d'enregistrement Pappers pour une SAS française déclarée = signal critique de crédibilité
-- Annonce BODACC de procédure collective (sauvegarde, redressement, liquidation) = drapeau rouge bloquant
-- Si instructionLevel = 'insufficient', toute conclusion équipe doit etre fortement nuancée et un flag explicite doit apparaitre dans redFlags
-
 # CONTEXTE BENCHMARK MARCHÉ (moteur Benchmarks Prélude)
 ${benchmarks ? `
 Stade : ${benchmarks.stage} ${benchmarks.isAi ? '(IA)' : '(non-IA)'}
@@ -272,171 +249,5 @@ Intègre dans ton analyse :
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 
-  return { ...analysis, realData, tieredEvidence };
-}
-
-// ============================================================
-// HELPERS TIER 1 EVIDENCE
-// ------------------------------------------------------------
-// Best-effort : aucune erreur ne casse le moteur. Tous les appels
-// sont en Promise.all avec timeouts internes aux adapters.
-// ============================================================
-
-type TieredEvidence = NonNullable<TeamAnalysisOutput['tieredEvidence']>;
-
-async function collectTieredEvidence(
-  extraction: ExtractionOutput
-): Promise<TieredEvidence> {
-  const citations: AdapterCitation[] = [];
-  const sourceIdsUsed: string[] = [];
-  const perFounder: TieredEvidence['perFounder'] = [];
-
-  // 1. Pappers : si la societe est francaise, on cherche par nom
-  let pappersHit: { siren: string; name: string; url: string } | null = null;
-  if (isFrenchCompany(extraction)) {
-    try {
-      const hits = await searchPappersCompany(extraction.companyName, { maxResults: 3 });
-      if (hits.length > 0) {
-        const best = hits[0];
-        pappersHit = { siren: best.siren, name: best.name, url: best.url };
-        citations.push({
-          sourceId: 'pappers',
-          url: best.url,
-          title: `${best.name} (SIREN ${best.siren})`,
-          tier: 1,
-        });
-        sourceIdsUsed.push('pappers');
-      }
-    } catch {
-      // silencieux : Pappers n a pas repondu, on continue
-    }
-  }
-
-  // 2. BODACC : si on a un SIREN identifie, on cherche les annonces
-  let bodaccProceduresCount = 0;
-  if (pappersHit?.siren) {
-    try {
-      const ann = await searchBodaccBySiren(pappersHit.siren, { maxResults: 10 });
-      const procedures = ann.filter(a => a.type === 'procedure-collective');
-      bodaccProceduresCount = procedures.length;
-      // On ne cite que les procedures collectives (signal decisif).
-      // Les depots de comptes ou modifications ne sont pas portes en citation.
-      for (const p of procedures.slice(0, 3)) {
-        citations.push({
-          sourceId: 'bodacc',
-          url: p.url,
-          title: `BODACC ${p.publicationDate} — ${p.rawType}`,
-          date: p.publicationDate,
-          tier: 1,
-        });
-      }
-      if (ann.length > 0) sourceIdsUsed.push('bodacc');
-    } catch {
-      // silencieux
-    }
-  }
-
-  // 3. EPO Espacenet : par fondateur (verifie la trace IP reelle).
-  // Skip si pas de credentials EPO_OPS_KEY/_SECRET (silencieux).
-  for (const founder of extraction.founders || []) {
-    let epoCount = 0;
-    let epoSample: string[] = [];
-    try {
-      const patents = await searchEpoPatents(founder.name, { maxResults: 5 });
-      epoCount = patents.length;
-      if (patents.length > 0) {
-        sourceIdsUsed.push('epo-espacenet');
-        epoSample = patents.slice(0, 3).map(p => `${p.publicationNumber} — ${p.title.slice(0, 80)}`);
-        for (const p of patents.slice(0, 3)) {
-          citations.push({
-            sourceId: 'epo-espacenet',
-            url: p.url,
-            title: `${p.publicationNumber} — ${p.title}`,
-            date: p.publicationDate,
-            tier: 1,
-          });
-        }
-      }
-    } catch {
-      // silencieux
-    }
-    perFounder.push({
-      name: founder.name,
-      epoPatentsCount: epoCount,
-      epoPatentsSample: epoSample,
-      pappersMatch: null, // reserve usage futur si on enrichit founder par founder
-      bodaccProcedures: 0,
-    });
-  }
-
-  // 4. Construction du niveau d instruction.
-  // On considere les sources reellement consommees (avec resultats),
-  // PAS uniquement celles theoriquement disponibles. On ajoute les
-  // sources legacy realData (OpenAlex, GitHub, Wikipedia) en Tier 1
-  // quand elles ont matche, pour une evaluation honnete.
-  const legacySources: string[] = [];
-  // On ne reflete pas legacy ici car realData est passe en parametre du
-  // moteur, pas accessible dans ce helper sans refacto. C est gere via
-  // le prompt qui consulte les deux. Pour le calcul d instructionLevel,
-  // on prend uniquement les nouvelles sources. Le moteur global pourra
-  // enrichir au commit ulterieur.
-
-  const level = instructionLevel(sourceIdsUsed.concat(legacySources));
-
-  // Affecte BODACC procedures sur le founder owner si pertinent
-  if (bodaccProceduresCount > 0 && perFounder.length > 0) {
-    perFounder[0].bodaccProcedures = bodaccProceduresCount;
-    perFounder[0].pappersMatch = pappersHit;
-  }
-
-  return {
-    citations,
-    instructionLevel: level,
-    perFounder,
-  };
-}
-
-function isFrenchCompany(extraction: ExtractionOutput): boolean {
-  const country = (extraction.country || '').toLowerCase();
-  const hub = (extraction.geographicHub || '').toLowerCase();
-  if (country.startsWith('fr') || country === 'france') return true;
-  if (['paris', 'lyon', 'marseille', 'bordeaux', 'toulouse', 'nantes', 'lille'].some(c => hub.includes(c))) {
-    return true;
-  }
-  return false;
-}
-
-function formatTieredEvidenceForPrompt(ev: TieredEvidence): string {
-  const lines: string[] = [];
-
-  // Section societe (Pappers + BODACC)
-  const ownerLine = ev.perFounder[0];
-  if (ownerLine?.pappersMatch) {
-    lines.push(`Pappers (registre FR) : ${ownerLine.pappersMatch.name} — SIREN ${ownerLine.pappersMatch.siren}`);
-    if (ownerLine.bodaccProcedures > 0) {
-      lines.push(`BODACC : ${ownerLine.bodaccProcedures} procedure(s) collective(s) detectee(s) — DRAPEAU ROUGE`);
-    } else {
-      lines.push(`BODACC : aucune procedure collective detectee`);
-    }
-  } else {
-    lines.push(`Pappers : pas d enregistrement trouve dans le registre francais (a verifier si la societe declare etre francaise)`);
-  }
-
-  lines.push('');
-  // Section fondateurs (EPO)
-  for (const f of ev.perFounder) {
-    if (f.epoPatentsCount === 0) {
-      lines.push(`${f.name} — Brevets EPO : 0 brevet retrouve sous ce nom (signal a contextualiser selon secteur)`);
-    } else {
-      lines.push(`${f.name} — Brevets EPO : ${f.epoPatentsCount} brevet(s) retrouve(s)`);
-      for (const s of f.epoPatentsSample) {
-        lines.push(`  - ${s}`);
-      }
-    }
-  }
-
-  lines.push('');
-  lines.push(`Total citations Tier 1 : ${ev.citations.length}`);
-
-  return lines.join('\n');
+  return { ...analysis, realData };
 }
