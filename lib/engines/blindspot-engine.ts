@@ -1,4 +1,5 @@
 import { callClaude, parseJSON } from './anthropic-client';
+import { findByStrate, type ExtendedCaseRecord } from '../corpus/extended-database';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, BlindspotAnalysisOutput
@@ -151,8 +152,38 @@ export async function analyzeBlindspots(
   macro: MacroAnalysisOutput
 ): Promise<BlindspotAnalysisOutput> {
 
+  // Recuperation des cas Strate D (echecs pedagogiques) du corpus etendu.
+  // Ces cas servent de references explicites pour calibrer la detection
+  // des 10 patterns d aveuglement collectif. Format compact pour ne pas
+  // saturer le prompt.
+  const failures = findByStrate('D-failure');
+  const failuresBlock = failures.length > 0 ? `
+
+# REFERENCES ECHECS DOCUMENTES (calibrage des patterns)
+
+Ces cas reels sont fournis comme references explicites pour calibrer
+la detection des patterns d aveuglement. Quand tu evalues un pattern
+sur le dossier en cours, demande-toi : ce dossier ressemble-t-il
+structurellement a l un de ces cas ?
+
+${failures.map((c: ExtendedCaseRecord) => `## ${c.name} (${c.country}, ${c.yearFounded})
+Capital cumule leve : ${c.totalRaised.amount}${c.totalRaised.currency === 'USD' ? 'M$' : 'M€'} (${c.totalRaised.asOf})
+Statut : ${c.status}
+These initiale (qui a convaincu les fonds) : ${c.thesis}
+Pourquoi les fonds ont dit oui : ${c.whyYes}
+Risque principal qui s est realise : ${c.primaryRisk}
+PATTERN CRITIQUE A RETENIR : ${c.reusablePattern}`).join('\n\n')}
+
+REGLE STRICTE : si le dossier en cours presente >=2 signaux similaires
+a l un de ces echecs (capex industriel sans validation, narratif tech
+sur business non-tech, marketplace de stocks lourds, BNPL en cycle),
+tu DOIS l indiquer dans le pattern correspondant en citant le cas
+historique en evidence.
+` : '';
+
   const userPrompt = `Analyse des aveuglements collectifs et angles morts sur le dossier ${extraction.companyName} :
 
+${failuresBlock}
 # CONTEXTE DOSSIER
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}

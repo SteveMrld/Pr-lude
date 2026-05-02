@@ -1,6 +1,11 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { CORPUS, type CaseRecord } from '../corpus/database';
 import {
+  EXTENDED_CORPUS,
+  findByStrate,
+  type ExtendedCaseRecord,
+} from '../corpus/extended-database';
+import {
   MIGHTY_50_SAMPLE,
   NOTABLE_EUROPEAN_ROUNDS_2025,
   EUROPEAN_DEEPTECH_2025,
@@ -164,6 +169,82 @@ Tu choisis les comparables LES PLUS PERTINENTS pour le dossier en cours, en cher
   ]
 }`;
 
+// ============================================================
+// SELECTION INTELLIGENTE DU CORPUS ETENDU
+// ------------------------------------------------------------
+// Le corpus etendu (39 cas en 4 strates) est consomme differemment
+// du corpus historique : on ne fait pas de matching structurel
+// algorithmique (les attributs ne sont pas indexes pareil), mais
+// une selection heuristique par pertinence semantique.
+//
+// On selectionne :
+//   - Tous les cas Strate D (echecs pedagogiques) du meme secteur
+//     ou de secteurs adjacents : Pen Group deeptech defense doit
+//     voir Ynsect (deeptech industriel), WeWork (real estate
+//     maquille en tech), Northvolt (gigafactory).
+//   - Les cas Strate B/C les plus proches en wagerType
+//   - Si le dossier est quantique, le sous-corpus quantique entier
+//
+// Ces cas sont injectes dans le prompt en BLOC SEPARE pour que
+// Claude les utilise comme references explicites des risques (pas
+// comme des comparables structurels).
+// ============================================================
+
+function selectRelevantExtendedCases(
+  extraction: ExtractionOutput,
+  team: TeamAnalysisOutput,
+  market: MarketAnalysisOutput,
+): { failures: ExtendedCaseRecord[]; risky: ExtendedCaseRecord[]; quantum: ExtendedCaseRecord[] } {
+  const sectorLower = (extraction.sector + ' ' + extraction.subSector).toLowerCase();
+  const isQuantum = sectorLower.includes('quantum') || sectorLower.includes('quantique');
+  const isIndustrial = sectorLower.match(/industri|hardware|deeptech|battery|gigafactory|energy|nuclear|robot/i);
+  const isFintech = sectorLower.match(/fintech|bank|insurance|assurance|paiement|payment|credit/i);
+  const isMarketplace = sectorLower.match(/marketplace|e-?commerce|consumer/i);
+  const isAI = sectorLower.match(/genai|ia g[eé]n[eé]rative|llm|agent|ai\b/i);
+
+  // Strate D : echecs pedagogiques - on selectionne ceux qui matchent
+  // au moins un signal du dossier
+  const allFailures = findByStrate('D-failure');
+  const failures = allFailures.filter((c) => {
+    if (isIndustrial && (c.wagerType === 'industrial' || c.wagerType === 'hardware')) return true;
+    if (isFintech && c.wagerType === 'fintech-regulated') return true;
+    if (isMarketplace && c.wagerType === 'marketplace') return true;
+    // WeWork et Cazoo sont des references universelles d aveuglement,
+    // toujours injectees si capex marketplace ou consumer
+    if (c.id === 'wework-eu' || c.id === 'cazoo') {
+      return Boolean(isMarketplace) || Boolean(isIndustrial);
+    }
+    return false;
+  });
+  // Si rien ne matche, on injecte WeWork comme reference universelle minimale
+  if (failures.length === 0) {
+    const wework = allFailures.find((c) => c.id === 'wework-eu');
+    if (wework) failures.push(wework);
+  }
+
+  // Strate B/C : paris ouverts ou risques structurels du meme type
+  const risky = EXTENDED_CORPUS.filter((c) => {
+    if (c.strate !== 'B-open' && c.strate !== 'C-risky') return false;
+    if (isIndustrial && (c.wagerType === 'industrial' || c.wagerType === 'hardware' || c.wagerType === 'deeptech')) return true;
+    if (isFintech && c.wagerType === 'fintech-regulated') return true;
+    if (isMarketplace && c.wagerType === 'marketplace') return true;
+    if (isAI && c.wagerType === 'genai') return true;
+    return false;
+  }).slice(0, 5); // limite a 5 pour ne pas saturer le prompt
+
+  // Quantum : sous-corpus complet si applicable
+  const quantum = isQuantum ? findByStrate('quantum') : [];
+
+  return { failures, risky, quantum };
+}
+
+function formatExtendedCaseForPrompt(c: ExtendedCaseRecord): string {
+  return `- ${c.name} (${c.country}, fonde ${c.yearFounded}) · ${c.sector}/${c.subSector || ''} · statut: ${c.status}
+  These initiale: ${c.thesis}
+  Risque principal: ${c.primaryRisk}
+  Pattern reutilisable: ${c.reusablePattern}`;
+}
+
 export async function matchPatterns(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
@@ -211,6 +292,56 @@ ${(NOTABLE_EUROPEAN_ROUNDS_2025 as readonly any[]).map((r) => {
 REGLE STRICTE: si le dossier est en defense, AI, deeptech, ou fintech, l'un des 3 internationalBenchmarks DOIT etre un comparable europeen recent (post-2022). Pour Wiz/Stripe/Dassault, ne les utiliser qu en complement, pas en reference principale.
 ` : '';
 
+  // Selection du corpus etendu : echecs pedagogiques + paris risques
+  // + sous-corpus quantique si applicable. Ces cas sont injectes en
+  // bloc separe pour que Claude les utilise comme references explicites
+  // des risques structurels (pas comme comparables structurels).
+  const extendedSelection = selectRelevantExtendedCases(extraction, team, market);
+  const hasExtendedCases =
+    extendedSelection.failures.length > 0 ||
+    extendedSelection.risky.length > 0 ||
+    extendedSelection.quantum.length > 0;
+
+  const extendedCorpusBlock = hasExtendedCases ? `
+
+# CORPUS ETENDU - REFERENCES CRITIQUES (a citer si le dossier matche un pattern)
+
+Le corpus etendu pose une regle : grosse levee != succes. Ces cas sont
+fournis comme references explicites pour pattern-matcher contre les
+echecs documentes et les paris encore ouverts. Si le dossier en cours
+ressemble a l un de ces cas, tu DOIS le citer dans matchedPatterns avec
+le statut explicite (confirmed/promising/fragile/in-difficulty/too-early).
+
+${extendedSelection.failures.length > 0 ? `## ECHECS / QUASI-ECHECS PEDAGOGIQUES
+Ces cas sont des references universelles. Tout dossier qui ressemble
+structurellement a l un de ces patterns doit etre flague.
+
+${extendedSelection.failures.map(formatExtendedCaseForPrompt).join('\n\n')}
+` : ''}
+${extendedSelection.risky.length > 0 ? `## PARIS OUVERTS OU RISQUES STRUCTURELS
+Cas de meme type de pari (industrial, fintech regule, marketplace, AI).
+Permet de calibrer les risques typiques du segment.
+
+${extendedSelection.risky.map(formatExtendedCaseForPrompt).join('\n\n')}
+` : ''}
+${extendedSelection.quantum.length > 0 ? `## SOUS-CORPUS QUANTIQUE
+Le dossier est quantique. Le sous-corpus complet est fourni pour benchmark
+(architecture, capital leve, statut PROQCIMA).
+
+${extendedSelection.quantum.map(formatExtendedCaseForPrompt).join('\n\n')}
+` : ''}
+
+REGLES D USAGE
+- Si le dossier matche structurellement un cas Strate D (Ynsect, Cazoo,
+  Northvolt, WeWork, Klarna), tu DOIS l ajouter dans matchedPatterns
+  avec un proximityScore eleve et le pattern critique associe.
+- Pour chaque cas Strate D cite, mentionne explicitement le statut
+  ('in-difficulty', 'fragile') dans le keyInsight.
+- Pour les cas Strate B/C, calibre la confiance du comparable selon
+  leur statut (un 'fragile' cite avec prudence vaut mieux qu un
+  'confirmed' pris comme garantie de succes).
+` : '';
+
   const userPrompt = `Données d'extraction du dossier :
 
 Société : ${extraction.companyName}
@@ -251,6 +382,7 @@ ${JSON.stringify({
 
 ${top8.map(s => `- ${s.case.id} (${s.case.name}, ${s.case.yearOfRefusal}, ${s.case.country}) · proximité algorithmique ${s.proximity}% · archétype ${s.case.archetype} · patterns ${s.case.comparablePatterns.join(', ')} · score rétrospectif ${s.case.retrospectiveScore}`).join('\n')}
 ${europeanComparablesBlock}
+${extendedCorpusBlock}
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Retourne uniquement le JSON structuré.`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
