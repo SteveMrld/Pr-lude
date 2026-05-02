@@ -593,16 +593,39 @@ export default function InvestmentNoteView({ result }: Props) {
         {pm?.internationalBenchmarks?.length > 0 && (
           <>
             <h3 className="note-h3">Comparables & precedents</h3>
-            {(pm.internationalBenchmarks || []).map((b: any, i: number) => (
-              <div key={i} className="benchmark-block">
-                <div className="benchmark-header">
-                  <span className="benchmark-name">{b.name}</span>
-                  <span className="benchmark-geo">{b.geography} · {b.foundedYear} · {b.outcome}</span>
+            {(pm.internationalBenchmarks || []).map((b: any, i: number) => {
+              // Mapping cautionLevel -> classe + libelle pour le badge
+              const cautionConfig: Record<string, { cls: string; label: string }> = {
+                'reference-positive': { cls: 'caution-positive', label: 'Référence positive' },
+                'cite-with-caveat': { cls: 'caution-caveat', label: 'À nuancer' },
+                'cautionary-tale': { cls: 'caution-tale', label: 'Avertissement' },
+              };
+              const statusConfig: Record<string, { cls: string; label: string }> = {
+                confirmed: { cls: 'status-confirmed', label: 'Statut : confirmé' },
+                promising: { cls: 'status-promising', label: 'Statut : prometteur' },
+                fragile: { cls: 'status-fragile', label: 'Statut : fragile' },
+                'in-difficulty': { cls: 'status-difficulty', label: 'Statut : en difficulté' },
+                'too-early': { cls: 'status-too-early', label: 'Statut : trop tôt' },
+              };
+              const caution = b.cautionLevel ? cautionConfig[b.cautionLevel] : null;
+              const status = b.currentStatus ? statusConfig[b.currentStatus] : null;
+              return (
+                <div key={i} className={`benchmark-block ${caution ? caution.cls : ''}`}>
+                  <div className="benchmark-header">
+                    <span className="benchmark-name">{b.name}</span>
+                    <span className="benchmark-geo">{b.geography} · {b.foundedYear} · {b.outcome}</span>
+                  </div>
+                  {(caution || status) && (
+                    <div className="benchmark-badges">
+                      {caution && <span className={`benchmark-badge ${caution.cls}`}>{caution.label}</span>}
+                      {status && <span className={`benchmark-badge ${status.cls}`}>{status.label}</span>}
+                    </div>
+                  )}
+                  <div className="benchmark-bet"><strong>Pari initial :</strong> {b.initialBet}</div>
+                  <div className="benchmark-relevance"><strong>Pertinence :</strong> {b.relevanceToCurrentDeal}</div>
                 </div>
-                <div className="benchmark-bet"><strong>Pari initial :</strong> {b.initialBet}</div>
-                <div className="benchmark-relevance"><strong>Pertinence :</strong> {b.relevanceToCurrentDeal}</div>
-              </div>
-            ))}
+              );
+            })}
           </>
         )}
       </section>
@@ -1433,12 +1456,29 @@ export default function InvestmentNoteView({ result }: Props) {
 
         /* BENCHMARK BLOCK - Encarts pour les comparables. Style "sidebar"
            éditorial : fond crème légèrement saturé, hairline gauche, espacement
-           généreux. */
+           généreux.
+           Le bloc change de couleur selon cautionLevel pour signaler
+           visuellement la nature du comparable cite : reference positive
+           (bleu encre), a nuancer (ocre brule), avertissement (rouge anglais).
+           Le lecteur sait du premier coup d oeil si on cite un succes ou
+           un cas d ecole d echec. */
         .benchmark-block {
           margin-bottom: 18px;
           padding: 16px 20px;
           background: #f3efe6;
           border-left: 3px solid #1d1c1a;
+        }
+        .benchmark-block.caution-positive {
+          background: #f3efe6;
+          border-left-color: #1a2e4a;
+        }
+        .benchmark-block.caution-caveat {
+          background: #f3e3c8;
+          border-left-color: #a8732e;
+        }
+        .benchmark-block.caution-tale {
+          background: #f4dccf;
+          border-left-color: #8b2e1f;
         }
         .benchmark-header {
           display: flex;
@@ -1461,6 +1501,54 @@ export default function InvestmentNoteView({ result }: Props) {
           letter-spacing: 0.14em;
           text-transform: uppercase;
           font-weight: 600;
+        }
+        /* Bloc badges sous le header : caution level + statut. Disposes
+           horizontalement, tres compact, lecture rapide. */
+        .benchmark-badges {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin-bottom: 10px;
+        }
+        .benchmark-badge {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          padding: 3px 8px;
+        }
+        .benchmark-badge.caution-positive {
+          background: #1a2e4a;
+          color: #fbfaf7;
+        }
+        .benchmark-badge.caution-caveat {
+          background: #a8732e;
+          color: #fbfaf7;
+        }
+        .benchmark-badge.caution-tale {
+          background: #8b2e1f;
+          color: #fbfaf7;
+        }
+        .benchmark-badge.status-confirmed {
+          background: #2d4a2e;
+          color: #fbfaf7;
+        }
+        .benchmark-badge.status-promising {
+          background: #3a5378;
+          color: #fbfaf7;
+        }
+        .benchmark-badge.status-fragile {
+          background: #8a7a3c;
+          color: #fbfaf7;
+        }
+        .benchmark-badge.status-difficulty {
+          background: #6b1a1a;
+          color: #fbfaf7;
+        }
+        .benchmark-badge.status-too-early {
+          background: #5a564e;
+          color: #fbfaf7;
         }
         .benchmark-bet, .benchmark-relevance {
           font-size: 14px;

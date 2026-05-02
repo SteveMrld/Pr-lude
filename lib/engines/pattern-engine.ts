@@ -164,10 +164,38 @@ Tu choisis les comparables LES PLUS PERTINENTS pour le dossier en cours, en cher
       "multipleAtExit": "~3000x pour Series Seed investors (paper)",
       "keySuccessFactors": ["Founder-market fit exceptionnel (Collison brothers ex-fondateurs Auctomatic)", "Obsession DX pendant 5 ans avant scaling", "Recrutements early de top-tier engineering"],
       "keyFailureFactors": [],
-      "relevanceToCurrentDeal": "Si le dossier en cours présente le même pattern API-first sur un marché dominé par un acteur grand public, Stripe montre que la fenêtre B2B/dev existe sur 5-7 ans"
+      "relevanceToCurrentDeal": "Si le dossier en cours présente le même pattern API-first sur un marché dominé par un acteur grand public, Stripe montre que la fenêtre B2B/dev existe sur 5-7 ans",
+      "currentStatus": "confirmed",
+      "cautionLevel": "reference-positive"
     }
   ]
-}`;
+}
+
+# REGLE D OR SUR LES NOUVEAUX CHAMPS currentStatus / cautionLevel
+
+Pour CHAQUE comparable cite, tu DOIS remplir currentStatus et cautionLevel
+selon ces regles strictes :
+
+  - Si le comparable provient du CORPUS ETENDU (Strate D : Ynsect, Cazoo,
+    Northvolt, WeWork, Klarna ; Strate B : Sorare, Ledger, Swile,
+    ManoMano, Vestiaire, BackMarket, PayFit, Believe, OVHcloud, Spendesk ;
+    Strate C : Verkor, Photoroom, Electra, Wandercraft, H Company,
+    Jimmy, Aledia, Prophesee), tu DOIS reproduire le statut indique
+    dans le bloc CORPUS ETENDU.
+
+  - Si le comparable est un succes confirme (Mistral, Doctolib, Qonto,
+    Alan, Contentsquare, Dataiku, Mirakl, Exotec, Pennylane, EcoVadis,
+    Stripe, Wiz, Snowflake) -> currentStatus 'confirmed',
+    cautionLevel 'reference-positive'.
+
+  - Si le comparable est cite comme avertissement (cas Strate D ou
+    in-difficulty), cautionLevel DOIT etre 'cautionary-tale'. Le
+    relevanceToCurrentDeal DOIT etre formule comme un avertissement
+    ('attention au pattern X qui a coule Y'), pas comme un parallele
+    neutre.
+
+  - Si tu cites un comparable dont tu n es pas sur du statut actuel,
+    omet currentStatus et cautionLevel plutot que de les inventer.`;
 
 // ============================================================
 // SELECTION INTELLIGENTE DU CORPUS ETENDU

@@ -225,6 +225,25 @@ export interface PatternMatchingOutput {
     keySuccessFactors: string[]; // pourquoi ça a marché (si succès)
     keyFailureFactors: string[]; // pourquoi ça a raté (si échec)
     relevanceToCurrentDeal: string; // ce que ça nous apprend sur le dossier en cours
+    /**
+     * Statut actuel du comparable, hérité du corpus étendu si le cas y est référencé.
+     * Permet au lecteur de calibrer la confiance du comparable :
+     *   - 'confirmed'     : succès validé, comparable solide pour défendre une thèse
+     *   - 'promising'     : forte traction mais pas encore prouvé, à citer avec calibrage
+     *   - 'fragile'       : signaux mixtes, à citer comme avertissement
+     *   - 'in-difficulty' : baisse / restructuration / faillite, à citer comme rappel critique
+     *   - 'too-early'     : <3 ans, prudence, ne pas prendre comme garantie
+     * Optionnel : si le comparable n'est pas dans le corpus étendu, ce champ est absent.
+     */
+    currentStatus?: 'confirmed' | 'promising' | 'fragile' | 'in-difficulty' | 'too-early';
+    /**
+     * Niveau de prudence à signaler au lecteur quand le comparable est cité.
+     *   - 'reference-positive' : à utiliser comme exemple à suivre
+     *   - 'cite-with-caveat'   : à citer mais avec nuance
+     *   - 'cautionary-tale'    : à citer comme avertissement (cas Strate D)
+     * Optionnel : permet d'orienter le ton de la prose.
+     */
+    cautionLevel?: 'reference-positive' | 'cite-with-caveat' | 'cautionary-tale';
   }>;
 }
 
