@@ -625,207 +625,356 @@ export default function InvestmentNoteView({ result }: Props) {
       </div>
 
       <style jsx>{`
+        /* ============================================================
+           PRELUDE - Investment Note - Phase C1 (rédactionnel premium)
+           Inspiration : Financial Times, Bloomberg, The Economist online
+           ============================================================ */
+
         .investment-note {
-          max-width: 880px;
+          max-width: 920px;
           margin: 0 auto;
-          padding: 32px 40px;
-          background: #fefefe;
-          color: #1a1a1a;
-          font-family: 'Inter', -apple-system, sans-serif;
-          font-size: 13px;
-          line-height: 1.6;
+          padding: 56px 64px;
+          background: #fbfaf7;
+          color: #1d1c1a;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 15px;
+          line-height: 1.7;
+          font-feature-settings: "kern", "liga", "onum";
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
         }
+
+        /* HEADER - Style "nameplate" de journal premium :
+           PRELUDE en grand, dateline et classification en petits caractères
+           sans-serif uppercase, filet horizontal de séparation. */
         .note-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          padding-bottom: 14px;
-          border-bottom: 3px solid #1a1a1a;
-          margin-bottom: 36px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid #1d1c1a;
+          margin-bottom: 48px;
+          position: relative;
+        }
+        .note-header::after {
+          content: '';
+          position: absolute;
+          bottom: -4px;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: #1d1c1a;
+          opacity: 0.4;
         }
         .note-brand {
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 22px;
-          font-weight: 600;
-          letter-spacing: 0.08em;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 30px;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          line-height: 1;
         }
         .note-title {
-          font-size: 13px;
-          letter-spacing: 0.04em;
-          opacity: 0.85;
-          margin-top: 4px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+          font-size: 10px;
+          font-weight: 500;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: #6a655d;
+          margin-top: 8px;
         }
         .note-header-right {
           text-align: right;
         }
         .note-date {
-          font-size: 12px;
-          opacity: 0.85;
-        }
-        .note-classification {
-          font-size: 9px;
-          letter-spacing: 0.12em;
-          opacity: 0.6;
-          margin-top: 2px;
-        }
-        .note-section {
-          margin-bottom: 56px;
-        }
-        .note-section-title {
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 24px;
-          font-weight: 500;
-          padding: 12px 18px;
-          background: #1a1a1a;
-          color: #fefefe;
-          margin: 0 0 28px 0;
-          letter-spacing: -0.005em;
-        }
-        .note-section-num {
-          margin-right: 10px;
-          opacity: 0.55;
-          font-feature-settings: "lnum";
-        }
-        .note-h3 {
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 18px;
-          font-weight: 600;
-          margin-top: 36px;
-          margin-bottom: 14px;
-          padding-bottom: 8px;
-          border-bottom: 1px solid rgba(0,0,0,0.12);
-          letter-spacing: -0.005em;
-        }
-        .note-h4 {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 11px;
-          font-weight: 600;
-          margin-top: 22px;
-          margin-bottom: 10px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #555;
+          font-weight: 500;
+          color: #1d1c1a;
+          letter-spacing: 0.04em;
         }
+        .note-classification {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9px;
+          letter-spacing: 0.18em;
+          color: #8a8478;
+          margin-top: 4px;
+          text-transform: uppercase;
+          font-weight: 500;
+        }
+
+        /* SECTIONS - Numérotation grand format en serif italique, titre en
+           serif affirmé. Pas de fond noir : on remplace par un trait haut
+           fin et une numérotation qui descend dans la marge. */
+        .note-section {
+          margin-bottom: 64px;
+          position: relative;
+        }
+        .note-section-title {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 32px;
+          font-weight: 600;
+          line-height: 1.15;
+          letter-spacing: -0.015em;
+          padding: 0 0 14px 0;
+          margin: 0 0 32px 0;
+          background: transparent;
+          color: #1d1c1a;
+          border-bottom: 1px solid #1d1c1a;
+          position: relative;
+        }
+        .note-section-num {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 28px;
+          font-weight: 400;
+          font-style: italic;
+          color: #a8a094;
+          margin-right: 14px;
+          font-feature-settings: "lnum";
+        }
+
+        /* H3 - Sous-section. Style "kicker" éditorial : trait court à gauche,
+           titre serif gras, espace généreux. */
+        .note-h3 {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 21px;
+          font-weight: 600;
+          line-height: 1.25;
+          margin-top: 44px;
+          margin-bottom: 18px;
+          padding-bottom: 0;
+          padding-left: 14px;
+          border-bottom: none;
+          border-left: 3px solid #1d1c1a;
+          letter-spacing: -0.01em;
+        }
+
+        /* H4 - Label de groupe. Style sans-serif uppercase tracking large,
+           contrasté avec les serifs des H2/H3. C'est la signature éditoriale
+           classique des publications économiques premium. */
+        .note-h4 {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+          font-size: 10.5px;
+          font-weight: 700;
+          margin-top: 28px;
+          margin-bottom: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          color: #6a655d;
+        }
+
+        /* PARAGRAPHES - Texte courant serif en 15px, line-height 1.7 pour la
+           lisibilité de longue prose dense. Les paragraphes consécutifs ont
+           un text-indent comme dans un livre, mais pas le premier. */
         .note-paragraph {
-          margin-bottom: 14px;
-          line-height: 1.65;
+          margin-bottom: 16px;
+          line-height: 1.7;
+          font-size: 15px;
+          color: #1d1c1a;
+          text-align: justify;
+          hyphens: auto;
         }
         .note-paragraph.muted {
           opacity: 0.55;
           font-style: italic;
         }
+
+        /* DROP CAP - Lettrine sur le premier paragraphe qui suit immédiatement
+           un H3. Style FT/Economist : capitale grande, alignée sur 3 lignes,
+           en serif gras. */
+        .note-h3 + .note-paragraph::first-letter {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 52px;
+          font-weight: 700;
+          line-height: 0.85;
+          float: left;
+          margin: 6px 10px 0 0;
+          color: #1d1c1a;
+        }
+        /* TABLES - Style "data table" éditoriale : pas de bordures externes,
+           hairlines internes très fines, label en sans-serif uppercase. */
         .note-table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 16px;
+          margin-bottom: 22px;
+          border-top: 1px solid #1d1c1a;
+          border-bottom: 1px solid #1d1c1a;
         }
         .note-table td {
-          padding: 8px 10px;
-          border: 1px solid #c8c8c8;
+          padding: 12px 14px;
+          border: none;
+          border-bottom: 1px solid #d8d2c5;
           vertical-align: top;
         }
+        .note-table tr:last-child td {
+          border-bottom: none;
+        }
         .note-label {
-          width: 130px;
-          font-weight: 500;
-          background: #f0f0f0;
-          font-size: 12px;
+          width: 30%;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 600;
+          background: transparent;
+          color: #6a655d;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
         }
         .note-value {
-          font-size: 12px;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 14px;
+          color: #1d1c1a;
+          line-height: 1.55;
         }
         .note-value.bold {
           font-weight: 600;
         }
+
+        /* TABLE FINANCIALS - Tableau à colonnes pour les projections.
+           Style FT : header foncé, chiffres alignés à droite, lining numerals,
+           hairlines internes seulement. */
         .note-financials-table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 16px;
-          font-size: 12px;
+          margin-bottom: 22px;
+          font-size: 13px;
+          border-top: 1px solid #1d1c1a;
+          border-bottom: 1px solid #1d1c1a;
         }
         .note-financials-table th, .note-financials-table td {
-          padding: 8px 10px;
-          border: 1px solid #c8c8c8;
+          padding: 10px 12px;
+          border: none;
+          border-bottom: 1px solid #d8d2c5;
           text-align: right;
+          font-feature-settings: "lnum", "tnum";
+        }
+        .note-financials-table tr:last-child td {
+          border-bottom: none;
         }
         .note-financials-table th {
-          background: #1a1a1a;
-          color: #fefefe;
-          font-weight: 500;
+          background: transparent;
+          color: #1d1c1a;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          border-bottom: 1px solid #1d1c1a;
         }
         .note-financials-table .row-label {
           text-align: left;
-          background: #f0f0f0;
-          font-weight: 500;
+          background: transparent;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #6a655d;
+          width: 28%;
         }
         .founder-block {
-          margin-bottom: 16px;
-          padding-bottom: 14px;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
+          margin-bottom: 22px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid #d8d2c5;
+        }
+        .founder-block:last-child {
+          border-bottom: none;
         }
         .founder-header {
           display: flex;
-          gap: 8px;
+          gap: 10px;
           align-items: baseline;
-          margin-bottom: 6px;
+          margin-bottom: 10px;
         }
         .founder-name {
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 15px;
-          font-weight: 500;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 18px;
+          font-weight: 600;
+          letter-spacing: -0.005em;
         }
         .founder-role {
-          font-size: 12px;
-          opacity: 0.7;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          color: #6a655d;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-weight: 500;
         }
         .founder-fit {
           margin-left: auto;
-          font-family: 'Crimson Pro', Georgia, serif;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
           font-size: 13px;
-          padding: 2px 8px;
-          background: #f0f0f0;
-          border: 1px solid #c8c8c8;
+          font-weight: 600;
+          padding: 3px 10px;
+          background: #1d1c1a;
+          color: #fbfaf7;
+          letter-spacing: 0.02em;
+          font-feature-settings: "lnum";
         }
         .founder-text {
-          font-size: 12px;
-          margin-bottom: 4px;
-          line-height: 1.5;
+          font-size: 14px;
+          margin-bottom: 6px;
+          line-height: 1.65;
+          color: #1d1c1a;
         }
+        .founder-text strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: #6a655d;
+          margin-right: 6px;
+        }
+
+        /* VERDICT BOX - Boîte de récap chiffres clés. Style sobre fond crème
+           clair, hairlines fines, typo de chiffres "lining numerals" pour
+           alignement vertical parfait. */
         .verdict-box {
-          background: #f6f6f6;
-          border: 1px solid #c8c8c8;
-          padding: 14px 18px;
-          margin-bottom: 12px;
+          background: #f3efe6;
+          border: none;
+          padding: 22px 26px;
+          margin-bottom: 16px;
+          border-top: 1px solid #1d1c1a;
+          border-bottom: 1px solid #1d1c1a;
         }
         .verdict-line {
           display: flex;
           justify-content: space-between;
-          padding: 4px 0;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
+          align-items: baseline;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(29, 28, 26, 0.1);
+        }
+        .verdict-line:last-child {
+          border-bottom: none;
         }
         .verdict-line:last-child {
           border-bottom: none;
         }
         .verdict-label {
-          font-size: 11px;
-          letter-spacing: 0.04em;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
-          opacity: 0.7;
+          color: #6a655d;
+          font-weight: 500;
         }
         .verdict-value {
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 14px;
-          font-weight: 500;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 16px;
+          font-weight: 600;
           text-transform: capitalize;
+          color: #1d1c1a;
+          font-feature-settings: "lnum";
         }
         .verdict-value.big {
-          font-size: 22px;
+          font-size: 32px;
           font-weight: 600;
           font-feature-settings: "lnum";
           text-transform: none;
-          letter-spacing: -0.01em;
+          letter-spacing: -0.02em;
+          line-height: 1;
         }
         .verdict-line.feature {
-          padding: 10px 0;
+          padding: 14px 0;
           align-items: baseline;
         }
 
@@ -900,12 +1049,16 @@ export default function InvestmentNoteView({ result }: Props) {
           margin-bottom: 22px;
         }
         .risk-list li {
-          padding: 12px 16px;
-          margin-bottom: 8px;
-          background: #fafafa;
-          border-left: 3px solid #1a1a1a;
-          font-size: 13px;
-          line-height: 1.6;
+          padding: 14px 18px;
+          margin-bottom: 10px;
+          background: #f3efe6;
+          border-left: 3px solid #1d1c1a;
+          font-size: 14px;
+          line-height: 1.65;
+          color: #1d1c1a;
+        }
+        .risk-list li strong {
+          font-weight: 600;
         }
         .risk-sev {
           display: inline-block;
@@ -942,122 +1095,220 @@ export default function InvestmentNoteView({ result }: Props) {
           overflow-x: auto;
           margin-bottom: 12px;
         }
+        /* MATRIX - Tableau de positionnement compétitif. Hairlines internes,
+           pas de fond noir sur les en-têtes (on garde la légèreté éditoriale). */
         .matrix-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 11px;
+          font-size: 12px;
+          border-top: 1px solid #1d1c1a;
+          border-bottom: 1px solid #1d1c1a;
         }
         .matrix-table th, .matrix-table td {
-          padding: 6px 8px;
-          border: 1px solid #c8c8c8;
+          padding: 8px 10px;
+          border: none;
+          border-bottom: 1px solid #d8d2c5;
+          border-right: 1px solid #d8d2c5;
           text-align: center;
         }
+        .matrix-table th:last-child, .matrix-table td:last-child {
+          border-right: none;
+        }
+        .matrix-table tr:last-child td {
+          border-bottom: none;
+        }
         .matrix-dim {
-          background: #1a1a1a;
-          color: #fefefe;
-          font-weight: 500;
-          font-size: 10px;
+          background: transparent;
+          color: #1d1c1a;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-weight: 700;
+          font-size: 9px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          border-bottom: 1px solid #1d1c1a !important;
         }
         .matrix-player {
           text-align: left !important;
-          background: #f0f0f0;
-          font-weight: 500;
+          background: transparent;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          color: #6a655d;
         }
         .matrix-table tr.target .matrix-player {
-          background: #e6e6e6;
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 13px;
-          font-weight: 600;
+          background: #1d1c1a;
+          color: #fbfaf7;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 14px;
+          font-weight: 700;
+          letter-spacing: 0;
+          text-transform: none;
         }
         .matrix-table tr.target td {
-          background: #fafafa;
+          background: #f3efe6;
         }
-        .cov-yes { color: #2d4a2d; font-weight: 600; }
-        .cov-no { color: #6b1a1a; }
+        .cov-yes { color: #1f3a1f; font-weight: 700; font-size: 14px; }
+        .cov-no { color: #6b1a1a; font-size: 14px; }
+
+        /* ALERT BOX - Encart d'alertes critiques. Style "callout" éditorial :
+           bordure gauche épaisse rouge sourd, fond crème un peu plus saturé. */
         .alert-box {
-          padding: 10px 14px;
-          background: #faf3ec;
-          border: 1px solid #c4a484;
-          margin-bottom: 14px;
-          font-size: 12px;
+          padding: 18px 22px;
+          background: #f6e8e0;
+          border: none;
+          border-left: 4px solid #6b1a1a;
+          margin-bottom: 18px;
+          font-size: 13px;
+          line-height: 1.65;
         }
-        .alert-box ul { margin: 6px 0 0 0; padding-left: 18px; }
+        .alert-box strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #6b1a1a;
+          display: block;
+          margin-bottom: 8px;
+        }
+        .alert-box ul {
+          margin: 0;
+          padding-left: 18px;
+          color: #1d1c1a;
+        }
+        .alert-box ul li {
+          margin-bottom: 6px;
+        }
+
+        /* ORDERED LIST - Listes numérotées style éditorial. */
         .ordered-list {
           padding-left: 24px;
+          margin: 14px 0 22px;
         }
         .ordered-list li {
-          margin-bottom: 6px;
-          font-size: 12px;
-          line-height: 1.5;
+          margin-bottom: 10px;
+          font-size: 14px;
+          line-height: 1.65;
+          padding-left: 6px;
         }
+        .ordered-list li::marker {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-weight: 600;
+          color: #6a655d;
+        }
+
+        /* BENCHMARK BLOCK - Encarts pour les comparables. Style "sidebar"
+           éditorial : fond crème légèrement saturé, hairline gauche, espacement
+           généreux. */
         .benchmark-block {
-          margin-bottom: 14px;
-          padding: 12px 14px;
-          background: #f6f6f6;
-          border-left: 3px solid #1a1a1a;
+          margin-bottom: 18px;
+          padding: 16px 20px;
+          background: #f3efe6;
+          border-left: 3px solid #1d1c1a;
         }
         .benchmark-header {
           display: flex;
           justify-content: space-between;
           align-items: baseline;
-          margin-bottom: 6px;
+          margin-bottom: 10px;
+          flex-wrap: wrap;
+          gap: 8px;
         }
         .benchmark-name {
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 15px;
-          font-weight: 500;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 18px;
+          font-weight: 700;
+          letter-spacing: -0.005em;
         }
         .benchmark-geo {
-          font-size: 11px;
-          opacity: 0.7;
-          letter-spacing: 0.04em;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9px;
+          color: #6a655d;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
+          font-weight: 600;
         }
         .benchmark-bet, .benchmark-relevance {
-          font-size: 12px;
-          margin-bottom: 4px;
-          line-height: 1.5;
+          font-size: 14px;
+          margin-bottom: 8px;
+          line-height: 1.65;
+          color: #1d1c1a;
         }
+        .benchmark-bet strong, .benchmark-relevance strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #6a655d;
+          margin-right: 6px;
+        }
+
+        /* ACTION LIST - Liste d'actions du structuring plan. */
         .action-list {
           list-style: none;
           padding-left: 0;
+          margin: 8px 0 18px;
         }
         .action-list li {
-          padding: 8px 0;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
+          padding: 12px 0;
+          border-bottom: 1px solid #d8d2c5;
+          font-size: 14px;
+          line-height: 1.55;
           font-size: 12px;
           line-height: 1.5;
         }
         .action-list li:last-child { border-bottom: none; }
         .action-axis {
           display: inline-block;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 9px;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
-          background: #1a1a1a;
-          color: #fefefe;
-          padding: 2px 8px;
-          margin-right: 10px;
-          font-weight: 500;
+          background: #1d1c1a;
+          color: #fbfaf7;
+          padding: 3px 10px;
+          margin-right: 12px;
+          font-weight: 700;
         }
+
+        /* DATELINE - Date d'analyse stylée comme une dateline d'article. */
         .dd-meta {
-          font-size: 11px;
-          opacity: 0.7;
-          margin-bottom: 14px;
-        }
-        .note-footer {
-          margin-top: 48px;
-          padding-top: 14px;
-          border-top: 1px solid rgba(0,0,0,0.15);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 10px;
-          opacity: 0.6;
-          text-align: center;
-          line-height: 1.6;
+          font-weight: 500;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: #6a655d;
+          margin-bottom: 22px;
         }
+
+        /* COLOPHON - Footer stylé comme un colophon d'article. Filet horizontal,
+           texte centré en sans-serif uppercase, deux lignes courtes. */
+        .note-footer {
+          margin-top: 72px;
+          padding-top: 24px;
+          border-top: 1px solid #1d1c1a;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          font-weight: 500;
+          color: #6a655d;
+          text-align: center;
+          line-height: 1.8;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+
         @media print {
           .investment-note {
             padding: 0;
             max-width: 100%;
+            background: #fff;
+          }
+          .note-section-title {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         }
       `}</style>
