@@ -217,20 +217,53 @@ export default function InvestmentNoteView({ result }: Props) {
             <span className="verdict-label">Verdict</span>
             <span className="verdict-value">{reco.verdict || '—'}</span>
           </div>
-          <div className="verdict-line">
+          <div className="verdict-line feature">
             <span className="verdict-label">Score global</span>
-            <span className="verdict-value">{reco.globalScore || 0}/100</span>
+            <span className="verdict-value big">{reco.globalScore || 0}<span style={{ fontSize: 13, opacity: 0.5, fontWeight: 400 }}> / 100</span></span>
           </div>
-          <div className="verdict-line">
+          <div className="verdict-line feature">
             <span className="verdict-label">Probabilité de succès</span>
-            <span className="verdict-value">{reco.successProbability || 0}%</span>
+            <span className="verdict-value big">{reco.successProbability || 0}<span style={{ fontSize: 13, opacity: 0.5, fontWeight: 400 }}>%</span></span>
           </div>
           <div className="verdict-line">
             <span className="verdict-label">Probabilité d'échec</span>
             <span className="verdict-value">{reco.failureProbability || 0}%</span>
           </div>
         </div>
-        <p className="note-paragraph" style={{ marginTop: 12 }}>{reco.argumentation}</p>
+
+        {/* Polish 3 : barre de seuils visuelle. Permet de capter instantanement
+            ou se situe le dossier dans l axe REFUSER / APPROFONDIR / CONDITIONS
+            / INVESTIR. Les seuils par defaut sont 45 / 60 / 75. */}
+        {typeof reco.globalScore === 'number' && (
+          <div className="score-thresholds">
+            <div className="score-thresholds-track">
+              <div className="zone zone-refuser" style={{ width: '45%' }} title="Refuser : score &lt; 45" />
+              <div className="zone zone-approfondir" style={{ width: '15%' }} title="Approfondir : 45-60" />
+              <div className="zone zone-conditions" style={{ width: '15%' }} title="Investir avec conditions : 60-75" />
+              <div className="zone zone-investir" style={{ width: '25%' }} title="Investir : 75+" />
+              <div
+                className="score-marker"
+                style={{ left: `${Math.min(100, Math.max(0, reco.globalScore))}%` }}
+                aria-label={`Score actuel : ${reco.globalScore} sur 100`}
+              />
+            </div>
+            <div className="score-thresholds-labels">
+              <span className="lbl lbl-refuser">Refuser</span>
+              <span className="lbl lbl-approfondir">Approfondir</span>
+              <span className="lbl lbl-conditions">Conditions</span>
+              <span className="lbl lbl-investir">Investir</span>
+            </div>
+            <div className="score-thresholds-axis">
+              <span>0</span>
+              <span style={{ flex: '0 0 auto', position: 'absolute', left: '45%', transform: 'translateX(-50%)' }}>45</span>
+              <span style={{ flex: '0 0 auto', position: 'absolute', left: '60%', transform: 'translateX(-50%)' }}>60</span>
+              <span style={{ flex: '0 0 auto', position: 'absolute', left: '75%', transform: 'translateX(-50%)' }}>75</span>
+              <span>100</span>
+            </div>
+          </div>
+        )}
+
+        <p className="note-paragraph" style={{ marginTop: 18 }}>{reco.argumentation}</p>
 
         {/* Sous-section The case for : ce qui rend ce dossier potentiellement
             exceptionnel. Consomme syntheseSingularite + signaux contrariens
@@ -636,45 +669,49 @@ export default function InvestmentNoteView({ result }: Props) {
           margin-top: 2px;
         }
         .note-section {
-          margin-bottom: 36px;
+          margin-bottom: 56px;
         }
         .note-section-title {
           font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 22px;
+          font-size: 24px;
           font-weight: 500;
-          padding: 10px 14px;
+          padding: 12px 18px;
           background: #1a1a1a;
           color: #fefefe;
-          margin: 0 0 20px 0;
+          margin: 0 0 28px 0;
+          letter-spacing: -0.005em;
         }
         .note-section-num {
-          margin-right: 8px;
-          opacity: 0.6;
+          margin-right: 10px;
+          opacity: 0.55;
+          font-feature-settings: "lnum";
         }
         .note-h3 {
           font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 16px;
-          font-weight: 500;
-          margin-top: 24px;
-          margin-bottom: 10px;
-          padding-bottom: 6px;
-          border-bottom: 1px solid rgba(0,0,0,0.08);
+          font-size: 18px;
+          font-weight: 600;
+          margin-top: 36px;
+          margin-bottom: 14px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid rgba(0,0,0,0.12);
+          letter-spacing: -0.005em;
         }
         .note-h4 {
-          font-family: 'Crimson Pro', Georgia, serif;
-          font-size: 13px;
-          font-weight: 500;
-          margin-top: 16px;
-          margin-bottom: 6px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          margin-top: 22px;
+          margin-bottom: 10px;
           text-transform: uppercase;
-          letter-spacing: 0.04em;
-          opacity: 0.85;
+          letter-spacing: 0.08em;
+          color: #555;
         }
         .note-paragraph {
-          margin-bottom: 12px;
+          margin-bottom: 14px;
+          line-height: 1.65;
         }
         .note-paragraph.muted {
-          opacity: 0.6;
+          opacity: 0.55;
           font-style: italic;
         }
         .note-table {
@@ -780,32 +817,127 @@ export default function InvestmentNoteView({ result }: Props) {
           font-weight: 500;
           text-transform: capitalize;
         }
+        .verdict-value.big {
+          font-size: 22px;
+          font-weight: 600;
+          font-feature-settings: "lnum";
+          text-transform: none;
+          letter-spacing: -0.01em;
+        }
+        .verdict-line.feature {
+          padding: 10px 0;
+          align-items: baseline;
+        }
+
+        /* Polish 3 : barre de seuils visuelle. Le score s affiche comme une
+           position sur l axe REFUSER / APPROFONDIR / CONDITIONS / INVESTIR. */
+        .score-thresholds {
+          margin: 18px 0 8px;
+          padding: 0 4px;
+        }
+        .score-thresholds-track {
+          position: relative;
+          display: flex;
+          height: 14px;
+          margin-bottom: 8px;
+          border: 1px solid rgba(0,0,0,0.12);
+        }
+        .score-thresholds-track .zone {
+          height: 100%;
+        }
+        .zone-refuser {
+          background: linear-gradient(90deg, #f8caca 0%, #f8caca 100%);
+        }
+        .zone-approfondir {
+          background: linear-gradient(90deg, #fbf3df 0%, #fbf3df 100%);
+        }
+        .zone-conditions {
+          background: linear-gradient(90deg, #e8efe8 0%, #e8efe8 100%);
+        }
+        .zone-investir {
+          background: linear-gradient(90deg, #cfe5cf 0%, #cfe5cf 100%);
+        }
+        .score-marker {
+          position: absolute;
+          top: -4px;
+          width: 3px;
+          height: 22px;
+          background: #1a1a1a;
+          transform: translateX(-50%);
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
+        }
+        .score-thresholds-labels {
+          display: grid;
+          grid-template-columns: 45fr 15fr 15fr 25fr;
+          font-size: 9px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-weight: 600;
+          color: #555;
+          margin-bottom: 4px;
+        }
+        .score-thresholds-labels .lbl {
+          text-align: center;
+          padding: 0 4px;
+        }
+        .lbl-refuser { color: #6b1a1a; }
+        .lbl-approfondir { color: #6b4d2c; }
+        .lbl-conditions { color: #2d4a2d; }
+        .lbl-investir { color: #1f3a1f; }
+        .score-thresholds-axis {
+          position: relative;
+          height: 14px;
+          font-size: 10px;
+          color: #888;
+          font-feature-settings: "lnum";
+          display: flex;
+          justify-content: space-between;
+        }
+
         .risk-list {
           padding-left: 0;
           list-style: none;
-          margin-bottom: 16px;
+          margin-bottom: 22px;
         }
         .risk-list li {
-          padding: 8px 12px;
-          margin-bottom: 6px;
-          background: #f6f6f6;
+          padding: 12px 16px;
+          margin-bottom: 8px;
+          background: #fafafa;
           border-left: 3px solid #1a1a1a;
-          font-size: 12px;
-          line-height: 1.5;
+          font-size: 13px;
+          line-height: 1.6;
         }
         .risk-sev {
           display: inline-block;
           font-size: 9px;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.1em;
           text-transform: uppercase;
-          padding: 1px 6px;
-          margin-right: 8px;
-          font-weight: 600;
+          padding: 3px 9px;
+          margin-right: 10px;
+          font-weight: 700;
+          border-radius: 3px;
+          vertical-align: 1px;
         }
-        .sev-low { background: #e0e9e0; color: #2d4a2d; }
-        .sev-medium { background: #f4ecdc; color: #6b4d2c; }
-        .sev-high { background: #f4d8c4; color: #7c3a1a; }
-        .sev-critical { background: #f0c4c4; color: #6b1a1a; }
+        .sev-low {
+          background: #e8efe8;
+          color: #1f3a1f;
+          border: 1px solid #cfd8cf;
+        }
+        .sev-medium {
+          background: #fbf3df;
+          color: #5d4216;
+          border: 1px solid #ead9b3;
+        }
+        .sev-high {
+          background: #fce0cc;
+          color: #6b2f0e;
+          border: 1px solid #f0b896;
+        }
+        .sev-critical {
+          background: #f8caca;
+          color: #5e0f0f;
+          border: 1px solid #e89696;
+        }
         .matrix-wrap {
           overflow-x: auto;
           margin-bottom: 12px;
