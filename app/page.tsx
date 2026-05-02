@@ -7,18 +7,18 @@ import GaugeProbability from './components/GaugeProbability';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 
 const ENGINES = [
-  { id: 'extraction', name: 'Moteur 1 · Extraction', label: 'Lecture du pitch deck et structuration des données' },
-  { id: 'team', name: 'Moteur 2 · Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience' },
-  { id: 'market', name: 'Moteur 3 · Marché', label: 'Intensité du besoin, défensibilité, comparables internationaux' },
-  { id: 'macro', name: 'Moteur 4 · Macro', label: 'Position cycle, géopolitique, fenêtre temporelle critique' },
-  { id: 'financial-extraction', name: 'Moteur 5 · Extraction financière', label: 'Données financières du deck et du business plan' },
-  { id: 'pattern', name: 'Moteur 6 · Pattern matching', label: 'Confrontation au corpus de cas instruits' },
-  { id: 'causal', name: 'Moteur 7 · Retournement causal', label: 'Sept angles morts et questions à instruire' },
-  { id: 'blindspot', name: 'Moteur 8 · Aveuglement collectif', label: 'Détection des dix patterns d\'erreur de jugement VC' },
-  { id: 'contrarian', name: 'Moteur 9 · Singularités contrariennes', label: 'Détection des dix signaux qui justifient le pari à contre-courant' },
-  { id: 'financial-coherence', name: 'Moteur 10 · Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics' },
-  { id: 'orchestrate', name: 'Moteur 11 · Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
-  { id: 'reference-checks', name: 'Moteur 12 · Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance' },
+  { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck' },
+  { id: 'team', name: 'Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience' },
+  { id: 'market', name: 'Marché', label: 'Intensité du besoin, défensibilité, comparables internationaux' },
+  { id: 'macro', name: 'Macro', label: 'Position cycle, géopolitique, fenêtre temporelle critique' },
+  { id: 'financial-extraction', name: 'Extraction financière', label: 'Données financières du deck et du business plan' },
+  { id: 'pattern', name: 'Pattern matching', label: 'Confrontation au corpus de cas instruits' },
+  { id: 'causal', name: 'Retournement causal', label: 'Sept angles morts et questions à instruire' },
+  { id: 'blindspot', name: 'Aveuglement collectif', label: 'Détection des dix patterns d\'erreur de jugement VC' },
+  { id: 'contrarian', name: 'Singularités contrariennes', label: 'Détection des dix signaux qui justifient le pari à contre-courant' },
+  { id: 'financial-coherence', name: 'Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics' },
+  { id: 'orchestrate', name: 'Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
+  { id: 'reference-checks', name: 'Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance' },
 ];
 
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -218,7 +218,7 @@ export default function Home() {
       <header className="header">
         <div>
           <div className="brand">Prélude</div>
-          <div className="brand-meta">Plateforme d'instruction · Onze moteurs interconnectés</div>
+          <div className="brand-meta">Plateforme d'instruction VC · Analyse rigoureuse en pipeline</div>
         </div>
       </header>
 
@@ -228,9 +228,9 @@ export default function Home() {
             <h1 className="page-title">Le moteur d'instruction.</h1>
             <p className="page-subtitle">
               Déposez un dossier d'investissement complet : pitch deck PDF, business plan Excel/CSV, et tout autre document utile.
-              Onze moteurs interconnectés analysent le dossier en pipeline :
-              extraction, équipe, marché, lecture macro, pattern matching, retournement causal,
-              aveuglement collectif, singularités contrariennes, cohérence financière, et synthèse finale chiffrée.
+              Le pipeline d'analyse couvre l'extraction, l'équipe, le marché, la lecture macro,
+              le pattern matching face au corpus de cas instruits, le retournement causal, la détection
+              des angles morts, des singularités contrariennes, la cohérence financière, et la synthèse finale chiffrée.
             </p>
 
             {files.length === 0 ? (
