@@ -708,16 +708,44 @@ export default function InvestmentNoteView({ result }: Props) {
 
       <style jsx>{`
         /* ============================================================
-           PRELUDE - Investment Note - Phase C1 (rédactionnel premium)
+           PRELUDE - Investment Note - Direction visuelle C
            Inspiration : Financial Times, Bloomberg, The Economist online
+           Phases : C1 fondations · C2 mise en scene · C3 couleur affinee
            ============================================================ */
 
         .investment-note {
+          /* PALETTE EDITORIALE C3
+             Encre, papier, hairlines, accents semantiques.
+             L'accent unique de la marque est bleu encre #1a2e4a
+             (utilise tres parcimonieusement : nameplate, links, citations
+             de la marque). Les couleurs semantiques (rouge sourd, vert profond,
+             ambre) sont reservees aux indicateurs et restent sobres. */
+
+          --paper: #fbfaf7;
+          --paper-accent: #f3efe6;
+          --paper-warm: #f6e8e0;
+          --ink: #1d1c1a;
+          --ink-secondary: #555049;
+          --ink-tertiary: #6a655d;
+          --ink-quaternary: #a8a094;
+          --hairline: #d8d2c5;
+          --hairline-soft: #ebe5d6;
+
+          --accent-marque: #1a2e4a;
+          --accent-marque-soft: #e6ebf2;
+
+          --semantic-critical: #6b1a1a;
+          --semantic-critical-soft: #f8caca;
+          --semantic-warning: #5d4216;
+          --semantic-warning-soft: #fbf3df;
+          --semantic-positive: #2d4a2d;
+          --semantic-positive-soft: #cfe5cf;
+
           max-width: 920px;
           margin: 0 auto;
           padding: 56px 64px;
-          background: #fbfaf7;
-          color: #1d1c1a;
+          background: var(--paper);
+          color: var(--ink);
           font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
           font-size: 15px;
           line-height: 1.7;
@@ -754,6 +782,7 @@ export default function InvestmentNoteView({ result }: Props) {
           font-weight: 700;
           letter-spacing: 0.16em;
           line-height: 1;
+          color: var(--accent-marque);
         }
         .note-title {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
