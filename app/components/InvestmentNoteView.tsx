@@ -207,11 +207,11 @@ export default function InvestmentNoteView({ result }: Props) {
 
       {/* Bloc 3 - Due diligence */}
       <section className="note-section">
-        <h2 className="note-section-title"><span className="note-section-num">3.</span> Due Diligence</h2>
+        <h2 className="note-section-title"><span className="note-section-num">3.</span> Investment Thesis</h2>
 
         <div className="dd-meta">Date d'analyse : {dateAnalyzed}</div>
 
-        <h3 className="note-h3">Verdict & key probabilities</h3>
+        <h3 className="note-h3">Recommendation</h3>
         <div className="verdict-box">
           <div className="verdict-line">
             <span className="verdict-label">Verdict</span>
@@ -232,10 +232,122 @@ export default function InvestmentNoteView({ result }: Props) {
         </div>
         <p className="note-paragraph" style={{ marginTop: 12 }}>{reco.argumentation}</p>
 
+        {/* Sous-section The case for : ce qui rend ce dossier potentiellement
+            exceptionnel. Consomme syntheseSingularite + signaux contrariens
+            haute force + comparables contrariens. C est le cote 'thesis' du
+            memo IC dialectique. */}
+        {(ca?.syntheseSingularite || (ca?.signals && Object.values(ca.signals).some((s: any) => s?.detected && s.strength >= 60))) && (
+          <>
+            <h3 className="note-h3">The case for</h3>
+            {ca.syntheseSingularite && (
+              <p className="note-paragraph">{ca.syntheseSingularite}</p>
+            )}
+            {ca.signals && Object.values(ca.signals).filter((s: any) => s?.detected && s.strength >= 60).length > 0 && (
+              <>
+                <h4 className="note-h4">Signaux contrariens identifiés</h4>
+                <ul className="risk-list">
+                  {Object.values(ca.signals)
+                    .filter((s: any) => s?.detected && s.strength >= 60)
+                    .map((s: any, i: number) => (
+                      <li key={i}>
+                        <strong>{s.signalName}</strong> ({s.strength}/100). {s.evidence}
+                      </li>
+                    ))}
+                </ul>
+              </>
+            )}
+            {ca.comparablesContrariens?.length > 0 && (
+              <>
+                <h4 className="note-h4">Comparables contrariens</h4>
+                {ca.comparablesContrariens.map((c: any, i: number) => (
+                  <div key={i} className="benchmark-block">
+                    <div className="benchmark-header">
+                      <span className="benchmark-name">{c.name}</span>
+                      <span className="benchmark-geo">{c.outcome} {c.multipleAtExit && `· ${c.multipleAtExit}`}</span>
+                    </div>
+                    <div className="benchmark-bet"><strong>Consensus initial :</strong> {c.initialConsensus}</div>
+                    <div className="benchmark-relevance"><strong>Pari contrarien :</strong> {c.contrarianBet}</div>
+                  </div>
+                ))}
+              </>
+            )}
+            {ca.recommandationContrarienne && (
+              <p className="note-paragraph"><em>{ca.recommandationContrarienne}</em></p>
+            )}
+          </>
+        )}
+
+        {/* Sous-section The case against : ce qui menace structurellement la
+            these. Consomme syntheseAveuglement + patterns haute intensite +
+            patterns historiques (Theranos, Ynsect, etc.) + alertes critiques. */}
+        {(ba?.syntheseAveuglement || (ba?.patterns && Object.values(ba.patterns).some((p: any) => p?.detected && p.intensity >= 60))) && (
+          <>
+            <h3 className="note-h3">The case against</h3>
+            {ba.syntheseAveuglement && (
+              <p className="note-paragraph">{ba.syntheseAveuglement}</p>
+            )}
+            {ba.patterns && Object.values(ba.patterns).filter((p: any) => p?.detected && p.intensity >= 60).length > 0 && (
+              <>
+                <h4 className="note-h4">Patterns d'aveuglement détectés</h4>
+                <ul className="risk-list">
+                  {Object.values(ba.patterns)
+                    .filter((p: any) => p?.detected && p.intensity >= 60)
+                    .map((p: any, i: number) => (
+                      <li key={i}>
+                        <strong>{p.patternName}</strong> ({p.intensity}/100). {p.evidence}
+                      </li>
+                    ))}
+                </ul>
+              </>
+            )}
+            {ba.patternsHistoriques?.length > 0 && (
+              <>
+                <h4 className="note-h4">Patterns historiques convergents</h4>
+                <ul className="risk-list">
+                  {ba.patternsHistoriques.map((p: any, i: number) => (
+                    <li key={i}>
+                      <strong>{p.case}</strong> · {p.outcome} · proximité {p.similarity}%
+                      {p.lessonLearned && <>. {p.lessonLearned}</>}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {ba.alertesCritiques?.length > 0 && (
+              <div className="alert-box">
+                <strong>Alertes critiques :</strong>
+                <ul>{ba.alertesCritiques.map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Sous-section Dialectical resolution : qui l emporte entre signaux
+            d aveuglement et singularites contrariennes, et pourquoi. C est
+            le moment central du raisonnement IC. */}
+        {reco.blindspotsVsContrarian?.resolution && (
+          <>
+            <h3 className="note-h3">Dialectical resolution</h3>
+            <div className="verdict-box" style={{ marginBottom: 12 }}>
+              <div className="verdict-line">
+                <span className="verdict-label">Poids de l'aveuglement</span>
+                <span className="verdict-value">{reco.blindspotsVsContrarian.blindspotsWeight}/100</span>
+              </div>
+              <div className="verdict-line">
+                <span className="verdict-label">Poids contrarien</span>
+                <span className="verdict-value">{reco.blindspotsVsContrarian.contrarianWeight}/100</span>
+              </div>
+              <div className="verdict-line">
+                <span className="verdict-label">Tension résolue</span>
+                <span className="verdict-value">{reco.blindspotsVsContrarian.tensionResolved}</span>
+              </div>
+            </div>
+            <p className="note-paragraph">{reco.blindspotsVsContrarian.resolution}</p>
+          </>
+        )}
+
         {/* Sous-section Macro context : cadrage du marche dans lequel le dossier
-            s inscrit. Inclut cycle, capital VC, fenetre critique, tendances
-            structurelles, environnement reglementaire. Sortie du Moteur Macro
-            enrichi en Session 4a pour produire un cadrage differencie US vs Europe. */}
+            s inscrit. */}
         {(macro?.cyclePosition || macro?.structuralTrends?.length > 0 || macro?.regulatoryEnvironment) && (
           <>
             <h3 className="note-h3">Macro context</h3>
@@ -339,7 +451,7 @@ export default function InvestmentNoteView({ result }: Props) {
 
         {m?.competitiveMatrix?.dimensions?.length > 0 && (
           <>
-            <h3 className="note-h3">Competitive matrix</h3>
+            <h3 className="note-h3">Competitive positioning</h3>
             <div className="matrix-wrap">
               <table className="matrix-table">
                 <thead>
@@ -368,7 +480,7 @@ export default function InvestmentNoteView({ result }: Props) {
 
         {fc?.hasFinancialData && (
           <>
-            <h3 className="note-h3">Financial coherence</h3>
+            <h3 className="note-h3">Financial assessment</h3>
             <p className="note-paragraph">{fc.syntheseCoherence}</p>
             {fc.alertesCritiques?.length > 0 && (
               <div className="alert-box">
@@ -388,7 +500,7 @@ export default function InvestmentNoteView({ result }: Props) {
 
         {pm?.internationalBenchmarks?.length > 0 && (
           <>
-            <h3 className="note-h3">International benchmarks</h3>
+            <h3 className="note-h3">Comparables & precedents</h3>
             {(pm.internationalBenchmarks || []).map((b: any, i: number) => (
               <div key={i} className="benchmark-block">
                 <div className="benchmark-header">
