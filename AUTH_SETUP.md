@@ -9,16 +9,20 @@ l'app continue de fonctionner exactement comme avant (accès public, pas d'auth)
 ## Étape 1 — Migration SQL
 
 Dans le dashboard Supabase du projet Prélude, ouvrir le **SQL Editor** et exécuter
-le contenu du fichier `supabase-auth-schema.sql` (à la racine du repo).
+**dans cet ordre** :
 
-Ce script crée :
+1. `supabase-auth-schema.sql` (à la racine du repo) — tables auth multi-tenant
+2. `supabase-byok-schema.sql` — table `org_api_keys` chiffrée pour les clés BYOK
+
+Ces scripts créent :
 - `organizations` : table des fonds clients
 - `organization_members` : liaison users ↔ orgs avec rôle (admin / member)
 - `prelude_super_admins` : table des admins Prélude (toi)
+- `org_api_keys` : clés API tierces chiffrées par organisation
 - Ajoute la colonne `organization_id` sur `prelude_jobs`
 - Active RLS et pose les bonnes policies
 
-Le script est idempotent : peut être rejoué sans casse.
+Les scripts sont idempotents : peuvent être rejoués sans casse.
 
 ---
 
@@ -46,13 +50,26 @@ Sur le projet Vercel `pr-lude`, dans **Settings → Environment Variables**, ajo
 ```
 NEXT_PUBLIC_SUPABASE_URL = <URL du projet Supabase, déjà connue>
 NEXT_PUBLIC_SUPABASE_ANON_KEY = <clé anon publique>
+PRELUDE_KMS_KEY = <32 octets aléatoires en hex, voir ci-dessous>
 ```
 
 `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` doivent déjà exister (utilisées
 par le job-store actuel). Sinon les ajouter aussi.
 
-Pour récupérer les clés : dans Supabase, aller sur
+Pour récupérer les clés Supabase : dans Supabase, aller sur
 `https://supabase.com/dashboard/project/<PROJECT_ID>/settings/api-keys`.
+
+**Génération de la KMS key** (chiffre les clés API BYOK avant stockage).
+Lancer dans un terminal :
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Coller le résultat (64 caractères hex) dans la variable `PRELUDE_KMS_KEY`
+sur Vercel. **Ne jamais perdre cette valeur** : sans elle, toutes les clés
+chiffrées en base deviennent illisibles. Si elle est compromise, faire
+tourner la KMS et demander à tous les fonds de re-saisir leurs clés.
 
 **Ne pas encore activer `ENABLE_AUTH`.** On va d'abord créer ton compte super-admin.
 

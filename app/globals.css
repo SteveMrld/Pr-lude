@@ -123,6 +123,33 @@ ul, ol { list-style: none; }
   border-color: var(--ink);
 }
 
+/* Bloc d actions sous l identite : Reglages + Deconnexion. Style uniforme
+   entre <a> et <button> pour eviter tout effet de bord visuel. */
+.header-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.header-action {
+  padding: 5px 10px;
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: all 0.12s;
+  text-decoration: none;
+  display: inline-block;
+  line-height: 1.4;
+}
+.header-action:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
 .main { max-width: 1100px; margin: 0 auto; padding: 56px 40px 80px; }
 
 /* HERO - Titre principal grand serif, paragraphe d accroche en serif body

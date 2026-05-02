@@ -232,16 +232,19 @@ export default function HomeClient({
           <div className="header-identity">
             <div className="header-org">{orgName}</div>
             {userEmail && <div className="header-user">{userEmail}</div>}
-            <button
-              className="header-logout"
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                window.location.href = '/login';
-              }}
-              aria-label="Se déconnecter"
-            >
-              Déconnexion
-            </button>
+            <div className="header-actions">
+              <a className="header-action" href="/settings">Réglages</a>
+              <button
+                className="header-action"
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }}
+                aria-label="Se déconnecter"
+              >
+                Déconnexion
+              </button>
+            </div>
           </div>
         )}
       </header>
