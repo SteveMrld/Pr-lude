@@ -165,6 +165,9 @@ Détecte les 10 signaux de singularité contrarienne. Pour chaque signal, sois r
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
+  // Budget tokens : symetrique au moteur Aveuglement (10 signaux contrariens
+  // avec evidence, asymetrie, mecanism, comparables). 6000 etait trop juste,
+  // 8000 pour rester safe.
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
   return parseJSON<ContrarianAnalysisOutput>(rawResponse);
 }
