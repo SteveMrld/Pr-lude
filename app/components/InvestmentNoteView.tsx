@@ -22,6 +22,21 @@ export default function InvestmentNoteView({ result }: Props) {
     day: 'numeric', month: 'long', year: 'numeric'
   });
 
+  // Helper pour extraire la première phrase d'un paragraphe long. Utilisé pour
+  // les pull quotes : on veut une phrase impactante, pas un paragraphe entier.
+  const firstSentence = (s: string | undefined, maxLen: number = 220): string => {
+    if (!s) return '';
+    const trimmed = s.trim();
+    // Cherche la première séparation en .,!,? suivie d'un espace ou fin de chaîne
+    const match = trimmed.match(/^[^.!?]+[.!?](?=\s|$)/);
+    const candidate = match ? match[0] : trimmed;
+    if (candidate.length <= maxLen) return candidate;
+    // Si trop long, tronque proprement au dernier espace avant maxLen
+    const truncated = candidate.slice(0, maxLen);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return (lastSpace > maxLen * 0.7 ? truncated.slice(0, lastSpace) : truncated) + '…';
+  };
+
   return (
     <div className="investment-note">
       {/* En-tête de note */}
@@ -265,6 +280,17 @@ export default function InvestmentNoteView({ result }: Props) {
 
         <p className="note-paragraph" style={{ marginTop: 18 }}>{reco.argumentation}</p>
 
+        {/* Pull quote 1 : extrait de l'argumentation du verdict, mis en
+            exergue comme dans un article FT. Utilise la première phrase si
+            assez impactante, sinon la résolution dialectique. */}
+        {reco.argumentation && firstSentence(reco.argumentation, 200).length > 50 && (
+          <blockquote className="pull-quote">
+            <span className="pull-quote-mark" aria-hidden="true">«</span>
+            {firstSentence(reco.argumentation, 200)}
+            <span className="pull-quote-mark" aria-hidden="true">»</span>
+          </blockquote>
+        )}
+
         {/* Sous-section The case for : ce qui rend ce dossier potentiellement
             exceptionnel. Consomme syntheseSingularite + signaux contrariens
             haute force + comparables contrariens. C est le cote 'thesis' du
@@ -283,7 +309,8 @@ export default function InvestmentNoteView({ result }: Props) {
                     .filter((s: any) => s?.detected && s.strength >= 60)
                     .map((s: any, i: number) => (
                       <li key={i}>
-                        <strong>{s.signalName}</strong> ({s.strength}/100). {s.evidence}
+                        <span className="signal-score-pill signal-score-contrarian">{s.strength}</span>
+                        <strong>{s.signalName}.</strong> {s.evidence}
                       </li>
                     ))}
                 </ul>
@@ -305,7 +332,12 @@ export default function InvestmentNoteView({ result }: Props) {
               </>
             )}
             {ca.recommandationContrarienne && (
-              <p className="note-paragraph"><em>{ca.recommandationContrarienne}</em></p>
+              <blockquote className="pull-quote pull-quote-contrarian">
+                <span className="pull-quote-mark" aria-hidden="true">«</span>
+                {ca.recommandationContrarienne}
+                <span className="pull-quote-mark" aria-hidden="true">»</span>
+                <cite className="pull-quote-cite">Recommandation contrarienne</cite>
+              </blockquote>
             )}
           </>
         )}
@@ -319,6 +351,26 @@ export default function InvestmentNoteView({ result }: Props) {
             {ba.syntheseAveuglement && (
               <p className="note-paragraph">{ba.syntheseAveuglement}</p>
             )}
+
+            {/* Pull quote 3 : si un pattern historique converge fortement
+                (similarité >= 70%), on l'extrait en exergue. C'est le moment
+                où l'analyse compare le dossier à un échec célèbre. */}
+            {ba.patternsHistoriques?.length > 0 && (() => {
+              const topPattern = [...(ba.patternsHistoriques || [])].sort((a: any, b: any) => (b.similarity || 0) - (a.similarity || 0))[0];
+              if (topPattern && topPattern.similarity >= 70) {
+                return (
+                  <blockquote className="pull-quote pull-quote-blindspot">
+                    <span className="pull-quote-mark" aria-hidden="true">«</span>
+                    Ce dossier reproduit le pattern <strong>{topPattern.case}</strong> ({topPattern.outcome}) avec une proximité structurelle de {topPattern.similarity}%.
+                    <span className="pull-quote-mark" aria-hidden="true">»</span>
+                    {topPattern.lessonLearned && (
+                      <cite className="pull-quote-cite">{topPattern.lessonLearned}</cite>
+                    )}
+                  </blockquote>
+                );
+              }
+              return null;
+            })()}
             {ba.patterns && Object.values(ba.patterns).filter((p: any) => p?.detected && p.intensity >= 60).length > 0 && (
               <>
                 <h4 className="note-h4">Patterns d'aveuglement détectés</h4>
@@ -327,7 +379,8 @@ export default function InvestmentNoteView({ result }: Props) {
                     .filter((p: any) => p?.detected && p.intensity >= 60)
                     .map((p: any, i: number) => (
                       <li key={i}>
-                        <strong>{p.patternName}</strong> ({p.intensity}/100). {p.evidence}
+                        <span className="signal-score-pill signal-score-blindspot">{p.intensity}</span>
+                        <strong>{p.patternName}.</strong> {p.evidence}
                       </li>
                     ))}
                 </ul>
@@ -339,7 +392,8 @@ export default function InvestmentNoteView({ result }: Props) {
                 <ul className="risk-list">
                   {ba.patternsHistoriques.map((p: any, i: number) => (
                     <li key={i}>
-                      <strong>{p.case}</strong> · {p.outcome} · proximité {p.similarity}%
+                      <span className="signal-score-pill signal-score-blindspot">{p.similarity}</span>
+                      <strong>{p.case}.</strong> {p.outcome}
                       {p.lessonLearned && <>. {p.lessonLearned}</>}
                     </li>
                   ))}
@@ -619,6 +673,34 @@ export default function InvestmentNoteView({ result }: Props) {
         )}
       </section>
 
+      {/* SECTION SOURCES & METHODOLOGY - Documentation des références externes
+          consolidées par les moteurs Prélude. Montre la rigueur méthodologique
+          de la note. */}
+      <section className="note-sources">
+        <h4 className="note-h4">Sources & methodology</h4>
+        <p className="note-sources-intro">
+          Cette note s'appuie sur l'analyse du dossier déposé et sur un corpus de bornes externes consolidées trimestriellement.
+        </p>
+        <ol className="note-sources-list">
+          <li>
+            <strong>PitchBook-NVCA Venture Monitor Q1 2026.</strong>
+            <span className="note-sources-detail"> Médianes pré-money par stade, séparation IA vs non-IA, concentration extrême du capital US (top 5 deals = 73,2%), step-up médian, fundraising bifurqué.</span>
+          </li>
+          <li>
+            <strong>Atomico State of European Tech 2025.</strong>
+            <span className="note-sources-detail"> Profondeur du marché européen (44 Md$ annuels vs 267 Md$ US Q1 2026), allocation pension funds VC (0,009% AUM Europe vs 0,028% US), Mighty 50 (comparables européens), pipeline réglementaire EU 2026.</span>
+          </li>
+          <li>
+            <strong>Bain Global Private Equity Report 2025.</strong>
+            <span className="note-sources-detail"> Liquidité LP (distributions to NAV 2024 = 11%, plus bas niveau en 10+ ans), gap fundraising entre top et bottom quartile (53 points), multiples buyout EBITDA.</span>
+          </li>
+          <li>
+            <strong>Correlation Ventures &amp; Cambridge Associates.</strong>
+            <span className="note-sources-detail"> Loi de puissance des retours VC (65% des deals en 0-1x, 4% en 10x+), benchmarks de TRI et TVPI par quartile de fond, persistance Kaplan-Schoar.</span>
+          </li>
+        </ol>
+      </section>
+
       <div className="note-footer">
         <div>Note préparée par Prélude · Plateforme d'instruction VC européenne</div>
         <div>Document confidentiel · Usage strictement interne au Comité d'Investissement</div>
@@ -790,6 +872,78 @@ export default function InvestmentNoteView({ result }: Props) {
           margin: 6px 10px 0 0;
           color: #1d1c1a;
         }
+
+        /* PULL QUOTES - Phrase clé extraite du flow narratif et mise en
+           exergue. Style FT/Economist : grande typo serif italique, guillemets
+           typographiques surdimensionnés en gris clair, pas de bordures.
+           La typo parle d'elle-même.
+
+           Trois variantes selon le contexte :
+           - Defaut : neutre, encre noire
+           - .pull-quote-contrarian : accent bleu/vert pour case for
+           - .pull-quote-blindspot : accent rouge sourd pour case against */
+        .pull-quote {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 22px;
+          font-style: italic;
+          font-weight: 400;
+          line-height: 1.45;
+          letter-spacing: -0.005em;
+          color: #1d1c1a;
+          margin: 32px 40px 32px 40px;
+          padding: 8px 0;
+          text-align: center;
+          position: relative;
+          border-top: 1px solid #1d1c1a;
+          border-bottom: 1px solid #1d1c1a;
+          padding-top: 28px;
+          padding-bottom: 28px;
+        }
+        .pull-quote-mark {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-style: normal;
+          font-size: 32px;
+          font-weight: 400;
+          color: #a8a094;
+          margin: 0 6px;
+          vertical-align: -4px;
+          line-height: 1;
+        }
+        .pull-quote-cite {
+          display: block;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          font-style: normal;
+          font-weight: 600;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: #6a655d;
+          margin-top: 18px;
+        }
+        .pull-quote-cite::before {
+          content: '— ';
+        }
+        .pull-quote-contrarian {
+          color: #2d4a2d;
+          border-top-color: #2d4a2d;
+          border-bottom-color: #2d4a2d;
+        }
+        .pull-quote-contrarian .pull-quote-mark {
+          color: rgba(45, 74, 45, 0.5);
+        }
+        .pull-quote-blindspot {
+          color: #6b1a1a;
+          border-top-color: #6b1a1a;
+          border-bottom-color: #6b1a1a;
+        }
+        .pull-quote-blindspot .pull-quote-mark {
+          color: rgba(107, 26, 26, 0.5);
+        }
+        .pull-quote strong {
+          font-style: italic;
+          font-weight: 700;
+        }
+
         /* TABLES - Style "data table" éditoriale : pas de bordures externes,
            hairlines internes très fines, label en sans-serif uppercase. */
         .note-table {
@@ -1049,16 +1203,47 @@ export default function InvestmentNoteView({ result }: Props) {
           margin-bottom: 22px;
         }
         .risk-list li {
-          padding: 14px 18px;
+          padding: 16px 20px;
           margin-bottom: 10px;
           background: #f3efe6;
           border-left: 3px solid #1d1c1a;
           font-size: 14px;
           line-height: 1.65;
           color: #1d1c1a;
+          display: flex;
+          gap: 16px;
+          align-items: flex-start;
         }
         .risk-list li strong {
           font-weight: 600;
+        }
+
+        /* SIGNAL SCORE PILL - Big number stylé pour les patterns/signaux.
+           Affichage en serif gras 22px, dans une "pastille" carrée à gauche du li.
+           Couleur sourde rouge pour blindspot, vert pour contrarian. */
+        .signal-score-pill {
+          flex: 0 0 auto;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 24px;
+          font-weight: 700;
+          font-feature-settings: "lnum";
+          line-height: 1;
+          padding: 8px 12px;
+          min-width: 56px;
+          text-align: center;
+          letter-spacing: -0.02em;
+          align-self: stretch;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .signal-score-blindspot {
+          background: #6b1a1a;
+          color: #fbfaf7;
+        }
+        .signal-score-contrarian {
+          background: #2d4a2d;
+          color: #fbfaf7;
         }
         .risk-sev {
           display: inline-block;
@@ -1284,12 +1469,75 @@ export default function InvestmentNoteView({ result }: Props) {
           margin-bottom: 22px;
         }
 
+        /* SECTION SOURCES & METHODOLOGY - Documentation des references
+           externes consolidees. Style "endnote" classique de publication
+           economique. Filet horizontal, typo plus petite, espacement sobre. */
+        .note-sources {
+          margin-top: 64px;
+          padding-top: 32px;
+          border-top: 1px solid #1d1c1a;
+        }
+        .note-sources .note-h4 {
+          margin-top: 0;
+          margin-bottom: 14px;
+        }
+        .note-sources-intro {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 13px;
+          font-style: italic;
+          color: #6a655d;
+          line-height: 1.65;
+          margin: 0 0 18px 0;
+        }
+        .note-sources-list {
+          list-style: none;
+          padding-left: 0;
+          margin: 0;
+          counter-reset: source;
+        }
+        .note-sources-list li {
+          position: relative;
+          padding-left: 32px;
+          margin-bottom: 12px;
+          font-size: 12px;
+          line-height: 1.6;
+          counter-increment: source;
+        }
+        .note-sources-list li::before {
+          content: counter(source);
+          position: absolute;
+          left: 0;
+          top: 0;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          color: #fbfaf7;
+          background: #1d1c1a;
+          width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          font-feature-settings: "lnum";
+        }
+        .note-sources-list li strong {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 13.5px;
+          font-weight: 700;
+          letter-spacing: -0.005em;
+        }
+        .note-sources-detail {
+          color: #555049;
+        }
+
         /* COLOPHON - Footer stylé comme un colophon d'article. Filet horizontal,
            texte centré en sans-serif uppercase, deux lignes courtes. */
         .note-footer {
-          margin-top: 72px;
+          margin-top: 48px;
           padding-top: 24px;
-          border-top: 1px solid #1d1c1a;
+          border-top: 1px solid rgba(29, 28, 26, 0.4);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 9.5px;
           font-weight: 500;
