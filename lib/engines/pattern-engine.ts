@@ -1,5 +1,10 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { CORPUS, type CaseRecord } from '../corpus/database';
+import {
+  MIGHTY_50_SAMPLE,
+  NOTABLE_EUROPEAN_ROUNDS_2025,
+  EUROPEAN_DEEPTECH_2025,
+} from '../benchmarks';
 import type { ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput, MacroAnalysisOutput, PatternMatchingOutput } from './types';
 
 // Calcul algorithmique de proximité structurelle entre dossier et cas du corpus
@@ -174,6 +179,38 @@ export async function matchPatterns(
   scored.sort((a, b) => b.proximity - a.proximity);
   const top8 = scored.slice(0, 8);
 
+  // Detection rapide de la region pour piloter les international benchmarks
+  const countryLower = (extraction.country || '').toLowerCase();
+  const europeKeywords = ['france', 'germany', 'allemagne', 'united kingdom', 'uk', 'spain', 'espagne', 'italy', 'italie', 'netherlands', 'pays-bas', 'belgium', 'belgique', 'sweden', 'suède', 'denmark', 'danemark', 'finland', 'finlande', 'ireland', 'irlande', 'portugal', 'austria', 'autriche', 'switzerland', 'suisse', 'poland', 'pologne', 'estonia'];
+  const isEurope = europeKeywords.some(kw => countryLower.includes(kw));
+
+  // Si dossier europeen, on injecte les comparables europeens 2024-2026 pour
+  // que le moteur les privilegie dans internationalBenchmarks plutot que de
+  // proposer Wiz/Stripe/Dassault par defaut.
+  const europeanComparablesBlock = isEurope ? `
+
+# COMPARABLES EUROPEENS 2024-2026 (a privilegier pour les internationalBenchmarks)
+
+Le dossier est europeen. Pour les internationalBenchmarks, privilegie les references europeennes recentes ci-dessous plutot que des references US obsoletes (ex: Stripe 2010, Dassault 1977). Ces comparables sont issus du Mighty 50 Atomico 2025 et des levees notables Q3-Q4 2025.
+
+## Mighty 50 (selection)
+${MIGHTY_50_SAMPLE.map(c => `- ${c.name} (${c.country}) — ${c.sector}${c.notes ? ' · ' + c.notes : ''}`).join('\n')}
+
+## Levees notables 2025
+${(NOTABLE_EUROPEAN_ROUNDS_2025 as readonly any[]).map((r) => {
+  const amount = r.amountMillionsUsd ? `${r.amountMillionsUsd}M$` : `${r.amountMillionsEur}M€`;
+  const notesPart = r.notes ? ` · ${r.notes}` : '';
+  return `- ${r.company} (${r.country}) — ${r.sector} — ${r.round} ${amount}${notesPart}`;
+}).join('\n')}
+
+## Contexte deeptech europeen 2025
+- ${EUROPEAN_DEEPTECH_2025.shareOfEuropeanVcDollarsPercent}% du capital VC europeen va au deeptech (vs ${EUROPEAN_DEEPTECH_2025.shareOfEuropeanVcDollarsPercent2021}% en 2021)
+- ${EUROPEAN_DEEPTECH_2025.totalDeployedBillionsUsd} milliards USD deployes en 2025
+- Source: Atomico State of European Tech 2025
+
+REGLE STRICTE: si le dossier est en defense, AI, deeptech, ou fintech, l'un des 3 internationalBenchmarks DOIT etre un comparable europeen recent (post-2022). Pour Wiz/Stripe/Dassault, ne les utiliser qu en complement, pas en reference principale.
+` : '';
+
   const userPrompt = `Données d'extraction du dossier :
 
 Société : ${extraction.companyName}
@@ -213,7 +250,7 @@ ${JSON.stringify({
 # Cas du corpus présélectionnés algorithmiquement (top 8 par proximité structurelle) :
 
 ${top8.map(s => `- ${s.case.id} (${s.case.name}, ${s.case.yearOfRefusal}, ${s.case.country}) · proximité algorithmique ${s.proximity}% · archétype ${s.case.archetype} · patterns ${s.case.comparablePatterns.join(', ')} · score rétrospectif ${s.case.retrospectiveScore}`).join('\n')}
-
+${europeanComparablesBlock}
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Retourne uniquement le JSON structuré.`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
