@@ -1,17 +1,33 @@
 :root {
-  --paper: #FAFAF6;
-  --surface: #FFFFFF;
-  --surface-deep: #F4F4ED;
-  --ink: #161616;
-  --ink-soft: #3A3A38;
-  --muted: #6B6B68;
-  --hairline: #E4E4DD;
-  --hairline-strong: #C9C9C0;
-  --accent: #1F2D3D;
-  --accent-soft: #2A3E55;
-  --warn: #A03E27;
-  --good: #2D5A3D;
-  --signal: #8C6D2C;
+  /* PALETTE EDITORIALE - alignee sur la note d investissement (direction
+     visuelle C, FT/Bloomberg). Cf InvestmentNoteView.tsx pour la palette
+     complete sur la note. Ici on garde les noms historiques (--paper,
+     --ink, --accent) pour compatibilite avec le reste de l app, mais on
+     calibre les valeurs sur celles de la note. */
+
+  --paper: #fbfaf7;             /* fond papier creme ivoire */
+  --paper-accent: #f3efe6;      /* fond creme sature pour callouts */
+  --paper-warm: #f6e8e0;        /* fond chaud pour alertes */
+  --surface: #fefefe;           /* surface presque blanche pour panneaux */
+  --surface-deep: #f3efe6;      /* surface plus saturee pour sections enfoncees */
+  --ink: #1d1c1a;               /* encre principale, jamais 100% noir */
+  --ink-soft: #555049;          /* texte secondaire */
+  --muted: #6a655d;             /* labels, meta, gris-brun chaud */
+  --muted-soft: #a8a094;        /* numerotation discrete */
+  --hairline: #d8d2c5;          /* separateurs internes */
+  --hairline-soft: #ebe5d6;     /* separateurs tres legers */
+  --hairline-strong: #1d1c1a;   /* filets de separation editoriaux */
+
+  --accent: #1a2e4a;            /* bleu encre profond, signature marque */
+  --accent-soft: #e6ebf2;       /* variante claire de l accent */
+
+  --warn: #6b1a1a;              /* rouge sourd, critical */
+  --warn-soft: #f8caca;
+  --good: #2d4a2d;              /* vert profond, positif */
+  --good-soft: #cfe5cf;
+  --signal: #5d4216;            /* ambre profond, warning */
+  --signal-soft: #fbf3df;
+
   --serif: 'Iowan Old Style', 'Charter', 'Cambria', 'Georgia', serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
@@ -19,7 +35,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: var(--paper); color: var(--ink); }
-body { font-family: var(--sans); font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+body { font-family: var(--serif); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; min-height: 100vh; font-feature-settings: "kern", "liga", "onum"; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; font-size: inherit; }
 ul, ol { list-style: none; }
 
@@ -27,41 +43,211 @@ ul, ol { list-style: none; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .small-caps { text-transform: uppercase; letter-spacing: 0.12em; font-size: 10.5px; font-weight: 500; }
 
+/* HEADER - Style nameplate journal premium, alignee sur la note d
+   investissement. Filet horizontal noir + filet hairline en dessous,
+   marque PRELUDE en bleu encre, sous-titre en sans-serif uppercase. */
 .header {
-  border-bottom: 1px solid var(--hairline); padding: 18px 32px; background: var(--paper);
-  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--ink);
+  padding: 22px 40px 18px;
+  background: var(--paper);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  position: relative;
 }
-.brand { font-family: var(--serif); font-size: 19px; font-weight: 500; letter-spacing: -0.02em; }
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--ink);
+  opacity: 0.4;
+}
+.brand {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  color: var(--accent);
+  text-transform: uppercase;
+}
 .brand-sep { color: var(--muted); }
-.brand-meta { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
-
-.main { max-width: 1180px; margin: 0 auto; padding: 40px 32px 80px; }
-
-.page-title { font-family: var(--serif); font-size: 42px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 12px; }
-.page-subtitle { font-size: 16px; color: var(--muted); max-width: 680px; margin-bottom: 36px; }
-
-/* UPLOAD */
-.upload-box {
-  border: 2px dashed var(--hairline-strong); background: var(--surface);
-  padding: 64px 32px; text-align: center; margin-bottom: 24px;
-  transition: all 0.15s; cursor: pointer;
+.brand-meta {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin-top: 8px;
 }
-.upload-box:hover, .upload-box.dragging { border-color: var(--accent); background: rgba(31, 45, 61, 0.02); }
-.upload-icon { font-size: 36px; color: var(--muted); margin-bottom: 16px; }
-.upload-label { font-family: var(--serif); font-size: 22px; font-weight: 500; margin-bottom: 6px; }
-.upload-hint { color: var(--muted); font-size: 14px; }
+
+.main { max-width: 1100px; margin: 0 auto; padding: 56px 40px 80px; }
+
+/* HERO - Titre principal grand serif, paragraphe d accroche en serif body
+   justifie hyphens auto pour rendu colonne de journal. Avant le titre, un
+   kicker editorial style 'dateline'. */
+.page-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.page-kicker-bullet {
+  width: 6px;
+  height: 6px;
+  background: var(--warn);
+  border-radius: 50%;
+  display: inline-block;
+}
+.page-title {
+  font-family: var(--serif);
+  font-size: 56px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin-bottom: 20px;
+  color: var(--ink);
+}
+.page-subtitle {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 720px;
+  margin-bottom: 48px;
+  text-align: justify;
+  hyphens: auto;
+}
+.page-subtitle::first-letter {
+  font-family: var(--serif);
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 0.85;
+  float: left;
+  margin: 6px 10px 0 0;
+  color: var(--ink);
+}
+
+/* UPLOAD - Encart d invitation a l action, style editorial.
+   Pas de border dashed criard SaaS, mais un cadre fin avec accent au hover.
+   Texte d'invitation en serif, hint en sans-serif uppercase. */
+.upload-box {
+  border: 1px solid var(--ink);
+  background: var(--paper-accent);
+  padding: 72px 40px;
+  text-align: center;
+  margin-bottom: 28px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+.upload-box::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  border: 1px solid var(--hairline);
+  pointer-events: none;
+  transition: border-color 0.2s ease;
+}
+.upload-box:hover, .upload-box.dragging {
+  background: var(--accent-soft);
+}
+.upload-box:hover::before, .upload-box.dragging::before {
+  border-color: var(--accent);
+}
+.upload-icon {
+  font-size: 28px;
+  color: var(--muted);
+  margin-bottom: 18px;
+  position: relative;
+  z-index: 1;
+}
+.upload-label {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+  color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+.upload-hint {
+  font-family: var(--sans);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+}
 .upload-input { display: none; }
 
-.file-info { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--surface); border: 1px solid var(--hairline); margin-bottom: 16px; }
-.file-name { font-weight: 500; }
-.file-size { color: var(--muted); font-size: 12px; }
+/* FILE INFO - Liste des fichiers deposes. Style sobre, hairline. */
+.file-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--ink);
+  margin-bottom: 12px;
+}
+.file-name {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
+}
+.file-size {
+  font-family: var(--sans);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
 
-.cta-row { display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 24px; }
-.btn { padding: 10px 22px; font-size: 14px; font-weight: 500; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); transition: all 0.12s; }
-.btn:hover { background: rgba(31, 45, 61, 0.04); }
-.btn-primary { background: var(--accent); color: white; }
-.btn-primary:hover { background: var(--accent-soft); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* CTA ROW - Boutons principaux. Style editorial : bordure fine sur fond
+   creme, sans border-radius, typo sans-serif uppercase letter-spacing. */
+.cta-row { display: flex; gap: 12px; justify-content: flex-end; margin-bottom: 32px; }
+.btn {
+  font-family: var(--sans);
+  padding: 13px 28px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.btn:hover { background: var(--paper-accent); }
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.btn-primary:hover { background: var(--accent); border-color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:disabled:hover { background: transparent; }
 
 /* PIPELINE LIVE */
 .pipeline {
@@ -284,10 +470,38 @@ ul, ol { list-style: none; }
 
 /* RESPONSIVE */
 @media (max-width: 700px) {
-  .header { padding: 14px 18px; }
-  .main { padding: 24px 18px 60px; }
-  .page-title { font-size: 30px; }
-  .upload-box { padding: 36px 18px; }
+  .header {
+    padding: 16px 22px 14px;
+  }
+  .brand { font-size: 22px; letter-spacing: 0.14em; }
+  .brand-meta { font-size: 9px; letter-spacing: 0.16em; margin-top: 6px; }
+
+  .main { padding: 32px 22px 60px; }
+
+  .page-kicker { font-size: 9px; margin-bottom: 14px; }
+  .page-title {
+    font-size: 38px;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin-bottom: 16px;
+  }
+  .page-subtitle {
+    font-size: 15.5px;
+    line-height: 1.6;
+    margin-bottom: 36px;
+    text-align: left;
+    hyphens: none;
+  }
+  .page-subtitle::first-letter {
+    font-size: 44px;
+    margin: 4px 8px 0 0;
+  }
+
+  .upload-box { padding: 48px 22px; }
+  .upload-box::before { top: 8px; left: 8px; right: 8px; bottom: 8px; }
+  .upload-label { font-size: 19px; }
+  .upload-hint { font-size: 10px; line-height: 1.6; }
+
   .result-section { padding: 22px 20px; }
   .pipeline { padding: 22px 20px; }
   .blindspots-grid { grid-template-columns: 1fr; }
@@ -298,7 +512,7 @@ ul, ol { list-style: none; }
   .comp-row { grid-template-columns: 1fr; gap: 6px; }
   .flags-row { grid-template-columns: 1fr; }
   .cta-row { flex-direction: column-reverse; }
-  .cta-row .btn { width: 100%; }
+  .cta-row .btn { width: 100%; padding: 14px 22px; }
 
   /* Sur mobile, on bascule de la barre horizontale vers le dropdown */
   .tabs-desktop { display: none; }

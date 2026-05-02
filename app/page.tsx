@@ -225,6 +225,10 @@ export default function Home() {
       <main className="main">
         {!result && !analyzing && (
           <>
+            <div className="page-kicker">
+              <span className="page-kicker-bullet" aria-hidden="true"></span>
+              <span>Plateforme d'instruction VC européenne</span>
+            </div>
             <h1 className="page-title">Le moteur d'instruction.</h1>
             <p className="page-subtitle">
               Déposez un dossier d'investissement complet : pitch deck PDF, business plan Excel/CSV, et tout autre document utile.
