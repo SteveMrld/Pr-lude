@@ -52,6 +52,8 @@ export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string
   }
   return textBlock.text;
 }
+import { jsonrepair } from 'jsonrepair';
+
 export function parseJSON<T = any>(rawText: string): T {
   let cleaned = rawText.trim();
 
@@ -145,7 +147,12 @@ export function parseJSON<T = any>(rawText: string): T {
       try {
         return JSON.parse(recovered) as T;
       } catch (e3: any) {
-        throw new Error('JSON tronqué et non récupérable. Début : ' + cleaned.slice(start, start + 300));
+        // Dernier recours : jsonrepair sur le contenu recupere
+        try {
+          return JSON.parse(jsonrepair(recovered)) as T;
+        } catch {
+          throw new Error('JSON tronqué et non récupérable. Début : ' + cleaned.slice(start, start + 300));
+        }
       }
     }
 
@@ -153,7 +160,24 @@ export function parseJSON<T = any>(rawText: string): T {
     try {
       return JSON.parse(extracted) as T;
     } catch (e2: any) {
-      throw new Error('Impossible de parser le JSON extrait : ' + e2.message + '. Début : ' + extracted.slice(0, 200));
+      // FILET DE SECURITE : la lib jsonrepair sait reparer les JSON
+      // syntaxiquement invalides genere par les LLMs (virgule en trop,
+      // guillemet manquant, accolade orpheline, etc.). C est le cas
+      // typique d Anthropic sur les reponses tres longues : 99% du
+      // JSON est valide, un seul caractere est defectueux.
+      try {
+        const repaired = jsonrepair(extracted);
+        return JSON.parse(repaired) as T;
+      } catch (e3: any) {
+        // Si meme jsonrepair n y arrive pas, on tente sur le brut entier
+        // (peut etre que le truncate sur depth a casse quelque chose).
+        try {
+          const repairedFull = jsonrepair(cleaned);
+          return JSON.parse(repairedFull) as T;
+        } catch {
+          throw new Error('Impossible de parser le JSON extrait : ' + e2.message + '. Début : ' + extracted.slice(0, 200));
+        }
+      }
     }
   }
 }
