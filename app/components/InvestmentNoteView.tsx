@@ -211,6 +211,72 @@ export default function InvestmentNoteView({ result }: Props) {
         </div>
         <p className="note-paragraph" style={{ marginTop: 12 }}>{reco.argumentation}</p>
 
+        {/* Sous-section Macro context : cadrage du marche dans lequel le dossier
+            s inscrit. Inclut cycle, capital VC, fenetre critique, tendances
+            structurelles, environnement reglementaire. Sortie du Moteur Macro
+            enrichi en Session 4a pour produire un cadrage differencie US vs Europe. */}
+        {(macro?.cyclePosition || macro?.structuralTrends?.length > 0 || macro?.regulatoryEnvironment) && (
+          <>
+            <h3 className="note-h3">Macro context</h3>
+            <table className="note-table">
+              <tbody>
+                {macro.cyclePosition && (
+                  <tr>
+                    <td className="note-label">Cycle position</td>
+                    <td className="note-value">{macro.cyclePosition}</td>
+                  </tr>
+                )}
+                {macro.vcCapitalOnSegment && (
+                  <tr>
+                    <td className="note-label">VC capital on segment</td>
+                    <td className="note-value">{macro.vcCapitalOnSegment}</td>
+                  </tr>
+                )}
+                {macro.criticalTimingWindow?.exists && (
+                  <tr>
+                    <td className="note-label">Critical timing window</td>
+                    <td className="note-value">{macro.criticalTimingWindow.horizon || ''} · {macro.criticalTimingWindow.rationale || ''}</td>
+                  </tr>
+                )}
+                {typeof macro.contraryclicalOpportunity?.score === 'number' && (
+                  <tr>
+                    <td className="note-label">Contracyclical opportunity</td>
+                    <td className="note-value">{macro.contraryclicalOpportunity.score}/100 · {macro.contraryclicalOpportunity.rationale || ''}</td>
+                  </tr>
+                )}
+                {macro.geopolitics && (
+                  <tr>
+                    <td className="note-label">Geopolitics</td>
+                    <td className="note-value">{macro.geopolitics}</td>
+                  </tr>
+                )}
+                {macro.interestRateRegime && (
+                  <tr>
+                    <td className="note-label">Interest rate regime</td>
+                    <td className="note-value">{macro.interestRateRegime}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {macro.structuralTrends?.length > 0 && (
+              <>
+                <h4 className="note-h4">Structural trends</h4>
+                <ul className="risk-list">
+                  {(macro.structuralTrends || []).map((t: string, i: number) => (
+                    <li key={i}>{t}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {macro.regulatoryEnvironment && (
+              <>
+                <h4 className="note-h4">Regulatory environment</h4>
+                <p className="note-paragraph">{macro.regulatoryEnvironment}</p>
+              </>
+            )}
+          </>
+        )}
+
         {ba?.riskMap && (
           <>
             <h3 className="note-h3">Risk factors</h3>
