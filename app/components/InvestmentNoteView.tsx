@@ -73,35 +73,56 @@ export default function InvestmentNoteView({ result }: Props) {
         <p className="note-paragraph">{e.rawSummary || '—'}</p>
 
         <h3 className="note-h3">Executive Staff</h3>
-        {(t.founderMarketFit || e.founders || []).length > 0 ? (
-          <div>
-            {(t.founderMarketFit || []).map((f: any, i: number) => (
-              <div key={i} className="founder-block">
-                <div className="founder-header">
-                  <span className="founder-name">{f.name}</span>
-                  <span className="founder-role">/ {f.role}</span>
-                  <span className="founder-fit">FMF {f.overallFitScore}/100</span>
+        {(() => {
+          // Filtre les fondateurs artefacts. Le moteur Team peut occasionnellement
+          // generer des entrees corrompues issues du parsing (ex: name='1.',
+          // role='Shareholder (role exact inconnu)') quand le pitch deck contient
+          // des numerotations en debut de ligne. On filtre ces artefacts.
+          const isValidFounder = (f: any): boolean => {
+            const name = (f?.name || '').trim();
+            if (!name) return false;
+            // Rejette les noms qui commencent par un chiffre, un point, un slash
+            if (/^[\d./\\]/.test(name)) return false;
+            // Rejette les noms suspectement courts (1-2 caracteres)
+            if (name.length < 3) return false;
+            return true;
+          };
+          const fmfList = (t.founderMarketFit || []).filter(isValidFounder);
+          const founderList = (e.founders || []).filter(isValidFounder);
+          const hasAny = fmfList.length > 0 || founderList.length > 0;
+          if (!hasAny) {
+            return <p className="note-paragraph">Données fondateurs non disponibles.</p>;
+          }
+          return (
+            <div>
+              {fmfList.map((f: any, i: number) => (
+                <div key={i} className="founder-block">
+                  <div className="founder-header">
+                    <span className="founder-name">{f.name}</span>
+                    <span className="founder-role">/ {f.role}</span>
+                    <span className="founder-fit">FMF {f.overallFitScore}/100</span>
+                  </div>
+                  <div className="founder-text"><strong>EXPERIENCE :</strong> {f.trajectorySummary}</div>
+                  {f.tacitExpertise && (
+                    <div className="founder-text"><strong>EXPERTISE TACITE :</strong> {f.tacitExpertise}</div>
+                  )}
+                  {f.fitSignals?.length > 0 && (
+                    <div className="founder-text"><strong>SIGNAUX POSITIFS :</strong> {f.fitSignals.join(' · ')}</div>
+                  )}
                 </div>
-                <div className="founder-text"><strong>EXPERIENCE :</strong> {f.trajectorySummary}</div>
-                {f.tacitExpertise && (
-                  <div className="founder-text"><strong>EXPERTISE TACITE :</strong> {f.tacitExpertise}</div>
-                )}
-                {f.fitSignals?.length > 0 && (
-                  <div className="founder-text"><strong>SIGNAUX POSITIFS :</strong> {f.fitSignals.join(' · ')}</div>
-                )}
-              </div>
-            ))}
-            {(t.founderMarketFit || []).length === 0 && (e.founders || []).map((f: any, i: number) => (
-              <div key={i} className="founder-block">
-                <div className="founder-header">
-                  <span className="founder-name">{f.name}</span>
-                  <span className="founder-role">/ {f.role}</span>
+              ))}
+              {fmfList.length === 0 && founderList.map((f: any, i: number) => (
+                <div key={i} className="founder-block">
+                  <div className="founder-header">
+                    <span className="founder-name">{f.name}</span>
+                    <span className="founder-role">/ {f.role}</span>
+                  </div>
+                  <div className="founder-text"><strong>EXPERIENCE :</strong> {f.background}</div>
                 </div>
-                <div className="founder-text"><strong>EXPERIENCE :</strong> {f.background}</div>
-              </div>
-            ))}
-          </div>
-        ) : <p className="note-paragraph">Données fondateurs non disponibles.</p>}
+              ))}
+            </div>
+          );
+        })()}
 
         {fd && fd.revenueProjection?.length > 0 && (
           <>
