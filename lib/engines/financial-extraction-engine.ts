@@ -93,7 +93,7 @@ Pour chaque donnée extraite, source = "deck". Si une donnée typique du BP (pro
 
 Retourne uniquement le JSON.`;
 
-    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL);
+    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 8000, MODEL);
     const result = parseJSON<FinancialDataExtraction>(rawResponse);
     // Garantir que tous les champs requis existent (Claude peut omettre un champ)
     result.hasBP = false;
@@ -133,7 +133,7 @@ ${bpContent.slice(0, 8000)}
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL);
+  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 8000, MODEL);
   const result = parseJSON<FinancialDataExtraction>(rawResponse);
   // Garantir que tous les champs requis existent
   result.hasBP = true;

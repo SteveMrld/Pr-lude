@@ -149,6 +149,6 @@ Benchmark rétrospectif : ${patternMatching.retrospectiveBenchmark.averageScore}
 
 Produis le retournement causal complet. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 5000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
   return parseJSON<CausalReversalOutput>(rawResponse);
 }

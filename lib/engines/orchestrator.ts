@@ -267,12 +267,12 @@ Retourne uniquement le JSON structuré.`;
   // maxTokens reduit de 8000 a 5000 : la sortie de l orchestrator est un JSON
   // de synthese compact, pas besoin de plus. Le retry est conserve mais
   // utilise le meme maxTokens reduit pour eviter de doubler le temps en pire cas.
-  let rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 5000, MODEL);
+  let rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
   try {
     return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   } catch (firstErr: any) {
     console.warn('[orchestrator] JSON parse failed, retrying once:', firstErr?.message);
-    rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 5000, MODEL);
+    rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
     return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   }
 }

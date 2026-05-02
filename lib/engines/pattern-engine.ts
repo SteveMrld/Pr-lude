@@ -253,6 +253,6 @@ ${top8.map(s => `- ${s.case.id} (${s.case.name}, ${s.case.yearOfRefusal}, ${s.ca
 ${europeanComparablesBlock}
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 6000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
   return parseJSON<PatternMatchingOutput>(rawResponse);
 }
