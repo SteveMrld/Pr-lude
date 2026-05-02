@@ -224,7 +224,12 @@ export default function InvestmentNoteView({ result }: Props) {
       <section className="note-section">
         <h2 className="note-section-title"><span className="note-section-num">3.</span> Investment Thesis</h2>
 
-        <div className="dd-meta">Date d'analyse : {dateAnalyzed}</div>
+        <div className="dd-meta">
+          <span className="dd-meta-bullet" aria-hidden="true">●</span>
+          <span className="dd-meta-text">{dateAnalyzed.toUpperCase()}</span>
+          <span className="dd-meta-sep" aria-hidden="true">·</span>
+          <span className="dd-meta-text">Note préliminaire IC</span>
+        </div>
 
         <h3 className="note-h3">Recommendation</h3>
         <div className="verdict-box">
@@ -845,18 +850,32 @@ export default function InvestmentNoteView({ result }: Props) {
 
         /* H3 - Sous-section. Style "kicker" éditorial : trait court à gauche,
            titre serif gras, espace généreux. */
+        /* H3 - Sous-section. Style "kicker" éditorial : un filet horizontal
+           court au-dessus du titre, titre serif gras, espace généreux.
+           Quand un H3 suit immédiatement un autre H3 (sans contenu intermédiaire),
+           on évite le double filet via :first-of-type. */
         .note-h3 {
           font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
           font-size: 21px;
           font-weight: 600;
           line-height: 1.25;
-          margin-top: 44px;
-          margin-bottom: 18px;
+          margin-top: 56px;
+          margin-bottom: 20px;
           padding-bottom: 0;
-          padding-left: 14px;
+          padding-top: 16px;
+          padding-left: 0;
           border-bottom: none;
-          border-left: 3px solid #1d1c1a;
+          border-left: none;
+          border-top: 1px solid var(--ink);
           letter-spacing: -0.01em;
+          position: relative;
+        }
+        /* Le premier H3 d'une section n'a pas de filet (la section a deja son
+           propre titre H2 avec filet de separation). */
+        .note-section > .note-h3:first-of-type {
+          margin-top: 32px;
+          padding-top: 0;
+          border-top: none;
         }
 
         /* H4 - Label de groupe. Style sans-serif uppercase tracking large,
@@ -870,7 +889,7 @@ export default function InvestmentNoteView({ result }: Props) {
           margin-bottom: 12px;
           text-transform: uppercase;
           letter-spacing: 0.14em;
-          color: #6a655d;
+          color: var(--ink-tertiary);
         }
 
         /* PARAGRAPHES - Texte courant serif en 15px, line-height 1.7 pour la
@@ -1487,15 +1506,34 @@ export default function InvestmentNoteView({ result }: Props) {
           font-weight: 700;
         }
 
-        /* DATELINE - Date d'analyse stylée comme une dateline d'article. */
+        /* DATELINE - Date d'analyse stylée comme une dateline d'article presse.
+           Format : ● 1 MAI 2026 · NOTE PRELIMINAIRE IC
+           Bullet rouge sourd type "live news", date en uppercase letter-spacing
+           large, separateur en gris discret. */
         .dd-meta {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 10px;
-          font-weight: 500;
+          font-weight: 600;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          color: #6a655d;
-          margin-bottom: 22px;
+          color: var(--ink-tertiary);
+          margin-bottom: 26px;
+        }
+        .dd-meta-bullet {
+          color: var(--semantic-critical);
+          font-size: 9px;
+          line-height: 1;
+        }
+        .dd-meta-sep {
+          color: var(--ink-quaternary);
+          font-size: 11px;
+          margin: 0 2px;
+        }
+        .dd-meta-text {
+          color: var(--ink-tertiary);
         }
 
         /* SECTION SOURCES & METHODOLOGY - Documentation des references
