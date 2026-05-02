@@ -5,6 +5,22 @@ import InvestmentNoteView from './components/InvestmentNoteView';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
+import {
+  PictoSeal,
+  PictoFlag,
+  PictoCompass,
+  PictoEye,
+  PictoNet,
+  PictoScale,
+  PictoGlobe,
+  PictoHourglass,
+  PictoDocument,
+  PictoTeam,
+  PictoPyramid,
+  PictoPhone,
+  PictoSpiral,
+  ENGINE_PICTOS,
+} from './components/Pictos';
 
 const ENGINES = [
   { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck' },
@@ -254,19 +270,31 @@ export default function HomeClient({
           <>
             {/* HERO - Au-dessus de la pliure */}
             <section className="landing-hero">
+              <div className="hero-rule" aria-hidden="true"></div>
               <div className="page-kicker">
                 <span className="page-kicker-bullet" aria-hidden="true"></span>
-                <span>Plateforme d'instruction VC européenne</span>
+                <span>Prélude — Depuis 2026</span>
               </div>
-              <h1 className="page-title">Le moteur d'instruction des fonds européens.</h1>
+              <h1 className="page-title">
+                <span className="page-title-line">Le moteur d&apos;instruction</span>
+                <span className="page-title-line page-title-emph">des fonds de capital-risque.</span>
+              </h1>
               <p className="page-subtitle">
-                Prélude analyse un dossier d'investissement comme le ferait un partner senior :
-                équipe, marché, macro, cohérence financière, patterns d'aveuglement collectif et signaux contrariens.
-                En sortie, une note d'investissement IC-ready, dialectique, prête pour le comité.
+                Prélude analyse un dossier d&apos;investissement comme le ferait un partner senior :
+                équipe, marché, macro, cohérence financière, patterns d&apos;aveuglement collectif et signaux contrariens.
+                En sortie, une note d&apos;investissement IC-ready, dialectique, prête pour le comité.
               </p>
               <div className="hero-cta-row">
                 <a href="#commencer" className="btn btn-primary">Déposer un dossier</a>
                 <a href="#methode" className="btn">Voir la méthode</a>
+              </div>
+              <div className="hero-meta">
+                <span className="hero-meta-item">
+                  <PictoSeal />
+                  <span>Méthode calibrée pour la rigueur européenne</span>
+                </span>
+                <span className="hero-meta-sep" aria-hidden="true">·</span>
+                <span className="hero-meta-item">Applicable mondialement</span>
               </div>
             </section>
 
@@ -277,14 +305,14 @@ export default function HomeClient({
                 <h2 className="landing-h2">Pourquoi Prélude existe.</h2>
               </div>
               <div className="landing-prose">
-                <p>
-                  Le métier du capital-risque européen souffre d'angles morts structurels. Les fonds européens font face à un déficit chronique de capital patient, à des biais de pedigree hérités des modèles américains, et à un cadre macro distinct qui appelle une instruction propre.
+                <p className="landing-prose-lead">
+                  Le métier du capital-risque souffre d&apos;angles morts structurels. Les fonds font face à un déficit chronique de capital patient, à des biais de pedigree hérités, et à des cadres macroéconomiques distincts qui appellent une instruction propre.
                 </p>
                 <p>
-                  Les outils d'analyse existants ont été conçus pour le marché américain. Ils transposent mécaniquement des grilles SaaS, des seuils de croissance et des comparables qui ne s'appliquent ni à un industriel deeptech français, ni à un éditeur SaaS allemand, ni à un acteur défense scandinave.
+                  Les outils d&apos;analyse existants ont été conçus pour le marché américain. Ils transposent mécaniquement des grilles SaaS, des seuils de croissance et des comparables qui ne s&apos;appliquent ni à un industriel deeptech français, ni à un éditeur SaaS allemand, ni à un acteur défense scandinave, ni d&apos;ailleurs à un fonds family-office moyen-oriental.
                 </p>
                 <p>
-                  Prélude est conçu pour l'instruction des dossiers européens, avec un cadre méthodologique calibré sur les sources européennes consolidées (Atomico, EU-INC, pipeline réglementaire EU 2026) et sur les patterns historiques propres à l'écosystème.
+                  Prélude est conçu autour d&apos;une méthode d&apos;instruction qui distingue le diagnostic chiffré, la lecture critique, la lecture dialectique et la décision. Une logique applicable à tout dossier, calibrée sur les sources et patterns européens consolidés (Atomico, EU-INC, pipeline réglementaire EU 2026) sans s&apos;y limiter.
                 </p>
               </div>
             </section>
@@ -299,66 +327,32 @@ export default function HomeClient({
                 Chaque dossier traverse douze étapes d'analyse interconnectées. Certaines extraient les données brutes, d'autres confrontent au corpus de cas, d'autres encore débusquent les biais de jugement systémiques du métier.
               </p>
               <ol className="dimensions-grid">
-                <li className="dim-card">
-                  <div className="dim-num">01</div>
-                  <div className="dim-name">Lecture du dossier</div>
-                  <div className="dim-desc">Structuration des informations du pitch deck, identification des fondateurs, du modèle, des projections.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">02</div>
-                  <div className="dim-name">Équipe</div>
-                  <div className="dim-desc">Couverture systémique de l'équipe, anti-fragilité, transposition d'expérience sectorielle.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">03</div>
-                  <div className="dim-name">Marché</div>
-                  <div className="dim-desc">Intensité du besoin, défensibilité, comparables internationaux et européens.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">04</div>
-                  <div className="dim-name">Macro</div>
-                  <div className="dim-desc">Position dans le cycle, géopolitique, fenêtre temporelle critique, capital VC sur le segment.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">05</div>
-                  <div className="dim-name">Extraction financière</div>
-                  <div className="dim-desc">Données financières du deck et du business plan, projections, hypothèses sous-jacentes.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">06</div>
-                  <div className="dim-name">Pattern matching</div>
-                  <div className="dim-desc">Confrontation au corpus de cas instruits historiques, identification des trajectoires comparables.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">07</div>
-                  <div className="dim-name">Retournement causal</div>
-                  <div className="dim-desc">Sept angles morts du métier VC et questions critiques à instruire en due diligence.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">08</div>
-                  <div className="dim-name">Aveuglement collectif</div>
-                  <div className="dim-desc">Détection des dix patterns d'erreur de jugement systémique du métier (Theranos, WeWork, Ynsect).</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">09</div>
-                  <div className="dim-name">Singularités contrariennes</div>
-                  <div className="dim-desc">Détection des dix signaux qui justifient le pari à contre-courant (Wiz, Stripe, Deepmind).</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">10</div>
-                  <div className="dim-name">Cohérence financière</div>
-                  <div className="dim-desc">Sept tests de cohérence des projections et unit economics, calibrés selon le business model.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">11</div>
-                  <div className="dim-name">Orchestration</div>
-                  <div className="dim-desc">Synthèse, probabilités chiffrées par dimension, résolution dialectique de la tension d'investissement.</div>
-                </li>
-                <li className="dim-card">
-                  <div className="dim-num">12</div>
-                  <div className="dim-name">Reference checks</div>
-                  <div className="dim-desc">Plan d'appels DD terrain : fondateurs, clients, gouvernance, signaux faibles à vérifier.</div>
-                </li>
+                {[
+                  { id: 'extraction', num: '01', name: 'Lecture du dossier', desc: 'Structuration des informations du pitch deck, identification des fondateurs, du modèle, des projections.' },
+                  { id: 'team', num: '02', name: 'Équipe', desc: "Couverture systémique de l'équipe, anti-fragilité, transposition d'expérience sectorielle." },
+                  { id: 'market', num: '03', name: 'Marché', desc: 'Intensité du besoin, défensibilité, comparables internationaux.' },
+                  { id: 'macro', num: '04', name: 'Macro', desc: 'Position dans le cycle, géopolitique, fenêtre temporelle critique, capital VC sur le segment.' },
+                  { id: 'financial-extraction', num: '05', name: 'Extraction financière', desc: 'Données financières du deck et du business plan, projections, hypothèses sous-jacentes.' },
+                  { id: 'pattern', num: '06', name: 'Pattern matching', desc: 'Confrontation au corpus de cas instruits historiques, identification des trajectoires comparables.' },
+                  { id: 'causal', num: '07', name: 'Retournement causal', desc: 'Sept angles morts du métier VC et questions critiques à instruire en due diligence.' },
+                  { id: 'blindspot', num: '08', name: 'Aveuglement collectif', desc: "Détection des dix patterns d'erreur de jugement systémique du métier (Theranos, WeWork, Ynsect)." },
+                  { id: 'contrarian', num: '09', name: 'Singularités contrariennes', desc: 'Détection des dix signaux qui justifient le pari à contre-courant (Wiz, Stripe, Deepmind).' },
+                  { id: 'financial-coherence', num: '10', name: 'Cohérence financière', desc: 'Sept tests de cohérence des projections et unit economics, calibrés selon le business model.' },
+                  { id: 'orchestrate', num: '11', name: 'Orchestration', desc: "Synthèse, probabilités chiffrées par dimension, résolution dialectique de la tension d'investissement." },
+                  { id: 'reference-checks', num: '12', name: 'Reference checks', desc: "Plan d'appels DD terrain : fondateurs, clients, gouvernance, signaux faibles à vérifier." },
+                ].map((d) => {
+                  const Picto = ENGINE_PICTOS[d.id as keyof typeof ENGINE_PICTOS];
+                  return (
+                    <li className="dim-card" key={d.id}>
+                      <div className="dim-card-head">
+                        <div className="dim-num">{d.num}</div>
+                        <div className="dim-picto" aria-hidden="true">{Picto && <Picto />}</div>
+                      </div>
+                      <div className="dim-name">{d.name}</div>
+                      <div className="dim-desc">{d.desc}</div>
+                    </li>
+                  );
+                })}
               </ol>
             </section>
 
@@ -366,14 +360,14 @@ export default function HomeClient({
             <section className="landing-section">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">III.</div>
-                <h2 className="landing-h2">Pensé pour les comités d'investissement européens.</h2>
+                <h2 className="landing-h2">Pensé pour les comités d&apos;investissement exigeants.</h2>
               </div>
               <div className="landing-prose">
                 <p>
                   Prélude s'adresse aux fonds early-stage et growth-stage qui instruisent en moyenne 200 à 500 dossiers par an et n'en transforment qu'une poignée. Le goulot d'étranglement n'est pas l'accès au deal flow, c'est la qualité et la profondeur de l'instruction.
                 </p>
                 <p>
-                  La plateforme est calibrée pour les exigences du marché européen : sources consolidées trimestriellement (Atomico, PitchBook, Bain, Correlation Ventures), pipeline réglementaire EU 2026 (28e régime, AI Development Act, Quantum Act), comparables européens 2024-2026 (Helsing, Mistral, NScale, Quantum-Systems).
+                  La plateforme est calibrée pour la rigueur européenne sans s&apos;y limiter : sources consolidées trimestriellement (Atomico, PitchBook, Bain, Correlation Ventures), pipeline réglementaire EU 2026 (28e régime, AI Development Act, Quantum Act), comparables européens 2024-2026 (Helsing, Mistral, NScale, Quantum-Systems), méthode applicable à tout dossier mondial.
                 </p>
               </div>
             </section>
@@ -507,7 +501,7 @@ export default function HomeClient({
 
             {/* COLOPHON FOOTER */}
             <footer className="landing-footer">
-              <div className="landing-footer-line">Prélude · Plateforme d'instruction VC européenne</div>
+              <div className="landing-footer-line">Prélude · Le moteur d&apos;instruction des fonds de capital-risque</div>
               <div className="landing-footer-line muted">Document confidentiel · Usage strictement interne au Comité d'Investissement</div>
             </footer>
           </>

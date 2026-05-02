@@ -20,6 +20,18 @@
 
   --accent: #1a2e4a;            /* bleu encre profond, signature marque */
   --accent-soft: #e6ebf2;       /* variante claire de l accent */
+  --accent-deep: #11203a;       /* bleu encre presque noir, pour fonds pleins */
+  --accent-mid: #2e4870;        /* bleu encre intermediaire pour gradients */
+
+  /* Couleurs editoriales amplifiees pour donner du caractere (accents
+     decisifs sur drapeaux rouges, chiffres cles, validations). Inspirees
+     des palettes terre / encre des journaux d analyse europeens. */
+  --rouge-anglais: #8b2e1f;     /* rouge profond brique, drapeau rouge */
+  --rouge-anglais-soft: #f4dccf;
+  --ocre-brule: #a8732e;        /* ocre chaud, signal modere, chiffres cles */
+  --ocre-brule-soft: #f3e3c8;
+  --vert-foret: #2d4a2e;        /* vert sombre, validations, traction */
+  --vert-foret-soft: #cfe5cf;
 
   --warn: #6b1a1a;              /* rouge sourd, critical */
   --warn-soft: #f8caca;
@@ -176,12 +188,22 @@ ul, ol { list-style: none; }
 }
 .page-title {
   font-family: var(--serif);
-  font-size: 56px;
+  font-size: 64px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.05;
-  margin-bottom: 20px;
+  letter-spacing: -0.028em;
+  line-height: 1.02;
+  margin-bottom: 28px;
   color: var(--ink);
+  font-feature-settings: "kern", "liga", "onum";
+}
+.page-title-line {
+  display: block;
+}
+.page-title-emph {
+  color: var(--accent);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.022em;
 }
 .page-subtitle {
   font-family: var(--serif);
@@ -211,10 +233,16 @@ ul, ol { list-style: none; }
 
 /* HERO - Au-dessus de la pliure */
 .landing-hero {
-  padding-bottom: 64px;
+  padding: 8px 0 64px;
   border-bottom: 1px solid var(--ink);
   margin-bottom: 64px;
   position: relative;
+}
+.hero-rule {
+  width: 64px;
+  height: 2px;
+  background: var(--ocre-brule);
+  margin-bottom: 22px;
 }
 .landing-hero::after {
   content: '';
@@ -225,6 +253,29 @@ ul, ol { list-style: none; }
   height: 1px;
   background: var(--ink);
   opacity: 0.4;
+}
+.hero-meta {
+  margin-top: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.hero-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hero-meta-item svg {
+  color: var(--ocre-brule);
+}
+.hero-meta-sep {
+  color: var(--muted-soft);
 }
 .hero-cta-row {
   display: flex;
@@ -243,31 +294,44 @@ ul, ol { list-style: none; }
   padding-top: 8px;
 }
 
-/* H2 BLOCK - Numero romain en italique gris a gauche, titre serif gros.
-   Meme principe que les sections numerotees de la note. */
+/* H2 BLOCK - Numero romain XXL en bleu encre + filet ocre au-dessus.
+   La signature visuelle qui dit 'document', pas 'landing'. */
 .landing-h2-block {
   display: flex;
   align-items: baseline;
-  gap: 18px;
-  margin-bottom: 24px;
-  padding-bottom: 14px;
+  gap: 22px;
+  margin-bottom: 28px;
+  padding-top: 18px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--ink);
+  position: relative;
+}
+.landing-h2-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 48px;
+  height: 2px;
+  background: var(--ocre-brule);
 }
 .landing-h2-num {
   font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 400;
+  font-size: 56px;
+  font-weight: 500;
   font-style: italic;
-  color: var(--muted-soft);
+  color: var(--accent);
   font-feature-settings: "lnum";
   flex-shrink: 0;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 .landing-h2 {
   font-family: var(--serif);
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.15;
+  letter-spacing: -0.018em;
+  line-height: 1.12;
   color: var(--ink);
   margin: 0;
 }
@@ -295,14 +359,25 @@ ul, ol { list-style: none; }
   text-align: justify;
   hyphens: auto;
 }
-.landing-prose p:first-child::first-letter {
+.landing-prose p:first-child::first-letter,
+.landing-prose-lead::first-letter {
   font-family: var(--serif);
-  font-size: 52px;
+  font-size: 64px;
   font-weight: 700;
   line-height: 0.85;
   float: left;
-  margin: 6px 10px 0 0;
+  margin: 8px 12px 0 0;
+  color: var(--accent);
+}
+.landing-prose-lead {
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.7;
   color: var(--ink);
+  margin-bottom: 22px;
+  text-align: justify;
+  hyphens: auto;
+  font-weight: 450;
 }
 .landing-prose p:last-child {
   margin-bottom: 0;
@@ -320,24 +395,54 @@ ul, ol { list-style: none; }
   margin: 0;
 }
 .dim-card {
-  padding: 24px 22px 26px;
+  position: relative;
+  padding: 26px 24px 28px;
   border-right: 1px solid var(--ink);
   border-bottom: 1px solid var(--ink);
   background: var(--paper);
-  transition: background 0.15s ease;
+  transition: background 0.18s ease;
   list-style: none;
 }
 .dim-card:hover {
   background: var(--paper-accent);
 }
+/* Alternance subtile pour donner du rythme : 1 carte sur 3 prend un fond
+   creme accentue, ce qui structure la lecture sans rompre l unite. */
+.dim-card:nth-child(3n+2) {
+  background: var(--paper-accent);
+}
+.dim-card:nth-child(3n+2):hover {
+  background: var(--surface-deep);
+}
+.dim-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
 .dim-num {
-  font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: var(--muted-soft);
-  margin-bottom: 12px;
-  font-feature-settings: "lnum";
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ocre-brule);
+  font-feature-settings: "lnum", "tnum";
+  line-height: 1;
+}
+.dim-picto {
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: var(--surface);
+}
+.dim-card:hover .dim-picto {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 .dim-name {
   font-family: var(--serif);
@@ -891,11 +996,18 @@ ul, ol { list-style: none; }
 
   .page-kicker { font-size: 9px; margin-bottom: 14px; }
   .page-title {
-    font-size: 38px;
-    letter-spacing: -0.02em;
-    line-height: 1.05;
-    margin-bottom: 16px;
+    font-size: 40px;
+    letter-spacing: -0.022em;
+    line-height: 1.04;
+    margin-bottom: 18px;
   }
+  .page-title-emph {
+    letter-spacing: -0.02em;
+  }
+  .hero-rule { width: 48px; margin-bottom: 18px; }
+  .hero-meta { font-size: 10.5px; gap: 8px; margin-top: 22px; }
+  .hero-meta-sep { display: none; }
+  .hero-meta-item { width: 100%; }
   .page-subtitle {
     font-size: 15.5px;
     line-height: 1.6;
@@ -919,10 +1031,31 @@ ul, ol { list-style: none; }
   .hero-cta-row .btn { width: 100%; text-align: center; padding: 14px 22px; }
 
   .landing-section { margin-bottom: 56px; }
-  .landing-h2-block { gap: 12px; padding-bottom: 12px; margin-bottom: 20px; }
-  .landing-h2-num { font-size: 18px; }
+  .landing-h2-block {
+    gap: 14px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+    align-items: baseline;
+  }
+  .landing-h2-block::before { width: 36px; }
+  .landing-h2-num { font-size: 36px; }
   .landing-h2 { font-size: 24px; line-height: 1.2; }
   .landing-section-intro { font-size: 15.5px; margin-bottom: 24px; }
+
+  .landing-prose-lead { font-size: 16.5px; }
+  .landing-prose p:first-child::first-letter,
+  .landing-prose-lead::first-letter {
+    font-size: 50px;
+    margin: 5px 9px 0 0;
+  }
+
+  .dim-num { font-size: 26px; }
+  .dim-picto {
+    width: 32px;
+    height: 32px;
+  }
+  .dim-picto svg { width: 16px; height: 16px; }
 
   .landing-prose p {
     font-size: 15.5px;

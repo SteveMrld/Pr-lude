@@ -145,7 +145,14 @@ export default function InvestmentNoteView({ result }: Props) {
             collecte au moins une evidence Tier 1. */}
         {t.tieredEvidence && (
           <div className="note-tier-evidence">
-            <h3 className="note-h3">Sources d&apos;instruction Tier 1</h3>
+            <div className="note-tier-evidence-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="6" strokeDasharray="0.5 1.8" />
+                <path d="M12 8.5 L12.9 10.7 L15.3 11.0 L13.5 12.6 L13.9 15.0 L12 13.8 L10.1 15.0 L10.5 12.6 L8.7 11.0 L11.1 10.7 Z" />
+              </svg>
+              <h3 className="note-h3">Sources d&apos;instruction Tier 1</h3>
+            </div>
             {t.tieredEvidence.instructionLevel === 'insufficient' && (
               <div className="note-instruction-warning">
                 <strong>INSTRUCTION INSUFFISANTE</strong> — Le dossier n&apos;a pas pu etre instruit
@@ -1182,9 +1189,19 @@ export default function InvestmentNoteView({ result }: Props) {
            BODACC) avec leur tier editorial. */
         .note-tier-evidence {
           margin: 28px 0;
-          padding: 22px 24px;
+          padding: 24px 26px;
           background: #f4f0e6;
           border-left: 3px solid #1a2e4a;
+        }
+        .note-tier-evidence-head {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #1a2e4a;
+          margin-bottom: 14px;
+        }
+        .note-tier-evidence-head .note-h3 {
+          margin: 0;
         }
         .note-tier-evidence .note-h3 {
           margin-top: 0;
