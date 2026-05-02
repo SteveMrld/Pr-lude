@@ -85,6 +85,44 @@ ul, ol { list-style: none; }
   margin-top: 8px;
 }
 
+/* Bloc identite a droite du header (visible uniquement en mode authentifie).
+   Affiche le nom de l organisation, l email du user et le bouton logout. */
+.header-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-family: var(--sans);
+}
+.header-org {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.header-user {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.header-logout {
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.header-logout:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
 .main { max-width: 1100px; margin: 0 auto; padding: 56px 40px 80px; }
 
 /* HERO - Titre principal grand serif, paragraphe d accroche en serif body
