@@ -225,63 +225,264 @@ export default function Home() {
       <main className="main">
         {!result && !analyzing && (
           <>
-            <div className="page-kicker">
-              <span className="page-kicker-bullet" aria-hidden="true"></span>
-              <span>Plateforme d'instruction VC européenne</span>
-            </div>
-            <h1 className="page-title">Le moteur d'instruction.</h1>
-            <p className="page-subtitle">
-              Déposez un dossier d'investissement complet : pitch deck PDF, business plan Excel/CSV, et tout autre document utile.
-              Le pipeline d'analyse couvre l'extraction, l'équipe, le marché, la lecture macro,
-              le pattern matching face au corpus de cas instruits, le retournement causal, la détection
-              des angles morts, des singularités contrariennes, la cohérence financière, et la synthèse finale chiffrée.
-            </p>
-
-            {files.length === 0 ? (
-              <div className={`upload-box ${dragging ? 'dragging' : ''}`}
-                onClick={() => inputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setDragging(false); handleFilesSelect(e.dataTransfer.files); }}>
-                <div className="upload-icon">▤</div>
-                <div className="upload-label">Déposer un dossier d'investissement</div>
-                <div className="upload-hint">PDF (deck), XLSX/CSV (BP), 32 Mo max par fichier · Cliquer ou glisser-déposer · Plusieurs fichiers acceptés</div>
-                <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
-                  className="upload-input"
-                  onChange={(e) => handleFilesSelect(e.target.files)} />
+            {/* HERO - Au-dessus de la pliure */}
+            <section className="landing-hero">
+              <div className="page-kicker">
+                <span className="page-kicker-bullet" aria-hidden="true"></span>
+                <span>Plateforme d'instruction VC européenne</span>
               </div>
-            ) : (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  {files.map((f, i) => {
-                    const lower = f.name.toLowerCase();
-                    const isPdf = f.type.includes('pdf') || lower.endsWith('.pdf');
-                    const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv');
-                    const nature = lower.includes('business plan') || lower.includes('bp ') || lower.includes('financial') || isExcel
-                      ? 'Business Plan'
-                      : (lower.includes('pitch') || lower.includes('deck') || lower.includes('teaser') || isPdf ? 'Pitch Deck' : 'Document');
-                    return (
-                      <div key={i} className="file-info" style={{ marginBottom: 8 }}>
-                        <div>
-                          <div className="file-name">{f.name}</div>
-                          <div className="file-size">{(f.size / 1024 / 1024).toFixed(2)} Mo · <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10, opacity: 0.7 }}>{nature}</span></div>
-                        </div>
-                        <button className="btn" onClick={() => removeFile(i)}>Retirer</button>
-                      </div>
-                    );
-                  })}
-                  <button className="btn" style={{ marginTop: 8 }} onClick={() => inputRef.current?.click()}>+ Ajouter un fichier</button>
-                  <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
-                    style={{ display: 'none' }}
-                    onChange={(e) => { handleFilesSelect(e.target.files); if (inputRef.current) inputRef.current.value = ''; }} />
-                </div>
-                <div className="cta-row">
-                  <button className="btn btn-primary" onClick={analyze}>Lancer le pipeline →</button>
-                </div>
-              </>
-            )}
+              <h1 className="page-title">Le moteur d'instruction des fonds européens.</h1>
+              <p className="page-subtitle">
+                Prélude analyse un dossier d'investissement comme le ferait un partner senior :
+                équipe, marché, macro, cohérence financière, patterns d'aveuglement collectif et signaux contrariens.
+                En sortie, une note d'investissement IC-ready, dialectique, prête pour le comité.
+              </p>
+              <div className="hero-cta-row">
+                <a href="#commencer" className="btn btn-primary">Déposer un dossier</a>
+                <a href="#methode" className="btn">Voir la méthode</a>
+              </div>
+            </section>
 
-            {error && <div className="error-box"><div className="error-title">Erreur</div><div>{error}</div></div>}
+            {/* SECTION 2 - Le problème */}
+            <section className="landing-section">
+              <div className="landing-h2-block">
+                <div className="landing-h2-num">I.</div>
+                <h2 className="landing-h2">Pourquoi Prélude existe.</h2>
+              </div>
+              <div className="landing-prose">
+                <p>
+                  Le métier du capital-risque européen souffre d'angles morts structurels. Les fonds européens font face à un déficit chronique de capital patient, à des biais de pedigree hérités des modèles américains, et à un cadre macro distinct qui appelle une instruction propre.
+                </p>
+                <p>
+                  Les outils d'analyse existants ont été conçus pour le marché américain. Ils transposent mécaniquement des grilles SaaS, des seuils de croissance et des comparables qui ne s'appliquent ni à un industriel deeptech français, ni à un éditeur SaaS allemand, ni à un acteur défense scandinave.
+                </p>
+                <p>
+                  Prélude est conçu pour l'instruction des dossiers européens, avec un cadre méthodologique calibré sur les sources européennes consolidées (Atomico, EU-INC, pipeline réglementaire EU 2026) et sur les patterns historiques propres à l'écosystème.
+                </p>
+              </div>
+            </section>
+
+            {/* SECTION 3 - Ce que fait Prélude (les 12 dimensions) */}
+            <section className="landing-section" id="methode">
+              <div className="landing-h2-block">
+                <div className="landing-h2-num">II.</div>
+                <h2 className="landing-h2">Douze dimensions d'analyse, en pipeline.</h2>
+              </div>
+              <p className="landing-section-intro">
+                Chaque dossier traverse douze étapes d'analyse interconnectées. Certaines extraient les données brutes, d'autres confrontent au corpus de cas, d'autres encore débusquent les biais de jugement systémiques du métier.
+              </p>
+              <ol className="dimensions-grid">
+                <li className="dim-card">
+                  <div className="dim-num">01</div>
+                  <div className="dim-name">Lecture du dossier</div>
+                  <div className="dim-desc">Structuration des informations du pitch deck, identification des fondateurs, du modèle, des projections.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">02</div>
+                  <div className="dim-name">Équipe</div>
+                  <div className="dim-desc">Couverture systémique de l'équipe, anti-fragilité, transposition d'expérience sectorielle.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">03</div>
+                  <div className="dim-name">Marché</div>
+                  <div className="dim-desc">Intensité du besoin, défensibilité, comparables internationaux et européens.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">04</div>
+                  <div className="dim-name">Macro</div>
+                  <div className="dim-desc">Position dans le cycle, géopolitique, fenêtre temporelle critique, capital VC sur le segment.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">05</div>
+                  <div className="dim-name">Extraction financière</div>
+                  <div className="dim-desc">Données financières du deck et du business plan, projections, hypothèses sous-jacentes.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">06</div>
+                  <div className="dim-name">Pattern matching</div>
+                  <div className="dim-desc">Confrontation au corpus de cas instruits historiques, identification des trajectoires comparables.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">07</div>
+                  <div className="dim-name">Retournement causal</div>
+                  <div className="dim-desc">Sept angles morts du métier VC et questions critiques à instruire en due diligence.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">08</div>
+                  <div className="dim-name">Aveuglement collectif</div>
+                  <div className="dim-desc">Détection des dix patterns d'erreur de jugement systémique du métier (Theranos, WeWork, Ynsect).</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">09</div>
+                  <div className="dim-name">Singularités contrariennes</div>
+                  <div className="dim-desc">Détection des dix signaux qui justifient le pari à contre-courant (Wiz, Stripe, Deepmind).</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">10</div>
+                  <div className="dim-name">Cohérence financière</div>
+                  <div className="dim-desc">Sept tests de cohérence des projections et unit economics, calibrés selon le business model.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">11</div>
+                  <div className="dim-name">Orchestration</div>
+                  <div className="dim-desc">Synthèse, probabilités chiffrées par dimension, résolution dialectique de la tension d'investissement.</div>
+                </li>
+                <li className="dim-card">
+                  <div className="dim-num">12</div>
+                  <div className="dim-name">Reference checks</div>
+                  <div className="dim-desc">Plan d'appels DD terrain : fondateurs, clients, gouvernance, signaux faibles à vérifier.</div>
+                </li>
+              </ol>
+            </section>
+
+            {/* SECTION 4 - Pour qui */}
+            <section className="landing-section">
+              <div className="landing-h2-block">
+                <div className="landing-h2-num">III.</div>
+                <h2 className="landing-h2">Pensé pour les comités d'investissement européens.</h2>
+              </div>
+              <div className="landing-prose">
+                <p>
+                  Prélude s'adresse aux fonds early-stage et growth-stage qui instruisent en moyenne 200 à 500 dossiers par an et n'en transforment qu'une poignée. Le goulot d'étranglement n'est pas l'accès au deal flow, c'est la qualité et la profondeur de l'instruction.
+                </p>
+                <p>
+                  La plateforme est calibrée pour les exigences du marché européen : sources consolidées trimestriellement (Atomico, PitchBook, Bain, Correlation Ventures), pipeline réglementaire EU 2026 (28e régime, AI Development Act, Quantum Act), comparables européens 2024-2026 (Helsing, Mistral, NScale, Quantum-Systems).
+                </p>
+              </div>
+            </section>
+
+            {/* SECTION 5 - Le livrable */}
+            <section className="landing-section">
+              <div className="landing-h2-block">
+                <div className="landing-h2-num">IV.</div>
+                <h2 className="landing-h2">Une note d'investissement IC-ready en quelques minutes.</h2>
+              </div>
+              <p className="landing-section-intro">
+                En sortie de pipeline, Prélude produit une note d'instruction structurée comme un memo de partner senior : argumentaire dialectique, scores chiffrés, conditions actionnables.
+              </p>
+              <div className="deliverable-grid">
+                <div className="deliverable-block">
+                  <div className="deliverable-num">1.</div>
+                  <div className="deliverable-name">Company &amp; Project</div>
+                  <div className="deliverable-desc">Synthèse du dossier, executive staff, projections financières, modèle économique.</div>
+                </div>
+                <div className="deliverable-block">
+                  <div className="deliverable-num">2.</div>
+                  <div className="deliverable-name">Investment Thesis</div>
+                  <div className="deliverable-desc">Verdict, score chiffré, probabilité de succès. The case for, the case against, dialectical resolution.</div>
+                </div>
+                <div className="deliverable-block">
+                  <div className="deliverable-num">3.</div>
+                  <div className="deliverable-name">Risk &amp; Comparables</div>
+                  <div className="deliverable-desc">Strategic, operational, financial risks. Competitive positioning. Comparables historiques internationaux.</div>
+                </div>
+                <div className="deliverable-block">
+                  <div className="deliverable-num">4.</div>
+                  <div className="deliverable-name">Transaction &amp; Conditions</div>
+                  <div className="deliverable-desc">Stage, nominal, valuation. Conditions clés actionnables, plan de structuring 0-3 / 3-12 / 12+ mois.</div>
+                </div>
+              </div>
+            </section>
+
+            {/* SECTION 6 - Méthode et sources */}
+            <section className="landing-section">
+              <div className="landing-h2-block">
+                <div className="landing-h2-num">V.</div>
+                <h2 className="landing-h2">Quatre sources externes, consolidées trimestriellement.</h2>
+              </div>
+              <p className="landing-section-intro">
+                La rigueur méthodologique de Prélude repose sur un corpus externe consolidé chaque trimestre, qui sert de borne calibrée pour tous les jugements quantitatifs.
+              </p>
+              <ol className="sources-grid">
+                <li className="source-card">
+                  <div className="source-num">01</div>
+                  <div className="source-name">PitchBook-NVCA</div>
+                  <div className="source-edition">Venture Monitor Q1 2026</div>
+                  <div className="source-desc">Médianes pré-money par stade, séparation IA vs non-IA, concentration extrême du capital US, step-up médian.</div>
+                </li>
+                <li className="source-card">
+                  <div className="source-num">02</div>
+                  <div className="source-name">Atomico</div>
+                  <div className="source-edition">State of European Tech 2025</div>
+                  <div className="source-desc">Profondeur du marché européen, allocation pension funds VC, Mighty 50, pipeline réglementaire EU 2026.</div>
+                </li>
+                <li className="source-card">
+                  <div className="source-num">03</div>
+                  <div className="source-name">Bain &amp; Company</div>
+                  <div className="source-edition">Global Private Equity Report 2025</div>
+                  <div className="source-desc">Liquidité LP, distributions to NAV, gap fundraising entre top et bottom quartile, multiples buyout EBITDA.</div>
+                </li>
+                <li className="source-card">
+                  <div className="source-num">04</div>
+                  <div className="source-name">Correlation &amp; Cambridge</div>
+                  <div className="source-edition">Power-law VC returns</div>
+                  <div className="source-desc">Loi de puissance des retours VC, benchmarks TRI et TVPI par quartile, persistance Kaplan-Schoar.</div>
+                </li>
+              </ol>
+            </section>
+
+            {/* SECTION 7 - CTA upload */}
+            <section className="landing-section landing-cta-section" id="commencer">
+              <div className="landing-h2-block">
+                <div className="landing-h2-num">VI.</div>
+                <h2 className="landing-h2">Commencer l'instruction.</h2>
+              </div>
+              <p className="landing-section-intro">
+                Déposez un dossier d'investissement complet : pitch deck PDF, business plan Excel ou CSV, et tout autre document utile. Le pipeline démarre immédiatement.
+              </p>
+
+              {files.length === 0 ? (
+                <div className={`upload-box ${dragging ? 'dragging' : ''}`}
+                  onClick={() => inputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragging(false); handleFilesSelect(e.dataTransfer.files); }}>
+                  <div className="upload-icon">▤</div>
+                  <div className="upload-label">Déposer un dossier d'investissement</div>
+                  <div className="upload-hint">PDF (deck), XLSX/CSV (BP), 32 Mo max par fichier · Cliquer ou glisser-déposer · Plusieurs fichiers acceptés</div>
+                  <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                    className="upload-input"
+                    onChange={(e) => handleFilesSelect(e.target.files)} />
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    {files.map((f, i) => {
+                      const lower = f.name.toLowerCase();
+                      const isPdf = f.type.includes('pdf') || lower.endsWith('.pdf');
+                      const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv');
+                      const nature = lower.includes('business plan') || lower.includes('bp ') || lower.includes('financial') || isExcel
+                        ? 'Business Plan'
+                        : (lower.includes('pitch') || lower.includes('deck') || lower.includes('teaser') || isPdf ? 'Pitch Deck' : 'Document');
+                      return (
+                        <div key={i} className="file-info" style={{ marginBottom: 8 }}>
+                          <div>
+                            <div className="file-name">{f.name}</div>
+                            <div className="file-size">{(f.size / 1024 / 1024).toFixed(2)} Mo · <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10, opacity: 0.7 }}>{nature}</span></div>
+                          </div>
+                          <button className="btn" onClick={() => removeFile(i)}>Retirer</button>
+                        </div>
+                      );
+                    })}
+                    <button className="btn" style={{ marginTop: 8 }} onClick={() => inputRef.current?.click()}>+ Ajouter un fichier</button>
+                    <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                      style={{ display: 'none' }}
+                      onChange={(e) => { handleFilesSelect(e.target.files); if (inputRef.current) inputRef.current.value = ''; }} />
+                  </div>
+                  <div className="cta-row">
+                    <button className="btn btn-primary" onClick={analyze}>Lancer le pipeline →</button>
+                  </div>
+                </>
+              )}
+
+              {error && <div className="error-box"><div className="error-title">Erreur</div><div>{error}</div></div>}
+            </section>
+
+            {/* COLOPHON FOOTER */}
+            <footer className="landing-footer">
+              <div className="landing-footer-line">Prélude · Plateforme d'instruction VC européenne</div>
+              <div className="landing-footer-line muted">Document confidentiel · Usage strictement interne au Comité d'Investissement</div>
+            </footer>
           </>
         )}
 

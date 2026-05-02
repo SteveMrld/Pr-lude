@@ -138,6 +138,282 @@ ul, ol { list-style: none; }
   color: var(--ink);
 }
 
+/* ========================================================================
+   LANDING PAGE - Refonte editoriale type FT/Bloomberg/Le Grand Continent
+   Sections : Hero / I. Probleme / II. 12 dimensions / III. Pour qui /
+              IV. Livrable / V. Sources / VI. Upload / Footer colophon
+   ======================================================================== */
+
+/* HERO - Au-dessus de la pliure */
+.landing-hero {
+  padding-bottom: 64px;
+  border-bottom: 1px solid var(--ink);
+  margin-bottom: 64px;
+  position: relative;
+}
+.landing-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--ink);
+  opacity: 0.4;
+}
+.hero-cta-row {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.hero-cta-row .btn {
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* SECTION GENERIQUE */
+.landing-section {
+  margin-bottom: 80px;
+  padding-top: 8px;
+}
+
+/* H2 BLOCK - Numero romain en italique gris a gauche, titre serif gros.
+   Meme principe que les sections numerotees de la note. */
+.landing-h2-block {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--ink);
+}
+.landing-h2-num {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted-soft);
+  font-feature-settings: "lnum";
+  flex-shrink: 0;
+}
+.landing-h2 {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: var(--ink);
+  margin: 0;
+}
+
+.landing-section-intro {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 780px;
+  margin-bottom: 32px;
+  font-style: italic;
+}
+
+/* PROSE - Texte courant des sections argumentatives (I, III). */
+.landing-prose {
+  max-width: 780px;
+}
+.landing-prose p {
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--ink);
+  margin-bottom: 18px;
+  text-align: justify;
+  hyphens: auto;
+}
+.landing-prose p:first-child::first-letter {
+  font-family: var(--serif);
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 0.85;
+  float: left;
+  margin: 6px 10px 0 0;
+  color: var(--ink);
+}
+.landing-prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* DIMENSIONS GRID - Section II : 12 dimensions d analyse en pipeline. */
+.dimensions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--ink);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dim-card {
+  padding: 24px 22px 26px;
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+  transition: background 0.15s ease;
+  list-style: none;
+}
+.dim-card:hover {
+  background: var(--paper-accent);
+}
+.dim-num {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--muted-soft);
+  margin-bottom: 12px;
+  font-feature-settings: "lnum";
+}
+.dim-name {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.dim-desc {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* DELIVERABLE GRID - Section IV : 4 grands blocs livrable de la note. */
+.deliverable-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-top: 16px;
+}
+.deliverable-block {
+  padding: 24px 24px 26px;
+  background: var(--paper-accent);
+  border-left: 3px solid var(--ink);
+  position: relative;
+}
+.deliverable-num {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted-soft);
+  margin-bottom: 8px;
+  font-feature-settings: "lnum";
+}
+.deliverable-name {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+  color: var(--ink);
+}
+.deliverable-desc {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+/* SOURCES GRID - Section V : 4 sources externes en cartes avec puce numero. */
+.sources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  list-style: none;
+  padding: 0;
+  margin-top: 16px;
+}
+.source-card {
+  padding: 26px 24px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+  list-style: none;
+  position: relative;
+}
+.source-num {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--muted-soft);
+  margin-bottom: 14px;
+  font-feature-settings: "lnum";
+}
+.source-name {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.source-edition {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.source-desc {
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+/* CTA SECTION - Section VI : zone d upload, plus saturee pour signaler l action. */
+.landing-cta-section {
+  background: var(--paper-accent);
+  padding: 48px 40px 56px;
+  margin-left: -40px;
+  margin-right: -40px;
+  margin-bottom: 48px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+.landing-cta-section .upload-box {
+  background: var(--paper);
+}
+
+/* FOOTER COLOPHON - Bas de page style colophon de publication. */
+.landing-footer {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid var(--ink);
+  text-align: center;
+}
+.landing-footer-line {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  line-height: 1.8;
+}
+.landing-footer-line.muted {
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
 /* UPLOAD - Encart d invitation a l action, style editorial.
    Pas de border dashed criard SaaS, mais un cadre fin avec accent au hover.
    Texte d'invitation en serif, hint en sans-serif uppercase. */
@@ -501,6 +777,49 @@ ul, ol { list-style: none; }
   .upload-box::before { top: 8px; left: 8px; right: 8px; bottom: 8px; }
   .upload-label { font-size: 19px; }
   .upload-hint { font-size: 10px; line-height: 1.6; }
+
+  /* LANDING SECTIONS RESPONSIVE */
+  .landing-hero { padding-bottom: 44px; margin-bottom: 48px; }
+  .hero-cta-row { flex-direction: column; gap: 10px; }
+  .hero-cta-row .btn { width: 100%; text-align: center; padding: 14px 22px; }
+
+  .landing-section { margin-bottom: 56px; }
+  .landing-h2-block { gap: 12px; padding-bottom: 12px; margin-bottom: 20px; }
+  .landing-h2-num { font-size: 18px; }
+  .landing-h2 { font-size: 24px; line-height: 1.2; }
+  .landing-section-intro { font-size: 15.5px; margin-bottom: 24px; }
+
+  .landing-prose p {
+    font-size: 15.5px;
+    line-height: 1.7;
+    text-align: left;
+    hyphens: none;
+  }
+  .landing-prose p:first-child::first-letter {
+    font-size: 44px;
+    margin: 4px 8px 0 0;
+  }
+
+  .dimensions-grid { grid-template-columns: 1fr; }
+  .dim-card { padding: 20px 18px 22px; }
+  .dim-name { font-size: 17px; }
+
+  .deliverable-grid { grid-template-columns: 1fr; gap: 16px; }
+  .deliverable-block { padding: 20px 20px 22px; }
+  .deliverable-name { font-size: 18px; }
+
+  .sources-grid { grid-template-columns: 1fr; gap: 16px; }
+  .source-card { padding: 22px 20px; }
+  .source-name { font-size: 19px; }
+
+  .landing-cta-section {
+    padding: 36px 22px 40px;
+    margin-left: -22px;
+    margin-right: -22px;
+  }
+
+  .landing-footer { margin-top: 24px; padding-top: 24px; }
+  .landing-footer-line { font-size: 9px; letter-spacing: 0.14em; }
 
   .result-section { padding: 22px 20px; }
   .pipeline { padding: 22px 20px; }
