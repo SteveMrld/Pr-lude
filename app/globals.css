@@ -681,38 +681,99 @@ ul, ol { list-style: none; }
 .flag-list li { padding: 4px 0; font-size: 13px; line-height: 1.5; padding-left: 12px; position: relative; }
 .flag-list li::before { content: '·'; position: absolute; left: 0; }
 
-/* TABS */
-.tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--hairline); margin-bottom: 0; padding: 0 32px; background: var(--surface); }
-.tab { padding: 14px 0; font-size: 13.5px; color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.12s; white-space: nowrap; }
-.tab:hover { color: var(--ink); }
-.tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 500; }
+/* DASHBOARD LAYOUT - Sidebar sticky + contenu.
+   Refonte de la navigation : les 14 sections d analyse sont regroupees en
+   4 categories semantiques (Diagnostic chiffre, Lecture critique, Lecture
+   dialectique, Decision) et accessibles via une sidebar verticale sticky
+   sur desktop. Sur mobile (< 1024px), bascule vers un selecteur natif. */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  margin-bottom: 16px;
+  align-items: start;
+}
 
-/* Separateur visuel entre groupes d onglets sur desktop. Trait fin vertical
-   qui clarifie la hierarchie sans alourdir. */
-.tabs-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--hairline);
-  margin: 0 4px;
-  align-self: center;
+.dashboard-sidebar {
+  position: sticky;
+  top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  padding: 22px 0 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  font-family: var(--sans);
+}
+
+.dashboard-content {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  min-width: 0; /* indispensable pour eviter overflow horizontal en grid */
+}
+
+.sidebar-group {
+  padding: 0 18px;
+  margin-bottom: 18px;
+}
+.sidebar-group + .sidebar-group {
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline-soft);
+}
+.sidebar-group:last-child {
+  margin-bottom: 0;
+}
+.sidebar-group-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  padding-left: 12px;
+  font-weight: 500;
+}
+.sidebar-tab {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px 8px 12px;
+  font-size: 13.5px;
+  color: var(--muted);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.12s;
+  margin-bottom: 1px;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.35;
+}
+.sidebar-tab:hover {
+  color: var(--ink);
+  background: rgba(26, 46, 74, 0.03);
+}
+.sidebar-tab.active {
+  color: var(--ink);
+  border-left-color: var(--accent);
+  background: rgba(26, 46, 74, 0.05);
+  font-weight: 500;
 }
 
 /* Selecteur mobile : compact, lisible, accessible. Affiche la categorie courante
-   en surlabel pour orientation, puis un select natif pour la navigation rapide. */
-.tabs-mobile {
+   en surlabel pour orientation, puis un select natif pour la navigation rapide.
+   Visible quand la sidebar est masquee (< 1024px). */
+.dashboard-mobile-nav {
   display: none;
   padding: 14px 18px;
   border-bottom: 1px solid var(--hairline);
   background: var(--surface);
 }
-.tabs-mobile-context {
+.dashboard-mobile-context {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 6px;
 }
-.tabs-mobile-select {
+.dashboard-mobile-select {
   width: 100%;
   padding: 12px 14px;
   font-size: 15px;
@@ -728,10 +789,19 @@ ul, ol { list-style: none; }
   background-repeat: no-repeat;
   background-position: right 14px center;
   padding-right: 36px;
+  font-family: inherit;
 }
-.tabs-mobile-select:focus {
+.dashboard-mobile-select:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* Sous 1024px : pas de place pour sidebar + contenu cote a cote, on bascule
+   en colonne unique avec dropdown au-dessus du contenu. */
+@media (max-width: 1023px) {
+  .dashboard-grid { grid-template-columns: 1fr; gap: 0; }
+  .dashboard-sidebar { display: none; }
+  .dashboard-mobile-nav { display: block; }
 }
 
 /* ERROR */
@@ -832,10 +902,6 @@ ul, ol { list-style: none; }
   .flags-row { grid-template-columns: 1fr; }
   .cta-row { flex-direction: column-reverse; }
   .cta-row .btn { width: 100%; padding: 14px 22px; }
-
-  /* Sur mobile, on bascule de la barre horizontale vers le dropdown */
-  .tabs-desktop { display: none; }
-  .tabs-mobile { display: block; }
 }
 
 /* PRINT : export PDF de la note d'investissement.
@@ -860,11 +926,20 @@ ul, ol { list-style: none; }
   .upload-box-active,
   .pipeline,
   .reset-row,
-  .tabs,
+  .dashboard-sidebar,
+  .dashboard-mobile-nav,
   .toggle-row-print-hide,
   .print-hide,
   button {
     display: none !important;
+  }
+
+  /* En print, le grid s aplatit pour rendre tout le contenu en flux. */
+  .dashboard-grid {
+    display: block !important;
+  }
+  .dashboard-content {
+    border: none !important;
   }
 
   /* La zone main pleine largeur sans padding fantaisiste en print */

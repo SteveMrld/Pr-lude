@@ -726,59 +726,82 @@ export default function Home() {
               )}
             </div>
 
-            {/* Tabs navigation - groupes logiques pour desktop, dropdown pour mobile */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--hairline)', marginBottom: 16 }}>
-              {(() => {
-                // Definition centralisee : 14 onglets repartis en 4 groupes logiques
-                const tabGroups = [
-                  {
-                    label: 'Décision',
-                    tabs: [
-                      { id: 'synthesis', label: 'Synthèse' },
-                      { id: 'dimensions', label: 'Dimensions chiffrées' },
-                    ],
-                  },
-                  {
-                    label: 'Analyse fondamentale',
-                    tabs: [
-                      { id: 'team', label: 'Équipe' },
-                      { id: 'verified', label: 'Données vérifiées' },
-                      { id: 'market', label: 'Marché' },
-                      { id: 'macro', label: 'Macro' },
-                    ],
-                  },
-                  {
-                    label: 'Analyse critique',
-                    tabs: [
-                      { id: 'financial', label: 'Cohérence financière' },
-                      { id: 'pattern', label: 'Pattern matching' },
-                      { id: 'aveuglement', label: 'Aveuglement' },
-                      { id: 'singularite', label: 'Singularités' },
-                      { id: 'blindspots', label: 'Angles morts' },
-                    ],
-                  },
-                  {
-                    label: "Plan d'action",
-                    tabs: [
-                      { id: 'risksplan', label: 'Risques & Plan' },
-                      { id: 'refchecks', label: 'Reference checks' },
-                      { id: 'instruction', label: 'À instruire' },
-                    ],
-                  },
-                ];
-                const allTabs = tabGroups.flatMap(g => g.tabs);
-                const currentTab = allTabs.find(t => t.id === activeTab);
-                const currentGroup = tabGroups.find(g => g.tabs.some(t => t.id === activeTab));
+            {/* Dashboard navigation - sidebar sticky desktop, dropdown mobile.
+                Les 14 dimensions d analyse sont regroupees en 4 sections
+                semantiques pour clarifier la hierarchie de lecture :
+                  1. Diagnostic chiffre  : la matiere brute du dossier
+                  2. Lecture critique    : confrontation aux corpus de cas
+                  3. Lecture dialectique : aveuglement vs singularite
+                  4. Decision            : plan d action et points a instruire */}
+            {(() => {
+              const tabGroups = [
+                {
+                  label: 'Diagnostic chiffré',
+                  tabs: [
+                    { id: 'synthesis', label: 'Synthèse' },
+                    { id: 'dimensions', label: 'Dimensions chiffrées' },
+                    { id: 'team', label: 'Équipe' },
+                    { id: 'verified', label: 'Données vérifiées' },
+                    { id: 'market', label: 'Marché' },
+                    { id: 'macro', label: 'Macro' },
+                  ],
+                },
+                {
+                  label: 'Lecture critique',
+                  tabs: [
+                    { id: 'financial', label: 'Cohérence financière' },
+                    { id: 'pattern', label: 'Pattern matching' },
+                  ],
+                },
+                {
+                  label: 'Lecture dialectique',
+                  tabs: [
+                    { id: 'aveuglement', label: 'Aveuglement' },
+                    { id: 'singularite', label: 'Singularités' },
+                    { id: 'blindspots', label: 'Angles morts' },
+                  ],
+                },
+                {
+                  label: 'Décision',
+                  tabs: [
+                    { id: 'risksplan', label: 'Risques & Plan' },
+                    { id: 'refchecks', label: 'Reference checks' },
+                    { id: 'instruction', label: 'À instruire' },
+                  ],
+                },
+              ];
+              const currentGroup = tabGroups.find(g => g.tabs.some(t => t.id === activeTab));
 
-                return (
-                  <>
-                    {/* MOBILE : dropdown compact qui montre la categorie + l onglet courant */}
-                    <div className="tabs-mobile">
-                      <div className="tabs-mobile-context">
+              return (
+                <div className="dashboard-grid">
+                  {/* SIDEBAR DESKTOP : navigation verticale sticky */}
+                  <aside className="dashboard-sidebar" aria-label="Sections d analyse">
+                    {tabGroups.map(group => (
+                      <div className="sidebar-group" key={group.label}>
+                        <div className="sidebar-group-label">{group.label}</div>
+                        {group.tabs.map(t => (
+                          <button
+                            key={t.id}
+                            className={`sidebar-tab ${activeTab === t.id ? 'active' : ''}`}
+                            onClick={() => setActiveTab(t.id)}
+                            aria-current={activeTab === t.id ? 'page' : undefined}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </aside>
+
+                  {/* CONTENU : panneaux conditionnels */}
+                  <div className="dashboard-content">
+                    {/* MOBILE NAV : dropdown natif au-dessus du contenu, visible < 1024px */}
+                    <div className="dashboard-mobile-nav">
+                      <div className="dashboard-mobile-context">
                         {currentGroup?.label || ''}
                       </div>
                       <select
-                        className="tabs-mobile-select"
+                        className="dashboard-mobile-select"
                         value={activeTab}
                         onChange={(e) => setActiveTab(e.target.value)}
                         aria-label="Naviguer entre les sections d analyse"
@@ -793,29 +816,7 @@ export default function Home() {
                       </select>
                     </div>
 
-                    {/* DESKTOP : barre horizontale groupee avec separateurs */}
-                    <div className="tabs tabs-desktop">
-                      {tabGroups.map((group, gi) => (
-                        <span key={group.label} style={{ display: 'contents' }}>
-                          {gi > 0 && <div className="tabs-divider" aria-hidden="true" />}
-                          {group.tabs.map(t => (
-                            <div
-                              key={t.id}
-                              className={`tab ${activeTab === t.id ? 'active' : ''}`}
-                              onClick={() => setActiveTab(t.id)}
-                              title={`${group.label} · ${t.label}`}
-                            >
-                              {t.label}
-                            </div>
-                          ))}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* Tab content */}
+                    {/* Tab content */}
               {(activeTab === 'synthesis' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
                   {/* Bloc visuel : jauge probabilite + radar 6 dimensions */}
@@ -2051,7 +2052,10 @@ export default function Home() {
                   </ul>
                 </div>
               )}
-            </div>
+                  </div>
+                </div>
+              );
+            })()}
               </>
             )}
 
