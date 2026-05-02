@@ -139,6 +139,55 @@ export default function InvestmentNoteView({ result }: Props) {
           );
         })()}
 
+        {/* Bloc evidence Tier 1 : registres officiels, brevets, BODACC.
+            Affiche le niveau d instruction global et la liste des citations
+            avec leur tier editorial. Visible uniquement quand le moteur a
+            collecte au moins une evidence Tier 1. */}
+        {t.tieredEvidence && (
+          <div className="note-tier-evidence">
+            <h3 className="note-h3">Sources d&apos;instruction Tier 1</h3>
+            {t.tieredEvidence.instructionLevel === 'insufficient' && (
+              <div className="note-instruction-warning">
+                <strong>INSTRUCTION INSUFFISANTE</strong> — Le dossier n&apos;a pas pu etre instruit
+                par des sources primaires (registres officiels, brevets, BODACC). Les conclusions
+                ci-dessous reposent principalement sur des sources de contexte. Une diligence
+                complementaire est requise avant decision.
+              </div>
+            )}
+            {t.tieredEvidence.instructionLevel === 'partial' && (
+              <div className="note-instruction-partial">
+                Instruction partielle — Sources primaires incompletes. Lecture a calibrer.
+              </div>
+            )}
+            <div className="note-tier-summary">
+              {t.tieredEvidence.perFounder.map((f: any, i: number) => (
+                <div key={i} className="note-tier-founder">
+                  <span className="note-tier-founder-name">{f.name}</span>
+                  <span className="note-tier-founder-meta">
+                    {f.epoPatentsCount === 0
+                      ? 'Aucun brevet EPO retrouve sous ce nom'
+                      : `${f.epoPatentsCount} brevet(s) EPO retrouve(s)`}
+                    {f.bodaccProcedures > 0 && ` · ${f.bodaccProcedures} procedure(s) BODACC detectee(s)`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {t.tieredEvidence.citations.length > 0 && (
+              <ul className="note-tier-citations">
+                {t.tieredEvidence.citations.map((c: any, i: number) => (
+                  <li key={i}>
+                    <a href={c.url} target="_blank" rel="noopener noreferrer">
+                      {c.title}
+                    </a>
+                    <span className={`note-tier-badge tier-${c.tier}`}>Tier {c.tier}</span>
+                    {c.date && <span className="note-tier-date">{c.date}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {fd && fd.revenueProjection?.length > 0 && (
           <>
             <h3 className="note-h3">Company financials</h3>
@@ -1125,6 +1174,106 @@ export default function InvestmentNoteView({ result }: Props) {
           text-transform: uppercase;
           color: #6a655d;
           margin-right: 6px;
+        }
+
+        /* TIER EVIDENCE BLOCK - Sources d instruction Tier 1.
+           Bloc qui materialise la qualite de l instruction du dossier en
+           citant explicitement les sources primaires (registres, brevets,
+           BODACC) avec leur tier editorial. */
+        .note-tier-evidence {
+          margin: 28px 0;
+          padding: 22px 24px;
+          background: #f4f0e6;
+          border-left: 3px solid #1a2e4a;
+        }
+        .note-tier-evidence .note-h3 {
+          margin-top: 0;
+        }
+        .note-instruction-warning {
+          padding: 12px 16px;
+          background: #fbeae0;
+          border-left: 3px solid #b85c1a;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 13.5px;
+          line-height: 1.6;
+          color: #1d1c1a;
+          margin-bottom: 14px;
+        }
+        .note-instruction-warning strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #b85c1a;
+          margin-right: 6px;
+          font-weight: 700;
+        }
+        .note-instruction-partial {
+          padding: 10px 14px;
+          background: #f0e8d4;
+          border-left: 3px solid #8a7a3c;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 13px;
+          color: #5a4f28;
+          margin-bottom: 14px;
+        }
+        .note-tier-summary {
+          margin-bottom: 16px;
+        }
+        .note-tier-founder {
+          padding: 6px 0;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 13.5px;
+          line-height: 1.6;
+        }
+        .note-tier-founder-name {
+          font-weight: 600;
+          color: #1d1c1a;
+          margin-right: 10px;
+        }
+        .note-tier-founder-meta {
+          color: #5a564e;
+        }
+        .note-tier-citations {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          border-top: 1px solid #d8d2c5;
+          padding-top: 14px;
+        }
+        .note-tier-citations li {
+          padding: 6px 0;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 12.5px;
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .note-tier-citations a {
+          color: #1a2e4a;
+          text-decoration: none;
+          border-bottom: 1px solid #c8c2b4;
+          transition: border-color 0.12s;
+        }
+        .note-tier-citations a:hover {
+          border-bottom-color: #1a2e4a;
+        }
+        .note-tier-badge {
+          font-size: 9.5px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          padding: 2px 7px;
+          font-weight: 600;
+        }
+        .note-tier-badge.tier-1 { background: #1a2e4a; color: #fbfaf7; }
+        .note-tier-badge.tier-2 { background: #3a5378; color: #fbfaf7; }
+        .note-tier-badge.tier-3 { background: #8a7a3c; color: #fbfaf7; }
+        .note-tier-badge.tier-4 { background: #a8a39a; color: #fbfaf7; }
+        .note-tier-date {
+          font-size: 11px;
+          color: #6a655d;
+          font-variant-numeric: tabular-nums;
         }
 
         /* VERDICT BOX - Boîte de récap chiffres clés. Style sobre fond crème

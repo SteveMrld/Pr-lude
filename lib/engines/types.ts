@@ -128,6 +128,33 @@ export interface TeamAnalysisOutput {
     redFlagsForRole: string[]; // red flags spécifiques pour son rôle
   }>;
   realData?: any[]; // FounderRealData[] - voir lib/data-fetchers/sources.ts
+  /**
+   * Bloc d evidence Tier 1 collecte par les adapters lib/sources/adapters/.
+   * Ces sources sont decisives au sens du registre editorial (registres
+   * officiels, brevets) et viennent enrichir l analyse founder-by-founder.
+   * Optionnel : peut etre absent si aucun adapter Tier 1 n a remonte de
+   * resultat (la source est toujours optionnelle, jamais bloquante).
+   */
+  tieredEvidence?: {
+    /** Citations toutes sources confondues, avec leur tier. */
+    citations: Array<{
+      sourceId: string;
+      url: string;
+      title: string;
+      date?: string;
+      tier: 1 | 2 | 3 | 4;
+    }>;
+    /** Niveau d instruction global pour ce moteur. */
+    instructionLevel: 'solid' | 'partial' | 'insufficient';
+    /** Sources Tier 1 mobilisees, par fondateur. */
+    perFounder: Array<{
+      name: string;
+      epoPatentsCount: number;
+      epoPatentsSample: string[];
+      pappersMatch: { siren: string; name: string; url: string } | null;
+      bodaccProcedures: number;
+    }>;
+  };
 }
 
 export interface MarketAnalysisOutput {
