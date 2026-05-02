@@ -12,7 +12,12 @@ import { analyzeFinancialCoherence } from '@/lib/engines/financial-coherence-eng
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { processFiles } from '@/lib/file-processor';
 
-export const maxDuration = 300; // 5 minutes max (Vercel Hobby plan limit)
+// Vercel Pro permet jusqu a 800s par function (13 min). Avec 12 moteurs
+// Claude dont certains prennent 60s+ chacun, on a besoin de cette marge
+// pour les dossiers complexes type Pen Group qui mobilisent toute la
+// machinerie. Mesure logs prod : pipeline complet ~210-300s en fonction
+// de la latence Anthropic du moment.
+export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
