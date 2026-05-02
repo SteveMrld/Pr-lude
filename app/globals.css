@@ -225,6 +225,53 @@ ul, ol { list-style: none; }
 .tab:hover { color: var(--ink); }
 .tab.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 500; }
 
+/* Separateur visuel entre groupes d onglets sur desktop. Trait fin vertical
+   qui clarifie la hierarchie sans alourdir. */
+.tabs-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--hairline);
+  margin: 0 4px;
+  align-self: center;
+}
+
+/* Selecteur mobile : compact, lisible, accessible. Affiche la categorie courante
+   en surlabel pour orientation, puis un select natif pour la navigation rapide. */
+.tabs-mobile {
+  display: none;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface);
+}
+.tabs-mobile-context {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.tabs-mobile-select {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+.tabs-mobile-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ERROR */
 .error-box {
   padding: 24px 28px; background: rgba(160, 62, 39, 0.06);
@@ -252,7 +299,10 @@ ul, ol { list-style: none; }
   .flags-row { grid-template-columns: 1fr; }
   .cta-row { flex-direction: column-reverse; }
   .cta-row .btn { width: 100%; }
-  .tabs { padding: 0 18px; gap: 16px; flex-wrap: wrap; }
+
+  /* Sur mobile, on bascule de la barre horizontale vers le dropdown */
+  .tabs-desktop { display: none; }
+  .tabs-mobile { display: block; }
 }
 
 /* PRINT : export PDF de la note d'investissement.
