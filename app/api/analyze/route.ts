@@ -10,6 +10,7 @@ import { analyzeContrarian } from '@/lib/engines/contrarian-engine';
 import { extractFinancialData } from '@/lib/engines/financial-extraction-engine';
 import { analyzeFinancialCoherence } from '@/lib/engines/financial-coherence-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
+import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { processFiles } from '@/lib/file-processor';
 
 // Vercel Pro permet jusqu a 800s par function (13 min). Avec 12 moteurs
@@ -108,6 +109,30 @@ export async function POST(req: NextRequest) {
           );
           send('engine-done', { engine: 'orchestrate', output: finalRecommendation });
 
+          // Moteur 12 : Reference Checks (plan d appels DD terrain).
+          // Genere le plan d appels (founders, customers, board) avec questions
+          // calibrees Golden Seeds / GCV. Non-bloquant : si echec, on continue
+          // sans cette section et le bandeau pipeline marque l etape comme
+          // 'done' avec output null (l UI affichera juste 'pas de plan d appels
+          // disponible' au lieu de planter).
+          //
+          // Bug historique corrige ici : auparavant cette route /api/analyze
+          // s arretait a l orchestration et envoyait directement send('complete'),
+          // alors que la liste ENGINES cote client comporte 12 moteurs. Le
+          // bandeau pipeline restait donc bloque sur l etape 'reference-checks'
+          // en statut 'idle' apres le verdict. Le moteur ne tournait que dans
+          // lib/pipeline-runner.ts qui n est pas utilise par la route en live.
+          send('engine-start', { engine: 'reference-checks', label: 'Plan d\'appels DD terrain' });
+          let referenceChecks: any = null;
+          try {
+            referenceChecks = await generateReferenceChecks(
+              extraction, team, blindspotAnalysis, causalReversal,
+            );
+          } catch (err: any) {
+            console.warn('[reference-checks] engine failed, continuing without:', err?.message);
+          }
+          send('engine-done', { engine: 'reference-checks', output: referenceChecks });
+
           const result = {
             meta: {
               filename: pitchDeck.name,
@@ -126,6 +151,7 @@ export async function POST(req: NextRequest) {
             contrarianAnalysis,
             financialCoherence,
             finalRecommendation,
+            referenceChecks,
           };
 
           send('complete', result);
