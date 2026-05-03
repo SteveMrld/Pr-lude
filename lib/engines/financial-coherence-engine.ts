@@ -231,7 +231,7 @@ ${financialData.rawNotes || '(aucune)'}
 # CONTEXTE MARCHÉ (moteur Marché)
 - Taille perçue : ${market.perceivedSize}
 - Saturation : ${market.saturation}
-- Intensité besoin : ${market.needIntensity.score}/100
+- Intensité besoin : ${market.needIntensity?.score ?? '?'}/100
 
 # BENCHMARK MARCHÉ EXTERNE (moteur Benchmarks Prélude)
 ${benchmarks ? `

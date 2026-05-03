@@ -127,10 +127,10 @@ Géographie : ${extraction.geographicHub}, ${extraction.country}
 Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 
 # Équipe
-Couverture systémique : ${team.systemicCoverage.score}/100 - ${team.systemicCoverage.rationale}
-Anti-fragilité collective : ${team.collectiveAntiFragility.score}/100 - ${team.collectiveAntiFragility.rationale}
-Transposition d'expérience : ${team.experienceTransposition.score}/100
-Obsession produit : ${team.founderObsession.score}/100
+Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100 - ${team.systemicCoverage.rationale}
+Anti-fragilité collective : ${team.collectiveAntiFragility?.score ?? '?'}/100 - ${team.collectiveAntiFragility.rationale}
+Transposition d'expérience : ${team.experienceTransposition?.score ?? '?'}/100
+Obsession produit : ${team.founderObsession?.score ?? '?'}/100
 Pedigree canonique : ${team.pedigreeCanonical}
 Green flags : ${(team.greenFlags || []).join(' | ')}
 Red flags : ${(team.redFlags || []).join(' | ')}
@@ -138,9 +138,9 @@ Red flags : ${(team.redFlags || []).join(' | ')}
 # Marché
 Taille perçue / Intensité réelle : ${market.perceivedSize} / ${market.realIntensity}
 Saturation : ${market.saturation}
-Score signaux organiques : ${market.organicSignals.score}/100
-Score intensité besoin : ${market.needIntensity.score}/100
-Score défensibilité : ${market.defensibility.score}/100
+Score signaux organiques : ${market.organicSignals?.score ?? '?'}/100
+Score intensité besoin : ${market.needIntensity?.score ?? '?'}/100
+Score défensibilité : ${market.defensibility?.score ?? '?'}/100
 Moats : ${(market.defensibility?.moats || []).join(', ')}
 Vulnérabilités : ${(market.defensibility?.vulnerabilities || []).join(', ')}
 
@@ -148,7 +148,7 @@ Vulnérabilités : ${(market.defensibility?.vulnerabilities || []).join(', ')}
 Position cycle : ${macro.cyclePosition}
 Capital VC segment : ${macro.vcCapitalOnSegment}
 Fenêtre critique : ${macro.criticalTimingWindow.exists ? 'OUI - ' + (macro.criticalTimingWindow.horizon || '') : 'Non'}
-Score opportunité contracyclique : ${macro.contraryclicalOpportunity.score}/100
+Score opportunité contracyclique : ${macro.contraryclicalOpportunity?.score ?? '?'}/100
 
 # Pattern Matching
 Archétype dominant : ${patternMatching.archetypeDominant}

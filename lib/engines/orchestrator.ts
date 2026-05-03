@@ -177,17 +177,31 @@ export async function orchestrateFinalRecommendation(
   contrarianAnalysis: ContrarianAnalysisOutput
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
-  const blindspotsAvg = Math.round(
-    Object.values(causalReversal.blindspotsScores).reduce((sum, b) => sum + b.score, 0) /
-    Object.keys(causalReversal.blindspotsScores).length
-  );
-  const blindspotsAlertes = Object.values(causalReversal.blindspotsScores).filter(b => b.alerte).length;
+  // ============================================================
+  // NULL-CHECK DEFENSIF (commit 37aaab8 etendu) :
+  // Si le moteur Causal renvoie un blindspotsScores partiellement
+  // vide ou null (peut arriver sur des PDF courts ou tronques),
+  // l acces direct b.score plante en serveur. On filtre pour ne
+  // garder que les entries valides avant de calculer la moyenne.
+  // ============================================================
+  const blindspotsScoresEntries = Object.values(causalReversal?.blindspotsScores || {})
+    .filter((b: any) => b && typeof b === 'object' && typeof b.score === 'number');
 
-  const aveuglementPatternsDetected = Object.values(blindspotAnalysis.patterns || {}).filter((p: any) => p?.detected).length;
-  const aveuglementHighIntensity = Object.values(blindspotAnalysis.patterns || {}).filter((p: any) => p?.detected && p.intensity >= 60).length;
+  const blindspotsAvg = blindspotsScoresEntries.length > 0
+    ? Math.round(
+        blindspotsScoresEntries.reduce((sum: number, b: any) => sum + b.score, 0) /
+        blindspotsScoresEntries.length
+      )
+    : 50; // fallback neutre si moteur Causal en echec total
 
-  const contrarianSignalsDetected = Object.values(contrarianAnalysis.signals || {}).filter((s: any) => s?.detected).length;
-  const contrarianHighStrength = Object.values(contrarianAnalysis.signals || {}).filter((s: any) => s?.detected && s.strength >= 60).length;
+  const blindspotsAlertes = Object.values(causalReversal?.blindspotsScores || {})
+    .filter((b: any) => b && b.alerte).length;
+
+  const aveuglementPatternsDetected = Object.values(blindspotAnalysis?.patterns || {}).filter((p: any) => p?.detected).length;
+  const aveuglementHighIntensity = Object.values(blindspotAnalysis?.patterns || {}).filter((p: any) => p?.detected && p.intensity >= 60).length;
+
+  const contrarianSignalsDetected = Object.values(contrarianAnalysis?.signals || {}).filter((s: any) => s?.detected).length;
+  const contrarianHighStrength = Object.values(contrarianAnalysis?.signals || {}).filter((s: any) => s?.detected && s.strength >= 60).length;
 
   // Helper pour tronquer les longues syntheses textuelles avant injection dans le prompt.
   // Les enrichissements sessions 3-4 ont allonge les sorties Blindspot/Contrarian/Causal.
@@ -224,23 +238,23 @@ Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 
 # MOTEUR ÉQUIPE
-- Couverture systémique : ${team.systemicCoverage.score}/100
-- Anti-fragilité : ${team.collectiveAntiFragility.score}/100
-- Transposition expérience : ${team.experienceTransposition.score}/100
-- Obsession fondateur : ${team.founderObsession.score}/100
+- Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100
+- Anti-fragilité : ${team.collectiveAntiFragility?.score ?? '?'}/100
+- Transposition expérience : ${team.experienceTransposition?.score ?? '?'}/100
+- Obsession fondateur : ${team.founderObsession?.score ?? '?'}/100
 - Red flags : ${team.redFlags.length} · Green flags : ${team.greenFlags.length}
 
 # MOTEUR MARCHÉ
-- Intensité besoin : ${market.needIntensity.score}/100
-- Signaux organiques : ${market.organicSignals.score}/100
-- Défensibilité : ${market.defensibility.score}/100
+- Intensité besoin : ${market.needIntensity?.score ?? '?'}/100
+- Signaux organiques : ${market.organicSignals?.score ?? '?'}/100
+- Défensibilité : ${market.defensibility?.score ?? '?'}/100
 - ${market.perceivedSize} perçu / ${market.realIntensity} réel · ${market.saturation}
 
 # MOTEUR MACRO
 - Cycle : ${macro.cyclePosition}
 - VC segment : ${macro.vcCapitalOnSegment}
 - Fenêtre critique : ${macro.criticalTimingWindow.exists ? 'OUI ' + (macro.criticalTimingWindow.horizon || '') : 'Non'}
-- Opportunité contracyclique : ${macro.contraryclicalOpportunity.score}/100
+- Opportunité contracyclique : ${macro.contraryclicalOpportunity?.score ?? '?'}/100
 
 # MOTEUR PATTERN MATCHING
 - Archétype : ${patternMatching.archetypeDominant}

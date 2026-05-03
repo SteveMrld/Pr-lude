@@ -245,9 +245,9 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 # SIGNAUX MARCHÉ
 - Taille perçue : ${market.perceivedSize} / Réelle : ${market.realIntensity}
 - Saturation : ${market.saturation}
-- Intensité besoin : ${market.needIntensity.score}/100
-- Signaux organiques : ${market.organicSignals.score}/100
-- Défensibilité : ${market.defensibility.score}/100
+- Intensité besoin : ${market.needIntensity?.score ?? '?'}/100
+- Signaux organiques : ${market.organicSignals?.score ?? '?'}/100
+- Défensibilité : ${market.defensibility?.score ?? '?'}/100
 
 # SIGNAUX MACRO
 - Position cycle : ${macro.cyclePosition}

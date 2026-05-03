@@ -427,7 +427,7 @@ ${JSON.stringify({
   averageAge: team.averageAge,
   sectorExperience: team.sectorExperience,
   riskTaken: team.riskTaken,
-  systemicCoverageScore: team.systemicCoverage.score,
+  systemicCoverageScore: team.systemicCoverage?.score ?? null,
   greenFlags: team.greenFlags,
   redFlags: team.redFlags,
 }, null, 2)}
@@ -437,15 +437,15 @@ ${JSON.stringify({
   perceivedSize: market.perceivedSize,
   realIntensity: market.realIntensity,
   saturation: market.saturation,
-  needIntensityScore: market.needIntensity.score,
-  defensibilityScore: market.defensibility.score,
+  needIntensityScore: market.needIntensity?.score ?? null,
+  defensibilityScore: market.defensibility?.score ?? null,
 }, null, 2)}
 
 Output Moteur Macro :
 ${JSON.stringify({
   cyclePosition: macro.cyclePosition,
   vcCapitalOnSegment: macro.vcCapitalOnSegment,
-  contraryclicalOpportunityScore: macro.contraryclicalOpportunity.score,
+  contraryclicalOpportunityScore: macro.contraryclicalOpportunity?.score ?? null,
   criticalTimingWindow: macro.criticalTimingWindow,
 }, null, 2)}
 
