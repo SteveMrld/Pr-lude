@@ -5,6 +5,7 @@ import InvestmentNoteView from './components/InvestmentNoteView';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
+import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import {
   PictoSeal,
   PictoFlag,
@@ -858,15 +859,24 @@ export default function HomeClient({
                 <div className="reco-score-label">Score global / 100</div>
               </div>
 
-              <div className="reco-arg">{result.finalRecommendation?.argumentation}</div>
+              {/* Recommandation finale - prose dense decoupee en paragraphes
+                  courts (3 phrases chacun) avec chiffres mis en valeur.
+                  Sans cette refonte, la prose etait un mur de 12 lignes
+                  illisible sur mobile et peu engageant en general. */}
+              <div className="reco-arg-aerated">
+                {splitIntoParagraphs(result.finalRecommendation?.argumentation, 3).map((p, i) => (
+                  <p key={i} className="reco-arg-para">{enrichProse(p)}</p>
+                ))}
+              </div>
 
-              {/* Tension dialectique blindspots/contrarian */}
+              {/* Tension dialectique blindspots/contrarian - prose decoupee
+                  en paragraphes courts pour respiration visuelle */}
               {result.finalRecommendation?.blindspotsVsContrarian && (
-                <div style={{ marginTop: 24, padding: '20px 24px', background: 'rgba(255,255,255,0.06)', borderLeft: '2px solid rgba(255,255,255,0.4)' }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
+                <div style={{ marginTop: 28, padding: '24px 28px', background: 'rgba(255,255,255,0.06)', borderLeft: '2px solid rgba(255,255,255,0.4)' }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 14 }}>
                     Résolution dialectique · Aveuglement vs Singularité
                   </div>
-                  <div style={{ display: 'flex', gap: 24, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', gap: 28, marginBottom: 18 }}>
                     <div>
                       <span style={{ opacity: 0.7, fontSize: 12 }}>Poids aveuglement : </span>
                       <span style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{result.finalRecommendation.blindspotsVsContrarian.blindspotsWeight}</span>
@@ -876,8 +886,10 @@ export default function HomeClient({
                       <span style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{result.finalRecommendation.blindspotsVsContrarian.contrarianWeight}</span>
                     </div>
                   </div>
-                  <div style={{ fontSize: 14, opacity: 0.9 }}>
-                    {result.finalRecommendation.blindspotsVsContrarian.resolution}
+                  <div className="reco-dialectique-aerated">
+                    {splitIntoParagraphs(result.finalRecommendation.blindspotsVsContrarian.resolution, 3).map((p, i) => (
+                      <p key={i} className="reco-arg-para">{enrichProse(p)}</p>
+                    ))}
                   </div>
                 </div>
               )}

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 
 interface Props {
   result: any;
@@ -85,7 +86,7 @@ export default function InvestmentNoteView({ result }: Props) {
         </table>
 
         <h3 className="note-h3">History</h3>
-        <p className="note-paragraph">{e.rawSummary || '—'}</p>
+        <p className="note-paragraph">{enrichProse(e.rawSummary) || '—'}</p>
 
         <h3 className="note-h3">Executive Staff</h3>
         {(() => {
@@ -202,10 +203,10 @@ export default function InvestmentNoteView({ result }: Props) {
         <h2 className="note-section-title"><span className="note-section-num">2.</span> Proposed Project</h2>
 
         <h3 className="note-h3">Overall product</h3>
-        <p className="note-paragraph">{e.productDescription || '—'}</p>
+        <p className="note-paragraph">{enrichProse(e.productDescription) || '—'}</p>
 
         <h3 className="note-h3">Business model</h3>
-        <p className="note-paragraph">{e.businessModel || '—'}</p>
+        <p className="note-paragraph">{enrichProse(e.businessModel) || '—'}</p>
 
         {fd?.unitEconomics && (fd.unitEconomics.estimatedCAC !== '' || fd.unitEconomics.averageContractValue !== '') && (
           <>
@@ -233,7 +234,7 @@ export default function InvestmentNoteView({ result }: Props) {
         )}
 
         <h3 className="note-h3">Market opportunity</h3>
-        <p className="note-paragraph">{m.needIntensity?.rationale || '—'}</p>
+        <p className="note-paragraph">{enrichProse(m.needIntensity?.rationale) || '—'}</p>
         {m.defensibility?.moats?.length > 0 && (
           <p className="note-paragraph"><strong>Moats identifiés :</strong> {m.defensibility.moats.join(' · ')}</p>
         )}
@@ -302,7 +303,13 @@ export default function InvestmentNoteView({ result }: Props) {
           </div>
         )}
 
-        <p className="note-paragraph" style={{ marginTop: 18 }}>{reco.argumentation}</p>
+        {/* Argumentation reco - prose dense decoupee en paragraphes
+            courts (3 phrases) avec chiffres-cles mis en valeur. */}
+        <div style={{ marginTop: 18 }}>
+          {splitIntoParagraphs(reco.argumentation, 3).map((p, i) => (
+            <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+          ))}
+        </div>
 
         {/* Pull quote 1 : extrait de l'argumentation du verdict, mis en
             exergue comme dans un article FT. Utilise la première phrase si
@@ -323,7 +330,9 @@ export default function InvestmentNoteView({ result }: Props) {
           <>
             <h3 className="note-h3">The case for</h3>
             {ca.syntheseSingularite && (
-              <p className="note-paragraph">{ca.syntheseSingularite}</p>
+              <>{splitIntoParagraphs(ca.syntheseSingularite, 3).map((p, i) => (
+                <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+              ))}</>
             )}
             {ca.signals && Object.values(ca.signals).filter((s: any) => s?.detected && s.strength >= 60).length > 0 && (
               <>
@@ -373,7 +382,9 @@ export default function InvestmentNoteView({ result }: Props) {
           <>
             <h3 className="note-h3">The case against</h3>
             {ba.syntheseAveuglement && (
-              <p className="note-paragraph">{ba.syntheseAveuglement}</p>
+              <>{splitIntoParagraphs(ba.syntheseAveuglement, 3).map((p, i) => (
+                <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+              ))}</>
             )}
 
             {/* Pull quote 3 : si un pattern historique converge fortement
@@ -453,7 +464,9 @@ export default function InvestmentNoteView({ result }: Props) {
                 <span className="verdict-value">{reco.blindspotsVsContrarian.tensionResolved}</span>
               </div>
             </div>
-            <p className="note-paragraph">{reco.blindspotsVsContrarian.resolution}</p>
+            {splitIntoParagraphs(reco.blindspotsVsContrarian.resolution, 3).map((p, i) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
           </>
         )}
 
@@ -515,7 +528,9 @@ export default function InvestmentNoteView({ result }: Props) {
             {macro.regulatoryEnvironment && (
               <>
                 <h4 className="note-h4">Regulatory environment</h4>
-                <p className="note-paragraph">{macro.regulatoryEnvironment}</p>
+                {splitIntoParagraphs(macro.regulatoryEnvironment, 3).map((p, i) => (
+                  <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+                ))}
               </>
             )}
           </>
@@ -585,14 +600,16 @@ export default function InvestmentNoteView({ result }: Props) {
                 </tbody>
               </table>
             </div>
-            <p className="note-paragraph"><strong>Différenciation :</strong> {m.competitiveMatrix.differentiationRationale}</p>
+            <p className="note-paragraph"><strong>Différenciation :</strong> {enrichProse(m.competitiveMatrix.differentiationRationale)}</p>
           </>
         )}
 
         {fc?.hasFinancialData && (
           <>
             <h3 className="note-h3">Financial assessment</h3>
-            <p className="note-paragraph">{fc.syntheseCoherence}</p>
+            {splitIntoParagraphs(fc.syntheseCoherence, 3).map((p, i) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
             {fc.alertesCritiques?.length > 0 && (
               <div className="alert-box">
                 <strong>Alertes critiques :</strong>
@@ -934,20 +951,94 @@ export default function InvestmentNoteView({ result }: Props) {
           color: var(--ink-tertiary);
         }
 
-        /* PARAGRAPHES - Texte courant serif en 15px, line-height 1.7 pour la
-           lisibilité de longue prose dense. Les paragraphes consécutifs ont
-           un text-indent comme dans un livre, mais pas le premier. */
+        /* PARAGRAPHES - Refonte pour aération maximale.
+           
+           Le passage d'une note dense à un livrable d'IC lisible exige :
+           - Plus d'espace inter-paragraphes (16->24px)
+           - Plus de leading inter-lignes (1.7->1.75)
+           - Pas de justification sur paragraphes longs (la justification
+             produit des "rivières" qui rendent les blocs encore plus denses)
+           - Pas de hyphens auto (idem, casse le rythme visuel)
+           
+           Le plus important : limiter la largeur de colonne (max-width 68ch
+           ~ 680px) pour respecter le confort de lecture optimal de 60-75
+           caracteres par ligne (regle typographique standard).
+        */
         .note-paragraph {
-          margin-bottom: 16px;
-          line-height: 1.7;
-          font-size: 15px;
+          margin: 0 0 22px 0;
+          line-height: 1.78;
+          font-size: 15.5px;
           color: #1d1c1a;
-          text-align: justify;
-          hyphens: auto;
+          text-align: left;
+          hyphens: manual;
+          max-width: 68ch;
+          letter-spacing: 0.005em;
+        }
+        .note-paragraph:last-child {
+          margin-bottom: 0;
         }
         .note-paragraph.muted {
           opacity: 0.55;
           font-style: italic;
+        }
+        
+        /* PARAGRAPHE LARGE - Pour les zones de fond sombre (recommandation
+           finale, résolution dialectique) ou les zones où le paragraphe
+           doit s'étendre (encadrés, alertes). */
+        .note-paragraph-wide {
+          max-width: none;
+        }
+        
+        /* PARAGRAPHE SUR FOND SOMBRE - Le bloc bleu encre de la
+           recommandation finale necessite plus d aération encore parce que
+           le contraste fort fatigue plus vite l œil. On augmente le leading
+           a 1.85 et le margin a 28px pour vraiment respirer. */
+        .note-paragraph-dark {
+          margin: 0 0 28px 0;
+          line-height: 1.85;
+          font-size: 15.5px;
+          color: #f4ede0;
+          text-align: left;
+          hyphens: manual;
+          max-width: 72ch;
+          letter-spacing: 0.005em;
+        }
+        .note-paragraph-dark:last-child {
+          margin-bottom: 0;
+        }
+        
+        /* CHIFFRE-CLÉ - Met en valeur les nombres importants dans la prose
+           (montants EUR, ratios, pourcentages, scores). Pas de couleur
+           agressive : juste un fond legerement contraste, une typo en
+           feature lining-nums pour des chiffres alignes typographiquement,
+           et un peu de poids. Le but est que l œil les attrape sans qu ils
+           hurlent. */
+        .num-key {
+          font-feature-settings: "lnum", "tnum";
+          font-weight: 600;
+          padding: 1px 5px;
+          background: rgba(58, 75, 110, 0.08);
+          border-radius: 2px;
+          white-space: nowrap;
+        }
+        /* Variante sur fond sombre */
+        .note-paragraph-dark .num-key {
+          background: rgba(255, 255, 255, 0.12);
+          color: #ffffff;
+        }
+        
+        /* ACCROCHE DE PARAGRAPHE - Premiere phrase courte qui donne le
+           thesis du paragraphe, en small-caps pour creer une accroche
+           visuelle sans tomber dans le bullet point. Style The Atlantic. */
+        .lede {
+          font-variant-caps: all-small-caps;
+          letter-spacing: 0.04em;
+          font-weight: 600;
+          color: #1d1c1a;
+          margin-right: 0.3em;
+        }
+        .note-paragraph-dark .lede {
+          color: #f4ede0;
         }
 
         /* DROP CAP - Lettrine sur le premier paragraphe qui suit immédiatement
