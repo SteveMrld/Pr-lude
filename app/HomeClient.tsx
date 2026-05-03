@@ -600,16 +600,77 @@ export default function HomeClient({
               </button>
               {/* Bouton export PDF : active printMode qui rend toutes les sections
                   (dashboard analytique + note d investissement) simultanement,
-                  puis lance window.print(). Apres impression, retour au mode normal. */}
+                  puis envoie le HTML rendu a la route serveur /api/export-pdf
+                  qui genere le PDF avec Puppeteer. Plus fiable que window.print()
+                  qui produit des PDF corrompus selon le navigateur (Chrome desktop
+                  generait des fichiers 0 octets, Android coupait au bout de 4 pages). */}
               <button
-                onClick={() => {
+                onClick={async () => {
                   setPrintMode(true);
-                  // attente pour laisser React rendre toutes les sections avant impression
-                  setTimeout(() => {
-                    window.print();
-                    // rétablir le mode normal apres impression
-                    setTimeout(() => setPrintMode(false), 500);
-                  }, 400);
+                  // Attendre que React rende toutes les sections en printMode
+                  await new Promise((r) => setTimeout(r, 800));
+
+                  try {
+                    // Recuperer le HTML rendu de la zone de contenu principale
+                    const mainEl = document.querySelector('.dashboard-content') || document.querySelector('main');
+                    if (!mainEl) {
+                      throw new Error('Zone de contenu non trouvee');
+                    }
+                    const html = mainEl.outerHTML;
+
+                    // Recuperer tous les styles : <style> inline + feuilles externes
+                    const styleSheets = Array.from(document.styleSheets);
+                    const cssRules: string[] = [];
+                    for (const sheet of styleSheets) {
+                      try {
+                        const rules = sheet.cssRules || sheet.rules;
+                        if (rules) {
+                          for (let i = 0; i < rules.length; i++) {
+                            cssRules.push(rules[i].cssText);
+                          }
+                        }
+                      } catch {
+                        // CORS sur certaines feuilles externes : on ignore
+                      }
+                    }
+                    const css = cssRules.join('\n');
+
+                    // Appel a la route serveur
+                    const companyName = result?.extraction?.companyName || 'analyse';
+                    const fileName = `prelude-${String(companyName).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;
+
+                    const res = await fetch('/api/export-pdf', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        html,
+                        css,
+                        title: `Prelude · ${companyName}`,
+                        fileName,
+                      }),
+                    });
+
+                    if (!res.ok) {
+                      const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
+                      throw new Error(errorData.error || `HTTP ${res.status}`);
+                    }
+
+                    // Telecharger le PDF
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch (err: any) {
+                    console.error('Export PDF echec:', err);
+                    alert('Echec export PDF : ' + (err?.message || 'erreur inconnue'));
+                  } finally {
+                    setPrintMode(false);
+                  }
                 }}
                 title="Exporter le dashboard analytique complet et la note d investissement en PDF"
                 style={{
