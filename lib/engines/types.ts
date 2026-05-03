@@ -120,6 +120,17 @@ export interface TeamAnalysisOutput {
     name: string;
     role: string;
     overallFitScore: number; // 0-100
+    /**
+     * Distingue un score basé sur des données vs un score plancher d'incertitude.
+     *   - 'evaluable'           : trajectoire suffisamment documentée pour scorer
+     *   - 'partially-evaluable' : signaux partiels (par ex. nom retrouvé sans détails)
+     *   - 'non-evaluable'       : aucune donnée vérifiable. Le score 0-15 est un
+     *                             plancher de convention signalant l'impossibilité
+     *                             d'instruire, pas une mauvaise note.
+     * Le rendu UI doit afficher un libellé "Non instruit" plutôt qu'un chiffre brut
+     * quand evaluability = 'non-evaluable'.
+     */
+    evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable';
     trajectorySummary: string; // narratif dense de la trajectoire
     fitSignals: string[]; // signaux positifs de founder-market fit
     fitGaps: string[]; // gaps de founder-market fit
@@ -248,14 +259,28 @@ export interface PatternMatchingOutput {
 }
 
 export interface CausalReversalOutput {
+  /**
+   * Pour chaque dimension : score 0-100 + lecture narrative + alerte booléenne.
+   *
+   * IMPORTANT - Le champ 'evaluability' :
+   * Distingue un score informé d'un score d'incertitude par défaut de données.
+   *   - 'evaluable'           : score basé sur des signaux réels (déclarés ou vérifiés)
+   *   - 'partially-evaluable' : signaux partiels, score à calibrer prudemment
+   *   - 'non-evaluable'       : data manquante critique. Le score est plancher
+   *                             par convention (typiquement 0-15) mais ne reflète
+   *                             pas la qualité réelle - il signale que l'instruction
+   *                             n'a pas pu être faite. Le lecteur doit comprendre :
+   *                             "non testé, pas mauvais".
+   * Optionnel pour rétrocompatibilité ; si absent, supposé 'evaluable'.
+   */
   blindspotsScores: {
-    maturiteExecution: { score: number; lecture: string; alerte: boolean };
-    intensiteBesoin: { score: number; lecture: string; alerte: boolean };
-    distributionAcquise: { score: number; lecture: string; alerte: boolean };
-    antiFragilite: { score: number; lecture: string; alerte: boolean };
-    coherenceNarrative: { score: number; lecture: string; alerte: boolean };
-    signauxOrganiques: { score: number; lecture: string; alerte: boolean };
-    timingContracyclique: { score: number; lecture: string; alerte: boolean };
+    maturiteExecution: { score: number; lecture: string; alerte: boolean; evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' };
+    intensiteBesoin: { score: number; lecture: string; alerte: boolean; evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' };
+    distributionAcquise: { score: number; lecture: string; alerte: boolean; evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' };
+    antiFragilite: { score: number; lecture: string; alerte: boolean; evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' };
+    coherenceNarrative: { score: number; lecture: string; alerte: boolean; evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' };
+    signauxOrganiques: { score: number; lecture: string; alerte: boolean; evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' };
+    timingContracyclique: { score: number; lecture: string; alerte: boolean; evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' };
   };
   questionsToInvestigate: string[];
   recommendedOperators: Array<{

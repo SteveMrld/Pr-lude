@@ -110,22 +110,41 @@ export default function InvestmentNoteView({ result }: Props) {
           }
           return (
             <div>
-              {fmfList.map((f: any, i: number) => (
-                <div key={i} className="founder-block">
-                  <div className="founder-header">
-                    <span className="founder-name">{f.name}</span>
-                    <span className="founder-role">/ {f.role}</span>
-                    <span className="founder-fit">FMF {f.overallFitScore}/100</span>
+              {fmfList.map((f: any, i: number) => {
+                // Distinction critique : score "non instruit" vs score reel.
+                // Quand evaluability === 'non-evaluable', le score est un plancher
+                // de convention (5-15) qui signale l'impossibilite d'instruire,
+                // PAS une mauvaise note. On affiche un libelle explicite pour eviter
+                // que le lecteur lise '5/100' comme un mauvais profil.
+                const nonEvaluable = f.evaluability === 'non-evaluable';
+                const partiallyEvaluable = f.evaluability === 'partially-evaluable';
+                return (
+                  <div key={i} className={`founder-block ${nonEvaluable ? 'founder-block-uneval' : ''}`}>
+                    <div className="founder-header">
+                      <span className="founder-name">{f.name}</span>
+                      <span className="founder-role">/ {f.role}</span>
+                      {nonEvaluable ? (
+                        <span className="founder-fit founder-fit-uneval" title="Score non instruit faute de données vérifiables - n'est pas un mauvais score, c'est l'absence d'instruction possible">
+                          NON INSTRUIT
+                        </span>
+                      ) : partiallyEvaluable ? (
+                        <span className="founder-fit founder-fit-partial" title="Instruction partielle - score à calibrer prudemment">
+                          FMF {f.overallFitScore}/100 · Partiel
+                        </span>
+                      ) : (
+                        <span className="founder-fit">FMF {f.overallFitScore}/100</span>
+                      )}
+                    </div>
+                    <div className="founder-text"><strong>EXPERIENCE :</strong> {f.trajectorySummary}</div>
+                    {f.tacitExpertise && (
+                      <div className="founder-text"><strong>EXPERTISE TACITE :</strong> {f.tacitExpertise}</div>
+                    )}
+                    {f.fitSignals?.length > 0 && (
+                      <div className="founder-text"><strong>SIGNAUX POSITIFS :</strong> {f.fitSignals.join(' · ')}</div>
+                    )}
                   </div>
-                  <div className="founder-text"><strong>EXPERIENCE :</strong> {f.trajectorySummary}</div>
-                  {f.tacitExpertise && (
-                    <div className="founder-text"><strong>EXPERTISE TACITE :</strong> {f.tacitExpertise}</div>
-                  )}
-                  {f.fitSignals?.length > 0 && (
-                    <div className="founder-text"><strong>SIGNAUX POSITIFS :</strong> {f.fitSignals.join(' · ')}</div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               {fmfList.length === 0 && founderList.map((f: any, i: number) => (
                 <div key={i} className="founder-block">
                   <div className="founder-header">
@@ -1133,6 +1152,31 @@ export default function InvestmentNoteView({ result }: Props) {
           color: #fbfaf7;
           letter-spacing: 0.02em;
           font-feature-settings: "lnum";
+        }
+        /* Variantes pour signaler le degre d'instruction du score :
+           non-instruit (donnees absentes) et partiel (donnees fragmentees).
+           Ces variantes evitent que le lecteur lise un score plancher
+           comme un mauvais profil. */
+        .founder-fit-uneval {
+          background: #5a564e;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          font-weight: 700;
+        }
+        .founder-fit-partial {
+          background: #a8732e;
+          font-size: 12px;
+        }
+        /* Le bloc fondateur non-instruit est legerement attenue pour
+           signaler visuellement que ce n est pas un profil mauvais
+           mais un profil non-instruit. */
+        .founder-block-uneval {
+          background: #f4f0e6;
+          padding: 14px 16px;
+          margin-bottom: 22px;
+          border-left: 3px solid #5a564e;
         }
         .founder-text {
           font-size: 14px;

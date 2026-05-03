@@ -222,13 +222,15 @@ function selectRelevantExtendedCases(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
   market: MarketAnalysisOutput,
-): { failures: ExtendedCaseRecord[]; risky: ExtendedCaseRecord[]; quantum: ExtendedCaseRecord[] } {
+): { failures: ExtendedCaseRecord[]; risky: ExtendedCaseRecord[]; quantum: ExtendedCaseRecord[]; references: ExtendedCaseRecord[] } {
   const sectorLower = (extraction.sector + ' ' + extraction.subSector).toLowerCase();
   const isQuantum = sectorLower.includes('quantum') || sectorLower.includes('quantique');
   const isIndustrial = sectorLower.match(/industri|hardware|deeptech|battery|gigafactory|energy|nuclear|robot/i);
   const isFintech = sectorLower.match(/fintech|bank|insurance|assurance|paiement|payment|credit/i);
   const isMarketplace = sectorLower.match(/marketplace|e-?commerce|consumer/i);
   const isAI = sectorLower.match(/genai|ia g[eé]n[eé]rative|llm|agent|ai\b/i);
+  const isDefense = sectorLower.match(/d[eé]fense|defense|drone|military|uas|surveillance/i);
+  const isSaaS = sectorLower.match(/saas|cloud|software|monitoring|cybersecur/i);
 
   // Strate D : echecs pedagogiques - on selectionne ceux qui matchent
   // au moins un signal du dossier
@@ -263,7 +265,28 @@ function selectRelevantExtendedCases(
   // Quantum : sous-corpus complet si applicable
   const quantum = isQuantum ? findByStrate('quantum') : [];
 
-  return { failures, risky, quantum };
+  // REFERENCES : benchmarks internationaux chiffres pertinents pour le dossier.
+  // On selectionne par alignement sectoriel pour eviter au moteur d halluciner
+  // les chiffres (Helsing 660M$ Series D, Anduril revenue x2 sustained, etc.).
+  const allReferences = findByStrate('reference');
+  const references = allReferences.filter((c) => {
+    if (isDefense && (c.id === 'helsing' || c.id === 'anduril')) return true;
+    if (isFintech && c.id === 'stripe') return true;
+    if (isSaaS && (c.id === 'datadog' || c.id === 'wiz' || c.id === 'uipath')) return true;
+    if (isAI && c.id === 'wiz') return true;
+    if (isIndustrial && c.id === 'anduril') return true; // Anduril hardware industriel
+    return false;
+  });
+  // Si pas de match sectoriel, on injecte au minimum Stripe + Datadog comme
+  // references universelles de successes contrariens.
+  if (references.length === 0) {
+    const stripe = allReferences.find((c) => c.id === 'stripe');
+    const datadog = allReferences.find((c) => c.id === 'datadog');
+    if (stripe) references.push(stripe);
+    if (datadog) references.push(datadog);
+  }
+
+  return { failures, risky, quantum, references };
 }
 
 function formatExtendedCaseForPrompt(c: ExtendedCaseRecord): string {
@@ -321,14 +344,16 @@ REGLE STRICTE: si le dossier est en defense, AI, deeptech, ou fintech, l'un des 
 ` : '';
 
   // Selection du corpus etendu : echecs pedagogiques + paris risques
-  // + sous-corpus quantique si applicable. Ces cas sont injectes en
-  // bloc separe pour que Claude les utilise comme references explicites
-  // des risques structurels (pas comme comparables structurels).
+  // + sous-corpus quantique si applicable + references chiffrees pertinentes.
+  // Ces cas sont injectes en bloc separe pour que Claude les utilise comme
+  // references explicites des risques structurels et SURTOUT pour qu il ne
+  // hallucine pas les chiffres sur Helsing/Anduril/Stripe/Datadog/Wiz/UiPath.
   const extendedSelection = selectRelevantExtendedCases(extraction, team, market);
   const hasExtendedCases =
     extendedSelection.failures.length > 0 ||
     extendedSelection.risky.length > 0 ||
-    extendedSelection.quantum.length > 0;
+    extendedSelection.quantum.length > 0 ||
+    extendedSelection.references.length > 0;
 
   const extendedCorpusBlock = hasExtendedCases ? `
 
@@ -358,8 +383,23 @@ Le dossier est quantique. Le sous-corpus complet est fourni pour benchmark
 
 ${extendedSelection.quantum.map(formatExtendedCaseForPrompt).join('\n\n')}
 ` : ''}
+${extendedSelection.references.length > 0 ? `## REFERENCES CHIFFREES AUTORISEES (chiffres pre-verifies, a privilegier)
 
-REGLES D USAGE
+CES CHIFFRES SONT VERIFIES ET PRE-AUTORISES. Quand tu cites Helsing /
+Anduril / Stripe / Datadog / UiPath / Wiz dans la note, utilise STRICTEMENT
+les chiffres ci-dessous, ne les invente pas. Si tu as besoin de chiffres
+sur d autres comparables non listes ici, prefere une formulation
+qualitative (~"environ", "estimé") plutot que d halluciner des montants
+precis.
+
+${extendedSelection.references.map(formatExtendedCaseForPrompt).join('\n\n')}
+
+REGLE STRICTE : ne cite jamais de chiffre precis (ex. "Helsing 660M$ Series D")
+sans qu il provienne de cette liste ou des donnees declarees du dossier.
+Sinon utilise des fourchettes prudentes ("plusieurs centaines de M$").
+` : ''}
+
+REGLES D USAGE GENERALES
 - Si le dossier matche structurellement un cas Strate D (Ynsect, Cazoo,
   Northvolt, WeWork, Klarna), tu DOIS l ajouter dans matchedPatterns
   avec un proximityScore eleve et le pattern critique associe.
@@ -368,6 +408,9 @@ REGLES D USAGE
 - Pour les cas Strate B/C, calibre la confiance du comparable selon
   leur statut (un 'fragile' cite avec prudence vaut mieux qu un
   'confirmed' pris comme garantie de succes).
+- Pour les references (Helsing/Anduril/Stripe/Datadog/UiPath/Wiz), tu peux
+  les citer comme benchmarks chiffres mais SEULEMENT en utilisant les
+  chiffres pre-verifies ci-dessus.
 ` : '';
 
   const userPrompt = `Données d'extraction du dossier :

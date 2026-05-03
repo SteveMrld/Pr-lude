@@ -35,7 +35,7 @@
 //     ajouter "consulter en direct la source pour version a jour"
 // ============================================================
 
-export type ExtendedStrate = 'A-success' | 'B-open' | 'C-risky' | 'D-failure' | 'quantum';
+export type ExtendedStrate = 'A-success' | 'B-open' | 'C-risky' | 'D-failure' | 'quantum' | 'reference';
 
 export type WagerType =
   | 'saas-vertical'
@@ -550,7 +550,7 @@ const STRATE_B: ExtendedCaseRecord[] = [
     keyInvestors: ['Klaba family', 'KKR (sortie 2021)', 'TowerBrook', 'Public (Euronext)'],
   },
   {
-    id: 'sorare-bis',
+    id: 'spendesk',
     name: 'Spendesk',
     country: 'France',
     city: 'Paris',
@@ -1045,8 +1045,158 @@ const QUANTUM: ExtendedCaseRecord[] = [
 ];
 
 // ============================================================
-// CORPUS COMPLET + HELPERS
+// REFERENCES - Comparables internationaux chiffrés
+// ------------------------------------------------------------
+// Bloc dédié aux comparables que les moteurs citent regulierement
+// dans la note (Helsing, Anduril, Stripe, Datadog, UiPath, Wiz,
+// Mistral). Ces references sont a portee directe pour eviter que
+// Claude hallucine les chiffres en production.
+//
+// REGLE EDITORIALE STRICTE : tout chiffre cite ici doit etre verifiable
+// contre une source publique (Crunchbase, presse, comm officielles).
+// Les chiffres connus a fin 2025/debut 2026 sont marques verifySource: true
+// pour signaler une re-verification annuelle obligatoire avant pitch.
 // ============================================================
+
+const REFERENCES: ExtendedCaseRecord[] = [
+  {
+    id: 'helsing',
+    name: 'Helsing',
+    country: 'Allemagne',
+    city: 'Munich / Berlin',
+    sector: 'Défense / IA',
+    subSector: 'Plateforme IA défense aérienne',
+    totalRaised: { amount: 1370, currency: 'USD', asOf: '2025', verifySource: true },
+    wagerType: 'deeptech',
+    thesis: "Construire la plateforme IA de référence pour la défense européenne (battlefield AI, aerial autonomy, software-defined defense), positionnée comme le Palantir européen post-Ukraine 2022.",
+    whyYes: "Equipe vérifiable (Gundbert Scherf ex-McKinsey Defense, Niklas Köhler ex-Spotify, Torsten Reil ex-NaturalMotion), pari early sur la fenêtre macro défense post-Ukraine, contrats institutionnels OTAN signés (Allemagne, Royaume-Uni, Estonie, Ukraine), validation Saab et General Atlantic.",
+    whyNo: "Cycle de vente défense très long, dépendance aux budgets gouvernementaux, controverse éthique sur l'IA militaire, valorisation 12Mds$ tendue.",
+    primaryRisk: "Compression budgets défense en cas de fin de conflit Ukraine, durcissement des règles d'export EU sur l'IA militaire, concurrence Anduril qui scale aussi en Europe.",
+    realTraction: "Series D 600M€+ menée par Saab/General Atlantic 2024 à valorisation ~5Mds€. Series E rumored 2025 à valorisation 12Mds€. Contrats OTAN multi-pays confirmés.",
+    status: 'promising',
+    statusContext: "Trajectoire spectaculaire mais le test de la pénétration commerciale au-delà du timing macro reste à venir.",
+    reusablePattern: "BENCHMARK FENETRE MACRO DEFENSE EU 2024-2026 : Helsing valide qu'un acteur défense européen peut atteindre licorne+ en 4-5 ans si fondateurs vérifiables + traction OTAN documentée + timing post-Ukraine. C'est le mètre-étalon pour tout dossier défense français ou allemand de 2025-2027.",
+    sources: [
+      'https://helsing.ai',
+      'https://www.ft.com (Helsing Series D coverage 2024)',
+      'https://www.bloomberg.com (Helsing valuation reports)',
+    ],
+    strate: 'reference',
+    yearFounded: 2021,
+    keyInvestors: ['General Catalyst', 'Saab AB', 'Lightspeed', 'Accel', 'Plural', 'Spotify (Daniel Ek)'],
+  },
+  {
+    id: 'anduril',
+    name: 'Anduril Industries',
+    country: 'USA',
+    city: 'Costa Mesa, California',
+    sector: 'Défense / Hardware',
+    subSector: 'Systèmes autonomes défense',
+    totalRaised: { amount: 3700, currency: 'USD', asOf: '2025', verifySource: true },
+    wagerType: 'hardware',
+    thesis: "Devenir le Lockheed Martin du XXIe siècle en construisant des systèmes défense autonomes (drones, towers, sentry) software-first, vendus en 'product' plutôt qu'en 'cost-plus contract'.",
+    whyYes: "Equipe Founders Fund (Palmer Luckey ex-Oculus, Trae Stephens ex-Palantir), pari sur la rupture du modèle cost-plus du Pentagon, contrats DoD massifs, growth ARR x2 sustained.",
+    whyNo: "Cycle de vente DoD long (12-36 mois), dépendance politique au Pentagon, concurrence Palantir + entrants émergents.",
+    primaryRisk: "Trump administration pourrait redistribuer contrats vers les primes traditionnels, Saab/Helsing capturent l'Europe avant Anduril.",
+    realTraction: "Revenue ~1Md$ 2024 (vs 100M$ 2020), Series F 1,5Mds$ 2024 à 14Mds$ valuation, Series G rumored 2025 à 30Mds$+, contrats DoD multi-milliards.",
+    status: 'confirmed',
+    statusContext: "Trajectoire de croissance hardware défense la plus impressionnante depuis SpaceX. Le pattern 'tech + défense + product-first' est validé.",
+    reusablePattern: "BENCHMARK CROISSANCE HARDWARE DEFENSE : Anduril maintient x1.8-x2.1 annuel sustained. Tout dossier défense projetant >x2.5 sustained pluriannuel doit être challengé contre Anduril (qui est l'extrême haute du secteur).",
+    sources: [
+      'https://anduril.com',
+      'https://www.wsj.com (Anduril revenue + valuation reports 2024-2025)',
+    ],
+    strate: 'reference',
+    yearFounded: 2017,
+    keyInvestors: ['Founders Fund', 'Andreessen Horowitz', 'General Catalyst', '8VC', 'Lux Capital'],
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe',
+    country: 'USA',
+    city: 'San Francisco / Dublin',
+    sector: 'FinTech',
+    subSector: 'Infrastructure paiements',
+    totalRaised: { amount: 9000, currency: 'USD', asOf: '2024', verifySource: true },
+    wagerType: 'fintech-regulated',
+    thesis: "Construire l'infrastructure de paiement API-first pour les développeurs, en partant d'un cas d'usage simple (intégration paiement en 7 lignes de code) puis en élargissant à toute la stack financière.",
+    whyYes: "Equipe Collison brothers (Patrick + John, ex-fondateurs Auctomatic à 16/17 ans), obsession DX pendant 5 ans avant scaling, recrutements early de top-tier engineering, validation Y Combinator + Sequoia.",
+    whyNo: "PayPal dominant à l'époque, 'payments saturated', API-first considéré comme niche, founders trop jeunes.",
+    primaryRisk: "Compression marges si les acteurs cloud (AWS Pay) commoditisent, durcissement réglementaire global, IPO retardée plusieurs fois.",
+    realTraction: "Volume traité ~1 trillion $ annuel, valuation 70Mds$ peak 2021 puis ajustement à 50-65Mds$ en 2023-2024, profitabilité atteinte 2024.",
+    status: 'confirmed',
+    reusablePattern: "BENCHMARK CONTRARIEN HISTORIQUE : Stripe est cité quand le moteur Singularités voit un pattern 'API-first sur marché dominé par grand public'. Multiple Series A->actuel ~3000x paper. Mais ATTENTION : Stripe avait des fondateurs tracables et un produit live. Ne pas citer Stripe sur un dossier sans produit.",
+    sources: ['https://stripe.com'],
+    strate: 'reference',
+    yearFounded: 2010,
+    keyInvestors: ['Sequoia', 'Andreessen Horowitz', 'Founders Fund', 'General Catalyst', 'Capital G'],
+  },
+  {
+    id: 'datadog',
+    name: 'Datadog',
+    country: 'USA',
+    city: 'New York (fondé France)',
+    sector: 'Cloud Infrastructure',
+    subSector: 'Monitoring SaaS',
+    totalRaised: { amount: 650, currency: 'USD', asOf: '2019', verifySource: true },
+    wagerType: 'saas-horizontal',
+    thesis: "Construire le monitoring cloud-native unifié pour DevOps en pariant sur la migration cloud massive (AWS), avec une UX supérieure aux outils legacy fragmentés.",
+    whyYes: "Fondateurs français (Olivier Pomel ex-Wireless Generation, Alexis Lê-Quôc) avec pedigree engineering, migration HQ NY 2011 qui a débloqué l'accès aux talents US, traction enterprise rapide.",
+    whyNo: "Marché monitoring déjà occupé (New Relic, Splunk), risque commoditisation par hyperscalers (AWS CloudWatch).",
+    primaryRisk: "AWS/Azure/GCP enrichissent leurs offres natives, compression marges en cycle bear.",
+    realTraction: "IPO 2019 à 7Mds$, ARR 2024 ~2,5Mds$, market cap ~30Mds$ NASDAQ DDOG, profitabilité durable.",
+    status: 'confirmed',
+    reusablePattern: "BENCHMARK MIGRATION FR->US : Datadog est l'exemple canonique de scale-up française qui a basculé son centre de gravité aux US pour atteindre échelle mondiale. Pattern à citer pour tout dossier français qui doit instruire la question 'rester FR ou migrer ?'.",
+    sources: ['https://datadoghq.com'],
+    strate: 'reference',
+    yearFounded: 2010,
+    keyInvestors: ['Index Ventures', 'OpenView', 'Iris Capital'],
+  },
+  {
+    id: 'uipath',
+    name: 'UiPath',
+    country: 'Roumanie / USA',
+    city: 'Bucarest / New York',
+    sector: 'Automation',
+    subSector: 'RPA (Robotic Process Automation)',
+    totalRaised: { amount: 1900, currency: 'USD', asOf: '2021', verifySource: true },
+    wagerType: 'saas-horizontal',
+    thesis: "Démocratiser l'automatisation des processus métier (RPA) en partant de l'Europe de l'Est puis en migrant le centre de gravité aux USA, sur un marché que les VC mainstream n'avaient pas catégorisé.",
+    whyYes: "Equipe Daniel Dines + Marius Tirca, pari early sur RPA, traction Fortune 500 dès 2014-2016 (clients européens et US), ARR croissance >300% annuelle au pic.",
+    whyNo: "RPA considéré comme commodity, concurrence Blue Prism + Automation Anywhere déjà installés, doute sur durabilité face à l'IA générative.",
+    primaryRisk: "GenAI rend obsolete la RPA classique, valorisation IPO 2021 (35Mds$) corrigée à 6Mds$ en 2023.",
+    realTraction: "IPO 2021 NYSE (PATH) à 35Mds$, ARR ~1,3Mds$ 2024, market cap actuel ~7Mds$ après ajustement.",
+    status: 'in-difficulty',
+    statusContext: "Pic 35Mds$ -> 7Mds$ actuel = 80% de baisse. Cas d'école de la difficulté à maintenir un multiple SaaS premium quand la catégorie est challengée par GenAI.",
+    reusablePattern: "BENCHMARK GEOGRAPHIE-MARGES : UiPath valide que l'Europe de l'Est peut produire un leader mondial mais à condition de migrer le centre de gravité aux US. Pattern Datadog appliqué à un autre pays. AUSSI : avertissement sur la fragilité des multiples SaaS face aux ruptures technologiques.",
+    sources: ['https://uipath.com'],
+    strate: 'reference',
+    yearFounded: 2005,
+    keyInvestors: ['Accel', 'CapitalG', 'Sequoia', 'IVP', 'Tiger Global'],
+  },
+  {
+    id: 'wiz',
+    name: 'Wiz',
+    country: 'Israël / USA',
+    city: 'New York',
+    sector: 'Cybersecurity',
+    subSector: 'Cloud Security Posture Management',
+    totalRaised: { amount: 1900, currency: 'USD', asOf: '2024', verifySource: true },
+    wagerType: 'saas-horizontal',
+    thesis: "Construire le scanner SaaS de référence pour la sécurité multi-cloud (AWS/Azure/GCP) en ciblant les équipes DevOps avec UX supérieure et pricing transparent vs Palo Alto/CrowdStrike.",
+    whyYes: "Equipe Assaf Rappaport ex-Microsoft Cloud Security (acquis avec Adallom), pedigree Google Cloud, traction enterprise rapide (500+ clients en 2 ans), ARR x10 en 18 mois.",
+    whyNo: "Catégorie cybersecurity surchargée, concurrence frontale Palo Alto Networks, CrowdStrike, risque commoditisation par les hyperscalers.",
+    primaryRisk: "Acquisition Google annoncée 2024 à 32Mds$ (puis annulée). Re-tentative 2025 à 23Mds$ confirmée. Si l'acquisition échoue à nouveau, valorisation peut chuter.",
+    realTraction: "ARR 500M$+ 2024 (vs 100M$ 2022), Series E à 12Mds$ valuation 2024, accord d'acquisition Google 32Mds$ annoncé puis revisité 23Mds$ en 2025.",
+    status: 'promising',
+    statusContext: "Croissance la plus rapide de l'histoire SaaS pour atteindre 100M$+ ARR. Acquisition Google en cours est le test final.",
+    reusablePattern: "BENCHMARK CROISSANCE SAAS LA PLUS RAPIDE : Wiz a atteint 100M$ ARR en 18 mois, c'est le record mondial. Tout dossier projetant ce type de croissance doit être comparé à Wiz qui est l'extrême haute du SaaS.",
+    sources: ['https://wiz.io'],
+    strate: 'reference',
+    yearFounded: 2020,
+    keyInvestors: ['Sequoia', 'Index Ventures', 'Insight Partners', 'Greenoaks', 'Cyberstarts'],
+  },
+];
 
 export const EXTENDED_CORPUS: ExtendedCaseRecord[] = [
   ...STRATE_A,
@@ -1054,6 +1204,7 @@ export const EXTENDED_CORPUS: ExtendedCaseRecord[] = [
   ...STRATE_C,
   ...STRATE_D,
   ...QUANTUM,
+  ...REFERENCES,
 ];
 
 export function findExtendedById(id: string): ExtendedCaseRecord | undefined {

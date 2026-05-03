@@ -1201,8 +1201,9 @@ export default function HomeClient({
                       })}
                     </div>
                   ) : (
-                    <div style={{ fontSize: 13, opacity: 0.6, fontStyle: 'italic', marginBottom: 32 }}>
-                      Cartographie des risques non disponible.
+                    <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 32, padding: 16, background: 'var(--surface-deep)', border: '1px solid var(--hairline)' }}>
+                      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>Pas de cartographie générée</div>
+                      <div>Le moteur Aveuglement n&apos;a pas produit de cartographie pour ce dossier. Les risques détectés sont disponibles dans l&apos;onglet « Aveuglement » sous forme de patterns (P1 à P10) avec evidence et implication par pattern.</div>
                     </div>
                   )}
 

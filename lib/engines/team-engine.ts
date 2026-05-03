@@ -126,6 +126,7 @@ Si la traction du dossier est nettement en dessous (ex: 0 → 500K → 1.5M en 2
       "name": "nom complet",
       "role": "rôle (CEO, CTO, etc.)",
       "overallFitScore": 0-100,
+      "evaluability": "evaluable | partially-evaluable | non-evaluable",
       "trajectorySummary": "narratif dense de la trajectoire en 2-3 phrases liées",
       "fitSignals": ["signal 1 spécifique et factuel", "signal 2"],
       "fitGaps": ["gap 1 identifié", "gap 2"],
@@ -136,6 +137,22 @@ Si la traction du dossier est nettement en dessous (ex: 0 → 500K → 1.5M en 2
   ]
 }
 
+REGLE STRICTE SUR evaluability :
+  - 'evaluable' : tu as suffisamment de signaux (declares + verifies) pour
+    poser un score informe. C'est le cas standard.
+  - 'partially-evaluable' : tu retrouves le nom du fondateur mais avec
+    peu de details (par ex. profil LinkedIn minimal sans publications).
+    Score a calibrer prudemment, lecteur doit comprendre.
+  - 'non-evaluable' : aucune donnee verifiable malgre les recherches
+    (Wikipedia/OpenAlex/GitHub/arXiv). Le overallFitScore doit etre
+    place a 5-15 par convention pour signaler l'absence d'instruction
+    POSSIBLE, pas une mauvaise note. Le rendu UI affichera 'Non instruit'.
+    Cas Pen Group : fondateurs introuvables apres 8 ans dans secteur
+    hautement reglementé = non-evaluable.
+
+Quand le fondateur est non-evaluable, le narratif (trajectorySummary)
+doit expliquer pourquoi : "Aucune donnee verifiable, ce qui pour un
+secteur reglementé est anormal" plutot que "Mauvais profil".
 Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.`;
 
 export async function analyzeTeam(

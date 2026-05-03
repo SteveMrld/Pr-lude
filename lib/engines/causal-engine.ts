@@ -83,13 +83,13 @@ Tes champs textuels (reversalNarrative, blindspots descriptions, questionsToInst
 
 {
   "blindspotsScores": {
-    "maturiteExecution": { "score": 0-100, "lecture": "phrase", "alerte": true ou false },
-    "intensiteBesoin": { "score": 0-100, "lecture": "phrase", "alerte": true ou false },
-    "distributionAcquise": { "score": 0-100, "lecture": "phrase", "alerte": true ou false },
-    "antiFragilite": { "score": 0-100, "lecture": "phrase", "alerte": true ou false },
-    "coherenceNarrative": { "score": 0-100, "lecture": "phrase", "alerte": true ou false },
-    "signauxOrganiques": { "score": 0-100, "lecture": "phrase", "alerte": true ou false },
-    "timingContracyclique": { "score": 0-100, "lecture": "phrase", "alerte": true ou false }
+    "maturiteExecution": { "score": 0-100, "lecture": "phrase", "alerte": true ou false, "evaluability": "evaluable | partially-evaluable | non-evaluable" },
+    "intensiteBesoin": { "score": 0-100, "lecture": "phrase", "alerte": true ou false, "evaluability": "evaluable | partially-evaluable | non-evaluable" },
+    "distributionAcquise": { "score": 0-100, "lecture": "phrase", "alerte": true ou false, "evaluability": "evaluable | partially-evaluable | non-evaluable" },
+    "antiFragilite": { "score": 0-100, "lecture": "phrase", "alerte": true ou false, "evaluability": "evaluable | partially-evaluable | non-evaluable" },
+    "coherenceNarrative": { "score": 0-100, "lecture": "phrase", "alerte": true ou false, "evaluability": "evaluable | partially-evaluable | non-evaluable" },
+    "signauxOrganiques": { "score": 0-100, "lecture": "phrase", "alerte": true ou false, "evaluability": "evaluable | partially-evaluable | non-evaluable" },
+    "timingContracyclique": { "score": 0-100, "lecture": "phrase", "alerte": true ou false, "evaluability": "evaluable | partially-evaluable | non-evaluable" }
   },
   "questionsToInvestigate": ["question 1", "question 2", "question 3", "question 4", "question 5"],
   "recommendedOperators": [
@@ -98,6 +98,16 @@ Tes champs textuels (reversalNarrative, blindspots descriptions, questionsToInst
   "proxiesToCalculate": ["proxy 1", "proxy 2"],
   "reversalNarrative": "narratif dense de 3-4 phrases"
 }
+
+REGLE CRITIQUE SUR evaluability :
+  Distingue un score informe d'un score plancher d'incertitude. Quand
+  une dimension ne peut pas etre evaluee faute de donnees vérifiables
+  (pas de footprint sur la dimension), tu DOIS marquer 'non-evaluable'
+  et placer le score a 8-15 par convention. La lecture doit alors
+  expliquer "non instruit" plutot que "mauvais score". Cas type :
+  Pen Group sur maturiteExecution -> non-evaluable car aucun signal
+  d'execution n'est verifiable. Le UI affichera 'Non instruit' au lieu
+  d'un chiffre brut.
 
 Sois rigoureux. Le score d'un angle mort n'est pas une moyenne, c'est un jugement structurel. L'alerte se déclenche quand le pattern d'angle mort historique du corpus est susceptible de se rejouer.`;
 

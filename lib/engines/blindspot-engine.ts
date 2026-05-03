@@ -143,7 +143,24 @@ Tes champs textuels (syntheseAveuglement, alertesCritiques, evidence des pattern
 - Si pattern non détecté, intensity = 0 et evidence explique pourquoi (absence de signaux)
 - "globalBlindspotScore" = pondération des intensités des patterns détectés (0 = aucun risque, 100 = effondrement annoncé)
 - Maximum 3 patternsHistoriques cités, les plus pertinents
-- Pas de complaisance. Si les patterns sont absents, dis-le. Si présents, dis-le clairement.`;
+- Pas de complaisance. Si les patterns sont absents, dis-le. Si présents, dis-le clairement.
+
+# RÈGLE CRITIQUE SUR LA riskMap
+
+La cartographie des risques (riskMap) DOIT TOUJOURS être remplie, peu importe
+le verdict probable du dossier (investir, approfondir, refuser). C'est le
+livrable le plus actionnable de la note pour le partner :
+  - Sur un verdict 'investir' : la riskMap dit ce qu'il faut surveiller
+  - Sur un verdict 'approfondir' : la riskMap dit ce qu'il faut clarifier
+  - Sur un verdict 'refuser' : la riskMap dit POURQUOI on refuse, axe par axe
+    (et pédagogiquement, ce qui devrait être structurellement different
+    pour rendre le dossier investissable un jour)
+
+JAMAIS retourner une riskMap vide. Si tu detectes un risque, mets-le. Si
+tu n'en detectes pas, l'array reste vide [] mais la cle existe. Les trois
+categories (strategicRisks, operationalRisks, financialRisks) sont obligatoires.
+Sur un dossier critique avec >5 patterns d'aveuglement detectes, attends-toi
+a remplir au moins 3-5 risques par categorie.`;
 
 export async function analyzeBlindspots(
   extraction: ExtractionOutput,
