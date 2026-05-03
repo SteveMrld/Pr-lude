@@ -244,7 +244,7 @@ Attention: ${EUROPEAN_REGULATORY_PIPELINE_2026.founderSurveyRestrictivePercent}%
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
 Géographie : ${extraction.geographicHub}, ${extraction.country}
-Année fondation : ${extraction.yearFounded}
+Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 
 Produit : ${extraction.productDescription}
 Business model : ${extraction.businessModel}

@@ -6,7 +6,7 @@ export interface ExtractionOutput {
   subSector: string;
   geographicHub: string;
   country: string;
-  yearFounded: number;
+  yearFounded: number | null;
   founders: Array<{
     name: string;
     role: string;

@@ -119,7 +119,7 @@ export async function analyzeContrarian(
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
 Géographie : ${extraction.geographicHub}, ${extraction.country}
-Année fondation : ${extraction.yearFounded}
+Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 
 # FONDATEURS

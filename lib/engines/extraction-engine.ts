@@ -15,7 +15,7 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
   "subSector": "sous-secteur précis tel que présenté dans le deck",
   "geographicHub": "ville principale du siège",
   "country": "pays du siège",
-  "yearFounded": année de fondation en nombre,
+  "yearFounded": année de fondation en nombre, ou null si non présente dans le deck (ne JAMAIS retourner 0),
   "founders": [
     { "name": "nom complet", "role": "rôle (CEO, CTO, COO, etc.)", "background": "background résumé en une phrase" }
   ],

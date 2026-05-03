@@ -217,7 +217,7 @@ ${failuresBlock}
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
 Géographie : ${extraction.geographicHub}, ${extraction.country}
-Année fondation : ${extraction.yearFounded}
+Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 Tour de financement : ${extraction.fundraise.stage}
 Montant levé : ${extraction.fundraise.amount}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}

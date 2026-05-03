@@ -269,7 +269,7 @@ export async function analyzeTeam(
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
 Géographie : ${extraction.geographicHub}, ${extraction.country}
-Année fondation : ${extraction.yearFounded}
+Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : 'non renseignée dans le pitch (ne pas pénaliser ni interpréter cette absence comme un red flag)'}
 
 Fondateurs déclarés :
 ${extraction.founders.map(f => `- ${f.name} (${f.role}) : ${f.background}`).join('\n')}

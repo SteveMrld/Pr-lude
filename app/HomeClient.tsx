@@ -1097,7 +1097,7 @@ export default function HomeClient({
                       </div>
                       <div className="kv-item">
                         <div className="kv-key">Année fondation</div>
-                        <div className="kv-val">{result.extraction?.yearFounded}</div>
+                        <div className="kv-val">{result.extraction?.yearFounded && result.extraction.yearFounded > 0 ? result.extraction.yearFounded : 'non renseigné'}</div>
                       </div>
                     </div>
                   </div>
