@@ -145,6 +145,49 @@ export interface MarketAnalysisOutput {
   perceivedSize: 'massive' | 'large' | 'niche';
   realIntensity: 'extreme' | 'high' | 'medium';
   saturation: 'saturated' | 'fragmented' | 'emerging';
+  /**
+   * Chiffrage du marche TAM/SAM/SOM avec sources verifiees.
+   *
+   * IMPORTANT : ce bloc DOIT etre rempli quand le moteur a accès au
+   * web search. Chaque chiffre doit etre :
+   *   - soit issu d une source web verifiable (rapport analyste,
+   *     presse spécialisée), avec la source nommée
+   *   - soit issu du pitch deck, et explicitement labellisé "Pitch"
+   *   - soit calculé à partir de chiffres sourcés, avec le calcul
+   *     explicité
+   *
+   * Si aucun chiffre n est trouvable malgré les recherches, mettre
+   * 'non chiffré' et expliquer pourquoi dans le rationale.
+   *
+   * Optionnel pour rétrocompatibilité (analyses anciennes).
+   */
+  marketSizing?: {
+    // Total Addressable Market - taille totale du marché global
+    tam: {
+      value: string;          // ex. "47Mds$ d ici 2032" ou "non chiffré"
+      timeframe: string;      // ex. "2032", "2025", "horizon 2030"
+      source: string;         // ex. "Pitchbook Drone Industry Report 2024"
+      confidence: 'high' | 'medium' | 'low';  // qualité de la source
+    };
+    // Serviceable Addressable Market - segment réellement adressable
+    sam: {
+      value: string;
+      timeframe: string;
+      source: string;
+      methodology: string;    // ex. "TAM × % cargo BVLOS Europe"
+    };
+    // Serviceable Obtainable Market - part de marché capturable
+    som: {
+      value: string;
+      timeframe: string;
+      methodology: string;    // ex. "5% du SAM en 5 ans, hypothese aggressive"
+    };
+    // Synthèse narrative du sizing (3-5 phrases)
+    sizingNarrative: string;
+    // Comparaison avec le TAM cité dans le pitch (alignement ou écart)
+    pitchAlignment: 'aligned' | 'overestimated' | 'underestimated' | 'pitch-not-cited';
+    pitchAlignmentNote?: string;  // explication si écart
+  };
   organicSignals: {
     score: number;
     rationale: string;

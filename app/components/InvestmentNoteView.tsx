@@ -238,6 +238,75 @@ export default function InvestmentNoteView({ result }: Props) {
         {m.defensibility?.moats?.length > 0 && (
           <p className="note-paragraph"><strong>Moats identifiés :</strong> {m.defensibility.moats.join(' · ')}</p>
         )}
+
+        {/* MARKET SIZING - bloc TAM/SAM/SOM avec sources verifiees.
+            Ne s affiche que si le moteur Marche a effectivement rempli
+            marketSizing (introduit en Niveau 2.A v2). Pour les analyses
+            anciennes, le bloc reste invisible (retrocompatibilite). */}
+        {m.marketSizing && (
+          <>
+            <h3 className="note-h3">Market sizing</h3>
+            {m.marketSizing.sizingNarrative && (
+              <p className="note-paragraph">{enrichProse(m.marketSizing.sizingNarrative)}</p>
+            )}
+            <table className="note-table">
+              <tbody>
+                {m.marketSizing.tam && (
+                  <tr>
+                    <td className="note-label">
+                      TAM
+                      {m.marketSizing.tam.confidence && (
+                        <span className="sizing-confidence" data-conf={m.marketSizing.tam.confidence}>
+                          {m.marketSizing.tam.confidence === 'high' ? '●' : m.marketSizing.tam.confidence === 'medium' ? '◐' : '○'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="note-value">
+                      <strong>{m.marketSizing.tam.value}</strong>
+                      {m.marketSizing.tam.timeframe && <span className="sizing-meta"> · {m.marketSizing.tam.timeframe}</span>}
+                      {m.marketSizing.tam.source && <div className="sizing-source">Source : {m.marketSizing.tam.source}</div>}
+                    </td>
+                  </tr>
+                )}
+                {m.marketSizing.sam && (
+                  <tr>
+                    <td className="note-label">SAM</td>
+                    <td className="note-value">
+                      <strong>{m.marketSizing.sam.value}</strong>
+                      {m.marketSizing.sam.timeframe && <span className="sizing-meta"> · {m.marketSizing.sam.timeframe}</span>}
+                      {m.marketSizing.sam.source && <div className="sizing-source">Source : {m.marketSizing.sam.source}</div>}
+                      {m.marketSizing.sam.methodology && <div className="sizing-source">Méthode : {m.marketSizing.sam.methodology}</div>}
+                    </td>
+                  </tr>
+                )}
+                {m.marketSizing.som && (
+                  <tr>
+                    <td className="note-label">SOM</td>
+                    <td className="note-value">
+                      <strong>{m.marketSizing.som.value}</strong>
+                      {m.marketSizing.som.timeframe && <span className="sizing-meta"> · {m.marketSizing.som.timeframe}</span>}
+                      {m.marketSizing.som.methodology && <div className="sizing-source">Méthode : {m.marketSizing.som.methodology}</div>}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {/* Alignement vs pitch : signal de rigueur du founder */}
+            {m.marketSizing.pitchAlignment && m.marketSizing.pitchAlignment !== 'aligned' && (
+              <div className={`pitch-alignment pitch-alignment-${m.marketSizing.pitchAlignment}`}>
+                <span className="pitch-alignment-label">Alignement pitch :</span>
+                <span className="pitch-alignment-value">
+                  {m.marketSizing.pitchAlignment === 'overestimated' && 'Pitch surestime le marché'}
+                  {m.marketSizing.pitchAlignment === 'underestimated' && 'Pitch sous-estime le marché'}
+                  {m.marketSizing.pitchAlignment === 'pitch-not-cited' && 'Pitch ne cite pas de TAM'}
+                </span>
+                {m.marketSizing.pitchAlignmentNote && (
+                  <div className="pitch-alignment-note">{enrichProse(m.marketSizing.pitchAlignmentNote)}</div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       {/* Bloc 3 - Due diligence */}
@@ -1161,6 +1230,85 @@ export default function InvestmentNoteView({ result }: Props) {
         }
         .note-value.bold {
           font-weight: 600;
+        }
+
+        /* MARKET SIZING - styles dedies au bloc TAM/SAM/SOM.
+           Conception : table classique mais avec une mention discrete
+           de la source en sous-ligne, et un indicateur de confiance
+           type pastille.
+           
+           Le but est que le lecteur voie d un coup d œil :
+             1. Le chiffre (gros, en gras)
+             2. Le timeframe (gris, leger)
+             3. La source (encore plus discret, en italique)
+             4. La confiance (petit point colore) */
+        .sizing-confidence {
+          display: inline-block;
+          margin-left: 6px;
+          font-size: 10px;
+          line-height: 1;
+          vertical-align: middle;
+        }
+        .sizing-confidence[data-conf="high"]   { color: #2d4a2d; }
+        .sizing-confidence[data-conf="medium"] { color: #a8732e; }
+        .sizing-confidence[data-conf="low"]    { color: #8b2e1f; }
+        
+        .sizing-meta {
+          color: #6a655d;
+          font-size: 12.5px;
+          font-weight: 400;
+        }
+        .sizing-source {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          color: #6a655d;
+          font-style: italic;
+          margin-top: 3px;
+          letter-spacing: 0.01em;
+        }
+        
+        /* PITCH ALIGNMENT - encadre discret qui signale les ecarts
+           entre le TAM cite dans le pitch et le TAM verifie web.
+           Code couleur :
+             overestimated -> ocre attenue (pas alarmiste mais signal clair)
+             underestimated -> vert sombre (rare, signal positif)
+             pitch-not-cited -> gris ardoise (manque de rigueur founder) */
+        .pitch-alignment {
+          margin-top: 16px;
+          padding: 10px 14px;
+          border-left: 3px solid #6a655d;
+          background: #f4f0e6;
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .pitch-alignment-overestimated {
+          border-left-color: #a8732e;
+          background: #f7eedc;
+        }
+        .pitch-alignment-underestimated {
+          border-left-color: #2d4a2d;
+          background: #e8f0e8;
+        }
+        .pitch-alignment-pitch-not-cited {
+          border-left-color: #6a655d;
+          background: #ede9de;
+        }
+        .pitch-alignment-label {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #6a655d;
+          margin-right: 8px;
+        }
+        .pitch-alignment-value {
+          font-weight: 600;
+          color: #1d1c1a;
+        }
+        .pitch-alignment-note {
+          margin-top: 6px;
+          color: #1d1c1a;
         }
 
         /* TABLE FINANCIALS - Tableau à colonnes pour les projections.

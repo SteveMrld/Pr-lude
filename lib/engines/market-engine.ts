@@ -50,6 +50,28 @@ NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitc
   "perceivedSize": "massive" ou "large" ou "niche",
   "realIntensity": "extreme" ou "high" ou "medium",
   "saturation": "saturated" ou "fragmented" ou "emerging",
+  "marketSizing": {
+    "tam": {
+      "value": "ex. '47Mds$ d ici 2032' ou 'non chiffré'",
+      "timeframe": "ex. '2032', '2025', 'horizon 2030'",
+      "source": "ex. 'Pitchbook Drone Industry Report 2024', 'Maddyness 2025', 'pitch deck'",
+      "confidence": "high | medium | low"
+    },
+    "sam": {
+      "value": "ex. '8.5Mds$ segment cargo BVLOS Europe 2030'",
+      "timeframe": "ex. '2030'",
+      "source": "ex. 'Frost & Sullivan European UAV Cargo 2024'",
+      "methodology": "ex. 'TAM mondial × 18% Europe × 32% segment cargo certifié'"
+    },
+    "som": {
+      "value": "ex. '425M$ horizon 5 ans'",
+      "timeframe": "ex. 'horizon 2030, soit 5 ans'",
+      "methodology": "ex. '5% du SAM, hypothèse aggressive avec leadership européen'"
+    },
+    "sizingNarrative": "synthèse 3-5 phrases qui explique le sizing TAM/SAM/SOM en croisant sources web et claims du pitch. Si écart majeur, l expliquer.",
+    "pitchAlignment": "aligned | overestimated | underestimated | pitch-not-cited",
+    "pitchAlignmentNote": "1-2 phrases si écart entre TAM cité dans pitch et TAM vérifié"
+  },
   "organicSignals": {
     "score": 0-100,
     "rationale": "phrase qui s'appuie sur les chiffres HN et trend",
@@ -79,6 +101,49 @@ NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitc
     "differentiationRationale": "phrase qui explique en quoi la startup se différencie selon la matrice"
   }
 }
+
+# REGLE CRITIQUE SUR marketSizing
+
+Le bloc marketSizing est OBLIGATOIRE. Sans chiffrage TAM/SAM/SOM, une note
+d investissement est inacceptable pour un partner d IC. Tu DOIS remplir
+les 3 niveaux meme si tu dois faire des estimations. Voici la hierarchie
+de qualite des sources :
+
+  1. PRIORITE 1 : chiffre issu d une recherche web verifiable.
+     Sources de reference (par ordre de fiabilite) :
+       - Rapports analystes : Pitchbook, Gartner, Forrester, IDC,
+         Frost & Sullivan, Mordor Intelligence, Markets and Markets,
+         Statista (entreprise reports)
+       - Analyses VC : Atomico State of European Tech, Crunchbase
+         News, CB Insights, Dealroom
+       - Presse specialisee : Sifted, TechCrunch, Maddyness, Les Echos
+         Capital Finance, La Tribune, Defense News, Aviation Week
+       - Banques d affaires : rapports JPM, Goldman, BCG, McKinsey
+     Tu DOIS faire 1-2 recherches web specifiques pour le sizing :
+       - "[secteur] market size 2024 2025"
+       - "[sous-secteur] TAM forecast 2030"
+
+  2. PRIORITE 2 : chiffre cité dans le pitch avec un grain de sel.
+     Si le pitch cite un TAM, label-le explicitement source='Pitch deck'
+     et ajoute une note dans pitchAlignmentNote sur la credibilite.
+
+  3. PRIORITE 3 : calcul deductif a partir de chiffres verifies.
+     Ex. "TAM mondial 47Mds$ × 18% part Europe (Eurostat) = 8.5Mds$ SAM Europe"
+     Le calcul doit etre explicite dans methodology.
+
+  4. SI VRAIMENT INTROUVABLE : value='non chiffré' avec source='aucune
+     source fiable trouvée après [N] recherches web' et explication
+     dans sizingNarrative. Mais c est un dernier recours, pas la norme.
+
+REGLE CRITIQUE SUR pitchAlignment :
+  - 'aligned' : TAM/SAM du pitch cohérents avec sources web (écart <30%)
+  - 'overestimated' : pitch surestime de 30%+ (red flag classique)
+  - 'underestimated' : pitch sous-estime (rare, signal positif)
+  - 'pitch-not-cited' : le pitch ne donne pas de TAM (red flag de rigueur)
+
+Le bloc sizingNarrative doit toujours croiser pitch et verite web :
+"Le pitch revendique X. Sources web indiquent Y. L écart de Z% s explique par..."
+
 
 # UTILISATION DU WEB SEARCH (si l outil est disponible)
 
@@ -198,13 +263,14 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  // Niveau 2.A : web search active sur 3 recherches max
+  // Niveau 2.A v2 : web search active sur 4 recherches max (1-2 dediees
+  // au sizing TAM/SAM/SOM + 2-3 pour concurrents/dynamique)
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
-    8000,
+    9000,
     undefined,
-    { maxWebSearches: 3 },
+    { maxWebSearches: 4 },
   );
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 
