@@ -784,6 +784,16 @@ export default function HomeClient({
               )}
             </div>
 
+            {/* NIVEAU 3.A : Bloc d annotation utilisateur.
+                Apparait uniquement quand l analyse est sauvegardee
+                (savedAnalysisId existe). Permet a l utilisateur d ajouter
+                des notes libres qui seront stockees et reutilisees comme
+                contexte d apprentissage sur les futurs dossiers du meme
+                secteur. */}
+            {savedAnalysisId && (
+              <AnnotationBlock analysisId={savedAnalysisId} />
+            )}
+
             {/* En mode normal: bascule selon viewMode. En mode print: rend dashboard + note en cascade. */}
             {(viewMode === 'note' && !printMode) ? (
               <InvestmentNoteView result={result} />
@@ -2275,5 +2285,169 @@ export default function HomeClient({
         )}
       </main>
     </>
+  );
+}
+
+// ============================================================
+// NIVEAU 3.A : COMPOSANT BLOC D ANNOTATION
+// ------------------------------------------------------------
+// Champ texte libre permettant a l utilisateur d annoter une analyse.
+// Les annotations sont stockees dans Supabase via PATCH /api/analyses/[id]
+// et seront automatiquement injectees dans le prompt de finalRecommendation
+// pour les futurs dossiers du meme secteur.
+//
+// Comportement :
+//   - Charge les notes existantes au mount (si analyse passee)
+//   - Save manuel via bouton (pas d auto-save pour eviter les ecrits
+//     intempestifs pendant que l utilisateur reflechit)
+//   - Indicateur visuel de l etat : draft / saving / saved
+// ============================================================
+function AnnotationBlock({ analysisId }: { analysisId: string }) {
+  const [notes, setNotes] = useState<string>('');
+  const [originalNotes, setOriginalNotes] = useState<string>('');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [expanded, setExpanded] = useState(false);
+
+  // Charge les notes existantes (si l analyse a deja ete annotee)
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/analyses/${analysisId}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (cancelled) return;
+        const existing = data?.analysis?.userNotes || '';
+        setNotes(existing);
+        setOriginalNotes(existing);
+      })
+      .catch(() => { /* silencieux */ });
+    return () => { cancelled = true; };
+  }, [analysisId]);
+
+  const hasChanges = notes !== originalNotes;
+
+  const handleSave = async () => {
+    setSaveState('saving');
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userNotes: notes }),
+      });
+      if (res.ok) {
+        setSaveState('saved');
+        setOriginalNotes(notes);
+        setTimeout(() => setSaveState('idle'), 2000);
+      } else {
+        setSaveState('error');
+      }
+    } catch {
+      setSaveState('error');
+    }
+  };
+
+  return (
+    <div style={{
+      margin: '20px 0',
+      background: 'var(--surface)',
+      border: '1px solid var(--hairline)',
+      padding: expanded ? '20px 24px' : '14px 20px',
+      transition: 'padding 0.15s',
+    }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+      >
+        <div style={{
+          fontSize: 11,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--muted)',
+          fontWeight: 600,
+        }}>
+          {expanded ? '▾' : '▸'} Annotations & feedback
+          {originalNotes && !expanded && (
+            <span style={{ marginLeft: 8, opacity: 0.7, textTransform: 'none', letterSpacing: 0 }}>
+              · annotée
+            </span>
+          )}
+        </div>
+        {!expanded && (
+          <span style={{ fontSize: 11, opacity: 0.6 }}>
+            Cliquer pour annoter
+          </span>
+        )}
+      </div>
+
+      {expanded && (
+        <>
+          <div style={{
+            fontSize: 12.5,
+            color: 'var(--muted)',
+            lineHeight: 1.55,
+            marginTop: 10,
+            marginBottom: 12,
+          }}>
+            Annote librement cette analyse : ce que le moteur a bien capté, ce qu&apos;il a sous-estimé,
+            les comparables qui te semblent justes ou faux, ta thèse personnelle. Tes annotations sont
+            réutilisées comme contexte d&apos;apprentissage pour les futurs dossiers du même secteur.
+          </div>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Ex. Le moteur a sous-estimé le founder-market fit. Le pattern Helsing est juste mais trop appuyé. La traction réelle est probablement meilleure que les zéro ARR/NRR documentés."
+            rows={5}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: 14,
+              fontFamily: 'inherit',
+              border: '1px solid var(--hairline)',
+              background: 'var(--paper)',
+              color: 'var(--ink)',
+              resize: 'vertical',
+              lineHeight: 1.55,
+            }}
+          />
+          <div style={{
+            marginTop: 10,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+              {saveState === 'saving' && 'Sauvegarde...'}
+              {saveState === 'saved' && <span style={{ color: 'var(--vert-foret)' }}>✓ Annotation sauvegardée</span>}
+              {saveState === 'error' && <span style={{ color: 'var(--rouge-anglais)' }}>⨯ Erreur de sauvegarde</span>}
+              {saveState === 'idle' && hasChanges && <span style={{ opacity: 0.7 }}>Modifications non sauvegardées</span>}
+              {saveState === 'idle' && !hasChanges && <span style={{ opacity: 0.5 }}>{notes.length} caractères</span>}
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || saveState === 'saving'}
+              style={{
+                padding: '7px 18px',
+                fontSize: 12,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                background: hasChanges ? 'var(--ink)' : 'transparent',
+                color: hasChanges ? 'var(--paper)' : 'var(--muted)',
+                border: '1px solid ' + (hasChanges ? 'var(--ink)' : 'var(--hairline)'),
+                cursor: hasChanges ? 'pointer' : 'not-allowed',
+                fontFamily: 'inherit',
+              }}
+            >
+              Sauvegarder
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

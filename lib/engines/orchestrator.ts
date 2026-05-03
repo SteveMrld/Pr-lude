@@ -5,6 +5,7 @@ import type {
   BlindspotAnalysisOutput, ContrarianAnalysisOutput,
   OrchestratedResult
 } from './types';
+import { getRelevantPastAnnotations, formatPastAnnotationsForPrompt } from '../analysis-store';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux d'aveuglement et signaux de singularité.
 
@@ -189,9 +190,27 @@ export async function orchestrateFinalRecommendation(
     return s.slice(0, max) + '...';
   };
 
+  // ============================================================
+  // NIVEAU 3.A : APPRENTISSAGE PAR FEEDBACK SUPERVISE
+  // ------------------------------------------------------------
+  // Recupere les annotations utilisateur passees sur des dossiers du
+  // meme secteur. Ces annotations sont injectees dans le prompt comme
+  // contexte d apprentissage. L appel est non-bloquant : si la
+  // persistence est desactivee ou la base down, on injecte un bloc vide.
+  //
+  // L impact sur le coût est marginal (5 annotations × ~200 tokens =
+  // ~1000 tokens supplementaires en input).
+  // ============================================================
+  const pastAnnotations = await getRelevantPastAnnotations(
+    extraction.sector,
+    undefined,
+    5,
+  );
+  const annotationsBlock = formatPastAnnotationsForPrompt(pastAnnotations);
+
   const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction.companyName} :
 
-# CONTEXTE
+${annotationsBlock}# CONTEXTE
 ${extraction.sector} / ${extraction.subSector} · ${extraction.geographicHub}, ${extraction.country}
 Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}

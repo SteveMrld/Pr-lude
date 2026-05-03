@@ -563,3 +563,142 @@ function rowToFull(row: any): AnalysisFull {
     pipelineEnginesStatus: row.pipeline_engines_status,
   };
 }
+
+// ============================================================
+// NIVEAU 3.A - APPRENTISSAGE PAR FEEDBACK SUPERVISE
+// ------------------------------------------------------------
+// Recupere les annotations utilisateur passees pertinentes pour
+// un nouveau dossier. Ces annotations sont injectees dans le
+// prompt de finalRecommendation comme contexte d apprentissage.
+//
+// Strategie de pertinence (par ordre de priorite) :
+//   1. Meme secteur exact (ex. 'Defense', 'Defense')
+//   2. Sous-secteur similaire (ex. 'drones certifies', 'UAS')
+//   3. Memes patterns d aveuglement detectes
+//   4. Recence (les plus recentes en premier)
+//
+// Pour le 3.A simplifie, on filtre simplement par secteur exact
+// et on retourne les 5 plus recentes. Le 3 complet ajoutera de
+// la similarite semantique sur sub_sector et patterns.
+// ============================================================
+
+export interface PastAnnotation {
+  companyName: string;
+  sector: string | null;
+  subSector: string | null;
+  verdict: string;
+  globalScore: number | null;
+  userNotes: string;
+  createdAt: string;
+}
+
+/**
+ * Recupere les annotations passees pertinentes pour un nouveau dossier.
+ * Filtre par secteur, exclut les analyses sans user_notes, prend les
+ * 5 plus recentes.
+ *
+ * Retourne array vide si :
+ *   - persistence desactivee
+ *   - pas d annotations dans le secteur
+ *   - erreur Supabase
+ *
+ * Non-bloquant : ne fait jamais planter le pipeline.
+ */
+export async function getRelevantPastAnnotations(
+  sector: string | null | undefined,
+  excludeAnalysisId?: string,
+  maxResults: number = 5,
+): Promise<PastAnnotation[]> {
+  if (!isPersistenceEnabled()) return [];
+  if (!sector) return [];
+
+  try {
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return [];
+    const supabase = getClient(useAdminClient);
+
+    let query = supabase
+      .from('analyses')
+      .select(`
+        company_name, sector, sub_sector, verdict, global_score,
+        user_notes, created_at
+      `)
+      .eq('user_id', userId)
+      .eq('sector', sector)
+      .not('user_notes', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(maxResults);
+
+    if (excludeAnalysisId) {
+      query = query.neq('id', excludeAnalysisId);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) {
+      console.error('[analysis-store] getRelevantPastAnnotations erreur :', error);
+      return [];
+    }
+
+    // Filtre supplementaire : on garde uniquement les annotations
+    // non-vides (les empty strings ou whitespace-only sont retires)
+    return data
+      .filter((row: any) => row.user_notes && row.user_notes.trim().length > 0)
+      .map((row: any) => ({
+        companyName: row.company_name,
+        sector: row.sector,
+        subSector: row.sub_sector,
+        verdict: row.verdict,
+        globalScore: row.global_score,
+        userNotes: row.user_notes.trim(),
+        createdAt: row.created_at,
+      }));
+  } catch (err) {
+    console.error('[analysis-store] getRelevantPastAnnotations exception :', err);
+    return [];
+  }
+}
+
+/**
+ * Formate les annotations passees en bloc texte injectable dans
+ * un prompt LLM. Format compact et structure.
+ *
+ * Si pas d annotations, retourne chaine vide (rien a injecter).
+ */
+export function formatPastAnnotationsForPrompt(annotations: PastAnnotation[]): string {
+  if (annotations.length === 0) return '';
+
+  const formatted = annotations
+    .map((a, i) => {
+      const date = new Date(a.createdAt).toLocaleDateString('fr-FR', {
+        day: '2-digit', month: 'short', year: 'numeric',
+      });
+      const score = a.globalScore != null ? `${Math.round(a.globalScore)}/100` : '?';
+      return `[Annotation ${i + 1}] ${a.companyName} (${date}) · Verdict ${a.verdict} · Score ${score}
+"${a.userNotes}"`;
+    })
+    .join('\n\n');
+
+  return `# CONTEXTE D APPRENTISSAGE - ANNOTATIONS PASSEES SUR LE MEME SECTEUR
+
+L utilisateur a annote les analyses precedentes dans ce secteur. Ces
+annotations refletent sa sensibilite, son experience accumulee, et ses
+corrections par rapport aux analyses brutes du moteur. Elles sont
+fournies comme contexte pour calibrer ta recommandation finale.
+
+REGLES D USAGE :
+  - Utilise ces annotations comme un MIROIR de la pensee du partner
+  - Si une annotation passee dit "le moteur a sous-estime X", verifie
+    que ton analyse actuelle ne reproduit pas le meme biais
+  - Si une annotation dit "ce comparable n est pas pertinent", evite
+    de citer ce comparable dans des contextes similaires
+  - Mais reste rigoureux : ne te plie pas aveuglement aux annotations
+    si les faits du dossier les contredisent. Mentionne explicitement
+    les divergences dans ton raisonnement.
+
+ANNOTATIONS RECENTES (${annotations.length} dossier${annotations.length > 1 ? 's' : ''} dans ce secteur) :
+
+${formatted}
+
+`;
+}
+
