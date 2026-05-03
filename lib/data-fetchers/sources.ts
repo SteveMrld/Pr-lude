@@ -81,7 +81,9 @@ export type SourceName =
   | 'hackernews'
   | 'openalex'
   | 'arxiv'
-  | 'worldbank';
+  | 'worldbank'
+  | 'epo'        // Espacenet OPS : brevets europeens (OAuth2)
+  | 'pappers';   // Pappers : registre RCS francais (api-key)
 
 const DEFAULT_ENABLED_SOURCES: SourceName[] = ['wikipedia'];
 
@@ -386,6 +388,48 @@ export interface FounderRealData {
   topRepos?: GitHubRepo[];
   wikipedia?: WikipediaSummary;
   arxivRecent?: ArxivPaper[];
+  // Niveau 2.B : sources sectorielles dedicacees aux profils business /
+  // industriel / hardware. Renseignes uniquement si EPO_OAUTH_CLIENT_ID
+  // / PAPPERS_API_KEY sont configures et si le profileType le justifie.
+  // Voir lib/data-fetchers/sources-sectorial.ts.
+  epo?: {
+    inventorName: string;
+    totalFound: number;
+    patents: Array<{
+      publicationNumber: string;
+      title: string;
+      applicationDate: string;
+      publicationDate: string;
+      inventors: string[];
+      applicants: string[];
+      ipcClassifications: string[];
+    }>;
+    errorMessage?: string;
+  };
+  pappers?: {
+    searchedName: string;
+    totalFound: number;
+    results: Array<{
+      nom: string;
+      prenom: string;
+      qualite: string;
+      dateDebutMandat?: string;
+      dateFinMandat?: string;
+      entreprise: {
+        siren: string;
+        nomEntreprise: string;
+        formeJuridique?: string;
+        dateCreation?: string;
+        statutRcs?: 'Inscrit' | 'Radié';
+      };
+    }>;
+    errorMessage?: string;
+  };
+  sectorialScores?: {
+    patents_signature: number;
+    registry_depth: number;
+    rationale: string;
+  };
   // Faits vérifiables consolidés
   verifiableFacts: {
     openalex_pubs: number;
@@ -668,6 +712,69 @@ export async function gatherFounderRealData(
   if (technical >= 60) profileSignals.push('technique');
   if (publicPresence >= 60) profileSignals.push('public');
   result.profileSignals = profileSignals;
+
+  // ============================================================
+  // NIVEAU 2.B : ENRICHISSEMENT SECTORIEL (EPO + Pappers)
+  // ------------------------------------------------------------
+  // Pour les profils business / industriel / hardware, OpenAlex et
+  // GitHub ne sont pas pertinents (cf fix profileType, commit
+  // 979aa70). On enrichit avec deux sources sectorielles :
+  //   - EPO Espacenet OPS : brevets europeens (validation expertise
+  //     technique pour profils ingenieurs / inventeurs)
+  //   - Pappers : registre RCS francais (mandats sociaux passes /
+  //     actuels, validation trajectoire entreprise)
+  //
+  // Les deux sources sont controlees par variables d env :
+  //   EPO_OAUTH_CLIENT_ID + EPO_OAUTH_CLIENT_SECRET pour EPO
+  //   PAPPERS_API_KEY pour Pappers
+  // Si non configurees, retournent null sans crash. L appel n est
+  // declenche que si le profil est business_industrial / mixed /
+  // unknown : un academique pur n a pas de mandats RCS / brevets perso.
+  // ============================================================
+  const epoEnabled = isSourceEnabled('epo') && process.env.EPO_OAUTH_CLIENT_ID && process.env.EPO_OAUTH_CLIENT_SECRET;
+  const pappersEnabled = isSourceEnabled('pappers') && process.env.PAPPERS_API_KEY;
+
+  if (epoEnabled || pappersEnabled) {
+    try {
+      // Import dynamique pour eviter le cout de chargement quand desactive
+      const { gatherSectorialDataForFounder } = await import('./sources-sectorial');
+      const sectorial = await gatherSectorialDataForFounder(name, profileType);
+
+      if (sectorial.epo) {
+        result.epo = sectorial.epo;
+        if (sectorial.epo.totalFound > 0) result.sourcesFound.push('epo');
+        if (!result.sourcesQueried.includes('epo')) result.sourcesQueried.push('epo');
+      }
+      if (sectorial.pappers) {
+        result.pappers = sectorial.pappers;
+        if (sectorial.pappers.totalFound > 0) result.sourcesFound.push('pappers');
+        if (!result.sourcesQueried.includes('pappers')) result.sourcesQueried.push('pappers');
+      }
+
+      // Ajout des scores sectoriels au bloc objectiveScores
+      result.sectorialScores = sectorial.sectorialScores;
+
+      // Pour les profils business_industrial, on remappe technical_signature
+      // sur le score brevets (plus pertinent que GitHub) et public_presence
+      // sur le score Pappers (plus pertinent que Wikipedia).
+      if (profileType === 'business_industrial') {
+        result.objectiveScores = {
+          ...result.objectiveScores,
+          technical_signature: Math.max(result.objectiveScores.technical_signature, sectorial.sectorialScores.patents_signature),
+          public_presence: Math.max(result.objectiveScores.public_presence, sectorial.sectorialScores.registry_depth),
+        };
+        // Mise a jour du rationale d applicabilite : ces scores sont
+        // maintenant pertinents grace a EPO + Pappers
+        if (result.scoresApplicability) {
+          result.scoresApplicability.technical_applicable = sectorial.epo !== null;
+          result.scoresApplicability.public_applicable = sectorial.pappers !== null;
+          result.scoresApplicability.rationale = `Profil business / industriel : sources OpenAlex / GitHub OSS / Wikipedia non pertinentes, REMPLACEES par EPO (brevets) ${sectorial.epo ? '✓' : '✗ non configure'} et Pappers (registre RCS) ${sectorial.pappers ? '✓' : '✗ non configure'}.`;
+        }
+      }
+    } catch (err: any) {
+      console.warn('[sectorial] enrichment failed:', err?.message);
+    }
+  }
 
   return result as FounderRealData;
 }

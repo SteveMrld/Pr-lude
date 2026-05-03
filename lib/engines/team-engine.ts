@@ -97,6 +97,13 @@ RÈGLES STRICTES :
 
 4. Si profileType = 'business_industrial' : tu peux signaler dans gaps que la VÉRIFICATION publique reste à compléter via d'autres sources (LinkedIn, registres entreprises, brevets EPO, presse sectorielle), MAIS tu ne dois pas conclure que le fondateur est "non-évaluable" ou que l'absence de signal est suspecte. C'est juste que les sources interrogées ne sont pas les bonnes pour ce profil.
 
+4 bis. NIVEAU 2.B - sources sectorielles : si le bloc "EPO Espacenet (brevets)" et/ou "Pappers (registre RCS)" est présent dans les données vérifiées, EXPLOITE-LES PRIORITAIREMENT pour les profils business / industriel :
+   - EPO valide ou invalide les claims d'expertise technique. Un fondateur qui se déclare "inventeur" doit avoir au moins 1 brevet déposé. Zéro brevet sur un claim "20 ans d'expertise hardware" est un red flag DOCUMENTÉ (à mettre en redFlags avec tag [web : EPO]).
+   - Pappers valide ou invalide les claims de trajectoire entrepreneuriale. Un fondateur qui se déclare "serial entrepreneur" doit avoir plusieurs mandats RCS. Vérifier la cohérence dates / qualités / radiations.
+   - Si EPO ou Pappers retournent 0 résultat MAIS les variables d'env sont configurées (donc l'API a été interrogée), c'est une INFORMATION VÉRIFIÉE et utilisable comme red flag : "Aucun brevet retrouvé sur EPO malgré claim inventeur [web : EPO]" est une assertion factuelle, pas une inférence.
+   - Si EPO ou Pappers ne sont PAS configurés (les blocs sont absents), tu ne peux pas conclure : signaler dans gaps que ces vérifications n'ont pas été faites.
+   - Pour un fondateur français business / industriel, les scores sectoriels (Brevets X/100, Registre Y/100) sont PLUS pertinents que les scores académiques. Utilise-les en priorité.
+
 5. Si profileType = 'unknown' : applique les scores avec prudence et signale l'incertitude dans la rationale.
 
 EXEMPLE NÉGATIF À NE PAS REPRODUIRE :
@@ -294,6 +301,36 @@ export async function analyzeTeam(
       rd.arxivRecent.forEach(p => {
         s += `  - ${p.title.slice(0, 80)} (${p.published})\n`;
       });
+    }
+    // Niveau 2.B : sources sectorielles EPO + Pappers
+    if (rd.epo) {
+      if (rd.epo.totalFound > 0) {
+        s += `EPO Espacenet (brevets) : ${rd.epo.totalFound} brevet(s) trouve(s) comme inventeur\n`;
+        rd.epo.patents.slice(0, 5).forEach((p: any) => {
+          s += `  - ${p.publicationNumber} (${p.publicationDate}) : ${p.title.slice(0, 100)}\n`;
+          if (p.applicants?.length) s += `    Deposants : ${p.applicants.slice(0, 3).join(', ')}\n`;
+          if (p.ipcClassifications?.length) s += `    Classes CIB : ${p.ipcClassifications.slice(0, 4).join(', ')}\n`;
+        });
+      } else {
+        s += `EPO Espacenet (brevets) : 0 brevet trouve comme inventeur ${rd.epo.errorMessage ? '(' + rd.epo.errorMessage + ')' : ''}\n`;
+      }
+    }
+    if (rd.pappers) {
+      if (rd.pappers.totalFound > 0) {
+        const inscrits = rd.pappers.results.filter((d: any) => d.entreprise?.statutRcs === 'Inscrit').length;
+        s += `Pappers (registre RCS) : ${rd.pappers.totalFound} mandat(s), dont ${inscrits} entreprise(s) actives\n`;
+        rd.pappers.results.slice(0, 8).forEach((d: any) => {
+          const e = d.entreprise || {};
+          const status = e.statutRcs === 'Radié' ? ' [RADIE]' : '';
+          s += `  - ${d.qualite} de ${e.nomEntreprise} (${e.formeJuridique || '?'}, ${e.dateCreation?.slice(0, 4) || '?'})${status}\n`;
+        });
+      } else {
+        s += `Pappers (registre RCS) : 0 mandat trouve ${rd.pappers.errorMessage ? '(' + rd.pappers.errorMessage + ')' : ''}\n`;
+      }
+    }
+    if (rd.sectorialScores && (rd.epo || rd.pappers)) {
+      s += `Scores sectoriels : Brevets ${rd.sectorialScores.patents_signature}/100, Registre ${rd.sectorialScores.registry_depth}/100\n`;
+      s += `(${rd.sectorialScores.rationale})\n`;
     }
     if (rd.objectiveScores) {
       s += `Scores objectifs : Sci ${rd.objectiveScores.scientific_signature}/100, Tech ${rd.objectiveScores.technical_signature}/100, Public ${rd.objectiveScores.public_presence}/100, Activité ${rd.objectiveScores.recent_activity}/100\n`;
