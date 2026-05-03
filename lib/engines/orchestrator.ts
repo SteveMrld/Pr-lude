@@ -42,6 +42,14 @@ C'est un jugement structurel, pas une moyenne arithmétique. Tu prends en compte
 3. Le BENCHMARK PATTERN MATCHING (15%) : taux de succès des comparables historiques
 4. Le RETOURNEMENT CAUSAL (10%) : qualité de la lecture inverse
 
+# SCORE AUDITABLE - PRINCIPE DE COHERENCE
+
+Apres ton output, le code recalcule mecaniquement un score a partir de tes dimensionProbabilities ponderees + un ajustement selon la tension blindspots/contrarian que tu as identifiee. Ce score mecanique est expose a cote du tien (computedScoreBreakdown). Si l ecart depasse 15 points, l UI affichera une alerte de divergence.
+
+Tu n es pas oblige de coller au calcul mecanique : ton globalScore peut integrer des facteurs implicites (qualite du founder-market fit, signal de fenetre macro extreme, pattern historique tres proche) qui ne sont pas chiffres dans les dimensions. Mais tu dois etre conscient qu un ecart >15 points sera signale comme suspect.
+
+REGLE PRATIQUE : si tu sens que ton globalScore diverge fortement de la moyenne ponderee des dimensions, c est probablement parce que tes dimensionProbabilities ne capturent pas l essentiel. Dans ce cas, REVISE les dimensionProbabilities pour qu elles refletent mieux ton jugement, plutot que de creer un ecart non auditable.
+
 # PROBABILITÉS PAR DIMENSION
 
 Tu produis une probabilité de succès et un risk score pour chacune des 6 dimensions :
@@ -287,11 +295,77 @@ Retourne uniquement le JSON structuré.`;
   // de synthese compact, pas besoin de plus. Le retry est conserve mais
   // utilise le meme maxTokens reduit pour eviter de doubler le temps en pire cas.
   let rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
+  let recommendation: OrchestratedResult['finalRecommendation'];
   try {
-    return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   } catch (firstErr: any) {
     console.warn('[orchestrator] JSON parse failed, retrying once:', firstErr?.message);
     rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
-    return parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   }
+
+  // ============================================================
+  // NIVEAU 2.B : SCORE AUDITABLE
+  // ------------------------------------------------------------
+  // Le LLM produit globalScore par jugement structurel, ce qui peut
+  // conduire a des ecarts non auditables (cas UP&CHARGE : LLM = 28
+  // alors que la somme ponderee des dimensions donne ~44). On
+  // recalcule un score mecanique a partir des memes dimensions, et
+  // on expose les deux. Si l ecart depasse 15 points, on logge un
+  // warning et on signale dans auditNote pour que l UI puisse
+  // afficher l alerte.
+  //
+  // Formule :
+  //   weightedDimensionScore = Σ (successProbability_i × weight_i)
+  //   blindspotsContrarianAdjustment :
+  //     - blindspots-dominate     : -15 a -25 selon globalBlindspotScore
+  //     - contrarian-justifies    : +5 a +15 selon globalContrarianScore
+  //     - balanced-investigate    : 0
+  //   finalComputedScore = clamp(weightedDimensionScore + adjustment, 0, 100)
+  // ============================================================
+  const dims = recommendation.dimensionProbabilities || [];
+  const weightedDimensionScore = dims.length > 0
+    ? Math.round(
+        dims.reduce((sum, d) => sum + (d.successProbability || 0) * (d.weight || 0), 0)
+      )
+    : 0;
+
+  const tension = recommendation.blindspotsVsContrarian?.tensionResolved;
+  const blindspotScore = blindspotAnalysis.globalBlindspotScore || 0;
+  const contrarianScore = contrarianAnalysis.globalContrarianScore || 0;
+  let blindspotsContrarianAdjustment = 0;
+  if (tension === 'blindspots-dominate') {
+    // Plus le blindspot score est haut, plus on penalise (max -25)
+    blindspotsContrarianAdjustment = -Math.round(15 + (blindspotScore / 100) * 10);
+  } else if (tension === 'contrarian-justifies') {
+    // Plus le contrarian score est haut, plus on bonifie (max +15)
+    blindspotsContrarianAdjustment = Math.round(5 + (contrarianScore / 100) * 10);
+  }
+
+  const finalComputedScore = Math.max(0, Math.min(100, weightedDimensionScore + blindspotsContrarianAdjustment));
+  const llmScore = recommendation.globalScore || 0;
+  const delta = finalComputedScore - llmScore;
+  const absDelta = Math.abs(delta);
+
+  let auditNote = '';
+  if (absDelta <= 5) {
+    auditNote = 'Score LLM aligne avec le calcul mecanique (ecart <= 5 points).';
+  } else if (absDelta <= 15) {
+    auditNote = `Ecart modere de ${delta > 0 ? '+' : ''}${delta} points entre score LLM (${llmScore}) et calcul mecanique (${finalComputedScore}). Le jugement LLM ${delta > 0 ? 'sous-estime' : 'sur-estime'} legerement par rapport a la ponderation directe.`;
+  } else {
+    auditNote = `ECART CRITIQUE de ${delta > 0 ? '+' : ''}${delta} points entre score LLM (${llmScore}) et calcul mecanique (${finalComputedScore}). Le LLM a fait un saut de jugement non capture par les dimensions. Examiner la coherence : soit les dimensionProbabilities sous-estiment / sur-estiment certains axes, soit la tension blindspots/contrarian merite un recalibrage des seuils. Le score mecanique est plus traçable, le score LLM peut integrer des facteurs implicites non chiffres.`;
+    console.warn(`[orchestrator] score audit divergence: LLM=${llmScore} computed=${finalComputedScore} delta=${delta}`);
+  }
+
+  recommendation.computedScoreBreakdown = {
+    weightedDimensionScore,
+    blindspotsContrarianAdjustment,
+    finalComputedScore,
+    llmScore,
+    delta,
+    auditNote,
+    formula: 'finalComputedScore = clamp(Σ(successProbability_i × weight_i) + blindspotsContrarianAdjustment, 0, 100). blindspots-dominate : -15 a -25 selon globalBlindspotScore. contrarian-justifies : +5 a +15 selon globalContrarianScore. balanced-investigate : 0.',
+  };
+
+  return recommendation;
 }

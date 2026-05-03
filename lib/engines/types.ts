@@ -530,6 +530,20 @@ export interface OrchestratedResult {
   finalRecommendation: {
     verdict: 'investir' | 'investir avec conditions' | 'approfondir' | 'refuser';
     globalScore: number;
+    // Score recalcule mecaniquement a partir des dimensions ponderees et
+    // de la tension blindspots/contrarian. Expose pour traçabilite : si
+    // globalScore (jugement LLM) et computedScoreBreakdown.weightedScore
+    // (calcul mecanique) divergent de plus de 15 points, cela signale
+    // que le LLM a fait un saut de jugement non auditable.
+    computedScoreBreakdown?: {
+      weightedDimensionScore: number; // 0-100, somme ponderee des 6 dimensions
+      blindspotsContrarianAdjustment: number; // ajustement -25 a +15 selon tension
+      finalComputedScore: number; // 0-100, score mecanique final
+      llmScore: number; // copie de globalScore pour diff visible
+      delta: number; // computed - llm
+      auditNote: string; // explication de l ecart si > 15 points
+      formula: string; // formule textuelle exacte appliquee
+    };
     successProbability: number; // 0-100, probabilité chiffrée explicite
     failureProbability: number; // 0-100
     investmentThreshold: {
