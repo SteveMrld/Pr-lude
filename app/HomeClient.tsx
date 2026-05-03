@@ -799,6 +799,67 @@ export default function HomeClient({
               <InvestmentNoteView result={result} />
             ) : (
               <>
+            {/* Bandeau audit des assertions : signale les noms / dates / devises
+                non sources detectes mecaniquement dans les outputs des moteurs.
+                Si > 5 warnings, encadre rouge ; sinon encadre ambre discret. */}
+            {result.assertionAudit && result.assertionAudit.totalWarnings > 0 && (
+              <div style={{
+                marginBottom: 18, padding: '12px 16px',
+                background: result.assertionAudit.totalWarnings > 5
+                  ? 'rgba(220, 80, 60, 0.10)'
+                  : 'rgba(220, 160, 60, 0.08)',
+                border: result.assertionAudit.totalWarnings > 5
+                  ? '1px solid rgba(220, 80, 60, 0.35)'
+                  : '1px solid rgba(220, 160, 60, 0.30)',
+                borderRadius: 4,
+                fontSize: 12,
+              }}>
+                <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.75, marginBottom: 6 }}>
+                  Audit des assertions · {result.assertionAudit.totalWarnings} point{result.assertionAudit.totalWarnings > 1 ? 's' : ''} à vérifier
+                </div>
+                <div style={{ opacity: 0.9, lineHeight: 1.55 }}>
+                  {result.assertionAudit.byCategory.unknown_name ? (
+                    <span style={{ marginRight: 14 }}>
+                      <strong>{result.assertionAudit.byCategory.unknown_name}</strong> nom{result.assertionAudit.byCategory.unknown_name > 1 ? 's' : ''} propre{result.assertionAudit.byCategory.unknown_name > 1 ? 's' : ''} non sourcé{result.assertionAudit.byCategory.unknown_name > 1 ? 's' : ''} dans le pitch
+                    </span>
+                  ) : null}
+                  {result.assertionAudit.byCategory.currency_mismatch ? (
+                    <span style={{ marginRight: 14 }}>
+                      <strong>{result.assertionAudit.byCategory.currency_mismatch}</strong> conversion{result.assertionAudit.byCategory.currency_mismatch > 1 ? 's' : ''} de devise non explicitée{result.assertionAudit.byCategory.currency_mismatch > 1 ? 's' : ''}
+                    </span>
+                  ) : null}
+                  {result.assertionAudit.byCategory.invented_date ? (
+                    <span style={{ marginRight: 14 }}>
+                      <strong>{result.assertionAudit.byCategory.invented_date}</strong> date{result.assertionAudit.byCategory.invented_date > 1 ? 's' : ''} sans correspondance pitch
+                    </span>
+                  ) : null}
+                </div>
+                <details style={{ marginTop: 10 }}>
+                  <summary style={{ cursor: 'pointer', fontSize: 11, opacity: 0.7 }}>Voir le détail</summary>
+                  <div style={{ marginTop: 10, paddingLeft: 8, borderLeft: '2px solid rgba(255,255,255,0.15)' }}>
+                    {result.assertionAudit.warnings.slice(0, 12).map((w: any, i: number) => (
+                      <div key={i} style={{ marginBottom: 10, fontSize: 11, lineHeight: 1.5 }}>
+                        <div style={{ opacity: 0.5, fontSize: 10 }}>
+                          {w.engine} · {w.field}
+                        </div>
+                        <div style={{ opacity: 0.9 }}>{w.message}</div>
+                        {w.excerpt && (
+                          <div style={{ marginTop: 4, fontStyle: 'italic', opacity: 0.6 }}>
+                            « …{w.excerpt}… »
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {result.assertionAudit.warnings.length > 12 && (
+                      <div style={{ fontSize: 10, opacity: 0.6 }}>
+                        … et {result.assertionAudit.warnings.length - 12} autre{result.assertionAudit.warnings.length - 12 > 1 ? 's' : ''}.
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </div>
+            )}
+
             {/* Recommandation hero enrichie */}
             <div className="reco-card">
               <div className="small-caps" style={{ opacity: 0.7, marginBottom: 8 }}>Recommandation finale du pipeline</div>
@@ -869,6 +930,61 @@ export default function HomeClient({
                 <div className="reco-score-label">Score global / 100</div>
               </div>
 
+              {/* Score auditable : delta entre jugement LLM et calcul mecanique
+                  des dimensions ponderees + ajustement blindspots/contrarian.
+                  Si delta > 15 points, bandeau d alerte de divergence. */}
+              {result.finalRecommendation?.computedScoreBreakdown && (
+                <div style={{
+                  marginTop: 18, padding: '14px 16px',
+                  background: Math.abs(result.finalRecommendation.computedScoreBreakdown.delta) > 15
+                    ? 'rgba(220, 80, 60, 0.10)'
+                    : 'rgba(255,255,255,0.04)',
+                  border: Math.abs(result.finalRecommendation.computedScoreBreakdown.delta) > 15
+                    ? '1px solid rgba(220, 80, 60, 0.4)'
+                    : '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 4,
+                  fontSize: 12,
+                }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
+                    Audit du score · jugement LLM vs calcul mécanique
+                  </div>
+                  <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 10 }}>Score LLM</div>
+                      <div style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>{result.finalRecommendation.computedScoreBreakdown.llmScore}</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 10 }}>Score mécanique</div>
+                      <div style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>{result.finalRecommendation.computedScoreBreakdown.finalComputedScore}</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 10 }}>Écart</div>
+                      <div style={{
+                        fontSize: 22, fontFamily: 'var(--serif)',
+                        color: Math.abs(result.finalRecommendation.computedScoreBreakdown.delta) > 15 ? '#e88a7e' : 'inherit',
+                      }}>
+                        {result.finalRecommendation.computedScoreBreakdown.delta > 0 ? '+' : ''}
+                        {result.finalRecommendation.computedScoreBreakdown.delta}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 10 }}>Dimensions pondérées</div>
+                      <div style={{ fontSize: 14 }}>{result.finalRecommendation.computedScoreBreakdown.weightedDimensionScore}</div>
+                    </div>
+                    <div>
+                      <div style={{ opacity: 0.6, fontSize: 10 }}>Ajustement blindspots / contrarian</div>
+                      <div style={{ fontSize: 14 }}>
+                        {result.finalRecommendation.computedScoreBreakdown.blindspotsContrarianAdjustment > 0 ? '+' : ''}
+                        {result.finalRecommendation.computedScoreBreakdown.blindspotsContrarianAdjustment}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ opacity: 0.85, lineHeight: 1.5 }}>
+                    {result.finalRecommendation.computedScoreBreakdown.auditNote}
+                  </div>
+                </div>
+              )}
+
               {/* Recommandation finale - prose dense decoupee en paragraphes
                   courts (3 phrases chacun) avec chiffres mis en valeur.
                   Sans cette refonte, la prose etait un mur de 12 lignes
@@ -878,6 +994,63 @@ export default function HomeClient({
                   <p key={i} className="reco-arg-para">{enrichProse(p)}</p>
                 ))}
               </div>
+
+              {/* Top 3 risques critiques - hierarchisation : on remonte
+                  les patterns d aveuglement haute intensite + alertes
+                  critiques pour qu un VC voie l essentiel sans deplier
+                  10 sections. Sur UP&CHARGE le 6,3:1 prix/substitut etait
+                  noye page 4 ; ce bloc le remonte au-dessus du fold. */}
+              {(() => {
+                const topRisks: Array<{ label: string; intensity: number; evidence: string }> = [];
+                // 1. Patterns d aveuglement haute intensite (>= 70)
+                const patterns = result.blindspotAnalysis?.patterns || {};
+                Object.values(patterns).forEach((p: any) => {
+                  if (p?.detected && (p.intensity || 0) >= 70) {
+                    topRisks.push({
+                      label: p.patternName || 'Pattern d aveuglement',
+                      intensity: p.intensity || 0,
+                      evidence: (p.evidence || '').slice(0, 220),
+                    });
+                  }
+                });
+                // 2. Alertes critiques bruts si pas assez de patterns
+                if (topRisks.length < 3) {
+                  const alertes = result.blindspotAnalysis?.alertesCritiques || [];
+                  for (const a of alertes.slice(0, 3 - topRisks.length)) {
+                    topRisks.push({
+                      label: 'Alerte critique',
+                      intensity: 80,
+                      evidence: typeof a === 'string' ? a.slice(0, 220) : '',
+                    });
+                  }
+                }
+                // Tri par intensite decroissante, top 3
+                topRisks.sort((a, b) => b.intensity - a.intensity);
+                const top = topRisks.slice(0, 3);
+                if (top.length === 0) return null;
+                return (
+                  <div style={{
+                    marginTop: 24, padding: '20px 24px',
+                    background: 'rgba(220, 80, 60, 0.06)',
+                    borderLeft: '2px solid rgba(220, 80, 60, 0.5)',
+                  }}>
+                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8, marginBottom: 14 }}>
+                      Risques critiques · Top {top.length}
+                    </div>
+                    {top.map((r, i) => (
+                      <div key={i} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: i < top.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>{r.label}</span>
+                          <span style={{ fontSize: 11, opacity: 0.7 }}>intensité {r.intensity}/100</span>
+                        </div>
+                        <div style={{ fontSize: 12, lineHeight: 1.55, opacity: 0.88 }}>
+                          {r.evidence}{r.evidence.length >= 220 ? '…' : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Tension dialectique blindspots/contrarian - prose decoupee
                   en paragraphes courts pour respiration visuelle */}
