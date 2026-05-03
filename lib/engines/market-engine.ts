@@ -1,11 +1,13 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
+import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import type { ExtractionOutput, MarketAnalysisOutput } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Prélude. Tu reçois deux types de données :
 
 1. Les données déclarées par le pitch deck (taille de marché annoncée, concurrents cités, traction)
 2. Les données vérifiées par interrogation de sources publiques (Hacker News, OpenAlex concepts, Wikipedia, GitHub Topics)
+${SOURCE_TAGGING_INSTRUCTION}
 
 Ton travail consiste à croiser ces deux types pour produire une lecture rigoureuse du marché qui distingue ce qui est confirmé par les sources publiques de ce qui est purement déclaratif.
 
@@ -341,6 +343,12 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
     { maxWebSearches: 4 },
   );
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
+
+  // Audit du tagging des sources (Niveau 2.B)
+  const audit = auditTagging(analysis, 'market-engine');
+  if (audit.level !== 'ok') {
+    console.warn('[market-engine] tagging audit:', audit.message);
+  }
 
   return { ...analysis, realData };
 }

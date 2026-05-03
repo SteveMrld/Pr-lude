@@ -1,5 +1,6 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
+import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import type { ExtractionOutput, TeamAnalysisOutput, BenchmarkPositioning } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
@@ -8,6 +9,7 @@ const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Pré
 2. Les données vérifiées par interrogation de sources publiques (OpenAlex, GitHub, Wikipedia, arXiv)
 
 Ton travail consiste à croiser ces deux types de données et à produire une lecture qui distingue le déclaré du vérifié, et qui identifie les écarts entre les deux quand ils existent.
+${SOURCE_TAGGING_INSTRUCTION}
 
 # CADRE D'ANALYSE D'ÉQUIPE
 
@@ -352,6 +354,14 @@ Intègre dans ton analyse :
     { maxWebSearches: 4 },
   );
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
+
+  // Audit du tagging des sources (Niveau 2.B). Logge un warning si le
+  // LLM a peu tagge ses assertions. Le warning est ecrit dans la
+  // console serveur Vercel, exploitable via les logs.
+  const audit = auditTagging(analysis, 'team-engine');
+  if (audit.level !== 'ok') {
+    console.warn('[team-engine] tagging audit:', audit.message);
+  }
 
   return { ...analysis, realData };
 }
