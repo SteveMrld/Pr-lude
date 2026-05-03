@@ -160,7 +160,19 @@ JAMAIS retourner une riskMap vide. Si tu detectes un risque, mets-le. Si
 tu n'en detectes pas, l'array reste vide [] mais la cle existe. Les trois
 categories (strategicRisks, operationalRisks, financialRisks) sont obligatoires.
 Sur un dossier critique avec >5 patterns d'aveuglement detectes, attends-toi
-a remplir au moins 3-5 risques par categorie.`;
+a remplir au moins 3-5 risques par categorie.
+
+# CONTRAINTE CRITIQUE DE CONCISION (eviter troncature JSON)
+
+Le budget tokens est limite. Pour eviter que la sortie soit coupee au
+milieu d un pattern :
+  - Chaque "evidence" : 2-3 phrases denses maximum
+  - Chaque "implication" : 2 phrases maximum
+  - Chaque description de risque dans riskMap : 1-2 phrases
+  - "syntheseAveuglement" : 4-6 phrases maximum
+  - PRIORITE 1 : tu dois TOUJOURS finir le JSON proprement, meme si cela
+    veut dire raccourcir les descriptions. Mieux vaut une riskMap concise
+    et complete qu une longue evidence sur P1 et un JSON tronque sur P10.`;
 
 export async function analyzeBlindspots(
   extraction: ExtractionOutput,
@@ -263,9 +275,12 @@ Détecte les 10 patterns d'aveuglement collectif. Pour chaque pattern, sois rigo
 Retourne uniquement le JSON structuré.`;
 
   // Budget tokens : 10 patterns x evidence + intensity + mecanism + redFlags
-  // + mitigations -> facilement 9-10k tokens. On monte a 10000 pour eviter
-  // les troncatures observees en production sur Pen Group (cf hotfix
-  // similaire commit 55083fe sur Macro maxTokens 9000).
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 10000);
+  // + mitigations + riskMap obligatoire 3 categories x N risques.
+  // Avec l enrichissement recent du prompt (riskMap forcee toujours
+  // remplie, evaluability sur scores) la sortie a depasse 10000 tokens
+  // sur Pen Group (45 patterns, 3 categories de risques, evidence
+  // detaillee). On monte a 14000 pour garder une vraie marge et eviter
+  // les troncatures qui font echouer parseJSON meme avec jsonrepair.
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 14000);
   return parseJSON<BlindspotAnalysisOutput>(rawResponse);
 }
