@@ -177,13 +177,13 @@ export async function analyzeFinancialCoherence(
     };
   }
 
-  const userPrompt = `Tests de cohérence financière sur le dossier ${extraction.companyName} :
+  const userPrompt = `Tests de cohérence financière sur le dossier ${extraction?.companyName ?? '?'} :
 
 # CONTEXTE
-Société : ${extraction.companyName}
-Secteur : ${extraction.sector} / ${extraction.subSector}
-Modèle économique : ${extraction.businessModel}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
+Société : ${extraction?.companyName ?? '?'}
+Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Modèle économique : ${extraction?.businessModel ?? '?'}
+Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 
 # DONNÉES FINANCIÈRES EXTRAITES
 Source : ${financialData.fileSource}
@@ -229,8 +229,8 @@ ${financialData.headcount.map(r => `${r.year}: ${r.value} employés (source: ${r
 ${financialData.rawNotes || '(aucune)'}
 
 # CONTEXTE MARCHÉ (moteur Marché)
-- Taille perçue : ${market.perceivedSize}
-- Saturation : ${market.saturation}
+- Taille perçue : ${market?.perceivedSize ?? '?'}
+- Saturation : ${market?.saturation ?? '?'}
 - Intensité besoin : ${market.needIntensity?.score ?? '?'}/100
 
 # BENCHMARK MARCHÉ EXTERNE (moteur Benchmarks Prélude)

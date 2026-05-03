@@ -60,8 +60,8 @@ export function buildAllowedNames(extraction: ExtractionOutput): Set<string> {
   }
   // Investisseurs
   if (extraction.fundraise) {
-    add(extraction.fundraise.leadInvestor);
-    for (const i of extraction.fundraise.coInvestors || []) add(i);
+    add(extraction?.fundraise?.leadInvestor);
+    for (const i of extraction?.fundraise?.coInvestors || []) add(i);
   }
   // Localisation et secteur
   add(extraction.geographicHub);

@@ -119,25 +119,25 @@ export async function performCausalReversal(
   patternMatching: PatternMatchingOutput
 ): Promise<CausalReversalOutput> {
 
-  const userPrompt = `Données consolidées du dossier ${extraction.companyName} :
+  const userPrompt = `Données consolidées du dossier ${extraction?.companyName ?? '?'} :
 
 # Extraction
-Secteur : ${extraction.sector} / ${extraction.subSector}
-Géographie : ${extraction.geographicHub}, ${extraction.country}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
+Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Géographie : ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
+Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 
 # Équipe
-Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100 - ${team.systemicCoverage.rationale}
-Anti-fragilité collective : ${team.collectiveAntiFragility?.score ?? '?'}/100 - ${team.collectiveAntiFragility.rationale}
+Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100 - ${team?.systemicCoverage?.rationale ?? '?'}
+Anti-fragilité collective : ${team.collectiveAntiFragility?.score ?? '?'}/100 - ${team?.collectiveAntiFragility?.rationale ?? '?'}
 Transposition d'expérience : ${team.experienceTransposition?.score ?? '?'}/100
 Obsession produit : ${team.founderObsession?.score ?? '?'}/100
-Pedigree canonique : ${team.pedigreeCanonical}
+Pedigree canonique : ${team?.pedigreeCanonical ?? '?'}
 Green flags : ${(team.greenFlags || []).join(' | ')}
 Red flags : ${(team.redFlags || []).join(' | ')}
 
 # Marché
-Taille perçue / Intensité réelle : ${market.perceivedSize} / ${market.realIntensity}
-Saturation : ${market.saturation}
+Taille perçue / Intensité réelle : ${market?.perceivedSize ?? '?'} / ${market?.realIntensity ?? '?'}
+Saturation : ${market?.saturation ?? '?'}
 Score signaux organiques : ${market.organicSignals?.score ?? '?'}/100
 Score intensité besoin : ${market.needIntensity?.score ?? '?'}/100
 Score défensibilité : ${market.defensibility?.score ?? '?'}/100
@@ -145,17 +145,17 @@ Moats : ${(market.defensibility?.moats || []).join(', ')}
 Vulnérabilités : ${(market.defensibility?.vulnerabilities || []).join(', ')}
 
 # Macro
-Position cycle : ${macro.cyclePosition}
-Capital VC segment : ${macro.vcCapitalOnSegment}
-Fenêtre critique : ${macro.criticalTimingWindow.exists ? 'OUI - ' + (macro.criticalTimingWindow.horizon || '') : 'Non'}
+Position cycle : ${macro?.cyclePosition ?? '?'}
+Capital VC segment : ${macro?.vcCapitalOnSegment ?? '?'}
+Fenêtre critique : ${macro?.criticalTimingWindow?.exists ? 'OUI - ' + (macro?.criticalTimingWindow?.horizon || '') : 'Non'}
 Score opportunité contracyclique : ${macro.contraryclicalOpportunity?.score ?? '?'}/100
 
 # Pattern Matching
-Archétype dominant : ${patternMatching.archetypeDominant}
+Archétype dominant : ${patternMatching?.archetypeDominant ?? '?'}
 Comparables identifiés :
 ${(patternMatching.comparables || []).map(c => `- ${c.name} (${c.year}) · proximité ${c.proximity}% · ${c.structuralAnalogy}`).join('\n')}
 Patterns transversaux : ${(patternMatching.matchingPatterns || []).join(' | ')}
-Benchmark rétrospectif : ${patternMatching.retrospectiveBenchmark.averageScore}/100 · ${patternMatching.retrospectiveBenchmark.insights}
+Benchmark rétrospectif : ${patternMatching?.retrospectiveBenchmark?.averageScore ?? '?'}/100 · ${patternMatching?.retrospectiveBenchmark?.insights ?? '?'}
 
 Produis le retournement causal complet. Retourne uniquement le JSON structuré.`;
 

@@ -210,16 +210,16 @@ tu DOIS l indiquer dans le pattern correspondant en citant le cas
 historique en evidence.
 ` : '';
 
-  const userPrompt = `Analyse des aveuglements collectifs et angles morts sur le dossier ${extraction.companyName} :
+  const userPrompt = `Analyse des aveuglements collectifs et angles morts sur le dossier ${extraction?.companyName ?? '?'} :
 
 ${failuresBlock}
 # CONTEXTE DOSSIER
-Société : ${extraction.companyName}
-Secteur : ${extraction.sector} / ${extraction.subSector}
-Géographie : ${extraction.geographicHub}, ${extraction.country}
+Société : ${extraction?.companyName ?? '?'}
+Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Géographie : ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
-Tour de financement : ${extraction.fundraise.stage}
-Montant levé : ${extraction.fundraise.amount}
+Tour de financement : ${extraction?.fundraise?.stage ?? '?'}
+Montant levé : ${extraction?.fundraise?.amount ?? '?'}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 Lead investor : ${extraction.fundraise.leadInvestor || 'non précisé'}
 Co-investisseurs : ${(extraction.fundraise.coInvestors || []).join(', ') || 'non précisés'}
@@ -231,28 +231,28 @@ Clients : ${extraction.traction.customers || 'non communiqués'}
 Métriques citées : ${(extraction.traction.metrics || []).join(' · ') || 'aucune'}
 
 # MODÈLE ÉCONOMIQUE
-${extraction.businessModel}
+${extraction?.businessModel ?? '?'}
 
 # PRODUIT
-${extraction.productDescription}
+${extraction?.productDescription ?? '?'}
 
 # PITCH MARCHÉ
-${extraction.marketPitch}
+${extraction?.marketPitch ?? '?'}
 
 # CONCURRENTS CITÉS
 ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 
 # SIGNAUX MARCHÉ
-- Taille perçue : ${market.perceivedSize} / Réelle : ${market.realIntensity}
-- Saturation : ${market.saturation}
+- Taille perçue : ${market?.perceivedSize ?? '?'} / Réelle : ${market?.realIntensity ?? '?'}
+- Saturation : ${market?.saturation ?? '?'}
 - Intensité besoin : ${market.needIntensity?.score ?? '?'}/100
 - Signaux organiques : ${market.organicSignals?.score ?? '?'}/100
 - Défensibilité : ${market.defensibility?.score ?? '?'}/100
 
 # SIGNAUX MACRO
-- Position cycle : ${macro.cyclePosition}
-- VC sur le segment : ${macro.vcCapitalOnSegment}
-- Régulation : ${macro.regulatoryEnvironment}
+- Position cycle : ${macro?.cyclePosition ?? '?'}
+- VC sur le segment : ${macro?.vcCapitalOnSegment ?? '?'}
+- Régulation : ${macro?.regulatoryEnvironment ?? '?'}
 
 # SIGNAUX ÉQUIPE
 - Red flags équipe : ${(team.redFlags || []).join(' · ') || 'aucun identifié'}
@@ -260,7 +260,7 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 - Discrepancies : ${(team.declaredVsVerified?.discrepancies || []).join(' · ') || 'aucune'}
 
 # RÉSUMÉ BRUT DOSSIER
-${extraction.rawSummary}
+${extraction?.rawSummary ?? '?'}
 
 # COMPOSITION FONDATEURS (pour check S1 - biais financement féminin)
 ${extraction.founders.map(f => `- ${f.name} (${f.role})`).join('\n')}

@@ -230,11 +230,11 @@ export async function orchestrateFinalRecommendation(
   );
   const annotationsBlock = formatPastAnnotationsForPrompt(pastAnnotations);
 
-  const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction.companyName} :
+  const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction?.companyName ?? '?'} :
 
 ${annotationsBlock}# CONTEXTE
-${extraction.sector} / ${extraction.subSector} · ${extraction.geographicHub}, ${extraction.country}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
+${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'} · ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
+Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 
 # MOTEUR ÉQUIPE
@@ -242,24 +242,24 @@ Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 - Anti-fragilité : ${team.collectiveAntiFragility?.score ?? '?'}/100
 - Transposition expérience : ${team.experienceTransposition?.score ?? '?'}/100
 - Obsession fondateur : ${team.founderObsession?.score ?? '?'}/100
-- Red flags : ${team.redFlags.length} · Green flags : ${team.greenFlags.length}
+- Red flags : ${team?.redFlags?.length ?? '?'} · Green flags : ${team?.greenFlags?.length ?? '?'}
 
 # MOTEUR MARCHÉ
 - Intensité besoin : ${market.needIntensity?.score ?? '?'}/100
 - Signaux organiques : ${market.organicSignals?.score ?? '?'}/100
 - Défensibilité : ${market.defensibility?.score ?? '?'}/100
-- ${market.perceivedSize} perçu / ${market.realIntensity} réel · ${market.saturation}
+- ${market?.perceivedSize ?? '?'} perçu / ${market?.realIntensity ?? '?'} réel · ${market?.saturation ?? '?'}
 
 # MOTEUR MACRO
-- Cycle : ${macro.cyclePosition}
-- VC segment : ${macro.vcCapitalOnSegment}
-- Fenêtre critique : ${macro.criticalTimingWindow.exists ? 'OUI ' + (macro.criticalTimingWindow.horizon || '') : 'Non'}
+- Cycle : ${macro?.cyclePosition ?? '?'}
+- VC segment : ${macro?.vcCapitalOnSegment ?? '?'}
+- Fenêtre critique : ${macro?.criticalTimingWindow?.exists ? 'OUI ' + (macro?.criticalTimingWindow?.horizon || '') : 'Non'}
 - Opportunité contracyclique : ${macro.contraryclicalOpportunity?.score ?? '?'}/100
 
 # MOTEUR PATTERN MATCHING
-- Archétype : ${patternMatching.archetypeDominant}
+- Archétype : ${patternMatching?.archetypeDominant ?? '?'}
 - Top comparables : ${(patternMatching.comparables || []).slice(0, 3).map(c => `${c.name} (${c.proximity}%)`).join(' · ')}
-- Benchmark rétrospectif : ${patternMatching.retrospectiveBenchmark.averageScore}/100
+- Benchmark rétrospectif : ${patternMatching?.retrospectiveBenchmark?.averageScore ?? '?'}/100
 
 # MOTEUR RETOURNEMENT CAUSAL
 - Score moyen angles morts (7 dimensions) : ${blindspotsAvg}/100

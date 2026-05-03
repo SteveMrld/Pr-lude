@@ -113,14 +113,14 @@ export async function analyzeContrarian(
   macro: MacroAnalysisOutput
 ): Promise<ContrarianAnalysisOutput> {
 
-  const userPrompt = `Analyse des singularités et signaux contrariens sur le dossier ${extraction.companyName} :
+  const userPrompt = `Analyse des singularités et signaux contrariens sur le dossier ${extraction?.companyName ?? '?'} :
 
 # CONTEXTE DOSSIER
-Société : ${extraction.companyName}
-Secteur : ${extraction.sector} / ${extraction.subSector}
-Géographie : ${extraction.geographicHub}, ${extraction.country}
+Société : ${extraction?.companyName ?? '?'}
+Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Géographie : ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
+Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 
 # FONDATEURS
 ${extraction.founders.map(f => `- ${f.name} (${f.role}) : ${f.background}`).join('\n')}
@@ -133,33 +133,33 @@ ${extraction.founders.map(f => `- ${f.name} (${f.role}) : ${f.background}`).join
 - Green flags : ${(team.greenFlags || []).join(' · ')}
 
 # PRODUIT ET THÈSE
-${extraction.productDescription}
+${extraction?.productDescription ?? '?'}
 
 # PITCH MARCHÉ ARTICULÉ
-${extraction.marketPitch}
+${extraction?.marketPitch ?? '?'}
 
 # MODÈLE ÉCONOMIQUE
-${extraction.businessModel}
+${extraction?.businessModel ?? '?'}
 
 # CONCURRENTS CITÉS
 ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 
 # ANALYSE MARCHÉ
-- Saturation perçue : ${market.saturation}
-- Intensité besoin : ${market.needIntensity?.score ?? '?'}/100 (gap : ${market.needIntensity.gap})
+- Saturation perçue : ${market?.saturation ?? '?'}
+- Intensité besoin : ${market.needIntensity?.score ?? '?'}/100 (gap : ${market?.needIntensity?.gap ?? '?'})
 - Signaux organiques : ${market.organicSignals?.score ?? '?'}/100 (evidence : ${(market.organicSignals?.evidence || []).join(', ')})
 - Défensibilité moats : ${(market.defensibility?.moats || []).join(' · ')}
 - Benchmarks internationaux : ${(market.internationalBenchmarks || []).map(b => `${b.name} (${b.geography})`).join(' · ')}
 
 # CONTEXTE MACRO
-- Position cycle : ${macro.cyclePosition}
-- VC segment : ${macro.vcCapitalOnSegment}
-- Fenêtre critique : ${macro.criticalTimingWindow.exists ? 'OUI' : 'Non'}
+- Position cycle : ${macro?.cyclePosition ?? '?'}
+- VC segment : ${macro?.vcCapitalOnSegment ?? '?'}
+- Fenêtre critique : ${macro?.criticalTimingWindow?.exists ? 'OUI' : 'Non'}
 - Opportunité contracyclique : ${macro.contraryclicalOpportunity?.score ?? '?'}/100
 - Tendances structurelles : ${(macro.structuralTrends || []).join(' · ')}
 
 # RÉSUMÉ BRUT DOSSIER
-${extraction.rawSummary}
+${extraction?.rawSummary ?? '?'}
 
 Détecte les 10 signaux de singularité contrarienne. Pour chaque signal, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Calcule le score global contrarien. Identifie les comparables historiques pertinents (Airbnb, Tesla, Stripe, etc.). Articule la recommandation contrarienne (ou son absence).
 

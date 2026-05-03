@@ -415,9 +415,9 @@ REGLES D USAGE GENERALES
 
   const userPrompt = `Données d'extraction du dossier :
 
-Société : ${extraction.companyName}
-Secteur : ${extraction.sector} / ${extraction.subSector}
-Géographie : ${extraction.geographicHub}, ${extraction.country}
+Société : ${extraction?.companyName ?? '?'}
+Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Géographie : ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 
 Output Moteur Équipe :

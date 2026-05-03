@@ -1372,34 +1372,36 @@ export default function HomeClient({
                     Probabilités de succès par dimension
                   </h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                    {(result.finalRecommendation?.dimensionProbabilities || []).map((dim: any, i: number) => (
+                    {(result.finalRecommendation?.dimensionProbabilities || [])
+                      .filter((dim: any) => dim && typeof dim === 'object')
+                      .map((dim: any, i: number) => (
                       <div key={i} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                          <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>{dim.dimensionName}</div>
-                          <div style={{ fontSize: 11, opacity: 0.6 }}>poids {Math.round(dim.weight * 100)}%</div>
+                          <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>{dim?.dimensionName ?? '—'}</div>
+                          <div style={{ fontSize: 11, opacity: 0.6 }}>poids {Math.round((dim?.weight ?? 0) * 100)}%</div>
                         </div>
                         <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
                           <div>
                             <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Succès</div>
                             <div style={{ fontSize: 28, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1.1 }}>
-                              {dim.successProbability}<span style={{ fontSize: 14, opacity: 0.6 }}>%</span>
+                              {dim?.successProbability ?? '—'}<span style={{ fontSize: 14, opacity: 0.6 }}>%</span>
                             </div>
                           </div>
                           <div>
                             <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Risque</div>
                             <div style={{ fontSize: 28, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1.1, opacity: 0.85 }}>
-                              {dim.riskScore}<span style={{ fontSize: 14, opacity: 0.6 }}>/100</span>
+                              {dim?.riskScore ?? '—'}<span style={{ fontSize: 14, opacity: 0.6 }}>/100</span>
                             </div>
                           </div>
                         </div>
                         <div style={{ height: 4, background: 'rgba(0,0,0,0.06)', marginBottom: 12 }}>
                           <div style={{
                             height: '100%',
-                            width: `${dim.successProbability}%`,
-                            background: dim.successProbability >= 65 ? 'var(--ink)' : dim.successProbability >= 45 ? '#888' : '#ccc',
+                            width: `${dim?.successProbability ?? 0}%`,
+                            background: (dim?.successProbability ?? 0) >= 65 ? 'var(--ink)' : (dim?.successProbability ?? 0) >= 45 ? '#888' : '#ccc',
                           }} />
                         </div>
-                        <div style={{ fontSize: 13, marginBottom: 10, opacity: 0.85 }}>{dim.rationale}</div>
+                        <div style={{ fontSize: 13, marginBottom: 10, opacity: 0.85 }}>{dim?.rationale ?? ''}</div>
                         {dim.keyDrivers?.length > 0 && (
                           <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.5, marginBottom: 4 }}>Drivers</div>
