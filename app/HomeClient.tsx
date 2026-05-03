@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
@@ -81,6 +81,40 @@ export default function HomeClient({
   const [activeTab, setActiveTab] = useState('synthesis');
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
   const [printMode, setPrintMode] = useState(false); // quand true, toutes les sections rendues simultanement pour export PDF complet
+  // Persistence : ID de l analyse sauvegardee (pour bouton "voir dans l historique")
+  const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
+  // Pipeline timing : pour mesurer la duree d execution et la stocker en metadonnees
+  const [pipelineStartTime, setPipelineStartTime] = useState<number | null>(null);
+  // Etat de chargement d une analyse passee depuis ?analysis=ID
+  const [loadingPastAnalysis, setLoadingPastAnalysis] = useState(false);
+
+  // Charge automatiquement une analyse passee si l URL contient ?analysis=ID.
+  // Permet d arriver depuis /history -> bouton "Ouvrir" et restaurer la note.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const analysisId = url.searchParams.get('analysis');
+    if (!analysisId) return;
+
+    setLoadingPastAnalysis(true);
+    fetch(`/api/analyses/${analysisId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('not-found');
+        return res.json();
+      })
+      .then((data) => {
+        if (data?.analysis?.resultJson) {
+          setResult(data.analysis.resultJson);
+          setSavedAnalysisId(analysisId);
+        }
+      })
+      .catch(() => {
+        setError('Analyse introuvable ou non accessible.');
+      })
+      .finally(() => {
+        setLoadingPastAnalysis(false);
+      });
+  }, []);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelect(newFiles: FileList | null) {
@@ -126,6 +160,8 @@ export default function HomeClient({
     setAnalyzing(true);
     setError(null);
     setResult(null);
+    setSavedAnalysisId(null);
+    setPipelineStartTime(Date.now());
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
     // Wake Lock : empeche l'ecran de dormir pendant le pipeline.
@@ -192,6 +228,32 @@ export default function HomeClient({
             } else if (eventType === 'complete') {
               setResult(data);
               receivedTerminal = true;
+
+              // Sauvegarde automatique en arriere-plan si la persistence est
+              // activee. Non-bloquant : si la sauvegarde echoue (persistence
+              // off, user non auth, base down), l analyse reste affichee
+              // normalement a l ecran. La persistence est une fonctionnalite
+              // additive, jamais un point critique du pipeline.
+              const sourceFilename = files[0]?.name || null;
+              const pipelineDurationMs = pipelineStartTime ? Date.now() - pipelineStartTime : null;
+              fetch('/api/analyses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  result: data,
+                  sourceFilename,
+                  pipelineDurationMs,
+                }),
+              })
+                .then((res) => res.json())
+                .then((saved) => {
+                  if (saved?.saved && saved?.id) {
+                    setSavedAnalysisId(saved.id);
+                  }
+                })
+                .catch(() => {
+                  // silencieux : la persistence n est pas critique
+                });
             } else if (eventType === 'error') {
               setError(data.message);
               receivedTerminal = true;
@@ -687,6 +749,38 @@ export default function HomeClient({
                 }}>
                 ⤓ Exporter en PDF
               </button>
+              {/* Lien vers l historique des analyses sauvegardees + indicateur
+                  visuel discret quand l analyse en cours a ete persistee */}
+              <a
+                href="/history"
+                style={{
+                  padding: '8px 18px',
+                  fontSize: 12,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  background: 'transparent',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--ink)',
+                  marginLeft: 8,
+                  textDecoration: 'none',
+                  fontFamily: 'inherit',
+                }}
+                title="Voir l historique des analyses"
+              >
+                Historique
+              </a>
+              {savedAnalysisId && (
+                <span style={{
+                  marginLeft: 12,
+                  fontSize: 11,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--vert-foret)',
+                  alignSelf: 'center',
+                }}>
+                  ✓ Sauvegardée
+                </span>
+              )}
             </div>
 
             {/* En mode normal: bascule selon viewMode. En mode print: rend dashboard + note en cascade. */}
