@@ -1202,7 +1202,9 @@ export default function HomeClient({
                       )}
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, marginBottom: 24 }}>
-                        {Object.values(result.financialCoherence.tests || {}).map((t: any, i: number) => (
+                        {Object.values(result.financialCoherence.tests || {})
+                          .filter((t: any) => t && typeof t === 'object')
+                          .map((t: any, i: number) => (
                           <div key={i} style={{
                             padding: 16,
                             border: '1px solid var(--hairline)',
@@ -1211,15 +1213,15 @@ export default function HomeClient({
                           }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>
-                                {t.testId} · {t.testName}
+                                {t?.testId} · {t?.testName}
                               </div>
-                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{t.score}/100</div>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{t?.score ?? '—'}/100</div>
                             </div>
                             <div style={{ height: 3, background: 'rgba(0,0,0,0.06)', marginBottom: 10 }}>
                               <div style={{
                                 height: '100%',
-                                width: `${t.score}%`,
-                                background: t.score >= 70 ? '#3a5a3a' : t.score >= 40 ? '#888' : '#a04040',
+                                width: `${t?.score ?? 0}%`,
+                                background: (t?.score ?? 0) >= 70 ? '#3a5a3a' : (t?.score ?? 0) >= 40 ? '#888' : '#a04040',
                               }} />
                             </div>
                             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
@@ -1377,15 +1379,17 @@ export default function HomeClient({
                     Sept angles morts du métier VC européen
                   </h3>
                   <div className="blindspots-grid">
-                    {Object.entries(result.causalReversal?.blindspotsScores || {}).map(([key, val]: [string, any]) => (
-                      <div key={key} className={`bs-card ${val.alerte ? 'alerte' : ''}`}>
-                        {val.alerte && <span className="bs-alerte-tag">Alerte</span>}
+                    {Object.entries(result.causalReversal?.blindspotsScores || {})
+                      .filter(([, val]: [string, any]) => val && typeof val === 'object')
+                      .map(([key, val]: [string, any]) => (
+                      <div key={key} className={`bs-card ${val?.alerte ? 'alerte' : ''}`}>
+                        {val?.alerte && <span className="bs-alerte-tag">Alerte</span>}
                         <div className="bs-name">{BLINDSPOT_LABELS[key] || key}</div>
-                        <div className="bs-score">{val.score}<span style={{ fontSize: 13, color: 'var(--muted)' }}>/100</span></div>
+                        <div className="bs-score">{val?.score ?? '—'}<span style={{ fontSize: 13, color: 'var(--muted)' }}>/100</span></div>
                         <div className="bs-bar-track">
-                          <div className={`bs-bar-fill ${getBarClass(val.score)}`} style={{ width: `${val.score}%` }} />
+                          <div className={`bs-bar-fill ${getBarClass(val?.score ?? 0)}`} style={{ width: `${val?.score ?? 0}%` }} />
                         </div>
-                        <div className="bs-lecture">{val.lecture}</div>
+                        <div className="bs-lecture">{val?.lecture}</div>
                       </div>
                     ))}
                   </div>
