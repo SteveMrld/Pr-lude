@@ -7,6 +7,7 @@ import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
 import PipelinePreview from './components/PipelinePreview';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
+import IcPackView from './components/IcPackView';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import {
   PictoSeal,
@@ -1227,6 +1228,7 @@ export default function HomeClient({
                     { id: 'risksplan', label: 'Risques & Plan' },
                     { id: 'refchecks', label: 'Reference checks' },
                     { id: 'instruction', label: 'À instruire' },
+                    { id: 'ic-pack', label: 'Pack IC' },
                   ],
                 },
               ];
@@ -2574,6 +2576,10 @@ export default function HomeClient({
                     ))}
                   </ul>
                 </div>
+              )}
+
+              {activeTab === 'ic-pack' && (
+                <IcPackView result={result} filename={result?.meta?.filename} />
               )}
                   </div>
                 </div>

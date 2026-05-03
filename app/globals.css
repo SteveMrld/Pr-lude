@@ -1244,3 +1244,605 @@ ul, ol { list-style: none; }
     page-break-inside: auto;
   }
 }
+
+/* ============================================================
+   PACK IC : vue de preparation au comite d investissement.
+   Format dense, 3 pages, papier creme.
+   ============================================================ */
+
+.ic-pack {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  padding: 32px 0 64px;
+}
+
+.ic-page {
+  max-width: 760px;
+  margin: 0 auto 56px;
+  padding: 36px 44px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  position: relative;
+}
+
+.ic-page-cover {
+  background: var(--paper);
+}
+
+.ic-cover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 18px;
+  margin-bottom: 28px;
+}
+
+.ic-eyebrow {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ic-cover-meta {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--sans);
+  letter-spacing: 0.02em;
+}
+
+.ic-meta-sep {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+
+.ic-cover-title {
+  margin-bottom: 32px;
+}
+
+.ic-company {
+  font-family: var(--serif);
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+
+.ic-company-sub {
+  font-size: 14px;
+  color: var(--muted);
+  font-family: var(--sans);
+  letter-spacing: 0.02em;
+}
+
+.ic-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin: 0 0 28px;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.ic-fact {
+  padding: 14px 16px 14px 0;
+  border-right: 1px solid var(--hairline-soft);
+}
+
+.ic-fact:last-child {
+  border-right: none;
+}
+
+.ic-fact-label {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.ic-fact-value {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ic-founders {
+  margin: 0 0 28px;
+}
+
+.ic-founders-list {
+  margin-top: 8px;
+}
+
+.ic-founder {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.ic-founder-name {
+  font-weight: 500;
+}
+
+.ic-founder-role {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ic-verdict-block {
+  padding: 24px 0 0;
+  margin-top: 12px;
+}
+
+.ic-verdict-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.ic-verdict {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-top: 4px;
+}
+
+.ic-prob-block {
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ic-prob-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 18px;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--hairline);
+  font-size: 13px;
+}
+
+.ic-prob-row:last-child {
+  border-bottom: none;
+}
+
+.ic-prob-label {
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ic-prob-value {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ic-tension {
+  padding: 16px 18px;
+  background: var(--paper-accent);
+  border-left: 3px solid var(--ocre-brule);
+  margin-top: 8px;
+}
+
+.ic-tension-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ocre-brule);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.ic-tension-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0;
+}
+
+.ic-page-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+}
+
+.ic-page-num {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ocre-brule);
+  font-style: italic;
+}
+
+.ic-page-title > span:last-child {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ic-block {
+  margin-bottom: 28px;
+}
+
+.ic-block:last-child {
+  margin-bottom: 0;
+}
+
+.ic-block-title {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 0 12px;
+  letter-spacing: -0.005em;
+}
+
+.ic-block-risks .ic-block-title {
+  color: var(--rouge-anglais);
+}
+
+.ic-block-conditions .ic-block-title {
+  color: var(--vert-foret);
+}
+
+.ic-numbered-list,
+.ic-bullet-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.ic-numbered-list li,
+.ic-bullet-list li {
+  margin-bottom: 6px;
+}
+
+.ic-numbered-list li::marker {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.ic-numbered-tight li {
+  margin-bottom: 2px;
+  font-size: 13px;
+}
+
+.ic-risks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ic-risk-item {
+  padding: 12px 14px;
+  background: var(--paper-warm);
+  border-left: 2px solid var(--rouge-anglais);
+}
+
+.ic-risk-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.ic-risk-label {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.ic-risk-intensity {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rouge-anglais);
+  font-variant-numeric: tabular-nums;
+}
+
+.ic-risk-evidence {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.ic-argumentation {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+  text-align: justify;
+  hyphens: auto;
+  margin: 0;
+}
+
+.ic-dd-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 14px;
+}
+
+.ic-dd-stat {
+  padding: 12px 12px 12px 0;
+  border-right: 1px solid var(--hairline-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ic-dd-stat:last-child {
+  border-right: none;
+}
+
+.ic-dd-num {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--ocre-brule);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.ic-dd-lab {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ic-priority {
+  padding: 12px 14px;
+  background: var(--paper-accent);
+}
+
+.ic-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.ic-plan-col {
+  padding: 12px 14px;
+  background: var(--paper-accent);
+  border-top: 2px solid var(--vert-foret);
+}
+
+.ic-plan-head {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vert-foret);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.ic-plan-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.ic-plan-list li {
+  margin-bottom: 6px;
+}
+
+.ic-agenda-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ic-agenda-table tr {
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+.ic-agenda-table tr:last-child {
+  border-bottom: none;
+}
+
+.ic-agenda-time {
+  width: 90px;
+  padding: 8px 0;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ocre-brule);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ic-agenda-step {
+  padding: 8px 0;
+  color: var(--ink);
+}
+
+.ic-vote-block {
+  border-top: 2px solid var(--ink);
+  padding-top: 18px;
+}
+
+.ic-vote-instruction {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0 0 16px;
+  font-style: italic;
+}
+
+.ic-vote-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.ic-vote-card {
+  padding: 14px 16px;
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.ic-vote-recommended {
+  border: 2px solid var(--vert-foret);
+  background: var(--vert-foret-soft);
+}
+
+.ic-vote-marker {
+  font-size: 18px;
+  color: var(--vert-foret);
+  font-weight: 500;
+}
+
+.ic-vote-card:not(.ic-vote-recommended) .ic-vote-marker {
+  color: var(--muted-soft);
+}
+
+.ic-vote-label {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ic-vote-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--vert-foret);
+  font-weight: 500;
+}
+
+.ic-signature-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ic-signature-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.ic-signature-line .ic-fact-label {
+  margin-bottom: 24px;
+}
+
+.ic-signature-blank {
+  border-bottom: 1px solid var(--ink);
+  height: 14px;
+}
+
+/* MOBILE : on garde le layout dense mais on adapte les grilles */
+@media (max-width: 720px) {
+  .ic-page {
+    padding: 24px 20px;
+    margin: 0 12px 32px;
+  }
+
+  .ic-company {
+    font-size: 32px;
+  }
+
+  .ic-verdict {
+    font-size: 28px;
+  }
+
+  .ic-fact-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ic-fact {
+    border-bottom: 1px solid var(--hairline-soft);
+    padding: 12px 12px 12px 0;
+  }
+
+  .ic-dd-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ic-plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ic-vote-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ic-signature-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* PRINT du Pack IC : chaque .ic-page commence sur une nouvelle page */
+@media print {
+  .ic-pack {
+    padding: 0;
+    background: #ffffff !important;
+  }
+
+  .ic-page {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: #ffffff !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .ic-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
