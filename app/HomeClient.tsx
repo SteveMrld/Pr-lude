@@ -2474,6 +2474,62 @@ export default function HomeClient({
                         </div>
                       )}
 
+                      {(result.referenceChecks.weakSignalsChecks || []).length > 0 && (
+                        <div style={{ marginBottom: 32 }}>
+                          <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 6 }}>
+                            Signaux faibles à vérifier
+                          </h3>
+                          <p style={{ fontSize: 12, opacity: 0.7, marginTop: 0, marginBottom: 14 }}>
+                            Vérifications quantitatives à conduire en parallèle des appels. Approche debusqueurs : la traction réelle se lit dans la donnée publique avant qu&apos;elle ne devienne consensus.
+                          </p>
+                          {(result.referenceChecks.weakSignalsChecks || []).map((ws: any, i: number) => {
+                            const SIGNAL_LABELS: Record<string, string> = {
+                              github: 'GitHub',
+                              similarweb: 'SimilarWeb',
+                              product_hunt: 'Product Hunt',
+                              hacker_news: 'Hacker News',
+                              recruiting: 'Pages recrutement',
+                              app_store: 'App Store / Play Store',
+                            };
+                            const label = SIGNAL_LABELS[ws.signalType] || ws.signalType;
+                            return (
+                              <div key={i} style={{ marginBottom: 16, padding: '14px 18px', border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                                  <span style={{
+                                    fontSize: 10,
+                                    letterSpacing: '0.08em',
+                                    textTransform: 'uppercase',
+                                    padding: '2px 8px',
+                                    background: 'rgba(122,92,31,0.12)',
+                                    color: '#7a5c1f',
+                                    fontWeight: 500,
+                                  }}>
+                                    {label}
+                                  </span>
+                                  {ws.target && (
+                                    <span style={{ fontSize: 12, fontFamily: 'var(--mono, monospace)', opacity: 0.85 }}>
+                                      {ws.target}
+                                    </span>
+                                  )}
+                                </div>
+                                {ws.rationale && (
+                                  <div style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 6 }}>
+                                    <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.55, marginRight: 6 }}>Pertinence</span>
+                                    {ws.rationale}
+                                  </div>
+                                )}
+                                {ws.expectedFinding && (
+                                  <div style={{ fontSize: 13, lineHeight: 1.55, opacity: 0.8 }}>
+                                    <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.55, marginRight: 6 }}>Lecture attendue</span>
+                                    {ws.expectedFinding}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
                       {(result.referenceChecks.redFlagsToProbe || []).length > 0 && (
                         <div style={{ padding: '16px 18px', background: 'rgba(122,31,31,0.05)', borderLeft: '3px solid #7a1f1f' }}>
                           <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7a1f1f', marginBottom: 8, fontWeight: 500 }}>
