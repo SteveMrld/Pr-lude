@@ -5,9 +5,112 @@ import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 
 interface Props {
   result: any;
+  /**
+   * Mode compact : sections secondaires repliees par defaut, lecture rapide
+   * pour partner presse. Le verdict, le score, la dialectique et les
+   * conditions cles restent visibles. Pour export PDF, utiliser
+   * compactMode={false} (defaut).
+   */
+  compactMode?: boolean;
 }
 
-export default function InvestmentNoteView({ result }: Props) {
+/**
+ * Section repliable utilisee en mode compact. Utilise <details> natif HTML
+ * pour rester accessible et leger. defaultOpen=false en compactMode,
+ * defaultOpen=true sinon.
+ */
+function FoldableSection({
+  title,
+  defaultOpen,
+  children,
+  count,
+}: {
+  title: string;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+  count?: number;
+}) {
+  return (
+    <details open={defaultOpen} style={{ margin: '14px 0' }}>
+      <summary style={{
+        cursor: 'pointer',
+        fontFamily: 'var(--serif, Georgia, serif)',
+        fontSize: 14,
+        fontWeight: 500,
+        padding: '8px 0',
+        borderBottom: '1px solid rgba(40, 30, 20, 0.10)',
+        listStyle: 'none',
+        userSelect: 'none',
+        outline: 'none',
+      }}>
+        <span style={{ marginRight: 8, fontSize: 11, opacity: 0.6 }}>▸</span>
+        {title}
+        {count !== undefined && (
+          <span style={{ marginLeft: 10, fontSize: 11, opacity: 0.55, fontWeight: 400 }}>({count})</span>
+        )}
+      </summary>
+      <div style={{ paddingTop: 10 }}>
+        {children}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Wrapper d'une section de note. En mode compact avec collapseInCompact=true,
+ * la section devient pliable avec defaultOpen=false. Sinon rendu normal.
+ * Permet d'eviter la duplication du contenu pour les modes lecture rapide
+ * vs lecture complete.
+ */
+function NoteSectionWrapper({
+  number,
+  title,
+  compactMode,
+  collapseInCompact,
+  children,
+}: {
+  number: string;
+  title: string;
+  compactMode: boolean;
+  collapseInCompact: boolean;
+  children: React.ReactNode;
+}) {
+  // En mode compact ET section listee comme collapsible, on rend en details
+  if (compactMode && collapseInCompact) {
+    return (
+      <section className="note-section" style={{ marginBottom: 24 }}>
+        <details>
+          <summary style={{
+            cursor: 'pointer',
+            listStyle: 'none',
+            userSelect: 'none',
+            padding: '6px 0',
+          }}>
+            <h2 className="note-section-title" style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, margin: 0 }}>
+              <span style={{ fontSize: 13, opacity: 0.55, fontWeight: 400 }}>▸</span>
+              <span className="note-section-num">{number}</span> {title}
+              <span style={{ fontSize: 11, opacity: 0.55, fontWeight: 400, fontFamily: 'inherit', marginLeft: 12 }}>(développer)</span>
+            </h2>
+          </summary>
+          <div style={{ paddingTop: 14 }}>
+            {children}
+          </div>
+        </details>
+      </section>
+    );
+  }
+  // Mode complet ou non collapsible : rendu identique a l existant
+  return (
+    <section className="note-section">
+      <h2 className="note-section-title">
+        <span className="note-section-num">{number}</span> {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+export default function InvestmentNoteView({ result, compactMode = false }: Props) {
   const r = result;
   const e = r.extraction || {};
   const t = r.team || {};
@@ -198,10 +301,8 @@ export default function InvestmentNoteView({ result }: Props) {
         )}
       </section>
 
-      {/* Bloc 2 - Project description */}
-      <section className="note-section">
-        <h2 className="note-section-title"><span className="note-section-num">2.</span> Proposed Project</h2>
-
+      {/* Bloc 2 - Project description (collapsible en mode compact) */}
+      <NoteSectionWrapper number="2." title="Proposed Project" compactMode={compactMode} collapseInCompact={true}>
         <h3 className="note-h3">Overall product</h3>
         <p className="note-paragraph">{enrichProse(e.productDescription) || '—'}</p>
 
@@ -307,7 +408,7 @@ export default function InvestmentNoteView({ result }: Props) {
             )}
           </>
         )}
-      </section>
+      </NoteSectionWrapper>
 
       {/* Bloc 3 - Due diligence */}
       <section className="note-section">
@@ -735,10 +836,8 @@ export default function InvestmentNoteView({ result }: Props) {
         )}
       </section>
 
-      {/* Bloc 4 - Transaction features */}
-      <section className="note-section">
-        <h2 className="note-section-title"><span className="note-section-num">4.</span> Transaction Features</h2>
-
+      {/* Bloc 4 - Transaction features (collapsible en mode compact) */}
+      <NoteSectionWrapper number="4." title="Transaction Features" compactMode={compactMode} collapseInCompact={true}>
         <table className="note-table">
           <tbody>
             <tr>
@@ -804,7 +903,7 @@ export default function InvestmentNoteView({ result }: Props) {
             )}
           </>
         )}
-      </section>
+      </NoteSectionWrapper>
 
       {/* SECTION SOURCES & METHODOLOGY - Documentation des références externes
           consolidées par les moteurs Prélude. Montre la rigueur méthodologique

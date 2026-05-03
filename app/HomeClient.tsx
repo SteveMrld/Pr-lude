@@ -83,6 +83,24 @@ export default function HomeClient({
   const [activeTab, setActiveTab] = useState('synthesis');
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
   const [printMode, setPrintMode] = useState(false); // quand true, toutes les sections rendues simultanement pour export PDF complet
+  // Note d investissement : mode compact (lecture rapide) vs mode complet
+  // (lecture exhaustive). Persistance via localStorage. Le mode compact replie
+  // les sections 2 et 4 par defaut. Le mode print force compactNoteMode=false
+  // pour que l export PDF reste complet.
+  const [compactNoteMode, setCompactNoteMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('prelude_compact_note') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('prelude_compact_note', String(compactNoteMode));
+    } catch {}
+  }, [compactNoteMode]);
   // Persistence : ID de l analyse sauvegardee (pour bouton "voir dans l historique")
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
   // Pipeline timing : pour mesurer la duree d execution et la stocker en metadonnees
@@ -687,6 +705,49 @@ export default function HomeClient({
                 }}>
                 Note d&apos;investissement
               </button>
+
+              {/* Toggle Lecture rapide / Lecture complete - visible uniquement
+                  en vue note. La lecture rapide replie les sections 2 (Proposed
+                  Project) et 4 (Transaction Features) par defaut. La preference
+                  est persistee via localStorage. L export PDF reste TOUJOURS
+                  complet, independant de ce toggle. */}
+              {viewMode === 'note' && (
+                <div style={{ display: 'flex', marginLeft: 6 }}>
+                  <button
+                    onClick={() => setCompactNoteMode(true)}
+                    title="Replie les sections secondaires (Proposed Project, Transaction Features). Verdict, score et conditions cles restent visibles."
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 11,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      background: compactNoteMode ? '#5a4a32' : 'transparent',
+                      color: compactNoteMode ? '#fefefe' : 'var(--ink)',
+                      border: '1px solid #5a4a32',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}>
+                    Lecture rapide
+                  </button>
+                  <button
+                    onClick={() => setCompactNoteMode(false)}
+                    title="Affiche toutes les sections de la note depliees."
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 11,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      background: !compactNoteMode ? '#5a4a32' : 'transparent',
+                      color: !compactNoteMode ? '#fefefe' : 'var(--ink)',
+                      border: '1px solid #5a4a32',
+                      borderLeft: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}>
+                    Lecture complète
+                  </button>
+                </div>
+              )}
               {/* Bouton export PDF : active printMode qui rend toutes les sections
                   (dashboard analytique + note d investissement) simultanement,
                   puis envoie le HTML rendu a la route serveur /api/export-pdf
@@ -822,7 +883,7 @@ export default function HomeClient({
 
             {/* En mode normal: bascule selon viewMode. En mode print: rend dashboard + note en cascade. */}
             {(viewMode === 'note' && !printMode) ? (
-              <InvestmentNoteView result={result} />
+              <InvestmentNoteView result={result} compactMode={compactNoteMode} />
             ) : (
               <>
             {/* Bandeau audit des assertions : signale les noms / dates / devises
@@ -2462,10 +2523,12 @@ export default function HomeClient({
             )}
 
             {/* En mode print, on rend aussi la note d investissement apres le dashboard
-                pour que l export PDF contienne TOUT (dashboard analytique + note). */}
+                pour que l export PDF contienne TOUT (dashboard analytique + note).
+                compactMode={false} explicite pour garantir que l export PDF est complet
+                meme si l utilisateur consultait en mode lecture rapide. */}
             {printMode && (
               <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
-                <InvestmentNoteView result={result} />
+                <InvestmentNoteView result={result} compactMode={false} />
               </div>
             )}
 
