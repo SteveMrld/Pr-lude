@@ -5,6 +5,7 @@ import InvestmentNoteView from './components/InvestmentNoteView';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
+import PipelinePreview from './components/PipelinePreview';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import {
@@ -371,7 +372,14 @@ export default function HomeClient({
 
         {!result && !analyzing && (
           <>
-            {/* HERO - Au-dessus de la pliure */}
+            {/* HERO - refonte sobre :
+                - Un seul titre fort, ton editorial Le Grand Continent
+                - Sous-titre dense en une seule phrase
+                - UN SEUL CTA vers la zone de depot
+                - Preview animee du pipeline juste en dessous (wow effect
+                  sans charger la home)
+                Pas de logos clients (Prelude est en early stage), pas
+                d emojis, pas de tone fun corporate americain. */}
             <section className="landing-hero">
               <div className="hero-rule" aria-hidden="true"></div>
               <div className="page-kicker">
@@ -379,26 +387,20 @@ export default function HomeClient({
                 <span>Prélude — Depuis 2026</span>
               </div>
               <h1 className="page-title">
-                <span className="page-title-line">Le moteur d&apos;instruction</span>
-                <span className="page-title-line page-title-emph">des fonds de capital-risque.</span>
+                <span className="page-title-line">Instruire un dossier</span>
+                <span className="page-title-line page-title-emph">comme on instruit une affaire.</span>
               </h1>
               <p className="page-subtitle">
-                Prélude analyse un dossier d&apos;investissement comme le ferait un partner senior :
-                équipe, marché, macro, cohérence financière, patterns d&apos;aveuglement collectif et signaux contrariens.
-                En sortie, une note d&apos;investissement IC-ready, dialectique, prête pour le comité.
+                Sonder l&apos;équipe, auditer le marché, tester la cohérence des unit economics, cartographier les angles morts.
+                Chaque étape d&apos;une due diligence partner-grade, avant le comité d&apos;investissement.
               </p>
-              <div className="hero-cta-row">
-                <a href="#commencer" className="btn btn-primary">Déposer un dossier</a>
-                <a href="#methode" className="btn">Voir la méthode</a>
+              <div className="hero-cta-row" style={{ justifyContent: 'flex-start' }}>
+                <a href="#commencer" className="btn btn-primary">Lancer une instruction →</a>
               </div>
-              <div className="hero-meta">
-                <span className="hero-meta-item">
-                  <PictoSeal />
-                  <span>Méthode calibrée pour la rigueur européenne</span>
-                </span>
-                <span className="hero-meta-sep" aria-hidden="true">·</span>
-                <span className="hero-meta-item">Applicable mondialement</span>
-              </div>
+
+              {/* Preview animée du pipeline : illustration concrète de
+                  ce que produit Prélude. Boucle en ~10s. */}
+              <PipelinePreview />
             </section>
 
             {/* SECTION 2 - Le problème */}
