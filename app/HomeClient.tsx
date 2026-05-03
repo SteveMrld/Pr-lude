@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
+import PipelineProgress from './components/PipelineProgress';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import {
@@ -329,6 +330,27 @@ export default function HomeClient({
       </header>
 
       <main className="main">
+        {/* Bandeau de progression du pipeline en sticky en haut.
+            S'affiche pendant le run (analyzing=true) ET reste visible
+            une fois le pipeline termine pour permettre de cliquer sur
+            un moteur et scroller vers la section correspondante du
+            dashboard. Inspire du flow Meegle. */}
+        {(analyzing || result) && (
+          <PipelineProgress
+            engines={ENGINES}
+            states={engineStates}
+            analyzing={analyzing}
+            elapsedMs={pipelineStartTime ? Date.now() - pipelineStartTime : undefined}
+            onEngineClick={(engineId) => {
+              // Scroll vers l'ancre du moteur si elle existe dans le dashboard
+              const target = document.getElementById(`engine-section-${engineId}`);
+              if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+          />
+        )}
+
         {!result && !analyzing && (
           <>
             {/* HERO - Au-dessus de la pliure */}
@@ -574,7 +596,7 @@ export default function HomeClient({
           <div className="pipeline">
             <div className="pipeline-head">
               <div className="pipeline-title">Pipeline en cours d'exécution</div>
-              <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances.</div>
+              <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances. Suivi en temps réel dans le bandeau ci-dessus.</div>
             </div>
             <div style={{ padding: '12px 18px', background: '#faf3ec', border: '1px solid #c4a484', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
               <strong>Sur mobile :</strong> ne verrouille pas l'écran et ne change pas d'application pendant les 3-4 minutes du pipeline.
@@ -603,6 +625,10 @@ export default function HomeClient({
                 Annuler et recommencer
               </button>
             </div>
+            {/* Vue detaillee verticale conservee en complement du bandeau sticky.
+                Le bandeau donne la vue de flux ; cette liste donne le detail
+                avec sous-titres explicatifs. Utile pour les utilisateurs qui
+                veulent comprendre ce que fait chaque moteur. */}
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
               const duration = state.completedAt && state.startedAt
