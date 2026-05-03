@@ -527,6 +527,25 @@ export interface OrchestratedResult {
   blindspotAnalysis: BlindspotAnalysisOutput;
   contrarianAnalysis: ContrarianAnalysisOutput;
   financialCoherence?: FinancialCoherenceOutput;
+  // Audit consolide des assertions (Niveau 2.B). Liste les noms propres
+  // non sourcees, les conversions de devise non taggees, les annees
+  // inventees detectees dans tous les outputs des moteurs. Sert a
+  // l UI pour afficher un bandeau d alerte sur le rapport et a la
+  // due diligence pour identifier les points a verifier en priorite.
+  assertionAudit?: {
+    totalWarnings: number;
+    byEngine: Record<string, number>; // ex { 'team': 3, 'market': 1 }
+    byCategory: Record<string, number>; // ex { 'unknown_name': 2, 'invented_date': 2 }
+    bySeverity: Record<string, number>;
+    warnings: Array<{
+      engine: string;
+      category: 'unknown_name' | 'currency_mismatch' | 'invented_date' | 'unsupported_claim';
+      severity: 'critical' | 'warning' | 'info';
+      field: string;
+      message: string;
+      excerpt: string;
+    }>;
+  };
   finalRecommendation: {
     verdict: 'investir' | 'investir avec conditions' | 'approfondir' | 'refuser';
     globalScore: number;

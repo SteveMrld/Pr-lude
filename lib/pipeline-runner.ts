@@ -11,6 +11,7 @@ import { analyzeFinancialCoherence } from './engines/financial-coherence-engine'
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
+import { auditAssertions } from './engines/assertion-validator';
 import { getJobStore } from './job-store';
 
 interface RunOpts {
@@ -101,6 +102,69 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       await store.setEngineDone(jobId, 'reference-checks', null);
     }
 
+    // ============================================================
+    // NIVEAU 2.B : AUDIT CONSOLIDE DES ASSERTIONS
+    // ------------------------------------------------------------
+    // Apres que tous les moteurs ont produit leurs outputs, on parcourt
+    // mecaniquement les textes critiques (red flags, drivers, evidence,
+    // rationale, alertes) et on flagge :
+    //   - Les noms propres absents du pitch et non taggues [web]/[inference]
+    //   - Les conversions de devise non taggues (pitch en EUR mais USD cite)
+    //   - Les annees inventees non taggues
+    // L audit est non-bloquant : on remonte les warnings dans le resultat
+    // pour que l UI puisse les exposer en bandeau et pour que la DD
+    // identifie les points a verifier en priorite.
+    // ============================================================
+    let assertionAudit: any = null;
+    try {
+      const enginesToAudit: Array<[string, unknown]> = [
+        ['team', team],
+        ['market', market],
+        ['macro', macro],
+        ['pattern', patternMatching],
+        ['causal', causalReversal],
+        ['blindspot', blindspotAnalysis],
+        ['contrarian', contrarianAnalysis],
+        ['financial-coherence', financialCoherence],
+        ['orchestrator', finalRecommendation],
+      ];
+
+      const allWarnings: any[] = [];
+      const byEngine: Record<string, number> = {};
+      const byCategory: Record<string, number> = {};
+      const bySeverity: Record<string, number> = {};
+
+      for (const [engineName, engineOutput] of enginesToAudit) {
+        if (!engineOutput) continue;
+        const report = auditAssertions(engineOutput, extraction);
+        if (report.totalWarnings > 0) {
+          byEngine[engineName] = report.totalWarnings;
+          for (const w of report.warnings) {
+            allWarnings.push({ engine: engineName, ...w });
+          }
+        }
+      }
+
+      for (const w of allWarnings) {
+        byCategory[w.category] = (byCategory[w.category] || 0) + 1;
+        bySeverity[w.severity] = (bySeverity[w.severity] || 0) + 1;
+      }
+
+      assertionAudit = {
+        totalWarnings: allWarnings.length,
+        byEngine,
+        byCategory,
+        bySeverity,
+        warnings: allWarnings,
+      };
+
+      if (allWarnings.length > 0) {
+        console.warn(`[assertion-audit] ${allWarnings.length} warnings across engines:`, byCategory);
+      }
+    } catch (err: any) {
+      console.warn('[assertion-audit] failed, continuing without:', err?.message);
+    }
+
     const result = {
       meta: {
         filename: pitchDeckName,
@@ -121,6 +185,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       financialCoherence,
       finalRecommendation,
       referenceChecks,
+      assertionAudit,
     };
 
     await store.setComplete(jobId, result);
