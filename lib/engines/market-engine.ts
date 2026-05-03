@@ -78,7 +78,28 @@ NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitc
     "differentiationScore": 0-100,
     "differentiationRationale": "phrase qui explique en quoi la startup se différencie selon la matrice"
   }
-}`;
+}
+
+# UTILISATION DU WEB SEARCH (si l outil est disponible)
+
+Si le tool web_search est disponible, utilise-le pour :
+  1. Verifier la taille reelle du marche cite (TAM/SAM) via recherches
+     comme "[secteur] market size 2024 2025" ou rapports analystes
+     (Gartner, Pitchbook, Atomico SoET, BCG, McKinsey).
+  2. Identifier les concurrents reels du secteur que le pitch n a pas
+     mentionnes (red flag classique : un pitch qui dit "concurrents :
+     aucun" alors qu en realite il y en a 5-10).
+  3. Verifier les claims commerciaux specifiques (clients, contrats,
+     partenariats annonces).
+  4. Calibrer la dynamique competitive avec presse recente.
+
+REGLE DE PRUDENCE : 2-3 recherches max. Privilegie les requetes qui
+revelent un signal binaire : le marche existe-t-il a la taille
+revendiquee ? Les concurrents sont-ils nombreux ou rares ?
+
+INTEGRATION : tout chiffre cite (TAM, market size, croissance) doit
+provenir SOIT du dossier, SOIT d une source web verifiable. JAMAIS
+d hallucination de chiffre. Cite la source quand pertinent.`;
 
 export async function analyzeMarket(extraction: ExtractionOutput): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
   // ÉTAPE 1 : Récupération de data réelle
@@ -177,7 +198,14 @@ ${realDataSummary}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
+  // Niveau 2.A : web search active sur 3 recherches max
+  const rawResponse = await callClaude(
+    SYSTEM_PROMPT,
+    userPrompt,
+    8000,
+    undefined,
+    { maxWebSearches: 3 },
+  );
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

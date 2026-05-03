@@ -260,9 +260,26 @@ Produis la lecture macro complète au format JSON structuré demandé. Croise :
 3. Ta connaissance des bascules sectorielles récentes
 
 Region detectee du dossier: ${region}.
-Le cadrage doit etre differencie selon cette region. Pour un dossier europeen, mentionne explicitement les benchmarks Atomico et le pipeline reglementaire EU 2026. Pour un dossier US, mentionne la concentration extreme et le sentiment public.`;
+Le cadrage doit etre differencie selon cette region. Pour un dossier europeen, mentionne explicitement les benchmarks Atomico et le pipeline reglementaire EU 2026. Pour un dossier US, mentionne la concentration extreme et le sentiment public.
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 9000);
+# WEB SEARCH (si disponible)
+Si le tool web_search est disponible, utilise-le PARCIMONIEUSEMENT pour
+verifier des donnees macro tres recentes qui peuvent affecter le dossier :
+  - Annonces reglementaires recentes du secteur (lois EU/US passees)
+  - Mouvements geopolitiques majeurs affectant le secteur
+  - Tendances de financement VC du secteur sur les 6 derniers mois
+2 recherches max. Privilegier les donnees pre-2026 deja dans le contexte.`;
+
+  // Niveau 2.A : web search active sur 2 recherches max (le moteur Macro
+  // a deja beaucoup de donnees structurees, on cherche juste a verifier
+  // les nouveautes)
+  const rawResponse = await callClaude(
+    SYSTEM_PROMPT,
+    userPrompt,
+    9000,
+    undefined,
+    { maxWebSearches: 2 },
+  );
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

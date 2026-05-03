@@ -153,7 +153,48 @@ REGLE STRICTE SUR evaluability :
 Quand le fondateur est non-evaluable, le narratif (trajectorySummary)
 doit expliquer pourquoi : "Aucune donnee verifiable, ce qui pour un
 secteur reglementé est anormal" plutot que "Mauvais profil".
-Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.`;
+Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.
+
+# UTILISATION DU WEB SEARCH (si l outil est disponible)
+
+Si le tool web_search est disponible dans cet appel, utilise-le DE MANIERE
+CIBLEE pour verifier les claims du dossier qui ne sont pas verifiables
+via les sources structurees (OpenAlex, GitHub, Wikipedia, arXiv) deja
+interrogees a l etape 1.
+
+CAS D USAGE PRIORITAIRES (par ordre de retour sur investissement) :
+  1. Verifier l existence publique des fondateurs : 
+     - Recherches type "Jean Bernard Boura PEN Group" 
+     - "Jean Bernard Boura aeronautique drones"
+     - "Laetitia Boura DGMIND"
+     Indice critique : fondateurs revendiquant 30+ ans d expertise
+     dans un secteur reglementé doivent generer des traces (interviews,
+     contrats publics, certifications, brevets).
+  2. Verifier les claims commerciaux : 
+     - "PEN Group DHL Malaysia drone"
+     - "PEN Group EASA certification"
+     Si claims authentiques, on trouve presse (Maddyness, La Tribune,
+     Defense News, Aviation Week, Sifted).
+  3. Verifier les comparables et concurrents reels :
+     - "drone certifie BVLOS marche europeen 2025"
+     Pour calibrer la realite du secteur vs les claims du dossier.
+
+REGLE DE PRUDENCE : ne fais JAMAIS plus de 2-3 recherches web par
+fondateur ou par claim. Le budget de recherches est limite. Privilegie
+les recherches qui produisent un signal binaire fort (existe / n existe
+pas) plutot que les recherches exploratoires.
+
+INTEGRATION DES RESULTATS WEB :
+  - Ce que tu trouves DOIT alimenter realData et fitSignals/fitGaps
+  - Si une recherche revele un profil LinkedIn / interview / contrat
+    public = green flag explicite avec citation
+  - Si une recherche revele une absence totale (0 resultats pertinents
+    apres 2-3 requetes ciblees) = red flag chiffre dans fitGaps
+  - Cite TOUJOURS la source quand tu fais une assertion factuelle
+    issue du web (URL ou titre de la page)
+
+Quand evaluability='non-evaluable', tu dois avoir essaye au moins 2
+recherches web pour le confirmer. Sinon mets 'partially-evaluable'.`;
 
 export async function analyzeTeam(
   extraction: ExtractionOutput,
@@ -263,7 +304,17 @@ Intègre dans ton analyse :
 - L'insight propriétaire dans tacitExpertise du fondateur concerné
 - Le founder commitment et la team chemistry dans collectiveAntiFragility et redFlags/greenFlags`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
+  // Niveau 2.A : web search active. Le moteur Equipe est le plus
+  // critique pour la verification fondateurs, donc max_uses=4 (2-3 par
+  // fondateur en general). Pour controler les couts/latence, on peut
+  // desactiver via ENABLE_WEB_SEARCH=false sur Vercel.
+  const rawResponse = await callClaude(
+    SYSTEM_PROMPT,
+    userPrompt,
+    8000,
+    undefined, // model par defaut
+    { maxWebSearches: 4 },
+  );
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 
   return { ...analysis, realData };

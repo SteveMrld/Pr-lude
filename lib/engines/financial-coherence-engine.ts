@@ -257,8 +257,27 @@ Intègre dans 'syntheseCoherence' :
 2. Tes observations sur les besoins de capital futurs (D2)
 3. Le positionnement vs benchmarks marché ci-dessus si pertinent
 
+# WEB SEARCH (si disponible)
+Si le tool web_search est disponible, utilise-le pour verifier les
+benchmarks de marges et de croissance de l industrie quand le dossier
+fait des projections agressives (>x2 sustained, marges EBITDA >40% sur
+hardware, etc.). Recherches type :
+  - "[secteur] EBITDA margin benchmark"
+  - "[secteur] hardware revenue growth typical"
+  - "[concurrent reel cite] revenue 2024"
+2-3 recherches max. Privilegier les chiffres precis qui peuvent
+contredire ou valider les projections du dossier.
+
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 7000);
+  // Niveau 2.A : web search active sur 3 recherches pour verifier
+  // les benchmarks de marges/croissance du secteur
+  const rawResponse = await callClaude(
+    SYSTEM_PROMPT,
+    userPrompt,
+    7000,
+    undefined,
+    { maxWebSearches: 3 },
+  );
   return parseJSON<FinancialCoherenceOutput>(rawResponse);
 }

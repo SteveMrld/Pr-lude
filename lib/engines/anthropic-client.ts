@@ -15,20 +15,80 @@ export function getClient(): Anthropic {
 export const MODEL = 'claude-sonnet-4-5';
 export const FAST_MODEL = 'claude-haiku-4-5-20251001';
 
-// Helper appel texte simple
-export async function callClaude(systemPrompt: string, userPrompt: string, maxTokens = 2000, model: string = FAST_MODEL): Promise<string> {
+// ============================================================
+// CONFIG WEB SEARCH (Niveau 2.A)
+// ------------------------------------------------------------
+// Le web_search natif d Anthropic permet a Claude de chercher
+// sur le web pendant la generation. Decision d activation :
+//   - Variable env ENABLE_WEB_SEARCH=true a definir sur Vercel
+//   - Coute des tokens supplementaires (la sortie web est injectee
+//     dans le contexte) mais pas d API externe a gerer
+//   - Latence ajoutee : 5-15s par moteur qui l utilise
+//
+// Le tool s appelle web_search_20250305 dans l API.
+// max_uses : limite combien de recherches Claude peut faire dans
+// un seul appel pour eviter de boucler trop longtemps.
+// ============================================================
+
+export function isWebSearchEnabled(): boolean {
+  return process.env.ENABLE_WEB_SEARCH === 'true';
+}
+
+interface CallClaudeOptions {
+  /** Active le web_search natif Anthropic. Defaut : suit isWebSearchEnabled() */
+  enableWebSearch?: boolean;
+  /** Limite le nombre de recherches web par appel. Defaut : 3 */
+  maxWebSearches?: number;
+}
+
+// Helper appel texte simple, avec option web_search natif
+export async function callClaude(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 2000,
+  model: string = FAST_MODEL,
+  options: CallClaudeOptions = {},
+): Promise<string> {
   const client = getClient();
-  const response = await client.messages.create({
+
+  // Decide si on active le web search pour cet appel.
+  // Par defaut on suit la variable env globale, mais l appelant peut
+  // override (par ex. pour desactiver explicitement sur certains moteurs
+  // qui n en ont pas besoin meme si la feature est globalement active).
+  const useWebSearch = options.enableWebSearch ?? isWebSearchEnabled();
+  const maxWebSearches = options.maxWebSearches ?? 3;
+
+  const requestParams: any = {
     model,
     max_tokens: maxTokens,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
-  });
-  const textBlock = response.content.find(c => c.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
+  };
+
+  if (useWebSearch) {
+    // Le tool web_search natif. Anthropic gere le scraping / search
+    // / synthese cote serveur. On limite max_uses pour eviter qu il
+    // boucle indefiniment sur des recherches tangentes.
+    requestParams.tools = [
+      {
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: maxWebSearches,
+      },
+    ];
+  }
+
+  const response = await client.messages.create(requestParams);
+
+  // En presence de web_search, la reponse peut contenir plusieurs blocs :
+  // tool_use (recherches), tool_result (resultats), text (reponse finale).
+  // On concatene tous les blocs text pour avoir la reponse complete.
+  const textBlocks = response.content.filter(c => c.type === 'text');
+  if (textBlocks.length === 0) {
     throw new Error('Réponse Claude vide ou invalide');
   }
-  return textBlock.text;
+  // Joint avec saut de ligne au cas ou plusieurs blocs text consécutifs
+  return textBlocks.map((b: any) => b.text).join('\n');
 }
 
 // Helper appel avec PDF (toujours Sonnet pour la qualité d'extraction)
