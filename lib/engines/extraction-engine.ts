@@ -37,7 +37,7 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
   },
   "competitorsCited": ["liste des concurrents cités explicitement dans le deck"],
   "clientsNamed": [
-    { "name": "nom du client si présenté nommément", "company": "entreprise du client si différent du nom", "relationship": "nature du lien : pilot, contrat signé, partenariat, LOI, mentionné" }
+    { "name": "nom du client si présenté nommément", "company": "entreprise du client si différent du nom", "relationship": "STATUT PRÉCIS - choisir parmi : 'discussion_initiee' (simple mention, contact pris) | 'discussion_avancee' (négociation en cours, devis circulant) | 'loi_signee' (lettre d'intention signée, non engageante) | 'devis_signature' (devis ou contrat en cours de signature) | 'contrat_signe' (contrat ferme signe sans revenue encore) | 'pilot_gratuit' (POC gratuit ou subventionne) | 'pilot_paye' (POC paye contractuellement) | 'client_paye' (client avec revenue effectif et recurrent) | 'mentionne' (cite sans precision sur la nature du lien). Ne PAS confondre LOI signee et contrat signe. Ne PAS confondre POC gratuit et client paye." }
   ],
   "boardMembers": [
     { "name": "nom complet", "role": "role : board member, advisor, chairman, observer", "affiliation": "entreprise actuelle ou affiliation principale si connue" }

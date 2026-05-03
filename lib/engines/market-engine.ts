@@ -247,6 +247,57 @@ export async function analyzeMarket(extraction: ExtractionOutput): Promise<Marke
     realDataSummary += `Sources externes désactivées : analyse uniquement basée sur le pitch deck.\n`;
   }
 
+  // Construction du bloc clients/pipeline avec distinction explicite des
+  // statuts. Critique pour eviter que le LLM amalgame discussions, LOI,
+  // POC gratuits et clients payants en une masse indifferenciee de
+  // 'traction'. Bug constate sur le rapport UP&CHARGE : 6 POCs annonces
+  // (pour beaucoup en LOI ou en discussion) presentes comme equivalents
+  // a des clients payants.
+  const clientsBlock = (() => {
+    const clients = extraction.clientsNamed || [];
+    if (clients.length === 0) return 'Aucun client nomme dans le pitch.';
+
+    const buckets: Record<string, typeof clients> = {
+      client_paye: [],
+      pilot_paye: [],
+      contrat_signe: [],
+      pilot_gratuit: [],
+      devis_signature: [],
+      loi_signee: [],
+      discussion_avancee: [],
+      discussion_initiee: [],
+      mentionne: [],
+      autre: [],
+    };
+    for (const c of clients) {
+      const r = (c.relationship || 'mentionne').toLowerCase().replace(/\s+/g, '_');
+      if (r in buckets) buckets[r].push(c);
+      else buckets.autre.push(c);
+    }
+    const order: Array<[string, string]> = [
+      ['client_paye', 'CLIENTS PAYANTS (revenue effectif et recurrent)'],
+      ['pilot_paye', 'POC PAYES (contractuels)'],
+      ['contrat_signe', 'CONTRATS SIGNES (sans revenue encore)'],
+      ['pilot_gratuit', 'POC GRATUITS / SUBVENTIONNES (NE PAS ASSIMILER A DES CLIENTS PAYANTS)'],
+      ['devis_signature', 'DEVIS EN COURS DE SIGNATURE'],
+      ['loi_signee', 'LOI SIGNEES (lettres d intention non engageantes)'],
+      ['discussion_avancee', 'DISCUSSIONS AVANCEES'],
+      ['discussion_initiee', 'DISCUSSIONS INITIEES (simple contact)'],
+      ['mentionne', 'MENTIONNES SANS PRECISION DE LIEN'],
+      ['autre', 'AUTRES'],
+    ];
+    let block = '';
+    for (const [key, label] of order) {
+      const list = buckets[key];
+      if (list.length === 0) continue;
+      block += `\n${label} (${list.length}) :\n`;
+      for (const c of list) {
+        block += `  - ${c.name}${c.company ? ' (' + c.company + ')' : ''}\n`;
+      }
+    }
+    return block.trim();
+  })();
+
   const userPrompt = `# DONNÉES DÉCLARÉES (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
@@ -258,6 +309,23 @@ Business model : ${extraction.businessModel}
 
 Traction : ${JSON.stringify(extraction.traction)}
 Concurrents cités dans le pitch : ${(extraction.competitorsCited || []).join(', ') || 'Aucun'}
+
+# PIPELINE COMMERCIAL DECLARE PAR STATUT
+${clientsBlock}
+
+REGLE STRICTE D INTERPRETATION DU PIPELINE :
+- Un POC gratuit / subventionne N EST PAS un client paye. Il valide la
+  faisabilite technique, pas la disposition a payer ni la capacite du
+  modele economique a degager une marge.
+- Une LOI signee N EST PAS un contrat. C est une intention non engageante
+  qui se convertit historiquement entre 20% et 50% selon le secteur.
+- Une discussion avancee N EST PAS une signature. Ne pas extrapoler de
+  pipeline en MEur a partir de discussions.
+- Un client paye recurrent est le seul indicateur de traction commerciale
+  validee. Compter les clients payants reels avant tout.
+- Si le pitch presente du 'pipeline potentiel' en MEur calcule sur des
+  POCs ou LOI, signaler dans defensibility.weaknesses ou dans
+  organicSignals.gaps que cette extrapolation est non auditee.
 
 ${realDataSummary}
 
