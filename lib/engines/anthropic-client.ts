@@ -88,7 +88,45 @@ export async function callClaude(
     throw new Error('Réponse Claude vide ou invalide');
   }
   // Joint avec saut de ligne au cas ou plusieurs blocs text consécutifs
-  return textBlocks.map((b: any) => b.text).join('\n');
+  let combined = textBlocks.map((b: any) => b.text).join('\n');
+
+  // ============================================================
+  // NETTOYAGE DES BALISES CITE
+  // ------------------------------------------------------------
+  // Quand web_search est active, Anthropic injecte des balises de
+  // citation <cite index="..."> dans le texte pour tracer les sources.
+  // Ces balises pourrissent le rendu UI final (tu les vois affichees
+  // litteralement dans la note).
+  //
+  // On les retire systematiquement a la sortie de callClaude. Le
+  // contenu textuel des balises est preserve (c est le texte source
+  // legitime), seules les balises ouvrantes/fermantes sont stripees.
+  //
+  // Cas geres :
+  //   <cite index="26-4">texte</cite>     -> texte
+  //   <cite index="26-4,26-5,26-6">x</cite> -> x
+  //   <cite>x</cite>                       -> x (sans index)
+  //
+  // On opere AVANT le parseJSON pour que le JSON soit propre.
+  // ============================================================
+  if (useWebSearch) {
+    combined = stripCiteTags(combined);
+  }
+
+  return combined;
+}
+
+/**
+ * Retire les balises <cite index="..."> et </cite> du texte tout en
+ * preservant leur contenu. Utilise apres web_search pour obtenir un
+ * texte propre.
+ */
+function stripCiteTags(text: string): string {
+  // Retire les balises ouvrantes <cite ...> avec ou sans attributs
+  let cleaned = text.replace(/<cite\s*[^>]*>/gi, '');
+  // Retire les balises fermantes </cite>
+  cleaned = cleaned.replace(/<\/cite\s*>/gi, '');
+  return cleaned;
 }
 
 // Helper appel avec PDF (toujours Sonnet pour la qualité d'extraction)
