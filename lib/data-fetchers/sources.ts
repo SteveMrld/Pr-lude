@@ -407,6 +407,21 @@ export interface FounderRealData {
     public_presence: number;
     recent_activity: number;
   };
+  // Type de profil estime a partir du background. Sert a calibrer
+  // l interpretation des scores objectifs : un profil business/industriel
+  // avec scores academiques 0/100 n est PAS un red flag, c est attendu.
+  // Valeurs : 'academic' | 'tech_open_source' | 'business_industrial' | 'mixed' | 'unknown'
+  profileType?: 'academic' | 'tech_open_source' | 'business_industrial' | 'mixed' | 'unknown';
+  // Indique si les scores objectifs sont applicables au profil. Pour un
+  // profil business/industriel pur, scientific_signature et technical_signature
+  // (au sens GitHub OSS) ne sont PAS des metriques pertinentes.
+  scoresApplicability?: {
+    scientific_applicable: boolean;
+    technical_applicable: boolean;
+    public_applicable: boolean;
+    recent_applicable: boolean;
+    rationale: string;
+  };
   profileSignals: string[];
 }
 
@@ -421,11 +436,79 @@ export async function gatherFounderRealData(
   if (isSourceEnabled('wikipedia')) queriedSources.push('wikipedia');
   if (isSourceEnabled('arxiv')) queriedSources.push('arxiv');
 
+  // Classification du profil a partir du hint d affiliation. Heuristique
+  // simple mais ciblee : evite de penaliser des profils business / hardware
+  // pour lesquels OpenAlex / GitHub / Wikipedia ne sont pas des sources
+  // pertinentes. Le team-engine recoit ce profileType et calibre son
+  // interpretation des scores 0/100.
+  const bg = (affiliationHint || '').toLowerCase();
+  const academicMarkers = ['inria', 'inserm', 'cnrs', 'mit', 'stanford', 'harvard', 'berkeley', 'cambridge', 'oxford', 'eth', 'epfl', 'phd', 'professor', 'researcher', 'postdoc', 'phd student'];
+  const techOSSMarkers = ['google', 'meta', 'facebook', 'deepmind', 'openai', 'anthropic', 'mistral', 'apple', 'microsoft', 'github', 'gitlab', 'open source', 'kernel', 'linux foundation'];
+  const businessMarkers = ['accenture', 'mckinsey', 'bcg', 'bain', 'deloitte', 'kpmg', 'pwc', 'ey', 'consulting', 'consultant', 'sales', 'marketing', 'business', 'manager', 'director', 'ceo', 'coo', 'cfo', 'partner'];
+  const industrialMarkers = ['valeo', 'bosch', 'siemens', 'continental', 'renault', 'peugeot', 'stellantis', 'airbus', 'safran', 'thales', 'industriel', 'industrial', 'manufacturing', 'usine', 'factory', 'chassis', 'mechanical', 'electronique', 'electrotechnique', 'electrical', 'engineer', 'ingenieur'];
+
+  const isAcademic = academicMarkers.some(m => bg.includes(m));
+  const isTechOSS = techOSSMarkers.some(m => bg.includes(m));
+  const isBusiness = businessMarkers.some(m => bg.includes(m));
+  const isIndustrial = industrialMarkers.some(m => bg.includes(m));
+
+  let profileType: FounderRealData['profileType'] = 'unknown';
+  let scoresApplicability: FounderRealData['scoresApplicability'];
+
+  if (isAcademic && !isBusiness && !isIndustrial) {
+    profileType = 'academic';
+    scoresApplicability = {
+      scientific_applicable: true,
+      technical_applicable: false,
+      public_applicable: true,
+      recent_applicable: true,
+      rationale: 'Profil academique : OpenAlex pertinent, GitHub OSS optionnel.',
+    };
+  } else if (isTechOSS && !isBusiness && !isIndustrial) {
+    profileType = 'tech_open_source';
+    scoresApplicability = {
+      scientific_applicable: false,
+      technical_applicable: true,
+      public_applicable: true,
+      recent_applicable: true,
+      rationale: 'Profil tech open-source : GitHub pertinent, OpenAlex optionnel.',
+    };
+  } else if (isBusiness || isIndustrial) {
+    profileType = 'business_industrial';
+    scoresApplicability = {
+      scientific_applicable: false,
+      technical_applicable: false,
+      public_applicable: false,
+      recent_applicable: false,
+      rationale: 'Profil business / industriel : OpenAlex, GitHub OSS et Wikipedia ne sont PAS des sources pertinentes pour ce type de fondateur. L absence de signal sur ces sources est ATTENDUE et ne constitue pas un red flag. Verifier plutot LinkedIn, registres entreprises (Pappers, Sirene), brevets EPO, presse sectorielle.',
+    };
+  } else if (isAcademic && (isBusiness || isIndustrial)) {
+    profileType = 'mixed';
+    scoresApplicability = {
+      scientific_applicable: true,
+      technical_applicable: false,
+      public_applicable: true,
+      recent_applicable: true,
+      rationale: 'Profil mixte academique + business / industriel : signal academique pertinent mais pas exhaustif.',
+    };
+  } else {
+    profileType = 'unknown';
+    scoresApplicability = {
+      scientific_applicable: true,
+      technical_applicable: true,
+      public_applicable: true,
+      recent_applicable: true,
+      rationale: 'Profil non classifie : appliquer scores avec prudence, considerer comme indicatif et non determinant.',
+    };
+  }
+
   const result: any = {
     name,
     affiliationHint,
     sourcesQueried: queriedSources,
     sourcesFound: [],
+    profileType,
+    scoresApplicability,
   };
 
   // Aucune source active : retour structuré minimal (compat consommateurs)

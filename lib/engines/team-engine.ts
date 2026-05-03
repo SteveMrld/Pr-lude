@@ -79,6 +79,30 @@ Pour chaque fondateur, évalue :
 
 Score founder-market fit individuel : 0-100. Sois rigoureux, ne sois pas complaisant. Un pedigree prestigieux ne fait pas un founder-market fit. Un brillant fondateur en biotech n'a pas automatiquement le founder-market fit pour un projet AI.
 
+# CALIBRATION CRITIQUE : INTERPRÉTATION DES SCORES OBJECTIFS SELON LE PROFIL
+
+Les scores objectifs (scientific_signature, technical_signature, public_presence, recent_activity) sont calculés à partir de OpenAlex, GitHub, Wikipedia et arXiv. Ces sources NE SONT PAS pertinentes pour tous les profils de fondateurs.
+
+Pour CHAQUE fondateur, le bloc "Type de profil estimé" et "Applicabilité des scores objectifs" t'indique si les scores sont pertinents.
+
+RÈGLES STRICTES :
+
+1. Si "Applicabilité scientifique = NON" : un score scientific_signature de 0/100 est ATTENDU et NEUTRE. Tu ne dois PAS l'interpréter comme un red flag, ni comme une absence anormale, ni comme un signal de non-évaluabilité.
+
+2. Si "Applicabilité technique = NON" : un score technical_signature de 0/100 sur GitHub est ATTENDU pour un fondateur business / industriel / hardware. Tu ne dois PAS l'interpréter comme une absence d'expertise technique. L'expertise hardware et industrielle ne se mesure pas via GitHub.
+
+3. Si "Applicabilité publique = NON" : l'absence de Wikipedia est ATTENDUE pour un entrepreneur classique. Wikipedia ne référence que les figures publiques notoires. Ne pas confondre absence Wikipedia et opacité.
+
+4. Si profileType = 'business_industrial' : tu peux signaler dans gaps que la VÉRIFICATION publique reste à compléter via d'autres sources (LinkedIn, registres entreprises, brevets EPO, presse sectorielle), MAIS tu ne dois pas conclure que le fondateur est "non-évaluable" ou que l'absence de signal est suspecte. C'est juste que les sources interrogées ne sont pas les bonnes pour ce profil.
+
+5. Si profileType = 'unknown' : applique les scores avec prudence et signale l'incertitude dans la rationale.
+
+EXEMPLE NÉGATIF À NE PAS REPRODUIRE :
+Pour un CTO hardware de 60 ans avec 20 ans d'expérience industrielle, écrire "score scientifique 0/100, score technique 0/100, score Wikipedia 0/100 → fondateur non-évaluable, red flag critique" est une ERREUR de calibration. Pour ce profil, ces scores ne sont pas pertinents et leur faiblesse n'apporte aucune information.
+
+EXEMPLE POSITIF :
+Pour le même CTO, écrire "Profil business / industriel : sources OpenAlex / GitHub / Wikipedia non pertinentes pour ce type de fondateur. La vérification publique nécessite des sources sectorielles (brevets, presse industrielle, registres entreprises) non interrogées dans cette passe. Le pitch déclare X années d'expérience à valider en DD." est correct.
+
 # BENCHMARK ARR SERIES A IA 2026 (Menlo Ventures)
 
 Si le dossier est en Series A IA, applique le benchmark Menlo Ventures pour évaluer la qualité de la traction :
@@ -202,12 +226,12 @@ export async function analyzeTeam(
 ): Promise<TeamAnalysisOutput & { realData?: FounderRealData[] }> {
   // ÉTAPE 1 : Récupération de data réelle pour chaque fondateur (timeout 8s par fondateur)
   const realDataPromises = (extraction.founders || []).map(async (founder) => {
-    let hint: string | undefined;
-    const bg = (founder.background || '').toLowerCase();
-    const knownAffs = ['google', 'meta', 'facebook', 'deepmind', 'openai', 'anthropic', 'mistral', 'stripe', 'apple', 'microsoft', 'inria', 'inserm', 'cnrs', 'mit', 'stanford', 'harvard', 'berkeley', 'cambridge', 'oxford', 'eth', 'epfl'];
-    for (const aff of knownAffs) {
-      if (bg.includes(aff)) { hint = aff; break; }
-    }
+    // Hint enrichi : on passe le background complet ET le role pour permettre
+    // au classifier dans gatherFounderRealData d identifier le profileType
+    // (academique vs business/industriel vs tech OSS). Auparavant on ne
+    // passait qu un mot-cle d affiliation, ce qui empechait la calibration
+    // des scores objectifs pour les profils non-academiques.
+    const hint = `${founder.role || ''} ${founder.background || ''}`.trim() || undefined;
     return await Promise.race([
       gatherFounderRealData(founder.name, hint),
       new Promise<FounderRealData>((resolve) => setTimeout(() => resolve({
@@ -225,6 +249,18 @@ export async function analyzeTeam(
   const realDataSummary = realData.map(rd => {
     const v = rd.verifiableFacts || {} as any;
     let s = `\n--- ${rd.name} ---\n`;
+    // Type de profil et applicabilite des scores : critique pour eviter
+    // que le LLM transforme un score 0/100 en red flag pour un profil
+    // ou ces scores ne sont simplement pas pertinents (ex : entrepreneur
+    // hardware sans publication academique ni profil GitHub OSS).
+    if (rd.profileType) {
+      s += `Type de profil estime : ${rd.profileType}\n`;
+    }
+    if (rd.scoresApplicability) {
+      const a = rd.scoresApplicability;
+      s += `Applicabilite des scores objectifs : sci=${a.scientific_applicable ? 'oui' : 'NON'}, tech=${a.technical_applicable ? 'oui' : 'NON'}, public=${a.public_applicable ? 'oui' : 'NON'}, recent=${a.recent_applicable ? 'oui' : 'NON'}\n`;
+      s += `Note de calibration : ${a.rationale}\n`;
+    }
     s += `Sources interrogées : ${(rd.sourcesQueried || []).join(', ') || 'aucune'}\n`;
     s += `Sources avec résultats : ${(rd.sourcesFound || []).join(', ') || 'AUCUNE'}\n`;
 
