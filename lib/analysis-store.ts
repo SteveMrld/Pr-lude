@@ -5,6 +5,23 @@
 // produites par le pipeline. Encapsule l acces Supabase et
 // applique le feature flag ENABLE_PERSISTENCE.
 //
+// MODES SUPPORTES (selon variables d environnement)
+//
+//   1. MODE SOLO (defaut quand persistence activee)
+//      ENABLE_PERSISTENCE=true
+//      ENABLE_AUTH=false (ou non defini)
+//      -> utilise un user_id fixe (PRELUDE_SOLO_USER_ID) pour stocker
+//         toutes les analyses sous un seul compte. Bypasse RLS via
+//         service-role. Aucune authentification requise cote UI.
+//      -> mode adapte a un usage personnel / dev / instance solo.
+//
+//   2. MODE MULTI-USER (futur)
+//      ENABLE_PERSISTENCE=true
+//      ENABLE_AUTH=true
+//      -> utilise auth.getUser() pour identifier l utilisateur
+//         courant. Chaque utilisateur ne voit que ses analyses (RLS).
+//      -> mode adapte a une plateforme commerciale partagee.
+//
 // PRINCIPE : tout marche meme sans persistence.
 //   - Si ENABLE_PERSISTENCE != 'true', les fonctions retournent
 //     null/false sans rien casser
@@ -16,6 +33,68 @@
 // ============================================================
 
 import { getSupabaseServerClient, getSupabaseAdminClient } from './supabase/server';
+
+// ============================================================
+// MODE SOLO : UUID admin par defaut
+// ------------------------------------------------------------
+// UUID fixe utilise quand l auth est desactivee. Cet UUID n a pas
+// besoin d exister dans auth.users pour fonctionner avec le client
+// admin (service-role bypasse les contraintes de cle etrangere ?
+// non, donc on doit creer le user dans auth.users ou desactiver la
+// FK). Approche choisie : on retire la contrainte FK quand l app
+// est en mode solo, et on stocke ce UUID directement.
+//
+// Pour personnaliser, definir PRELUDE_SOLO_USER_ID dans les env vars.
+// ============================================================
+
+const DEFAULT_SOLO_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+function getSoloUserId(): string {
+  return process.env.PRELUDE_SOLO_USER_ID || DEFAULT_SOLO_USER_ID;
+}
+
+function isAuthEnabled(): boolean {
+  return process.env.ENABLE_AUTH === 'true';
+}
+
+/**
+ * Resoud l user_id a utiliser pour la requete courante.
+ * - Mode multi-user : essaie auth.getUser(), retourne null si pas de session
+ * - Mode solo : retourne toujours le UUID solo
+ *
+ * Retourne aussi un flag indiquant s il faut utiliser le client admin
+ * (qui bypasse RLS) ou le client utilisateur normal.
+ */
+async function resolveUserContext(): Promise<{
+  userId: string | null;
+  useAdminClient: boolean;
+}> {
+  if (!isAuthEnabled()) {
+    // Mode solo : UUID fixe + client admin pour bypass RLS
+    return { userId: getSoloUserId(), useAdminClient: true };
+  }
+
+  // Mode multi-user : auth Supabase requise
+  try {
+    const supabase = getSupabaseServerClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      return { userId: null, useAdminClient: false };
+    }
+    return { userId: userData.user.id, useAdminClient: false };
+  } catch {
+    return { userId: null, useAdminClient: false };
+  }
+}
+
+/**
+ * Retourne le bon client Supabase selon le contexte.
+ * - useAdminClient=true : client service-role (bypasse RLS)
+ * - useAdminClient=false : client user normal (respecte RLS)
+ */
+function getClient(useAdmin: boolean) {
+  return useAdmin ? getSupabaseAdminClient() : getSupabaseServerClient();
+}
 
 // ============================================================
 // TYPES
@@ -185,17 +264,17 @@ export async function saveAnalysis(
   if (!isPersistenceEnabled()) return null;
 
   try {
-    const supabase = getSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      console.warn('[analysis-store] saveAnalysis : pas de user authentifie');
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) {
+      console.warn('[analysis-store] saveAnalysis : pas de user (auth requise)');
       return null;
     }
+    const supabase = getClient(useAdminClient);
 
     const { data, error } = await supabase
       .from('analyses')
       .insert({
-        user_id: userData.user.id,
+        user_id: userId,
         company_name: input.companyName,
         sector: input.sector,
         sub_sector: input.subSector,
@@ -246,9 +325,9 @@ export async function listAnalyses(
   if (!isPersistenceEnabled()) return [];
 
   try {
-    const supabase = getSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return [];
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return [];
+    const supabase = getClient(useAdminClient);
 
     let query = supabase
       .from('analyses')
@@ -259,7 +338,7 @@ export async function listAnalyses(
         contrarian_score, coherence_score, user_notes,
         created_at, updated_at
       `)
-      .eq('user_id', userData.user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (filters.verdict) query = query.eq('verdict', filters.verdict);
@@ -300,15 +379,15 @@ export async function getAnalysis(id: string): Promise<AnalysisFull | null> {
   if (!isPersistenceEnabled()) return null;
 
   try {
-    const supabase = getSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return null;
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return null;
+    const supabase = getClient(useAdminClient);
 
     const { data, error } = await supabase
       .from('analyses')
       .select('*')
       .eq('id', id)
-      .eq('user_id', userData.user.id)
+      .eq('user_id', userId)
       .single();
 
     if (error || !data) {
@@ -336,15 +415,15 @@ export async function deleteAnalysis(id: string): Promise<boolean> {
   if (!isPersistenceEnabled()) return false;
 
   try {
-    const supabase = getSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return false;
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return false;
+    const supabase = getClient(useAdminClient);
 
     const { error } = await supabase
       .from('analyses')
       .delete()
       .eq('id', id)
-      .eq('user_id', userData.user.id);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('[analysis-store] deleteAnalysis erreur :', error);
@@ -368,15 +447,15 @@ export async function updateAnalysisNotes(
   if (!isPersistenceEnabled()) return false;
 
   try {
-    const supabase = getSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return false;
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return false;
+    const supabase = getClient(useAdminClient);
 
     const { error } = await supabase
       .from('analyses')
       .update({ user_notes: userNotes })
       .eq('id', id)
-      .eq('user_id', userData.user.id);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('[analysis-store] updateAnalysisNotes erreur :', error);
@@ -407,14 +486,14 @@ export async function getAnalysesStats(): Promise<{
   if (!isPersistenceEnabled()) return null;
 
   try {
-    const supabase = getSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return null;
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return null;
+    const supabase = getClient(useAdminClient);
 
     const { data, error } = await supabase
       .from('analyses_stats')
       .select('*')
-      .eq('user_id', userData.user.id)
+      .eq('user_id', userId)
       .single();
 
     if (error || !data) {
