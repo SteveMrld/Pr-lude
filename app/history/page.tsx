@@ -15,7 +15,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 
 interface AnalysisSummary {
@@ -332,6 +332,7 @@ export default function HistoryPage() {
               analysis={a}
               isLast={i === analyses.length - 1}
               onDelete={() => handleDelete(a.id, a.companyName)}
+              onStageChanged={load}
             />
           ))}
         </div>
@@ -366,10 +367,11 @@ function StatBox({ label, value, suffix, accent }: {
   );
 }
 
-function AnalysisRow({ analysis, isLast, onDelete }: {
+function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
   analysis: AnalysisSummary;
   isLast: boolean;
   onDelete: () => void;
+  onStageChanged: () => void;
 }) {
   const date = new Date(analysis.createdAt);
   const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -383,8 +385,6 @@ function AnalysisRow({ analysis, isLast, onDelete }: {
   const verdictStyle = verdictColors[analysis.verdict] || { bg: '#e8e3d6', fg: '#555049' };
 
   const stage = analysis.workflowStage || 'in_review';
-  const stageColor = STAGE_COLORS[stage] || STAGE_COLORS.in_review;
-  const stageLabel = STAGE_LABELS[stage] || stage;
 
   return (
     <div style={{
@@ -445,29 +445,11 @@ function AnalysisRow({ analysis, isLast, onDelete }: {
         </span>
       </div>
       <div>
-        <div style={{
-          padding: '4px 10px',
-          fontSize: 10,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          fontWeight: 500,
-          background: stageColor.bg,
-          color: stageColor.fg,
-          border: `1px solid ${stageColor.border}`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          whiteSpace: 'nowrap',
-        }}>
-          <span style={{
-            width: 5,
-            height: 5,
-            borderRadius: '50%',
-            background: stageColor.fg,
-            display: 'inline-block',
-          }} />
-          {stageLabel}
-        </div>
+        <InlineStageEditor
+          analysisId={analysis.id}
+          currentStage={stage}
+          onChanged={onStageChanged}
+        />
         {analysis.workflowStageUpdatedAt && (
           <div style={{
             fontSize: 9,
@@ -514,6 +496,184 @@ function AnalysisRow({ analysis, isLast, onDelete }: {
           ×
         </button>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// InlineStageEditor
+// ------------------------------------------------------------
+// Badge de stade workflow cliquable, qui ouvre un menu pour faire
+// passer le dossier d un stade a un autre sans avoir a quitter
+// la liste de fonds. Au clic sur une option, on PATCH la route
+// /api/analyses/[id]/status (qui poste aussi la notif Slack en
+// best effort) et on appelle onChanged() pour que le parent
+// rafraichisse la liste avec le nouveau stade.
+//
+// Outside-click ferme le menu. Loading state pendant le PATCH
+// avec opacite reduite et texte Mise a jour.
+// ============================================================
+function InlineStageEditor({
+  analysisId,
+  currentStage,
+  onChanged,
+}: {
+  analysisId: string;
+  currentStage: string;
+  onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Outside click pour fermer le menu
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const colors = STAGE_COLORS[currentStage] || STAGE_COLORS.in_review;
+  const label = STAGE_LABELS[currentStage] || currentStage;
+
+  const handleSelect = async (newStage: string) => {
+    if (newStage === currentStage) {
+      setOpen(false);
+      return;
+    }
+    setUpdating(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage: newStage }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      setOpen(false);
+      onChanged();
+    } catch (err: any) {
+      setError(err?.message || 'Erreur');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const stageOptions = ['deposited', 'in_review', 'dd_field', 'ic_review', 'signed', 'declined'];
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={updating}
+        style={{
+          padding: '4px 10px',
+          fontSize: 10,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          fontWeight: 500,
+          background: colors.bg,
+          color: colors.fg,
+          border: `1px solid ${colors.border}`,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          whiteSpace: 'nowrap',
+          cursor: updating ? 'wait' : 'pointer',
+          opacity: updating ? 0.6 : 1,
+          fontFamily: 'inherit',
+        }}
+        title="Cliquer pour changer le stade d instruction"
+      >
+        <span style={{
+          width: 5,
+          height: 5,
+          borderRadius: '50%',
+          background: colors.fg,
+          display: 'inline-block',
+        }} />
+        {updating ? 'Mise a jour...' : label}
+        <span style={{ fontSize: 8, opacity: 0.7, marginLeft: 2 }}>▾</span>
+      </button>
+
+      {open && !updating && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 4px)',
+          left: 0,
+          zIndex: 50,
+          background: 'var(--paper, #faf6ed)',
+          border: '1px solid var(--hairline)',
+          minWidth: 160,
+          boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+        }}>
+          {stageOptions.map((opt) => {
+            const optColors = STAGE_COLORS[opt];
+            const isCurrent = opt === currentStage;
+            return (
+              <button
+                key={opt}
+                onClick={() => handleSelect(opt)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: isCurrent ? optColors.bg : 'transparent',
+                  color: optColors.fg,
+                  border: 'none',
+                  borderBottom: '1px solid var(--hairline)',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  letterSpacing: '0.04em',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  fontWeight: isCurrent ? 600 : 400,
+                }}
+              >
+                <span style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: optColors.fg,
+                  display: 'inline-block',
+                  flexShrink: 0,
+                }} />
+                {STAGE_LABELS[opt]}
+                {isCurrent && (
+                  <span style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.7 }}>actuel</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {error && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 4px)',
+          left: 0,
+          fontSize: 10,
+          color: '#7a1f1f',
+          padding: '4px 8px',
+          background: '#f4dccf',
+          border: '1px solid #7a1f1f',
+          whiteSpace: 'nowrap',
+        }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
