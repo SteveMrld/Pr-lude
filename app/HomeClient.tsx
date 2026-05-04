@@ -211,6 +211,9 @@ export default function HomeClient({
 
   // Charge automatiquement une analyse passee si l URL contient ?analysis=ID.
   // Permet d arriver depuis /history -> bouton "Ouvrir" et restaurer la note.
+  // Quand on charge depuis l historique, on force tous les engineStates en done
+  // pour que le bandeau pipeline n affiche pas un faux 0/12 moteurs : le
+  // pipeline a forcement tourne sinon on n aurait pas de resultJson en base.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
@@ -227,6 +230,21 @@ export default function HomeClient({
         if (data?.analysis?.resultJson) {
           setResult(data.analysis.resultJson);
           setSavedAnalysisId(analysisId);
+          // Restaure les etats de moteurs en done. Si la base a stocke
+          // pipeline_engines_status (par moteur), on l utilise. Sinon on
+          // suppose que tous les moteurs ont reussi puisqu un resultJson
+          // existe et qu on a un verdict.
+          const enginesStatus = data.analysis.pipelineEnginesStatus || {};
+          const restored: Record<string, EngineState> = {};
+          ENGINES.forEach((e) => {
+            const stored = enginesStatus[e.id];
+            if (stored && (stored === 'failed' || stored === 'error')) {
+              restored[e.id] = { status: 'error' };
+            } else {
+              restored[e.id] = { status: 'done' };
+            }
+          });
+          setEngineStates(restored);
         }
       })
       .catch(() => {
