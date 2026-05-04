@@ -16,6 +16,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 const PUBLIC_PATHS = [
+  '/', // landing page de pitch publique
   '/login',
   '/auth/callback',
   '/demo', // future page demo PEN Group en lecture seule

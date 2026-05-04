@@ -1,14 +1,16 @@
-// Server Component d entree. Ne fait que de l orchestration auth :
-//   - Si ENABLE_AUTH absent ou faux : rend HomeClient sans props (legacy)
-//   - Si ENABLE_AUTH=true et pas de session : le middleware aura redirige
-//     vers /login avant qu on arrive ici, donc cas impossible
-//   - Si ENABLE_AUTH=true et user sans org : redirect /onboarding
-//   - Si ENABLE_AUTH=true et user + org : rend HomeClient avec props identite
+// Server Component d entree. Orchestration auth :
+//   - Si ENABLE_AUTH absent ou faux : rend HomeClient (legacy/dev).
+//   - Si ENABLE_AUTH=true et pas de session : rend la landing publique
+//     (page de pitch). Le middleware ne redirige plus / vers /login.
+//   - Si ENABLE_AUTH=true et user sans org : redirect /onboarding.
+//   - Si ENABLE_AUTH=true et user + org : rend HomeClient avec props identite.
 //
 // Toute la logique d analyse reste dans HomeClient (Client Component).
+// La landing est dans app/components/LandingPage.tsx.
 
 import { redirect } from 'next/navigation';
 import HomeClient from './HomeClient';
+import LandingPage from './components/LandingPage';
 import { isAuthEnabled, getCurrentUser, getCurrentOrganization } from '@/lib/auth';
 
 export default async function Home() {
@@ -18,8 +20,10 @@ export default async function Home() {
 
   const user = await getCurrentUser();
   if (!user) {
-    // Cas defensif. Le middleware doit avoir redirige avant.
-    redirect('/login');
+    // Pas de session : on montre la landing pitch publique. Le visiteur
+    // peut decider de cliquer sur Lancer une instruction qui l envoie
+    // vers /login.
+    return <LandingPage />;
   }
 
   const org = await getCurrentOrganization(user.id);
