@@ -59,32 +59,54 @@ export async function upsertIcDecision(params: {
 }): Promise<{ ok: boolean; error?: string }> {
   if (!isPersistenceEnabled()) return { ok: false, error: 'persistence-disabled' };
 
-  // Validation legere des champs : on accepte null ou string pour les
-  // champs texte, et seulement les valeurs canoniques pour vote_result.
+  // Validation legere des champs presents.
   if (
+    'voteResult' in params &&
     params.voteResult != null &&
     !IC_VOTE_RESULTS.includes(params.voteResult)
   ) {
     return { ok: false, error: 'invalid-vote-result' };
   }
-  if (params.committeeDate != null && params.committeeDate !== '' &&
-      !/^\d{4}-\d{2}-\d{2}$/.test(params.committeeDate)) {
+  if (
+    'committeeDate' in params &&
+    params.committeeDate != null && params.committeeDate !== '' &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(params.committeeDate)
+  ) {
     return { ok: false, error: 'invalid-date' };
   }
 
-  // Cap les longueurs pour ne pas accepter de blobs.
-  const partner = trimOrNull(params.partnerPrincipal, 200);
-  const conditions = trimOrNull(params.conditions, 4000);
-
   try {
     const admin = getSupabaseAdminClient();
+
+    // Lecture de l existant pour merger (patch partiel). Sans cette
+    // etape, l upsert ecraserait les champs absents du patch avec null
+    // a chaque sauvegarde de champ unique.
+    const { data: existing } = await admin
+      .from('analyses_ic_decision')
+      .select('partner_principal, committee_date, vote_result, conditions')
+      .eq('analysis_id', params.analysisId)
+      .maybeSingle();
+
+    const partnerPrincipal = 'partnerPrincipal' in params
+      ? trimOrNull(params.partnerPrincipal, 200)
+      : (existing?.partner_principal ?? null);
+    const committeeDate = 'committeeDate' in params
+      ? (params.committeeDate || null)
+      : (existing?.committee_date ?? null);
+    const voteResult = 'voteResult' in params
+      ? (params.voteResult || null)
+      : (existing?.vote_result ?? null);
+    const conditions = 'conditions' in params
+      ? trimOrNull(params.conditions, 4000)
+      : (existing?.conditions ?? null);
+
     const { error } = await admin
       .from('analyses_ic_decision')
       .upsert({
         analysis_id: params.analysisId,
-        partner_principal: partner,
-        committee_date: params.committeeDate || null,
-        vote_result: params.voteResult || null,
+        partner_principal: partnerPrincipal,
+        committee_date: committeeDate,
+        vote_result: voteResult,
         conditions: conditions,
         updated_at: new Date().toISOString(),
         updated_by: params.updatedBy,

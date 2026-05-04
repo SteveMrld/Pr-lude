@@ -60,30 +60,38 @@ export async function PUT(
     return NextResponse.json({ error: 'invalid-body' }, { status: 400 });
   }
 
-  // On accepte uniquement les champs reconnus, le reste est ignore.
-  const partnerPrincipal =
-    typeof body?.partnerPrincipal === 'string' ? body.partnerPrincipal : null;
-  const committeeDate =
-    typeof body?.committeeDate === 'string' ? body.committeeDate : null;
-  const conditions =
-    typeof body?.conditions === 'string' ? body.conditions : null;
+  // Patch partiel : on ne touche que les champs explicitement presents
+  // dans le body. Une cle absente = pas de modification (preserve la
+  // valeur existante). Une cle = null efface explicitement le champ.
+  const patch: Parameters<typeof upsertIcDecision>[0] = {
+    analysisId: params.id,
+    updatedBy: ctx.user.id,
+  };
 
-  let voteResult: IcVoteResult | null = null;
-  if (typeof body?.voteResult === 'string' && body.voteResult) {
-    if (!IC_VOTE_RESULTS.includes(body.voteResult as IcVoteResult)) {
-      return NextResponse.json({ error: 'invalid-vote-result' }, { status: 400 });
+  if ('partnerPrincipal' in body) {
+    patch.partnerPrincipal =
+      typeof body.partnerPrincipal === 'string' ? body.partnerPrincipal : null;
+  }
+  if ('committeeDate' in body) {
+    patch.committeeDate =
+      typeof body.committeeDate === 'string' ? body.committeeDate : null;
+  }
+  if ('conditions' in body) {
+    patch.conditions =
+      typeof body.conditions === 'string' ? body.conditions : null;
+  }
+  if ('voteResult' in body) {
+    if (body.voteResult && typeof body.voteResult === 'string') {
+      if (!IC_VOTE_RESULTS.includes(body.voteResult as IcVoteResult)) {
+        return NextResponse.json({ error: 'invalid-vote-result' }, { status: 400 });
+      }
+      patch.voteResult = body.voteResult as IcVoteResult;
+    } else {
+      patch.voteResult = null;
     }
-    voteResult = body.voteResult as IcVoteResult;
   }
 
-  const result = await upsertIcDecision({
-    analysisId: params.id,
-    partnerPrincipal,
-    committeeDate,
-    voteResult,
-    conditions,
-    updatedBy: ctx.user.id,
-  });
+  const result = await upsertIcDecision(patch);
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error || 'upsert-failed' }, { status: 500 });
