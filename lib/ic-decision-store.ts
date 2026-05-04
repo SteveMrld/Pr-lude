@@ -1,0 +1,129 @@
+// ============================================================
+// IC DECISION STORE
+// ------------------------------------------------------------
+// CRUD du verdict final officiel d un dossier au sortir du comite.
+// Materialise les 4 champs decisionnels du Pack IC page 3 :
+// partner principal, date de comite, resultat du vote, conditions.
+//
+// Une seule ligne par analyse. Upsert sur analysis_id. La modification
+// reservee aux membres editeurs (admin / member) cote Route Handler.
+// ============================================================
+
+import { getSupabaseAdminClient } from '@/lib/supabase/server';
+import { isPersistenceEnabled } from '@/lib/analysis-store';
+
+export type IcVoteResult =
+  | 'approuve'
+  | 'approuve-avec-conditions'
+  | 'reporte'
+  | 'refuse';
+
+export const IC_VOTE_RESULTS: IcVoteResult[] = [
+  'approuve',
+  'approuve-avec-conditions',
+  'reporte',
+  'refuse',
+];
+
+export const IC_VOTE_RESULT_LABELS: Record<IcVoteResult, string> = {
+  'approuve': 'Approuvé',
+  'approuve-avec-conditions': 'Approuvé avec conditions',
+  'reporte': 'Reporté',
+  'refuse': 'Refusé',
+};
+
+export interface IcDecision {
+  analysisId: string;
+  partnerPrincipal: string | null;
+  committeeDate: string | null; // ISO yyyy-mm-dd
+  voteResult: IcVoteResult | null;
+  conditions: string | null;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export async function getIcDecision(analysisId: string): Promise<IcDecision | null> {
+  if (!isPersistenceEnabled()) return null;
+  try {
+    const admin = getSupabaseAdminClient();
+    const { data, error } = await admin
+      .from('analyses_ic_decision')
+      .select('analysis_id, partner_principal, committee_date, vote_result, conditions, updated_at, updated_by')
+      .eq('analysis_id', analysisId)
+      .maybeSingle();
+    if (error || !data) {
+      if (error) console.warn('[ic-decision] get error:', error);
+      return null;
+    }
+    return {
+      analysisId: data.analysis_id,
+      partnerPrincipal: data.partner_principal,
+      committeeDate: data.committee_date,
+      voteResult: data.vote_result as IcVoteResult | null,
+      conditions: data.conditions,
+      updatedAt: data.updated_at,
+      updatedBy: data.updated_by,
+    };
+  } catch (err) {
+    console.error('[ic-decision] get exception:', err);
+    return null;
+  }
+}
+
+export async function upsertIcDecision(params: {
+  analysisId: string;
+  partnerPrincipal?: string | null;
+  committeeDate?: string | null;
+  voteResult?: IcVoteResult | null;
+  conditions?: string | null;
+  updatedBy: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!isPersistenceEnabled()) return { ok: false, error: 'persistence-disabled' };
+
+  // Validation legere des champs : on accepte null ou string pour les
+  // champs texte, et seulement les valeurs canoniques pour vote_result.
+  if (
+    params.voteResult != null &&
+    !IC_VOTE_RESULTS.includes(params.voteResult)
+  ) {
+    return { ok: false, error: 'invalid-vote-result' };
+  }
+  if (params.committeeDate != null && params.committeeDate !== '' &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(params.committeeDate)) {
+    return { ok: false, error: 'invalid-date' };
+  }
+
+  // Cap les longueurs pour ne pas accepter de blobs.
+  const partner = trimOrNull(params.partnerPrincipal, 200);
+  const conditions = trimOrNull(params.conditions, 4000);
+
+  try {
+    const admin = getSupabaseAdminClient();
+    const { error } = await admin
+      .from('analyses_ic_decision')
+      .upsert({
+        analysis_id: params.analysisId,
+        partner_principal: partner,
+        committee_date: params.committeeDate || null,
+        vote_result: params.voteResult || null,
+        conditions: conditions,
+        updated_at: new Date().toISOString(),
+        updated_by: params.updatedBy,
+      }, { onConflict: 'analysis_id' });
+    if (error) {
+      console.error('[ic-decision] upsert error:', error);
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[ic-decision] upsert exception:', err);
+    return { ok: false, error: err?.message || 'unknown' };
+  }
+}
+
+function trimOrNull(value: string | null | undefined, maxLen: number): string | null {
+  if (value == null) return null;
+  const t = value.trim();
+  if (!t) return null;
+  return t.length > maxLen ? t.slice(0, maxLen) : t;
+}

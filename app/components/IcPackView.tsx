@@ -16,6 +16,12 @@
 
 import React from 'react';
 import { computeTopRisks } from '@/lib/compute-top-risks';
+import {
+  IC_VOTE_RESULTS,
+  IC_VOTE_RESULT_LABELS,
+  type IcVoteResult,
+  type IcDecision,
+} from '@/lib/ic-decision-store';
 
 export type WorkflowHistoryItem = {
   fromStage: string | null;
@@ -43,6 +49,19 @@ type Props = {
   onVote?: (voteOption: string) => Promise<void> | void;
   // Pre-remplissage du partner principal depuis le user connecte.
   partnerPrincipalDefault?: string | null;
+  // Decision officielle (page 3) : verdict final et metadata du comite.
+  // Si fournie avec onUpdateDecision, les champs deviennent editables.
+  // Sans onUpdateDecision (mode lecture / observateur / print), affichage
+  // statique des valeurs deja saisies.
+  icDecision?: IcDecision | null;
+  onUpdateDecision?: (
+    patch: Partial<{
+      partnerPrincipal: string | null;
+      committeeDate: string | null;
+      voteResult: IcVoteResult | null;
+      conditions: string | null;
+    }>,
+  ) => Promise<void> | void;
 };
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -95,6 +114,8 @@ export default function IcPackView({
   currentUserId,
   onVote,
   partnerPrincipalDefault,
+  icDecision,
+  onUpdateDecision,
 }: Props) {
   if (!result) return null;
 
@@ -602,32 +623,167 @@ export default function IcPackView({
             </div>
           )}
 
-          <div className="ic-signature-block">
-            <div className="ic-signature-row">
-              <div className="ic-signature-line">
-                <div className="ic-fact-label">Partner principal</div>
-                <div className="ic-signature-blank">
-                  {partnerPrincipalDefault || ''}
-                </div>
-              </div>
-              <div className="ic-signature-line">
-                <div className="ic-fact-label">Date de comite</div>
-                <div className="ic-signature-blank"></div>
-              </div>
-            </div>
-            <div className="ic-signature-row">
-              <div className="ic-signature-line">
-                <div className="ic-fact-label">Resultat du vote</div>
-                <div className="ic-signature-blank"></div>
-              </div>
-              <div className="ic-signature-line">
-                <div className="ic-fact-label">Conditions retenues</div>
-                <div className="ic-signature-blank"></div>
-              </div>
-            </div>
-          </div>
+          <IcDecisionBlock
+            decision={icDecision || null}
+            partnerPrincipalDefault={partnerPrincipalDefault || ''}
+            onUpdate={onUpdateDecision}
+          />
         </div>
       </section>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Bloc decisionnel page 3 du Pack IC
+// ------------------------------------------------------------
+// Quatre champs (partner principal, date de comite, resultat du vote,
+// conditions retenues) qui se persistent en base via /api/analyses/[id]/
+// ic-decision. Si onUpdate est absent, affichage statique (mode lecture
+// pour observateur, print, ou mode solo sans persistance).
+// ============================================================
+function IcDecisionBlock({
+  decision,
+  partnerPrincipalDefault,
+  onUpdate,
+}: {
+  decision: IcDecision | null;
+  partnerPrincipalDefault: string;
+  onUpdate?: (patch: Partial<{
+    partnerPrincipal: string | null;
+    committeeDate: string | null;
+    voteResult: IcVoteResult | null;
+    conditions: string | null;
+  }>) => Promise<void> | void;
+}) {
+  const editable = Boolean(onUpdate);
+
+  // State local : on initialise avec la valeur persistee si presente,
+  // sinon avec le defaut (partner) ou vide. Sync avec la prop quand
+  // elle change (ex apres premier load asynchrone).
+  const [partner, setPartner] = React.useState(
+    decision?.partnerPrincipal ?? partnerPrincipalDefault ?? '',
+  );
+  const [committeeDate, setCommitteeDate] = React.useState(
+    decision?.committeeDate ?? '',
+  );
+  const [voteResult, setVoteResult] = React.useState<string>(
+    decision?.voteResult ?? '',
+  );
+  const [conditions, setConditions] = React.useState(decision?.conditions ?? '');
+
+  // Re-sync si la decision arrive en differé (chargement async).
+  React.useEffect(() => {
+    if (decision) {
+      setPartner(decision.partnerPrincipal ?? partnerPrincipalDefault ?? '');
+      setCommitteeDate(decision.committeeDate ?? '');
+      setVoteResult(decision.voteResult ?? '');
+      setConditions(decision.conditions ?? '');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decision?.updatedAt]);
+
+  function handleBlurPartner() {
+    if (!onUpdate) return;
+    const next = partner.trim() || null;
+    if (next !== (decision?.partnerPrincipal ?? null)) {
+      onUpdate({ partnerPrincipal: next });
+    }
+  }
+  function handleBlurDate() {
+    if (!onUpdate) return;
+    const next = committeeDate || null;
+    if (next !== (decision?.committeeDate ?? null)) {
+      onUpdate({ committeeDate: next });
+    }
+  }
+  function handleChangeVote(v: string) {
+    setVoteResult(v);
+    if (!onUpdate) return;
+    const next = (v || null) as IcVoteResult | null;
+    if (next !== (decision?.voteResult ?? null)) {
+      onUpdate({ voteResult: next });
+    }
+  }
+  function handleBlurConditions() {
+    if (!onUpdate) return;
+    const next = conditions.trim() || null;
+    if (next !== (decision?.conditions ?? null)) {
+      onUpdate({ conditions: next });
+    }
+  }
+
+  return (
+    <div className="ic-signature-block">
+      <div className="ic-signature-row">
+        <div className="ic-signature-line">
+          <div className="ic-fact-label">Partner principal</div>
+          {editable ? (
+            <input
+              type="text"
+              className="ic-decision-input"
+              value={partner}
+              onChange={(e) => setPartner(e.target.value)}
+              onBlur={handleBlurPartner}
+              placeholder="Nom du partner"
+              maxLength={200}
+            />
+          ) : (
+            <div className="ic-signature-blank">{partner}</div>
+          )}
+        </div>
+        <div className="ic-signature-line">
+          <div className="ic-fact-label">Date de comite</div>
+          {editable ? (
+            <input
+              type="date"
+              className="ic-decision-input"
+              value={committeeDate}
+              onChange={(e) => setCommitteeDate(e.target.value)}
+              onBlur={handleBlurDate}
+            />
+          ) : (
+            <div className="ic-signature-blank">{formatDate(committeeDate)}</div>
+          )}
+        </div>
+      </div>
+      <div className="ic-signature-row">
+        <div className="ic-signature-line">
+          <div className="ic-fact-label">Resultat du vote</div>
+          {editable ? (
+            <select
+              className="ic-decision-input"
+              value={voteResult}
+              onChange={(e) => handleChangeVote(e.target.value)}
+            >
+              <option value="">Non statué</option>
+              {IC_VOTE_RESULTS.map((r) => (
+                <option key={r} value={r}>{IC_VOTE_RESULT_LABELS[r]}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="ic-signature-blank">
+              {voteResult ? IC_VOTE_RESULT_LABELS[voteResult as IcVoteResult] : ''}
+            </div>
+          )}
+        </div>
+        <div className="ic-signature-line">
+          <div className="ic-fact-label">Conditions retenues</div>
+          {editable ? (
+            <textarea
+              className="ic-decision-input ic-decision-textarea"
+              value={conditions}
+              onChange={(e) => setConditions(e.target.value)}
+              onBlur={handleBlurConditions}
+              placeholder="Conditions formulées par le comité"
+              rows={3}
+              maxLength={4000}
+            />
+          ) : (
+            <div className="ic-signature-blank">{conditions}</div>
+          )}
+        </div>
       </div>
     </div>
   );

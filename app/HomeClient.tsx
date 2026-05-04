@@ -73,11 +73,13 @@ export default function HomeClient({
   userId,
   orgName,
   authEnabled = false,
+  userRole,
 }: {
   userEmail?: string;
   userId?: string;
   orgName?: string;
   authEnabled?: boolean;
+  userRole?: 'admin' | 'member' | 'observer';
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -127,6 +129,18 @@ export default function HomeClient({
     voteOption: string;
     votedAt: string;
   }>>([]);
+  // Decision officielle IC (page 3 du Pack IC) : verdict final, partner,
+  // date de comite, conditions retenues. Persiste en base. Distinct des
+  // votes individuels (icVotes) qui agregent les positions par membre.
+  const [icDecision, setIcDecision] = useState<{
+    analysisId: string;
+    partnerPrincipal: string | null;
+    committeeDate: string | null;
+    voteResult: 'approuve' | 'approuve-avec-conditions' | 'reporte' | 'refuse' | null;
+    conditions: string | null;
+    updatedAt: string;
+    updatedBy: string | null;
+  } | null>(null);
   // Etat d ouverture du volet de commentaires partages multi-membres
   // (distinct du AnnotationBlock notes personnelles existant).
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -336,6 +350,51 @@ export default function HomeClient({
       console.error('handleVote failed:', err);
     }
   }, [savedAnalysisId, icVotes, userId, reloadIcVotes]);
+
+  // Charge la decision IC officielle du dossier (champs page 3 du Pack IC).
+  // Best effort, silencieux en cas d echec.
+  const reloadIcDecision = useCallback(async () => {
+    if (!savedAnalysisId) {
+      setIcDecision(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/analyses/${savedAnalysisId}/ic-decision`);
+      if (!res.ok) {
+        setIcDecision(null);
+        return;
+      }
+      const data = await res.json();
+      setIcDecision(data.decision || null);
+    } catch {
+      setIcDecision(null);
+    }
+  }, [savedAnalysisId]);
+
+  useEffect(() => {
+    reloadIcDecision();
+  }, [reloadIcDecision]);
+
+  // Callback de mise a jour : envoie un patch partiel et recharge.
+  // Ne fait rien si pas authentifie (les observateurs et solo se voient
+  // refuser cote serveur, mais on prefere ne pas faire la requete pour
+  // ne pas afficher d erreur inutile cote UI).
+  const handleUpdateDecision = useCallback(async (patch: any) => {
+    if (!savedAnalysisId || !authEnabled) return;
+    try {
+      const res = await fetch(`/api/analyses/${savedAnalysisId}/ic-decision`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIcDecision(data.decision || null);
+      }
+    } catch (err) {
+      console.error('updateIcDecision failed:', err);
+    }
+  }, [savedAnalysisId, authEnabled]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelect(newFiles: FileList | null) {
@@ -2912,8 +2971,10 @@ export default function HomeClient({
                   workflowHistory={workflowHistory}
                   icVotes={icVotes}
                   currentUserId={userId || null}
-                  onVote={authEnabled && savedAnalysisId ? handleVote : undefined}
+                  onVote={authEnabled && savedAnalysisId && userRole !== 'observer' ? handleVote : undefined}
                   partnerPrincipalDefault={userEmail || null}
+                  icDecision={icDecision}
+                  onUpdateDecision={authEnabled && savedAnalysisId && userRole !== 'observer' ? handleUpdateDecision : undefined}
                 />
               )}
                   </div>

@@ -33,6 +33,7 @@ export default async function Home() {
       userEmail={user.email}
       userId={user.id}
       orgName={org.name}
+      userRole={org.role}
     />
   );
 }

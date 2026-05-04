@@ -1,0 +1,95 @@
+// ============================================================
+// GET /api/analyses/[id]/ic-decision   -> recupere le verdict final
+// PUT /api/analyses/[id]/ic-decision   -> upsert les champs decisionnels
+//
+// En mode solo (ENABLE_AUTH=false), GET fonctionne et retourne null si
+// pas encore renseigne. PUT exige l auth + le role canEdit (admin /
+// member). Les observateurs ne peuvent pas modifier le verdict officiel.
+// ============================================================
+
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  getIcDecision,
+  upsertIcDecision,
+  type IcVoteResult,
+  IC_VOTE_RESULTS,
+} from '@/lib/ic-decision-store';
+import { isPersistenceEnabled } from '@/lib/analysis-store';
+import { getAuthenticatedContext, isAuthEnabled, canEdit } from '@/lib/auth';
+
+export const runtime = 'nodejs';
+export const maxDuration = 15;
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  if (!isPersistenceEnabled()) {
+    return NextResponse.json({ enabled: false, decision: null });
+  }
+  const decision = await getIcDecision(params.id);
+  return NextResponse.json({ enabled: true, decision });
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  if (!isPersistenceEnabled()) {
+    return NextResponse.json({ error: 'persistence-disabled' }, { status: 404 });
+  }
+  if (!isAuthEnabled()) {
+    return NextResponse.json(
+      { error: 'auth-required', detail: 'La decision IC necessite un compte fonds.' },
+      { status: 403 },
+    );
+  }
+  const ctx = await getAuthenticatedContext();
+  if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!canEdit(ctx.org.role)) {
+    return NextResponse.json(
+      { error: 'forbidden', detail: 'La decision IC est reservee aux membres editeurs.' },
+      { status: 403 },
+    );
+  }
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid-body' }, { status: 400 });
+  }
+
+  // On accepte uniquement les champs reconnus, le reste est ignore.
+  const partnerPrincipal =
+    typeof body?.partnerPrincipal === 'string' ? body.partnerPrincipal : null;
+  const committeeDate =
+    typeof body?.committeeDate === 'string' ? body.committeeDate : null;
+  const conditions =
+    typeof body?.conditions === 'string' ? body.conditions : null;
+
+  let voteResult: IcVoteResult | null = null;
+  if (typeof body?.voteResult === 'string' && body.voteResult) {
+    if (!IC_VOTE_RESULTS.includes(body.voteResult as IcVoteResult)) {
+      return NextResponse.json({ error: 'invalid-vote-result' }, { status: 400 });
+    }
+    voteResult = body.voteResult as IcVoteResult;
+  }
+
+  const result = await upsertIcDecision({
+    analysisId: params.id,
+    partnerPrincipal,
+    committeeDate,
+    voteResult,
+    conditions,
+    updatedBy: ctx.user.id,
+  });
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error || 'upsert-failed' }, { status: 500 });
+  }
+
+  // Re-lit pour renvoyer l etat consolide cote client.
+  const decision = await getIcDecision(params.id);
+  return NextResponse.json({ ok: true, decision });
+}
