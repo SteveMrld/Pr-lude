@@ -109,8 +109,98 @@ export default function IcPackView({ result, filename, workflowHistory }: Props)
     { duration: '5 min', label: 'Vote' },
   ];
 
+  // Telecharge le pack en PDF via Puppeteer cote serveur. Capture le
+  // bloc .ic-pack avec les feuilles de style locales pour preserver
+  // le rendu exact (palette papier creme, serif Le Grand Continent).
+  const handleDownloadPdf = async () => {
+    try {
+      const icEl = document.querySelector('.ic-pack');
+      if (!icEl) throw new Error('Pack IC non trouve dans le DOM');
+      const html = icEl.outerHTML;
+
+      const styleSheets = Array.from(document.styleSheets);
+      const cssRules: string[] = [];
+      for (const sheet of styleSheets) {
+        try {
+          const rules = sheet.cssRules || sheet.rules;
+          if (rules) {
+            for (let i = 0; i < rules.length; i++) {
+              cssRules.push(rules[i].cssText);
+            }
+          }
+        } catch {
+          // CORS sur certaines feuilles externes : on ignore
+        }
+      }
+      const css = cssRules.join('\n');
+
+      const companyName = ext.companyName || 'analyse';
+      const fileName = `prelude-ic-pack-${String(companyName).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;
+
+      const res = await fetch('/api/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          html,
+          css,
+          title: `Prelude · Pack IC · ${companyName}`,
+          fileName,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
+        throw new Error(errorData.error || `HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Export Pack IC echec:', err);
+      alert('Echec export Pack IC : ' + (err?.message || 'erreur inconnue'));
+    }
+  };
+
   return (
-    <div className="ic-pack" data-print-section="ic-pack">
+    <div>
+      {/* Barre d action au-dessus du pack : telechargement PDF dedie.
+          Cachee a l impression via le data attr no-print pour que le
+          bouton n apparaisse pas dans le PDF lui-meme. */}
+      <div
+        data-no-print="true"
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 10,
+          marginBottom: 14,
+        }}
+      >
+        <button
+          onClick={handleDownloadPdf}
+          style={{
+            padding: '8px 18px',
+            fontSize: 12,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            background: 'var(--ink)',
+            color: '#fefefe',
+            border: '1px solid var(--ink)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          ↓ Telecharger en PDF
+        </button>
+      </div>
+
+      <div className="ic-pack" data-print-section="ic-pack">
       {/* PAGE 1 : COUVERTURE COMITE */}
       <section className="ic-page ic-page-cover">
         <div className="ic-cover-header">
@@ -427,6 +517,7 @@ export default function IcPackView({ result, filename, workflowHistory }: Props)
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }

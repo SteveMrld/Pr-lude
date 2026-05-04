@@ -1032,87 +1032,34 @@ export default function HomeClient({
                 }}>
                 ⤓ Exporter en PDF
               </button>
-              {/* Export PDF dedie au Pack IC : 3 pages A4 prêtes pour le comite.
-                  Bascule l onglet sur ic-pack si necessaire, attend le rendu
-                  React, puis envoie uniquement le bloc .ic-pack a Puppeteer. */}
+              {/* Bouton Pack IC : ouvre la vue dediee (3 pages calibrees pour
+                  le comite). L export PDF du pack est ensuite accessible
+                  depuis la vue elle-meme via un bouton dedie. Avant, ce bouton
+                  declenchait directement un telechargement PDF, ce qui etait
+                  trompeur sur mobile : on s attend a voir la vue d abord. */}
               <button
-                onClick={async () => {
-                  const wasOnIcTab = activeTab === 'ic-pack';
-                  if (!wasOnIcTab) {
-                    setActiveTab('ic-pack');
-                  }
-                  await new Promise((r) => setTimeout(r, wasOnIcTab ? 200 : 600));
-
-                  try {
-                    const icEl = document.querySelector('.ic-pack');
-                    if (!icEl) {
-                      throw new Error('Pack IC non trouve dans le DOM');
-                    }
-                    const html = icEl.outerHTML;
-
-                    const styleSheets = Array.from(document.styleSheets);
-                    const cssRules: string[] = [];
-                    for (const sheet of styleSheets) {
-                      try {
-                        const rules = sheet.cssRules || sheet.rules;
-                        if (rules) {
-                          for (let i = 0; i < rules.length; i++) {
-                            cssRules.push(rules[i].cssText);
-                          }
-                        }
-                      } catch {
-                        // CORS sur certaines feuilles externes : on ignore
-                      }
-                    }
-                    const css = cssRules.join('\n');
-
-                    const companyName = result?.extraction?.companyName || 'analyse';
-                    const fileName = `prelude-ic-pack-${String(companyName).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;
-
-                    const res = await fetch('/api/export-pdf', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        html,
-                        css,
-                        title: `Prelude · Pack IC · ${companyName}`,
-                        fileName,
-                      }),
-                    });
-
-                    if (!res.ok) {
-                      const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
-                      throw new Error(errorData.error || `HTTP ${res.status}`);
-                    }
-
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                  } catch (err: any) {
-                    console.error('Export Pack IC echec:', err);
-                    alert('Echec export Pack IC : ' + (err?.message || 'erreur inconnue'));
-                  }
+                onClick={() => {
+                  setActiveTab('ic-pack');
+                  // Scroll vers la zone de contenu apres le rendu React
+                  setTimeout(() => {
+                    const el = document.querySelector('.ic-pack');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 200);
                 }}
-                title="Exporter le Pack IC en PDF (3 pages prêtes pour le comite)"
+                title="Ouvrir le Pack IC (3 pages prêtes pour le comite)"
                 style={{
                   padding: '8px 18px',
                   fontSize: 12,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  background: 'transparent',
-                  color: 'var(--ink)',
+                  background: activeTab === 'ic-pack' ? 'var(--ink)' : 'transparent',
+                  color: activeTab === 'ic-pack' ? '#fefefe' : 'var(--ink)',
                   border: '1px solid var(--ink)',
                   marginLeft: 8,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                 }}>
-                ⤓ Pack IC
+                Pack IC
               </button>
               {/* Bouton ouverture du volet de commentaires partages multi-membres.
                   Visible uniquement quand l analyse est sauvegardee en base
