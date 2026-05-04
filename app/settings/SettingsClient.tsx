@@ -184,6 +184,41 @@ export default function SettingsClient({
         />
       )}
 
+      <section className="src-group" style={{ marginTop: 12 }}>
+        <h2 className="src-group-title">Intégrations</h2>
+        <p className="src-group-subtitle">
+          Connectez Prélude aux outils de votre fonds pour porter les analyses dans les rituels
+          d&apos;instruction quotidiens, sans changement de contexte.
+        </p>
+        <Link
+          href="/settings/slack"
+          style={{
+            display: 'block',
+            padding: '18px 22px',
+            background: 'var(--surface)',
+            border: '1px solid var(--hairline)',
+            textDecoration: 'none',
+            color: 'inherit',
+            transition: 'border-color 0.15s',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, marginBottom: 4 }}>
+                Slack
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
+                Push automatique des analyses dans un channel du fonds. Alertes distinctes sur
+                les verdicts critiques. Configuration par webhook entrant.
+              </div>
+            </div>
+            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+              Configurer →
+            </span>
+          </div>
+        </Link>
+      </section>
+
       <style jsx>{`
         .settings-main {
           max-width: 880px;
