@@ -514,3 +514,114 @@ export async function testSlackWebhook(organizationId: string): Promise<{ ok: bo
 
   return { ok: result.ok, error: result.error };
 }
+
+// ============================================================
+// NOTIFICATION : changement de stade workflow
+// ------------------------------------------------------------
+// Quand un membre du fonds fait passer un dossier de in_review a
+// dd_field, ou de dd_field a ic_review, ou signe enfin un dossier,
+// on poste un message dans le channel pour que toute l equipe sache
+// ou en sont les dossiers, sans avoir a venir consulter Prelude.
+//
+// C est cette boucle (action dans Prelude -> notif Slack) qui rend
+// le pilotage de fonds vivant : un partner voit en temps reel que
+// le dossier qu il a refile en DD avance, qu un dossier signe doit
+// etre passe en suivi, etc.
+// ============================================================
+
+const STAGE_LABEL_FR: Record<string, string> = {
+  deposited: 'Depose',
+  in_review: 'En instruction',
+  dd_field: 'DD terrain',
+  ic_review: 'Pret pour IC',
+  signed: 'Signe',
+  declined: 'Refuse',
+};
+
+const STAGE_EMOJI: Record<string, string> = {
+  deposited: '📥',
+  in_review: '🔍',
+  dd_field: '🌍',
+  ic_review: '🎯',
+  signed: '✅',
+  declined: '⛔',
+};
+
+export async function notifyWorkflowStageChange(params: {
+  organizationId: string;
+  analysisId: string;
+  companyName: string;
+  fromStage: string | null;
+  toStage: string;
+  changedByDisplay: string | null;
+  comment: string | null;
+  baseUrl: string;
+}): Promise<boolean> {
+  const cfg = await getSlackConfig(params.organizationId);
+  if (!cfg || !cfg.enabled) {
+    await logNotification({
+      organizationId: params.organizationId,
+      analysisId: params.analysisId,
+      notificationType: 'workflow-stage-change',
+      status: 'skipped',
+      payloadSummary: { reason: cfg ? 'disabled' : 'no-config' },
+    });
+    return false;
+  }
+
+  const analysisUrl = `${params.baseUrl}/?analysis=${params.analysisId}`;
+  const fromLabel = params.fromStage ? STAGE_LABEL_FR[params.fromStage] || params.fromStage : 'nouveau dossier';
+  const toLabel = STAGE_LABEL_FR[params.toStage] || params.toStage;
+  const toEmoji = STAGE_EMOJI[params.toStage] || '•';
+
+  const headerText = `${toEmoji} ${params.companyName} -> ${toLabel}`;
+  const transitionLine = params.fromStage
+    ? `*Transition :* ${fromLabel} → ${toLabel}`
+    : `*Stade :* ${toLabel}`;
+  const byLine = params.changedByDisplay ? `*Par :* ${params.changedByDisplay}` : null;
+  const commentLine = params.comment ? `_« ${params.comment.slice(0, 280)} »_` : null;
+
+  const sectionLines = [transitionLine, byLine, commentLine].filter(Boolean) as string[];
+
+  const blocks: any[] = [
+    {
+      type: 'header',
+      text: { type: 'plain_text', text: headerText, emoji: true },
+    },
+    {
+      type: 'section',
+      text: { type: 'mrkdwn', text: sectionLines.join('\n') },
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: { type: 'plain_text', text: 'Ouvrir le dossier', emoji: true },
+          url: analysisUrl,
+        },
+      ],
+    },
+  ];
+
+  const result = await postToSlack(cfg.webhookUrl, {
+    text: `${params.companyName} -> ${toLabel}`,
+    blocks,
+  });
+
+  await logNotification({
+    organizationId: params.organizationId,
+    analysisId: params.analysisId,
+    notificationType: 'workflow-stage-change',
+    status: result.ok ? 'sent' : 'failed',
+    httpStatus: result.status,
+    errorMessage: result.error,
+    payloadSummary: {
+      companyName: params.companyName,
+      fromStage: params.fromStage,
+      toStage: params.toStage,
+    },
+  });
+
+  return result.ok;
+}
