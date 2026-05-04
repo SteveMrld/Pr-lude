@@ -470,7 +470,7 @@ export async function listAnalyses(
     if (filters.workflowStage) {
       try {
         const { data: wfRows } = await supabase
-          .from('analyses_workflow')
+          .from('analyses_workflow_status')
           .select('analysis_id')
           .eq('stage', filters.workflowStage);
         const matchingIds = (wfRows || []).map((r: any) => r.analysis_id);
@@ -503,7 +503,7 @@ export async function listAnalyses(
     try {
       const [workflowRes, versionsRes, commentsRes] = await Promise.all([
         supabase
-          .from('analyses_workflow')
+          .from('analyses_workflow_status')
           .select('analysis_id, stage, updated_at')
           .in('analysis_id', analysisIds),
         supabase
