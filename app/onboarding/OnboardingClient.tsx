@@ -17,7 +17,7 @@ export interface PendingInvitation {
   id: string;
   organizationId: string;
   organizationName: string;
-  role: 'admin' | 'member';
+  role: 'admin' | 'member' | 'observer';
   invitedByEmail: string | null;
   createdAt: string;
 }
@@ -99,7 +99,7 @@ export default function OnboardingClient({ userEmail, pendingInvitations }: Prop
               <div key={inv.id} className="invite-card">
                 <div className="invite-org">{inv.organizationName}</div>
                 <div className="invite-meta">
-                  Rôle proposé : {inv.role === 'admin' ? 'Administrateur' : 'Membre'}
+                  Rôle proposé : {inv.role === 'admin' ? 'Administrateur' : inv.role === 'observer' ? 'Observateur' : 'Membre'}
                   {inv.invitedByEmail ? ` · invité par ${inv.invitedByEmail}` : ''}
                 </div>
                 <button

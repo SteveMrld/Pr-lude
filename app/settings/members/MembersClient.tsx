@@ -211,6 +211,7 @@ export default function MembersClient({
               disabled={inviting}
             >
               <option value="member">Membre</option>
+              <option value="observer">Observateur</option>
               <option value="admin">Administrateur</option>
             </select>
             <button type="submit" className="invite-btn" disabled={inviting || !inviteEmail.trim()}>
@@ -233,7 +234,7 @@ export default function MembersClient({
                   <div className="row-main">
                     <div className="row-primary">{inv.emailDisplay}</div>
                     <div className="row-meta">
-                      {inv.role === 'admin' ? 'Administrateur' : 'Membre'}
+                      {roleLabel(inv.role)}
                       {' · '}
                       Invité {formatDate(inv.createdAt)}
                       {inv.invitedByEmail ? ` par ${inv.invitedByEmail}` : ''}
@@ -273,7 +274,7 @@ export default function MembersClient({
                     {isSelf && <span className="row-self-tag">vous</span>}
                   </div>
                   <div className="row-meta">
-                    {m.role === 'admin' ? 'Administrateur' : 'Membre'}
+                    {roleLabel(m.role)}
                     {' · '}
                     Membre depuis {formatDate(m.joinedAt)}
                     {isLastAdmin && ' · seul administrateur'}
@@ -284,24 +285,21 @@ export default function MembersClient({
                 </div>
                 {isAdmin && !isSelf && (
                   <div className="row-actions">
-                    {m.role === 'member' ? (
-                      <button
-                        onClick={() => handleChangeRole(m.userId, 'admin')}
-                        className="row-btn-secondary"
-                        disabled={busyId === m.userId}
-                      >
-                        Promouvoir admin
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleChangeRole(m.userId, 'member')}
-                        className="row-btn-secondary"
-                        disabled={busyId === m.userId || isLastAdmin}
-                        title={isLastAdmin ? 'Impossible de retirer le dernier administrateur' : undefined}
-                      >
-                        Rétrograder membre
-                      </button>
-                    )}
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleChangeRole(m.userId, e.target.value as OrgRole)}
+                      className="row-select"
+                      disabled={busyId === m.userId || (isLastAdmin && m.role === 'admin')}
+                      title={
+                        isLastAdmin && m.role === 'admin'
+                          ? 'Impossible de retrograder le dernier administrateur'
+                          : undefined
+                      }
+                    >
+                      <option value="admin">Administrateur</option>
+                      <option value="member">Membre</option>
+                      <option value="observer">Observateur</option>
+                    </select>
                     <button
                       onClick={() => handleRemoveMember(m.userId, m.email)}
                       className="row-btn-danger"
@@ -536,6 +534,25 @@ export default function MembersClient({
           gap: 8px;
           flex-wrap: wrap;
           flex-shrink: 0;
+          align-items: center;
+        }
+        .row-select {
+          padding: 7px 10px;
+          font-family: var(--sans);
+          font-size: 11px;
+          letter-spacing: 0.04em;
+          color: var(--ink);
+          background: var(--paper);
+          border: 1px solid var(--hairline);
+          cursor: pointer;
+          transition: border-color 0.12s;
+        }
+        .row-select:hover:not(:disabled) {
+          border-color: var(--ink);
+        }
+        .row-select:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
         }
         .row-btn-secondary, .row-btn-danger {
           padding: 7px 12px;
@@ -595,5 +612,14 @@ function formatDate(iso: string): string {
     });
   } catch {
     return iso;
+  }
+}
+
+function roleLabel(role: OrgRole): string {
+  switch (role) {
+    case 'admin': return 'Administrateur';
+    case 'member': return 'Membre';
+    case 'observer': return 'Observateur';
+    default: return role;
   }
 }

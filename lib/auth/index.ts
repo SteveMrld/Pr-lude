@@ -21,10 +21,29 @@ export interface CurrentUser {
   email: string;
 }
 
+export type OrgRole = 'admin' | 'member' | 'observer';
+
 export interface CurrentOrganization {
   id: string;
   name: string;
-  role: 'admin' | 'member';
+  role: OrgRole;
+}
+
+/**
+ * Un observateur a acces en lecture mais ne peut ni voter au comite,
+ * ni modifier le stade d instruction, ni editer les notes ou commenter.
+ * Les routes d ecriture sensibles doivent verifier canEdit(role) avant
+ * de proceder.
+ */
+export function canEdit(role: OrgRole): boolean {
+  return role === 'admin' || role === 'member';
+}
+
+/**
+ * Seuls les admins gerent les membres, les invitations et les cles API.
+ */
+export function canAdminister(role: OrgRole): boolean {
+  return role === 'admin';
 }
 
 /**
@@ -68,7 +87,7 @@ export async function getCurrentOrganization(
   return {
     id: org.id,
     name: org.name,
-    role: data.role as 'admin' | 'member',
+    role: data.role as OrgRole,
   };
 }
 

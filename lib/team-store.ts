@@ -14,8 +14,9 @@
 // ============================================================
 
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
+import type { OrgRole } from '@/lib/auth';
 
-export type OrgRole = 'admin' | 'member';
+export type { OrgRole };
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked';
 
 export interface OrgMember {
@@ -254,7 +255,7 @@ export async function createInvitation(params: {
   if (!isValidEmail(params.emailRaw)) {
     return { ok: false, error: 'Email invalide' };
   }
-  if (params.role !== 'admin' && params.role !== 'member') {
+  if (params.role !== 'admin' && params.role !== 'member' && params.role !== 'observer') {
     return { ok: false, error: 'Role invalide' };
   }
 

@@ -63,12 +63,12 @@ export async function PATCH(req: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: 'userId manquant' }, { status: 400 });
   }
-  if (role !== 'admin' && role !== 'member') {
+  if (role !== 'admin' && role !== 'member' && role !== 'observer') {
     return NextResponse.json({ error: 'Role invalide' }, { status: 400 });
   }
 
   // Garde-fou : si on degrade le dernier admin, on bloque.
-  if (role === 'member') {
+  if (role !== 'admin') {
     const admins = await countOrgAdmins(ctx.org.id);
     const members = await listOrgMembers(ctx.org.id);
     const target = members.find((m) => m.userId === userId);

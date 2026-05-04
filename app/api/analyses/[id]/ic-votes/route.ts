@@ -16,7 +16,7 @@ import {
   type IcVoteOption,
 } from '@/lib/ic-votes-store';
 import { isPersistenceEnabled, getAnalysis } from '@/lib/analysis-store';
-import { getAuthenticatedContext, isAuthEnabled, getCurrentOrganization } from '@/lib/auth';
+import { getAuthenticatedContext, isAuthEnabled, getCurrentOrganization, canEdit } from '@/lib/auth';
 import { notifyIcVoteQuorum } from '@/lib/slack-store';
 
 export const runtime = 'nodejs';
@@ -53,6 +53,12 @@ export async function POST(
   }
   const ctx = await getAuthenticatedContext();
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!canEdit(ctx.org.role)) {
+    return NextResponse.json(
+      { error: 'forbidden', detail: 'Le vote IC est reserve aux membres editeurs.' },
+      { status: 403 },
+    );
+  }
 
   let body: any;
   try { body = await req.json(); } catch {
@@ -122,6 +128,12 @@ export async function DELETE(
   }
   const ctx = await getAuthenticatedContext();
   if (!ctx) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!canEdit(ctx.org.role)) {
+    return NextResponse.json(
+      { error: 'forbidden', detail: 'Le vote IC est reserve aux membres editeurs.' },
+      { status: 403 },
+    );
+  }
 
   const result = await deleteIcVote({ analysisId: params.id, userId: ctx.user.id });
   if (!result.ok) {

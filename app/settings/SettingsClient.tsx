@@ -7,7 +7,7 @@ import type { OrgApiKeyRow } from '@/lib/auth/api-keys';
 
 interface Props {
   orgName: string;
-  orgRole: 'admin' | 'member';
+  orgRole: 'admin' | 'member' | 'observer';
   userEmail: string;
   byokSources: SourceDescriptor[];
   configuredKeys: OrgApiKeyRow[];

@@ -20,7 +20,7 @@ import {
   type WorkflowStage,
 } from '@/lib/collaboration-store';
 import { isPersistenceEnabled, getAnalysis } from '@/lib/analysis-store';
-import { getAuthenticatedContext, isAuthEnabled, getCurrentOrganization } from '@/lib/auth';
+import { getAuthenticatedContext, isAuthEnabled, getCurrentOrganization, canEdit } from '@/lib/auth';
 import { notifyWorkflowStageChange } from '@/lib/slack-store';
 
 export const runtime = 'nodejs';
@@ -55,6 +55,12 @@ export async function PATCH(
   const ctx = await getAuthenticatedContext();
   if (!ctx) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  if (!canEdit(ctx.org.role)) {
+    return NextResponse.json(
+      { error: 'forbidden', detail: 'La modification du stade est reservee aux membres editeurs.' },
+      { status: 403 },
+    );
   }
 
   let body: any;

@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listVersions, createVersion } from '@/lib/collaboration-store';
 import { getAnalysis, isPersistenceEnabled } from '@/lib/analysis-store';
-import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
+import { getAuthenticatedContext, isAuthEnabled, canEdit } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -40,6 +40,12 @@ export async function POST(
     const ctx = await getAuthenticatedContext();
     if (!ctx) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+    if (!canEdit(ctx.org.role)) {
+      return NextResponse.json(
+        { error: 'forbidden', detail: 'La creation de versions est reservee aux membres editeurs.' },
+        { status: 403 },
+      );
     }
     createdBy = ctx.user.id;
   }

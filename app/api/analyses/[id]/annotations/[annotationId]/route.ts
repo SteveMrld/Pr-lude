@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveAnnotation, deleteAnnotation as removeAnnotation } from '@/lib/collaboration-store';
 import { isPersistenceEnabled } from '@/lib/analysis-store';
-import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
+import { getAuthenticatedContext, isAuthEnabled, canEdit } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -26,6 +26,12 @@ export async function PATCH(
   const ctx = await getAuthenticatedContext();
   if (!ctx) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  if (!canEdit(ctx.org.role)) {
+    return NextResponse.json(
+      { error: 'forbidden', detail: 'La resolution d annotations est reservee aux membres editeurs.' },
+      { status: 403 },
+    );
   }
 
   const ok = await resolveAnnotation(params.annotationId, ctx.user.id);
@@ -48,6 +54,12 @@ export async function DELETE(
   const ctx = await getAuthenticatedContext();
   if (!ctx) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  if (!canEdit(ctx.org.role)) {
+    return NextResponse.json(
+      { error: 'forbidden', detail: 'La suppression d annotations est reservee aux membres editeurs.' },
+      { status: 403 },
+    );
   }
 
   const ok = await removeAnnotation(params.annotationId);

@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listAnnotations, createAnnotation } from '@/lib/collaboration-store';
 import { isPersistenceEnabled } from '@/lib/analysis-store';
-import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
+import { getAuthenticatedContext, isAuthEnabled, canEdit } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -47,6 +47,12 @@ export async function POST(
   const ctx = await getAuthenticatedContext();
   if (!ctx) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  if (!canEdit(ctx.org.role)) {
+    return NextResponse.json(
+      { error: 'forbidden', detail: 'L ajout de commentaires est reserve aux membres editeurs.' },
+      { status: 403 },
+    );
   }
 
   let body: any;
