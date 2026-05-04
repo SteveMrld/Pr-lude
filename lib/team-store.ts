@@ -187,7 +187,11 @@ export async function listOrgInvitations(
   }));
 }
 
-export async function listInvitationsForEmail(emailLc: string): Promise<OrgInvitation[]> {
+export interface OrgInvitationWithOrgName extends OrgInvitation {
+  organizationName: string | null;
+}
+
+export async function listInvitationsForEmail(emailLc: string): Promise<OrgInvitationWithOrgName[]> {
   if (!emailLc) return [];
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
@@ -237,9 +241,8 @@ export async function listInvitationsForEmail(emailLc: string): Promise<OrgInvit
     createdAt: row.created_at,
     acceptedAt: row.accepted_at,
     revokedAt: row.revoked_at,
-    // Champ supplementaire injecte pour l affichage onboarding.
     organizationName: orgNames.get(row.organization_id) || null,
-  }) as OrgInvitation & { organizationName: string | null });
+  }));
 }
 
 export async function createInvitation(params: {
