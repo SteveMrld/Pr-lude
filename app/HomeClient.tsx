@@ -400,11 +400,12 @@ export default function HomeClient({
           <div className="brand">Prélude</div>
           <div className="brand-meta">Plateforme d'instruction VC · Analyse rigoureuse en pipeline</div>
         </div>
-        {authEnabled && orgName && (
+        {authEnabled && orgName ? (
           <div className="header-identity">
             <div className="header-org">{orgName}</div>
             {userEmail && <div className="header-user">{userEmail}</div>}
             <div className="header-actions">
+              <a className="header-action" href="/history">Historique</a>
               <a className="header-action" href="/settings">Réglages</a>
               <button
                 className="header-action"
@@ -416,6 +417,12 @@ export default function HomeClient({
               >
                 Déconnexion
               </button>
+            </div>
+          </div>
+        ) : (
+          <div className="header-identity">
+            <div className="header-actions">
+              <a className="header-action" href="/history">Historique</a>
             </div>
           </div>
         )}
