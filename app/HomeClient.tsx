@@ -116,6 +116,18 @@ export default function HomeClient({
   // dans liveResultBackup pour pouvoir restaurer.
   const [liveResultBackup, setLiveResultBackup] = useState<any | null>(null);
   const [viewedVersionNum, setViewedVersionNum] = useState<number | null>(null);
+  // Detection collision : quand le serveur detecte qu un dossier du
+  // meme nom de societe existe deja, on stocke le payload en attente
+  // de decision utilisateur (nouveau dossier ou nouvelle version).
+  const [pendingCollision, setPendingCollision] = useState<{
+    existingId: string;
+    existingCompanyName: string;
+    existingCreatedAt: string;
+    nextVersionNum: number;
+    pendingResult: any;
+    pendingSourceFilename: string | null;
+    pendingPipelineDurationMs: number | null;
+  } | null>(null);
 
   const handleVersionChange = (snapshotJson: any | null, versionNum: number | null) => {
     if (snapshotJson === null) {
@@ -130,6 +142,47 @@ export default function HomeClient({
       if (!liveResultBackup) setLiveResultBackup(result);
       setResult(snapshotJson);
       setViewedVersionNum(versionNum);
+    }
+  };
+
+  // Helper interne : appelle POST /api/analyses avec un mode donne
+  // et applique la reponse (savedAnalysisId, ou ouverture dialog).
+  const submitSave = async (mode: 'detect' | 'new-record' | 'new-version', payload: {
+    result: any;
+    sourceFilename: string | null;
+    pipelineDurationMs: number | null;
+    existingId?: string;
+  }) => {
+    try {
+      const res = await fetch('/api/analyses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          result: payload.result,
+          sourceFilename: payload.sourceFilename,
+          pipelineDurationMs: payload.pipelineDurationMs,
+          existingId: payload.existingId,
+        }),
+      });
+      const saved = await res.json();
+      if (saved?.collision) {
+        setPendingCollision({
+          existingId: saved.collision.existingId,
+          existingCompanyName: saved.collision.existingCompanyName,
+          existingCreatedAt: saved.collision.existingCreatedAt,
+          nextVersionNum: saved.collision.nextVersionNum,
+          pendingResult: payload.result,
+          pendingSourceFilename: payload.sourceFilename,
+          pendingPipelineDurationMs: payload.pipelineDurationMs,
+        });
+        return;
+      }
+      if (saved?.saved && saved?.id) {
+        setSavedAnalysisId(saved.id);
+      }
+    } catch {
+      // silencieux : la persistence n est pas critique
     }
   };
   // Pipeline timing : pour mesurer la duree d execution et la stocker en metadonnees
@@ -283,26 +336,18 @@ export default function HomeClient({
               // off, user non auth, base down), l analyse reste affichee
               // normalement a l ecran. La persistence est une fonctionnalite
               // additive, jamais un point critique du pipeline.
+              //
+              // Si un dossier du meme nom existe deja, le serveur retourne
+              // une collision et submitSave ouvre un dialogue qui demande a
+              // l utilisateur s il veut creer un nouveau dossier ou une
+              // nouvelle version du dossier existant.
               const sourceFilename = files[0]?.name || null;
               const pipelineDurationMs = pipelineStartTime ? Date.now() - pipelineStartTime : null;
-              fetch('/api/analyses', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  result: data,
-                  sourceFilename,
-                  pipelineDurationMs,
-                }),
-              })
-                .then((res) => res.json())
-                .then((saved) => {
-                  if (saved?.saved && saved?.id) {
-                    setSavedAnalysisId(saved.id);
-                  }
-                })
-                .catch(() => {
-                  // silencieux : la persistence n est pas critique
-                });
+              submitSave('detect', {
+                result: data,
+                sourceFilename,
+                pipelineDurationMs,
+              });
             } else if (eventType === 'error') {
               setError(data.message);
               receivedTerminal = true;
@@ -2820,6 +2865,150 @@ export default function HomeClient({
           onClose={() => setCommentsOpen(false)}
           currentUserEmail={userEmail}
         />
+      )}
+
+      {/* Dialog de collision : un dossier du meme nom existe deja.
+          On demande a l utilisateur de choisir entre creer une v(N+1)
+          du dossier existant ou un nouveau dossier independant. */}
+      {pendingCollision && (
+        <>
+          <div
+            onClick={() => setPendingCollision(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.32)',
+              zIndex: 200,
+            }}
+          />
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 'min(560px, calc(100% - 32px))',
+            maxHeight: '90vh',
+            background: 'var(--paper)',
+            border: '1px solid var(--ink)',
+            zIndex: 201,
+            padding: '28px 32px 24px',
+            fontFamily: 'var(--sans)',
+            overflowY: 'auto',
+          }}>
+            <div style={{
+              fontSize: 9,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color: 'var(--muted)',
+              marginBottom: 8,
+              fontWeight: 500,
+            }}>
+              Dossier existant detecte
+            </div>
+            <h3 style={{
+              fontFamily: 'var(--serif)',
+              fontSize: 22,
+              fontWeight: 500,
+              margin: '0 0 14px',
+              lineHeight: 1.2,
+            }}>
+              Un dossier <em>{pendingCollision.existingCompanyName}</em> existe deja
+            </h3>
+            <p style={{
+              fontSize: 13,
+              lineHeight: 1.6,
+              color: 'var(--ink)',
+              margin: '0 0 20px',
+            }}>
+              Vous avez instruit cette societe le {new Date(pendingCollision.existingCreatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}.
+              Cette nouvelle analyse peut etre traitee comme une mise a jour
+              du dossier existant (version {pendingCollision.nextVersionNum}) ou comme un nouveau dossier independant.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={async () => {
+                  const c = pendingCollision;
+                  setPendingCollision(null);
+                  await submitSave('new-version', {
+                    result: c.pendingResult,
+                    sourceFilename: c.pendingSourceFilename,
+                    pipelineDurationMs: c.pendingPipelineDurationMs,
+                    existingId: c.existingId,
+                  });
+                }}
+                style={{
+                  padding: '14px 18px',
+                  fontSize: 13,
+                  background: 'var(--ink)',
+                  color: 'var(--paper)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>
+                  Creer la version {pendingCollision.nextVersionNum}
+                </span>
+                <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 400, lineHeight: 1.4 }}>
+                  L analyse precedente est conservee comme version historique. Le dossier garde son fil de commentaires et son stade d instruction.
+                </span>
+              </button>
+
+              <button
+                onClick={async () => {
+                  const c = pendingCollision;
+                  setPendingCollision(null);
+                  await submitSave('new-record', {
+                    result: c.pendingResult,
+                    sourceFilename: c.pendingSourceFilename,
+                    pipelineDurationMs: c.pendingPipelineDurationMs,
+                  });
+                }}
+                style={{
+                  padding: '14px 18px',
+                  fontSize: 13,
+                  background: 'transparent',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--ink)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>Creer un nouveau dossier independant</span>
+                <span style={{ fontSize: 11, opacity: 0.75, fontWeight: 400, lineHeight: 1.4 }}>
+                  Le dossier precedent reste intact. Utile si la societe a change de nom ou si c est en realite un projet different.
+                </span>
+              </button>
+
+              <button
+                onClick={() => setPendingCollision(null)}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: 11,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  background: 'transparent',
+                  color: 'var(--muted)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  marginTop: 6,
+                }}
+              >
+                Annuler la sauvegarde
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </>
   );

@@ -251,6 +251,111 @@ export function extractAnalysisMetadata(result: any): Partial<SaveAnalysisInput>
 // ============================================================
 
 /**
+ * Cherche une analyse existante du meme nom de societe pour le user/org
+ * courant. Utilise pour proposer la creation d une nouvelle version
+ * plutot qu un nouveau dossier au moment d un re-run.
+ */
+export async function findExistingByCompany(
+  companyName: string,
+): Promise<{ id: string; companyName: string; createdAt: string; latestVersion: number } | null> {
+  if (!isPersistenceEnabled()) return null;
+  if (!companyName?.trim()) return null;
+
+  try {
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return null;
+    const supabase = getClient(useAdminClient);
+
+    const needle = companyName.trim().toLowerCase();
+
+    const { data, error } = await supabase
+      .from('analyses')
+      .select('id, company_name, created_at')
+      .eq('user_id', userId)
+      .ilike('company_name', needle)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) return null;
+
+    const match = data[0];
+
+    // Recuperer le dernier version_num pour proposer un v(N+1) explicite
+    const { data: versionData } = await supabase
+      .from('analyses_versions')
+      .select('version_num')
+      .eq('analysis_id', match.id)
+      .order('version_num', { ascending: false })
+      .limit(1);
+
+    const latestVersion = versionData?.[0]?.version_num ?? 1;
+
+    return {
+      id: match.id,
+      companyName: match.company_name,
+      createdAt: match.created_at,
+      latestVersion,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Met a jour le result_json d une analyse existante, sans creer une
+ * nouvelle ligne. Utilise quand on cree une nouvelle version : le snapshot
+ * historique est insere dans analyses_versions, et le live de la table
+ * analyses est ecrase pour que le dashboard et la liste refletent
+ * immediatement la derniere version.
+ */
+export async function updateAnalysisLive(
+  analysisId: string,
+  input: SaveAnalysisInput,
+): Promise<boolean> {
+  if (!isPersistenceEnabled()) return false;
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+
+    const { error } = await supabase
+      .from('analyses')
+      .update({
+        company_name: input.companyName,
+        sector: input.sector,
+        sub_sector: input.subSector,
+        country: input.country,
+        geographic_hub: input.geographicHub,
+        year_founded: input.yearFounded,
+        round_type: input.roundType,
+        round_amount_eur: input.roundAmountEur,
+        verdict: input.verdict,
+        verdict_confidence: input.verdictConfidence,
+        global_score: input.globalScore,
+        blindspot_score: input.blindspotScore,
+        contrarian_score: input.contrarianScore,
+        coherence_score: input.coherenceScore,
+        result_json: input.resultJson,
+        source_text: input.sourceText,
+        source_filename: input.sourceFilename,
+        source_pages: input.sourcePages,
+        pipeline_duration_ms: input.pipelineDurationMs,
+        pipeline_engines_status: input.pipelineEnginesStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', analysisId);
+
+    if (error) {
+      console.error('[analysis-store] updateAnalysisLive erreur :', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[analysis-store] updateAnalysisLive exception :', err);
+    return false;
+  }
+}
+
+/**
  * Sauvegarde une analyse complete dans la base.
  * Retourne l ID de l analyse creee, ou null si la persistence
  * est desactivee ou si une erreur survient.
