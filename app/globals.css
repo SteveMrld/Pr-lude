@@ -1842,6 +1842,97 @@ ul, ol { list-style: none; }
   font-weight: 500;
 }
 
+/* Mode interactif : transformation en bouton cliquable.
+   Le bouton herite des styles ic-vote-card et ajoute hover/focus
+   pour signifier l affordance. */
+.ic-vote-card-interactive {
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ic-vote-card-interactive:hover {
+  background: var(--paper-accent);
+  border-color: var(--ink);
+}
+
+.ic-vote-card-interactive:focus-visible {
+  outline: 2px solid var(--vert-foret);
+  outline-offset: 2px;
+}
+
+/* Vote du user actuel : bordure pleine vert foret epaisse, fond
+   leger pour un visuel plus marque que la simple recommandation. */
+.ic-vote-card-mine {
+  border: 2px solid var(--vert-foret);
+  background: var(--vert-foret-soft, rgba(31, 122, 60, 0.08));
+}
+
+.ic-vote-card-mine .ic-vote-marker {
+  color: var(--vert-foret);
+}
+
+/* Compteur de votes par option */
+.ic-vote-count {
+  margin-left: auto;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ic-vote-mine-badge {
+  color: var(--vert-foret);
+  font-weight: 600;
+}
+
+/* Liste consolidee des votants : qui a vote quoi */
+.ic-votes-roster {
+  margin: -8px 0 24px;
+  padding: 12px 14px;
+  background: var(--paper-accent);
+  border-left: 2px solid var(--hairline);
+}
+
+.ic-votes-roster .ic-fact-label {
+  margin-bottom: 6px;
+}
+
+.ic-votes-roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ic-votes-roster-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ic-votes-roster-name {
+  font-family: var(--sans);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.ic-votes-roster-sep {
+  color: var(--muted-soft, #b8a988);
+  opacity: 0.6;
+}
+
+.ic-votes-roster-vote {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--muted);
+}
+
 .ic-signature-block {
   margin-top: 18px;
   padding-top: 18px;

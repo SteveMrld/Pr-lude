@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
@@ -70,10 +70,12 @@ type EngineState = {
 
 export default function HomeClient({
   userEmail,
+  userId,
   orgName,
   authEnabled = false,
 }: {
   userEmail?: string;
+  userId?: string;
   orgName?: string;
   authEnabled?: boolean;
 }) {
@@ -116,6 +118,14 @@ export default function HomeClient({
     toStage: string;
     changedAt: string;
     comment: string | null;
+  }>>([]);
+  // Votes IC du comite : enregistrements en base, charges en async des
+  // qu un dossier est connu. Format aligne sur ce qu attend IcPackView.
+  const [icVotes, setIcVotes] = useState<Array<{
+    userId: string;
+    userEmail: string | null;
+    voteOption: string;
+    votedAt: string;
   }>>([]);
   // Etat d ouverture du volet de commentaires partages multi-membres
   // (distinct du AnnotationBlock notes personnelles existant).
@@ -254,6 +264,60 @@ export default function HomeClient({
       });
     return () => { cancelled = true; };
   }, [savedAnalysisId]);
+
+  // Charge les votes IC du dossier. Best effort. Re-charge a chaque
+  // changement de dossier. Les composants enfants peuvent forcer un
+  // refresh via reloadIcVotes ci-dessous (apres un POST).
+  const reloadIcVotes = useCallback(async () => {
+    if (!savedAnalysisId) {
+      setIcVotes([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/analyses/${savedAnalysisId}/ic-votes`);
+      if (!res.ok) {
+        setIcVotes([]);
+        return;
+      }
+      const data = await res.json();
+      const votes = Array.isArray(data.votes) ? data.votes : [];
+      setIcVotes(votes.map((v: any) => ({
+        userId: v.userId,
+        userEmail: v.userEmail,
+        voteOption: v.voteOption,
+        votedAt: v.votedAt,
+      })));
+    } catch {
+      setIcVotes([]);
+    }
+  }, [savedAnalysisId]);
+
+  useEffect(() => {
+    reloadIcVotes();
+  }, [reloadIcVotes]);
+
+  // Callback de vote : envoie le vote du user actuel et recharge la liste
+  // pour avoir le compteur a jour. Si le user clique sur l option qu il
+  // a deja votee, on retire son vote (toggle).
+  const handleVote = useCallback(async (voteOption: string) => {
+    if (!savedAnalysisId) return;
+    const myCurrentVote = icVotes.find((v) => v.userId === userId)?.voteOption;
+    try {
+      if (myCurrentVote === voteOption) {
+        // Toggle off : on retire le vote
+        await fetch(`/api/analyses/${savedAnalysisId}/ic-votes`, { method: 'DELETE' });
+      } else {
+        await fetch(`/api/analyses/${savedAnalysisId}/ic-votes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voteOption }),
+        });
+      }
+      await reloadIcVotes();
+    } catch (err) {
+      console.error('handleVote failed:', err);
+    }
+  }, [savedAnalysisId, icVotes, userId, reloadIcVotes]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelect(newFiles: FileList | null) {
@@ -2828,6 +2892,10 @@ export default function HomeClient({
                   result={result}
                   filename={result?.meta?.filename}
                   workflowHistory={workflowHistory}
+                  icVotes={icVotes}
+                  currentUserId={userId || null}
+                  onVote={authEnabled && savedAnalysisId ? handleVote : undefined}
+                  partnerPrincipalDefault={userEmail || null}
                 />
               )}
                   </div>

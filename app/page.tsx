@@ -31,6 +31,7 @@ export default async function Home() {
     <HomeClient
       authEnabled={true}
       userEmail={user.email}
+      userId={user.id}
       orgName={org.name}
     />
   );

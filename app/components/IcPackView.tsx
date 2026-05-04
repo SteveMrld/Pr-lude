@@ -24,10 +24,25 @@ export type WorkflowHistoryItem = {
   comment: string | null;
 };
 
+export type IcVoteEntry = {
+  userId: string;
+  userEmail: string | null;
+  voteOption: string;
+  votedAt: string;
+};
+
 type Props = {
   result: any;
   filename?: string;
   workflowHistory?: WorkflowHistoryItem[];
+  // Votes en ligne du comite : si fournis, transforme la grille de votes
+  // en boutons cliquables avec compteurs. Si absent ou en mode solo, la
+  // grille reste statique (radio buttons non interactifs).
+  icVotes?: IcVoteEntry[];
+  currentUserId?: string | null;
+  onVote?: (voteOption: string) => Promise<void> | void;
+  // Pre-remplissage du partner principal depuis le user connecte.
+  partnerPrincipalDefault?: string | null;
 };
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -72,7 +87,15 @@ function formatDate(iso?: string): string {
   }
 }
 
-export default function IcPackView({ result, filename, workflowHistory }: Props) {
+export default function IcPackView({
+  result,
+  filename,
+  workflowHistory,
+  icVotes,
+  currentUserId,
+  onVote,
+  partnerPrincipalDefault,
+}: Props) {
   if (!result) return null;
 
   const ext = result.extraction || {};
@@ -478,26 +501,114 @@ export default function IcPackView({ result, filename, workflowHistory }: Props)
         <div className="ic-block ic-vote-block">
           <h3 className="ic-block-title">Points de vote</h3>
           <p className="ic-vote-instruction">
-            Chaque membre du comite se prononce sur l une des quatre options.
-            La position du partner principal apparait en pre-rempli a partir du verdict d instruction.
+            {onVote
+              ? 'Chaque membre du comite clique pour enregistrer son vote. Le compteur a droite consolide les votes en temps reel.'
+              : 'Chaque membre du comite se prononce sur l une des quatre options. La position du partner principal apparait en pre-rempli a partir du verdict d instruction.'}
           </p>
           <div className="ic-vote-grid">
-            {(['investir', 'investir avec conditions', 'approfondir', 'refuser'] as const).map((opt) => {
-              const recommended = opt === verdict;
-              return (
-                <div key={opt} className={`ic-vote-card ${recommended ? 'ic-vote-recommended' : ''}`}>
-                  <div className="ic-vote-marker">{recommended ? '◆' : '○'}</div>
-                  <div className="ic-vote-label">{VERDICT_LABELS[opt]}</div>
-                  {recommended && <div className="ic-vote-badge">Recommande par l instruction</div>}
-                </div>
-              );
-            })}
+            {(() => {
+              // Normalisation : le verdict en base peut etre 'investir avec conditions'
+              // ou 'investir-conditions' selon les versions. On compare en lowercase
+              // sans tirets pour matcher l option recommandee.
+              const normalizeVerdict = (v: string) =>
+                String(v || '').toLowerCase().replace(/[-\s]+/g, '');
+              const verdictKey = normalizeVerdict(verdict);
+
+              // Compteurs par option a partir de icVotes
+              const voteCounts: Record<string, number> = {};
+              const myVoteOption = icVotes?.find((v) => v.userId === currentUserId)?.voteOption;
+              (icVotes || []).forEach((v) => {
+                voteCounts[v.voteOption] = (voteCounts[v.voteOption] || 0) + 1;
+              });
+
+              const options: Array<{ key: string; label: string; matchKey: string }> = [
+                { key: 'investir', label: 'Investir', matchKey: 'investir' },
+                { key: 'investir-conditions', label: 'Investir avec conditions', matchKey: 'investiravecconditions' },
+                { key: 'approfondir', label: 'Approfondir', matchKey: 'approfondir' },
+                { key: 'refuser', label: 'Refuser', matchKey: 'refuser' },
+              ];
+
+              return options.map((opt) => {
+                const recommended = opt.matchKey === verdictKey;
+                const count = voteCounts[opt.key] || 0;
+                const isMyVote = myVoteOption === opt.key;
+                const interactive = Boolean(onVote);
+
+                const className = [
+                  'ic-vote-card',
+                  recommended ? 'ic-vote-recommended' : '',
+                  interactive ? 'ic-vote-card-interactive' : '',
+                  isMyVote ? 'ic-vote-card-mine' : '',
+                ].filter(Boolean).join(' ');
+
+                const Tag: any = interactive ? 'button' : 'div';
+                const tagProps = interactive
+                  ? {
+                      type: 'button',
+                      onClick: () => onVote && onVote(opt.key),
+                      'aria-pressed': isMyVote,
+                    }
+                  : {};
+
+                return (
+                  <Tag key={opt.key} className={className} {...tagProps}>
+                    <div className="ic-vote-marker">
+                      {isMyVote ? '●' : recommended ? '◆' : '○'}
+                    </div>
+                    <div className="ic-vote-label">{opt.label}</div>
+                    {recommended && (
+                      <div className="ic-vote-badge">Recommande par l instruction</div>
+                    )}
+                    {interactive && count > 0 && (
+                      <div className="ic-vote-count">
+                        {count} vote{count > 1 ? 's' : ''}
+                        {isMyVote && <span className="ic-vote-mine-badge"> · vous</span>}
+                      </div>
+                    )}
+                  </Tag>
+                );
+              });
+            })()}
           </div>
+
+          {/* Liste consolidee des votants : qui a vote quoi. Visible uniquement
+              en mode interactif (au moins un vote enregistre). En version
+              imprimee, les data-no-print laissent ce bloc visible parce que c est
+              utile au comite. */}
+          {onVote && icVotes && icVotes.length > 0 && (
+            <div className="ic-votes-roster">
+              <div className="ic-fact-label">Votes enregistres ({icVotes.length})</div>
+              <ul className="ic-votes-roster-list">
+                {icVotes.map((v) => (
+                  <li key={v.userId} className="ic-votes-roster-item">
+                    <span className="ic-votes-roster-name">
+                      {v.userEmail || v.userId.slice(0, 8)}
+                    </span>
+                    <span className="ic-votes-roster-sep">·</span>
+                    <span className="ic-votes-roster-vote">
+                      {(() => {
+                        const m: Record<string, string> = {
+                          'investir': 'Investir',
+                          'investir-conditions': 'Investir avec conditions',
+                          'approfondir': 'Approfondir',
+                          'refuser': 'Refuser',
+                        };
+                        return m[v.voteOption] || v.voteOption;
+                      })()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="ic-signature-block">
             <div className="ic-signature-row">
               <div className="ic-signature-line">
                 <div className="ic-fact-label">Partner principal</div>
-                <div className="ic-signature-blank"></div>
+                <div className="ic-signature-blank">
+                  {partnerPrincipalDefault || ''}
+                </div>
               </div>
               <div className="ic-signature-line">
                 <div className="ic-fact-label">Date de comite</div>
