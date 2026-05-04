@@ -81,23 +81,29 @@ export default function SlackSettingsPage() {
         notifyOnCriticalVerdict: notifyCriticalInput,
         notifyOnHighBlindspot: notifyBlindspotInput,
       };
-      if (editingWebhook && webhookInput) {
-        body.webhookUrl = webhookInput.trim();
-      } else if (config?.hasWebhook) {
-        // On veut conserver le webhook existant : on envoie une chaine
-        // qu on signale comme "ne pas modifier" en n incluant pas la cle.
-        // Mais le PUT exige webhookUrl. Solution : si pas en mode edition
-        // ET qu il existe une config, on appelle PUT avec une URL placeholder
-        // qui matche le format mais que le serveur va rejeter ; pour simplifier,
-        // on impose qu en edition de webhook, l URL soit fournie. En non-edition,
-        // on doit envoyer le webhook actuel mais on ne l a pas en clair.
-        // Approche pragmatique : on bloque la sauvegarde si le webhook
-        // n est pas en edition et qu il n y a pas encore de config.
-        setError('Pour modifier les options, gardez le mode edition du webhook ou re-saisissez l URL.');
+
+      // Le webhook URL est requis si pas encore de config en base.
+      // Si l utilisateur a tape un nouveau webhook (cas creation ou edition),
+      // on l envoie. Sinon, si la config existe deja en base, on n a meme pas
+      // besoin d envoyer le webhook (le serveur conservera l existant).
+      const trimmed = webhookInput.trim();
+      if (trimmed) {
+        if (!trimmed.startsWith('https://hooks.slack.com/services/')) {
+          setError('L URL doit commencer par https://hooks.slack.com/services/');
+          setSaving(false);
+          return;
+        }
+        body.webhookUrl = trimmed;
+      } else if (!config?.hasWebhook) {
+        setError('Webhook URL requis');
         setSaving(false);
         return;
       } else {
-        setError('Webhook URL requis');
+        // Pas de nouveau webhook saisi mais une config existe : on ne peut
+        // pas mettre a jour les options sans renvoyer le webhook (le PUT
+        // serveur l exige). On demande a l utilisateur de re-cliquer Modifier
+        // et de re-saisir l URL pour mettre a jour les options.
+        setError('Pour modifier les options, cliquez Modifier et re-saisissez l URL du webhook.');
         setSaving(false);
         return;
       }
