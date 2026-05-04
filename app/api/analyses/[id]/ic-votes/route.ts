@@ -15,11 +15,17 @@ import {
   IC_VOTE_OPTIONS,
   type IcVoteOption,
 } from '@/lib/ic-votes-store';
-import { isPersistenceEnabled } from '@/lib/analysis-store';
-import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
+import { isPersistenceEnabled, getAnalysis } from '@/lib/analysis-store';
+import { getAuthenticatedContext, isAuthEnabled, getCurrentOrganization } from '@/lib/auth';
+import { notifyIcVoteQuorum } from '@/lib/slack-store';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
+
+// Seuil de quorum pour declencher la notification Slack consolidee.
+// Une fois ce nombre de votes atteint, le canal recoit un message
+// avec le breakdown des positions. Notifie une seule fois par dossier.
+const IC_QUORUM_THRESHOLD = 3;
 
 export async function GET(
   _req: NextRequest,
@@ -68,6 +74,39 @@ export async function POST(
   if (!result.ok) {
     return NextResponse.json({ error: result.error || 'upsert-failed' }, { status: 500 });
   }
+
+  // Notification quorum : si le nombre total de votes atteint le seuil,
+  // on poste une notif Slack consolidee. notifyIcVoteQuorum gere lui-meme
+  // l anti-doublon en consultant slack_notifications_log. Best effort,
+  // ne fait pas echouer la requete si le post Slack tombe.
+  try {
+    const allVotes = await listIcVotes(params.id);
+    if (allVotes.length >= IC_QUORUM_THRESHOLD) {
+      const org = await getCurrentOrganization(ctx.user.id);
+      if (org) {
+        const analysis = await getAnalysis(params.id);
+        if (analysis) {
+          const baseUrl = req.headers.get('origin')
+            || `https://${req.headers.get('host')}`
+            || 'https://pr-lude.vercel.app';
+          await notifyIcVoteQuorum({
+            organizationId: org.id,
+            analysisId: params.id,
+            companyName: analysis.companyName,
+            votes: allVotes.map((v) => ({
+              userEmail: v.userEmail,
+              voteOption: v.voteOption,
+            })),
+            baseUrl,
+            quorumThreshold: IC_QUORUM_THRESHOLD,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[ic-votes] notify quorum failed (non-fatal):', err);
+  }
+
   return NextResponse.json({ ok: true });
 }
 

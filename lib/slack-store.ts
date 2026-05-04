@@ -625,3 +625,155 @@ export async function notifyWorkflowStageChange(params: {
 
   return result.ok;
 }
+
+// ============================================================
+// NOTIFICATION : quorum IC atteint
+// ------------------------------------------------------------
+// Quand le X-ieme membre du comite vote sur un dossier (par
+// defaut X=3), on poste un message dans le canal pour signaler
+// que le comite s est tenu et donner le breakdown des positions.
+// Notifie une seule fois par dossier : on regarde dans
+// slack_notifications_log si on a deja envoye une notif de type
+// ic-quorum-reached, et si oui on s abstient.
+//
+// C est ce qui boucle l experience comite : les membres votent
+// depuis le Pack IC, le canal apprend automatiquement que la
+// decision est prise, le partner principal sait qu il peut
+// passer le dossier en signe ou refuse.
+// ============================================================
+
+const IC_VOTE_LABEL_FR: Record<string, string> = {
+  'investir': 'Investir',
+  'investir-conditions': 'Investir avec conditions',
+  'approfondir': 'Approfondir',
+  'refuser': 'Refuser',
+};
+
+async function hasNotifiedIcQuorum(
+  organizationId: string,
+  analysisId: string,
+): Promise<boolean> {
+  if (!isPersistenceEnabled()) return false;
+  try {
+    const admin = getSupabaseAdminClient();
+    const { count } = await admin
+      .from('slack_notifications_log')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+      .eq('analysis_id', analysisId)
+      .eq('notification_type', 'ic-quorum-reached')
+      .eq('status', 'sent');
+    return (count || 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function notifyIcVoteQuorum(params: {
+  organizationId: string;
+  analysisId: string;
+  companyName: string;
+  votes: Array<{ userEmail: string | null; voteOption: string }>;
+  baseUrl: string;
+  quorumThreshold: number;
+}): Promise<boolean> {
+  // Anti-doublon : si on a deja notifie pour ce dossier, on s arrete
+  if (await hasNotifiedIcQuorum(params.organizationId, params.analysisId)) {
+    return false;
+  }
+
+  const cfg = await getSlackConfig(params.organizationId);
+  if (!cfg || !cfg.enabled) {
+    await logNotification({
+      organizationId: params.organizationId,
+      analysisId: params.analysisId,
+      notificationType: 'ic-quorum-reached',
+      status: 'skipped',
+      payloadSummary: { reason: cfg ? 'disabled' : 'no-config' },
+    });
+    return false;
+  }
+
+  // Aggrege les votes par option (counts), trie du plus vote au moins vote
+  const counts: Record<string, number> = {};
+  params.votes.forEach((v) => {
+    counts[v.voteOption] = (counts[v.voteOption] || 0) + 1;
+  });
+
+  const sortedEntries = Object.entries(counts).sort(([, a], [, b]) => b - a);
+  const breakdownLines = sortedEntries.map(([opt, count]) => {
+    const label = IC_VOTE_LABEL_FR[opt] || opt;
+    return `• ${count} vote${count > 1 ? 's' : ''} *${label}*`;
+  });
+
+  // Position dominante : option avec le plus de votes (s il y a egalite,
+  // on prend la premiere apres tri, c est arbitraire mais coherent).
+  const [topOption, topCount] = sortedEntries[0] || [null, 0];
+  const isUnanimous = sortedEntries.length === 1;
+  const dominantLabel = topOption ? (IC_VOTE_LABEL_FR[topOption] || topOption) : null;
+
+  const consensusLine = isUnanimous && dominantLabel
+    ? `*Position unanime :* ${dominantLabel}`
+    : dominantLabel
+    ? `*Position dominante :* ${dominantLabel} (${topCount}/${params.votes.length})`
+    : '';
+
+  const analysisUrl = `${params.baseUrl}/?analysis=${params.analysisId}`;
+
+  const blocks: any[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: `🎯 ${params.companyName} — Quorum IC atteint`,
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*${params.votes.length} membres* du comite se sont prononces.${consensusLine ? '\n\n' + consensusLine : ''}`,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: breakdownLines.join('\n'),
+      },
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: { type: 'plain_text', text: 'Voir les votes', emoji: true },
+          url: analysisUrl,
+        },
+      ],
+    },
+  ];
+
+  const result = await postToSlack(cfg.webhookUrl, {
+    text: `${params.companyName} — Quorum IC atteint (${params.votes.length} votes)`,
+    blocks,
+  });
+
+  await logNotification({
+    organizationId: params.organizationId,
+    analysisId: params.analysisId,
+    notificationType: 'ic-quorum-reached',
+    status: result.ok ? 'sent' : 'failed',
+    httpStatus: result.status,
+    errorMessage: result.error,
+    payloadSummary: {
+      companyName: params.companyName,
+      votesCount: params.votes.length,
+      breakdown: counts,
+      dominantOption: topOption,
+    },
+  });
+
+  return result.ok;
+}
