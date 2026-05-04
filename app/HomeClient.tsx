@@ -8,6 +8,7 @@ import PipelineProgress from './components/PipelineProgress';
 import PipelinePreview from './components/PipelinePreview';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import IcPackView from './components/IcPackView';
+import WorkflowStageBadge from './components/WorkflowStageBadge';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import {
   PictoSeal,
@@ -1417,9 +1418,21 @@ export default function HomeClient({
                   <div className="archetype-badge">
                     Archétype dominant · {ARCHETYPE_LABELS[result.patternMatching?.archetypeDominant] || result.patternMatching?.archetypeDominant}
                   </div>
-                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 10 }}>
-                    Société identifiée : {result.extraction?.companyName}
-                  </h3>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    marginBottom: 10,
+                    flexWrap: 'wrap',
+                  }}>
+                    <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, margin: 0 }}>
+                      Société identifiée : {result.extraction?.companyName}
+                    </h3>
+                    {savedAnalysisId && (
+                      <WorkflowStageBadge analysisId={savedAnalysisId} authEnabled={authEnabled} />
+                    )}
+                  </div>
                   <p style={{ marginBottom: 18 }}>
                     {result.extraction?.rawSummary}
                   </p>
