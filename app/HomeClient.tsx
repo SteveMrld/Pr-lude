@@ -10,6 +10,7 @@ import CompetitiveMatrix from './components/CompetitiveMatrix';
 import IcPackView from './components/IcPackView';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
 import CommentsPanel from './components/CommentsPanel';
+import VersionSelector from './components/VersionSelector';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import {
   PictoSeal,
@@ -110,6 +111,27 @@ export default function HomeClient({
   // Etat d ouverture du volet de commentaires partages multi-membres
   // (distinct du AnnotationBlock notes personnelles existant).
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // Versioning des notes : quand l utilisateur consulte une version
+  // historique, on swap result par le snapshot et on garde le live
+  // dans liveResultBackup pour pouvoir restaurer.
+  const [liveResultBackup, setLiveResultBackup] = useState<any | null>(null);
+  const [viewedVersionNum, setViewedVersionNum] = useState<number | null>(null);
+
+  const handleVersionChange = (snapshotJson: any | null, versionNum: number | null) => {
+    if (snapshotJson === null) {
+      // Retour a la version live
+      if (liveResultBackup) {
+        setResult(liveResultBackup);
+        setLiveResultBackup(null);
+      }
+      setViewedVersionNum(null);
+    } else {
+      // Bascule vers une version historique : on backup le live si pas deja fait
+      if (!liveResultBackup) setLiveResultBackup(result);
+      setResult(snapshotJson);
+      setViewedVersionNum(versionNum);
+    }
+  };
   // Pipeline timing : pour mesurer la duree d execution et la stocker en metadonnees
   const [pipelineStartTime, setPipelineStartTime] = useState<number | null>(null);
   // Etat de chargement d une analyse passee depuis ?analysis=ID
@@ -680,6 +702,47 @@ export default function HomeClient({
 
         {result && (
           <>
+            {/* Bandeau d avertissement quand l utilisateur consulte une
+                version historique. Discret mais explicite, pour eviter qu il
+                pense regarder la version live. */}
+            {viewedVersionNum !== null && (
+              <div style={{
+                marginBottom: 14,
+                padding: '10px 16px',
+                background: 'rgba(122,92,31,0.10)',
+                border: '1px solid rgba(122,92,31,0.30)',
+                borderLeft: '3px solid #7a5c1f',
+                fontSize: 12,
+                color: '#5a4a32',
+                lineHeight: 1.5,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}>
+                <span>
+                  <strong>Version historique v{viewedVersionNum}.</strong>
+                  {' '}Vous consultez un snapshot anterieur de cette analyse, en lecture seule.
+                </span>
+                <button
+                  onClick={() => handleVersionChange(null, null)}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 10,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    background: 'transparent',
+                    color: '#5a4a32',
+                    border: '1px solid #5a4a32',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Revenir a la version actuelle
+                </button>
+              </div>
+            )}
             {/* Toggle de vue : Dashboard vs Note d'investissement, plus bouton export */}
             <div className="view-toggle-row" style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'flex-end', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
@@ -1458,7 +1521,14 @@ export default function HomeClient({
                       Société identifiée : {result.extraction?.companyName}
                     </h3>
                     {savedAnalysisId && (
-                      <WorkflowStageBadge analysisId={savedAnalysisId} authEnabled={authEnabled} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <WorkflowStageBadge analysisId={savedAnalysisId} authEnabled={authEnabled} />
+                        <VersionSelector
+                          analysisId={savedAnalysisId}
+                          currentVersionNum={viewedVersionNum}
+                          onVersionChange={handleVersionChange}
+                        />
+                      </div>
                     )}
                   </div>
                   <p style={{ marginBottom: 18 }}>
