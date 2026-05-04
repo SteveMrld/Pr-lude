@@ -31,27 +31,59 @@ function FoldableSection({
   count?: number;
 }) {
   return (
-    <details open={defaultOpen} style={{ margin: '14px 0' }}>
+    <details open={defaultOpen} style={{ margin: '14px 0' }} className="prelude-fold">
       <summary style={{
         cursor: 'pointer',
         fontFamily: 'var(--serif, Georgia, serif)',
         fontSize: 14,
         fontWeight: 500,
-        padding: '8px 0',
-        borderBottom: '1px solid rgba(40, 30, 20, 0.10)',
+        padding: '10px 12px',
+        background: 'rgba(196, 164, 132, 0.06)',
+        borderLeft: '2px solid #c4a484',
         listStyle: 'none',
         userSelect: 'none',
         outline: 'none',
+        transition: 'background 0.15s',
       }}>
-        <span style={{ marginRight: 8, fontSize: 11, opacity: 0.6 }}>▸</span>
+        <span className="prelude-fold-arrow" style={{
+          marginRight: 8,
+          fontSize: 11,
+          opacity: 0.6,
+          display: 'inline-block',
+          transition: 'transform 0.18s',
+        }}>▸</span>
         {title}
         {count !== undefined && (
           <span style={{ marginLeft: 10, fontSize: 11, opacity: 0.55, fontWeight: 400 }}>({count})</span>
         )}
+        <span style={{
+          float: 'right',
+          fontSize: 10,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          opacity: 0.5,
+          fontWeight: 400,
+          marginTop: 3,
+        }}>Replié en lecture rapide</span>
       </summary>
-      <div style={{ paddingTop: 10 }}>
+      <div style={{ paddingTop: 12 }}>
         {children}
       </div>
+      <style jsx>{`
+        .prelude-fold[open] :global(.prelude-fold-arrow),
+        details[open] > summary > .prelude-fold-arrow {
+          transform: rotate(90deg);
+        }
+        :global(.prelude-fold[open]) > summary > :global(.prelude-fold-arrow) {
+          transform: rotate(90deg);
+        }
+        :global(details.prelude-fold[open]) > summary {
+          background: rgba(196, 164, 132, 0.04);
+        }
+        :global(details.prelude-fold) > summary::-webkit-details-marker {
+          display: none;
+        }
+      `}</style>
     </details>
   );
 }
@@ -143,6 +175,29 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
 
   return (
     <div className="investment-note">
+      {/* Bandeau Lecture rapide : indique sans ambiguite que des sections
+          sont repliees. Cliquable pour basculer immediatement, ou simple
+          marqueur statique si pas de handler fourni. */}
+      {compactMode && (
+        <div style={{
+          marginBottom: 14,
+          padding: '8px 14px',
+          fontFamily: 'var(--sans, system-ui, sans-serif)',
+          fontSize: 11,
+          letterSpacing: '0.05em',
+          color: '#5a4a32',
+          background: 'rgba(196, 164, 132, 0.10)',
+          borderLeft: '2px solid #c4a484',
+        }}>
+          <span style={{ textTransform: 'uppercase', letterSpacing: '0.10em', fontWeight: 500 }}>
+            Lecture rapide
+          </span>
+          <span style={{ opacity: 0.65, marginLeft: 8 }}>
+            · Sections secondaires repliées. Verdict, score et conditions clés visibles.
+          </span>
+        </div>
+      )}
+
       {/* En-tête de note */}
       <div className="note-header">
         <div className="note-header-left">
@@ -189,7 +244,26 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         </table>
 
         <h3 className="note-h3">History</h3>
-        <p className="note-paragraph">{enrichProse(e.rawSummary) || '—'}</p>
+        {compactMode ? (
+          <details>
+            <summary style={{
+              cursor: 'pointer',
+              fontFamily: 'var(--serif, Georgia, serif)',
+              fontSize: 13,
+              fontStyle: 'italic',
+              opacity: 0.75,
+              padding: '4px 0',
+              listStyle: 'none',
+              userSelect: 'none',
+            }}>
+              <span style={{ marginRight: 6, fontSize: 10 }}>▸</span>
+              Afficher la trajectoire de l&apos;entreprise
+            </summary>
+            <p className="note-paragraph" style={{ marginTop: 8 }}>{enrichProse(e.rawSummary) || '—'}</p>
+          </details>
+        ) : (
+          <p className="note-paragraph">{enrichProse(e.rawSummary) || '—'}</p>
+        )}
 
         <h3 className="note-h3">Executive Staff</h3>
         {(() => {
