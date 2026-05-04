@@ -165,117 +165,155 @@ export function parseJSON<T = any>(rawText: string): T {
   try {
     return JSON.parse(cleaned) as T;
   } catch (e) {
-    // Si le JSON direct échoue, essayer d'extraire le premier objet/tableau JSON valide
-    const firstBrace = cleaned.indexOf('{');
-    const firstBracket = cleaned.indexOf('[');
-    let start = -1;
-    let openChar = '';
-    let closeChar = '';
-
-    if (firstBrace === -1 && firstBracket === -1) {
+    // Si le JSON direct echoue, on cherche le premier objet/tableau JSON
+    // valide dans le texte. On itere sur tous les candidats { et [ : un
+    // LLM peut prefixer sa reponse par un preambule (tag de source, note
+    // explicative, citation entre crochets...) qui ressemble a un debut
+    // de JSON sans en etre un. Le parser doit alors essayer le candidat
+    // suivant plutot que d echouer immediatement.
+    const candidates = collectJsonCandidates(cleaned);
+    if (candidates.length === 0) {
       throw new Error('Aucun JSON trouvé dans la réponse Claude. Réponse brute : ' + cleaned.slice(0, 200));
     }
 
-    if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
-      start = firstBracket;
-      openChar = '[';
-      closeChar = ']';
-    } else {
-      start = firstBrace;
-      openChar = '{';
-      closeChar = '}';
+    let lastError: any = null;
+    for (const candidate of candidates) {
+      const attempt = tryParseCandidate<T>(cleaned, candidate.start, candidate.openChar);
+      if (attempt.ok) return attempt.value as T;
+      lastError = attempt.error;
     }
 
-    // Compter les ouvertures et fermetures pour trouver la fin du JSON
-    let depth = 0;
-    let inString = false;
-    let escape = false;
-    let end = -1;
-
-    for (let i = start; i < cleaned.length; i++) {
-      const c = cleaned[i];
-      if (escape) { escape = false; continue; }
-      if (c === '\\') { escape = true; continue; }
-      if (c === '"') { inString = !inString; continue; }
-      if (inString) continue;
-      if (c === openChar) depth++;
-      else if (c === closeChar) {
-        depth--;
-        if (depth === 0) { end = i; break; }
-      }
-    }
-
-    if (end === -1) {
-      // JSON tronqué (réponse Claude coupée par max_tokens). Tentative de récupération en complétant.
-      let recovered = cleaned.slice(start);
-
-      // Supprimer la dernière chaîne ouverte non terminée si présente
-      // Compter les guillemets non échappés
-      let quoteCount = 0;
-      let escape2 = false;
-      for (let i = 0; i < recovered.length; i++) {
-        const c = recovered[i];
-        if (escape2) { escape2 = false; continue; }
-        if (c === '\\') { escape2 = true; continue; }
-        if (c === '"') quoteCount++;
-      }
-      // Si nombre impair de guillemets, fermer la chaîne
-      if (quoteCount % 2 === 1) recovered += '"';
-
-      // Compter les accolades/crochets ouverts non fermés et les fermer
-      let curDepth = 0;
-      let curIn = false;
-      let curEsc = false;
-      const stack: string[] = [];
-      for (let i = 0; i < recovered.length; i++) {
-        const c = recovered[i];
-        if (curEsc) { curEsc = false; continue; }
-        if (c === '\\') { curEsc = true; continue; }
-        if (c === '"') { curIn = !curIn; continue; }
-        if (curIn) continue;
-        if (c === '{') stack.push('}');
-        else if (c === '[') stack.push(']');
-        else if (c === '}' || c === ']') stack.pop();
-      }
-      // Retirer la dernière virgule éventuelle qui suivrait une valeur incomplète
-      recovered = recovered.replace(/,\s*$/, '');
-      // Fermer toutes les structures
-      while (stack.length) recovered += stack.pop();
-
-      try {
-        return JSON.parse(recovered) as T;
-      } catch (e3: any) {
-        // Dernier recours : jsonrepair sur le contenu recupere
-        try {
-          return JSON.parse(jsonrepair(recovered)) as T;
-        } catch {
-          throw new Error('JSON tronqué et non récupérable. Début : ' + cleaned.slice(start, start + 300));
-        }
-      }
-    }
-
-    const extracted = cleaned.slice(start, end + 1);
+    // Aucun candidat n a marche : on tente jsonrepair sur tout le brut
+    // en dernier recours.
     try {
-      return JSON.parse(extracted) as T;
-    } catch (e2: any) {
-      // FILET DE SECURITE : la lib jsonrepair sait reparer les JSON
-      // syntaxiquement invalides genere par les LLMs (virgule en trop,
-      // guillemet manquant, accolade orpheline, etc.). C est le cas
-      // typique d Anthropic sur les reponses tres longues : 99% du
-      // JSON est valide, un seul caractere est defectueux.
+      return JSON.parse(jsonrepair(cleaned)) as T;
+    } catch {
+      const firstCandidate = candidates[0];
+      const sample = cleaned.slice(firstCandidate.start, firstCandidate.start + 200);
+      throw new Error(
+        'Impossible de parser le JSON extrait : ' +
+        (lastError?.message || 'unknown') +
+        '. Début : ' + sample,
+      );
+    }
+  }
+}
+
+interface JsonCandidate {
+  start: number;
+  openChar: '{' | '[';
+}
+
+/**
+ * Liste les positions de tous les '{' et '[' qui ne sont pas
+ * a l interieur d une chaine JSON deja ouverte. Permet au parser de
+ * tester chaque candidat dans l ordre quand le premier ne donne pas
+ * un JSON valide (cas des preambules type "[web : ...]" ajoutes par
+ * le LLM avant le vrai JSON).
+ *
+ * Retourne au maximum 8 candidats pour ne pas exploser sur un texte
+ * tres bruite.
+ */
+function collectJsonCandidates(text: string): JsonCandidate[] {
+  const candidates: JsonCandidate[] = [];
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < text.length && candidates.length < 8; i++) {
+    const c = text[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\') { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '{' || c === '[') {
+      candidates.push({ start: i, openChar: c });
+    }
+  }
+  return candidates;
+}
+
+/**
+ * Tente de parser le JSON commencant a la position `start` dans `cleaned`.
+ * Gere le cas tronque (depth jamais retombe a 0) avec recuperation
+ * progressive (fermetures synthetiques + jsonrepair).
+ */
+function tryParseCandidate<T>(
+  cleaned: string,
+  start: number,
+  openChar: '{' | '[',
+): { ok: boolean; value?: T; error?: any } {
+  const closeChar = openChar === '{' ? '}' : ']';
+
+  // Compter les ouvertures et fermetures pour trouver la fin du JSON
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let end = -1;
+
+  for (let i = start; i < cleaned.length; i++) {
+    const c = cleaned[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\') { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === openChar) depth++;
+    else if (c === closeChar) {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+
+  if (end === -1) {
+    // JSON tronqué (réponse Claude coupée par max_tokens). Tentative de récupération en complétant.
+    let recovered = cleaned.slice(start);
+
+    // Supprimer la dernière chaîne ouverte non terminée si présente
+    let quoteCount = 0;
+    let escape2 = false;
+    for (let i = 0; i < recovered.length; i++) {
+      const c = recovered[i];
+      if (escape2) { escape2 = false; continue; }
+      if (c === '\\') { escape2 = true; continue; }
+      if (c === '"') quoteCount++;
+    }
+    if (quoteCount % 2 === 1) recovered += '"';
+
+    // Compter les accolades/crochets ouverts non fermés et les fermer
+    let curIn = false;
+    let curEsc = false;
+    const stack: string[] = [];
+    for (let i = 0; i < recovered.length; i++) {
+      const c = recovered[i];
+      if (curEsc) { curEsc = false; continue; }
+      if (c === '\\') { curEsc = true; continue; }
+      if (c === '"') { curIn = !curIn; continue; }
+      if (curIn) continue;
+      if (c === '{') stack.push('}');
+      else if (c === '[') stack.push(']');
+      else if (c === '}' || c === ']') stack.pop();
+    }
+    recovered = recovered.replace(/,\s*$/, '');
+    while (stack.length) recovered += stack.pop();
+
+    try {
+      return { ok: true, value: JSON.parse(recovered) as T };
+    } catch (e3: any) {
       try {
-        const repaired = jsonrepair(extracted);
-        return JSON.parse(repaired) as T;
-      } catch (e3: any) {
-        // Si meme jsonrepair n y arrive pas, on tente sur le brut entier
-        // (peut etre que le truncate sur depth a casse quelque chose).
-        try {
-          const repairedFull = jsonrepair(cleaned);
-          return JSON.parse(repairedFull) as T;
-        } catch {
-          throw new Error('Impossible de parser le JSON extrait : ' + e2.message + '. Début : ' + extracted.slice(0, 200));
-        }
+        return { ok: true, value: JSON.parse(jsonrepair(recovered)) as T };
+      } catch (e4: any) {
+        return { ok: false, error: e4 };
       }
+    }
+  }
+
+  const extracted = cleaned.slice(start, end + 1);
+  try {
+    return { ok: true, value: JSON.parse(extracted) as T };
+  } catch (e2: any) {
+    // jsonrepair pour les JSON syntaxiquement invalides
+    try {
+      return { ok: true, value: JSON.parse(jsonrepair(extracted)) as T };
+    } catch (e3: any) {
+      return { ok: false, error: e3 };
     }
   }
 }
