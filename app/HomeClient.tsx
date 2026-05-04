@@ -9,6 +9,7 @@ import PipelinePreview from './components/PipelinePreview';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import IcPackView from './components/IcPackView';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
+import CommentsPanel from './components/CommentsPanel';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import {
   PictoSeal,
@@ -106,6 +107,9 @@ export default function HomeClient({
   }, [compactNoteMode]);
   // Persistence : ID de l analyse sauvegardee (pour bouton "voir dans l historique")
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
+  // Etat d ouverture du volet de commentaires partages multi-membres
+  // (distinct du AnnotationBlock notes personnelles existant).
+  const [commentsOpen, setCommentsOpen] = useState(false);
   // Pipeline timing : pour mesurer la duree d execution et la stocker en metadonnees
   const [pipelineStartTime, setPipelineStartTime] = useState<number | null>(null);
   // Etat de chargement d une analyse passee depuis ?analysis=ID
@@ -923,6 +927,30 @@ export default function HomeClient({
                 }}>
                 ⤓ Pack IC
               </button>
+              {/* Bouton ouverture du volet de commentaires partages multi-membres.
+                  Visible uniquement quand l analyse est sauvegardee en base
+                  (savedAnalysisId existe), car les commentaires sont rattaches
+                  a un id d analyse persistee. Affiche un compteur si commentaires
+                  ouverts. */}
+              {savedAnalysisId && (
+                <button
+                  onClick={() => setCommentsOpen(true)}
+                  title="Voir et ajouter des commentaires partages avec les autres membres du fonds"
+                  style={{
+                    padding: '8px 18px',
+                    fontSize: 12,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    background: 'transparent',
+                    color: 'var(--ink)',
+                    border: '1px solid var(--ink)',
+                    marginLeft: 8,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}>
+                  ✎ Commentaires
+                </button>
+              )}
               {/* Lien vers l historique des analyses sauvegardees + indicateur
                   visuel discret quand l analyse en cours a ete persistee */}
               <a
@@ -2711,6 +2739,18 @@ export default function HomeClient({
           </>
         )}
       </main>
+
+      {/* Volet de commentaires partages multi-membres : monte de maniere
+          conditionnelle pour eviter les fetch inutiles quand non ouvert. */}
+      {savedAnalysisId && (
+        <CommentsPanel
+          analysisId={savedAnalysisId}
+          authEnabled={authEnabled}
+          isOpen={commentsOpen}
+          onClose={() => setCommentsOpen(false)}
+          currentUserEmail={userEmail}
+        />
+      )}
     </>
   );
 }
