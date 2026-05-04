@@ -66,6 +66,7 @@ type EngineState = {
   status: 'idle' | 'running' | 'done' | 'error';
   startedAt?: number;
   completedAt?: number;
+  durationMs?: number;
 };
 
 export default function HomeClient({
@@ -248,14 +249,20 @@ export default function HomeClient({
           // pipeline_engines_status (par moteur), on l utilise. Sinon on
           // suppose que tous les moteurs ont reussi puisqu un resultJson
           // existe et qu on a un verdict.
+          // Si le resultJson contient meta.engineDurations (capture par
+          // le pipeline), on injecte aussi les durees pour reaffichage.
           const enginesStatus = data.analysis.pipelineEnginesStatus || {};
+          const engineDurations = data.analysis.resultJson?.meta?.engineDurations || {};
           const restored: Record<string, EngineState> = {};
           ENGINES.forEach((e) => {
             const stored = enginesStatus[e.id];
+            const duration = typeof engineDurations[e.id] === 'number'
+              ? engineDurations[e.id]
+              : undefined;
             if (stored && (stored === 'failed' || stored === 'error')) {
-              restored[e.id] = { status: 'error' };
+              restored[e.id] = { status: 'error', durationMs: duration };
             } else {
-              restored[e.id] = { status: 'done' };
+              restored[e.id] = { status: 'done', durationMs: duration };
             }
           });
           setEngineStates(restored);
@@ -503,7 +510,17 @@ export default function HomeClient({
             } else if (eventType === 'engine-done') {
               setEngineStates(prev => ({
                 ...prev,
-                [data.engine]: { ...prev[data.engine], status: 'done', completedAt: Date.now() }
+                [data.engine]: {
+                  ...prev[data.engine],
+                  status: 'done',
+                  completedAt: Date.now(),
+                  // Si le serveur a envoye la duree, on la garde
+                  // explicitement pour eviter les decalages dus a la
+                  // latence reseau (Date.now du client != now serveur).
+                  durationMs: typeof data.durationMs === 'number'
+                    ? data.durationMs
+                    : prev[data.engine]?.durationMs,
+                }
               }));
             } else if (eventType === 'complete') {
               setResult(data);

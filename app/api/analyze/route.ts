@@ -53,9 +53,28 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         const encoder = new TextEncoder();
 
+        // Capture des startedAt par moteur pour calculer la duree
+        // a l envoi de l event done. Permet aussi d emettre la duree
+        // dans le payload final (result.meta.engineDurations) pour
+        // la persistance et le re-affichage en historique.
+        const engineStartedAt: Record<string, number> = {};
+        const engineDurations: Record<string, number> = {};
+
         function send(eventType: string, data: any) {
           const message = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
           controller.enqueue(encoder.encode(message));
+        }
+
+        function sendStart(engine: string, label: string) {
+          engineStartedAt[engine] = Date.now();
+          send('engine-start', { engine, label });
+        }
+
+        function sendDone(engine: string, output: any) {
+          const startedAt = engineStartedAt[engine];
+          const durationMs = startedAt != null ? Date.now() - startedAt : null;
+          if (durationMs != null) engineDurations[engine] = durationMs;
+          send('engine-done', { engine, output, durationMs });
         }
 
         try {
@@ -66,48 +85,48 @@ export async function POST(req: NextRequest) {
           });
 
           // Moteur 1 : Extraction
-          send('engine-start', { engine: 'extraction', label: 'Extraction du contenu du pitch deck' });
+          sendStart('extraction', 'Extraction du contenu du pitch deck');
           const extraction = await extractFromDeck(pitchDeck.payload);
-          send('engine-done', { engine: 'extraction', output: extraction });
+          sendDone('extraction', extraction);
 
           // Moteurs 2, 3, 4 + Extraction financière en parallèle
-          send('engine-start', { engine: 'team', label: 'Analyse de l\'équipe fondatrice' });
-          send('engine-start', { engine: 'market', label: 'Analyse du marché' });
-          send('engine-start', { engine: 'macro', label: 'Lecture macro et géopolitique' });
-          send('engine-start', { engine: 'financial-extraction', label: businessPlan ? 'Extraction des données financières (deck + BP)' : 'Extraction des données financières (deck)' });
+          sendStart('team', 'Analyse de l\'équipe fondatrice');
+          sendStart('market', 'Analyse du marché');
+          sendStart('macro', 'Lecture macro et géopolitique');
+          sendStart('financial-extraction', businessPlan ? 'Extraction des données financières (deck + BP)' : 'Extraction des données financières (deck)');
 
           const [team, market, macro, financialData] = await Promise.all([
-            analyzeTeam(extraction).then(r => { send('engine-done', { engine: 'team', output: r }); return r; }),
-            analyzeMarket(extraction).then(r => { send('engine-done', { engine: 'market', output: r }); return r; }),
-            analyzeMacro(extraction).then(r => { send('engine-done', { engine: 'macro', output: r }); return r; }),
-            extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { send('engine-done', { engine: 'financial-extraction', output: r }); return r; }),
+            analyzeTeam(extraction).then(r => { sendDone('team', r); return r; }),
+            analyzeMarket(extraction).then(r => { sendDone('market', r); return r; }),
+            analyzeMacro(extraction).then(r => { sendDone('macro', r); return r; }),
+            extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { sendDone('financial-extraction', r); return r; }),
           ]);
 
           // Moteur 5 : Pattern Matching
-          send('engine-start', { engine: 'pattern', label: 'Pattern matching contre le corpus de cas' });
+          sendStart('pattern', 'Pattern matching contre le corpus de cas');
           const patternMatching = await matchPatterns(extraction, team, market, macro);
-          send('engine-done', { engine: 'pattern', output: patternMatching });
+          sendDone('pattern', patternMatching);
 
           // Moteurs 6, 7, 8, 14 en parallèle
-          send('engine-start', { engine: 'causal', label: 'Retournement causal' });
-          send('engine-start', { engine: 'blindspot', label: 'Détection des patterns d\'aveuglement collectif' });
-          send('engine-start', { engine: 'contrarian', label: 'Détection des singularités contrariennes' });
-          send('engine-start', { engine: 'financial-coherence', label: 'Tests de cohérence financière' });
+          sendStart('causal', 'Retournement causal');
+          sendStart('blindspot', 'Détection des patterns d\'aveuglement collectif');
+          sendStart('contrarian', 'Détection des singularités contrariennes');
+          sendStart('financial-coherence', 'Tests de cohérence financière');
 
           const [causalReversal, blindspotAnalysis, contrarianAnalysis, financialCoherence] = await Promise.all([
-            performCausalReversal(extraction, team, market, macro, patternMatching).then(r => { send('engine-done', { engine: 'causal', output: r }); return r; }),
-            analyzeBlindspots(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'blindspot', output: r }); return r; }),
-            analyzeContrarian(extraction, team, market, macro).then(r => { send('engine-done', { engine: 'contrarian', output: r }); return r; }),
-            analyzeFinancialCoherence(extraction, financialData, market).then(r => { send('engine-done', { engine: 'financial-coherence', output: r }); return r; }),
+            performCausalReversal(extraction, team, market, macro, patternMatching).then(r => { sendDone('causal', r); return r; }),
+            analyzeBlindspots(extraction, team, market, macro).then(r => { sendDone('blindspot', r); return r; }),
+            analyzeContrarian(extraction, team, market, macro).then(r => { sendDone('contrarian', r); return r; }),
+            analyzeFinancialCoherence(extraction, financialData, market).then(r => { sendDone('financial-coherence', r); return r; }),
           ]);
 
           // Moteur 11 : Orchestration finale
-          send('engine-start', { engine: 'orchestrate', label: 'Synthèse finale' });
+          sendStart('orchestrate', 'Synthèse finale');
           const finalRecommendation = await orchestrateFinalRecommendation(
             extraction, team, market, macro, patternMatching, causalReversal,
             blindspotAnalysis, contrarianAnalysis
           );
-          send('engine-done', { engine: 'orchestrate', output: finalRecommendation });
+          sendDone('orchestrate', finalRecommendation);
 
           // Moteur 12 : Reference Checks (plan d appels DD terrain).
           // Genere le plan d appels (founders, customers, board) avec questions
@@ -122,7 +141,7 @@ export async function POST(req: NextRequest) {
           // bandeau pipeline restait donc bloque sur l etape 'reference-checks'
           // en statut 'idle' apres le verdict. Le moteur ne tournait que dans
           // lib/pipeline-runner.ts qui n est pas utilise par la route en live.
-          send('engine-start', { engine: 'reference-checks', label: 'Plan d\'appels DD terrain' });
+          sendStart('reference-checks', 'Plan d\'appels DD terrain');
           let referenceChecks: any = null;
           try {
             referenceChecks = await generateReferenceChecks(
@@ -131,7 +150,7 @@ export async function POST(req: NextRequest) {
           } catch (err: any) {
             console.warn('[reference-checks] engine failed, continuing without:', err?.message);
           }
-          send('engine-done', { engine: 'reference-checks', output: referenceChecks });
+          sendDone('reference-checks', referenceChecks);
 
           const result = {
             meta: {
@@ -139,6 +158,11 @@ export async function POST(req: NextRequest) {
               additionalFiles: allFileNames.filter(n => n !== pitchDeck.name),
               analyzedAt: new Date().toISOString(),
               durationMs: Date.now() - startTime,
+              // Durees par moteur en ms, captees au fil du run. Permet
+              // a l UI historique d afficher les durees individuelles
+              // sans avoir a refaire tourner le pipeline ni a recalculer
+              // depuis startedAt / completedAt.
+              engineDurations,
             },
             extraction,
             financialData,

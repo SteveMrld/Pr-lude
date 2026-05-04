@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export type EngineStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -8,6 +8,9 @@ export interface EngineState {
   status: EngineStatus;
   startedAt?: number;
   completedAt?: number;
+  /** Duree finale en ms si fournie par le serveur (sinon calculee
+   *  cote client a partir de startedAt / completedAt). */
+  durationMs?: number;
 }
 
 export interface EngineDescriptor {
@@ -51,6 +54,30 @@ export default function PipelineProgress({
     const i = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(i);
   }, [analyzing]);
+
+  // Auto-scroll horizontal vers le dernier moteur passe a running. Garde
+  // l etape courante visible meme sur mobile ou la liste deborde de l ecran.
+  // Refs par moteur pour pouvoir scroller vers l element exact.
+  const flowRef = useRef<HTMLDivElement>(null);
+  const engineRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const lastScrolledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!analyzing) return;
+    // Trouve le dernier moteur en running (ou le dernier done s il n y a
+    // plus de running, pour suivre la progression jusqu au bout).
+    const running = engines.filter(e => states[e.id]?.status === 'running');
+    const target = running.length > 0
+      ? running[running.length - 1]
+      : engines.slice().reverse().find(e => states[e.id]?.status === 'done');
+    if (!target) return;
+    if (lastScrolledRef.current === target.id) return;
+    const el = engineRefs.current[target.id];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      lastScrolledRef.current = target.id;
+    }
+  }, [analyzing, engines, states]);
 
   const completedCount = engines.filter(e => states[e.id]?.status === 'done').length;
   const errorCount = engines.filter(e => states[e.id]?.status === 'error').length;
@@ -138,23 +165,30 @@ export default function PipelineProgress({
       </div>
 
       {/* Flow horizontal des moteurs avec scroll horizontal sur mobile */}
-      <div style={{
-        display: 'flex',
-        gap: 4,
-        overflowX: 'auto',
-        paddingBottom: 4,
-        scrollbarWidth: 'thin',
-        WebkitOverflowScrolling: 'touch',
-      }}>
+      <div
+        ref={flowRef}
+        style={{
+          display: 'flex',
+          gap: 4,
+          overflowX: 'auto',
+          paddingBottom: 4,
+          scrollbarWidth: 'thin',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
         {engines.map((engine, i) => {
           const state = states[engine.id] || { status: 'idle' as const };
           const isLast = i === engines.length - 1;
           const isClickable = state.status === 'done' && onEngineClick;
 
           // Duree du moteur : completedAt - startedAt si terminé,
-          // now - startedAt si en cours
+          // now - startedAt si en cours. Si durationMs est fourni
+          // explicitement (cas du reload depuis l historique), on
+          // prend cette valeur en priorite.
           let duration: string | null = null;
-          if (state.startedAt) {
+          if (state.durationMs != null) {
+            duration = formatTime(state.durationMs);
+          } else if (state.startedAt) {
             const end = state.completedAt || Date.now();
             duration = formatTime(end - state.startedAt);
           }
@@ -162,14 +196,17 @@ export default function PipelineProgress({
           // Couleurs et icones par statut
           const palette = {
             idle: { bg: 'transparent', border: 'rgba(40, 30, 20, 0.20)', fg: 'rgba(40, 30, 20, 0.40)', icon: '○' },
-            running: { bg: 'rgba(196, 164, 132, 0.15)', border: '#c4a484', fg: 'var(--ink, #2a1f12)', icon: '◐' },
+            running: { bg: 'rgba(196, 164, 132, 0.22)', border: '#c4a484', fg: 'var(--ink, #2a1f12)', icon: '◐' },
             done: { bg: 'rgba(70, 100, 70, 0.10)', border: '#5a7a5a', fg: '#3a5a3a', icon: '●' },
             error: { bg: 'rgba(160, 68, 56, 0.10)', border: '#a04438', fg: '#a04438', icon: '✕' },
           }[state.status];
 
+          const isRunning = state.status === 'running';
+
           return (
             <div
               key={engine.id}
+              ref={(el) => { engineRefs.current[engine.id] = el; }}
               style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
             >
               <button
@@ -190,8 +227,32 @@ export default function PipelineProgress({
                   whiteSpace: 'nowrap',
                   transition: 'all 200ms ease',
                   minHeight: 28,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  // Highlight visible du moteur en cours :
+                  boxShadow: isRunning
+                    ? '0 0 0 2px rgba(196, 164, 132, 0.30), 0 1px 4px rgba(196, 164, 132, 0.30)'
+                    : 'none',
                 }}
               >
+                {/* Mini barre indeterminee qui defile sous le bouton du
+                    moteur en cours pour signaler le travail en arriere-plan */}
+                {isRunning && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      width: '100%',
+                      height: 2,
+                      background: 'linear-gradient(90deg, transparent, #c4a484, transparent)',
+                      backgroundSize: '50% 100%',
+                      backgroundRepeat: 'no-repeat',
+                      animation: 'preludeShimmer 1.4s linear infinite',
+                    }}
+                  />
+                )}
                 <span
                   style={{
                     fontSize: 12,
@@ -201,7 +262,7 @@ export default function PipelineProgress({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    animation: state.status === 'running' ? 'preludePulse 1.4s ease-in-out infinite' : 'none',
+                    animation: isRunning ? 'preludePulse 1.4s ease-in-out infinite' : 'none',
                   }}
                 >
                   {palette.icon}
@@ -233,6 +294,10 @@ export default function PipelineProgress({
         @keyframes preludePulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
+        }
+        @keyframes preludeShimmer {
+          0% { background-position: -50% 0; }
+          100% { background-position: 150% 0; }
         }
       `}</style>
     </div>
