@@ -1464,6 +1464,89 @@ ul, ol { list-style: none; }
   margin: 0;
 }
 
+/* Timeline d instruction sur la couverture du pack IC.
+   Frise verticale a gauche avec dots ronds, label de stade
+   en serif, date secondaire, et commentaire optionnel en
+   italique sous chaque transition. */
+.ic-timeline {
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--paper-accent);
+  border-left: 3px solid var(--vert-foret);
+}
+
+.ic-timeline-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vert-foret);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.ic-timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.ic-timeline-list::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--hairline);
+}
+
+.ic-timeline-item {
+  display: flex;
+  gap: 14px;
+  padding: 6px 0;
+  position: relative;
+}
+
+.ic-timeline-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--vert-foret);
+  flex-shrink: 0;
+  margin-top: 4px;
+  border: 2px solid var(--paper-accent);
+}
+
+.ic-timeline-content {
+  flex: 1;
+}
+
+.ic-timeline-stage {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.ic-timeline-date {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+.ic-timeline-comment {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink);
+  margin-top: 4px;
+  opacity: 0.85;
+  line-height: 1.45;
+}
+
 .ic-page-title {
   display: flex;
   align-items: baseline;

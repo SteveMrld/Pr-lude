@@ -108,6 +108,15 @@ export default function HomeClient({
   }, [compactNoteMode]);
   // Persistence : ID de l analyse sauvegardee (pour bouton "voir dans l historique")
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null);
+  // Historique workflow : transitions de stade pour le dossier en cours.
+  // Charge en async des qu un savedAnalysisId est connu, pour pouvoir le
+  // passer au IcPackView qui le rend en timeline page 1.
+  const [workflowHistory, setWorkflowHistory] = useState<Array<{
+    fromStage: string | null;
+    toStage: string;
+    changedAt: string;
+    comment: string | null;
+  }>>([]);
   // Etat d ouverture du volet de commentaires partages multi-membres
   // (distinct du AnnotationBlock notes personnelles existant).
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -217,6 +226,34 @@ export default function HomeClient({
         setLoadingPastAnalysis(false);
       });
   }, []);
+
+  // Charge l historique workflow (transitions de stade) des qu un dossier
+  // est connu. Re-charge a chaque changement d ID. Best effort : si la
+  // route renvoie une erreur on degrade silencieusement, la timeline
+  // n apparaitra simplement pas dans le pack IC.
+  useEffect(() => {
+    if (!savedAnalysisId) {
+      setWorkflowHistory([]);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/analyses/${savedAnalysisId}/status`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        const history = Array.isArray(data.history) ? data.history : [];
+        setWorkflowHistory(history.map((h: any) => ({
+          fromStage: h.fromStage ?? h.from_stage ?? null,
+          toStage: h.toStage ?? h.to_stage,
+          changedAt: h.changedAt ?? h.changed_at,
+          comment: h.comment ?? null,
+        })));
+      })
+      .catch(() => {
+        if (!cancelled) setWorkflowHistory([]);
+      });
+    return () => { cancelled = true; };
+  }, [savedAnalysisId]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFilesSelect(newFiles: FileList | null) {
@@ -2840,7 +2877,11 @@ export default function HomeClient({
               )}
 
               {activeTab === 'ic-pack' && (
-                <IcPackView result={result} filename={result?.meta?.filename} />
+                <IcPackView
+                  result={result}
+                  filename={result?.meta?.filename}
+                  workflowHistory={workflowHistory}
+                />
               )}
                   </div>
                 </div>

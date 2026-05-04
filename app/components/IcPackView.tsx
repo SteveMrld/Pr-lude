@@ -17,9 +17,17 @@
 import React from 'react';
 import { computeTopRisks } from '@/lib/compute-top-risks';
 
+export type WorkflowHistoryItem = {
+  fromStage: string | null;
+  toStage: string;
+  changedAt: string;
+  comment: string | null;
+};
+
 type Props = {
   result: any;
   filename?: string;
+  workflowHistory?: WorkflowHistoryItem[];
 };
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -42,6 +50,18 @@ const TENSION_LABELS: Record<string, string> = {
   'balanced-investigate': 'Equilibre, instruction a poursuivre',
 };
 
+// Vocabulaire de comite : on traduit les codes machine en termes
+// que des partners reconnaissent immediatement sur la couverture
+// d un pack IC.
+const STAGE_LABELS: Record<string, string> = {
+  deposited: 'Depose',
+  in_review: 'En instruction',
+  dd_field: 'DD terrain',
+  ic_review: 'Pret pour IC',
+  signed: 'Signe',
+  declined: 'Refuse',
+};
+
 function formatDate(iso?: string): string {
   if (!iso) return '';
   try {
@@ -52,7 +72,7 @@ function formatDate(iso?: string): string {
   }
 }
 
-export default function IcPackView({ result, filename }: Props) {
+export default function IcPackView({ result, filename, workflowHistory }: Props) {
   if (!result) return null;
 
   const ext = result.extraction || {};
@@ -178,6 +198,36 @@ export default function IcPackView({ result, filename }: Props) {
                 Resolution dialectique · {TENSION_LABELS[tension.tensionResolved] || tension.tensionResolved}
               </div>
               <p className="ic-tension-text">{tension.resolution}</p>
+            </div>
+          )}
+
+          {/* Timeline d instruction : montre au comite le parcours du dossier
+              dans le pipeline (depose -> instruction -> DD terrain -> IC).
+              Permet d evaluer en un coup d oeil le serieux et la duree de
+              l instruction avant le passage en comite. */}
+          {workflowHistory && workflowHistory.length > 0 && (
+            <div className="ic-timeline">
+              <div className="ic-timeline-label">Parcours d instruction</div>
+              <ol className="ic-timeline-list">
+                {[...workflowHistory]
+                  .sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime())
+                  .map((item, idx) => (
+                    <li key={idx} className="ic-timeline-item">
+                      <span className="ic-timeline-dot" aria-hidden="true" />
+                      <div className="ic-timeline-content">
+                        <div className="ic-timeline-stage">
+                          {STAGE_LABELS[item.toStage] || item.toStage}
+                        </div>
+                        <div className="ic-timeline-date">
+                          {formatDate(item.changedAt)}
+                        </div>
+                        {item.comment && (
+                          <div className="ic-timeline-comment">« {item.comment} »</div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+              </ol>
             </div>
           )}
         </div>
