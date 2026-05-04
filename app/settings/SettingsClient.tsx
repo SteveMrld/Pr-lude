@@ -185,6 +185,42 @@ export default function SettingsClient({
       )}
 
       <section className="src-group" style={{ marginTop: 12 }}>
+        <h2 className="src-group-title">Équipe</h2>
+        <p className="src-group-subtitle">
+          Invitez les membres de votre fonds à partager les analyses, les notes
+          d&apos;investissement et les votes du comité. Les administrateurs gèrent
+          les accès et la configuration des sources.
+        </p>
+        <Link
+          href="/settings/members"
+          style={{
+            display: 'block',
+            padding: '18px 22px',
+            background: 'var(--surface)',
+            border: '1px solid var(--hairline)',
+            textDecoration: 'none',
+            color: 'inherit',
+            transition: 'border-color 0.15s',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, marginBottom: 4 }}>
+                Membres et invitations
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
+                Liste des membres actifs, gestion des rôles, envoi d&apos;invitations par email.
+                L&apos;invitation est consommée à la première connexion du destinataire.
+              </div>
+            </div>
+            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+              Gérer →
+            </span>
+          </div>
+        </Link>
+      </section>
+
+      <section className="src-group" style={{ marginTop: 12 }}>
         <h2 className="src-group-title">Intégrations</h2>
         <p className="src-group-subtitle">
           Connectez Prélude aux outils de votre fonds pour porter les analyses dans les rituels
