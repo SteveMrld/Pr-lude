@@ -21,7 +21,7 @@ import {
   IC_VOTE_RESULT_LABELS,
   type IcVoteResult,
   type IcDecision,
-} from '@/lib/ic-decision-store';
+} from '@/lib/ic-decision-types';
 
 export type WorkflowHistoryItem = {
   fromStage: string | null;

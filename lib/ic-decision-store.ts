@@ -11,36 +11,15 @@
 
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import { isPersistenceEnabled } from '@/lib/analysis-store';
+import {
+  IC_VOTE_RESULTS,
+  IC_VOTE_RESULT_LABELS,
+  type IcVoteResult,
+  type IcDecision,
+} from '@/lib/ic-decision-types';
 
-export type IcVoteResult =
-  | 'approuve'
-  | 'approuve-avec-conditions'
-  | 'reporte'
-  | 'refuse';
-
-export const IC_VOTE_RESULTS: IcVoteResult[] = [
-  'approuve',
-  'approuve-avec-conditions',
-  'reporte',
-  'refuse',
-];
-
-export const IC_VOTE_RESULT_LABELS: Record<IcVoteResult, string> = {
-  'approuve': 'Approuvé',
-  'approuve-avec-conditions': 'Approuvé avec conditions',
-  'reporte': 'Reporté',
-  'refuse': 'Refusé',
-};
-
-export interface IcDecision {
-  analysisId: string;
-  partnerPrincipal: string | null;
-  committeeDate: string | null; // ISO yyyy-mm-dd
-  voteResult: IcVoteResult | null;
-  conditions: string | null;
-  updatedAt: string;
-  updatedBy: string | null;
-}
+export { IC_VOTE_RESULTS, IC_VOTE_RESULT_LABELS };
+export type { IcVoteResult, IcDecision };
 
 export async function getIcDecision(analysisId: string): Promise<IcDecision | null> {
   if (!isPersistenceEnabled()) return null;
