@@ -795,6 +795,41 @@ export default function HomeClient({
                 </button>
               </div>
             )}
+            {/* Bandeau Workflow + Versions : visible des le haut de la page
+                d analyse pour permettre de faire evoluer le stade d instruction
+                sans avoir a scroller jusqu en bas. C est l interaction pivot
+                de la vue de fonds : un partner ouvre un dossier, voit son
+                stade actuel, le change en deux clics, et toute l equipe est
+                notifiee dans Slack. */}
+            {savedAnalysisId && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                marginBottom: 16,
+                padding: '14px 18px',
+                background: 'var(--surface)',
+                border: '1px solid var(--hairline)',
+                flexWrap: 'wrap',
+              }}>
+                <span style={{
+                  fontSize: 10,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  color: 'var(--muted)',
+                  fontWeight: 500,
+                }}>
+                  Stade d&apos;instruction
+                </span>
+                <WorkflowStageBadge analysisId={savedAnalysisId} authEnabled={authEnabled} />
+                <div style={{ flex: 1 }} />
+                <VersionSelector
+                  analysisId={savedAnalysisId}
+                  currentVersionNum={viewedVersionNum}
+                  onVersionChange={handleVersionChange}
+                />
+              </div>
+            )}
             {/* Toggle de vue : Dashboard vs Note d'investissement, plus bouton export */}
             <div className="view-toggle-row" style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'flex-end', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
@@ -1561,28 +1596,9 @@ export default function HomeClient({
                   <div className="archetype-badge">
                     Archétype dominant · {ARCHETYPE_LABELS[result.patternMatching?.archetypeDominant] || result.patternMatching?.archetypeDominant}
                   </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 16,
-                    marginBottom: 10,
-                    flexWrap: 'wrap',
-                  }}>
-                    <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, margin: 0 }}>
-                      Société identifiée : {result.extraction?.companyName}
-                    </h3>
-                    {savedAnalysisId && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                        <WorkflowStageBadge analysisId={savedAnalysisId} authEnabled={authEnabled} />
-                        <VersionSelector
-                          analysisId={savedAnalysisId}
-                          currentVersionNum={viewedVersionNum}
-                          onVersionChange={handleVersionChange}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, margin: '0 0 10px' }}>
+                    Société identifiée : {result.extraction?.companyName}
+                  </h3>
                   <p style={{ marginBottom: 18 }}>
                     {result.extraction?.rawSummary}
                   </p>
