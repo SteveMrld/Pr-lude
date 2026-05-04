@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const verdict = url.searchParams.get('verdict') || undefined;
   const sector = url.searchParams.get('sector') || undefined;
+  const workflowStage = url.searchParams.get('workflow_stage') || undefined;
   const searchQuery = url.searchParams.get('q') || undefined;
   const fromDate = url.searchParams.get('from') || undefined;
   const toDate = url.searchParams.get('to') || undefined;
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     : undefined;
 
   const [analyses, stats] = await Promise.all([
-    listAnalyses({ verdict, sector, searchQuery, fromDate, toDate, limit, offset }),
+    listAnalyses({ verdict, sector, workflowStage, searchQuery, fromDate, toDate, limit, offset }),
     getAnalysesStats(),
   ]);
 

@@ -123,6 +123,14 @@ export interface AnalysisSummary {
   userNotes: string | null;
   createdAt: string;
   updatedAt: string;
+  // Champs enrichis pour la vue de fonds (UI historique).
+  // Joints depuis les tables collaboration (workflow, versions,
+  // annotations). null si la persistance collab n est pas active
+  // ou si la jointure echoue, on degrade silencieusement.
+  workflowStage: string | null;
+  workflowStageUpdatedAt: string | null;
+  versionsCount: number;
+  openCommentsCount: number;
 }
 
 /**
@@ -170,6 +178,7 @@ export interface SaveAnalysisInput {
 export interface ListAnalysesFilters {
   verdict?: string;
   sector?: string;
+  workflowStage?: string;     // depose, in_review, dd_field, ic_review, signed, declined
   searchQuery?: string;       // recherche texte sur companyName
   fromDate?: string;          // ISO date
   toDate?: string;            // ISO date
@@ -454,6 +463,24 @@ export async function listAnalyses(
     if (filters.fromDate) query = query.gte('created_at', filters.fromDate);
     if (filters.toDate) query = query.lte('created_at', filters.toDate);
 
+    // Filtre par stade workflow : on resout d abord les analysis_ids
+    // qui matchent le stade, puis on filtre la query principale.
+    // Si la table workflow n existe pas (old schema), on degrade
+    // silencieusement et on ignore le filtre.
+    if (filters.workflowStage) {
+      try {
+        const { data: wfRows } = await supabase
+          .from('analyses_workflow')
+          .select('analysis_id')
+          .eq('stage', filters.workflowStage);
+        const matchingIds = (wfRows || []).map((r: any) => r.analysis_id);
+        if (matchingIds.length === 0) return [];
+        query = query.in('id', matchingIds);
+      } catch {
+        // ignore : pas de table workflow
+      }
+    }
+
     const limit = filters.limit ?? 50;
     const offset = filters.offset ?? 0;
     query = query.range(offset, offset + limit - 1);
@@ -464,7 +491,64 @@ export async function listAnalyses(
       return [];
     }
 
-    return (data || []).map(rowToSummary);
+    const summaries = (data || []).map(rowToSummary);
+    if (summaries.length === 0) return summaries;
+
+    // Enrichissement collab : on charge en parallele les workflow stages,
+    // le compte de versions, et le compte de commentaires non resolus
+    // pour les analyses listees. Si une jointure echoue, on degrade
+    // silencieusement (les champs restent a leurs valeurs par defaut).
+    const analysisIds = summaries.map((s) => s.id);
+
+    try {
+      const [workflowRes, versionsRes, commentsRes] = await Promise.all([
+        supabase
+          .from('analyses_workflow')
+          .select('analysis_id, stage, updated_at')
+          .in('analysis_id', analysisIds),
+        supabase
+          .from('analyses_versions')
+          .select('analysis_id')
+          .in('analysis_id', analysisIds),
+        supabase
+          .from('analyses_annotations')
+          .select('analysis_id')
+          .in('analysis_id', analysisIds)
+          .is('resolved_at', null),
+      ]);
+
+      // Workflow : un stage par analyse
+      const workflowMap = new Map<string, { stage: string; updatedAt: string }>();
+      (workflowRes.data || []).forEach((w: any) => {
+        workflowMap.set(w.analysis_id, { stage: w.stage, updatedAt: w.updated_at });
+      });
+
+      // Versions : compteur par analyse
+      const versionsCountMap = new Map<string, number>();
+      (versionsRes.data || []).forEach((v: any) => {
+        versionsCountMap.set(v.analysis_id, (versionsCountMap.get(v.analysis_id) || 0) + 1);
+      });
+
+      // Commentaires ouverts : compteur par analyse
+      const commentsCountMap = new Map<string, number>();
+      (commentsRes.data || []).forEach((c: any) => {
+        commentsCountMap.set(c.analysis_id, (commentsCountMap.get(c.analysis_id) || 0) + 1);
+      });
+
+      summaries.forEach((s) => {
+        const wf = workflowMap.get(s.id);
+        if (wf) {
+          s.workflowStage = wf.stage;
+          s.workflowStageUpdatedAt = wf.updatedAt;
+        }
+        s.versionsCount = versionsCountMap.get(s.id) || 0;
+        s.openCommentsCount = commentsCountMap.get(s.id) || 0;
+      });
+    } catch (enrichErr) {
+      console.warn('[analysis-store] enrichissement collab failed:', enrichErr);
+    }
+
+    return summaries;
   } catch (err) {
     console.error('[analysis-store] listAnalyses exception :', err);
     return [];
@@ -654,6 +738,12 @@ function rowToSummary(row: any): AnalysisSummary {
     userNotes: row.user_notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    // Defaults pour les champs collab : null/0. La jointure dans
+    // listAnalyses les remplit ensuite quand disponibles.
+    workflowStage: null,
+    workflowStageUpdatedAt: null,
+    versionsCount: 0,
+    openCommentsCount: 0,
   };
 }
 
