@@ -39,9 +39,16 @@ export default function GaugeProbability({ successProbability, failureProbabilit
   const endPt = pointAt(100);
   const successEndPt = pointAt(success);
 
-  // Couleur de l'arc plein selon le niveau de succes : encre fonce >= 65,
-  // gris medium 45-64, gris clair < 45 (sobre, editorial).
-  const successColor = success >= 65 ? '#1a4d2e' : success >= 45 ? '#7a5c1f' : '#7a1f1f';
+  // Couleur de l'arc plein selon le niveau de succes :
+  //   >= 65  -> vert foret (signal positif fort)
+  //   45-64  -> ocre brule (zone d hesitation)
+  //   < 45   -> warn (rouge sourd, signal d alarme)
+  // Tokens du design system pour rester coherent avec le reste de l app.
+  const successColor = success >= 65
+    ? 'var(--vert-foret)'
+    : success >= 45
+      ? 'var(--ocre-brule)'
+      : 'var(--warn)';
 
   return (
     <div style={{ width: size, position: 'relative', display: 'inline-block' }}>
@@ -49,10 +56,10 @@ export default function GaugeProbability({ successProbability, failureProbabilit
         {/* Arc de fond */}
         <path
           d={`M ${startPt.x} ${startPt.y} A ${r} ${r} 0 0 1 ${endPt.x} ${endPt.y}`}
-          stroke="rgba(0,0,0,0.08)"
+          stroke="var(--hairline)"
           strokeWidth={strokeWidth}
           fill="none"
-          strokeLinecap="butt"
+          strokeLinecap="round"
         />
         {/* Arc de succes */}
         {success > 0 && (
@@ -61,7 +68,7 @@ export default function GaugeProbability({ successProbability, failureProbabilit
             stroke={successColor}
             strokeWidth={strokeWidth}
             fill="none"
-            strokeLinecap="butt"
+            strokeLinecap="round"
           />
         )}
         {/* Graduations a 25, 50, 75 */}
@@ -77,7 +84,7 @@ export default function GaugeProbability({ successProbability, failureProbabilit
               y1={pInner.y}
               x2={xOuter}
               y2={yOuter}
-              stroke="rgba(0,0,0,0.25)"
+              stroke="var(--muted-soft)"
               strokeWidth={1}
             />
           );
@@ -94,19 +101,23 @@ export default function GaugeProbability({ successProbability, failureProbabilit
       }}>
         <div style={{
           fontSize: size * 0.18,
-          fontFamily: 'var(--serif, Georgia, serif)',
-          fontWeight: 500,
+          fontFamily: 'var(--serif)',
+          fontWeight: 700,
           lineHeight: 1,
           color: successColor,
+          fontFeatureSettings: '"lnum","tnum"',
+          letterSpacing: '-0.02em',
         }}>
-          {success}<span style={{ fontSize: size * 0.07, opacity: 0.6 }}>%</span>
+          {success}<span style={{ fontSize: size * 0.07, opacity: 0.6, fontWeight: 500 }}>%</span>
         </div>
         <div style={{
+          fontFamily: 'var(--sans)',
           fontSize: 10,
-          letterSpacing: '0.08em',
+          letterSpacing: '0.12em',
           textTransform: 'uppercase',
-          opacity: 0.55,
-          marginTop: 4,
+          color: 'var(--muted)',
+          marginTop: 6,
+          fontWeight: 600,
         }}>
           Probabilité de succès
         </div>
@@ -116,14 +127,16 @@ export default function GaugeProbability({ successProbability, failureProbabilit
         display: 'flex',
         justifyContent: 'space-between',
         fontSize: 10,
-        opacity: 0.5,
+        color: 'var(--muted-soft)',
         padding: '0 4px',
         marginTop: -size * 0.05,
+        fontFamily: 'var(--sans)',
+        letterSpacing: '0.04em',
       }}>
         <span>0%</span>
         {failure != null && (
-          <span style={{ fontSize: 11, opacity: 0.7 }}>
-            risque <strong style={{ fontWeight: 500 }}>{failure}%</strong>
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+            risque <strong style={{ fontWeight: 700, color: 'var(--ink-soft)' }}>{failure}%</strong>
           </span>
         )}
         <span>100%</span>

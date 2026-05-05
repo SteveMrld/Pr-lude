@@ -15,15 +15,18 @@ type Props = {
 };
 
 // Couleur du radar en fonction du verdict global. Codes couleur sobres editoriaux,
-// pas de neon : encre fonce pour 'passer', gris pour 'conditionnel', rouge sombre
-// pour 'refuser'. Reste fidele a la palette Idinvest factsheet.
+// Recharts ne resout pas les CSS variables sur strokes/fills, il faut donner
+// des hex. On reprend les valeurs des tokens du design system (en sync avec
+// app/globals.css) :
+//   ink (#0f172a) pour neutre, vert-foret (#15803d) pour passer,
+//   warn (#b91c1c) pour refuser, ocre-brule (#b45309) pour condition.
 function colorFromVerdict(verdict?: string): string {
-  if (!verdict) return '#1a1a1a';
+  if (!verdict) return '#0f172a';
   const v = verdict.toLowerCase();
-  if (v.includes('passer') || v.includes('aller') || v.includes('go')) return '#1a4d2e';
-  if (v.includes('refuser') || v.includes('reject') || v.includes('no-go')) return '#7a1f1f';
-  if (v.includes('condition') || v.includes('hold')) return '#7a5c1f';
-  return '#1a1a1a';
+  if (v.includes('passer') || v.includes('aller') || v.includes('go')) return '#15803d';
+  if (v.includes('refuser') || v.includes('reject') || v.includes('no-go')) return '#b91c1c';
+  if (v.includes('condition') || v.includes('hold')) return '#b45309';
+  return '#0f172a';
 }
 
 export default function RadarDimensions({ dimensions, verdict }: Props) {
@@ -44,15 +47,15 @@ export default function RadarDimensions({ dimensions, verdict }: Props) {
     <div style={{ width: '100%', height: 380 }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data} margin={{ top: 24, right: 32, bottom: 24, left: 32 }}>
-          <PolarGrid stroke="rgba(0,0,0,0.12)" />
+          <PolarGrid stroke="#e2e8f0" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fontSize: 11, fill: '#1a1a1a', fontFamily: 'var(--serif, Georgia, serif)' }}
+            tick={{ fontSize: 11, fill: '#0f172a', fontFamily: 'var(--serif, Georgia, serif)' }}
           />
           <PolarRadiusAxis
             angle={90}
             domain={[0, 100]}
-            tick={{ fontSize: 9, fill: 'rgba(0,0,0,0.4)' }}
+            tick={{ fontSize: 9, fill: '#94a3b8' }}
             tickCount={5}
             axisLine={false}
           />
@@ -61,8 +64,8 @@ export default function RadarDimensions({ dimensions, verdict }: Props) {
             dataKey="value"
             stroke={stroke}
             fill={stroke}
-            fillOpacity={0.18}
-            strokeWidth={1.5}
+            fillOpacity={0.16}
+            strokeWidth={1.75}
             isAnimationActive={true}
             animationDuration={600}
           />

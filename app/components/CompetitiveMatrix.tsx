@@ -51,12 +51,14 @@ export default function CompetitiveMatrix({ dimensions, players, differentiation
             {visibleDims.map((dim, i) => (
               <th key={i} style={{
                 padding: '0 2px 8px 2px',
-                fontWeight: 400,
+                fontWeight: 500,
                 fontSize: 10,
-                color: 'rgba(0,0,0,0.65)',
+                color: 'var(--muted)',
                 verticalAlign: 'bottom',
                 width: cellSize,
                 height: 110,
+                fontFamily: 'var(--sans)',
+                letterSpacing: '0.04em',
               }}>
                 <div style={{
                   writingMode: 'vertical-rl',
@@ -64,7 +66,6 @@ export default function CompetitiveMatrix({ dimensions, players, differentiation
                   whiteSpace: 'nowrap',
                   textAlign: 'left',
                   margin: '0 auto',
-                  letterSpacing: '0.02em',
                 }}>
                   {dim}
                 </div>
@@ -75,16 +76,17 @@ export default function CompetitiveMatrix({ dimensions, players, differentiation
         <tbody>
           {players.map((p, i) => (
             <tr key={i} style={{
-              borderTop: '1px solid rgba(0,0,0,0.08)',
-              background: p.isTargetCompany ? 'rgba(122,92,31,0.06)' : 'transparent',
+              borderTop: '1px solid var(--hairline-soft)',
+              background: p.isTargetCompany ? 'var(--ocre-brule-soft)' : 'transparent',
             }}>
               <td style={{
                 padding: '10px 12px 10px 0',
-                fontWeight: p.isTargetCompany ? 500 : 400,
+                fontWeight: p.isTargetCompany ? 700 : 500,
                 fontStyle: p.isTargetCompany ? 'italic' : 'normal',
-                color: p.isTargetCompany ? '#7a5c1f' : '#1a1a1a',
+                color: p.isTargetCompany ? 'var(--ocre-brule)' : 'var(--ink)',
                 whiteSpace: 'nowrap',
-                fontFamily: p.isTargetCompany ? 'var(--serif, Georgia, serif)' : 'inherit',
+                fontFamily: 'var(--serif)',
+                fontSize: 13.5,
               }}>
                 {p.name}
               </td>
@@ -97,8 +99,8 @@ export default function CompetitiveMatrix({ dimensions, players, differentiation
                       width: 12,
                       height: 12,
                       borderRadius: '50%',
-                      background: has ? (p.isTargetCompany ? '#7a5c1f' : '#1a4d2e') : 'transparent',
-                      border: has ? 'none' : '1px solid rgba(0,0,0,0.18)',
+                      background: has ? (p.isTargetCompany ? 'var(--ocre-brule)' : 'var(--vert-foret)') : 'transparent',
+                      border: has ? 'none' : '1px solid var(--hairline)',
                     }} />
                   </td>
                 );
@@ -112,9 +114,12 @@ export default function CompetitiveMatrix({ dimensions, players, differentiation
           marginTop: 14,
           fontSize: 11,
           letterSpacing: '0.04em',
-          color: 'rgba(0,0,0,0.6)',
+          color: 'var(--muted)',
+          fontFamily: 'var(--sans)',
+          textTransform: 'uppercase',
+          fontWeight: 600,
         }}>
-          Score de différenciation : <strong style={{ fontWeight: 500, color: '#1a1a1a' }}>{differentiationScore}/100</strong>
+          Score de différenciation : <strong style={{ fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--serif)', fontSize: 14, marginLeft: 4 }}>{differentiationScore}/100</strong>
         </div>
       )}
     </div>

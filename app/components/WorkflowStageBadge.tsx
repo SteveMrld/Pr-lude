@@ -27,12 +27,12 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  deposited: { bg: 'rgba(120,120,120,0.08)', fg: '#5a5a5a', border: 'rgba(120,120,120,0.3)' },
-  in_review: { bg: 'rgba(122,92,31,0.10)', fg: '#7a5c1f', border: 'rgba(122,92,31,0.35)' },
-  dd_field: { bg: 'rgba(31,90,122,0.10)', fg: '#1f5a7a', border: 'rgba(31,90,122,0.35)' },
-  ic_review: { bg: 'rgba(90,31,122,0.10)', fg: '#5a1f7a', border: 'rgba(90,31,122,0.35)' },
-  signed: { bg: 'rgba(31,122,60,0.12)', fg: '#1f7a3c', border: 'rgba(31,122,60,0.40)' },
-  declined: { bg: 'rgba(122,31,31,0.10)', fg: '#7a1f1f', border: 'rgba(122,31,31,0.35)' },
+  deposited: { bg: 'var(--hairline-soft)',     fg: 'var(--muted)',       border: 'var(--hairline)' },
+  in_review: { bg: 'var(--ocre-brule-soft)',   fg: 'var(--ocre-brule)',  border: 'var(--ocre-brule)' },
+  dd_field:  { bg: 'var(--accent-soft)',       fg: 'var(--accent)',      border: 'var(--accent)' },
+  ic_review: { bg: 'var(--violet-rare-soft)',  fg: 'var(--violet-rare)', border: 'var(--violet-rare)' },
+  signed:    { bg: 'var(--vert-foret-soft)',   fg: 'var(--vert-foret)',  border: 'var(--vert-foret)' },
+  declined:  { bg: 'var(--warn-soft)',         fg: 'var(--warn)',        border: 'var(--warn)' },
 };
 
 const STAGE_ORDER = ['deposited', 'in_review', 'dd_field', 'ic_review', 'signed', 'declined'];
@@ -163,20 +163,22 @@ export default function WorkflowStageBadge({ analysisId, authEnabled }: Props) {
         disabled={!canEdit || updating}
         title={canEdit ? 'Cliquez pour changer le stade' : 'Le changement de stade necessite un compte fonds'}
         style={{
-          padding: '6px 12px',
-          fontSize: 11,
-          letterSpacing: '0.08em',
+          padding: '6px 14px',
+          fontSize: 10.5,
+          letterSpacing: '0.10em',
           textTransform: 'uppercase',
-          fontWeight: 500,
+          fontWeight: 600,
           background: colors.bg,
           color: colors.fg,
           border: `1px solid ${colors.border}`,
+          borderRadius: 999,
           cursor: canEdit ? 'pointer' : 'default',
-          fontFamily: 'inherit',
+          fontFamily: 'var(--sans)',
           display: 'inline-flex',
           alignItems: 'center',
           gap: 8,
           opacity: updating ? 0.6 : 1,
+          transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <span style={{
@@ -278,9 +280,9 @@ export default function WorkflowStageBadge({ analysisId, authEnabled }: Props) {
             <div style={{
               padding: '8px 14px',
               fontSize: 11,
-              color: '#7a1f1f',
+              color: 'var(--warn)',
               borderTop: '1px solid var(--hairline)',
-              background: 'rgba(122,31,31,0.05)',
+              background: 'var(--warn-soft)',
             }}>
               {error}
             </div>
