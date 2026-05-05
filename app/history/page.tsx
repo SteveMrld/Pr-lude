@@ -57,12 +57,12 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  deposited: { bg: 'rgba(120,120,120,0.08)', fg: '#5a5a5a', border: 'rgba(120,120,120,0.3)' },
-  in_review: { bg: 'rgba(122,92,31,0.10)', fg: '#7a5c1f', border: 'rgba(122,92,31,0.35)' },
-  dd_field: { bg: 'rgba(31,90,122,0.10)', fg: '#1f5a7a', border: 'rgba(31,90,122,0.35)' },
-  ic_review: { bg: 'rgba(90,31,122,0.10)', fg: '#5a1f7a', border: 'rgba(90,31,122,0.35)' },
-  signed: { bg: 'rgba(31,122,60,0.12)', fg: '#1f7a3c', border: 'rgba(31,122,60,0.40)' },
-  declined: { bg: 'rgba(122,31,31,0.10)', fg: '#7a1f1f', border: 'rgba(122,31,31,0.35)' },
+  deposited: { bg: 'var(--hairline-soft)',     fg: 'var(--muted)',       border: 'var(--hairline)' },
+  in_review: { bg: 'var(--ocre-brule-soft)',   fg: 'var(--ocre-brule)',  border: 'var(--ocre-brule)' },
+  dd_field:  { bg: 'var(--accent-soft)',       fg: 'var(--accent)',      border: 'var(--accent)' },
+  ic_review: { bg: 'var(--violet-rare-soft)',  fg: 'var(--violet-rare)', border: 'var(--violet-rare)' },
+  signed:    { bg: 'var(--vert-foret-soft)',   fg: 'var(--vert-foret)',  border: 'var(--vert-foret)' },
+  declined:  { bg: 'var(--warn-soft)',         fg: 'var(--warn)',        border: 'var(--warn)' },
 };
 
 function formatRelative(iso: string): string {
@@ -172,38 +172,80 @@ export default function HistoryPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{
-            fontSize: 9,
-            letterSpacing: '0.14em',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: 11,
+            letterSpacing: '0.16em',
             textTransform: 'uppercase',
             color: 'var(--muted)',
-            marginBottom: 6,
-            fontWeight: 500,
+            marginBottom: 18,
+            fontWeight: 600,
+            fontFamily: 'var(--sans)',
           }}>
-            Vue de fonds
+            <span style={{
+              width: 6, height: 6, background: 'var(--accent)', borderRadius: '50%', display: 'inline-block',
+            }} />
+            <span>Vue de fonds · Historique</span>
           </div>
-          <h1 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 500, margin: 0, letterSpacing: '-0.01em' }}>
+          <h1 style={{
+            fontFamily: 'var(--serif)',
+            fontSize: 'clamp(32px, 4.5vw, 44px)',
+            fontWeight: 700,
+            margin: 0,
+            letterSpacing: '-0.022em',
+            lineHeight: 1.05,
+            color: 'var(--ink)',
+          }}>
             Historique des analyses
           </h1>
         </div>
-        <Link href="/" style={{
-          fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase',
-          color: 'var(--ink)', textDecoration: 'none',
-          padding: '8px 16px', border: '1px solid var(--ink)',
-        }}>
+        <Link
+          href="/"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.10em',
+            textTransform: 'uppercase',
+            color: 'var(--paper)',
+            background: 'var(--ink)',
+            textDecoration: 'none',
+            padding: '12px 22px',
+            borderRadius: 8,
+            border: '1px solid var(--ink)',
+            transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+            fontFamily: 'var(--sans)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--accent)';
+            e.currentTarget.style.borderColor = 'var(--accent)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(30, 58, 138, 0.20)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--ink)';
+            e.currentTarget.style.borderColor = 'var(--ink)';
+            e.currentTarget.style.transform = 'none';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
           Nouvelle analyse →
         </Link>
       </div>
 
       {stats && stats.total > 0 && (
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: 12, marginBottom: 16,
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 14, marginBottom: 24,
         }}>
           <StatBox label="Total" value={stats.total} />
-          <StatBox label="Investir" value={stats.byVerdict.investir || 0} accent="#2d4a2d" />
-          <StatBox label="Conditions" value={stats.byVerdict['investir-conditions'] || 0} accent="#5d4216" />
-          <StatBox label="Approfondir" value={stats.byVerdict.approfondir || 0} accent="#a8732e" />
-          <StatBox label="Refuser" value={stats.byVerdict.refuser || 0} accent="#8b2e1f" />
+          <StatBox label="Investir" value={stats.byVerdict.investir || 0} accent="var(--vert-foret)" />
+          <StatBox label="Conditions" value={stats.byVerdict['investir-conditions'] || 0} accent="var(--accent)" />
+          <StatBox label="Approfondir" value={stats.byVerdict.approfondir || 0} accent="var(--ocre-brule)" />
+          <StatBox label="Refuser" value={stats.byVerdict.refuser || 0} accent="var(--warn)" />
           {stats.avgGlobalScore != null && (
             <StatBox label="Score moyen" value={Math.round(stats.avgGlobalScore)} suffix="/100" />
           )}
@@ -238,24 +280,26 @@ export default function HistoryPage() {
                 key={stage}
                 onClick={() => setStageFilter(isActive ? '' : stage)}
                 style={{
-                  padding: '5px 11px',
-                  fontSize: 10,
-                  letterSpacing: '0.06em',
+                  padding: '7px 14px',
+                  fontSize: 10.5,
+                  letterSpacing: '0.10em',
                   textTransform: 'uppercase',
-                  fontWeight: 500,
+                  fontWeight: 600,
                   background: isActive ? colors.fg : colors.bg,
                   color: isActive ? 'var(--paper)' : colors.fg,
                   border: `1px solid ${colors.border}`,
+                  borderRadius: 999,
                   cursor: 'pointer',
-                  fontFamily: 'inherit',
+                  fontFamily: 'var(--sans)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
                   opacity: count === 0 && !isActive ? 0.4 : 1,
+                  transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
               >
                 {STAGE_LABELS[stage]}
-                <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.85 }}>{count}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, opacity: isActive ? 0.95 : 0.85 }}>{count}</span>
               </button>
             );
           })}
@@ -282,8 +326,11 @@ export default function HistoryPage() {
       )}
 
       <div style={{
-        display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap',
-        padding: 14, background: 'var(--surface)', border: '1px solid var(--hairline)',
+        display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap',
+        padding: 18,
+        background: 'var(--surface)',
+        border: '1px solid var(--hairline)',
+        borderRadius: 12,
       }}>
         <input
           type="text"
@@ -291,18 +338,33 @@ export default function HistoryPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
-            flex: '1 1 220px', padding: '8px 12px', fontSize: 13,
-            border: '1px solid var(--hairline)', background: 'var(--paper)',
-            color: 'var(--ink)', fontFamily: 'inherit',
+            flex: '1 1 220px',
+            padding: '10px 14px',
+            fontSize: 13.5,
+            border: '1px solid var(--hairline)',
+            background: 'var(--paper)',
+            color: 'var(--ink)',
+            fontFamily: 'var(--serif)',
+            borderRadius: 8,
+            outline: 'none',
+            transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
           }}
+          onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+          onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--hairline)'; }}
         />
         <select
           value={verdictFilter}
           onChange={(e) => setVerdictFilter(e.target.value)}
           style={{
-            padding: '8px 12px', fontSize: 13,
-            border: '1px solid var(--hairline)', background: 'var(--paper)',
-            color: 'var(--ink)', fontFamily: 'inherit',
+            padding: '10px 14px',
+            fontSize: 13.5,
+            border: '1px solid var(--hairline)',
+            background: 'var(--paper)',
+            color: 'var(--ink)',
+            fontFamily: 'var(--serif)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            outline: 'none',
           }}
         >
           <option value="">Tous verdicts</option>
@@ -314,18 +376,37 @@ export default function HistoryPage() {
       </div>
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', opacity: 0.6 }}>Chargement...</div>
+        <div style={{
+          padding: 60,
+          textAlign: 'center',
+          color: 'var(--muted)',
+          fontFamily: 'var(--serif)',
+          fontStyle: 'italic',
+        }}>Chargement...</div>
       ) : analyses.length === 0 ? (
         <div style={{
-          padding: 40, textAlign: 'center', background: 'var(--surface)',
-          border: '1px dashed var(--hairline)', fontSize: 14, opacity: 0.7,
+          padding: 60,
+          textAlign: 'center',
+          background: 'var(--surface)',
+          border: '2px dashed var(--hairline)',
+          borderRadius: 12,
+          fontSize: 15,
+          color: 'var(--muted)',
+          fontFamily: 'var(--serif)',
+          fontStyle: 'italic',
         }}>
           {searchQuery || verdictFilter || stageFilter
             ? 'Aucune analyse ne correspond aux filtres.'
             : 'Aucune analyse sauvegardee pour le moment. Lance une analyse depuis l accueil.'}
         </div>
       ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--hairline)' }}>
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--hairline)',
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        }}>
           {analyses.map((a, i) => (
             <AnalysisRow
               key={a.id}
@@ -349,19 +430,44 @@ function StatBox({ label, value, suffix, accent }: {
 }) {
   return (
     <div style={{
-      padding: 12, background: 'var(--surface)', border: '1px solid var(--hairline)',
-    }}>
+      padding: '20px 22px 18px',
+      background: 'var(--surface)',
+      border: '1px solid var(--hairline)',
+      borderRadius: 12,
+      transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.borderColor = 'var(--muted-soft)';
+      e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 23, 42, 0.05)';
+      e.currentTarget.style.transform = 'translateY(-2px)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.borderColor = 'var(--hairline)';
+      e.currentTarget.style.boxShadow = 'none';
+      e.currentTarget.style.transform = 'none';
+    }}
+    >
       <div style={{
-        fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
-        color: 'var(--muted)', marginBottom: 4,
+        fontFamily: 'var(--sans)',
+        fontSize: 10.5,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: 'var(--muted)',
+        marginBottom: 10,
+        fontWeight: 600,
       }}>
         {label}
       </div>
       <div style={{
-        fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500,
-        color: accent || 'var(--ink)',
+        fontFamily: 'var(--serif)',
+        fontSize: 32,
+        fontWeight: 700,
+        lineHeight: 1,
+        letterSpacing: '-0.02em',
+        color: accent || 'var(--accent)',
+        fontFeatureSettings: '"lnum","tnum"',
       }}>
-        {value}{suffix}
+        {value}{suffix && <span style={{ fontSize: 16, opacity: 0.5, marginLeft: 2, fontWeight: 500 }}>{suffix}</span>}
       </div>
     </div>
   );
@@ -376,37 +482,47 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
   const date = new Date(analysis.createdAt);
   const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const verdictColors: Record<string, { bg: string; fg: string }> = {
-    investir: { bg: '#cfe5cf', fg: '#2d4a2d' },
-    'investir-conditions': { bg: '#f3e3c8', fg: '#5d4216' },
-    approfondir: { bg: '#f3e3c8', fg: '#a8732e' },
-    refuser: { bg: '#f4dccf', fg: '#8b2e1f' },
+  const verdictColors: Record<string, { bg: string; fg: string; border: string }> = {
+    investir:               { bg: 'var(--vert-foret-soft)',  fg: 'var(--vert-foret)',  border: 'var(--vert-foret)' },
+    'investir-conditions':  { bg: 'var(--accent-soft)',      fg: 'var(--accent)',      border: 'var(--accent)' },
+    approfondir:            { bg: 'var(--ocre-brule-soft)',  fg: 'var(--ocre-brule)',  border: 'var(--ocre-brule)' },
+    refuser:                { bg: 'var(--warn-soft)',        fg: 'var(--warn)',        border: 'var(--warn)' },
   };
-  const verdictStyle = verdictColors[analysis.verdict] || { bg: '#e8e3d6', fg: '#555049' };
+  const verdictStyle = verdictColors[analysis.verdict] || { bg: 'var(--hairline-soft)', fg: 'var(--muted)', border: 'var(--hairline)' };
 
   const stage = analysis.workflowStage || 'in_review';
 
   return (
-    <div style={{
-      padding: '16px 18px', borderBottom: isLast ? 'none' : '1px solid var(--hairline)',
-      display: 'grid', gridTemplateColumns: '2fr 1fr auto 1fr auto', gap: 14,
-      alignItems: 'center',
-    }}>
+    <div
+      style={{
+        padding: '18px 22px',
+        borderBottom: isLast ? 'none' : '1px solid var(--hairline-soft)',
+        display: 'grid',
+        gridTemplateColumns: '2fr 1fr auto 1fr auto',
+        gap: 14,
+        alignItems: 'center',
+        transition: 'background 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-accent)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+    >
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500 }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 16.5, fontWeight: 700, letterSpacing: '-0.005em', color: 'var(--ink)' }}>
             {analysis.companyName}
           </div>
           {analysis.versionsCount > 1 && (
             <span style={{
-              fontSize: 9,
-              letterSpacing: '0.06em',
+              fontFamily: 'var(--sans)',
+              fontSize: 9.5,
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              padding: '2px 6px',
-              background: 'rgba(0,0,0,0.04)',
+              padding: '3px 8px',
+              background: 'var(--hairline-soft)',
               color: 'var(--muted)',
               border: '1px solid var(--hairline)',
-              fontWeight: 500,
+              borderRadius: 999,
+              fontWeight: 600,
             }}>
               v{analysis.versionsCount}
             </span>
@@ -415,32 +531,41 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
             <span
               title={`${analysis.openCommentsCount} commentaire${analysis.openCommentsCount > 1 ? 's' : ''} non resolu${analysis.openCommentsCount > 1 ? 's' : ''}`}
               style={{
-                fontSize: 9,
+                fontSize: 9.5,
                 letterSpacing: '0.06em',
-                padding: '2px 6px',
+                padding: '3px 8px',
                 background: 'var(--ocre-brule-soft)',
                 color: 'var(--ocre-brule)',
                 border: '1px solid var(--ocre-brule)',
                 borderRadius: 999,
-                fontWeight: 500,
+                fontWeight: 700,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 3,
+                fontFamily: 'var(--sans)',
               }}
             >
               ✎ {analysis.openCommentsCount}
             </span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+        <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--sans)', letterSpacing: '0.02em' }}>
           {[analysis.sector, analysis.country, analysis.yearFounded].filter(Boolean).join(' · ')}
         </div>
       </div>
       <div>
         <span style={{
-          padding: '4px 10px', fontSize: 10, letterSpacing: '0.08em',
-          textTransform: 'uppercase', fontWeight: 600,
-          background: verdictStyle.bg, color: verdictStyle.fg,
+          padding: '5px 12px',
+          fontSize: 10,
+          letterSpacing: '0.10em',
+          textTransform: 'uppercase',
+          fontWeight: 700,
+          background: verdictStyle.bg,
+          color: verdictStyle.fg,
+          border: `1px solid ${verdictStyle.border}`,
+          borderRadius: 999,
+          fontFamily: 'var(--sans)',
+          display: 'inline-block',
         }}>
           {analysis.verdict}
         </span>
@@ -463,35 +588,79 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
           </div>
         )}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'var(--sans)' }}>
         {analysis.globalScore != null && (
-          <div>Score : <strong style={{ color: 'var(--ink)' }}>{Math.round(analysis.globalScore)}/100</strong></div>
-        )}
-        {analysis.blindspotScore != null && (
-          <div style={{ fontSize: 11, opacity: 0.8 }}>
-            Aveuglement : {Math.round(analysis.blindspotScore)}
+          <div style={{ fontFamily: 'var(--sans)' }}>
+            Score : <strong style={{ color: 'var(--accent)', fontWeight: 700, fontFamily: 'var(--serif)', fontSize: 14 }}>{Math.round(analysis.globalScore)}/100</strong>
           </div>
         )}
-        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>{dateStr}</div>
+        {analysis.blindspotScore != null && (
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+            Aveuglement : <strong style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>{Math.round(analysis.blindspotScore)}</strong>
+          </div>
+        )}
+        <div style={{
+          fontSize: 10.5,
+          color: 'var(--muted-soft)',
+          marginTop: 4,
+          letterSpacing: '0.04em',
+          fontFamily: 'var(--sans)',
+        }}>{dateStr}</div>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
         <Link
           href={`/?analysis=${analysis.id}`}
           style={{
-            padding: '6px 10px', fontSize: 11, letterSpacing: '0.06em',
-            textTransform: 'uppercase', color: 'var(--ink)',
-            border: '1px solid var(--ink)', textDecoration: 'none',
+            padding: '7px 14px',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.10em',
+            textTransform: 'uppercase',
+            color: 'var(--ink)',
+            border: '1px solid var(--hairline)',
+            background: 'var(--surface)',
+            textDecoration: 'none',
+            borderRadius: 8,
+            fontFamily: 'var(--sans)',
+            transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--accent)';
+            e.currentTarget.style.color = 'var(--paper)';
+            e.currentTarget.style.borderColor = 'var(--accent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--surface)';
+            e.currentTarget.style.color = 'var(--ink)';
+            e.currentTarget.style.borderColor = 'var(--hairline)';
           }}
         >
           Ouvrir
         </Link>
         <button
           onClick={onDelete}
+          aria-label="Supprimer l analyse"
           style={{
-            padding: '6px 10px', fontSize: 11, letterSpacing: '0.06em',
-            textTransform: 'uppercase', color: 'var(--rouge-anglais, #7a1f1f)',
-            border: '1px solid var(--hairline)', background: 'transparent',
-            cursor: 'pointer', fontFamily: 'inherit',
+            padding: '7px 11px',
+            fontSize: 14,
+            color: 'var(--muted)',
+            border: '1px solid var(--hairline)',
+            background: 'var(--surface)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            borderRadius: 8,
+            lineHeight: 1,
+            transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--warn-soft)';
+            e.currentTarget.style.color = 'var(--warn)';
+            e.currentTarget.style.borderColor = 'var(--warn)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--surface)';
+            e.currentTarget.style.color = 'var(--muted)';
+            e.currentTarget.style.borderColor = 'var(--hairline)';
           }}
         >
           ×
