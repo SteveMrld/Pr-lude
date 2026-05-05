@@ -2,57 +2,39 @@
 // PORTFOLIO STATS STORE
 // ------------------------------------------------------------
 // Agrege les stats de niveau fonds pour le dashboard portefeuille.
-// S appuie sur analyses + analyses_workflow_status + analyses_workflow_history
-// pour calculer :
-//   - velocity   : nombre de dossiers analyses par mois (12 derniers mois)
-//   - byStage    : repartition courante des dossiers par stade workflow
-//   - byVerdict  : repartition par verdict final
-//   - bySector   : repartition par sous-secteur (top 10)
-//   - byCountry  : repartition par pays (top 10)
-//   - stageDurations : duree moyenne en jours passee dans chaque stade
-//   - conversion : taux de conversion entre stades successifs
+// S appuie sur listAnalyses() existant (qui marche dans /history)
+// pour recuperer les dossiers de l user courant. Pas de duplication
+// de la logique de filtrage par user_id ou organization_id.
 //
-// Toute requete echouee est loggee mais ne bloque pas le rendu : la
-// page renvoie ce qu elle a pu calculer et marque le reste comme
-// indisponible. Pas de fallback magique a base de donnees fictives :
-// si le fonds n a pas encore de dossiers, le dashboard l affiche
-// honnetement.
+// Pour la duree par stade et la conversion entre stades, on attaque
+// directement la table analyses_workflow_history en lecture admin.
+// Tolerant aux erreurs : si la table n existe pas ou est vide, on
+// renvoie just les stats agregees sans ces dimensions.
 // ============================================================
 
 import 'server-only';
-import { isPersistenceEnabled } from './analysis-store';
-import { getCurrentOrganization, getCurrentUser } from './auth';
+import { listAnalyses } from './analysis-store';
 import { createClient } from '@supabase/supabase-js';
 
 function getAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    throw new Error('[portfolio-stats] missing Supabase env');
+    return null;
   }
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
 export interface PortfolioStats {
   total: number;
-  // Velocite : nombre d analyses par mois sur les 12 derniers mois
   velocity: Array<{ month: string; count: number }>;
-  // Repartition stades du portefeuille a date
   byStage: Record<string, number>;
-  // Repartition verdicts
   byVerdict: Record<string, number>;
-  // Top secteurs
   bySector: Array<{ sector: string; count: number }>;
-  // Top pays
   byCountry: Array<{ country: string; count: number }>;
-  // Duree moyenne en jours passee dans chaque stade. Calculee depuis
-  // l historique workflow : difference entre 2 transitions consecutives.
   stageDurations: Record<string, { avgDays: number | null; samples: number }>;
-  // Taux de conversion entre stades successifs (ex: deposited -> in_review)
   conversion: Array<{ from: string; to: string; rate: number; total: number }>;
-  // Date relative de derniere activite
   lastAnalysisAt: string | null;
-  // Score moyen et probabilite de succes moyenne
   avgGlobalScore: number | null;
   avgBlindspotScore: number | null;
 }
@@ -60,85 +42,40 @@ export interface PortfolioStats {
 const STAGE_ORDER = ['deposited', 'in_review', 'dd_field', 'ic_review', 'signed', 'declined'];
 
 /**
- * Calcule toutes les stats portefeuille pour l organisation courante.
- * Renvoie null si pas d auth ou pas d org. Renvoie un objet avec total=0
- * si l org existe mais n a pas encore d analyses.
+ * Calcule toutes les stats portefeuille pour l user courant.
+ * Renvoie null si pas d auth ou pas de persistance.
+ * Renvoie un PortfolioStats avec total=0 si l user n a pas encore
+ * d analyse en base.
  */
 export async function getPortfolioStats(): Promise<PortfolioStats | null> {
-  if (!isPersistenceEnabled()) return null;
+  // listAnalyses gere l auth + l isPersistenceEnabled :
+  //  - si auth pas active : utilise PRELUDE_SOLO_USER_ID
+  //  - si auth active mais pas de session : retourne []
+  //  - si persistance pas active : retourne []
+  const analyses = await listAnalyses({ limit: 500 });
 
-  const user = await getCurrentUser();
-  if (!user) return null;
-  const org = await getCurrentOrganization(user.id);
-  if (!org) return null;
-
-  const supabase = getAdmin();
-  const orgId = org.id;
-
-  // Recupere les user_ids de tous les membres de l org. Les analyses
-  // sont rangees par user_id (pas organization_id), donc on doit
-  // d abord resoudre la liste des membres puis filtrer.
-  const { data: memberRows } = await supabase
-    .from('organization_members')
-    .select('user_id')
-    .eq('organization_id', orgId);
-
-  const memberIds = (memberRows || []).map((m: any) => m.user_id);
-  // Inclure aussi le user courant au cas ou il ne serait pas encore
-  // membre formellement (defensif). Le doublon ne gene pas le filtre
-  // .in() de Supabase.
-  if (!memberIds.includes(user.id)) memberIds.push(user.id);
-
-  if (memberIds.length === 0) {
+  if (analyses.length === 0) {
     return emptyStats();
   }
 
-  // Charge l ensemble des analyses de l organisation. Limite a 500 pour
-  // ne pas exploser sur les fonds avec beaucoup d historique. Avec 500
-  // dossiers, l agregation in-memory reste rapide (qq ms).
-  const { data: analysesRows, error: analysesErr } = await supabase
-    .from('analyses')
-    .select('id, company_name, sector, country, verdict, global_score, blindspot_score, success_probability, analyzed_at, created_at')
-    .in('user_id', memberIds)
-    .order('analyzed_at', { ascending: false, nullsFirst: false })
-    .limit(500);
-
-  if (analysesErr) {
-    console.error('[portfolio-stats] analyses fetch error', analysesErr);
-    return emptyStats();
-  }
-
-  const analyses = analysesRows || [];
   const total = analyses.length;
+  const analysisIds = analyses.map((a) => a.id);
 
-  if (total === 0) {
-    return emptyStats();
+  // Historique workflow (best effort) pour durees et conversion.
+  let history: Array<{ analysis_id: string; from_stage: string | null; to_stage: string; changed_at: string }> = [];
+  const admin = getAdmin();
+  if (admin) {
+    try {
+      const { data } = await admin
+        .from('analyses_workflow_history')
+        .select('analysis_id, from_stage, to_stage, changed_at')
+        .in('analysis_id', analysisIds)
+        .order('changed_at', { ascending: true });
+      history = data || [];
+    } catch {
+      history = [];
+    }
   }
-
-  const analysisIds = analyses.map((a: any) => a.id);
-
-  // Charge les stages courants en parallele de l historique workflow.
-  // Tolere une erreur sur l une ou l autre des tables : on degrade
-  // gracieusement plutot que de planter le dashboard.
-  const [stageRes, historyRes] = await Promise.all([
-    supabase
-      .from('analyses_workflow_status')
-      .select('analysis_id, stage, updated_at')
-      .in('analysis_id', analysisIds)
-      .then((r) => r, () => ({ data: [] as any[], error: null })),
-    supabase
-      .from('analyses_workflow_history')
-      .select('analysis_id, from_stage, to_stage, changed_at')
-      .in('analysis_id', analysisIds)
-      .order('changed_at', { ascending: true })
-      .then((r) => r, () => ({ data: [] as any[], error: null })),
-  ]);
-
-  const stagesByAnalysisId: Record<string, string> = {};
-  (stageRes.data || []).forEach((row: any) => {
-    stagesByAnalysisId[row.analysis_id] = row.stage;
-  });
-  const history: Array<any> = historyRes.data || [];
 
   // ---------------------- VELOCITY (12 derniers mois)
   const velocity: Array<{ month: string; count: number }> = [];
@@ -148,8 +85,8 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     velocity.push({ month: key, count: 0 });
   }
-  analyses.forEach((a: any) => {
-    const at = a.analyzed_at || a.created_at;
+  analyses.forEach((a) => {
+    const at = a.createdAt;
     if (!at) return;
     const d = new Date(at);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -157,17 +94,17 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     if (bucket) bucket.count++;
   });
 
-  // ---------------------- BY STAGE (etat actuel du portefeuille)
+  // ---------------------- BY STAGE (le workflowStage est joint par listAnalyses)
   const byStage: Record<string, number> = {};
   STAGE_ORDER.forEach((s) => { byStage[s] = 0; });
-  analysisIds.forEach((id) => {
-    const stage = stagesByAnalysisId[id] || 'deposited';
+  analyses.forEach((a) => {
+    const stage = a.workflowStage || 'deposited';
     byStage[stage] = (byStage[stage] || 0) + 1;
   });
 
   // ---------------------- BY VERDICT
   const byVerdict: Record<string, number> = {};
-  analyses.forEach((a: any) => {
+  analyses.forEach((a) => {
     const v = (a.verdict || '').toLowerCase();
     let key = 'autre';
     if (v.includes('investir') && v.includes('condition')) key = 'investir-conditions';
@@ -177,9 +114,9 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     byVerdict[key] = (byVerdict[key] || 0) + 1;
   });
 
-  // ---------------------- BY SECTOR (top 10)
+  // ---------------------- BY SECTOR
   const sectorMap: Record<string, number> = {};
-  analyses.forEach((a: any) => {
+  analyses.forEach((a) => {
     const s = (a.sector || '').trim();
     if (!s) return;
     sectorMap[s] = (sectorMap[s] || 0) + 1;
@@ -189,9 +126,9 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
-  // ---------------------- BY COUNTRY (top 10)
+  // ---------------------- BY COUNTRY
   const countryMap: Record<string, number> = {};
-  analyses.forEach((a: any) => {
+  analyses.forEach((a) => {
     const c = (a.country || '').trim();
     if (!c) return;
     countryMap[c] = (countryMap[c] || 0) + 1;
@@ -202,14 +139,10 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     .slice(0, 10);
 
   // ---------------------- DUREES PAR STAGE
-  // Pour chaque transition de stage, on calcule la duree passee dans
-  // l ancien stage (changed_at - precedent changed_at). On agrege par
-  // ancien stage et on fait la moyenne en jours.
   const stageDurations: Record<string, { avgDays: number | null; samples: number }> = {};
   STAGE_ORDER.forEach((s) => { stageDurations[s] = { avgDays: null, samples: 0 }; });
 
-  // Group history par analysis_id
-  const historyByAnalysis: Record<string, Array<any>> = {};
+  const historyByAnalysis: Record<string, Array<typeof history[0]>> = {};
   history.forEach((h) => {
     if (!historyByAnalysis[h.analysis_id]) historyByAnalysis[h.analysis_id] = [];
     historyByAnalysis[h.analysis_id].push(h);
@@ -217,11 +150,10 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
 
   const durationsByStage: Record<string, number[]> = {};
   Object.values(historyByAnalysis).forEach((rows) => {
-    // rows triees par changed_at asc deja (cf order ci-dessus)
     for (let i = 1; i < rows.length; i++) {
       const prev = rows[i - 1];
       const curr = rows[i];
-      const fromStage = prev.to_stage; // stage qu on quitte = to_stage de la transition precedente
+      const fromStage = prev.to_stage;
       const dt = (new Date(curr.changed_at).getTime() - new Date(prev.changed_at).getTime()) / (1000 * 60 * 60 * 24);
       if (dt < 0 || dt > 365) continue;
       if (!durationsByStage[fromStage]) durationsByStage[fromStage] = [];
@@ -236,13 +168,8 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
   });
 
   // ---------------------- CONVERSION ENTRE STAGES
-  // Pour chaque paire de stages successifs, on calcule combien d analyses
-  // sont passees du stage A au stage B sur le total qui sont passees par A.
-  const conversion: Array<{ from: string; to: string; rate: number; total: number }> = [];
   const reachedStage: Record<string, Set<string>> = {};
   STAGE_ORDER.forEach((s) => { reachedStage[s] = new Set(); });
-
-  // Le stage initial (deposited) est suppose atteint pour toute analyse
   analysisIds.forEach((id) => reachedStage['deposited'].add(id));
 
   Object.entries(historyByAnalysis).forEach(([analysisId, rows]) => {
@@ -251,39 +178,39 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
         reachedStage[row.to_stage].add(analysisId);
       }
     });
-    // Le stage courant est aussi atteint
-    const currentStage = stagesByAnalysisId[analysisId];
+  });
+  analyses.forEach((a) => {
+    const currentStage = a.workflowStage;
     if (currentStage && reachedStage[currentStage]) {
-      reachedStage[currentStage].add(analysisId);
+      reachedStage[currentStage].add(a.id);
     }
   });
 
-  // Conversions naturelles dans le pipeline d instruction
   const conversionPairs: Array<[string, string]> = [
     ['deposited', 'in_review'],
     ['in_review', 'dd_field'],
     ['dd_field', 'ic_review'],
     ['ic_review', 'signed'],
   ];
-  conversionPairs.forEach(([from, to]) => {
+  const conversion = conversionPairs.map(([from, to]) => {
     const fromCount = reachedStage[from].size;
     const toCount = reachedStage[to].size;
     const rate = fromCount > 0 ? Math.round((toCount / fromCount) * 100) : 0;
-    conversion.push({ from, to, rate, total: fromCount });
+    return { from, to, rate, total: fromCount };
   });
 
   // ---------------------- AVG SCORES
-  const validScores = analyses.map((a: any) => a.global_score).filter((v: any) => typeof v === 'number');
+  const validScores = analyses.map((a) => a.globalScore).filter((v): v is number => typeof v === 'number');
   const avgGlobalScore = validScores.length > 0
-    ? Math.round(validScores.reduce((a: number, b: number) => a + b, 0) / validScores.length)
+    ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
     : null;
 
-  const validBlindspots = analyses.map((a: any) => a.blindspot_score).filter((v: any) => typeof v === 'number');
+  const validBlindspots = analyses.map((a) => a.blindspotScore).filter((v): v is number => typeof v === 'number');
   const avgBlindspotScore = validBlindspots.length > 0
-    ? Math.round(validBlindspots.reduce((a: number, b: number) => a + b, 0) / validBlindspots.length)
+    ? Math.round(validBlindspots.reduce((a, b) => a + b, 0) / validBlindspots.length)
     : null;
 
-  const lastAnalysisAt = analyses[0]?.analyzed_at || analyses[0]?.created_at || null;
+  const lastAnalysisAt = analyses[0]?.createdAt || null;
 
   return {
     total,
