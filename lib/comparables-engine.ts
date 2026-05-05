@@ -200,6 +200,90 @@ function matchSector(target: string | null, ref: string): 'exact' | 'related' | 
 }
 
 /**
+ * Match sub-sector via overlap de mots-cles. Retourne 0-1.
+ * Ex : "Generative AI / LLM" vs "Foundation models" -> 0.6 (synonymes)
+ *      "Generative AI" vs "Computer vision" -> 0.0 (rien en commun)
+ *      "Foundation models" vs "Foundation models" -> 1.0 (exact)
+ */
+function matchSubSector(target: string | null, ref: string | null): number {
+  if (!target || !ref) return 0;
+  const t = target.toLowerCase().trim();
+  const r = ref.toLowerCase().trim();
+  if (t === r) return 1;
+
+  // Synonymes courants pour eviter que 'LLM' et 'foundation models'
+  // soient consideres comme orthogonaux alors qu ils designent la
+  // meme realite produit.
+  const SYNONYM_GROUPS: string[][] = [
+    ['llm', 'foundation', 'generative', 'language', 'gpt', 'transformer', 'frontier'],
+    ['data', 'analytics', 'mlops', 'lakehouse', 'platform', 'enterprise'],
+    ['vision', 'computer'],
+    ['payment', 'payments'],
+    ['neobank', 'banking', 'banque', 'bank'],
+    ['marketplace', 'place', 'plateforme'],
+    ['delivery', 'commerce', 'quick'],
+    ['streaming', 'music', 'video'],
+    ['cyber', 'security', 'endpoint', 'xdr', 'siem'],
+    ['mobility', 'ride', 'auto', 'vehicle'],
+    ['health', 'medical', 'medtech'],
+    ['gaming', 'game', 'mobile'],
+    ['defense', 'autonomous', 'military'],
+    ['chip', 'chips', 'semiconductor', 'semiconductors'],
+  ];
+
+  // Tokens significatifs (>2 chars, pas de mots vides)
+  const STOP = new Set(['and', 'the', 'for', 'des', 'les', 'avec', 'sur']);
+  const tokenize = (s: string) => s
+    .split(/[\s\/\-,&\.]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 2 && !STOP.has(w));
+
+  const tTokens = tokenize(t);
+  const rTokens = tokenize(r);
+  if (tTokens.length === 0 || rTokens.length === 0) return 0;
+
+  // Pour chaque token target, on cherche un match dans ref (direct ou via synonym)
+  let matches = 0;
+  for (const tok of tTokens) {
+    if (rTokens.includes(tok)) {
+      matches++;
+      continue;
+    }
+    // Match via synonymes
+    const groupOfT = SYNONYM_GROUPS.find((g) => g.some((s) => tok.includes(s) || s.includes(tok)));
+    if (groupOfT) {
+      const synonymHit = rTokens.some((rTok) =>
+        groupOfT.some((s) => rTok.includes(s) || s.includes(rTok))
+      );
+      if (synonymHit) matches += 0.7; // match synonymique pondere moins fort
+    }
+  }
+
+  const score = matches / Math.max(tTokens.length, rTokens.length);
+  return Math.min(1, score);
+}
+
+/**
+ * Match region : 1 si meme region, 0.5 si region voisine (Europe/UK,
+ * US/Canada, Asia/Israel), 0 sinon. Sert de petit boost de
+ * proximite culturelle/regulation.
+ */
+function matchRegion(target: string | null, ref: string | null): number {
+  if (!target || !ref) return 0;
+  const t = target.toLowerCase();
+  const r = ref.toLowerCase();
+  if (t === r) return 1;
+  // France, UK, Germany, etc. -> Europe
+  const isEurope = (s: string) => /europe|france|germany|uk|netherlands|sweden|spain|italy|belgium|finland|romania|lithuania/.test(s);
+  const isUS = (s: string) => /^us$|united states|usa|america/.test(s);
+  const isAsia = (s: string) => /asia|china|japan|korea|singapore/.test(s);
+  if (isEurope(t) && isEurope(r)) return 0.7;
+  if (isUS(t) && (r.includes('canada') || r.includes('northamerica'))) return 0.6;
+  if (isAsia(t) && r.includes('israel')) return 0.3;
+  return 0;
+}
+
+/**
  * Trouve les comparables historiques les plus proches d un dossier.
  * @param features feature vector du dossier en cours
  * @param topN nombre de comparables a renvoyer (defaut 5)
@@ -225,16 +309,30 @@ export async function findComparables(
     return null;
   }
 
+  // Determine la region effective du dossier pour le boost
+  // regional. On utilise le pays s il est dispo, sinon rien.
+  const dossierRegion = features.country || null;
+
   // Calcul similarite pour chaque ligne. V3 : la majorite des lignes
   // n ont pas de scores 6 dimensions. Strategie :
   //  - Si la ligne a des scores : matching numerique habituel
-  //  - Sinon : fallback sur le matching sectoriel uniquement
-  // Le boost data_quality intervient en post : High = 1.0, Medium = 0.85,
-  // Low = 0.65. C est un poids de confiance, pas un boost de similarite.
+  //  - Sinon : fallback sur match sectoriel + sub-sector + region
+  // Le boost data_quality intervient en post : High = 1.0, Medium = 0.92,
+  // Low = 0.78. C est un poids de confiance, pas un boost de similarite.
   const scored = rows.map((row: any) => {
     const sectorMatch = matchSector(features.sector, row.sector);
     // Bonus sectoriel : 30% de boost si exact, 15% si related
     const sectorBoost = sectorMatch === 'exact' ? 0.30 : sectorMatch === 'related' ? 0.15 : 0;
+
+    // Match sub-sector : critique pour discriminer entre boites du meme
+    // secteur (ex : foundation models vs computer vision).
+    const subSectorScore = matchSubSector(
+      features.subSector || null,
+      row.subsector || row.sub_sector || null,
+    );
+
+    // Match region : petit boost de proximite culturelle/regulation
+    const regionScore = matchRegion(dossierRegion, row.region || row.country || null);
 
     // Detecte si la ligne a des features reelles (V1) ou non (V3)
     const hasFeatureScores =
@@ -253,15 +351,21 @@ export async function findComparables(
         risk: row.risk_score || 50,
       });
       similarity = Math.max(0, Math.min(1, (1 - dist) + sectorBoost * (1 - dist)));
+      // Petit bonus sub-sector et region pour les V1 aussi
+      similarity += subSectorScore * 0.05;
+      similarity += regionScore * 0.03;
     } else {
       // Fallback V3 : pas de scores numeriques. La similarite vient
-      // exclusivement du match sectoriel. Base 50% si meme secteur,
-      // 35% si secteur voisin, 15% sinon. Nettement plus bas que les
-      // matches V1 avec scores : c est volontaire pour que les V1
-      // remontent quand ils existent.
-      if (sectorMatch === 'exact') similarity = 0.50;
-      else if (sectorMatch === 'related') similarity = 0.35;
-      else similarity = 0.15;
+      // d une combinaison de signaux qualitatifs :
+      //  - base sectorielle : 0.30 si meme secteur, 0.20 si voisin, 0.05 sinon
+      //  - boost sub-sector : jusqu a +0.30 (poids dominant si exact)
+      //  - boost region : jusqu a +0.10
+      let base: number;
+      if (sectorMatch === 'exact') base = 0.30;
+      else if (sectorMatch === 'related') base = 0.20;
+      else base = 0.05;
+
+      similarity = base + (subSectorScore * 0.30) + (regionScore * 0.10);
     }
 
     // Pondération data_quality : decote la similarite des lignes Low.
@@ -270,6 +374,7 @@ export async function findComparables(
       : row.data_quality === 'Low' ? 0.78
       : 0.85;
     similarity = similarity * qualityWeight;
+    similarity = Math.max(0, Math.min(1, similarity));
 
     const comparable: Comparable = {
       id: row.id,
