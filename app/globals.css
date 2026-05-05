@@ -734,11 +734,26 @@ ul, ol { list-style: none; }
   border-color: var(--accent);
 }
 .upload-icon {
-  font-size: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: var(--surface);
   color: var(--muted);
-  margin-bottom: 18px;
+  margin-bottom: 22px;
   position: relative;
   z-index: 1;
+  transition: all var(--motion-base);
+}
+.upload-box:hover .upload-icon, .upload-box.dragging .upload-icon {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--paper);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-blue);
 }
 .upload-label {
   font-family: var(--serif);

@@ -28,6 +28,7 @@ import {
   PictoSpiral,
   ENGINE_PICTOS,
 } from './components/Pictos';
+import { Picto } from './components/Picto';
 
 const ENGINES = [
   { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck' },
@@ -915,8 +916,10 @@ export default function HomeClient({
                   onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={(e) => { e.preventDefault(); setDragging(false); handleFilesSelect(e.dataTransfer.files); }}>
-                  <div className="upload-icon">▤</div>
-                  <div className="upload-label">Déposer un dossier d'investissement</div>
+                  <div className="upload-icon" aria-hidden="true">
+                    <Picto name="upload" size={36} strokeWidth={1.5} />
+                  </div>
+                  <div className="upload-label">Déposer un dossier d&apos;investissement</div>
                   <div className="upload-hint">PDF (deck), XLSX/CSV (BP), 32 Mo max par fichier · Cliquer ou glisser-déposer · Plusieurs fichiers acceptés</div>
                   <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
                     className="upload-input"
