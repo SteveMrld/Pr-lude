@@ -101,53 +101,18 @@ function formatMonth(key: string): string {
 
 export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
   // Cas null (auth ou erreur Supabase)
-  if (!stats) {
-    return (
-      <main className="portfolio">
-        <div className="portfolio-empty">
-          <h1>Stats indisponibles</h1>
-          <p>Le portefeuille n&apos;a pas pu etre charge. Reessayer plus tard.</p>
-          <Link href="/" className="btn">Retour</Link>
-        </div>
-      </main>
-    );
-  }
-
-  // Cas vide : pas encore de dossiers instruits
-  if (stats.total === 0) {
-    return (
-      <main className="portfolio">
-        <header className="pf-header">
-          <Link href="/" className="pf-back">← Retour</Link>
-          <div className="pf-header-id">
-            <div className="pf-org">{orgName}</div>
-            <div className="pf-user">{userEmail}</div>
-          </div>
-        </header>
-        <section className="pf-intro">
-          <div className="pf-kicker">
-            <span className="pf-kicker-dot"></span>
-            <span>Portefeuille · Vue agrégée</span>
-          </div>
-          <h1 className="pf-title">
-            Aucun dossier <em>instruit pour l&apos;instant.</em>
-          </h1>
-          <p className="pf-lede">
-            Le tableau de bord se remplit automatiquement après votre première analyse.
-            Déposez un pitch deck pour démarrer.
-          </p>
-          <Link href="/" className="btn btn-primary">
-            <span>Lancer une instruction</span>
-            <Picto name="arrow-right" size={14} />
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  // Cas vide : pas encore de dossiers
+  // Cas normal : on affiche tout
+  // Tous les cas partagent le meme layout/styles, on conditionne juste
+  // le contenu interne pour que le <style jsx> du return final
+  // s applique systematiquement.
+  const isError = !stats;
+  const isEmpty = stats !== null && stats.total === 0;
+  const hasData = stats !== null && stats.total > 0;
 
   const verdicts = ['investir', 'investir-conditions', 'approfondir', 'refuser'] as const;
-  const totalVelocity = stats.velocity.reduce((s, v) => s + v.count, 0);
-  const avgVelocity = stats.velocity.length > 0
+  const totalVelocity = hasData ? stats.velocity.reduce((s, v) => s + v.count, 0) : 0;
+  const avgVelocity = hasData && stats.velocity.length > 0
     ? Math.round((totalVelocity / stats.velocity.length) * 10) / 10
     : 0;
 
@@ -161,27 +126,59 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         </div>
       </header>
 
-      {/* Intro editoriale */}
+      {/* Intro editoriale - conditionnel selon l etat */}
       <section className="pf-intro">
         <div className="pf-kicker">
           <span className="pf-kicker-dot"></span>
-          <span>Portefeuille · Vue agrégée</span>
+          <span>{isError ? 'Portefeuille' : 'Portefeuille · Vue agrégée'}</span>
         </div>
-        <h1 className="pf-title">
-          {stats.total} dossier{stats.total > 1 ? 's' : ''} instruit{stats.total > 1 ? 's' : ''},
-          <br />
-          <em>une trajectoire de fonds.</em>
-        </h1>
-        <p className="pf-lede">
-          Vue consolidée de l&apos;activité de l&apos;organisation. Vélocité, conversion, répartition
-          par stade et par secteur, durées moyennes d&apos;instruction.
-        </p>
+        {isError && (
+          <>
+            <h1 className="pf-title">
+              Stats <em>indisponibles.</em>
+            </h1>
+            <p className="pf-lede">
+              Le portefeuille n&apos;a pas pu etre chargé. Reessayer plus tard.
+            </p>
+          </>
+        )}
+        {isEmpty && (
+          <>
+            <h1 className="pf-title">
+              Aucun dossier <em>instruit pour l&apos;instant.</em>
+            </h1>
+            <p className="pf-lede">
+              Le tableau de bord se remplit automatiquement après votre première analyse.
+              Déposez un pitch deck pour démarrer.
+            </p>
+            <Link href="/" className="pf-cta-primary">
+              <span>Lancer une instruction</span>
+              <Picto name="arrow-right" size={14} />
+            </Link>
+          </>
+        )}
+        {hasData && (
+          <>
+            <h1 className="pf-title">
+              {stats!.total} dossier{stats!.total > 1 ? 's' : ''} instruit{stats!.total > 1 ? 's' : ''},
+              <br />
+              <em>une trajectoire de fonds.</em>
+            </h1>
+            <p className="pf-lede">
+              Vue consolidée de l&apos;activité de l&apos;organisation. Vélocité, conversion, répartition
+              par stade et par secteur, durées moyennes d&apos;instruction.
+            </p>
+          </>
+        )}
       </section>
 
+      {/* Contenu principal : visible uniquement si on a des donnees */}
+      {hasData && (
+        <>
       {/* KPIs */}
       <section className="pf-kpis">
         <div className="pf-kpi">
-          <div className="pf-kpi-num pf-kpi-num-blue">{stats.total}</div>
+          <div className="pf-kpi-num pf-kpi-num-blue">{stats!.total}</div>
           <div className="pf-kpi-label">Dossiers instruits</div>
           <div className="pf-kpi-sub">Sur la période</div>
         </div>
@@ -191,12 +188,12 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           <div className="pf-kpi-sub">Moyenne sur 12 mois</div>
         </div>
         <div className="pf-kpi">
-          <div className="pf-kpi-num pf-kpi-num-amber">{stats.avgGlobalScore ?? '—'}{stats.avgGlobalScore != null && <span className="pf-kpi-unit">/100</span>}</div>
+          <div className="pf-kpi-num pf-kpi-num-amber">{stats!.avgGlobalScore ?? '—'}{stats!.avgGlobalScore != null && <span className="pf-kpi-unit">/100</span>}</div>
           <div className="pf-kpi-label">Score moyen</div>
           <div className="pf-kpi-sub">Conviction du fonds</div>
         </div>
         <div className="pf-kpi">
-          <div className="pf-kpi-num pf-kpi-num-violet">{stats.avgBlindspotScore ?? '—'}{stats.avgBlindspotScore != null && <span className="pf-kpi-unit">/100</span>}</div>
+          <div className="pf-kpi-num pf-kpi-num-violet">{stats!.avgBlindspotScore ?? '—'}{stats!.avgBlindspotScore != null && <span className="pf-kpi-unit">/100</span>}</div>
           <div className="pf-kpi-label">Risque biais</div>
           <div className="pf-kpi-sub">Aveuglement collectif moyen</div>
         </div>
@@ -217,7 +214,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         </div>
         <div className="pf-chart">
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={stats.velocity} margin={{ top: 10, right: 16, bottom: 0, left: -16 }}>
+            <LineChart data={stats!.velocity} margin={{ top: 10, right: 16, bottom: 0, left: -16 }}>
               <CartesianGrid stroke="#f1f5f9" strokeDasharray="2 4" vertical={false} />
               <XAxis
                 dataKey="month"
@@ -269,9 +266,9 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           </p>
         </div>
         <div className="pf-funnel">
-          {stats.conversion.map((c, i) => {
+          {stats!.conversion.map((c, i) => {
             const widthPct = c.total > 0
-              ? Math.max(20, (stats.conversion[i + 1]?.total ?? c.total * c.rate / 100) / stats.conversion[0].total * 100)
+              ? Math.max(20, (stats!.conversion[i + 1]?.total ?? c.total * c.rate / 100) / stats!.conversion[0].total * 100)
               : 100;
             const fromColor = STAGE_COLORS[c.from] || '#94a3b8';
             const toColor = STAGE_COLORS[c.to] || '#94a3b8';
@@ -287,7 +284,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
                     <span className="pf-funnel-rate-label">conversion</span>
                   </div>
                 </div>
-                {i === stats.conversion.length - 1 && (
+                {i === stats!.conversion.length - 1 && (
                   <div className="pf-funnel-stage" style={{ background: toColor, opacity: 0.85 }}>
                     <div className="pf-funnel-stage-label">{STAGE_LABELS[c.to]}</div>
                     <div className="pf-funnel-stage-num">{Math.round(c.total * c.rate / 100)}</div>
@@ -313,8 +310,8 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           </p>
         </div>
         <div className="pf-stages">
-          {Object.entries(stats.byStage).map(([stage, count]) => {
-            const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
+          {Object.entries(stats!.byStage).map(([stage, count]) => {
+            const pct = stats!.total > 0 ? (count / stats!.total) * 100 : 0;
             return (
               <div className="pf-stage-row" key={stage}>
                 <div className="pf-stage-label">
@@ -349,8 +346,8 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         </div>
         <div className="pf-verdicts">
           {verdicts.map((v) => {
-            const count = stats.byVerdict[v] || 0;
-            const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+            const count = stats!.byVerdict[v] || 0;
+            const pct = stats!.total > 0 ? Math.round((count / stats!.total) * 100) : 0;
             return (
               <div className="pf-verdict" key={v} style={{ borderTopColor: VERDICT_COLORS[v] }}>
                 <div className="pf-verdict-num" style={{ color: VERDICT_COLORS[v] }}>
@@ -374,16 +371,16 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
             </div>
             <h2 className="pf-section-title">Top secteurs</h2>
           </div>
-          {stats.bySector.length === 0 ? (
+          {stats!.bySector.length === 0 ? (
             <p className="pf-empty">Aucun secteur renseigné.</p>
           ) : (
             <ul className="pf-list">
-              {stats.bySector.slice(0, 8).map((s) => (
+              {stats!.bySector.slice(0, 8).map((s) => (
                 <li key={s.sector} className="pf-list-row">
                   <span className="pf-list-label">{s.sector}</span>
                   <div className="pf-list-bar">
                     <div className="pf-list-bar-fill" style={{
-                      width: `${(s.count / stats.bySector[0].count) * 100}%`,
+                      width: `${(s.count / stats!.bySector[0].count) * 100}%`,
                     }} />
                   </div>
                   <span className="pf-list-count">{s.count}</span>
@@ -400,16 +397,16 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
             </div>
             <h2 className="pf-section-title">Top pays</h2>
           </div>
-          {stats.byCountry.length === 0 ? (
+          {stats!.byCountry.length === 0 ? (
             <p className="pf-empty">Aucun pays renseigné.</p>
           ) : (
             <ul className="pf-list">
-              {stats.byCountry.slice(0, 8).map((c) => (
+              {stats!.byCountry.slice(0, 8).map((c) => (
                 <li key={c.country} className="pf-list-row">
                   <span className="pf-list-label">{c.country}</span>
                   <div className="pf-list-bar">
                     <div className="pf-list-bar-fill pf-list-bar-fill-amber" style={{
-                      width: `${(c.count / stats.byCountry[0].count) * 100}%`,
+                      width: `${(c.count / stats!.byCountry[0].count) * 100}%`,
                     }} />
                   </div>
                   <span className="pf-list-count">{c.count}</span>
@@ -434,7 +431,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           </p>
         </div>
         <div className="pf-durations">
-          {Object.entries(stats.stageDurations).map(([stage, d]) => (
+          {Object.entries(stats!.stageDurations).map(([stage, d]) => (
             <div className="pf-duration" key={stage}>
               <div className="pf-duration-stage" style={{ borderLeftColor: STAGE_COLORS[stage] }}>
                 {STAGE_LABELS[stage]}
@@ -456,6 +453,8 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           ))}
         </div>
       </section>
+      </>
+      )}
 
       <style jsx>{`
         .portfolio {
@@ -558,6 +557,30 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           color: var(--ink-soft);
           max-width: 640px;
         }
+        .pf-cta-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 24px;
+          padding: 14px 24px;
+          background: var(--ink);
+          color: var(--paper);
+          font-family: var(--sans);
+          font-size: 12px;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          font-weight: 600;
+          text-decoration: none;
+          border-radius: 8px;
+          transition: all var(--motion-base);
+        }
+        .pf-cta-primary:hover {
+          background: var(--accent);
+          transform: translateY(-1px);
+          box-shadow: var(--shadow-blue);
+        }
+        .pf-cta-primary svg { transition: transform var(--motion-base); }
+        .pf-cta-primary:hover svg { transform: translateX(3px); }
 
         .pf-kpis {
           max-width: 1080px;

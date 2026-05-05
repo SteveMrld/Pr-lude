@@ -75,13 +75,31 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
   const supabase = getAdmin();
   const orgId = org.id;
 
+  // Recupere les user_ids de tous les membres de l org. Les analyses
+  // sont rangees par user_id (pas organization_id), donc on doit
+  // d abord resoudre la liste des membres puis filtrer.
+  const { data: memberRows } = await supabase
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', orgId);
+
+  const memberIds = (memberRows || []).map((m: any) => m.user_id);
+  // Inclure aussi le user courant au cas ou il ne serait pas encore
+  // membre formellement (defensif). Le doublon ne gene pas le filtre
+  // .in() de Supabase.
+  if (!memberIds.includes(user.id)) memberIds.push(user.id);
+
+  if (memberIds.length === 0) {
+    return emptyStats();
+  }
+
   // Charge l ensemble des analyses de l organisation. Limite a 500 pour
   // ne pas exploser sur les fonds avec beaucoup d historique. Avec 500
   // dossiers, l agregation in-memory reste rapide (qq ms).
   const { data: analysesRows, error: analysesErr } = await supabase
     .from('analyses')
     .select('id, company_name, sector, country, verdict, global_score, blindspot_score, success_probability, analyzed_at, created_at')
-    .eq('organization_id', orgId)
+    .in('user_id', memberIds)
     .order('analyzed_at', { ascending: false, nullsFirst: false })
     .limit(500);
 
