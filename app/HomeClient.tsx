@@ -642,6 +642,7 @@ export default function HomeClient({
             <div className="header-org">{orgName}</div>
             {userEmail && <div className="header-user">{userEmail}</div>}
             <div className="header-actions">
+              <a className="header-action" href="/portfolio">Portefeuille</a>
               <a className="header-action" href="/history">Historique</a>
               <a className="header-action" href="/settings">Réglages</a>
               <button
@@ -747,7 +748,7 @@ export default function HomeClient({
                           <span>Dernière analyse <strong>{formatRelativeDate(fundStats.lastAnalyzedAt)}</strong></span>
                         </div>
                       )}
-                      <a href="/history" className="hero-card-link">
+                      <a href="/portfolio" className="hero-card-link">
                         <span>Voir le portefeuille</span>
                         <Picto name="arrow-right" size={14} />
                       </a>
