@@ -1069,7 +1069,9 @@ ul, ol { list-style: none; }
   font-weight: 500;
 }
 .sidebar-tab {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   text-align: left;
   padding: 8px 10px 8px 12px;
@@ -1077,21 +1079,38 @@ ul, ol { list-style: none; }
   color: var(--muted);
   cursor: pointer;
   border-left: 2px solid transparent;
-  transition: all 0.12s;
+  transition: all var(--motion-fast);
   margin-bottom: 1px;
   background: transparent;
   font-family: inherit;
   line-height: 1.35;
 }
+.sidebar-tab-picto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--muted-soft);
+  transition: color var(--motion-fast);
+}
+.sidebar-tab-label { flex: 1 1 auto; min-width: 0; }
 .sidebar-tab:hover {
   color: var(--ink);
   background: rgba(26, 46, 74, 0.03);
+}
+.sidebar-tab:hover .sidebar-tab-picto {
+  color: var(--accent);
 }
 .sidebar-tab.active {
   color: var(--ink);
   border-left-color: var(--accent);
   background: rgba(26, 46, 74, 0.05);
   font-weight: 500;
+}
+.sidebar-tab.active .sidebar-tab-picto {
+  color: var(--accent);
 }
 
 /* Selecteur mobile : compact, lisible, accessible. Affiche la categorie courante

@@ -1678,40 +1678,43 @@ export default function HomeClient({
                   3. Lecture dialectique : aveuglement vs singularite
                   4. Decision            : plan d action et points a instruire */}
             {(() => {
-              const tabGroups = [
+              const tabGroups: Array<{
+                label: string;
+                tabs: Array<{ id: string; label: string; picto?: import('./components/Picto').PictoName }>;
+              }> = [
                 {
                   label: 'Diagnostic chiffré',
                   tabs: [
-                    { id: 'synthesis', label: 'Synthèse' },
-                    { id: 'dimensions', label: 'Dimensions chiffrées' },
-                    { id: 'team', label: 'Équipe' },
-                    { id: 'verified', label: 'Données vérifiées' },
-                    { id: 'market', label: 'Marché' },
-                    { id: 'macro', label: 'Macro' },
+                    { id: 'synthesis',  label: 'Synthèse',            picto: 'sparkle' },
+                    { id: 'dimensions', label: 'Dimensions chiffrées', picto: 'concurrence' },
+                    { id: 'team',       label: 'Équipe',              picto: 'equipe' },
+                    { id: 'verified',   label: 'Données vérifiées',    picto: 'check' },
+                    { id: 'market',     label: 'Marché',              picto: 'marche' },
+                    { id: 'macro',      label: 'Macro',               picto: 'macro' },
                   ],
                 },
                 {
                   label: 'Lecture critique',
                   tabs: [
-                    { id: 'financial', label: 'Cohérence financière' },
-                    { id: 'pattern', label: 'Pattern matching' },
+                    { id: 'financial', label: 'Cohérence financière', picto: 'financiers' },
+                    { id: 'pattern',   label: 'Pattern matching',     picto: 'concurrence' },
                   ],
                 },
                 {
                   label: 'Lecture dialectique',
                   tabs: [
-                    { id: 'aveuglement', label: 'Aveuglement' },
-                    { id: 'singularite', label: 'Singularités' },
-                    { id: 'blindspots', label: 'Angles morts' },
+                    { id: 'aveuglement', label: 'Aveuglement',  picto: 'blindspot' },
+                    { id: 'singularite', label: 'Singularités', picto: 'sparkle' },
+                    { id: 'blindspots',  label: 'Angles morts', picto: 'blindspot' },
                   ],
                 },
                 {
                   label: 'Décision',
                   tabs: [
-                    { id: 'risksplan', label: 'Risques & Plan' },
-                    { id: 'refchecks', label: 'Reference checks' },
-                    { id: 'instruction', label: 'À instruire' },
-                    { id: 'ic-pack', label: 'Pack IC' },
+                    { id: 'risksplan',   label: 'Risques & Plan',    picto: 'risques' },
+                    { id: 'refchecks',   label: 'Reference checks',  picto: 'argumentation' },
+                    { id: 'instruction', label: 'À instruire',       picto: 'instruction' },
+                    { id: 'ic-pack',     label: 'Pack IC',           picto: 'pack-ic' },
                   ],
                 },
               ];
@@ -1731,7 +1734,12 @@ export default function HomeClient({
                             onClick={() => setActiveTab(t.id)}
                             aria-current={activeTab === t.id ? 'page' : undefined}
                           >
-                            {t.label}
+                            {t.picto && (
+                              <span className="sidebar-tab-picto" aria-hidden="true">
+                                <Picto name={t.picto} size={16} strokeWidth={1.5} />
+                              </span>
+                            )}
+                            <span className="sidebar-tab-label">{t.label}</span>
                           </button>
                         ))}
                       </div>
