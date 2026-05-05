@@ -351,6 +351,62 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           );
         })()}
 
+        {/* AI VELOCITY - introduit en reponse a l ere IA generative.
+            Mesure la fluidite des fondateurs avec les outils IA modernes
+            (Cursor, Claude Code, v0). Verdict colore selon la couleur
+            semantique : vert ai_native, ocre ai_competent, rouge ai_distant.
+            Affiche evidence, redFlags et greenFlags structures. */}
+        {t.aiVelocity && (
+          <div className="ai-velocity" data-verdict={t.aiVelocity.verdict}>
+            <div className="ai-velocity-header">
+              <span className="ai-velocity-kicker">Vélocité IA</span>
+              <span className="ai-velocity-verdict">
+                {t.aiVelocity.verdict === 'ai_native' && 'AI-native'}
+                {t.aiVelocity.verdict === 'ai_competent' && 'AI-competent'}
+                {t.aiVelocity.verdict === 'ai_distant' && 'AI-distant'}
+              </span>
+              <span className="ai-velocity-score">{t.aiVelocity.score}/100</span>
+            </div>
+            <p className="note-paragraph ai-velocity-rationale">
+              {enrichProse(t.aiVelocity.rationale)}
+            </p>
+            {t.aiVelocity.greenFlags?.length > 0 && (
+              <div className="ai-velocity-block">
+                <div className="ai-velocity-block-label ai-velocity-block-label-pos">
+                  Signaux de fluidité
+                </div>
+                <ul className="ai-velocity-list">
+                  {t.aiVelocity.greenFlags.map((f: string, i: number) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {t.aiVelocity.redFlags?.length > 0 && (
+              <div className="ai-velocity-block">
+                <div className="ai-velocity-block-label ai-velocity-block-label-warn">
+                  Signaux d&apos;immobilisme
+                </div>
+                <ul className="ai-velocity-list ai-velocity-list-warn">
+                  {t.aiVelocity.redFlags.map((f: string, i: number) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {t.aiVelocity.evidence?.length > 0 && (
+              <div className="ai-velocity-block">
+                <div className="ai-velocity-block-label">Indices observables</div>
+                <ul className="ai-velocity-list ai-velocity-list-muted">
+                  {t.aiVelocity.evidence.map((e: string, i: number) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {fd && fd.revenueProjection?.length > 0 && (
           <>
             <h3 className="note-h3">Company financials</h3>

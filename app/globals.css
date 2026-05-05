@@ -1997,6 +1997,89 @@ ul, ol { list-style: none; }
   color: var(--ink-soft);
 }
 
+/* AI VELOCITY - bandeau Team qui mesure la fluidite IA des fondateurs.
+   Meme grammaire visuelle que ai-replicability mais focalisee sur le
+   profil humain plutot que sur le produit. */
+.ai-velocity {
+  margin-top: 24px;
+  padding: 18px 22px;
+  border-radius: 0 8px 8px 0;
+  border-left: 3px solid;
+}
+.ai-velocity[data-verdict="ai_native"] {
+  background: var(--vert-foret-soft);
+  border-left-color: var(--vert-foret);
+}
+.ai-velocity[data-verdict="ai_competent"] {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+.ai-velocity[data-verdict="ai_distant"] {
+  background: var(--warn-soft);
+  border-left-color: var(--warn);
+}
+.ai-velocity-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ai-velocity-kicker {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ai-velocity-verdict {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+.ai-velocity[data-verdict="ai_native"] .ai-velocity-verdict { color: var(--vert-foret); }
+.ai-velocity[data-verdict="ai_competent"] .ai-velocity-verdict { color: var(--accent); }
+.ai-velocity[data-verdict="ai_distant"] .ai-velocity-verdict { color: var(--warn); }
+.ai-velocity-score {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-left: auto;
+  font-feature-settings: "lnum","tnum";
+}
+.ai-velocity-rationale {
+  margin: 0 0 14px 0 !important;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.ai-velocity-block {
+  margin-top: 12px;
+}
+.ai-velocity-block-label {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.ai-velocity-block-label-pos { color: var(--vert-foret); }
+.ai-velocity-block-label-warn { color: var(--warn); }
+.ai-velocity-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.ai-velocity-list li { margin-bottom: 4px; }
+.ai-velocity-list-warn li { color: var(--ink-soft); }
+.ai-velocity-list-muted li { color: var(--muted); font-size: 12.5px; }
+
 /* Timeline d instruction sur la couverture du pack IC.
    Frise verticale a gauche avec dots ronds, label de stade
    en serif, date secondaire, et commentaire optionnel en

@@ -25,6 +25,15 @@ Si les fondateurs viennent de secteurs différents du secteur cible, évalue si 
 ## Obsession produit
 À partir des données vérifiées (publications récentes, repos GitHub actifs), évalue la profondeur de l'obsession sur le problème adressé.
 
+## Vélocité IA (nouveau pilier 2026)
+À l'ère de Claude Code, Cursor, v0 et Lovable, le code n'est plus une moat et la vélocité d'exécution est devenue le différenciant principal. Tu dois donc évaluer la fluidité des fondateurs avec ces outils, comme on évaluerait la maîtrise d'un instrument par un musicien. Cette dimension est plus prédictive que le pedigree canonique pour les boîtes lancées après 2023 :
+
+- Un founder ai_native ship comme un musicien improvise. Signaux : équipe petite pour un périmètre fonctionnel large, mention explicite d'outils IA dans le stack, cadence de release dense, présence GitHub récente sur des projets LLM, demos vidéo régulières, posts techniques, automatisation des ops par agents.
+- Un founder ai_competent utilise les outils sans s'y être totalement reconfiguré. Il a une équipe technique classique de taille standard, ship à un rythme normal, mais a intégré ChatGPT et Copilot dans son flow.
+- Un founder ai_distant n'a pas encore mis à jour son architecture mentale. Signaux : équipe technique hyper-large pour un périmètre limité, processus lourds, vocabulaire daté, refus implicite ou méfiance vis-à-vis des outils IA dans la communication.
+
+Important : un pedigree canonique (Stanford, ex-Google, MIT) qui ne s'accompagne pas de signaux ai_native compte moins qu'il y a 5 ans. Inversement, un autodidacte de 23 ans qui maîtrise Cursor et Claude Code peut battre un VP Eng senior qui ne vibe-code pas. Cette dimension recalibre la prime au pedigree.
+
 ## Cohérence déclaration vs vérification
 À partir du croisement entre les données du pitch deck et les données vérifiées, identifie les zones de cohérence forte et les zones d'écart.
 
@@ -145,6 +154,14 @@ Si la traction du dossier est nettement en dessous (ex: 0 → 500K → 1.5M en 2
   "founderObsession": {
     "score": 0-100,
     "rationale": "phrase qui s'appuie sur l'activité récente vérifiée"
+  },
+  "aiVelocity": {
+    "score": 0-100,
+    "verdict": "ai_native | ai_competent | ai_distant",
+    "rationale": "3-5 phrases qui diagnostiquent la fluidité du fondateur avec les outils IA modernes (Cursor, Claude Code, v0, Lovable, llm CLI). À l'ère où ces outils permettent à un solo founder de shipper en jours ce qui demandait des mois à une équipe, cette fluidité est un proxy direct de la vélocité d'exécution. Un pedigree canonique (Stanford, ex-Google, MIT) compte moins qu'il y a 5 ans si le founder n'a pas intégré ces outils. Inversement, un autodidacte de 23 ans qui maîtrise Cursor peut battre un VP Eng senior qui ne vibe-code pas.",
+    "evidence": ["signaux observables : commits/releases dense, présence GitHub, mention explicite d'outils IA dans le pitch ou les interviews, demos vidéo rapides, posts techniques, taille d'équipe étonnamment petite pour le périmètre fonctionnel"],
+    "redFlags": ["signes d'immobilisme : équipe technique hyper-large pour un périmètre limité, refus implicite de l'IA, processus lourds décrits, vocabulaire daté, absence de présence open source des fondateurs"],
+    "greenFlags": ["signes de fluidité IA : solo ou duo founder qui ship beaucoup, mention de Claude Code/Cursor/Lovable/v0 dans le stack, activité GitHub récente sur des LLMs, automatisation explicite des ops/marketing/support par agents IA"]
   },
   "declaredVsVerified": {
     "alignmentScore": 0-100,

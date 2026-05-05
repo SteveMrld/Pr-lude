@@ -107,6 +107,38 @@ export interface TeamAnalysisOutput {
     score: number;
     rationale: string;
   };
+  /**
+   * Test critique de l ere IA generative : le founder maitrise-t-il les
+   * outils IA modernes (Claude Code, Cursor, v0, Lovable, llm CLIs) avec
+   * une vraie fluidite, comme un musicien manie son instrument ? La
+   * fluidite IA est devenue un proxy mesurable de la velocite d execution.
+   * Un founder qui vibe-code peut shipper en jours ce qui demandait des
+   * mois a une equipe technique classique. A l inverse, un pedigree
+   * canonique (Stanford, ex-Google, MIT) compte moins qu il y a 5 ans
+   * si le founder n a pas integre ces nouveaux outils.
+   *
+   * Indices observables :
+   *   - velocity : cadence de livraison documentee (commits, releases,
+   *     posts blog, video demo)
+   *   - openSourcePresence : projets perso, contributions, profil GitHub
+   *   - stackFluency : aisance dans la description de son stack tech
+   *     dans le pitch, mention explicite d outils modernes
+   *   - delegationPattern : utilise-t-il des agents pour automatiser ops,
+   *     marketing, support ?
+   *   - solo_or_duo : tendance des AI-native founders a etre seuls ou
+   *     en duo (signal de capacite a faire bcp avec peu)
+   *
+   * Optionnel pour retro-compatibilite. Quand absent, le rendu UI
+   * affiche 'non instruit' plutot qu un score brut.
+   */
+  aiVelocity?: {
+    score: number; // 0-100. 80+ = ai-native fluent, 50-80 = competent, <50 = old school
+    verdict: 'ai_native' | 'ai_competent' | 'ai_distant';
+    rationale: string; // 3-5 phrases explicitant le diagnostic
+    evidence: string[]; // signaux observables qui appuient le score
+    redFlags: string[]; // signaux d immobilisme (verbose code reviews, refus IA, equipe hyper-large)
+    greenFlags: string[]; // signaux de fluidite (commits dense, demos rapides, stack moderne)
+  };
   declaredVsVerified?: {
     alignmentScore: number;
     verifiedClaims: string[];
