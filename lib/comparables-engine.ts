@@ -63,6 +63,32 @@ export interface Comparable {
   sectorMatch: 'exact' | 'related' | 'different';
 }
 
+// Un scenario de trajectoire projete a partir d une tranche d outcomes.
+// Les multiples sont des bornes heuristiques par classe d outcome :
+//   success           : 5x - 25x (cas IPO et exit majeur)
+//   success_private   : 2x - 10x (cas late private au peak valuation)
+//   success_exit      : 2x - 8x (cas M&A solide)
+//   medium            : 1x - 3x (sortie tepid ou pas de sortie)
+//   volatile_private  : 0.5x - 4x (suit le sort du marche)
+//   active            : indetermine (1x conservatif)
+//   fail_weak_exit    : 0.1x - 0.5x (M&A distresse)
+//   fail / fail_uncertain : 0x - 0.3x
+// Ce sont des bornes indicatives, pas des estimations cas par cas.
+export interface TrajectoryScenario {
+  label: string; // 'optimistic' | 'median' | 'downside'
+  // Probabilite calculee comme proportion du top N qui tombe dans cette tranche
+  probability: number; // 0-100
+  // Multiple borne sur l investissement. Format chaine '5x - 15x'.
+  multipleRange: string;
+  // Multiple median pour calculs aval (esperance)
+  multipleMedian: number;
+  // Cas exemple : le comparable le plus similaire dans cette tranche.
+  // null si la tranche est vide dans le top N.
+  exampleCase: Comparable | null;
+  // Phrase editoriale courte qui contextualise le scenario.
+  narrative: string;
+}
+
 export interface ComparablesResult {
   topComparables: Comparable[]; // top N classes par similarite desc
   outcomeDistribution: {
@@ -71,6 +97,20 @@ export interface ComparablesResult {
     fail: number;
     active: number;
     total: number;
+  };
+  // Trajectoires projetees a partir de la distribution des outcomes
+  // des comparables. Trois scenarios : optimistic, median, downside.
+  trajectory: {
+    optimistic: TrajectoryScenario;
+    median: TrajectoryScenario;
+    downside: TrajectoryScenario;
+    // Esperance de multiple ponderee par les probabilites des 3 scenarios.
+    // C est le seul chiffre 'consolide' qu on doit interpreter avec
+    // beaucoup de prudence : les multiples bornes par tranche d outcome
+    // sont des heuristiques, pas des donnees observees au cas par cas.
+    expectedMultiple: number;
+    // Texte editorial qui resume le pari implicite du dossier.
+    narrative: string;
   };
   // Pattern dominant : si la majorite des comparables ont un meme outcome,
   // c est un signal directionnel. Sinon, le dossier est ambigu.
@@ -251,14 +291,154 @@ export async function findComparables(
     }
   });
 
+  // Trajectoire projetee a partir du top N
+  const trajectory = simulateTrajectory(topComparables);
+
   return {
     topComparables,
     outcomeDistribution,
+    trajectory,
     dominantPattern,
     closestSuccess,
     closestFailure,
     diligenceQuestions: diligenceQuestions.slice(0, 5),
   };
+}
+
+// ============================================================
+// SIMULATE TRAJECTORY
+// ------------------------------------------------------------
+// Construit trois scenarios optimistic / median / downside a partir
+// de la distribution des outcomes du top N comparables. Chaque
+// scenario est associe a :
+//   - une probabilite (proportion du top N dans la tranche)
+//   - un range de multiple (borne heuristique par tranche d outcome)
+//   - un cas exemple (le plus similaire dans la tranche)
+//   - une phrase editoriale qui resume le pari implicite
+// ============================================================
+
+// Multiples bornes par classe d outcome. Heuristiques inferees des
+// donnees publiques d exit europeennes 2010-2024. A sourcer avant
+// usage investisseur strict.
+const MULTIPLE_RANGES: Record<string, { low: number; high: number; median: number }> = {
+  success:           { low: 5,    high: 25,  median: 12 },
+  success_private:   { low: 2,    high: 10,  median: 5 },
+  success_exit:      { low: 2,    high: 8,   median: 4 },
+  medium:            { low: 1,    high: 3,   median: 1.5 },
+  volatile_private:  { low: 0.5,  high: 4,   median: 2 },
+  active:            { low: 1,    high: 1,   median: 1 },
+  fail_weak_exit:    { low: 0.1,  high: 0.5, median: 0.25 },
+  fail:              { low: 0,    high: 0.3, median: 0.1 },
+  fail_uncertain:    { low: 0,    high: 0.3, median: 0.1 },
+};
+
+function getMultiple(outcome: string) {
+  return MULTIPLE_RANGES[outcome] || { low: 0, high: 1, median: 0.5 };
+}
+
+function classifyTrajectory(outcome: string): 'optimistic' | 'median' | 'downside' {
+  if (outcome === 'success') return 'optimistic';
+  if (outcome.startsWith('success')) return 'optimistic';
+  if (outcome === 'medium' || outcome === 'volatile_private' || outcome === 'active') return 'median';
+  return 'downside';
+}
+
+function simulateTrajectory(topComparables: Comparable[]): ComparablesResult['trajectory'] {
+  const n = topComparables.length || 1;
+
+  // Repartition du top N par classe de trajectoire
+  const buckets: Record<'optimistic' | 'median' | 'downside', Comparable[]> = {
+    optimistic: [],
+    median: [],
+    downside: [],
+  };
+  topComparables.forEach((c) => {
+    buckets[classifyTrajectory(c.outcome)].push(c);
+  });
+
+  // Pour chaque bucket : probabilite, range multiple agrege, exemple
+  const buildScenario = (
+    label: 'optimistic' | 'median' | 'downside',
+    items: Comparable[],
+  ): TrajectoryScenario => {
+    const probability = Math.round((items.length / n) * 100);
+    if (items.length === 0) {
+      // Bucket vide : on prend les bornes par defaut de la classe pour
+      // que le narrative reste lisible meme avec une probabilite nulle.
+      const defaults = {
+        optimistic: { low: 5, high: 25, median: 12 },
+        median: { low: 1, high: 3, median: 1.5 },
+        downside: { low: 0, high: 0.3, median: 0.1 },
+      }[label];
+      return {
+        label,
+        probability,
+        multipleRange: `${formatMult(defaults.low)} - ${formatMult(defaults.high)}`,
+        multipleMedian: defaults.median,
+        exampleCase: null,
+        narrative: {
+          optimistic: 'Aucun cas comparable n a produit ce type de trajectoire dans le top 5. Pour suivre cette voie, le dossier doit s ecarter du pattern qu il presente actuellement.',
+          median: 'Aucun cas comparable mitige ou actif dans le top 5. Les outcomes intermediaires sont peu represents par les voisins du dossier.',
+          downside: 'Aucun cas d echec dans le top 5. Le pattern observe ne ressemble pas aux profils d echec du corpus, mais l absence de cas similaire en bas de courbe ne signifie pas que le risque est nul.',
+        }[label],
+      };
+    }
+    // Multiples agregees : on prend le min low, le max high, et la moyenne des medians
+    const lows = items.map((c) => getMultiple(c.outcome).low);
+    const highs = items.map((c) => getMultiple(c.outcome).high);
+    const medians = items.map((c) => getMultiple(c.outcome).median);
+    const lowAgg = Math.min(...lows);
+    const highAgg = Math.max(...highs);
+    const medianAgg = medians.reduce((a, b) => a + b, 0) / medians.length;
+    // Cas exemple : le plus similaire dans le bucket
+    const example = items[0];
+
+    let narrative = '';
+    if (label === 'optimistic') {
+      narrative = `Dans le scenario optimiste, le dossier suit la trajectoire de ${example.name} et de ${items.length - 1} autre${items.length > 2 ? 's' : ''} cas similaire${items.length > 2 ? 's' : ''} : exit qualifiant ou valorisation late stage soutenue. ${probability}% du top 5 se trouve dans cette tranche.`;
+    } else if (label === 'median') {
+      narrative = `Le scenario median reproduit la trajectoire de ${example.name} : croissance reelle mais sortie tepid, valorisation comprimee, ou maintien en private sans liquidation. ${probability}% du top 5 se trouve dans cette tranche.`;
+    } else {
+      narrative = `Dans le scenario downside, le dossier croise les difficultes que ${example.name} a rencontrees : ${(example.signalsNegative || '').split(/[,.]/)[0]?.toLowerCase().trim() || 'unit economics non prouves'}. ${probability}% du top 5 se trouve dans cette tranche.`;
+    }
+
+    return {
+      label,
+      probability,
+      multipleRange: `${formatMult(lowAgg)} - ${formatMult(highAgg)}`,
+      multipleMedian: Math.round(medianAgg * 100) / 100,
+      exampleCase: example,
+      narrative,
+    };
+  };
+
+  const optimistic = buildScenario('optimistic', buckets.optimistic);
+  const median = buildScenario('median', buckets.median);
+  const downside = buildScenario('downside', buckets.downside);
+
+  // Esperance ponderee : E[multiple] = sum(prob_i * median_i) / 100
+  const expectedMultiple = Math.round((
+    (optimistic.probability / 100) * optimistic.multipleMedian +
+    (median.probability / 100) * median.multipleMedian +
+    (downside.probability / 100) * downside.multipleMedian
+  ) * 100) / 100;
+
+  // Narrative consolide : pari implicite du dossier
+  let narrative = '';
+  if (optimistic.probability >= 60) {
+    narrative = `Le dossier presente un pattern aligne avec des trajectoires de succes (${optimistic.probability}% du top 5). L esperance de multiple ponderee s etablit autour de ${formatMult(expectedMultiple)}, soutenue par les exits comparables. Le pari implicite : reproduire la dynamique d execution observee chez les cas references.`;
+  } else if (downside.probability >= 30) {
+    narrative = `Le pattern observe combine ${optimistic.probability}% de cas de succes et ${downside.probability}% de cas d echec dans le top 5. L esperance de multiple ponderee tombe a ${formatMult(expectedMultiple)}, ce qui signale un dossier ambigu : le verdict depend de variables propres au dossier que les comparables ne capturent pas.`;
+  } else {
+    narrative = `Le dossier se range majoritairement dans des trajectoires intermediaires (${median.probability}% du top 5). L esperance de multiple ponderee, ${formatMult(expectedMultiple)}, reflete une distribution sans cluster fort. C est un profil ou la sortie depend largement de la qualite d execution post-investissement.`;
+  }
+
+  return { optimistic, median, downside, expectedMultiple, narrative };
+}
+
+function formatMult(n: number): string {
+  if (n < 1) return n.toFixed(2).replace(/\.?0+$/, '') + 'x';
+  return Math.round(n * 10) / 10 + 'x';
 }
 
 /**

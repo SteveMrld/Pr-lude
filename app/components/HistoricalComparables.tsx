@@ -38,6 +38,15 @@ interface Comparable {
   sectorMatch: 'exact' | 'related' | 'different';
 }
 
+interface TrajectoryScenario {
+  label: string;
+  probability: number;
+  multipleRange: string;
+  multipleMedian: number;
+  exampleCase: Comparable | null;
+  narrative: string;
+}
+
 interface ComparablesData {
   features: {
     founder: number; market: number; traction: number;
@@ -47,6 +56,13 @@ interface ComparablesData {
   topComparables: Comparable[];
   outcomeDistribution: {
     success: number; medium: number; fail: number; active: number; total: number;
+  };
+  trajectory: {
+    optimistic: TrajectoryScenario;
+    median: TrajectoryScenario;
+    downside: TrajectoryScenario;
+    expectedMultiple: number;
+    narrative: string;
   };
   dominantPattern: 'success-leaning' | 'fail-leaning' | 'mixed';
   closestSuccess: Comparable | null;
@@ -180,6 +196,57 @@ export default function HistoricalComparables({ analysisId }: Props) {
             <div className="hc-dist-num" style={{ color: 'var(--accent)' }}>{data.outcomeDistribution.active}</div>
             <div className="hc-dist-label">Actifs</div>
           </div>
+        </div>
+      </div>
+
+      {/* TRAJECTOIRE PROJETEE - 3 scenarios optimistic / median / downside,
+          deduits de la distribution des outcomes du top 5. Bornes de
+          multiples heuristiques par classe d outcome. */}
+      <div className="hc-trajectory">
+        <div className="hc-trajectory-head">
+          <div className="hc-trajectory-kicker">Trajectoire projetée</div>
+          <div className="hc-trajectory-expected">
+            <span className="hc-trajectory-expected-label">Espérance pondérée</span>
+            <span className="hc-trajectory-expected-num">
+              {data.trajectory.expectedMultiple < 1
+                ? data.trajectory.expectedMultiple.toFixed(2).replace(/\.?0+$/, '')
+                : (Math.round(data.trajectory.expectedMultiple * 10) / 10)}
+              <span className="hc-trajectory-expected-x">x</span>
+            </span>
+          </div>
+        </div>
+        <p className="hc-trajectory-narrative">{data.trajectory.narrative}</p>
+        <div className="hc-trajectory-grid">
+          {(['optimistic', 'median', 'downside'] as const).map((key) => {
+            const scenario = data.trajectory[key];
+            const labels = {
+              optimistic: { fr: 'Optimiste', color: 'var(--vert-foret)' },
+              median: { fr: 'Median', color: 'var(--ocre-brule)' },
+              downside: { fr: 'Downside', color: 'var(--warn)' },
+            }[key];
+            return (
+              <div className="hc-scenario" key={key} style={{ borderTopColor: labels.color }}>
+                <div className="hc-scenario-head">
+                  <span className="hc-scenario-label" style={{ color: labels.color }}>
+                    {labels.fr}
+                  </span>
+                  <span className="hc-scenario-prob">{scenario.probability}%</span>
+                </div>
+                <div className="hc-scenario-multiple">
+                  <span className="hc-scenario-multiple-num" style={{ color: labels.color }}>
+                    {scenario.multipleRange}
+                  </span>
+                  <span className="hc-scenario-multiple-label">multiple</span>
+                </div>
+                {scenario.exampleCase && (
+                  <div className="hc-scenario-case">
+                    Référence : <strong>{scenario.exampleCase.name}</strong>
+                  </div>
+                )}
+                <p className="hc-scenario-narrative">{scenario.narrative}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -347,6 +414,137 @@ const styles = `
     overflow: hidden;
     margin-bottom: 24px;
   }
+
+  /* TRAJECTORY */
+  .hc-trajectory {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 24px;
+  }
+  .hc-trajectory-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .hc-trajectory-kicker {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    padding-top: 4px;
+  }
+  .hc-trajectory-expected {
+    text-align: right;
+  }
+  .hc-trajectory-expected-label {
+    display: block;
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .hc-trajectory-expected-num {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-feature-settings: "lnum","tnum";
+  }
+  .hc-trajectory-expected-x {
+    font-size: 18px;
+    opacity: 0.5;
+    margin-left: 1px;
+    font-weight: 500;
+  }
+  .hc-trajectory-narrative {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin: 0 0 18px 0;
+  }
+  .hc-trajectory-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .hc-scenario {
+    padding: 14px 16px;
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-top: 3px solid;
+    border-radius: 0 0 8px 8px;
+  }
+  .hc-scenario-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .hc-scenario-label {
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .hc-scenario-prob {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    font-feature-settings: "lnum","tnum";
+  }
+  .hc-scenario-multiple {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .hc-scenario-multiple-num {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.012em;
+    font-feature-settings: "lnum","tnum";
+  }
+  .hc-scenario-multiple-label {
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .hc-scenario-case {
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+  }
+  .hc-scenario-case strong {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .hc-scenario-narrative {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0;
+  }
   .hc-list-header {
     padding: 12px 18px;
     background: var(--paper-accent);
@@ -513,6 +711,7 @@ const styles = `
 
   @media (max-width: 720px) {
     .hc-narratives { grid-template-columns: 1fr; }
+    .hc-trajectory-grid { grid-template-columns: 1fr; }
     .hc-row {
       grid-template-columns: 1fr;
       gap: 8px;
