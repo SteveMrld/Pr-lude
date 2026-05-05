@@ -598,6 +598,89 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             )}
           </>
         )}
+
+        {/* AI BUSINESS MODEL - Recalibrage des benchmarks classiques pour
+            les boites construites autour d un LLM tiers. Trois fragilites
+            structurelles cachees : marges AI-native, dependance LLM provider,
+            risque de commoditisation. Le bloc ne s affiche que pour les
+            boites detectees comme AI-native (classification != not_applicable). */}
+        {m.aiBusinessModel && m.aiBusinessModel.classification !== 'not_applicable' && (
+          <div className="ai-business" data-classification={m.aiBusinessModel.classification}>
+            <div className="ai-business-header">
+              <span className="ai-business-kicker">Modèle économique AI-native</span>
+              <span className="ai-business-classification">
+                {m.aiBusinessModel.classification === 'pure_wrapper' && 'Pur wrapper'}
+                {m.aiBusinessModel.classification === 'ai_native_with_moats' && 'AI-native avec moats'}
+                {m.aiBusinessModel.classification === 'ai_augmented_classic' && 'SaaS augmenté IA'}
+              </span>
+              <span className="ai-business-risk" data-risk={m.aiBusinessModel.commoditizationRisk}>
+                Commoditisation : {m.aiBusinessModel.commoditizationRisk === 'low' ? 'faible'
+                  : m.aiBusinessModel.commoditizationRisk === 'medium' ? 'modérée'
+                  : m.aiBusinessModel.commoditizationRisk === 'high' ? 'élevée'
+                  : 'extrême'}
+              </span>
+            </div>
+
+            <div className="ai-business-grid">
+              <div className="ai-business-cell">
+                <div className="ai-business-cell-label">Marge brute estimée</div>
+                <div className="ai-business-cell-value">{m.aiBusinessModel.grossMarginEstimate}</div>
+                <div className="ai-business-cell-rationale">{m.aiBusinessModel.grossMarginRationale}</div>
+              </div>
+              <div className="ai-business-cell">
+                <div className="ai-business-cell-label">Concentration LLM</div>
+                <div className="ai-business-cell-value">{m.aiBusinessModel.llmProviderConcentration}</div>
+              </div>
+            </div>
+
+            {m.aiBusinessModel.aiTaxSensitivity && (
+              <div className="ai-business-block">
+                <div className="ai-business-block-label">Sensibilité au choc tarifaire LLM</div>
+                <p className="ai-business-block-text">{enrichProse(m.aiBusinessModel.aiTaxSensitivity)}</p>
+              </div>
+            )}
+
+            {m.aiBusinessModel.commoditizationReasoning && (
+              <div className="ai-business-block">
+                <div className="ai-business-block-label">Risque de commoditisation</div>
+                <p className="ai-business-block-text">{enrichProse(m.aiBusinessModel.commoditizationReasoning)}</p>
+              </div>
+            )}
+
+            {m.aiBusinessModel.multipleAdjustment && (
+              <div className="ai-business-block ai-business-block-emphasis">
+                <div className="ai-business-block-label">Ajustement de multiple</div>
+                <p className="ai-business-block-text">{enrichProse(m.aiBusinessModel.multipleAdjustment)}</p>
+              </div>
+            )}
+
+            {m.aiBusinessModel.sustainableSignals?.length > 0 && (
+              <div className="ai-business-block">
+                <div className="ai-business-block-label ai-business-block-label-pos">
+                  Signaux de soutenabilité
+                </div>
+                <ul className="ai-business-list">
+                  {m.aiBusinessModel.sustainableSignals.map((s: string, i: number) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {m.aiBusinessModel.redFlags?.length > 0 && (
+              <div className="ai-business-block">
+                <div className="ai-business-block-label ai-business-block-label-warn">
+                  Signaux d&apos;alerte
+                </div>
+                <ul className="ai-business-list ai-business-list-warn">
+                  {m.aiBusinessModel.redFlags.map((f: string, i: number) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </NoteSectionWrapper>
 
       {/* Bloc 3 - Due diligence */}

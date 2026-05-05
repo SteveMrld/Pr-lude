@@ -48,6 +48,23 @@ Tu dois identifier explicitement les composants techniques qui seraient triviaux
 ## Comparables internationaux
 Identifie 2-3 comparables internationaux pertinents par structure de défi.
 
+## Recalibrage AI-native (nouveau pilier 2026)
+Si le dossier construit son produit autour d'un LLM tiers (OpenAI, Anthropic, Mistral, etc.) ou s'appuie massivement sur l'IA générative comme infrastructure, tu dois remplir le bloc aiBusinessModel pour recalibrer les benchmarks classiques. Si la boîte n'utilise pas l'IA comme couche structurelle (SaaS classique, marketplace traditionnelle, etc.), mets isAiNative à false et classification à 'not_applicable'.
+
+Pour les boîtes AI-native, trois fragilités structurelles cachées que les multiples affichés masquent :
+
+1. La marge brute AI-native tourne à 50-65% au lieu de 80-90% pour le SaaS classique, parce que l'API d'Anthropic ou d'OpenAI mange le COGS. Une boîte qui annonce 80% de marge brute en étant AI-native ment ou n'a pas une fonction LLM significative dans son pipeline. Tu dois challenger les marges annoncées en estimant le poids du coût LLM.
+
+2. La dépendance aux LLM providers crée un risque de concentration rarement modélisé. Pose la question : que se passe-t-il si Anthropic double ses prix d'API ? Si OpenAI bloque le compte ? Quelle est la sensitivity de la marge à un choc tarifaire de 50% ?
+
+3. Le pari implicite est que le compute reste cher. Si DeepSeek ou les modèles open weight commoditisent l'inférence, les wrappers valent zéro. Tu dois évaluer le commoditizationRisk : low si la boîte a des moats au-delà du LLM (RAG propriétaire, fine-tuning custom, vertical depth), high ou extreme si c'est un pur wrapper.
+
+Classification suggérée :
+- pure_wrapper : interface chat ou RAG basique sur LLM tiers, sans données propriétaires ni vertical depth. Risque de commoditisation extrême.
+- ai_native_with_moats : LLM au cœur du produit mais avec données propriétaires, fine-tuning custom, ou network effects. Risque modéré.
+- ai_augmented_classic : SaaS classique avec features IA ajoutées. Marge proche du SaaS classique, risque faible.
+- not_applicable : produit sans usage de l'IA générative comme infrastructure.
+
 ## Matrice concurrentielle binaire
 Tu produis une matrice concurrentielle de référence (modèle factsheet conseil M&A type Idinvest) :
 - 8-12 dimensions sectorielles pertinentes (capacités, fonctionnalités, géographies, segments servis, etc.) ADAPTÉES au secteur du dossier. Pas de dimensions génériques fades. Les dimensions doivent être les CRITÈRES DE DÉCISION D'ACHAT des clients du secteur.
@@ -112,6 +129,20 @@ NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitc
   "internationalBenchmarks": [
     { "name": "nom", "geography": "pays", "relevance": "pertinence de l'analogie" }
   ],
+  "aiBusinessModel": {
+    "isAiNative": true ou false,
+    "isLlmWrapper": true ou false,
+    "classification": "pure_wrapper | ai_native_with_moats | ai_augmented_classic | not_applicable",
+    "grossMarginEstimate": "ex. '50-60%', 'inferieure a 50%', 'inconnu'",
+    "grossMarginRationale": "1-2 phrases qui expliquent pourquoi cette marge brute, en pointant explicitement le coût LLM API qui mange le COGS si applicable",
+    "llmProviderConcentration": "ex. 'Anthropic 70%, OpenAI 20%, internal models 10%' ou 'pas de dependance LLM' si non-AI",
+    "aiTaxSensitivity": "qu'arrive-t-il à la marge si le LLM provider augmente ses prix de 50% ? Estimation chiffrée si possible",
+    "commoditizationRisk": "low | medium | high | extreme",
+    "commoditizationReasoning": "pourquoi ce niveau de risque face à DeepSeek, modèles open weight, baisse du coût d'inférence",
+    "multipleAdjustment": "narration : un multiple AI-native de 90x ARR n'est pas comparable à 30x SaaS classique. Quel multiple appliquer pour comparer équitablement ?",
+    "redFlags": ["wrapper sans données propriétaires, dépendance unique fournisseur LLM, marge brute trop optimiste vs réalité AI-native, etc."],
+    "sustainableSignals": ["RAG propriétaire, fine-tuning custom, vertical depth, AI flywheel, distribution acquise, etc."]
+  },
   "competitiveDynamic": "phrase qui décrit la dynamique compétitive actuelle",
   "competitiveMatrix": {
     "dimensions": ["distribution", "playback multiplatform", "platform channels", "interactivity", "3d engine", "secure video", "tracking/analysis", "tag", "billing", "synch", "api/sdk"],

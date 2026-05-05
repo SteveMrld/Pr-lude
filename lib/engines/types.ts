@@ -264,6 +264,46 @@ export interface MarketAnalysisOutput {
     geography: string;
     relevance: string;
   }>;
+  /**
+   * Business model AI-native : recalibrage des benchmarks classiques
+   * pour les boites construites autour de modeles LLM tiers.
+   *
+   * Pourquoi ce bloc existe : les multiples ARR des boites AI-native
+   * (Cursor 90x, Anthropic 60x) ne sont pas comparables aux multiples
+   * SaaS classiques (Adyen 30x, Salesforce 12x). Trois fragilites
+   * structurelles cachees :
+   *
+   *   1. La marge brute AI-native tourne a 50-65% au lieu de 80-90%
+   *      pour le SaaS classique, parce que l API d Anthropic ou
+   *      d OpenAI mange le COGS. Comparer un multiple AI a un multiple
+   *      SaaS en valeur faciale est une erreur d evaluation.
+   *
+   *   2. La dependance aux LLM providers cree un risque de concentration
+   *      rarement modelise. Que se passe-t-il si Anthropic double
+   *      ses prix d API ? Si OpenAI bloque le compte ?
+   *
+   *   3. Le pari implicite est que le compute reste cher. Si DeepSeek
+   *      ou les modeles open weight commoditisent l inference, les
+   *      wrappers valent zero.
+   *
+   * Ce bloc est rempli uniquement si la boite est detectee comme
+   * AI-native ou AI-dependent. Pour une boite SaaS classique, il
+   * reste null.
+   */
+  aiBusinessModel?: {
+    isAiNative: boolean; // produit construit autour d un LLM tiers
+    isLlmWrapper: boolean; // wrapper fin sans valeur ajoutee structurelle
+    classification: 'pure_wrapper' | 'ai_native_with_moats' | 'ai_augmented_classic' | 'not_applicable';
+    grossMarginEstimate: string; // ex '55-60%', 'inferieure a 50%', 'inconnu'
+    grossMarginRationale: string; // pourquoi cette estimation
+    llmProviderConcentration: string; // ex 'Anthropic 70%, OpenAI 20%, internal 10%'
+    aiTaxSensitivity: string; // qu arrive-t-il si Anthropic +50% prix
+    commoditizationRisk: 'low' | 'medium' | 'high' | 'extreme';
+    commoditizationReasoning: string; // pourquoi ce niveau
+    multipleAdjustment: string; // narration : multiple a appliquer pour comparable equitable
+    redFlags: string[]; // wrapper sans donnees, dependance unique fournisseur, etc.
+    sustainableSignals: string[]; // RAG proprietaire, fine-tuning custom, vertical depth, etc.
+  };
   competitiveDynamic: string;
   // Matrice concurrentielle binaire type Idinvest factsheet
   competitiveMatrix: {
