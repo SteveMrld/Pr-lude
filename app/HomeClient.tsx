@@ -698,62 +698,74 @@ export default function HomeClient({
                 Pas de logos clients (Prelude est en early stage), pas
                 d emojis, pas de tone fun corporate americain. */}
             <section className="landing-hero">
-              <div className="hero-rule" aria-hidden="true"></div>
-              <div className="page-kicker">
-                <span className="page-kicker-bullet" aria-hidden="true"></span>
-                <span>Prélude — Depuis 2026</span>
-              </div>
-              <h1 className="page-title">
-                <span className="page-title-line">Instruire un dossier</span>
-                <span className="page-title-line page-title-emph">comme on instruit une affaire.</span>
-              </h1>
-              <p className="page-subtitle">
-                Sonder l&apos;équipe, auditer le marché, tester la cohérence des unit economics, cartographier les angles morts.
-                Chaque étape d&apos;une due diligence partner-grade, avant le comité d&apos;investissement.
-              </p>
-
-              {/* Barre de contexte fonds : visible uniquement quand l user
-                  est connecte ET que l org a au moins un dossier instruit.
-                  Donne au hero une dimension de pilotage et marque
-                  immediatement que ce n est pas une demo mais l espace de
-                  travail vivant du fonds. */}
-              {authEnabled && fundStats && fundStats.total > 0 && (
-                <div className="hero-fund-bar" role="region" aria-label="Activité du fonds">
-                  <div className="hero-fund-item">
-                    <div className="hero-fund-num">{fundStats.total}</div>
-                    <div className="hero-fund-label">
-                      Dossier{fundStats.total > 1 ? 's' : ''} instruit{fundStats.total > 1 ? 's' : ''}
-                    </div>
+              <div className="hero-grid">
+                <div className="hero-text">
+                  <div className="hero-rule" aria-hidden="true"></div>
+                  <div className="page-kicker">
+                    <span className="page-kicker-bullet" aria-hidden="true"></span>
+                    <span>Prélude — Depuis 2026</span>
                   </div>
-                  {fundStats.inInstruction > 0 && (
-                    <div className="hero-fund-item">
-                      <div className="hero-fund-num">{fundStats.inInstruction}</div>
-                      <div className="hero-fund-label">
-                        En cours d&apos;instruction
+                  <h1 className="page-title">
+                    <span className="page-title-line">Instruire un dossier</span>
+                    <span className="page-title-line page-title-emph">comme on instruit une affaire.</span>
+                  </h1>
+                  <p className="page-subtitle">
+                    Sonder l&apos;équipe, auditer le marché, tester la cohérence des unit economics, cartographier les angles morts.
+                    Chaque étape d&apos;une due diligence partner-grade, avant le comité d&apos;investissement.
+                  </p>
+                  <div className="hero-cta-row" style={{ justifyContent: 'flex-start' }}>
+                    <a href="#commencer" className="btn btn-primary">
+                      Lancer une instruction
+                      <Picto name="arrow-right" size={14} />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="hero-side">
+                  {/* Carte de stats fonds visible uniquement quand l user
+                      est connecte avec au moins un dossier instruit.
+                      Sinon : carte d apercu pipeline. */}
+                  {authEnabled && fundStats && fundStats.total > 0 ? (
+                    <div className="hero-card">
+                      <div className="hero-card-head">
+                        <div className="hero-card-eyebrow">Activité du fonds</div>
+                        <div className="hero-card-org">{orgName || 'Votre organisation'}</div>
                       </div>
-                    </div>
-                  )}
-                  {fundStats.lastAnalyzedAt && (
-                    <div className="hero-fund-item hero-fund-item-meta">
-                      <div className="hero-fund-num-meta">{formatRelativeDate(fundStats.lastAnalyzedAt)}</div>
-                      <div className="hero-fund-label">
-                        Dernière analyse
+                      <div className="hero-card-stats">
+                        <div className="hero-card-stat">
+                          <div className="hero-card-num hero-card-num-blue">{fundStats.total}</div>
+                          <div className="hero-card-label">Dossier{fundStats.total > 1 ? 's' : ''} instruit{fundStats.total > 1 ? 's' : ''}</div>
+                        </div>
+                        <div className="hero-card-stat">
+                          <div className="hero-card-num hero-card-num-amber">{fundStats.inInstruction}</div>
+                          <div className="hero-card-label">En cours d&apos;instruction</div>
+                        </div>
                       </div>
+                      {fundStats.lastAnalyzedAt && (
+                        <div className="hero-card-meta">
+                          <Picto name="circle-half" size={14} />
+                          <span>Dernière analyse <strong>{formatRelativeDate(fundStats.lastAnalyzedAt)}</strong></span>
+                        </div>
+                      )}
+                      <a href="/history" className="hero-card-link">
+                        <span>Voir le portefeuille</span>
+                        <Picto name="arrow-right" size={14} />
+                      </a>
                     </div>
+                  ) : (
+                    <PipelinePreview />
                   )}
-                  <a href="/history" className="hero-fund-link">
-                    Voir le portefeuille →
-                  </a>
+                </div>
+              </div>
+
+              {/* Preview animée du pipeline pour les visiteurs deja connectes
+                  qui ont des dossiers : on l affiche sous la grille pour ne
+                  pas perdre cet element. */}
+              {authEnabled && fundStats && fundStats.total > 0 && (
+                <div style={{ marginTop: 56 }}>
+                  <PipelinePreview />
                 </div>
               )}
-
-              <div className="hero-cta-row" style={{ justifyContent: 'flex-start' }}>
-                <a href="#commencer" className="btn btn-primary">Lancer une instruction →</a>
-              </div>
-
-              {/* Preview animée du pipeline : illustration concrète de
-                  ce que produit Prélude. Boucle en ~10s. */}
-              <PipelinePreview />
             </section>
 
             {/* SECTION 2 - Le problème */}
