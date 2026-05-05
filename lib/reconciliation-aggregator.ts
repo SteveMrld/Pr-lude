@@ -410,9 +410,9 @@ export async function getPortfolioReconciliation(userId: string): Promise<Portfo
 
   // 7. Identifier les dossiers reconciliables : outcome ET milestones
   const reconciledIds = new Set<string>();
-  for (const id of outcomeByAnalysisId.keys()) {
+  outcomeByAnalysisId.forEach((_decision, id) => {
     if (milestonesByAnalysisId.has(id)) reconciledIds.add(id);
-  }
+  });
 
   // 8. Agreger par dimension : pour chaque dimension du finalRecommendation,
   //    on compte les drivers/risques predits et on les croise avec les
