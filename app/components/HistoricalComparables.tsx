@@ -23,6 +23,12 @@ interface Comparable {
   founded: number | null;
   outcome: string;
   exitType: string | null;
+  region: string | null;
+  euStatus: string | null;
+  stateInfluenceTag: string | null;
+  dataQuality: string | null;
+  primarySourceUrl: string | null;
+  analystNote: string | null;
   features: {
     founder: number;
     market: number;
@@ -31,6 +37,7 @@ interface Comparable {
     defensibility: number;
     risk: number;
   };
+  hasFeatureScores: boolean;
   finalScore: number;
   signalsPositive: string | null;
   signalsNegative: string | null;
@@ -120,12 +127,18 @@ export default function HistoricalComparables({ analysisId }: Props) {
   const [data, setData] = useState<ComparablesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Filtre regional. null = global, 'Europe' | 'US' | 'Asia' | 'NorthAmerica' | 'Israel'
+  const [region, setRegion] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch(`/api/analyses/${analysisId}/comparables`);
+        setLoading(true);
+        const url = region
+          ? `/api/analyses/${analysisId}/comparables?region=${encodeURIComponent(region)}`
+          : `/api/analyses/${analysisId}/comparables`;
+        const res = await fetch(url);
         if (!res.ok) {
           if (cancelled) return;
           if (res.status === 422) {
@@ -139,6 +152,7 @@ export default function HistoricalComparables({ analysisId }: Props) {
         const json = await res.json();
         if (cancelled) return;
         setData(json);
+        setError(null);
         setLoading(false);
       } catch {
         if (!cancelled) {
@@ -149,7 +163,7 @@ export default function HistoricalComparables({ analysisId }: Props) {
     };
     load();
     return () => { cancelled = true; };
-  }, [analysisId]);
+  }, [analysisId, region]);
 
   if (loading) {
     return (
@@ -172,8 +186,32 @@ export default function HistoricalComparables({ analysisId }: Props) {
 
   const pattern = PATTERN_LABELS[data.dominantPattern];
 
+  const REGIONS: Array<{ key: string | null; label: string }> = [
+    { key: null, label: 'Global' },
+    { key: 'Europe', label: 'Europe' },
+    { key: 'US', label: 'États-Unis' },
+    { key: 'Asia', label: 'Asie' },
+    { key: 'Israel', label: 'Israël' },
+  ];
+
   return (
     <div className="hc">
+      {/* Onglets de filtre regional. PULSAR V3 recommande de ne pas
+          melanger US/EU/China dans une meme vue : on offre la vue
+          globale par defaut + 4 vues regionales filtrees. */}
+      <div className="hc-region-tabs">
+        {REGIONS.map((r) => (
+          <button
+            key={r.key || 'global'}
+            className={`hc-region-tab ${region === r.key ? 'hc-region-tab-active' : ''}`}
+            onClick={() => setRegion(r.key)}
+          >
+            {r.label}
+          </button>
+        ))}
+        {loading && <span className="hc-region-loading">Chargement...</span>}
+      </div>
+
       <div className="hc-pattern" style={{ borderLeftColor: pattern.color }}>
         <div className="hc-pattern-label" style={{ color: pattern.color }}>
           {pattern.label}
@@ -254,16 +292,38 @@ export default function HistoricalComparables({ analysisId }: Props) {
         <div className="hc-list-header">
           <span>Cas comparables (top 5)</span>
         </div>
-        {data.topComparables.map((c) => (
+        {data.topComparables.map((c) => {
+          const showStatePill = c.stateInfluenceTag && c.stateInfluenceTag !== 'No';
+          return (
           <div className="hc-row" key={c.id}>
             <div className="hc-row-main">
               <div className="hc-row-name">
                 {c.name}
                 {c.sectorMatch === 'exact' && <span className="hc-pill hc-pill-exact">Même secteur</span>}
                 {c.sectorMatch === 'related' && <span className="hc-pill hc-pill-related">Secteur voisin</span>}
+                {c.dataQuality === 'High' && <span className="hc-pill hc-pill-quality-high" title="Source officielle">Source haute</span>}
+                {c.dataQuality === 'Low' && <span className="hc-pill hc-pill-quality-low" title="Source qualitative seulement">Source faible</span>}
+                {showStatePill && (
+                  <span className="hc-pill hc-pill-state" title="Influence d État probable">
+                    Capital d État
+                  </span>
+                )}
+                {!c.hasFeatureScores && (
+                  <span className="hc-pill hc-pill-qualitative" title="Pas de scores 6 dimensions, matching qualitatif uniquement">
+                    Qualitatif
+                  </span>
+                )}
               </div>
               <div className="hc-row-meta">
                 {[c.country, c.sector, c.founded].filter(Boolean).join(' · ')}
+                {c.primarySourceUrl && (
+                  <>
+                    {' · '}
+                    <a href={c.primarySourceUrl} target="_blank" rel="noopener noreferrer" className="hc-row-source">
+                      Source ↗
+                    </a>
+                  </>
+                )}
               </div>
             </div>
             <div className="hc-row-outcome" style={{
@@ -277,7 +337,8 @@ export default function HistoricalComparables({ analysisId }: Props) {
               <div className="hc-row-similarity-label">similaire</div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {(data.closestSuccess || data.closestFailure) && (
@@ -286,14 +347,28 @@ export default function HistoricalComparables({ analysisId }: Props) {
             <div className="hc-narrative hc-narrative-success">
               <div className="hc-narrative-kicker">Cas de succès le plus proche</div>
               <div className="hc-narrative-name">{data.closestSuccess.name}</div>
-              <p className="hc-narrative-text">{data.closestSuccess.signalsPositive}</p>
+              <p className="hc-narrative-text">
+                {data.closestSuccess.signalsPositive || data.closestSuccess.analystNote || 'Note narrative non disponible.'}
+              </p>
+              {data.closestSuccess.primarySourceUrl && (
+                <a href={data.closestSuccess.primarySourceUrl} target="_blank" rel="noopener noreferrer" className="hc-narrative-source">
+                  Source ↗
+                </a>
+              )}
             </div>
           )}
           {data.closestFailure && (
             <div className="hc-narrative hc-narrative-fail">
               <div className="hc-narrative-kicker">Cas d&apos;échec le plus proche</div>
               <div className="hc-narrative-name">{data.closestFailure.name}</div>
-              <p className="hc-narrative-text">{data.closestFailure.signalsNegative}</p>
+              <p className="hc-narrative-text">
+                {data.closestFailure.signalsNegative || data.closestFailure.analystNote || 'Note narrative non disponible.'}
+              </p>
+              {data.closestFailure.primarySourceUrl && (
+                <a href={data.closestFailure.primarySourceUrl} target="_blank" rel="noopener noreferrer" className="hc-narrative-source">
+                  Source ↗
+                </a>
+              )}
             </div>
           )}
         </div>
@@ -604,6 +679,88 @@ const styles = `
     color: var(--muted);
     border: 1px solid var(--hairline);
   }
+  .hc-pill-quality-high {
+    background: var(--vert-foret-soft);
+    color: var(--vert-foret);
+    border: 1px solid var(--vert-foret);
+  }
+  .hc-pill-quality-low {
+    background: var(--ocre-brule-soft);
+    color: var(--ocre-brule);
+    border: 1px solid var(--ocre-brule);
+  }
+  .hc-pill-state {
+    background: var(--violet-rare-soft, rgba(109, 40, 217, 0.1));
+    color: var(--violet-rare);
+    border: 1px solid var(--violet-rare);
+  }
+  .hc-pill-qualitative {
+    background: var(--hairline-soft);
+    color: var(--muted);
+    border: 1px dashed var(--hairline);
+  }
+  .hc-row-source {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .hc-row-source:hover { text-decoration: underline; }
+
+  .hc-region-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    width: fit-content;
+  }
+  .hc-region-tab {
+    padding: 7px 14px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 7px;
+    transition: all var(--motion-fast);
+  }
+  .hc-region-tab:hover {
+    color: var(--ink);
+    background: var(--paper-accent);
+  }
+  .hc-region-tab-active {
+    background: var(--accent);
+    color: var(--paper);
+  }
+  .hc-region-tab-active:hover {
+    background: var(--accent);
+    color: var(--paper);
+  }
+  .hc-region-loading {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+    padding: 0 12px;
+  }
+  .hc-narrative-source {
+    display: inline-block;
+    margin-top: 8px;
+    color: var(--accent);
+    text-decoration: none;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .hc-narrative-source:hover { text-decoration: underline; }
   .hc-row-outcome {
     font-family: var(--sans);
     font-size: 10.5px;

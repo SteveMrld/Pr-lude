@@ -46,6 +46,13 @@ export interface Comparable {
   founded: number | null;
   outcome: string;
   exitType: string | null;
+  // Champs V3 PULSAR
+  region: string | null;            // Europe / US / Asia / Israel / NorthAmerica / Global
+  euStatus: string | null;          // EU / Non-EU / Non-EU mixed
+  stateInfluenceTag: string | null; // No / Potential / Probable / Yes/Probable
+  dataQuality: string | null;       // High / Medium / Low
+  primarySourceUrl: string | null;
+  analystNote: string | null;
   features: {
     founder: number;
     market: number;
@@ -54,6 +61,10 @@ export interface Comparable {
     defensibility: number;
     risk: number;
   };
+  // Indique si les 6 features ont des donnees reelles (true) ou
+  // sont des fallbacks par defaut (false). Quand false, le matching
+  // sur ce comparable est moins fiable et doit etre montre comme tel.
+  hasFeatureScores: boolean;
   finalScore: number;
   signalsPositive: string | null;
   signalsNegative: string | null;
@@ -168,13 +179,17 @@ function matchSector(target: string | null, ref: string): 'exact' | 'related' | 
   if (t === r) return 'exact';
   // Familles sectorielles approchees pour les cas frequents.
   const FAMILIES: Record<string, string[]> = {
-    fintech: ['fintech', 'insurtech', 'payment', 'banking', 'crypto'],
-    saas: ['saas', 'enterprise automation', 'saas analytics', 'saas search', 'saas marketplace'],
-    marketplace: ['marketplace', 'marketplace luxury', 'marketplace auto', 'e-commerce', 'e-commerce auto'],
-    food: ['food delivery', 'foodtech', 'delivery', 'quick commerce'],
-    consumer: ['consumer platform', 'streaming', 'gaming', 'fashiontech'],
+    fintech: ['fintech', 'insurtech', 'payment', 'banking', 'crypto', 'crypto/fintech'],
+    saas: ['saas', 'enterprise software', 'enterprise automation', 'saas analytics', 'saas search', 'saas marketplace', 'saas/ai', 'saas/e-commerce'],
+    marketplace: ['marketplace', 'marketplace luxury', 'marketplace auto', 'e-commerce', 'e-commerce auto', 'e-commerce/cloud', 'consumer/platform'],
+    food: ['food delivery', 'foodtech', 'delivery', 'quick commerce', 'food/mobility', 'mobility/food'],
+    consumer: ['consumer platform', 'consumer', 'streaming', 'gaming', 'fashiontech', 'gaming/e-commerce/fintech', 'web3/gaming'],
     health: ['healthtech', 'biotech', 'medtech'],
-    deeptech: ['agritech', 'iot', 'cloud', 'crypto hardware', 'web3 gaming'],
+    deeptech: ['agritech', 'iot', 'cloud', 'crypto hardware', 'web3 gaming', 'quantum'],
+    ai: ['ai', 'ai/data', 'ai/defense', 'ai/consumer', 'ai/mobility', 'ai/semiconductors', 'cybersecurity/ai', 'saas/ai', 'mobility/ai'],
+    cybersecurity: ['cybersecurity', 'cybersecurity/ai', 'cybersecurity/crypto'],
+    mobility: ['mobility', 'mobility/ai', 'mobility/food', 'mobility/fintech', 'mobility/ecommerce', 'greentech/mobility'],
+    greentech: ['greentech', 'greentech/mobility'],
   };
   for (const family of Object.values(FAMILIES)) {
     const inFamilyT = family.some((kw) => t.includes(kw));
@@ -188,49 +203,89 @@ function matchSector(target: string | null, ref: string): 'exact' | 'related' | 
  * Trouve les comparables historiques les plus proches d un dossier.
  * @param features feature vector du dossier en cours
  * @param topN nombre de comparables a renvoyer (defaut 5)
+ * @param regionFilter filtre par region (null = global). Valeurs :
+ *   'Europe' | 'US' | 'NorthAmerica' | 'Asia' | 'Israel'
  */
 export async function findComparables(
   features: ComparableFeatures,
   topN: number = 5,
+  regionFilter: string | null = null,
 ): Promise<ComparablesResult | null> {
   const supabase = getAdmin();
   if (!supabase) return null;
 
-  const { data: rows, error } = await supabase
-    .from('historical_companies')
-    .select('*');
+  let query = supabase.from('historical_companies').select('*');
+  if (regionFilter) {
+    query = query.eq('region', regionFilter);
+  }
+  const { data: rows, error } = await query;
 
   if (error || !rows) {
     console.error('[comparables] fetch error', error);
     return null;
   }
 
-  // Calcul similarite pour chaque ligne
+  // Calcul similarite pour chaque ligne. V3 : la majorite des lignes
+  // n ont pas de scores 6 dimensions. Strategie :
+  //  - Si la ligne a des scores : matching numerique habituel
+  //  - Sinon : fallback sur le matching sectoriel uniquement
+  // Le boost data_quality intervient en post : High = 1.0, Medium = 0.85,
+  // Low = 0.65. C est un poids de confiance, pas un boost de similarite.
   const scored = rows.map((row: any) => {
     const sectorMatch = matchSector(features.sector, row.sector);
     // Bonus sectoriel : 30% de boost si exact, 15% si related
     const sectorBoost = sectorMatch === 'exact' ? 0.30 : sectorMatch === 'related' ? 0.15 : 0;
 
-    const dist = weightedDistance(features, {
-      founder: row.founder_score || 50,
-      market: row.market_score || 50,
-      traction: row.traction_score || 50,
-      deal: row.deal_score || 50,
-      defensibility: row.defensibility_score || 50,
-      risk: row.risk_score || 50,
-    });
-    // Distance brute 0-1, similarite = 1 - dist + boost, capee a 1
-    const similarity = Math.max(0, Math.min(1, (1 - dist) + sectorBoost * (1 - dist)));
+    // Detecte si la ligne a des features reelles (V1) ou non (V3)
+    const hasFeatureScores =
+      typeof row.founder_score === 'number' &&
+      typeof row.market_score === 'number' &&
+      typeof row.traction_score === 'number';
+
+    let similarity: number;
+    if (hasFeatureScores) {
+      const dist = weightedDistance(features, {
+        founder: row.founder_score || 50,
+        market: row.market_score || 50,
+        traction: row.traction_score || 50,
+        deal: row.deal_score || 50,
+        defensibility: row.defensibility_score || 50,
+        risk: row.risk_score || 50,
+      });
+      similarity = Math.max(0, Math.min(1, (1 - dist) + sectorBoost * (1 - dist)));
+    } else {
+      // Fallback V3 : pas de scores numeriques. La similarite vient
+      // exclusivement du match sectoriel. Base 50% si meme secteur,
+      // 35% si secteur voisin, 15% sinon. Nettement plus bas que les
+      // matches V1 avec scores : c est volontaire pour que les V1
+      // remontent quand ils existent.
+      if (sectorMatch === 'exact') similarity = 0.50;
+      else if (sectorMatch === 'related') similarity = 0.35;
+      else similarity = 0.15;
+    }
+
+    // Pondération data_quality : decote la similarite des lignes Low.
+    const qualityWeight = row.data_quality === 'High' ? 1.0
+      : row.data_quality === 'Medium' ? 0.92
+      : row.data_quality === 'Low' ? 0.78
+      : 0.85;
+    similarity = similarity * qualityWeight;
 
     const comparable: Comparable = {
       id: row.id,
       name: row.name,
       country: row.country,
       sector: row.sector,
-      subSector: row.sub_sector,
+      subSector: row.sub_sector || row.subsector,
       founded: row.founded,
       outcome: row.outcome,
       exitType: row.exit_type,
+      region: row.region,
+      euStatus: row.eu_status,
+      stateInfluenceTag: row.state_influence_tag,
+      dataQuality: row.data_quality,
+      primarySourceUrl: row.primary_source_url,
+      analystNote: row.analyst_note,
       features: {
         founder: row.founder_score || 0,
         market: row.market_score || 0,
@@ -239,6 +294,7 @@ export async function findComparables(
         defensibility: row.defensibility_score || 0,
         risk: row.risk_score || 0,
       },
+      hasFeatureScores,
       finalScore: row.final_score || 0,
       signalsPositive: row.signals_positive,
       signalsNegative: row.signals_negative,
@@ -461,8 +517,33 @@ function formatMult(n: number): string {
  */
 export function extractFeaturesFromAnalysis(result: any): ComparableFeatures | null {
   if (!result) return null;
-  const sector = result.extraction?.sector || null;
+  let sector = result.extraction?.sector || null;
   if (!sector) return null;
+
+  // Normalisation sectorielle : la pipeline produit parfois des labels
+  // verbeux comme "IA / Generative AI / Large Language Models" qui ne
+  // matchent pas la table V3 ("AI"). On normalise vers les categories
+  // V3 quand la chaine contient des mots-cles distinctifs.
+  const sectorLower = sector.toLowerCase();
+  if (/\b(ia|ai|llm|generative|machine learning|foundation model)\b/.test(sectorLower)) {
+    sector = 'AI';
+  } else if (/\b(fintech|payment|banking|insurance|insurtech|crypto)\b/.test(sectorLower)) {
+    sector = 'Fintech';
+  } else if (/\b(saas|enterprise software|cloud|automation)\b/.test(sectorLower)) {
+    sector = 'SaaS';
+  } else if (/\b(cybersecurity|cyber|security)\b/.test(sectorLower)) {
+    sector = 'Cybersecurity';
+  } else if (/\b(marketplace|e-?commerce|retail)\b/.test(sectorLower)) {
+    sector = 'Marketplace';
+  } else if (/\b(mobility|delivery|transport|automotive)\b/.test(sectorLower)) {
+    sector = 'Mobility';
+  } else if (/\b(health|medical|biotech|pharma)\b/.test(sectorLower)) {
+    sector = 'Healthtech';
+  } else if (/\b(greentech|cleantech|climate|energy)\b/.test(sectorLower)) {
+    sector = 'Greentech';
+  } else if (/\b(quantum)\b/.test(sectorLower)) {
+    sector = 'Quantum';
+  }
 
   // Founder : couverture systemique de l equipe ou moyenne signaux
   let founder = result.team?.systemicCoverage?.score;

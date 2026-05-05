@@ -14,7 +14,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -22,12 +22,16 @@ export async function GET(
     return NextResponse.json({ error: 'missing id' }, { status: 400 });
   }
 
+  // Filtre region optionnel : ?region=Europe / US / Asia / NorthAmerica / Israel
+  // Sans valeur, on prend le global (toutes regions confondues).
+  const url = new URL(req.url);
+  const region = url.searchParams.get('region');
+
   const analysis = await getAnalysis(id);
   if (!analysis) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  // Le payload pipeline est stocke dans resultJson sur AnalysisFull
   const features = extractFeaturesFromAnalysis(analysis.resultJson);
   if (!features) {
     return NextResponse.json({
@@ -36,13 +40,14 @@ export async function GET(
     }, { status: 422 });
   }
 
-  const comparables = await findComparables(features, 5);
+  const comparables = await findComparables(features, 5, region || null);
   if (!comparables) {
     return NextResponse.json({ error: 'comparables fetch failed' }, { status: 500 });
   }
 
   return NextResponse.json({
     features,
+    region,
     ...comparables,
   });
 }
