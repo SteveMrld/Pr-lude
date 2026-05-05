@@ -1912,6 +1912,91 @@ ul, ol { list-style: none; }
   margin: 0;
 }
 
+/* AI REPLICABILITY TEST - Bandeau introduit en reponse a l ere
+   IA generative. Verdict colore selon la couleur semantique :
+   - high_risk : warn (rouge), le produit est facilement replicable
+   - medium_risk : ocre, ambivalent
+   - protected : vert, vraies moats
+   Border-left pour signaler le poids du jugement. */
+.ai-replicability {
+  margin-top: 16px;
+  padding: 18px 22px;
+  border-radius: 0 8px 8px 0;
+  border-left: 3px solid;
+}
+.ai-replicability[data-verdict="high_risk"] {
+  background: var(--warn-soft);
+  border-left-color: var(--warn);
+}
+.ai-replicability[data-verdict="medium_risk"] {
+  background: var(--ocre-brule-soft);
+  border-left-color: var(--ocre-brule);
+}
+.ai-replicability[data-verdict="protected"] {
+  background: var(--vert-foret-soft);
+  border-left-color: var(--vert-foret);
+}
+.ai-replicability-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ai-replicability-kicker {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ai-replicability-verdict {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+.ai-replicability[data-verdict="high_risk"] .ai-replicability-verdict { color: var(--warn); }
+.ai-replicability[data-verdict="medium_risk"] .ai-replicability-verdict { color: var(--ocre-brule); }
+.ai-replicability[data-verdict="protected"] .ai-replicability-verdict { color: var(--vert-foret); }
+.ai-replicability-time {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-style: italic;
+}
+.ai-replicability-reasoning {
+  margin: 0 0 14px 0 !important;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.ai-replicability-factors {
+  margin-top: 12px;
+}
+.ai-replicability-factors-label {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--vert-foret);
+  margin-bottom: 6px;
+}
+.ai-replicability-factors-label-warn { color: var(--warn); }
+.ai-replicability-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.ai-replicability-list li { margin-bottom: 4px; }
+.ai-replicability-list-warn li {
+  color: var(--ink-soft);
+}
+
 /* Timeline d instruction sur la couverture du pack IC.
    Frise verticale a gauche avec dots ronds, label de stade
    en serif, date secondaire, et commentaire optionnel en

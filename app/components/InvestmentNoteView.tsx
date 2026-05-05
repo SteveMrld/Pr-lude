@@ -429,6 +429,51 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <p className="note-paragraph"><strong>Moats identifiés :</strong> {m.defensibility.moats.join(' · ')}</p>
         )}
 
+        {/* TEST AI REPLICABILITY - introduit en reponse a l ere IA generative.
+            Pose la question : un solo founder + Cursor + Claude Code pourrait-il
+            repliquer le produit en quelques mois ? Si oui, le verdict de
+            defensibilite doit etre agressivement sceptique. Affiche un bandeau
+            colore par verdict (rouge si high_risk, ambre si medium_risk, vert
+            si protected) avec le reasoning et la liste des facteurs protecteurs. */}
+        {m.defensibility?.aiReplicability && (
+          <div className="ai-replicability" data-verdict={m.defensibility.aiReplicability.verdict}>
+            <div className="ai-replicability-header">
+              <span className="ai-replicability-kicker">Test de réplicabilité IA</span>
+              <span className="ai-replicability-verdict">
+                {m.defensibility.aiReplicability.verdict === 'high_risk' && 'Risque élevé'}
+                {m.defensibility.aiReplicability.verdict === 'medium_risk' && 'Risque modéré'}
+                {m.defensibility.aiReplicability.verdict === 'protected' && 'Protégé'}
+              </span>
+              <span className="ai-replicability-time">{m.defensibility.aiReplicability.timeToReplicate}</span>
+            </div>
+            <p className="note-paragraph ai-replicability-reasoning">
+              {enrichProse(m.defensibility.aiReplicability.reasoning)}
+            </p>
+            {m.defensibility.aiReplicability.protectingFactors?.length > 0 && (
+              <div className="ai-replicability-factors">
+                <div className="ai-replicability-factors-label">Facteurs protecteurs</div>
+                <ul className="ai-replicability-list">
+                  {m.defensibility.aiReplicability.protectingFactors.map((f: string, i: number) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {m.defensibility.aiReplicability.replicableComponents?.length > 0 && (
+              <div className="ai-replicability-factors">
+                <div className="ai-replicability-factors-label ai-replicability-factors-label-warn">
+                  Composants triviaux à répliquer
+                </div>
+                <ul className="ai-replicability-list ai-replicability-list-warn">
+                  {m.defensibility.aiReplicability.replicableComponents.map((c: string, i: number) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* MARKET SIZING - bloc TAM/SAM/SOM avec sources verifiees.
             Ne s affiche que si le moteur Marche a effectivement rempli
             marketSizing (introduit en Niveau 2.A v2). Pour les analyses

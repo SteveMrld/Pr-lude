@@ -32,6 +32,19 @@ Critique : un marché saturé en acteurs n'est pas nécessairement bien servi. P
 ## Défensibilité
 Identifie les moats potentiels (effet de réseau, intégration verticale, données propriétaires, régulation comme barrière) et les vulnérabilités (réplicabilité, hyperscalers, dépendance plateforme).
 
+## Test critique de l'ère IA générative : réplicabilité par solo founder + Cursor
+À l'ère où Claude Code, Cursor, v0 et Lovable permettent à un solo founder débrouillard de shipper un produit fonctionnel en quelques semaines, le code n'est plus une moat. Tu dois donc poser la question dérangeante mais essentielle : un solo founder équipé de ces outils pourrait-il répliquer l'essentiel de ce produit en trois mois ?
+
+Si oui, le verdict de défensibilité doit être agressivement sceptique. Le produit n'est alors pas une boîte mais une fonctionnalité qui sera commoditisée. Ce qui doit alors faire la défense, en dehors du code, c'est :
+- des données propriétaires (input data, telemetry, fine-tuning data, signaux d'usage)
+- des network effects (marketplace, social, two-sided)
+- une distribution acquise (relations entreprise, contrats régulés, brand consommateur)
+- une profondeur réglementaire (santé, défense, banque, secteurs où la conformité prend des années)
+- un AI flywheel (le produit s'améliore avec l'usage, l'asymétrie se creuse)
+- un apprentissage métier propriétaire (vertical depth)
+
+Tu dois identifier explicitement les composants techniques qui seraient triviaux à répliquer, et les facteurs qui vraiment ralentissent ou empêchent la réplication. Si tu ne trouves rien dans la deuxième catégorie, c'est un signal critique pour le verdict final.
+
 ## Comparables internationaux
 Identifie 2-3 comparables internationaux pertinents par structure de défi.
 
@@ -87,7 +100,14 @@ NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitc
   "defensibility": {
     "score": 0-100,
     "moats": ["moats identifiés"],
-    "vulnerabilities": ["vulnérabilités identifiées"]
+    "vulnerabilities": ["vulnérabilités identifiées"],
+    "aiReplicability": {
+      "verdict": "high_risk | medium_risk | protected",
+      "timeToReplicate": "ex. 'moins de 3 mois', '6-12 mois', '18+ mois', 'non répliquable sans accès régulé'",
+      "reasoning": "3-5 phrases qui expliquent pourquoi ce produit serait facile ou difficile à répliquer par un solo founder + Cursor + Claude Code, en explicitant ce qui ralentit la réplication au-delà du code lui-même",
+      "protectingFactors": ["facteurs concrets qui ralentissent ou empêchent la réplication : données propriétaires, network effects, distribution acquise, régulation, AI flywheel, apprentissage métier"],
+      "replicableComponents": ["composants techniques triviaux à répliquer avec des outils IA modernes : interface, API wrapper, intégrations standard, etc."]
+    }
   },
   "internationalBenchmarks": [
     { "name": "nom", "geography": "pays", "relevance": "pertinence de l'analogie" }

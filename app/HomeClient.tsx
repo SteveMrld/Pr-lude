@@ -786,6 +786,9 @@ export default function HomeClient({
                 <p>
                   Prélude est conçu autour d&apos;une méthode d&apos;instruction qui distingue le diagnostic chiffré, la lecture critique, la lecture dialectique et la décision. Une logique applicable à tout dossier, calibrée sur les sources et patterns européens consolidés (Atomico, EU-INC, pipeline réglementaire EU 2026) sans s&apos;y limiter.
                 </p>
+                <p>
+                  Prélude est lui-même un produit pensé à l&apos;ère de l&apos;intelligence artificielle générative. Sa défensibilité ne repose pas sur le code, qui est reproductible. Elle repose sur trois choses : la qualité éditoriale du raisonnement, le corpus historique et les annotations des dossiers passés que chaque fonds accumule au fil de son usage, et l&apos;intégration au workflow d&apos;un partner habitué à l&apos;ouvrir le matin. Le seul de ces trois leviers qui se construit avec le temps est le deuxième. C&apos;est pour cela que la mémoire institutionnelle, et la réconciliation entre prédiction et réalité, ne sont pas des fonctionnalités annexes. Elles sont la matière même que Prélude rend opérable.
+                </p>
               </div>
             </section>
 

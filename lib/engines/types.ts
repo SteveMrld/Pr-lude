@@ -202,6 +202,30 @@ export interface MarketAnalysisOutput {
     score: number;
     moats: string[];
     vulnerabilities: string[];
+    /**
+     * Test critique de l ere IA generative : un solo founder equipe
+     * de Cursor, Claude Code et autres outils vibe-coding pourrait-il
+     * repliquer le produit en trois mois ? Si oui, la defensibilite
+     * est nulle au sens classique : le produit est une fonctionnalite
+     * qui sera commoditisee. Le verdict doit alors expliciter ce qui
+     * empeche cette replication, en dehors du code lui-meme : donnees
+     * proprietaires, network effects, distribution, profondeur
+     * reglementaire, AI flywheel, ou apprentissage metier.
+     *
+     * Optionnel pour retro-compatibilite avec les analyses anterieures
+     * a l introduction de ce check. Quand absent, le rendu UI peut
+     * afficher 'non instruit'.
+     */
+    aiReplicability?: {
+      verdict: 'high_risk' | 'medium_risk' | 'protected';
+      // 'high_risk'  : un solo founder + Cursor en 3 mois reproduirait l essentiel
+      // 'medium_risk': replicable techniquement mais d autres barrieres existent
+      // 'protected'  : moats non reproductibles (regulation, data, distribution, etc.)
+      timeToReplicate: string;     // ex 'moins de 3 mois', '6-12 mois', '18+ mois'
+      reasoning: string;           // explication structuree (3-5 phrases)
+      protectingFactors: string[]; // ce qui ralentit ou empeche la replication
+      replicableComponents: string[]; // ce qui serait facilement repliquable
+    };
   };
   internationalBenchmarks: Array<{
     name: string;
