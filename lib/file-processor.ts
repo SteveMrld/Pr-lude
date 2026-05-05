@@ -1,6 +1,15 @@
 import * as XLSX from 'xlsx';
 
-export type FileNature = 'pitch_deck' | 'business_plan' | 'general_ledger' | 'financial_other' | 'unknown';
+export type FileNature =
+  | 'pitch_deck'
+  | 'business_plan'
+  | 'general_ledger'
+  | 'shareholders_agreement' // pacte d actionnaires
+  | 'statutes'                // statuts
+  | 'cap_table'               // tableau d actionnariat
+  | 'client_contract'         // contrat client
+  | 'financial_other'
+  | 'unknown';
 
 export interface ClassifiedFile {
   name: string;
@@ -30,6 +39,54 @@ export function classifyFile(file: File): FileNature {
       lowerName.includes('balance generale') || lowerName.includes('balance_generale') ||
       lowerName.includes('journal_compta') || lowerName.includes('ledger.')) {
     return 'general_ledger';
+  }
+
+  // Pacte d actionnaires
+  if (lowerName.includes('pacte') ||
+      lowerName.includes('shareholders agreement') ||
+      lowerName.includes('shareholders_agreement') ||
+      lowerName.includes('shareholdersagreement') ||
+      lowerName.includes(' sha.') || lowerName.startsWith('sha_') ||
+      lowerName.includes('_sha_') || lowerName.includes('sha-') ||
+      lowerName.includes('shareholder_agreement') ||
+      lowerName.includes('investment agreement')) {
+    return 'shareholders_agreement';
+  }
+
+  // Statuts
+  if (lowerName.includes('statuts') || lowerName.includes('articles of association') ||
+      lowerName.includes('articles_of_association') ||
+      lowerName.includes(' aoa.') || lowerName.startsWith('aoa_') ||
+      lowerName.includes('articlesofassociation') ||
+      lowerName.includes('bylaws') ||
+      lowerName.includes('memorandum and articles')) {
+    return 'statutes';
+  }
+
+  // Cap table : excel ou pdf
+  if (lowerName.includes('cap table') || lowerName.includes('cap_table') ||
+      lowerName.includes('captable') || lowerName.includes('capitalisation') ||
+      lowerName.includes('capitalization') || lowerName.includes('actionnariat') ||
+      lowerName.includes('cap-table') ||
+      lowerName.includes('table de capitalisation') ||
+      lowerName.includes('cap_structure') || lowerName.includes('capstructure') ||
+      lowerName.includes('repartition capital')) {
+    return 'cap_table';
+  }
+
+  // Contrat client : detection assez specifique pour eviter les faux
+  // positifs sur "contrat de travail" ou "contrat de prestation"
+  if (lowerName.includes('contrat client') || lowerName.includes('contrat_client') ||
+      lowerName.includes('contract_client') || lowerName.includes('clientcontract') ||
+      lowerName.includes('client_agreement') ||
+      lowerName.includes(' msa.') || lowerName.startsWith('msa_') ||
+      lowerName.includes('_msa_') || lowerName.includes('master services agreement') ||
+      lowerName.includes('master_services_agreement') ||
+      lowerName.includes(' sla.') || lowerName.startsWith('sla_') ||
+      lowerName.includes('order form') || lowerName.includes('order_form') ||
+      lowerName.includes('purchase agreement') ||
+      lowerName.includes('framework agreement')) {
+    return 'client_contract';
   }
 
   // Heuristiques sur le nom : business plan
@@ -113,6 +170,11 @@ export async function processFiles(files: File[]): Promise<{
   pitchDeck: ClassifiedFile | null;
   businessPlan: ClassifiedFile | null;
   generalLedger: ClassifiedFile | null;
+  // Documents juridiques (Module 2 DD contractuelle)
+  shareholdersAgreement: ClassifiedFile | null;
+  statutes: ClassifiedFile | null;
+  capTable: ClassifiedFile | null;
+  clientContracts: ClassifiedFile[]; // peut etre plusieurs
   others: ClassifiedFile[];
 }> {
   const classified: ClassifiedFile[] = [];
@@ -143,12 +205,41 @@ export async function processFiles(files: File[]): Promise<{
     });
   }
 
-  // Identifier le pitch deck principal (le PDF nommé pitch_deck)
-  let pitchDeck: ClassifiedFile | null = classified.find(f => f.nature === 'pitch_deck' && f.type === 'pdf') || null;
+  // Documents juridiques en priorite : on les extrait avant le pitch
+  // pour eviter qu un PDF nomme "pacte_x.pdf" soit pris comme pitch.
+  const shareholdersAgreement: ClassifiedFile | null = classified.find(f =>
+    f.nature === 'shareholders_agreement' && f.type === 'pdf'
+  ) || null;
 
-  // Si pas trouvé, prendre le premier PDF
+  const statutes: ClassifiedFile | null = classified.find(f =>
+    f.nature === 'statutes' && f.type === 'pdf'
+  ) || null;
+
+  const capTable: ClassifiedFile | null = classified.find(f =>
+    f.nature === 'cap_table' && (f.type === 'excel' || f.type === 'csv' || f.type === 'pdf')
+  ) || null;
+
+  const clientContracts: ClassifiedFile[] = classified.filter(f =>
+    f.nature === 'client_contract' && f.type === 'pdf'
+  );
+
+  // Identifier le pitch deck principal (le PDF nommé pitch_deck), en
+  // excluant explicitement les PDF deja classes comme documents
+  // juridiques.
+  const legalPdfs = new Set<ClassifiedFile>([
+    ...(shareholdersAgreement ? [shareholdersAgreement] : []),
+    ...(statutes ? [statutes] : []),
+    ...(capTable && capTable.type === 'pdf' ? [capTable] : []),
+    ...clientContracts,
+  ]);
+
+  let pitchDeck: ClassifiedFile | null = classified.find(f =>
+    f.nature === 'pitch_deck' && f.type === 'pdf' && !legalPdfs.has(f)
+  ) || null;
+
+  // Si pas trouvé, prendre le premier PDF qui n est pas un document juridique
   if (!pitchDeck) {
-    pitchDeck = classified.find(f => f.type === 'pdf') || null;
+    pitchDeck = classified.find(f => f.type === 'pdf' && !legalPdfs.has(f)) || null;
   }
 
   // Identifier le grand livre comptable en priorite (signal explicite
@@ -163,7 +254,10 @@ export async function processFiles(files: File[]): Promise<{
   // dont le contenu commence par les headers FEC standard ou
   // par un schema "compte/debit/credit" est probablement un grand livre.
   if (!generalLedger) {
-    const candidates = classified.filter(f => f !== pitchDeck && (f.type === 'excel' || f.type === 'csv'));
+    const candidates = classified.filter(f =>
+      f !== pitchDeck && f !== capTable &&
+      (f.type === 'excel' || f.type === 'csv')
+    );
     for (const c of candidates) {
       if (looksLikeLedger(c.payload)) {
         c.nature = 'general_ledger';
@@ -173,25 +267,43 @@ export async function processFiles(files: File[]): Promise<{
     }
   }
 
-  // Identifier le BP (Excel ou CSV, distinct du grand livre)
+  // Identifier le BP (Excel ou CSV, distinct du grand livre et du cap table)
   let businessPlan: ClassifiedFile | null = classified.find(f =>
-    f !== generalLedger &&
+    f !== generalLedger && f !== capTable &&
     f.nature === 'business_plan' && (f.type === 'excel' || f.type === 'csv')
   ) || null;
 
   // Sinon, premier Excel/CSV qui ne soit ni le pitch ni le grand livre
+  // ni le cap table
   if (!businessPlan) {
     businessPlan = classified.find(f =>
-      f !== pitchDeck && f !== generalLedger &&
+      f !== pitchDeck && f !== generalLedger && f !== capTable &&
       (f.type === 'excel' || f.type === 'csv')
     ) || null;
   }
 
-  const others = classified.filter(f =>
-    f !== pitchDeck && f !== businessPlan && f !== generalLedger
-  );
+  // Reste : tout ce qui n a pas ete classe
+  const allClassified = new Set<ClassifiedFile>([
+    ...(pitchDeck ? [pitchDeck] : []),
+    ...(businessPlan ? [businessPlan] : []),
+    ...(generalLedger ? [generalLedger] : []),
+    ...(shareholdersAgreement ? [shareholdersAgreement] : []),
+    ...(statutes ? [statutes] : []),
+    ...(capTable ? [capTable] : []),
+    ...clientContracts,
+  ]);
+  const others = classified.filter(f => !allClassified.has(f));
 
-  return { pitchDeck, businessPlan, generalLedger, others };
+  return {
+    pitchDeck,
+    businessPlan,
+    generalLedger,
+    shareholdersAgreement,
+    statutes,
+    capTable,
+    clientContracts,
+    others,
+  };
 }
 
 /**

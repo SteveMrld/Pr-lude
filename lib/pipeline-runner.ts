@@ -16,6 +16,7 @@ import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
 import { auditAssertions } from './engines/assertion-validator';
 import { parseLedger } from './ledger-parser';
+import { parseCapTable } from './cap-table-parser';
 import { getJobStore } from './job-store';
 
 interface RunOpts {
@@ -26,13 +27,30 @@ interface RunOpts {
   businessPlanName: string | null;
   generalLedgerPayload: string | null; // texte grand livre comptable ou null
   generalLedgerName: string | null;
+  // Documents juridiques (Module 2 DD contractuelle)
+  legalDocuments?: {
+    shareholdersAgreementPdf: string | null; // base64 PDF
+    shareholdersAgreementName: string | null;
+    statutesPdf: string | null; // base64 PDF
+    statutesName: string | null;
+    capTablePayload: string | null; // texte Excel/CSV ou base64 PDF
+    capTableName: string | null;
+    capTableType: 'excel' | 'csv' | 'pdf' | null;
+    clientContracts: Array<{ name: string; pdfBase64: string }>;
+  };
   otherFileNames: string[];
 }
 
 export async function runPipeline(opts: RunOpts): Promise<void> {
   const store = getJobStore();
   const startTime = Date.now();
-  const { jobId, pitchDeckPayload, pitchDeckName, businessPlanPayload, businessPlanName, generalLedgerPayload, generalLedgerName, otherFileNames } = opts;
+  const {
+    jobId, pitchDeckPayload, pitchDeckName,
+    businessPlanPayload, businessPlanName,
+    generalLedgerPayload, generalLedgerName,
+    legalDocuments,
+    otherFileNames,
+  } = opts;
 
   try {
     // Moteur 1 : Extraction du pitch deck
@@ -111,6 +129,25 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     } catch (err: any) {
       console.warn('[dd-financial] engine failed, continuing without:', err?.message);
       await store.setEngineDone(jobId, 'dd-financial', null);
+    }
+
+    // Parsing du cap table (deterministe, pas d appel LLM).
+    // Module 2 DD contractuelle etape 1 : extraction de la structure
+    // d actionnariat depuis Excel/CSV. Si fourni en PDF, le parsing
+    // detaille sera fait en etape 2 par le moteur LLM.
+    await store.setEngineRunning(jobId, 'cap-table-parsing');
+    let capTableExtraction: any = null;
+    try {
+      if (legalDocuments?.capTablePayload && legalDocuments.capTableType) {
+        capTableExtraction = parseCapTable(
+          legalDocuments.capTablePayload,
+          legalDocuments.capTableType,
+        );
+      }
+      await store.setEngineDone(jobId, 'cap-table-parsing', capTableExtraction);
+    } catch (err: any) {
+      console.warn('[cap-table-parsing] failed:', err?.message);
+      await store.setEngineDone(jobId, 'cap-table-parsing', null);
     }
 
     // Moteur Friction d execution commerciale et industrielle :
@@ -258,6 +295,22 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       executionFriction,
       ledgerExtraction,
       ddFinancial,
+      capTableExtraction,
+      // Metadonnees des documents juridiques uploades, pour l etape 2
+      // du moteur DD contractuel (LLM) qui s appuiera sur ces fichiers.
+      // On expose les noms et la presence sans persister les payloads
+      // bruts pour ne pas stocker des documents juridiques sensibles
+      // dans le result_json en base.
+      legalDocumentsMeta: legalDocuments ? {
+        hasShareholdersAgreement: !!legalDocuments.shareholdersAgreementPdf,
+        shareholdersAgreementName: legalDocuments.shareholdersAgreementName,
+        hasStatutes: !!legalDocuments.statutesPdf,
+        statutesName: legalDocuments.statutesName,
+        hasCapTable: !!legalDocuments.capTablePayload,
+        capTableName: legalDocuments.capTableName,
+        clientContractsCount: legalDocuments.clientContracts.length,
+        clientContractsNames: legalDocuments.clientContracts.map(c => c.name),
+      } : null,
       finalRecommendation,
       referenceChecks,
       assertionAudit,

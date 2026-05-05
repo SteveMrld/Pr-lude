@@ -787,6 +787,32 @@ export interface OrchestratedResult {
   // / dd_red_flags) plus not_applicable. Synthese editoriale
   // niveau memo IC. Ne tourne que si BP + grand livre presents.
   ddFinancial?: any | null;
+  // Extraction du cap table (Module 2 DD contractuelle etape 1).
+  // Parsing deterministe d un Excel/CSV listant les actionnaires,
+  // leur classe d actions, leur nombre d actions et leur pourcentage.
+  // Detection des fondateurs / investisseurs / pool d options /
+  // employes via heuristiques sur le nom et la classe. Drapeaux
+  // automatiques sur dilution fondateur, taille du pool, concentration
+  // investisseur. Le moteur DD contractuel (etape 2 LLM) s appuiera
+  // sur ces donnees pour produire la cartographie des clauses
+  // sensibles. Le type CapTableExtraction est defini dans
+  // lib/cap-table-parser.ts.
+  capTableExtraction?: any | null;
+  // Metadonnees des documents juridiques (Module 2 DD contractuelle).
+  // On stocke la presence et les noms sans le payload brut pour
+  // ne pas persister de documents sensibles dans le result_json.
+  // Le moteur DD contractuel (etape 2 LLM) consommera les payloads
+  // directement depuis le pipeline en cours d execution.
+  legalDocumentsMeta?: {
+    hasShareholdersAgreement: boolean;
+    shareholdersAgreementName: string | null;
+    hasStatutes: boolean;
+    statutesName: string | null;
+    hasCapTable: boolean;
+    capTableName: string | null;
+    clientContractsCount: number;
+    clientContractsNames: string[];
+  } | null;
   // Audit consolide des assertions (Niveau 2.B). Liste les noms propres
   // non sourcees, les conversions de devise non taggees, les annees
   // inventees detectees dans tous les outputs des moteurs. Sert a

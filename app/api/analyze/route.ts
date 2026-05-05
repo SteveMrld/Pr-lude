@@ -39,7 +39,11 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Au moins un fichier requis' }), { status: 400 });
     }
 
-    const { pitchDeck, businessPlan, generalLedger, others } = await processFiles(files);
+    const {
+      pitchDeck, businessPlan, generalLedger,
+      shareholdersAgreement, statutes, capTable, clientContracts,
+      others,
+    } = await processFiles(files);
 
     if (!pitchDeck) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
@@ -50,6 +54,10 @@ export async function POST(req: NextRequest) {
       pitchDeck.name,
       ...(businessPlan ? [businessPlan.name] : []),
       ...(generalLedger ? [generalLedger.name] : []),
+      ...(shareholdersAgreement ? [shareholdersAgreement.name] : []),
+      ...(statutes ? [statutes.name] : []),
+      ...(capTable ? [capTable.name] : []),
+      ...clientContracts.map(c => c.name),
       ...others.map(o => o.name),
     ];
 

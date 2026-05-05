@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Au moins un fichier requis' }), { status: 400 });
     }
 
-    const { pitchDeck, businessPlan, generalLedger, others } = await processFiles(files);
+    const {
+      pitchDeck, businessPlan, generalLedger,
+      shareholdersAgreement, statutes, capTable, clientContracts,
+      others,
+    } = await processFiles(files);
 
     if (!pitchDeck) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
@@ -41,6 +45,10 @@ export async function POST(req: NextRequest) {
         pitchDeck: pitchDeck.name,
         businessPlan: businessPlan?.name || null,
         generalLedger: generalLedger?.name || null,
+        shareholdersAgreement: shareholdersAgreement?.name || null,
+        statutes: statutes?.name || null,
+        capTable: capTable?.name || null,
+        clientContracts: clientContracts.map(c => c.name),
         others: others.map(o => o.name),
       } as any,
     });
@@ -56,6 +64,18 @@ export async function POST(req: NextRequest) {
       businessPlanName: businessPlan?.name || null,
       generalLedgerPayload: generalLedger?.payload || null,
       generalLedgerName: generalLedger?.name || null,
+      legalDocuments: {
+        shareholdersAgreementPdf: shareholdersAgreement?.payload || null,
+        shareholdersAgreementName: shareholdersAgreement?.name || null,
+        statutesPdf: statutes?.payload || null,
+        statutesName: statutes?.name || null,
+        capTablePayload: capTable?.payload || null,
+        capTableName: capTable?.name || null,
+        capTableType: capTable?.type === 'excel' || capTable?.type === 'csv' || capTable?.type === 'pdf'
+          ? capTable.type as 'excel' | 'csv' | 'pdf'
+          : null,
+        clientContracts: clientContracts.map(c => ({ name: c.name, pdfBase64: c.payload })),
+      },
       otherFileNames: others.map(o => o.name),
     });
 
