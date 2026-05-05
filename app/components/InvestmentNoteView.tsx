@@ -167,6 +167,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   const fd = r.financialData;
   const tcc = r.techClaimCoherence;
   const efr = r.executionFriction;
+  const ddf = r.ddFinancial;
   const ba = r.blindspotAnalysis;
   const ca = r.contrarianAnalysis;
   const pm = r.patternMatching;
@@ -1060,6 +1061,69 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <div className="alert-box">
                 <strong>Alertes critiques :</strong>
                 <ul>{(fc.alertesCritiques || []).map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {ddf?.triggered && (
+          <>
+            <h3 className="note-h3">Data Room - DD Financiere</h3>
+            <p className="note-paragraph muted">
+              Periode du grand livre : {ddf.ledgerPeriod.start || 'n.a.'} au {ddf.ledgerPeriod.end || 'n.a.'}.
+              {' '}Score global de l&apos;audit : {ddf.globalScore}/100.
+            </p>
+            {splitIntoParagraphs(ddf.synthesis, 3).map((p: string, i: number) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
+            <div className="dd-tests">
+              {[
+                { key: 'revenueGap', label: 'Ecart CA declare vs CA reel' },
+                { key: 'grossMarginGap', label: 'Marge brute projetee vs reelle' },
+                { key: 'burnRateGap', label: 'Burn rate declare vs reel' },
+                { key: 'headcountGap', label: 'Headcount vs charges salariales' },
+                { key: 'clientConcentration', label: 'Concentration client reelle' },
+                { key: 'growthTrajectory', label: 'Trajectoire recente vs BP' },
+                { key: 'offBalanceVsNarrative', label: 'Engagements hors bilan vs narratif' },
+              ].map((row) => {
+                const t = ddf.tests[row.key];
+                if (!t) return null;
+                return (
+                  <div key={row.key} className={`dd-test-row dd-test-${t.severity}`}>
+                    <div className="dd-test-header">
+                      <span className="dd-test-id">{t.testId}</span>
+                      <span className="dd-test-label">{row.label}</span>
+                      <span className={`dd-test-pill dd-test-pill-${t.severity}`}>
+                        {t.severity === 'aligned' && 'Aligne'}
+                        {t.severity === 'attention' && 'Attention'}
+                        {t.severity === 'alert' && 'Alerte'}
+                        {t.severity === 'red_flag' && 'Red flag'}
+                        {t.severity === 'not_assessable' && 'Non evaluable'}
+                      </span>
+                    </div>
+                    <div className="dd-test-values">
+                      <div className="dd-test-bp"><strong>BP / Pitch</strong>{' '}{t.bpValue}</div>
+                      <div className="dd-test-real"><strong>Reel</strong>{' '}{t.realValue}</div>
+                    </div>
+                    <div className="dd-test-evidence">{t.evidence}</div>
+                    {t.ddQuestion && (
+                      <div className="dd-test-question"><strong>Question DD :</strong>{' '}{t.ddQuestion}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className={`dd-verdict dd-verdict-${ddf.verdict}`}>
+              <strong>Verdict :</strong>{' '}
+              {ddf.verdict === 'dd_aligned' && 'BP et realite comptable alignes. Confirmer en DD le maintien sur les exercices a venir.'}
+              {ddf.verdict === 'dd_partial_alignment' && 'Alignement partiel. Une a deux zones d ecart sectoriel a documenter avant comite d investissement.'}
+              {ddf.verdict === 'dd_significant_gaps' && 'Ecarts significatifs sur plusieurs postes. Investigation DD approfondie requise avant toute decision.'}
+              {ddf.verdict === 'dd_red_flags' && 'Red flags identifies. Le BP presente des decalages structurels avec la realite comptable qui exigent clarification immediate.'}
+            </div>
+            {ddf.questionsToInstruct?.length > 0 && (
+              <div className="dd-questions">
+                <strong>Questions DD prioritaires :</strong>
+                <ol>{ddf.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
               </div>
             )}
           </>
@@ -2459,6 +2523,196 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             grid-template-columns: 1fr;
             gap: 6px;
           }
+        }
+
+        /* DD FINANCIER - Section Data Room. Confrontation BP projete
+           vs realite comptable. Sept tests cote a cote, severity en
+           code couleur (aligned vert / attention ocre / alert rouge anglais
+           / red_flag rouge profond), evidence chiffree, question DD. */
+        .dd-tests {
+          margin: 16px 0 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .dd-test-row {
+          border: 1px solid var(--hairline);
+          border-left: 4px solid var(--hairline);
+          border-radius: 4px;
+          padding: 14px 16px;
+          background: var(--surface);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .dd-test-aligned { border-left-color: var(--vert-foret, #1f5f3f); }
+        .dd-test-attention { border-left-color: var(--ocre-brule, #b47832); }
+        .dd-test-alert { border-left-color: var(--warn, #b14842); }
+        .dd-test-red_flag { border-left-color: #7a2520; background: rgba(122, 37, 32, 0.04); }
+        .dd-test-not_assessable { border-left-color: var(--ink-tertiary, #6b6b6b); }
+
+        .dd-test-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+        .dd-test-id {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10.5px;
+          letter-spacing: 0.08em;
+          font-weight: 700;
+          color: var(--ink-soft);
+          background: var(--paper-accent, var(--surface));
+          padding: 2px 8px;
+          border-radius: 10px;
+        }
+        .dd-test-label {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11.5px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--ink);
+          flex: 1;
+        }
+        .dd-test-pill {
+          display: inline-block;
+          padding: 2px 10px;
+          border-radius: 11px;
+          font-size: 10.5px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          letter-spacing: 0.04em;
+          font-weight: 600;
+        }
+        .dd-test-pill-aligned {
+          color: var(--vert-foret, #1f5f3f);
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+        }
+        .dd-test-pill-attention {
+          color: var(--ocre-brule, #b47832);
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.08));
+        }
+        .dd-test-pill-alert {
+          color: var(--warn, #b14842);
+          background: rgba(177, 72, 66, 0.08);
+        }
+        .dd-test-pill-red_flag {
+          color: #fff;
+          background: #7a2520;
+        }
+        .dd-test-pill-not_assessable {
+          color: var(--ink-soft);
+          background: var(--paper-accent, var(--surface));
+        }
+
+        .dd-test-values {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 8px;
+          font-size: 13px;
+          padding: 10px 12px;
+          background: var(--paper-accent, var(--surface));
+          border-radius: 4px;
+        }
+        .dd-test-values strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--ink-soft);
+          display: block;
+          margin-bottom: 3px;
+          font-weight: 700;
+        }
+        .dd-test-evidence {
+          font-size: 13px;
+          color: var(--ink);
+          margin-bottom: 8px;
+        }
+        .dd-test-question {
+          font-size: 12.5px;
+          color: var(--ink-soft);
+          font-style: italic;
+          padding-top: 6px;
+          border-top: 1px dotted var(--hairline-soft);
+        }
+        .dd-test-question strong {
+          font-style: normal;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--ink);
+          margin-right: 4px;
+        }
+
+        .dd-verdict {
+          padding: 14px 18px;
+          margin: 16px 0 14px;
+          border-radius: 4px;
+          font-size: 13.5px;
+          line-height: 1.6;
+          border-left: 4px solid;
+        }
+        .dd-verdict strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-right: 6px;
+        }
+        .dd-verdict-dd_aligned {
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
+          border-color: var(--vert-foret, #1f5f3f);
+          color: var(--ink);
+        }
+        .dd-verdict-dd_partial_alignment {
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.06));
+          border-color: var(--ocre-brule, #b47832);
+          color: var(--ink);
+        }
+        .dd-verdict-dd_significant_gaps {
+          background: rgba(177, 72, 66, 0.06);
+          border-color: var(--warn, #b14842);
+          color: var(--ink);
+        }
+        .dd-verdict-dd_red_flags {
+          background: rgba(122, 37, 32, 0.07);
+          border-color: #7a2520;
+          color: var(--ink);
+        }
+
+        .dd-questions {
+          padding: 14px 18px;
+          background: var(--paper-accent, var(--surface));
+          border-radius: 4px;
+          margin-bottom: 18px;
+          font-size: 13px;
+          line-height: 1.65;
+        }
+        .dd-questions strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--ink-soft);
+          display: block;
+          margin-bottom: 8px;
+        }
+        .dd-questions ol {
+          margin: 0;
+          padding-left: 20px;
+        }
+        .dd-questions ol li {
+          margin-bottom: 8px;
+          padding-left: 4px;
+        }
+
+        @media (max-width: 700px) {
+          .dd-test-values { grid-template-columns: 1fr; }
         }
 
         /* ORDERED LIST - Listes numérotées style éditorial. */

@@ -779,6 +779,14 @@ export interface OrchestratedResult {
   // any pour ne pas creer de couplage avec types.ts a cette etape.
   // Le type LedgerExtraction est defini dans lib/ledger-parser.ts.
   ledgerExtraction?: any | null;
+  // Audit DD financier (Module 1 etape 2) : confronte le BP projete
+  // a la realite du grand livre comptable. Sept tests cote a cote
+  // avec ecarts en pourcentage, severity descriptive, evidence
+  // chiffree et questions DD ciblees. Verdict sur 4 niveaux
+  // descriptifs (dd_aligned / dd_partial_alignment / dd_significant_gaps
+  // / dd_red_flags) plus not_applicable. Synthese editoriale
+  // niveau memo IC. Ne tourne que si BP + grand livre presents.
+  ddFinancial?: any | null;
   // Audit consolide des assertions (Niveau 2.B). Liste les noms propres
   // non sourcees, les conversions de devise non taggees, les annees
   // inventees detectees dans tous les outputs des moteurs. Sert a

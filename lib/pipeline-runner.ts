@@ -10,6 +10,7 @@ import { extractFinancialData } from './engines/financial-extraction-engine';
 import { analyzeFinancialCoherence } from './engines/financial-coherence-engine';
 import { analyzeTechClaimCoherence } from './engines/tech-claim-coherence-engine';
 import { analyzeExecutionFriction } from './engines/execution-friction-engine';
+import { analyzeDDFinancial } from './engines/dd-financial-engine';
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
@@ -95,6 +96,21 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     } catch (err: any) {
       console.warn('[ledger-parsing] failed:', err?.message);
       await store.setEngineDone(jobId, 'ledger-parsing', null);
+    }
+
+    // Moteur DD financier : confronte le BP projete a la realite du
+    // grand livre comptable. Sept tests cote a cote (ecart CA, marge,
+    // burn, headcount, concentration client, trajectoire, engagements).
+    // Ne tourne que si BP + grand livre presents. Sinon retourne
+    // not_applicable sans appel LLM. Module 1 DD financiere etape 2.
+    await store.setEngineRunning(jobId, 'dd-financial');
+    let ddFinancial: any = null;
+    try {
+      ddFinancial = await analyzeDDFinancial(extraction, financialData ?? null, ledgerExtraction);
+      await store.setEngineDone(jobId, 'dd-financial', ddFinancial);
+    } catch (err: any) {
+      console.warn('[dd-financial] engine failed, continuing without:', err?.message);
+      await store.setEngineDone(jobId, 'dd-financial', null);
     }
 
     // Moteur Friction d execution commerciale et industrielle :
@@ -241,6 +257,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       techClaimCoherence,
       executionFriction,
       ledgerExtraction,
+      ddFinancial,
       finalRecommendation,
       referenceChecks,
       assertionAudit,
