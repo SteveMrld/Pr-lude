@@ -38,6 +38,14 @@ export interface ComparableFeatures {
   // filter contre les comparables de classe incompatible (ex pas de
   // marketplace e-commerce pour un dossier hardware industriel).
   assetClass?: string | null;
+  // V5 : bande de financement detectee a partir du tour annonce dans le
+  // pitch deck. Sert de second hard filter pour eviter qu une seed soit
+  // comparee a une licorne late stage.
+  fundingBand?: 'pre_seed' | 'seed' | 'series_a' | 'series_b' | 'series_c_plus' | 'late_ipo' | null;
+  // V5 : sous-groupe sectoriel fin (ex social_video_media, ride_hailing,
+  // foundation_models). Plus fin que sector et asset_class, sert de boost
+  // de similarite, pas de hard filter.
+  sectorSubgroup?: string | null;
 }
 
 // Une entree historique enrichie avec sa similarite calculee
@@ -65,6 +73,13 @@ export interface Comparable {
   source2: string | null;
   whatMadeItWork: string | null;
   keyRisksLessons: string | null;
+  // Champs V5 calibration funding et sub-secteur
+  fundingBand: string | null;
+  sectorSubgroup: string | null;
+  totalRaisedAmount: number | null;
+  totalRaisedCurrency: string | null;
+  totalRaisedAsOf: string | null;
+  narrativeSpecificity: NarrativeSpecificity | null;
   features: {
     founder: number;
     market: number;
@@ -79,6 +94,28 @@ export interface Comparable {
   signalsNegative: string | null;
   similarity: number;
   sectorMatch: 'exact' | 'related' | 'different';
+  // V5 : tier de matching. 'stage_aligned' = passe les hard filters
+  // asset_class + funding_band, utilisable pour le scoring de probabilite.
+  // 'longitudinal' = passe asset_class mais pas funding_band, sert de
+  // valeur narrative (trajectoire a scale, pattern d echec a long terme),
+  // exclu du scoring de probabilite.
+  matchTier: 'stage_aligned' | 'longitudinal';
+}
+
+/**
+ * Conditions requises pour invoquer un comparable narratif vedette.
+ * Si requires.asset_class est specifie, le dossier doit en faire partie.
+ * Si requires.funding_band_min est specifie, le dossier doit avoir au
+ * moins ce stade pour que le comparable soit pertinent (sinon Ynsect
+ * sort sur n importe quelle seed et c est exactement le bug a corriger).
+ */
+export interface NarrativeSpecificity {
+  tags: string[];
+  requires: {
+    asset_class?: string[];
+    funding_band_min?: 'pre_seed' | 'seed' | 'series_a' | 'series_b' | 'series_c_plus' | 'late_ipo';
+    context?: string;
+  };
 }
 
 // Un scenario de trajectoire projete a partir d une tranche d outcomes.
@@ -108,7 +145,13 @@ export interface TrajectoryScenario {
 }
 
 export interface ComparablesResult {
-  topComparables: Comparable[]; // top N classes par similarite desc
+  topComparables: Comparable[]; // top N classes par similarite desc, stage_aligned uniquement
+  // V5 : bloc longitudinal separe. Comparables qui passent le hard filter
+  // asset_class mais sont hors funding_band (ex Brut a scale, Likee, Rumble
+  // pour un dossier social video media en seed). Valeur narrative seulement,
+  // ne pondere pas le scoring de probabilite. La note d investissement les
+  // presente explicitement comme "patterns longitudinaux a scale".
+  topComparablesLongitudinal: Comparable[];
   outcomeDistribution: {
     success: number;
     medium: number;
@@ -369,6 +412,194 @@ function isAssetClassCompatible(target: string, ref: string | null): boolean {
   return false;
 }
 
+// ============================================================
+// V5 : FUNDING BAND
+// ------------------------------------------------------------
+// Bandes ordonnees du plus tot au plus tard. La distance entre deux
+// bandes est leur ecart d index. On considere comme stage-aligned un
+// comparable a +/- 1 bande (seed peut etre compare a pre-seed et
+// series_a, mais pas series_b et au-dela).
+// ============================================================
+
+const FUNDING_BAND_ORDER: Array<NonNullable<ComparableFeatures['fundingBand']>> = [
+  'pre_seed', 'seed', 'series_a', 'series_b', 'series_c_plus', 'late_ipo'
+];
+
+function fundingBandIndex(band: string | null | undefined): number {
+  if (!band) return -1;
+  const idx = FUNDING_BAND_ORDER.indexOf(band as any);
+  return idx;
+}
+
+/**
+ * Detecte la funding_band d un dossier a partir de son tour annonce
+ * et du montant leve. La regle :
+ *   - On parse le stage en priorite (seed, series A, etc.). Le LLM
+ *     retourne typiquement "seed", "Series A", "Pre-Seed", etc.
+ *   - Si le stage est ambigu, on tombe sur le montant. < 1.5M = pre_seed,
+ *     1.5-5M = seed, 5-20M = series_a, 20-60M = series_b, 60-200M =
+ *     series_c_plus, > 200M = late_ipo.
+ *   - Devise : on assume EUR par defaut. Conversion grossiere USD = EUR
+ *     pour ces ordres de grandeur (le bucket est insensible aux 10-15%
+ *     d ecart de change).
+ *
+ * Retourne null si on ne peut rien inferer. Dans ce cas, le moteur
+ * desactive le hard filter funding_band pour ce dossier (legacy).
+ */
+function detectFundingBand(
+  stageStr: string | null | undefined,
+  amountStr: string | null | undefined,
+): NonNullable<ComparableFeatures['fundingBand']> | null {
+  // 1. Parse stage en priorite
+  if (stageStr) {
+    const s = stageStr.toLowerCase().trim();
+    if (/pre[\s-]?seed|preseed/.test(s)) return 'pre_seed';
+    if (/seed/.test(s) && !/series/.test(s)) return 'seed';
+    if (/series\s*a\b/.test(s)) return 'series_a';
+    if (/series\s*b\b/.test(s)) return 'series_b';
+    if (/series\s*c\b/.test(s)) return 'series_c_plus';
+    if (/series\s*d|series\s*e|growth|late|pre[\s-]?ipo|ipo/.test(s)) return 'late_ipo';
+  }
+
+  // 2. Fallback sur montant. Parse rough : extrait un nombre + unite.
+  if (amountStr) {
+    const a = amountStr.toLowerCase().replace(/[\s,]/g, '');
+    // Match patterns : 1.5m€, 1.5m, 15m, 100k, 1bn, 1md, etc.
+    const num = a.match(/([\d.]+)\s*(k|m|md|bn|b)?\s*(€|eur|\$|usd|gbp|£)?/);
+    if (num) {
+      let value = parseFloat(num[1]);
+      const unit = (num[2] || '').toLowerCase();
+      if (unit === 'k') value = value / 1000;       // M
+      else if (unit === 'md' || unit === 'bn' || unit === 'b') value = value * 1000;
+      // sinon assume M par defaut
+
+      if (value < 1.5) return 'pre_seed';
+      if (value < 5) return 'seed';
+      if (value < 20) return 'series_a';
+      if (value < 60) return 'series_b';
+      if (value < 200) return 'series_c_plus';
+      return 'late_ipo';
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Verifie la compatibilite de funding_band entre dossier et comparable.
+ * Tier 'stage_aligned' : meme bande +/- 1.
+ * Tier 'longitudinal'  : passe l asset_class mais hors fenetre funding.
+ * Si une des deux valeurs est null, on traite comme stage_aligned
+ * (legacy : l absence de donnee ne doit pas exclure les comparables qu
+ * on a deja patiemment scores).
+ */
+function classifyFundingMatch(
+  target: string | null | undefined,
+  ref: string | null | undefined,
+): 'stage_aligned' | 'longitudinal' {
+  const ti = fundingBandIndex(target);
+  const ri = fundingBandIndex(ref);
+  if (ti < 0 || ri < 0) return 'stage_aligned'; // legacy
+  if (Math.abs(ti - ri) <= 1) return 'stage_aligned';
+  return 'longitudinal';
+}
+
+/**
+ * Detecte le sector_subgroup a partir du sector / sub_sector / pitch.
+ * Retourne null si rien ne matche. Le subgroup sert de boost de
+ * similarite, pas de hard filter.
+ */
+function detectSectorSubgroup(
+  sector: string | null,
+  subSector: string | null,
+  rawText?: string | null,
+): string | null {
+  const combined = `${sector || ''} ${subSector || ''} ${rawText || ''}`.toLowerCase();
+
+  // Media social video (vs media generique)
+  if (/social video|video social|media video|popmed|short[\s-]?form video/.test(combined)) {
+    return 'social_video_media';
+  }
+  // Foundation models / LLMs
+  if (/foundation model|llm|large language model|generative ai|gen[\s-]?ai/.test(combined)) {
+    return 'foundation_models';
+  }
+  // Quantum hardware
+  if (/quantum/.test(combined)) {
+    return 'quantum_hardware';
+  }
+  // eVTOL aviation
+  if (/evtol|electric vertical|electric aviation|urban air mobility/.test(combined)) {
+    return 'evtol_aviation';
+  }
+  // Battery cell manufacturing
+  if (/battery cell|gigafactory|cell manufacturing|battery manufacturing/.test(combined)) {
+    return 'battery_cell_manufacturing';
+  }
+  // OEM auto (vs ride hailing)
+  if (/oem|automaker|car manufacturer|automotive manufacturer|electric vehicle manufacturer/.test(combined)) {
+    return 'oem_auto';
+  }
+  // Ride hailing / VTC
+  if (/ride[\s-]?hailing|vtc|carpooling|ride[\s-]?sharing/.test(combined)) {
+    return 'ride_hailing';
+  }
+  // Alternative protein / insectes
+  if (/alternative protein|plant[\s-]?based protein|insect protein|cellular agriculture/.test(combined)) {
+    return 'alternative_protein';
+  }
+  // Real estate tech
+  if (/real estate tech|proptech|coworking|flex office/.test(combined)) {
+    return 'real_estate_tech';
+  }
+  // Humanoid robotics
+  if (/humanoid|humanoid robot/.test(combined)) {
+    return 'humanoid_robotics';
+  }
+  // Warehouse robotics
+  if (/warehouse robot|fulfillment robot|logistics automation/.test(combined)) {
+    return 'warehouse_robotics';
+  }
+
+  return null;
+}
+
+/**
+ * Verifie si le dossier satisfait les conditions narrative_specificity
+ * d un comparable vedette. Si le comparable n a pas de narrative_specificity,
+ * il passe librement (comportement V4). Si il en a, le dossier doit
+ * matcher l asset_class et avoir au moins le funding_band_min requis.
+ *
+ * Empeche que Ynsect ne sorte sur une seed media social, ou que WeWork
+ * ne sorte sur une fintech B2B.
+ */
+function passesNarrativeSpecificity(
+  spec: NarrativeSpecificity | null,
+  targetAssetClass: string,
+  targetFundingBand: string | null | undefined,
+): boolean {
+  if (!spec || !spec.requires) return true; // pas de garde-fou : libre
+
+  const req = spec.requires;
+
+  // Filtre asset_class
+  if (req.asset_class && req.asset_class.length > 0) {
+    if (!req.asset_class.includes(targetAssetClass)) return false;
+  }
+
+  // Filtre funding_band minimum
+  if (req.funding_band_min) {
+    const minIdx = fundingBandIndex(req.funding_band_min);
+    const targetIdx = fundingBandIndex(targetFundingBand);
+    // Si le dossier n a pas de funding_band, on est strict : on filtre
+    // (mieux vaut pas invoquer un comparable specifique sans donnee).
+    if (targetIdx < 0) return false;
+    if (targetIdx < minIdx) return false;
+  }
+
+  return true;
+}
+
 /**
  * Trouve les comparables historiques les plus proches d un dossier.
  * @param features feature vector du dossier en cours
@@ -407,9 +638,20 @@ export async function findComparables(
   const targetAssetClass = features.assetClass
     || detectAssetClass(features.sector, features.subSector || null);
 
+  // V5 : funding_band cible. Si features.fundingBand est null, le hard
+  // filter funding est desactive (legacy). Note : la separation
+  // stage_aligned vs longitudinal n a de sens que si on connait la bande
+  // du dossier en cours, sinon on retombe sur le comportement V4.
+  const targetFundingBand = features.fundingBand || null;
+
+  // V5 : sector_subgroup cible. Boost de similarite si match.
+  const targetSectorSubgroup = features.sectorSubgroup || null;
+
   // Calcul similarite pour chaque ligne. V3 : la majorite des lignes
   // n ont pas de scores 6 dimensions. Strategie :
   //  - Hard filter prealable : si asset_class incompatible, exclu d office
+  //  - V5 : narrative_specificity filtre sur les vedettes
+  //  - V5 : funding_band classifie en stage_aligned ou longitudinal
   //  - Si la ligne a des scores numeriques : matching ponderee
   //  - Sinon : fallback sur match sectoriel + sub-sector + region
   // Le boost data_quality intervient en post : High = 1.0, Medium = 0.92,
@@ -417,9 +659,22 @@ export async function findComparables(
   // pour que les comparables VC-grade remontent prioritairement quand le
   // matching est ex-aequo.
   const scoredAll = rows.map((row: any) => {
-    // HARD FILTER : on calcule la compatibilite mais on ne filtre pas
+    // HARD FILTER asset_class : on calcule la compatibilite mais on ne filtre pas
     // encore. Si incompatible, similarity sera plombe a 0 plus bas.
     const compatibleClass = isAssetClassCompatible(targetAssetClass, row.asset_class || null);
+
+    // V5 : narrative_specificity. Si le comparable a un tag de specificite
+    // narrative et que le dossier ne satisfait pas les conditions, on l ecarte
+    // (similarity 0). Empeche Ynsect / WeWork / Theranos de sortir hors contexte.
+    const narrativeSpec: NarrativeSpecificity | null = row.narrative_specificity || null;
+    const passesNarrative = passesNarrativeSpecificity(
+      narrativeSpec,
+      targetAssetClass,
+      targetFundingBand,
+    );
+
+    // V5 : tier funding_band. stage_aligned = +/- 1 bande. longitudinal sinon.
+    const matchTier = classifyFundingMatch(targetFundingBand, row.funding_band || null);
 
     const sectorMatch = matchSector(features.sector, row.sector);
     const sectorBoost = sectorMatch === 'exact' ? 0.30 : sectorMatch === 'related' ? 0.15 : 0;
@@ -428,6 +683,14 @@ export async function findComparables(
       features.subSector || null,
       row.subsector || row.sub_sector || null,
     );
+
+    // V5 : sector_subgroup boost. Si les deux subgroups matchent, on
+    // ajoute un petit bonus de similarite (eviter qu un foundation_models
+    // soit noye dans les SaaS AI generiques).
+    const subgroupMatch = targetSectorSubgroup
+      && row.sector_subgroup
+      && targetSectorSubgroup === row.sector_subgroup
+      ? 1 : 0;
 
     const regionScore = matchRegion(dossierRegion, row.region || row.country || null);
 
@@ -449,12 +712,14 @@ export async function findComparables(
       similarity = Math.max(0, Math.min(1, (1 - dist) + sectorBoost * (1 - dist)));
       similarity += subSectorScore * 0.05;
       similarity += regionScore * 0.03;
+      similarity += subgroupMatch * 0.08; // V5 : boost subgroup
     } else {
       let base: number;
       if (sectorMatch === 'exact') base = 0.30;
       else if (sectorMatch === 'related') base = 0.20;
       else base = 0.05;
       similarity = base + (subSectorScore * 0.30) + (regionScore * 0.10);
+      similarity += subgroupMatch * 0.15; // V5 : boost subgroup (fallback plus genereux)
     }
 
     // Pondération data_quality
@@ -473,9 +738,10 @@ export async function findComparables(
       : 0.92;
     similarity = similarity * vcBoost;
 
-    // HARD FILTER applique en dernier : si asset class incompatible,
-    // on plombe la similarity a 0 pour que la ligne disparaisse du top.
-    if (!compatibleClass) {
+    // HARD FILTERS appliques en dernier : si asset class incompatible OU
+    // narrative_specificity non satisfaite, on plombe la similarity a 0
+    // pour que la ligne disparaisse des deux blocs.
+    if (!compatibleClass || !passesNarrative) {
       similarity = 0;
     }
 
@@ -503,6 +769,12 @@ export async function findComparables(
       source2: row.source_2,
       whatMadeItWork: row.what_made_it_work,
       keyRisksLessons: row.key_risks_lessons,
+      fundingBand: row.funding_band || null,
+      sectorSubgroup: row.sector_subgroup || null,
+      totalRaisedAmount: row.total_raised_amount || null,
+      totalRaisedCurrency: row.total_raised_currency || null,
+      totalRaisedAsOf: row.total_raised_as_of || null,
+      narrativeSpecificity: narrativeSpec,
       features: {
         founder: row.founder_score || 0,
         market: row.market_score || 0,
@@ -517,18 +789,30 @@ export async function findComparables(
       signalsNegative: row.signals_negative,
       similarity: Math.round(similarity * 100),
       sectorMatch,
+      matchTier,
     };
     return comparable;
   });
 
-  // On exclut les lignes a similarity 0 (filtre asset_class) avant le top N
+  // On exclut les lignes a similarity 0 (filtre asset_class + narrative)
   const scored = scoredAll.filter((c) => c.similarity > 0);
 
-  // Tri par similarite desc, on garde le topN
-  scored.sort((a, b) => b.similarity - a.similarity);
-  const topComparables = scored.slice(0, topN);
+  // V5 : separation en deux blocs.
+  // - stage_aligned : utilise pour le scoring de probabilite et la
+  //   trajectoire. C est le bloc qui calibre le verdict.
+  // - longitudinal : valeur narrative seulement (ex Brut a scale, Likee,
+  //   Rumble pour un dossier seed). Affiche dans la note d investissement
+  //   sous une rubrique distincte.
+  const stageAligned = scored.filter((c) => c.matchTier === 'stage_aligned');
+  const longitudinal = scored.filter((c) => c.matchTier === 'longitudinal');
 
-  // Distribution des outcomes sur le topN
+  stageAligned.sort((a, b) => b.similarity - a.similarity);
+  longitudinal.sort((a, b) => b.similarity - a.similarity);
+
+  const topComparables = stageAligned.slice(0, topN);
+  const topComparablesLongitudinal = longitudinal.slice(0, Math.min(3, topN));
+
+  // Distribution des outcomes sur le topN stage_aligned uniquement
   const outcomeDistribution = {
     success: 0, medium: 0, fail: 0, active: 0, total: topComparables.length,
   };
@@ -540,17 +824,19 @@ export async function findComparables(
   });
 
   // Pattern dominant : si > 50% success, success-leaning. Si > 30% fail, fail-leaning.
-  // Sinon mixed.
+  // Sinon mixed. Calcule sur stage_aligned uniquement.
   let dominantPattern: 'success-leaning' | 'fail-leaning' | 'mixed' = 'mixed';
-  if (outcomeDistribution.success / outcomeDistribution.total > 0.5) {
-    dominantPattern = 'success-leaning';
-  } else if (outcomeDistribution.fail / outcomeDistribution.total > 0.3) {
-    dominantPattern = 'fail-leaning';
+  if (outcomeDistribution.total > 0) {
+    if (outcomeDistribution.success / outcomeDistribution.total > 0.5) {
+      dominantPattern = 'success-leaning';
+    } else if (outcomeDistribution.fail / outcomeDistribution.total > 0.3) {
+      dominantPattern = 'fail-leaning';
+    }
   }
 
-  // Cas le plus proche en succes et en echec sur l ensemble
-  const successCases = scored.filter((c) => c.outcome.startsWith('success'));
-  const failCases = scored.filter((c) => c.outcome.startsWith('fail'));
+  // Cas le plus proche en succes et en echec sur stage_aligned uniquement
+  const successCases = stageAligned.filter((c) => c.outcome.startsWith('success'));
+  const failCases = stageAligned.filter((c) => c.outcome.startsWith('fail'));
   const closestSuccess = successCases.length > 0 ? successCases[0] : null;
   const closestFailure = failCases.length > 0 ? failCases[0] : null;
 
@@ -572,6 +858,7 @@ export async function findComparables(
 
   return {
     topComparables,
+    topComparablesLongitudinal,
     outcomeDistribution,
     trajectory,
     dominantPattern,
@@ -763,6 +1050,10 @@ export function extractFeaturesFromAnalysis(result: any): ComparableFeatures | n
     sector = 'Greentech';
   } else if (/\b(quantum)\b/.test(sectorLower)) {
     sector = 'Quantum';
+  } else if (/\b(media|entertainment|video social|content|publisher|publishing|press)\b/.test(sectorLower)) {
+    // V5 : ajout du secteur Media. Couvre social video, content, edition.
+    // Le sector_subgroup affinera (social_video_media vs publishing).
+    sector = 'Media';
   }
 
   // Founder : couverture systemique de l equipe ou moyenne signaux
@@ -806,6 +1097,21 @@ export function extractFeaturesFromAnalysis(result: any): ComparableFeatures | n
     risk = result.blindspotAnalysis.globalScore;
   }
 
+  // V5 : detection funding_band depuis l extraction (stage + amount).
+  const fundingBand = detectFundingBand(
+    result.extraction?.fundraise?.stage || null,
+    result.extraction?.fundraise?.amount || null,
+  );
+
+  // V5 : detection sector_subgroup. On lit le rawSummary en plus du sector
+  // / subSector pour capturer les indices vocabulaires (PopMed, social video,
+  // foundation models, etc.).
+  const sectorSubgroup = detectSectorSubgroup(
+    sector,
+    result.extraction?.subSector || null,
+    result.extraction?.rawSummary || null,
+  );
+
   return {
     founder: Math.round(founder),
     market: Math.round(market),
@@ -820,5 +1126,7 @@ export function extractFeaturesFromAnalysis(result: any): ComparableFeatures | n
     // dans findComparables : un dossier hardware industriel ne sera pas
     // matche avec une marketplace e-commerce.
     assetClass: detectAssetClass(sector, result.extraction?.subSector || null),
+    fundingBand,
+    sectorSubgroup,
   };
 }
