@@ -712,7 +712,7 @@ export default function HomeClient({
                     <span className="page-title-line page-title-emph">comme on instruit une affaire.</span>
                   </h1>
                   <p className="page-subtitle">
-                    Sonder l&apos;équipe, auditer le marché, tester la cohérence des unit economics, cartographier les angles morts.
+                    Du screening initial à la deal qualification approfondie. Sonder l&apos;équipe, auditer le marché, tester la cohérence des unit economics, soulever les points de vigilance critique.
                     Chaque étape d&apos;une due diligence partner-grade, avant le comité d&apos;investissement.
                   </p>
                   <div className="hero-cta-row" style={{ justifyContent: 'flex-start' }}>
