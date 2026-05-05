@@ -14,6 +14,15 @@
 
 import { useEffect, useState } from 'react';
 
+interface NarrativeSpecificity {
+  tags: string[];
+  requires: {
+    asset_class?: string[];
+    funding_band_min?: string;
+    context?: string;
+  };
+}
+
 interface Comparable {
   id: string;
   name: string;
@@ -37,6 +46,14 @@ interface Comparable {
   source2: string | null;
   whatMadeItWork: string | null;
   keyRisksLessons: string | null;
+  // Champs V5 calibration
+  fundingBand: string | null;
+  sectorSubgroup: string | null;
+  totalRaisedAmount: number | null;
+  totalRaisedCurrency: string | null;
+  totalRaisedAsOf: string | null;
+  narrativeSpecificity: NarrativeSpecificity | null;
+  matchTier: 'stage_aligned' | 'longitudinal';
   features: {
     founder: number;
     market: number;
@@ -67,8 +84,12 @@ interface ComparablesData {
     founder: number; market: number; traction: number;
     deal: number; defensibility: number; risk: number;
     sector: string | null;
+    fundingBand?: string | null;
+    sectorSubgroup?: string | null;
   };
   topComparables: Comparable[];
+  // V5 : bloc longitudinal separe (hors funding_band, valeur narrative seulement)
+  topComparablesLongitudinal: Comparable[];
   outcomeDistribution: {
     success: number; medium: number; fail: number; active: number; total: number;
   };
@@ -111,6 +132,15 @@ const OUTCOME_COLORS: Record<string, string> = {
   fail_uncertain: 'var(--warn)',
   fail_weak_exit: 'var(--warn)',
   volatile_private: 'var(--ocre-brule)',
+};
+
+const FUNDING_BAND_LABELS: Record<string, string> = {
+  pre_seed: 'Pre-seed',
+  seed: 'Seed',
+  series_a: 'Série A',
+  series_b: 'Série B',
+  series_c_plus: 'Série C+',
+  late_ipo: 'Late / IPO',
 };
 
 const PATTERN_LABELS: Record<string, { label: string; color: string; tone: string }> = {
@@ -321,6 +351,11 @@ export default function HistoricalComparables({ analysisId }: Props) {
                     VC-grade
                   </span>
                 )}
+                {c.fundingBand && FUNDING_BAND_LABELS[c.fundingBand] && (
+                  <span className="hc-pill hc-pill-funding" title={`Stade au moment du tour qualifiant${c.totalRaisedAmount ? ` · cumul levé ${c.totalRaisedAmount}${c.totalRaisedCurrency === 'EUR' ? 'M€' : c.totalRaisedCurrency === 'USD' ? 'M$' : ''}` : ''}`}>
+                    {FUNDING_BAND_LABELS[c.fundingBand]}
+                  </span>
+                )}
                 {c.capitalIntensity && (c.capitalIntensity === 'very high' || c.capitalIntensity === 'high') && (
                   <span className="hc-pill hc-pill-capex" title="Intensite capitalistique elevee">
                     Capex {c.capitalIntensity === 'very high' ? 'massif' : 'élevé'}
@@ -358,6 +393,66 @@ export default function HistoricalComparables({ analysisId }: Props) {
           );
         })}
       </div>
+
+      {data.topComparablesLongitudinal && data.topComparablesLongitudinal.length > 0 && (
+        <div className="hc-list hc-list-longitudinal">
+          <div className="hc-list-header">
+            <span>Patterns longitudinaux à scale</span>
+            <span className="hc-list-header-aside">Valeur narrative seulement, exclus du scoring</span>
+          </div>
+          <p className="hc-list-intro">
+            Ces comparables sont hors fenêtre de financement du dossier (decalage de plus
+            d&apos;une bande sur le stade). Ils ne pondèrent pas la probabilité de succès,
+            mais éclairent les trajectoires possibles à terme : pattern de moat, point de
+            bascule, mode d&apos;échec à scale.
+          </p>
+          {data.topComparablesLongitudinal.map((c) => {
+            const showStatePill = c.stateInfluenceTag && c.stateInfluenceTag !== 'No';
+            return (
+            <div className="hc-row hc-row-longitudinal" key={c.id}>
+              <div className="hc-row-main">
+                <div className="hc-row-name">
+                  {c.name}
+                  {c.fundingBand && FUNDING_BAND_LABELS[c.fundingBand] && (
+                    <span className="hc-pill hc-pill-funding-far" title="Hors fenetre de financement du dossier">
+                      {FUNDING_BAND_LABELS[c.fundingBand]}
+                    </span>
+                  )}
+                  {c.sectorMatch === 'exact' && <span className="hc-pill hc-pill-exact">Même secteur</span>}
+                  {c.sectorMatch === 'related' && <span className="hc-pill hc-pill-related">Secteur voisin</span>}
+                  {showStatePill && (
+                    <span className="hc-pill hc-pill-state" title="Influence d État probable">
+                      Capital d&apos;État
+                    </span>
+                  )}
+                </div>
+                <div className="hc-row-meta">
+                  {[c.country, c.sector, c.founded].filter(Boolean).join(' · ')}
+                  {c.primarySourceUrl && (
+                    <>
+                      {' · '}
+                      <a href={c.primarySourceUrl} target="_blank" rel="noopener noreferrer" className="hc-row-source">
+                        Source ↗
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="hc-row-outcome" style={{
+                color: OUTCOME_COLORS[c.outcome] || 'var(--muted)',
+                borderColor: OUTCOME_COLORS[c.outcome] || 'var(--hairline)',
+              }}>
+                {OUTCOME_LABELS[c.outcome] || c.outcome}
+              </div>
+              <div className="hc-row-similarity">
+                <div className="hc-row-similarity-num">{c.similarity}%</div>
+                <div className="hc-row-similarity-label">narratif</div>
+              </div>
+            </div>
+            );
+          })}
+        </div>
+      )}
 
       {(data.closestSuccess || data.closestFailure) && (
         <div className="hc-narratives">
@@ -727,6 +822,55 @@ const styles = `
     background: var(--ocre-brule-soft);
     color: var(--ocre-brule);
     border: 1px solid var(--ocre-brule);
+  }
+  .hc-pill-funding {
+    background: var(--paper-accent);
+    color: var(--ink-soft);
+    border: 1px solid var(--hairline);
+  }
+  .hc-pill-funding-far {
+    background: transparent;
+    color: var(--muted);
+    border: 1px dashed var(--hairline);
+    font-style: italic;
+  }
+  .hc-list-longitudinal {
+    margin-top: 24px;
+    border-top: 2px dashed var(--hairline);
+    padding-top: 0;
+    background: linear-gradient(180deg, var(--paper) 0%, var(--surface) 100%);
+  }
+  .hc-list-longitudinal .hc-list-header {
+    background: var(--surface);
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .hc-list-header-aside {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    font-weight: 500;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .hc-list-intro {
+    padding: 14px 18px 0 18px;
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .hc-row-longitudinal {
+    opacity: 0.85;
+  }
+  .hc-row-longitudinal .hc-row-similarity-num {
+    color: var(--muted);
   }
   .hc-row-source {
     color: var(--accent);
