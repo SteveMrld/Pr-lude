@@ -972,28 +972,23 @@ ul, ol { list-style: none; }
    Pas de border dashed criard SaaS, mais un cadre fin avec accent au hover.
    Texte d'invitation en serif, hint en sans-serif uppercase. */
 .upload-box {
-  border: 1px solid var(--ink);
-  background: var(--paper-accent);
-  padding: 72px 40px;
+  border: 2px dashed var(--hairline);
+  background: var(--surface);
+  padding: 64px 40px;
   text-align: center;
   margin-bottom: 28px;
-  transition: all 0.2s ease;
+  transition: all var(--motion-base);
   cursor: pointer;
   position: relative;
+  border-radius: 16px;
 }
 .upload-box::before {
-  content: '';
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  border: 1px solid var(--hairline);
-  pointer-events: none;
-  transition: border-color 0.2s ease;
+  display: none;
 }
 .upload-box:hover, .upload-box.dragging {
   background: var(--accent-soft);
+  border-color: var(--accent);
+  border-style: solid;
 }
 .upload-box:hover::before, .upload-box.dragging::before {
   border-color: var(--accent);
@@ -1047,11 +1042,19 @@ ul, ol { list-style: none; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 22px;
+  padding: 16px 20px;
   background: var(--surface);
   border: 1px solid var(--hairline);
-  border-left: 3px solid var(--ink);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
   margin-bottom: 12px;
+  transition: all var(--motion-base);
+}
+.file-info:hover {
+  border-color: var(--muted-soft);
+  border-left-color: var(--accent);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
 }
 .file-name {
   font-family: var(--serif);
@@ -1063,9 +1066,10 @@ ul, ol { list-style: none; }
   font-family: var(--sans);
   color: var(--muted);
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 500;
+  margin-top: 2px;
 }
 
 /* CTA ROW - Boutons. Style moderne : radius doux, hover qui souleve,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Picto } from './Picto';
 
 export type EngineStatus = 'idle' | 'running' | 'done' | 'error';
 
@@ -103,10 +104,10 @@ export default function PipelineProgress({
         position: 'sticky',
         top: 0,
         zIndex: 50,
-        background: 'rgba(247, 240, 230, 0.96)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        borderBottom: '1px solid rgba(40, 30, 20, 0.15)',
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        borderBottom: '1px solid var(--hairline)',
         padding: '14px 20px 12px',
         marginBottom: 18,
       }}
@@ -116,51 +117,86 @@ export default function PipelineProgress({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'baseline',
-        marginBottom: 10,
+        marginBottom: 12,
         flexWrap: 'wrap',
         gap: 8,
       }}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{
+            fontFamily: 'var(--sans)',
             fontSize: 10,
-            letterSpacing: '0.10em',
+            fontWeight: 600,
+            letterSpacing: '0.14em',
             textTransform: 'uppercase',
-            opacity: 0.6,
-            marginRight: 8,
+            color: analyzing ? 'var(--ocre-brule)' : 'var(--vert-foret)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
           }}>
+            <span style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: analyzing ? 'var(--ocre-brule)' : 'var(--vert-foret)',
+              animation: analyzing ? 'preludePulse 1.4s ease-in-out infinite' : 'none',
+            }} />
             {analyzing ? 'Pipeline en cours' : 'Pipeline terminé'}
           </span>
           <span style={{
-            fontFamily: 'var(--serif, Georgia, serif)',
-            fontSize: 14,
+            fontFamily: 'var(--serif)',
+            fontSize: 15,
+            color: 'var(--ink)',
+            fontWeight: 600,
           }}>
-            {completedCount}/{total} moteur{total > 1 ? 's' : ''}
-            {errorCount > 0 ? ` · ${errorCount} erreur${errorCount > 1 ? 's' : ''}` : ''}
+            {completedCount}/{total}
+            <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: 4 }}>
+              moteur{total > 1 ? 's' : ''}
+            </span>
+            {errorCount > 0 && (
+              <span style={{ marginLeft: 10, color: 'var(--warn)', fontSize: 13 }}>
+                · {errorCount} erreur{errorCount > 1 ? 's' : ''}
+              </span>
+            )}
           </span>
         </div>
         {elapsedLabel && (
-          <span style={{ fontSize: 11, opacity: 0.6 }}>
+          <span style={{
+            fontSize: 11,
+            color: 'var(--muted)',
+            fontFamily: 'var(--sans)',
+            letterSpacing: '0.04em',
+          }}>
             {analyzing ? 'Temps écoulé · ' : 'Durée totale · '}
-            <span style={{ fontFamily: 'var(--serif, Georgia, serif)', fontSize: 13 }}>
+            <span style={{
+              fontFamily: 'var(--serif)',
+              fontSize: 13,
+              color: 'var(--ink)',
+              fontWeight: 600,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
               {elapsedLabel}
             </span>
           </span>
         )}
       </div>
 
-      {/* Barre de progression fine */}
+      {/* Barre de progression : 3px, fond hairline, fill bleu encre. */}
       <div style={{
-        height: 2,
-        background: 'rgba(40, 30, 20, 0.10)',
-        marginBottom: 12,
+        height: 3,
+        background: 'var(--hairline-soft)',
+        marginBottom: 14,
         position: 'relative',
         overflow: 'hidden',
+        borderRadius: 2,
       }}>
         <div style={{
           height: '100%',
           width: `${progressPercent}%`,
-          background: errorCount > 0 ? '#a04438' : 'var(--ink, #2a1f12)',
-          transition: 'width 400ms ease',
+          background: errorCount > 0
+            ? 'var(--warn)'
+            : 'linear-gradient(90deg, var(--accent), var(--accent-mid))',
+          transition: 'width 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+          borderRadius: 2,
         }} />
       </div>
 
@@ -193,13 +229,22 @@ export default function PipelineProgress({
             duration = formatTime(end - state.startedAt);
           }
 
-          // Couleurs et icones par statut
-          const palette = {
-            idle: { bg: 'transparent', border: 'rgba(40, 30, 20, 0.20)', fg: 'rgba(40, 30, 20, 0.40)', icon: '○' },
-            running: { bg: 'rgba(196, 164, 132, 0.22)', border: '#c4a484', fg: 'var(--ink, #2a1f12)', icon: '◐' },
-            done: { bg: 'rgba(70, 100, 70, 0.10)', border: '#5a7a5a', fg: '#3a5a3a', icon: '●' },
-            error: { bg: 'rgba(160, 68, 56, 0.10)', border: '#a04438', fg: '#a04438', icon: '✕' },
-          }[state.status];
+          // Palette par statut. Aligne sur les tokens du design system :
+          // bleu encre (running) / vert (done) / rouge (error) / hairline (idle).
+          // Couleurs en variables CSS pour qu une evolution future de la palette
+          // ne necessite pas de toucher ce composant.
+          type StatusPalette = {
+            bg: string;
+            border: string;
+            fg: string;
+            iconName: 'circle' | 'circle-half' | 'check' | 'sparkle';
+          };
+          const palette: StatusPalette = ({
+            idle:    { bg: 'var(--surface)',         border: 'var(--hairline)',          fg: 'var(--muted-soft)', iconName: 'circle' },
+            running: { bg: 'var(--ocre-brule-soft)', border: 'var(--ocre-brule)',         fg: 'var(--ocre-brule)', iconName: 'circle-half' },
+            done:    { bg: 'var(--vert-foret-soft)', border: 'var(--vert-foret)',         fg: 'var(--vert-foret)', iconName: 'check' },
+            error:   { bg: 'var(--warn-soft)',       border: 'var(--warn)',               fg: 'var(--warn)',       iconName: 'sparkle' },
+          } as const)[state.status];
 
           const isRunning = state.status === 'running';
 
@@ -216,27 +261,29 @@ export default function PipelineProgress({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 10px',
+                  gap: 7,
+                  padding: '7px 12px',
                   border: `1px solid ${palette.border}`,
                   background: palette.bg,
                   color: palette.fg,
                   fontFamily: 'inherit',
-                  fontSize: 11,
+                  fontSize: 11.5,
+                  fontWeight: 500,
                   cursor: isClickable ? 'pointer' : 'default',
                   whiteSpace: 'nowrap',
-                  transition: 'all 200ms ease',
-                  minHeight: 28,
+                  transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+                  minHeight: 30,
+                  borderRadius: 999,
                   position: 'relative',
                   overflow: 'hidden',
-                  // Highlight visible du moteur en cours :
+                  // Highlight visible du moteur en cours : ombre douce ocre.
                   boxShadow: isRunning
-                    ? '0 0 0 2px rgba(196, 164, 132, 0.30), 0 1px 4px rgba(196, 164, 132, 0.30)'
+                    ? '0 0 0 3px rgba(180, 83, 9, 0.15), 0 1px 4px rgba(180, 83, 9, 0.20)'
                     : 'none',
                 }}
               >
-                {/* Mini barre indeterminee qui defile sous le bouton du
-                    moteur en cours pour signaler le travail en arriere-plan */}
+                {/* Mini barre indeterminee defile sous le pill du moteur en cours
+                    pour signaler le travail en arriere-plan. Gradient ocre. */}
                 {isRunning && (
                   <span
                     aria-hidden
@@ -246,7 +293,7 @@ export default function PipelineProgress({
                       left: 0,
                       width: '100%',
                       height: 2,
-                      background: 'linear-gradient(90deg, transparent, #c4a484, transparent)',
+                      background: 'linear-gradient(90deg, transparent, var(--ocre-brule), transparent)',
                       backgroundSize: '50% 100%',
                       backgroundRepeat: 'no-repeat',
                       animation: 'preludeShimmer 1.4s linear infinite',
@@ -255,34 +302,35 @@ export default function PipelineProgress({
                 )}
                 <span
                   style={{
-                    fontSize: 12,
-                    lineHeight: 1,
-                    width: 12,
-                    height: 12,
+                    width: 14,
+                    height: 14,
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     animation: isRunning ? 'preludePulse 1.4s ease-in-out infinite' : 'none',
+                    color: palette.fg,
+                    flexShrink: 0,
                   }}
                 >
-                  {palette.icon}
+                  <Picto name={palette.iconName} size={14} strokeWidth={2} />
                 </span>
-                <span style={{ letterSpacing: '0.02em' }}>
+                <span style={{ letterSpacing: '0.01em', color: state.status === 'idle' ? 'var(--muted-soft)' : 'var(--ink)' }}>
                   {engine.name}
                 </span>
                 {duration && (
-                  <span style={{ fontSize: 10, opacity: 0.65, marginLeft: 2 }}>
+                  <span style={{ fontSize: 10, opacity: 0.65, marginLeft: 2, fontVariantNumeric: 'tabular-nums' }}>
                     {duration}
                   </span>
                 )}
               </button>
               {!isLast && (
                 <span style={{
-                  width: 10,
+                  width: 12,
                   height: 1,
-                  background: state.status === 'done' ? '#5a7a5a' : 'rgba(40, 30, 20, 0.15)',
+                  background: state.status === 'done' ? 'var(--vert-foret)' : 'var(--hairline)',
                   flexShrink: 0,
-                  margin: '0 1px',
+                  margin: '0 2px',
+                  transition: 'background 220ms cubic-bezier(0.16, 1, 0.3, 1)',
                 }} />
               )}
             </div>
