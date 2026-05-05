@@ -29,6 +29,14 @@ interface Comparable {
   dataQuality: string | null;
   primarySourceUrl: string | null;
   analystNote: string | null;
+  // Champs V4 incremental
+  assetClass: string | null;
+  vcRelevanceScore: number | null;
+  capitalIntensity: string | null;
+  verticalV4: string | null;
+  source2: string | null;
+  whatMadeItWork: string | null;
+  keyRisksLessons: string | null;
   features: {
     founder: number;
     market: number;
@@ -306,6 +314,16 @@ export default function HistoricalComparables({ analysisId }: Props) {
                 {showStatePill && (
                   <span className="hc-pill hc-pill-state" title="Influence d État probable">
                     Capital d État
+                  </span>
+                )}
+                {c.vcRelevanceScore !== null && c.vcRelevanceScore >= 4 && (
+                  <span className="hc-pill hc-pill-vcgrade" title={`Comparable VC-grade (score ${c.vcRelevanceScore}/5)`}>
+                    VC-grade
+                  </span>
+                )}
+                {c.capitalIntensity && (c.capitalIntensity === 'very high' || c.capitalIntensity === 'high') && (
+                  <span className="hc-pill hc-pill-capex" title="Intensite capitalistique elevee">
+                    Capex {c.capitalIntensity === 'very high' ? 'massif' : 'élevé'}
                   </span>
                 )}
                 {!c.hasFeatureScores && (
@@ -698,6 +716,17 @@ const styles = `
     background: var(--hairline-soft);
     color: var(--muted);
     border: 1px dashed var(--hairline);
+  }
+  .hc-pill-vcgrade {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-weight: 700;
+  }
+  .hc-pill-capex {
+    background: var(--ocre-brule-soft);
+    color: var(--ocre-brule);
+    border: 1px solid var(--ocre-brule);
   }
   .hc-row-source {
     color: var(--accent);

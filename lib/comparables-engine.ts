@@ -34,6 +34,10 @@ export interface ComparableFeatures {
   sector: string | null;
   subSector?: string | null;
   country?: string | null;
+  // Asset class detectee a partir du dossier en cours. Permet le hard
+  // filter contre les comparables de classe incompatible (ex pas de
+  // marketplace e-commerce pour un dossier hardware industriel).
+  assetClass?: string | null;
 }
 
 // Une entree historique enrichie avec sa similarite calculee
@@ -53,6 +57,14 @@ export interface Comparable {
   dataQuality: string | null;       // High / Medium / Low
   primarySourceUrl: string | null;
   analystNote: string | null;
+  // Champs V4 incremental hardware/industrial/deeptech
+  assetClass: string | null;
+  vcRelevanceScore: number | null;
+  capitalIntensity: string | null;
+  verticalV4: string | null;
+  source2: string | null;
+  whatMadeItWork: string | null;
+  keyRisksLessons: string | null;
   features: {
     founder: number;
     market: number;
@@ -61,16 +73,11 @@ export interface Comparable {
     defensibility: number;
     risk: number;
   };
-  // Indique si les 6 features ont des donnees reelles (true) ou
-  // sont des fallbacks par defaut (false). Quand false, le matching
-  // sur ce comparable est moins fiable et doit etre montre comme tel.
   hasFeatureScores: boolean;
   finalScore: number;
   signalsPositive: string | null;
   signalsNegative: string | null;
-  // Score de similarite 0-100 (plus haut = plus similaire)
   similarity: number;
-  // Match de secteur (boost dans le calcul)
   sectorMatch: 'exact' | 'related' | 'different';
 }
 
@@ -284,6 +291,85 @@ function matchRegion(target: string | null, ref: string | null): number {
 }
 
 /**
+ * Detecte la classe d actif d un dossier a partir de son secteur et
+ * sub-sector. Retourne l une des valeurs :
+ *   software_pure          : SaaS, AI, marketplace, fintech, consumer (Mistral, DeepL, Spotify)
+ *   software_with_hardware : produit logiciel avec dependance hardware partielle (Wayve, Cursor)
+ *   hardware_industrial    : construction, machinerie, vehicules, drones (Platypus, Joby, Anduril)
+ *   infrastructure_physical: usines, batteries, gigafactory (Northvolt, Form Energy)
+ *   deep_tech_research     : quantum, fusion, carbon capture (Pasqal, Helion)
+ *   hardware_consumer      : wearables et hardware grand public (Oura, GoPro)
+ *
+ * Cette fonction sert au hard filter dans findComparables : un dossier
+ * hardware_industrial ne sera jamais matche avec un comparable
+ * software_pure, meme si les patterns abstraits semblent similaires.
+ */
+function detectAssetClass(sector: string | null, subSector: string | null): string {
+  const s = (sector || '').toLowerCase();
+  const sub = (subSector || '').toLowerCase();
+  const combined = `${s} ${sub}`;
+
+  // Deep tech research : quantum, fusion, carbon
+  if (/quantum|fusion|carbon capture|carbon removal|carbon transformation/.test(combined)) {
+    return 'deep_tech_research';
+  }
+  // Infrastructure physique : usines, batteries grid
+  if (/battery manufacturing|battery recycling|gigafactory|green steel|hydrogen|industrial decarbonization|materials/.test(combined)) {
+    return 'infrastructure_physical';
+  }
+  // Hardware industriel : drones, defense, EV, eVTOL, robotics, aerospace, mobilite
+  if (/drone|defense|counter-drone|evtol|aviation|aerospace|robot|humanoid|warehouse robotics|industrial automation|industrial robotics|mobility|automotive|ev \/|autonomous|maritime|ship|boat|submersible|nautical|naval|additive manufacturing/.test(combined)) {
+    return 'hardware_industrial';
+  }
+  // Hardware industriel : energy storage, hydrogen
+  if (/energy storage|fleet/.test(combined)) {
+    return 'hardware_industrial';
+  }
+  // Hardware consumer
+  if (/wearable|consumer hardware/.test(combined)) {
+    return 'hardware_consumer';
+  }
+  // Cybersecurity industriel / cyber-physical
+  if (/cyber-physical|industrial cyber|industrial iot/.test(combined)) {
+    return 'software_with_hardware';
+  }
+  // Software pur : tout le reste
+  return 'software_pure';
+}
+
+/**
+ * Verifie la compatibilite d asset class entre dossier et comparable.
+ * Hard filter : retourne false si les classes sont incompatibles.
+ *
+ * Regles :
+ *  - hardware_industrial est compatible avec hardware_industrial,
+ *    infrastructure_physical, deep_tech_research, hardware_consumer
+ *  - infrastructure_physical avec lui-meme + hardware_industrial + deep_tech
+ *  - deep_tech_research avec lui-meme + hardware_industrial + infra physical
+ *  - software_pure avec software_pure et software_with_hardware
+ *  - software_with_hardware compatible large (peut etre compare avec tous)
+ *
+ * Le but est d eviter qu un dossier de construction navale soit compare
+ * a une marketplace e-commerce, meme si les patterns transversaux semblent
+ * similaires.
+ */
+function isAssetClassCompatible(target: string, ref: string | null): boolean {
+  if (!ref) return true; // legacy V3 sans asset_class : on laisse passer
+  if (target === ref) return true;
+
+  const HARD_GROUP = ['hardware_industrial', 'infrastructure_physical', 'deep_tech_research', 'hardware_consumer'];
+  const SOFT_GROUP = ['software_pure', 'software_with_hardware'];
+
+  if (HARD_GROUP.includes(target) && HARD_GROUP.includes(ref)) return true;
+  if (SOFT_GROUP.includes(target) && SOFT_GROUP.includes(ref)) return true;
+  // software_with_hardware peut etre compare avec hardware_industrial (cas frontiere : Tesla, Apple)
+  if (target === 'software_with_hardware' && ref === 'hardware_industrial') return true;
+  if (target === 'hardware_industrial' && ref === 'software_with_hardware') return true;
+
+  return false;
+}
+
+/**
  * Trouve les comparables historiques les plus proches d un dossier.
  * @param features feature vector du dossier en cours
  * @param topN nombre de comparables a renvoyer (defaut 5)
@@ -313,28 +399,38 @@ export async function findComparables(
   // regional. On utilise le pays s il est dispo, sinon rien.
   const dossierRegion = features.country || null;
 
+  // Detecte la classe d actif du dossier en cours. C est ce qui declenche
+  // le hard filter contre les comparables incompatibles. Un dossier de
+  // construction navale (hardware industrial) ne sera jamais matche avec
+  // une marketplace e-commerce (software pure), meme si les patterns
+  // transversaux semblent similaires.
+  const targetAssetClass = features.assetClass
+    || detectAssetClass(features.sector, features.subSector || null);
+
   // Calcul similarite pour chaque ligne. V3 : la majorite des lignes
   // n ont pas de scores 6 dimensions. Strategie :
-  //  - Si la ligne a des scores : matching numerique habituel
+  //  - Hard filter prealable : si asset_class incompatible, exclu d office
+  //  - Si la ligne a des scores numeriques : matching ponderee
   //  - Sinon : fallback sur match sectoriel + sub-sector + region
   // Le boost data_quality intervient en post : High = 1.0, Medium = 0.92,
-  // Low = 0.78. C est un poids de confiance, pas un boost de similarite.
-  const scored = rows.map((row: any) => {
+  // Low = 0.78. Le boost vc_relevance_score est applique en queue : 5 -> +5%
+  // pour que les comparables VC-grade remontent prioritairement quand le
+  // matching est ex-aequo.
+  const scoredAll = rows.map((row: any) => {
+    // HARD FILTER : on calcule la compatibilite mais on ne filtre pas
+    // encore. Si incompatible, similarity sera plombe a 0 plus bas.
+    const compatibleClass = isAssetClassCompatible(targetAssetClass, row.asset_class || null);
+
     const sectorMatch = matchSector(features.sector, row.sector);
-    // Bonus sectoriel : 30% de boost si exact, 15% si related
     const sectorBoost = sectorMatch === 'exact' ? 0.30 : sectorMatch === 'related' ? 0.15 : 0;
 
-    // Match sub-sector : critique pour discriminer entre boites du meme
-    // secteur (ex : foundation models vs computer vision).
     const subSectorScore = matchSubSector(
       features.subSector || null,
       row.subsector || row.sub_sector || null,
     );
 
-    // Match region : petit boost de proximite culturelle/regulation
     const regionScore = matchRegion(dossierRegion, row.region || row.country || null);
 
-    // Detecte si la ligne a des features reelles (V1) ou non (V3)
     const hasFeatureScores =
       typeof row.founder_score === 'number' &&
       typeof row.market_score === 'number' &&
@@ -351,29 +447,38 @@ export async function findComparables(
         risk: row.risk_score || 50,
       });
       similarity = Math.max(0, Math.min(1, (1 - dist) + sectorBoost * (1 - dist)));
-      // Petit bonus sub-sector et region pour les V1 aussi
       similarity += subSectorScore * 0.05;
       similarity += regionScore * 0.03;
     } else {
-      // Fallback V3 : pas de scores numeriques. La similarite vient
-      // d une combinaison de signaux qualitatifs :
-      //  - base sectorielle : 0.30 si meme secteur, 0.20 si voisin, 0.05 sinon
-      //  - boost sub-sector : jusqu a +0.30 (poids dominant si exact)
-      //  - boost region : jusqu a +0.10
       let base: number;
       if (sectorMatch === 'exact') base = 0.30;
       else if (sectorMatch === 'related') base = 0.20;
       else base = 0.05;
-
       similarity = base + (subSectorScore * 0.30) + (regionScore * 0.10);
     }
 
-    // Pondération data_quality : decote la similarite des lignes Low.
+    // Pondération data_quality
     const qualityWeight = row.data_quality === 'High' ? 1.0
       : row.data_quality === 'Medium' ? 0.92
       : row.data_quality === 'Low' ? 0.78
       : 0.85;
     similarity = similarity * qualityWeight;
+
+    // Boost vc_relevance_score : prioritise les comparables VC-grade
+    // (5 = 1.05x boost, 4 = 1.02x, 3 = 1.0x, en dessous penalite douce).
+    const vcScore = typeof row.vc_relevance_score === 'number' ? row.vc_relevance_score : 3;
+    const vcBoost = vcScore >= 5 ? 1.05
+      : vcScore >= 4 ? 1.02
+      : vcScore >= 3 ? 1.0
+      : 0.92;
+    similarity = similarity * vcBoost;
+
+    // HARD FILTER applique en dernier : si asset class incompatible,
+    // on plombe la similarity a 0 pour que la ligne disparaisse du top.
+    if (!compatibleClass) {
+      similarity = 0;
+    }
+
     similarity = Math.max(0, Math.min(1, similarity));
 
     const comparable: Comparable = {
@@ -391,6 +496,13 @@ export async function findComparables(
       dataQuality: row.data_quality,
       primarySourceUrl: row.primary_source_url,
       analystNote: row.analyst_note,
+      assetClass: row.asset_class,
+      vcRelevanceScore: row.vc_relevance_score,
+      capitalIntensity: row.capital_intensity,
+      verticalV4: row.vertical_v4,
+      source2: row.source_2,
+      whatMadeItWork: row.what_made_it_work,
+      keyRisksLessons: row.key_risks_lessons,
       features: {
         founder: row.founder_score || 0,
         market: row.market_score || 0,
@@ -408,6 +520,9 @@ export async function findComparables(
     };
     return comparable;
   });
+
+  // On exclut les lignes a similarity 0 (filtre asset_class) avant le top N
+  const scored = scoredAll.filter((c) => c.similarity > 0);
 
   // Tri par similarite desc, on garde le topN
   scored.sort((a, b) => b.similarity - a.similarity);
@@ -701,5 +816,9 @@ export function extractFeaturesFromAnalysis(result: any): ComparableFeatures | n
     sector,
     subSector: result.extraction?.subSector || null,
     country: result.extraction?.country || null,
+    // Detection automatique de la classe d actif. Permet le hard filter
+    // dans findComparables : un dossier hardware industriel ne sera pas
+    // matche avec une marketplace e-commerce.
+    assetClass: detectAssetClass(sector, result.extraction?.subSector || null),
   };
 }
