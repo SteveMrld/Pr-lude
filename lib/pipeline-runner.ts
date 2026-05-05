@@ -8,6 +8,7 @@ import { analyzeBlindspots } from './engines/blindspot-engine';
 import { analyzeContrarian } from './engines/contrarian-engine';
 import { extractFinancialData } from './engines/financial-extraction-engine';
 import { analyzeFinancialCoherence } from './engines/financial-coherence-engine';
+import { analyzeTechClaimCoherence } from './engines/tech-claim-coherence-engine';
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
@@ -59,6 +60,21 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     } catch (err: any) {
       console.warn('[benchmarks] engine failed, continuing without:', err?.message);
       await store.setEngineDone(jobId, 'benchmarks', null);
+    }
+
+    // Moteur Tech Claim Coherence : audit la revendication technologique
+    // du dossier (budget tech alloue + revendication de moat tech). Se
+    // declenche uniquement si triggers detectes dans le pitch. Sinon
+    // retourne un not_applicable sans appel LLM.
+    // Ne bloque pas le pipeline : si echec, on continue sans cette section.
+    await store.setEngineRunning(jobId, 'tech-claim');
+    let techClaimCoherence: any = null;
+    try {
+      techClaimCoherence = await analyzeTechClaimCoherence(extraction, financialData);
+      await store.setEngineDone(jobId, 'tech-claim', techClaimCoherence);
+    } catch (err: any) {
+      console.warn('[tech-claim] engine failed, continuing without:', err?.message);
+      await store.setEngineDone(jobId, 'tech-claim', null);
     }
 
     // Moteur 5 : Pattern Matching
@@ -183,6 +199,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       blindspotAnalysis,
       contrarianAnalysis,
       financialCoherence,
+      techClaimCoherence,
       finalRecommendation,
       referenceChecks,
       assertionAudit,

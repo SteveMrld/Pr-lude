@@ -165,6 +165,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   const macro = r.macro || {};
   const fc = r.financialCoherence;
   const fd = r.financialData;
+  const tcc = r.techClaimCoherence;
   const ba = r.blindspotAnalysis;
   const ca = r.contrarianAnalysis;
   const pm = r.patternMatching;
@@ -1058,6 +1059,50 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <div className="alert-box">
                 <strong>Alertes critiques :</strong>
                 <ul>{(fc.alertesCritiques || []).map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {tcc?.triggered && (
+          <>
+            <h3 className="note-h3">Coherence de la revendication technologique</h3>
+            {splitIntoParagraphs(tcc.synthesis, 3).map((p: string, i: number) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
+            <div className="tech-claim-tests">
+              <div className="tech-claim-row">
+                <div className="tech-claim-test-name">Budget vs equipe</div>
+                <div className={`tech-claim-test-score ${tcc.tests.budgetVsTeam.passed ? 'pass' : 'fail'}`}>
+                  {tcc.tests.budgetVsTeam.score}/100
+                </div>
+                <div className="tech-claim-test-obs">{tcc.tests.budgetVsTeam.observation}</div>
+              </div>
+              <div className="tech-claim-row">
+                <div className="tech-claim-test-name">Tracabilite de l&apos;actif</div>
+                <div className={`tech-claim-test-score ${tcc.tests.assetTraceability.passed ? 'pass' : 'fail'}`}>
+                  {tcc.tests.assetTraceability.score}/100
+                </div>
+                <div className="tech-claim-test-obs">{tcc.tests.assetTraceability.observation}</div>
+              </div>
+              <div className="tech-claim-row">
+                <div className="tech-claim-test-name">Contre-factuel (pari sans la tech)</div>
+                <div className={`tech-claim-test-score ${tcc.tests.counterFactual.passed ? 'fail' : 'pass'}`}>
+                  {tcc.tests.counterFactual.score}/100
+                </div>
+                <div className="tech-claim-test-obs">{tcc.tests.counterFactual.observation}</div>
+              </div>
+            </div>
+            <div className={`tech-claim-verdict tech-claim-verdict-${tcc.verdict}`}>
+              <strong>Verdict :</strong>{' '}
+              {tcc.verdict === 'tech_credible' && 'Revendication technologique credible. Actif precis, equipe coherente, le pari ne tient pas sans la tech.'}
+              {tcc.verdict === 'tech_partially_substantiated' && 'Revendication partiellement etayee. Quelques signaux concrets mais l audit reste a approfondir.'}
+              {tcc.verdict === 'tech_storytelling' && 'Revendication tech relevant principalement de l habillage commercial. Le pari tient sur ses bases editoriales / commerciales / operationnelles, pas sur la tech.'}
+            </div>
+            {tcc.questionsToInstruct?.length > 0 && (
+              <div className="tech-claim-questions">
+                <strong>Questions a instruire en DD :</strong>
+                <ul>{tcc.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
           </>
@@ -2127,6 +2172,117 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         }
         .alert-box ul li {
           margin-bottom: 6px;
+        }
+
+        /* TECH CLAIM COHERENCE - Section dediee a l audit de la
+           revendication technologique. Trois lignes de tests + verdict +
+           questions DD. */
+        .tech-claim-tests {
+          margin: 16px 0 20px;
+          border: 1px solid var(--hairline);
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .tech-claim-row {
+          display: grid;
+          grid-template-columns: 200px 80px 1fr;
+          align-items: center;
+          gap: 14px;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--hairline-soft);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .tech-claim-row:last-child { border-bottom: none; }
+        .tech-claim-test-name {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--ink-soft);
+        }
+        .tech-claim-test-score {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 16px;
+          font-weight: 700;
+          text-align: center;
+          padding: 4px 10px;
+          border-radius: 12px;
+          letter-spacing: 0.02em;
+        }
+        .tech-claim-test-score.pass {
+          color: var(--vert-foret, #1f5f3f);
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+        }
+        .tech-claim-test-score.fail {
+          color: var(--warn, #b14842);
+          background: rgba(177, 72, 66, 0.08);
+        }
+        .tech-claim-test-obs {
+          color: var(--ink-soft);
+          font-style: italic;
+        }
+        .tech-claim-verdict {
+          padding: 14px 18px;
+          margin: 16px 0 14px;
+          border-radius: 4px;
+          font-size: 13.5px;
+          line-height: 1.6;
+          border-left: 4px solid;
+        }
+        .tech-claim-verdict strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-right: 6px;
+        }
+        .tech-claim-verdict-tech_credible {
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
+          border-color: var(--vert-foret, #1f5f3f);
+          color: var(--ink);
+        }
+        .tech-claim-verdict-tech_partially_substantiated {
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.08));
+          border-color: var(--ocre-brule, #b47832);
+          color: var(--ink);
+        }
+        .tech-claim-verdict-tech_storytelling {
+          background: rgba(177, 72, 66, 0.06);
+          border-color: var(--warn, #b14842);
+          color: var(--ink);
+        }
+        .tech-claim-questions {
+          padding: 14px 18px;
+          background: var(--paper-accent, var(--surface));
+          border-radius: 4px;
+          margin-bottom: 18px;
+          font-size: 13px;
+          line-height: 1.65;
+        }
+        .tech-claim-questions strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--ink-soft);
+          display: block;
+          margin-bottom: 8px;
+        }
+        .tech-claim-questions ul {
+          margin: 0;
+          padding-left: 18px;
+        }
+        .tech-claim-questions ul li { margin-bottom: 6px; }
+
+        @media (max-width: 700px) {
+          .tech-claim-row {
+            grid-template-columns: 1fr;
+            gap: 6px;
+          }
         }
 
         /* ORDERED LIST - Listes numérotées style éditorial. */

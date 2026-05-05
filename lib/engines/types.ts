@@ -606,6 +606,74 @@ export interface FinancialCoherenceOutput {
   }>;
 }
 
+// ============================================================
+// Moteur Tech Claim Coherence
+// ------------------------------------------------------------
+// Audite les revendications technologiques d un dossier qui n est
+// pas necessairement IA. Se declenche si le pitch flèche un budget
+// significatif sur "tech / produit / R&D / optimisation" ou si il
+// revendique un moat technologique. Trois tests :
+//   T1 budget vs equipe : combien d ingenieurs le budget paie sur
+//      la duree, est-ce coherent avec l equipe annoncee ?
+//   T2 tracabilite de l actif : le claim decrit-il un actif precis
+//      (algo, brevet, dataset, infra mesurable) ou reste-t-il
+//      abstrait (brique technologique innovante) ?
+//   T3 contre-factuel : si on retire la revendication tech, le pari
+//      commercial tient-il debout sur ses propres jambes ?
+//
+// Empeche que des dossiers consumer / media / services qui claim
+// "plateforme proprietaire" sans actif sortent du moteur sans que
+// la note d investissement ait teste cette revendication.
+// ============================================================
+
+export interface TechClaimTest {
+  score: number; // 0-100
+  passed: boolean;
+  observation: string;
+  implication: string;
+}
+
+export interface TechClaimCoherenceOutput {
+  // Si triggered = false, le dossier ne revendique pas de moat tech
+  // significatif. Les autres champs restent presents mais le rendu UI
+  // peut masquer la section.
+  triggered: boolean;
+  triggers: {
+    budgetAllocationDetected: {
+      detected: boolean;
+      percentage: number | null; // % de la levee fleche tech, null si non detecte
+      amountEur: number | null;  // montant absolu correspondant
+      evidence: string;          // citation du pitch
+    };
+    moatClaimDetected: {
+      detected: boolean;
+      keywords: string[];        // mots-cles qui ont declenche
+      evidence: string;          // citation du pitch
+    };
+  };
+  // Synthese du claim tel qu il apparait dans le pitch
+  claimSummary: string;
+  // Trois tests
+  tests: {
+    budgetVsTeam: TechClaimTest;       // T1 deterministe
+    assetTraceability: TechClaimTest;  // T2 LLM
+    counterFactual: TechClaimTest;     // T3 LLM
+  };
+  globalScore: number; // 0-100
+  // tech_credible : actif precis + equipe coherente + pari ne tient
+  //                 pas sans la tech (ie la tech est le moat)
+  // tech_partially_substantiated : revendication partielle mais avec
+  //                                 quelques signaux concrets
+  // tech_storytelling : revendication abstraite, equipe ne soutient
+  //                     pas, le pari tient sans la tech (ie la tech
+  //                     est de l habillage commercial)
+  // not_applicable : pas de revendication tech significative dans le
+  //                  pitch, le test ne s applique pas
+  verdict: 'tech_credible' | 'tech_partially_substantiated' | 'tech_storytelling' | 'not_applicable';
+  questionsToInstruct: string[]; // 3-5 questions a poser en DD
+  synthesis: string; // paragraphe editorial 3-4 phrases
+}
+
 export interface OrchestratedResult {
   meta: {
     filename: string;
@@ -623,6 +691,12 @@ export interface OrchestratedResult {
   blindspotAnalysis: BlindspotAnalysisOutput;
   contrarianAnalysis: ContrarianAnalysisOutput;
   financialCoherence?: FinancialCoherenceOutput;
+  // Audit de la revendication technologique du dossier (Niveau 5.A).
+  // Se declenche quand le pitch revendique un moat tech ou flèche un
+  // budget significatif sur la tech. Optionnel : peut etre null si le
+  // moteur n a pas tourne ou si le dossier n a aucune revendication
+  // tech a tester.
+  techClaimCoherence?: TechClaimCoherenceOutput | null;
   // Audit consolide des assertions (Niveau 2.B). Liste les noms propres
   // non sourcees, les conversions de devise non taggees, les annees
   // inventees detectees dans tous les outputs des moteurs. Sert a
