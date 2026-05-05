@@ -431,7 +431,7 @@ export interface CausalReversalOutput {
   reversalNarrative: string;
 }
 
-// Moteur 12 : Aveuglement collectif et angles morts (inspiré article Ynsect)
+// Moteur 12 : Vigilance critique et angles morts (inspiré article Ynsect)
 export interface BlindspotPattern {
   patternId: string;
   patternName: string;
@@ -674,6 +674,69 @@ export interface TechClaimCoherenceOutput {
   synthesis: string; // paragraphe editorial 3-4 phrases
 }
 
+// ============================================================
+// Moteur Friction d execution commerciale et industrielle
+// ------------------------------------------------------------
+// Evalue de maniere descriptive et neutre la distance structurelle
+// entre la startup et son chemin vers le revenu. Ne penalise pas
+// les profils a friction elevee, les decrit objectivement pour
+// permettre a l investisseur de calibrer sa thèse, son calendrier,
+// son capital patient et ses partenariats.
+// ============================================================
+export interface ExecutionFrictionFlag {
+  detected: boolean;
+  evidence: string; // citation du pitch ou inference deterministe
+}
+
+export interface ExecutionFrictionAxis {
+  // Identifiant deterministe de l axe
+  axis:
+    | 'go_to_market'              // capacite commerciale a conclure les deals annonces
+    | 'transactional_finance'     // bonding, avances, capacite financiere a executer un deal gagne
+    | 'industrialization'         // proto a serie, capex outillage, MOQ, courbe d apprentissage
+    | 'supply_chain_geopolitics'  // composants critiques, dependances pays sources
+    | 'tech_adoption_ecosystem'   // maturite ecosysteme externe (stations, bornes, normes)
+    | 'product_regulation'        // certifications, homologation produit, normes
+    | 'institutional_referencing' // UGAP, GSA, listes fournisseurs agrees, qualification donneur d ordre
+    | 'rare_technical_talent';    // ingenieurs specialises rares pour deeptech/hardware
+  score: number;        // 0-100, descriptif (haut = friction observable elevee)
+  evidence: string;     // ce qu on lit du dossier
+  implication: string;  // ce que ca signifie pour la conduite de l instruction
+  ddQuestions: string[]; // 1-2 questions DD ciblees
+}
+
+export interface ExecutionFrictionOutput {
+  // Si triggered = false : moins de 2 flags se sont declenches, le
+  // moteur ne tourne pas (cas typique : SaaS B2B early stage). Les
+  // axes restent vides, l UI masque la section.
+  triggered: boolean;
+  flags: {
+    hardware: ExecutionFrictionFlag;
+    b2g_or_semi_state: ExecutionFrictionFlag;
+    deeptech_unstandardized: ExecutionFrictionFlag;
+    capex_significant: ExecutionFrictionFlag;
+    supply_chain_critical: ExecutionFrictionFlag;
+    long_sales_cycle: ExecutionFrictionFlag;
+    regulated_certification: ExecutionFrictionFlag;
+    ecosystem_dependency: ExecutionFrictionFlag;
+  };
+  axes: ExecutionFrictionAxis[]; // typiquement 8 si triggered, 0 si not_applicable
+  globalScore: number; // 0-100, agrege sur les axes pertinents
+  // friction_low : path commercial direct, peu de friction structurelle
+  // friction_medium : cycles longs ou un goulot identifie
+  // friction_high : plusieurs frictions structurelles concomitantes
+  // friction_structural : profil deeptech / B2G / industriel cumulant
+  //                        plusieurs frictions, chemin long et capital
+  //                        patient requis. Pas une condamnation : une
+  //                        caracteristique du business a integrer dans
+  //                        la these.
+  // not_applicable : moins de 2 flags, le moteur ne s est pas declenche
+  verdict: 'friction_low' | 'friction_medium' | 'friction_high' | 'friction_structural' | 'not_applicable';
+  questionsToInstruct: string[]; // 3-5 questions DD globales
+  synthesis: string; // paragraphe editorial 3-4 phrases, ton neutre et descriptif
+}
+
+
 export interface OrchestratedResult {
   meta: {
     filename: string;
@@ -697,6 +760,15 @@ export interface OrchestratedResult {
   // moteur n a pas tourne ou si le dossier n a aucune revendication
   // tech a tester.
   techClaimCoherence?: TechClaimCoherenceOutput | null;
+  // Friction d execution commerciale et industrielle (Niveau 5.B).
+  // Decrit objectivement la distance structurelle entre la startup
+  // et son chemin vers le revenu : capacite go-to-market, capacite
+  // financiere a executer les deals gagnes, industrialisation,
+  // supply chain, ecosysteme tech, regulation, referencement,
+  // talent rare. Se declenche si au moins 2 flags sur 8 sont
+  // positifs. Optionnel : peut etre null si le moteur n a pas
+  // tourne ou si le profil ne presente pas de friction structurelle.
+  executionFriction?: ExecutionFrictionOutput | null;
   // Audit consolide des assertions (Niveau 2.B). Liste les noms propres
   // non sourcees, les conversions de devise non taggees, les annees
   // inventees detectees dans tous les outputs des moteurs. Sert a

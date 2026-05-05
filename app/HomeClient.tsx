@@ -39,8 +39,8 @@ const ENGINES = [
   { id: 'financial-extraction', name: 'Extraction financière', label: 'Données financières du deck et du business plan' },
   { id: 'pattern', name: 'Pattern matching', label: 'Confrontation au corpus de cas instruits' },
   { id: 'causal', name: 'Retournement causal', label: 'Sept angles morts et questions à instruire' },
-  { id: 'blindspot', name: 'Aveuglement collectif', label: 'Détection des dix patterns d\'erreur de jugement VC' },
-  { id: 'contrarian', name: 'Singularités contrariennes', label: 'Détection des dix signaux qui justifient le pari à contre-courant' },
+  { id: 'blindspot', name: 'Vigilance critique', label: 'Détection des dix patterns d\'erreur de jugement VC' },
+  { id: 'contrarian', name: 'Singularités contrariennes', label: 'Détection des dix signaux contrariens à évaluer' },
   { id: 'financial-coherence', name: 'Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics' },
   { id: 'orchestrate', name: 'Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
   { id: 'reference-checks', name: 'Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance' },
@@ -834,11 +834,11 @@ export default function HomeClient({
                   {
                     id: 'dialectique',
                     label: 'Lecture dialectique',
-                    sub: 'Aveuglement vs singularité',
+                    sub: 'Vigilance vs singularité',
                     color: 'amber',
                     engines: [
                       { id: 'causal',               num: '07', name: 'Retournement causal',    desc: 'Sept angles morts et questions critiques à instruire.' },
-                      { id: 'blindspot',            num: '08', name: 'Aveuglement collectif',  desc: 'Patterns d\u2019erreur systémiques (Theranos, WeWork, Ynsect).' },
+                      { id: 'blindspot',            num: '08', name: 'Vigilance critique',  desc: 'Patterns d\u2019erreur systémiques (Theranos, WeWork, Ynsect).' },
                       { id: 'contrarian',           num: '09', name: 'Singularités contrariennes', desc: 'Signaux qui justifient le pari à contre-courant (Wiz, Stripe).' },
                     ],
                   },
@@ -1647,7 +1647,7 @@ export default function HomeClient({
               </div>
 
               {/* Top 3 risques critiques - hierarchisation : on remonte
-                  les patterns d aveuglement haute intensite + alertes
+                  les patterns à risque haute intensite + alertes
                   critiques pour qu un VC voie l essentiel sans deplier
                   10 sections. Sur UP&CHARGE le 6,3:1 prix/substitut etait
                   noye page 4 ; ce bloc le remonte au-dessus du fold. */}
@@ -1658,7 +1658,7 @@ export default function HomeClient({
                 Object.values(patterns).forEach((p: any) => {
                   if (p?.detected && (p.intensity || 0) >= 70) {
                     topRisks.push({
-                      label: p.patternName || 'Pattern d aveuglement',
+                      label: p.patternName || 'Pattern à risque',
                       intensity: p.intensity || 0,
                       evidence: (p.evidence || '').slice(0, 220),
                     });
@@ -1708,11 +1708,11 @@ export default function HomeClient({
               {result.finalRecommendation?.blindspotsVsContrarian && (
                 <div style={{ marginTop: 28, padding: '24px 28px', background: 'rgba(255,255,255,0.06)', borderLeft: '2px solid rgba(255,255,255,0.4)' }}>
                   <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 14 }}>
-                    Résolution dialectique · Aveuglement vs Singularité
+                    Résolution dialectique · Vigilance vs Singularité
                   </div>
                   <div style={{ display: 'flex', gap: 28, marginBottom: 18 }}>
                     <div>
-                      <span style={{ opacity: 0.7, fontSize: 12 }}>Poids aveuglement : </span>
+                      <span style={{ opacity: 0.7, fontSize: 12 }}>Poids vigilance : </span>
                       <span style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{result.finalRecommendation.blindspotsVsContrarian.blindspotsWeight}</span>
                     </div>
                     <div>
@@ -1781,7 +1781,7 @@ export default function HomeClient({
                 {
                   label: 'Lecture dialectique',
                   tabs: [
-                    { id: 'aveuglement', label: 'Aveuglement',  picto: 'blindspot' },
+                    { id: 'aveuglement', label: 'Vigilance critique',  picto: 'blindspot' },
                     { id: 'singularite', label: 'Singularités', picto: 'sparkle' },
                     { id: 'blindspots',  label: 'Angles morts', picto: 'blindspot' },
                   ],
@@ -2156,7 +2156,7 @@ export default function HomeClient({
                   ) : (
                     <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 32, padding: 16, background: 'var(--surface-deep)', border: '1px solid var(--hairline)' }}>
                       <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>Pas de cartographie générée</div>
-                      <div>Le moteur Aveuglement n&apos;a pas produit de cartographie pour ce dossier. Les risques détectés sont disponibles dans l&apos;onglet « Aveuglement » sous forme de patterns (P1 à P10) avec evidence et implication par pattern.</div>
+                      <div>Le moteur Vigilance critique n&apos;a pas produit de cartographie pour ce dossier. Les risques détectés sont disponibles dans l&apos;onglet « Vigilance critique » sous forme de patterns (P1 à P10) avec evidence et implication par pattern.</div>
                     </div>
                   )}
 
@@ -2234,12 +2234,12 @@ export default function HomeClient({
               {(activeTab === 'aveuglement' || printMode) && result.blindspotAnalysis && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
-                    Aveuglement collectif · Dix patterns d'erreur de jugement VC
+                    Vigilance critique · Dix patterns d'erreur de jugement VC
                   </h3>
                   <div style={{ marginBottom: 20, padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)' }}>
                     <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
                       <div>
-                        <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score global aveuglement </span>
+                        <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score global de vigilance </span>
                         <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.blindspotAnalysis.globalBlindspotScore}/100</span>
                       </div>
                       <div style={{ fontSize: 12, opacity: 0.7 }}>
@@ -2322,7 +2322,7 @@ export default function HomeClient({
               {(activeTab === 'singularite' || printMode) && result.contrarianAnalysis && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
-                    Singularités contrariennes · Dix signaux qui justifient le pari
+                    Singularités contrariennes · Dix signaux contrariens à évaluer
                   </h3>
                   <div style={{ marginBottom: 20, padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)' }}>
                     <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>

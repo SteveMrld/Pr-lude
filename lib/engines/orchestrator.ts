@@ -7,14 +7,14 @@ import type {
 } from './types';
 import { getRelevantPastAnnotations, formatPastAnnotationsForPrompt } from '../analysis-store';
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux d'aveuglement et signaux de singularité.
+const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
 
 # TON RÔLE
 
 Tu ne refais pas l'analyse. Tu synthétises. Tu produis :
 1. Une probabilité de succès et d'échec chiffrée
 2. Un score décomposé par dimension avec probabilité et risque
-3. Une résolution explicite de la tension entre moteur 12 (aveuglement) et moteur 13 (singularités)
+3. Une résolution explicite de la tension entre moteur 12 (vigilance) et moteur 13 (singularités)
 4. Un verdict argumenté avec les facteurs décisifs
 
 # CADRE DE DÉCISION AVEC SEUILS EXPLICITES
@@ -31,7 +31,7 @@ La probabilité de succès est solide mais des conditions structurelles doivent 
 Le score est moyen ou la tension blindspots/contrarian n'est pas résolue. La plateforme recommande un cycle d'instruction supplémentaire.
 
 ## refuser (score < 45)
-Probabilité de succès trop faible. Plusieurs alertes critiques d'aveuglement déclenchées sans contrepoids contrarien suffisant.
+Probabilité de succès trop faible. Plusieurs alertes critiques de vigilance déclenchées sans contrepoids contrarien suffisant.
 
 # CALCUL DE LA PROBABILITÉ DE SUCCÈS
 
@@ -58,7 +58,7 @@ Tu produis une probabilité de succès et un risk score pour chacune des 6 dimen
 3. Macro / timing (poids 0.15)
 4. Modèle économique (poids 0.13)
 5. Singularités contrariennes (poids 0.15)
-6. Aveuglement / risques (poids 0.15) - inversé : haut score blindspots = bas score risque maîtrisé
+6. Vigilance critique / risques (poids 0.15) - inversé : haut score blindspots = bas score risque maîtrisé
 
 # RÉSOLUTION DE LA TENSION DIALECTIQUE
 
@@ -106,7 +106,7 @@ Si verdict = "investir" ou "refuser", structuringPlan = null.
 
 Tes textes de synthèse (argumentation, decision drivers, dialecticalResolution.rationale, recommendations) doivent être rédigés comme un partner senior d'un fonds VC qui écrit pour son comité d'investissement. À ce titre :
 
-- Ne mentionne JAMAIS les "moteurs" de la plateforme dans tes textes (pas de "le moteur Aveuglement a détecté...", pas de "selon le moteur Pattern matching...", pas de "Moteur 8 indique..."). Tu peux référencer les analyses par leur nature ("le pattern matching avec Theranos...", "les signaux contrariens identifiés...", "la cohérence financière révèle..."), mais jamais comme étant des outils. Tu écris la conclusion d'une instruction, pas un rapport sur un outil.
+- Ne mentionne JAMAIS les "moteurs" de la plateforme dans tes textes (pas de "le moteur de Vigilance critique a détecté...", pas de "selon le moteur Pattern matching...", pas de "Moteur 8 indique..."). Tu peux référencer les analyses par leur nature ("le pattern matching avec Theranos...", "les signaux contrariens identifiés...", "la cohérence financière révèle..."), mais jamais comme étant des outils. Tu écris la conclusion d'une instruction, pas un rapport sur un outil.
 - Adopte le ton d'un memo IC. Phrases denses, vocabulaire VC standard (ARR, runway, dilution, moat, founder-market fit, comparable, etc.), pas de jargon académique.
 - Cite les comparables historiques par leur nom et leur outcome ("pattern Theranos avec 91% de proximité", "trajectoire Stripe dans une fenêtre de 5-7 ans"), pas par leur ID interne.
 - Utilise la première personne du pluriel rarement et seulement pour les verdicts, pas dans la description des faits.
@@ -138,7 +138,7 @@ Tes textes de synthèse (argumentation, decision drivers, dialecticalResolution.
     { "dimensionName": "Macro / timing", "weight": 0.15, ... },
     { "dimensionName": "Modèle économique", "weight": 0.13, ... },
     { "dimensionName": "Singularités contrariennes", "weight": 0.15, ... },
-    { "dimensionName": "Aveuglement / risques", "weight": 0.15, ... }
+    { "dimensionName": "Vigilance critique / risques", "weight": 0.15, ... }
   ],
   "blindspotsVsContrarian": {
     "blindspotsWeight": 0-100,
@@ -266,7 +266,7 @@ Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 - Alertes : ${blindspotsAlertes}/7
 
 # MOTEUR AVEUGLEMENT (12)
-- Score global aveuglement : ${blindspotAnalysis.globalBlindspotScore || 0}/100
+- Score global de vigilance : ${blindspotAnalysis.globalBlindspotScore || 0}/100
 - Patterns détectés : ${aveuglementPatternsDetected}/10
 - Patterns haute intensité : ${aveuglementHighIntensity}/10
 - Alertes critiques : ${(blindspotAnalysis.alertesCritiques || []).slice(0, 5).join(' · ') || 'aucune'}

@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // Complète le corpus historique (database.ts) avec une typologie
 // stratifiée pour casser le biais "licorne = succès". Le moteur
-// Pattern Matching et le moteur Aveuglement consultent les deux.
+// Pattern Matching et le moteur de Vigilance critique consultent les deux.
 //
 // 4 STRATES + 1 SOUS-CORPUS TRANSVERSE
 //

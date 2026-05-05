@@ -79,7 +79,7 @@ const VERDICT_COLORS: Record<string, string> = {
 };
 
 const TENSION_LABELS: Record<string, string> = {
-  'blindspots-dominate': 'Aveuglements dominants',
+  'blindspots-dominate': 'Vigilance dominante',
   'contrarian-justifies': 'Singularites justificatives',
   'balanced-investigate': 'Equilibre, instruction a poursuivre',
 };

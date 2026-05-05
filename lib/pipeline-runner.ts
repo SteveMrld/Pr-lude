@@ -9,6 +9,7 @@ import { analyzeContrarian } from './engines/contrarian-engine';
 import { extractFinancialData } from './engines/financial-extraction-engine';
 import { analyzeFinancialCoherence } from './engines/financial-coherence-engine';
 import { analyzeTechClaimCoherence } from './engines/tech-claim-coherence-engine';
+import { analyzeExecutionFriction } from './engines/execution-friction-engine';
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
@@ -75,6 +76,25 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     } catch (err: any) {
       console.warn('[tech-claim] engine failed, continuing without:', err?.message);
       await store.setEngineDone(jobId, 'tech-claim', null);
+    }
+
+    // Moteur Friction d execution commerciale et industrielle :
+    // decrit objectivement la distance structurelle entre la startup
+    // et son chemin vers le revenu (8 axes : go-to-market, financement
+    // transactionnel, industrialisation, supply chain, ecosysteme tech,
+    // regulation, referencement institutionnel, talent rare). Se
+    // declenche si au moins 2 flags sur 8 sont positifs. Sinon
+    // retourne un not_applicable sans appel LLM.
+    // Ne bloque pas le pipeline : si echec, on continue sans cette section.
+    await store.setEngineRunning(jobId, 'execution-friction');
+    let executionFriction: any = null;
+    try {
+      const rawSummary = (extraction as any)?.rawSummary || '';
+      executionFriction = await analyzeExecutionFriction(extraction, financialData ?? null, rawSummary);
+      await store.setEngineDone(jobId, 'execution-friction', executionFriction);
+    } catch (err: any) {
+      console.warn('[execution-friction] engine failed, continuing without:', err?.message);
+      await store.setEngineDone(jobId, 'execution-friction', null);
     }
 
     // Moteur 5 : Pattern Matching
@@ -200,6 +220,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       contrarianAnalysis,
       financialCoherence,
       techClaimCoherence,
+      executionFriction,
       finalRecommendation,
       referenceChecks,
       assertionAudit,

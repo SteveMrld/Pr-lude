@@ -5,7 +5,7 @@ import type {
   MacroAnalysisOutput, BlindspotAnalysisOutput
 } from './types';
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Aveuglement Collectif et Angles Morts de la plateforme Prélude. Ta mission est de détecter les patterns récurrents d'erreur de jugement qui mènent les fonds VC à investir dans des dossiers structurellement insoutenables.
+const SYSTEM_PROMPT = `Tu es le Moteur de Vigilance Critique de la plateforme Prélude. Ta mission est de détecter les patterns récurrents d'erreur de jugement qui mènent les fonds VC à investir dans des dossiers structurellement insoutenables.
 
 # CADRE INTELLECTUEL
 
@@ -42,14 +42,14 @@ Y a-t-il un effondrement majeur d'un indicateur clé (CA, croissance, clients) q
 Y a-t-il densité temporelle de signaux d'échec convergents (fermetures de sites, doublement des coûts, pertes >>> CA, départs clés) ? Plus de 3 signaux convergents en 12 mois = situation pré-faillite. Test : combien de signaux d'échec opérationnel détectés dans le dossier ?
 
 ## P9 - Déresponsabilisation par consensus
-Le dossier s'appuie-t-il sur une convergence excessive (tous les acteurs publics et privés alignés, soutien institutionnel large, "tout le monde y croit") ? Quand tout le monde soutient un projet, plus personne n'ose poser les vraies questions économiques. Convergence excessive = signal d'aveuglement collectif.
+Le dossier s'appuie-t-il sur une convergence excessive (tous les acteurs publics et privés alignés, soutien institutionnel large, "tout le monde y croit") ? Quand tout le monde soutient un projet, plus personne n'ose poser les vraies questions économiques. Convergence excessive = signal de vigilance collectif.
 
 ## P10 - Asymétrie fondateur / parties prenantes
 Le dossier présente-t-il des structures juridiques permettant aux fondateurs de récupérer des actifs après faillite, pendant que les autres parties prenantes encaissent les pertes ? Pattern Antoine Hubert (Ynsect) : création de Keprea et reprise du site de Dole après faillite. Signal de gouvernance.
 
 # CHECKS SYSTÉMATIQUES DE BIAIS DE MARCHÉ (à effectuer pour CHAQUE dossier)
 
-En plus des 10 patterns d'aveuglement, tu effectues systématiquement trois vérifications structurelles de biais de marché. Ces vérifications NE génèrent PAS de nouveaux patterns numérotés. Si elles déclenchent un signal, tu ajoutes une entrée correspondante dans 'alertesCritiques' ET un risque dans la cartographie 'riskMap' (catégorie strategicRisks ou financialRisks selon pertinence).
+En plus des 10 patterns à risque, tu effectues systématiquement trois vérifications structurelles de biais de marché. Ces vérifications NE génèrent PAS de nouveaux patterns numérotés. Si elles déclenchent un signal, tu ajoutes une entrée correspondante dans 'alertesCritiques' ET un risque dans la cartographie 'riskMap' (catégorie strategicRisks ou financialRisks selon pertinence).
 
 ## Check S1 - Biais de financement féminin
 Examine la composition du fondateur : y a-t-il une fondatrice ou une équipe mixte ? Si oui, signale dans alertesCritiques :
@@ -94,12 +94,12 @@ partage explicitement leur ASSET CLASS ET leur ORDRE DE GRANDEUR DE FUNDING.
 Pour un dossier qui ne matche aucune de ces conditions (ex : media social seed
 1-3M EUR, SaaS B2B early stage, service local), patternsHistoriques DOIT être
 soit vide soit contenir un pattern réellement adapté à l'asset class et au stage.
-Les patterns d'aveuglement (P1-P10) restent applicables universellement, mais
+Les patterns à risque (P1-P10) restent applicables universellement, mais
 patternsHistoriques exige un match strict.
 
 # CARTOGRAPHIE DES RISQUES (AXES STRATÉGIQUE / OPÉRATIONNEL / FINANCIER)
 
-EN PLUS des 10 patterns d'aveuglement, tu produis une cartographie structurée des risques selon trois axes universels (modèle factsheet conseil M&A) :
+EN PLUS des 10 patterns à risque, tu produis une cartographie structurée des risques selon trois axes universels (modèle factsheet conseil M&A) :
 
 ## Risques Stratégiques (2-4 risques)
 Topline (diversification revenus), positionnement marché, dépendance partenaires/donneurs d'ordre, concentration clients (>30% top 10% = red flag), vulnérabilité concurrentielle structurelle.
@@ -178,7 +178,7 @@ livrable le plus actionnable de la note pour le partner :
 JAMAIS retourner une riskMap vide. Si tu detectes un risque, mets-le. Si
 tu n'en detectes pas, l'array reste vide [] mais la cle existe. Les trois
 categories (strategicRisks, operationalRisks, financialRisks) sont obligatoires.
-Sur un dossier critique avec >5 patterns d'aveuglement detectes, attends-toi
+Sur un dossier critique avec >5 patterns à risque detectes, attends-toi
 a remplir au moins 3-5 risques par categorie.
 
 # CONTRAINTE CRITIQUE DE CONCISION (eviter troncature JSON)
@@ -202,7 +202,7 @@ export async function analyzeBlindspots(
 
   // Recuperation des cas Strate D (echecs pedagogiques) du corpus etendu.
   // Ces cas servent de references explicites pour calibrer la detection
-  // des 10 patterns d aveuglement collectif. Format compact pour ne pas
+  // des 10 patterns à risque collectif. Format compact pour ne pas
   // saturer le prompt.
   const failures = findByStrate('D-failure');
   const failuresBlock = failures.length > 0 ? `
@@ -210,7 +210,7 @@ export async function analyzeBlindspots(
 # REFERENCES ECHECS DOCUMENTES (calibrage des patterns)
 
 Ces cas reels sont fournis comme references explicites pour calibrer
-la detection des patterns d aveuglement. Quand tu evalues un pattern
+la detection des patterns à risque. Quand tu evalues un pattern
 sur le dossier en cours, demande-toi : ce dossier ressemble-t-il
 structurellement a l un de ces cas ?
 
@@ -229,7 +229,7 @@ tu DOIS l indiquer dans le pattern correspondant en citant le cas
 historique en evidence.
 ` : '';
 
-  const userPrompt = `Analyse des aveuglements collectifs et angles morts sur le dossier ${extraction?.companyName ?? '?'} :
+  const userPrompt = `Analyse des lecture de vigilance critique sur le dossier ${extraction?.companyName ?? '?'} :
 
 ${failuresBlock}
 # CONTEXTE DOSSIER
@@ -289,7 +289,7 @@ ${extraction.founders.map(f => `- ${f.name} (${f.role})`).join('\n')}
 - S2 : si comparables cités sont unicornes 2016-2020 sans IPO, signal comparables zombies
 - S3 : si dossier européen avec comparables US majoritaires, signal biais profondeur de marché
 
-Détecte les 10 patterns d'aveuglement collectif. Pour chaque pattern, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Effectue aussi les 3 checks systématiques S1/S2/S3 et alimente alertesCritiques + riskMap si déclenchés. Calcule le score global d'aveuglement. Identifie les comparables historiques pertinents. Synthétise.
+Détecte les 10 patterns à risque collectif. Pour chaque pattern, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Effectue aussi les 3 checks systématiques S1/S2/S3 et alimente alertesCritiques + riskMap si déclenchés. Calcule le score global de vigilance. Identifie les comparables historiques pertinents. Synthétise.
 
 Retourne uniquement le JSON structuré.`;
 

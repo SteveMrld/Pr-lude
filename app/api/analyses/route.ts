@@ -83,7 +83,7 @@ async function dispatchSlackNotifications(params: {
     if (verdict === 'refuser') {
       alertReason = `Verdict d instruction *Refuser* avec un score global de ${globalScore ?? '—'}/100. Cette decision merite une revue collegiale rapide.`;
     } else if (blindspotScore >= 75) {
-      alertReason = `Score d aveuglement collectif tres eleve (${blindspotScore}/100). Le dossier presente plusieurs patterns d aveuglement intenses qui justifient une attention particuliere.`;
+      alertReason = `Score d aveuglement collectif tres eleve (${blindspotScore}/100). Le dossier presente plusieurs patterns à risque intenses qui justifient une attention particuliere.`;
     }
 
     if (alertReason) {

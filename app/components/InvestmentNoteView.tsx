@@ -166,6 +166,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   const fc = r.financialCoherence;
   const fd = r.financialData;
   const tcc = r.techClaimCoherence;
+  const efr = r.executionFriction;
   const ba = r.blindspotAnalysis;
   const ca = r.contrarianAnalysis;
   const pm = r.patternMatching;
@@ -853,7 +854,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             })()}
             {ba.patterns && Object.values(ba.patterns).filter((p: any) => p?.detected && p.intensity >= 60).length > 0 && (
               <>
-                <h4 className="note-h4">Patterns d'aveuglement détectés</h4>
+                <h4 className="note-h4">Patterns à risque détectés</h4>
                 <ul className="risk-list">
                   {Object.values(ba.patterns)
                     .filter((p: any) => p?.detected && p.intensity >= 60)
@@ -897,7 +898,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <h3 className="note-h3">Dialectical resolution</h3>
             <div className="verdict-box" style={{ marginBottom: 12 }}>
               <div className="verdict-line">
-                <span className="verdict-label">Poids de l'aveuglement</span>
+                <span className="verdict-label">Poids de la vigilance</span>
                 <span className="verdict-value">{reco.blindspotsVsContrarian.blindspotsWeight}/100</span>
               </div>
               <div className="verdict-line">
@@ -1103,6 +1104,54 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <div className="tech-claim-questions">
                 <strong>Questions a instruire en DD :</strong>
                 <ul>{tcc.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {efr?.triggered && (efr.axes?.length || 0) > 0 && (
+          <>
+            <h3 className="note-h3">Friction d&apos;execution commerciale et industrielle</h3>
+            {splitIntoParagraphs(efr.synthesis, 3).map((p: string, i: number) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
+            <div className="exec-friction-axes">
+              {(efr.axes || []).map((a: any, i: number) => {
+                const axisLabels: Record<string, string> = {
+                  'go_to_market': 'Go-to-market commercial',
+                  'transactional_finance': 'Financement transactionnel',
+                  'industrialization': 'Industrialisation',
+                  'supply_chain_geopolitics': 'Supply chain et geopolitique',
+                  'tech_adoption_ecosystem': 'Adoption technologique et ecosysteme',
+                  'product_regulation': 'Regulation produit et certification',
+                  'institutional_referencing': 'Referencement client institutionnel',
+                  'rare_technical_talent': 'Talent technique rare',
+                };
+                const score = typeof a.score === 'number' ? a.score : 0;
+                const intensityClass = score >= 70 ? 'high' : score >= 45 ? 'medium' : 'low';
+                return (
+                  <div key={i} className={`exec-friction-row exec-friction-${intensityClass}`}>
+                    <div className="exec-friction-axis-name">{axisLabels[a.axis] || a.axis}</div>
+                    <div className="exec-friction-score">{score}/100</div>
+                    <div className="exec-friction-detail">
+                      <div className="exec-friction-evidence">{a.evidence}</div>
+                      <div className="exec-friction-implication">{a.implication}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className={`exec-friction-verdict exec-friction-verdict-${efr.verdict}`}>
+              <strong>Verdict :</strong>{' '}
+              {efr.verdict === 'friction_low' && 'Friction d\u2019execution faible. Path commercial direct, calendrier classique.'}
+              {efr.verdict === 'friction_medium' && 'Friction d\u2019execution moderee. Un goulot identifie ou cycles longs ; calendrier 24-36 mois.'}
+              {efr.verdict === 'friction_high' && 'Friction d\u2019execution elevee. Plusieurs frictions concomitantes ; calendrier 36-48 mois et capital patient requis.'}
+              {efr.verdict === 'friction_structural' && 'Friction d\u2019execution structurelle. Profil deeptech / B2G / industriel cumulant friction sur plusieurs axes ; calendrier long, capital patient et partenariats industriels requis. Caracteristique du business a integrer dans la these.'}
+            </div>
+            {efr.questionsToInstruct?.length > 0 && (
+              <div className="exec-friction-questions">
+                <strong>Questions a instruire en DD :</strong>
+                <ul>{efr.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
           </>
@@ -2280,6 +2329,133 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         @media (max-width: 700px) {
           .tech-claim-row {
+            grid-template-columns: 1fr;
+            gap: 6px;
+          }
+        }
+
+        /* EXECUTION FRICTION - Section dediee a la friction
+           commerciale et industrielle. Huit axes notes, ton descriptif
+           et neutre. Code couleur uniquement sur intensite (low/medium/high)
+           sans connotation valeur. */
+        .exec-friction-axes {
+          margin: 16px 0 20px;
+          border: 1px solid var(--hairline);
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .exec-friction-row {
+          display: grid;
+          grid-template-columns: 220px 70px 1fr;
+          align-items: start;
+          gap: 14px;
+          padding: 14px 16px;
+          border-bottom: 1px solid var(--hairline-soft);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .exec-friction-row:last-child { border-bottom: none; }
+        .exec-friction-axis-name {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--ink-soft);
+        }
+        .exec-friction-score {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 16px;
+          font-weight: 700;
+          text-align: center;
+          padding: 4px 10px;
+          border-radius: 12px;
+          letter-spacing: 0.02em;
+          color: var(--ink-soft);
+          background: var(--paper-accent, var(--surface));
+        }
+        .exec-friction-low .exec-friction-score {
+          color: var(--vert-foret, #1f5f3f);
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+        }
+        .exec-friction-medium .exec-friction-score {
+          color: var(--ocre-brule, #b47832);
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.08));
+        }
+        .exec-friction-high .exec-friction-score {
+          color: var(--warn, #b14842);
+          background: rgba(177, 72, 66, 0.08);
+        }
+        .exec-friction-evidence {
+          color: var(--ink);
+          margin-bottom: 6px;
+        }
+        .exec-friction-implication {
+          color: var(--ink-soft);
+          font-style: italic;
+        }
+        .exec-friction-verdict {
+          padding: 14px 18px;
+          margin: 16px 0 14px;
+          border-radius: 4px;
+          font-size: 13.5px;
+          line-height: 1.6;
+          border-left: 4px solid;
+        }
+        .exec-friction-verdict strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-right: 6px;
+        }
+        .exec-friction-verdict-friction_low {
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
+          border-color: var(--vert-foret, #1f5f3f);
+          color: var(--ink);
+        }
+        .exec-friction-verdict-friction_medium {
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.06));
+          border-color: var(--ocre-brule, #b47832);
+          color: var(--ink);
+        }
+        .exec-friction-verdict-friction_high {
+          background: rgba(177, 72, 66, 0.05);
+          border-color: var(--warn, #b14842);
+          color: var(--ink);
+        }
+        .exec-friction-verdict-friction_structural {
+          background: var(--paper-accent, var(--surface));
+          border-color: var(--ink-tertiary, #6b6b6b);
+          color: var(--ink);
+        }
+        .exec-friction-questions {
+          padding: 14px 18px;
+          background: var(--paper-accent, var(--surface));
+          border-radius: 4px;
+          margin-bottom: 18px;
+          font-size: 13px;
+          line-height: 1.65;
+        }
+        .exec-friction-questions strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--ink-soft);
+          display: block;
+          margin-bottom: 8px;
+        }
+        .exec-friction-questions ul {
+          margin: 0;
+          padding-left: 18px;
+        }
+        .exec-friction-questions ul li { margin-bottom: 6px; }
+
+        @media (max-width: 700px) {
+          .exec-friction-row {
             grid-template-columns: 1fr;
             gap: 6px;
           }

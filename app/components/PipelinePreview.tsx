@@ -13,7 +13,7 @@ const PIPELINE_STEPS: Step[] = [
   { label: 'Marché', durationMs: 700 },
   { label: 'Macro', durationMs: 500 },
   { label: 'Pattern matching', durationMs: 700 },
-  { label: 'Aveuglement collectif', durationMs: 800 },
+  { label: 'Vigilance critique', durationMs: 800 },
   { label: 'Singularités contrariennes', durationMs: 800 },
   { label: 'Cohérence financière', durationMs: 700 },
   { label: 'Orchestration', durationMs: 600 },

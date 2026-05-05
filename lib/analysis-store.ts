@@ -769,7 +769,7 @@ function rowToFull(row: any): AnalysisFull {
 // Strategie de pertinence (par ordre de priorite) :
 //   1. Meme secteur exact (ex. 'Defense', 'Defense')
 //   2. Sous-secteur similaire (ex. 'drones certifies', 'UAS')
-//   3. Memes patterns d aveuglement detectes
+//   3. Memes patterns à risque detectes
 //   4. Recence (les plus recentes en premier)
 //
 // Pour le 3.A simplifie, on filtre simplement par secteur exact

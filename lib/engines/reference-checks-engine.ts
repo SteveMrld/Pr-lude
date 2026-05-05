@@ -144,7 +144,7 @@ ${(team.redFlags || []).join('\n- ') || 'aucun'}
 # Discrepancies declare vs verifie (si presentes)
 ${team.declaredVsVerified?.discrepancies?.join('\n- ') || 'aucune'}
 
-# Patterns d'aveuglement detectes
+# Patterns à risque detectes
 ${(blindspot.alertesCritiques || []).slice(0, 5).map((a: string) => `- ${a}`).join('\n') || 'aucun'}
 
 # Questions deja identifiees a instruire (moteur causal)

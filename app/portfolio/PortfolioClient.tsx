@@ -195,7 +195,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         <div className="pf-kpi">
           <div className="pf-kpi-num pf-kpi-num-violet">{stats!.avgBlindspotScore ?? '—'}{stats!.avgBlindspotScore != null && <span className="pf-kpi-unit">/100</span>}</div>
           <div className="pf-kpi-label">Risque biais</div>
-          <div className="pf-kpi-sub">Aveuglement collectif moyen</div>
+          <div className="pf-kpi-sub">Vigilance critique moyen</div>
         </div>
       </section>
 

@@ -5,7 +5,7 @@
 // vues et garantit que le comite voit les memes risques que le partner principal.
 //
 // Strategie :
-// 1. On remonte les patterns d aveuglement detectes avec intensite >= 70.
+// 1. On remonte les patterns à risque detectes avec intensite >= 70.
 // 2. Si insuffisant, on complete avec les alertesCritiques bruts du moteur 8.
 // 3. Tri par intensite decroissante, on retourne les N premiers (default 3).
 
@@ -23,7 +23,7 @@ export function computeTopRisks(result: any, limit: number = 3): TopRisk[] {
   Object.values(patterns).forEach((p: any) => {
     if (p?.detected && (p.intensity || 0) >= 70) {
       risks.push({
-        label: p.patternName || 'Pattern d aveuglement',
+        label: p.patternName || 'Pattern à risque',
         intensity: p.intensity || 0,
         evidence: (p.evidence || '').slice(0, 220),
       });

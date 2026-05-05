@@ -29,7 +29,7 @@ const SECTION_LABELS: Record<string, string> = {
   pattern: 'Pattern matching',
   aveuglement: 'Aveuglements',
   singularite: 'Singularites',
-  blindspots: 'Aveuglements et singularites',
+  blindspots: 'Vigilance critique et singularites',
   risksplan: 'Risques et plan',
   refchecks: 'Reference checks',
   instruction: 'A instruire',

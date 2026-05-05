@@ -209,7 +209,7 @@ export default function SlackSettingsPage() {
         Connectez Prelude a un channel Slack du fonds. Chaque dossier instruit y sera publie
         automatiquement avec son verdict, ses facteurs decisifs et ses risques critiques. Une
         alerte distincte se declenche en plus pour les dossiers refuses ou presentant des
-        patterns d aveuglement intenses.
+        patterns à risque intenses.
       </p>
 
       {loading && <div style={{ fontSize: 13, color: 'var(--muted)' }}>Chargement...</div>}
