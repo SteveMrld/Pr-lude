@@ -43,6 +43,35 @@
   --serif: 'Iowan Old Style', 'Charter', 'Cambria', 'Georgia', serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+
+  /* MOTION - durations et easings unifies (style Linear / Stripe).
+     Toutes les transitions utilisent ces tokens pour une coherence
+     globale du sentiment d interaction. */
+  --motion-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-base: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-slow: 420ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* SHADOWS - tres douces, comme un journal pose sur une table en bois.
+     Pas de drop shadow agressive style Material. */
+  --shadow-1: 0 1px 2px rgba(29, 28, 26, 0.04);
+  --shadow-2: 0 2px 8px rgba(29, 28, 26, 0.05), 0 1px 2px rgba(29, 28, 26, 0.04);
+  --shadow-3: 0 8px 24px rgba(29, 28, 26, 0.08), 0 2px 6px rgba(29, 28, 26, 0.04);
+  --shadow-4: 0 24px 48px rgba(29, 28, 26, 0.10), 0 4px 12px rgba(29, 28, 26, 0.06);
+  --shadow-blue: 0 8px 24px rgba(26, 46, 74, 0.12), 0 2px 6px rgba(26, 46, 74, 0.06);
+
+  /* RADII - le projet est principalement plat (look journal / editorial).
+     Les radii servent uniquement aux composants UI qui ont vocation a
+     etre tactiles (boutons pills, badges status). Pas pour les zones
+     editoriales (tableaux, sections, cartes de contenu). */
+  --radius-pill: 9999px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* PICTOS - taille de stroke et sizing standardise pour la bibliotheque
+     de pictogrammes Prelude. Tous les pictos sont en line-art 1.5px sur
+     un canvas 24x24, alignes sur la grille editoriale. */
+  --picto-stroke: 1.5;
+  --picto-stroke-thick: 1.75;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
