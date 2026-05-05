@@ -142,6 +142,15 @@ export default function HomeClient({
     updatedAt: string;
     updatedBy: string | null;
   } | null>(null);
+  // Stats agregees du fonds, chargees au mount pour alimenter la barre
+  // de contexte du hero (Eurazeo · X dossiers · Y en instruction · 
+  // derniere analyse il y a Z jours). Donne une dimension de pilotage
+  // a la home plutot qu un simple ecran statique d upload.
+  const [fundStats, setFundStats] = useState<{
+    total: number;
+    inInstruction: number;
+    lastAnalyzedAt: string | null;
+  } | null>(null);
   // Etat d ouverture du volet de commentaires partages multi-membres
   // (distinct du AnnotationBlock notes personnelles existant).
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -381,6 +390,38 @@ export default function HomeClient({
   useEffect(() => {
     reloadIcDecision();
   }, [reloadIcDecision]);
+
+  // Charge les stats agregees du fonds une fois au mount pour la barre
+  // de contexte du hero. On ne recharge pas au fil de la session : pas
+  // d incidence sur les performances, et l info reste valable tant que
+  // l user n a pas relance une analyse (qui sera reflete via
+  // savedAnalysisId mais c est un autre flow).
+  useEffect(() => {
+    if (!authEnabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/analyses/list?limit=1');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const analyses = Array.isArray(data?.analyses) ? data.analyses : [];
+        const stats = data?.stats || null;
+        const lastAnalyzedAt = analyses[0]?.analyzedAt || analyses[0]?.analyzed_at || null;
+        const total = stats?.total ?? analyses.length;
+        // Heuristique : nombre de dossiers en cours d instruction
+        // (workflow_stage != 'verdict' && != 'closed'). On regarde les
+        // stats par stage si fournies, sinon on fallback a 0.
+        const byStage = stats?.byStage || {};
+        const closed = (byStage.closed || 0) + (byStage.archived || 0);
+        const inInstruction = Math.max(0, total - closed);
+        setFundStats({ total, inInstruction, lastAnalyzedAt });
+      } catch {
+        // silencieux : la barre ne s affichera juste pas
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authEnabled]);
 
   // Callback de mise a jour : envoie un patch partiel et recharge.
   // Ne fait rien si pas authentifie (les observateurs et solo se voient
@@ -669,6 +710,42 @@ export default function HomeClient({
                 Sonder l&apos;équipe, auditer le marché, tester la cohérence des unit economics, cartographier les angles morts.
                 Chaque étape d&apos;une due diligence partner-grade, avant le comité d&apos;investissement.
               </p>
+
+              {/* Barre de contexte fonds : visible uniquement quand l user
+                  est connecte ET que l org a au moins un dossier instruit.
+                  Donne au hero une dimension de pilotage et marque
+                  immediatement que ce n est pas une demo mais l espace de
+                  travail vivant du fonds. */}
+              {authEnabled && fundStats && fundStats.total > 0 && (
+                <div className="hero-fund-bar" role="region" aria-label="Activité du fonds">
+                  <div className="hero-fund-item">
+                    <div className="hero-fund-num">{fundStats.total}</div>
+                    <div className="hero-fund-label">
+                      Dossier{fundStats.total > 1 ? 's' : ''} instruit{fundStats.total > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  {fundStats.inInstruction > 0 && (
+                    <div className="hero-fund-item">
+                      <div className="hero-fund-num">{fundStats.inInstruction}</div>
+                      <div className="hero-fund-label">
+                        En cours d&apos;instruction
+                      </div>
+                    </div>
+                  )}
+                  {fundStats.lastAnalyzedAt && (
+                    <div className="hero-fund-item hero-fund-item-meta">
+                      <div className="hero-fund-num-meta">{formatRelativeDate(fundStats.lastAnalyzedAt)}</div>
+                      <div className="hero-fund-label">
+                        Dernière analyse
+                      </div>
+                    </div>
+                  )}
+                  <a href="/history" className="hero-fund-link">
+                    Voir le portefeuille →
+                  </a>
+                </div>
+              )}
+
               <div className="hero-cta-row" style={{ justifyContent: 'flex-start' }}>
                 <a href="#commencer" className="btn btn-primary">Lancer une instruction →</a>
               </div>
@@ -3203,6 +3280,33 @@ export default function HomeClient({
 //     intempestifs pendant que l utilisateur reflechit)
 //   - Indicateur visuel de l etat : draft / saving / saved
 // ============================================================
+// Format relatif : 'aujourd hui', 'hier', 'il y a 3j', 'il y a 2 sem'.
+// Utilise pour la barre de contexte fonds dans le hero.
+function formatRelativeDate(iso: string | null): string {
+  if (!iso) return '';
+  try {
+    const date = new Date(iso);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays < 1) return 'aujourd\u2019hui';
+    if (diffDays === 1) return 'hier';
+    if (diffDays < 7) return `il y a ${diffDays}j`;
+    if (diffDays < 30) {
+      const w = Math.floor(diffDays / 7);
+      return `il y a ${w} sem`;
+    }
+    if (diffDays < 365) {
+      const m = Math.floor(diffDays / 30);
+      return `il y a ${m} mois`;
+    }
+    const y = Math.floor(diffDays / 365);
+    return `il y a ${y} an${y > 1 ? 's' : ''}`;
+  } catch {
+    return '';
+  }
+}
+
 function AnnotationBlock({ analysisId }: { analysisId: string }) {
   const [notes, setNotes] = useState<string>('');
   const [originalNotes, setOriginalNotes] = useState<string>('');

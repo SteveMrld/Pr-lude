@@ -317,6 +317,96 @@ ul, ol { list-style: none; }
   display: inline-block;
 }
 
+/* Barre de contexte fonds : bandeau editorial sous le sous-titre,
+   visible uniquement en mode authentifie avec au moins un dossier.
+   Style FT/Atlantic data spread, coherent avec la landing publique. */
+.hero-fund-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 36px 0 32px;
+  padding: 24px 28px;
+  background: var(--paper-accent);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  flex-wrap: wrap;
+  row-gap: 18px;
+}
+.hero-fund-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 28px;
+  border-right: 1px solid var(--hairline);
+  flex: 0 0 auto;
+}
+.hero-fund-item:first-child { padding-left: 0; }
+.hero-fund-item-meta { padding-right: 28px; border-right: none; }
+.hero-fund-num {
+  font-family: var(--serif);
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+  font-feature-settings: "lnum", "tnum";
+}
+.hero-fund-num-meta {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 6px;
+  font-style: italic;
+}
+.hero-fund-label {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.hero-fund-link {
+  margin-left: auto;
+  align-self: center;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  transition: all var(--motion-fast);
+  white-space: nowrap;
+}
+.hero-fund-link:hover {
+  background: var(--accent);
+  color: var(--paper);
+  border-color: var(--accent);
+}
+@media (max-width: 720px) {
+  .hero-fund-bar { padding: 18px 18px; }
+  .hero-fund-item {
+    padding: 0 14px;
+    flex: 1 1 calc(50% - 14px);
+  }
+  .hero-fund-item:first-child { padding-left: 14px; }
+  .hero-fund-item:nth-child(2) { border-right: none; }
+  .hero-fund-num { font-size: 28px; }
+  .hero-fund-num-meta { font-size: 15px; }
+  .hero-fund-link {
+    margin-left: 0;
+    margin-top: 4px;
+    flex: 1 1 100%;
+    text-align: center;
+  }
+}
+
 /* SECTION GENERIQUE */
 .landing-section {
   margin-bottom: 80px;
