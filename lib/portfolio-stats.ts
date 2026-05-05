@@ -95,10 +95,13 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
   });
 
   // ---------------------- BY STAGE (le workflowStage est joint par listAnalyses)
+  // Default 'in_review' pour coherence avec /history (un dossier
+  // nouvellement instruit n a pas de transition explicite mais est
+  // considere comme en instruction par defaut).
   const byStage: Record<string, number> = {};
   STAGE_ORDER.forEach((s) => { byStage[s] = 0; });
   analyses.forEach((a) => {
-    const stage = a.workflowStage || 'deposited';
+    const stage = a.workflowStage || 'in_review';
     byStage[stage] = (byStage[stage] || 0) + 1;
   });
 
@@ -168,22 +171,42 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
   });
 
   // ---------------------- CONVERSION ENTRE STAGES
+  // Un dossier en stage X est considere comme passe par tous les stages
+  // precedents dans l ordre du pipeline. Cela donne un funnel cumulatif
+  // coherent meme sans historique de transition explicite.
   const reachedStage: Record<string, Set<string>> = {};
   STAGE_ORDER.forEach((s) => { reachedStage[s] = new Set(); });
-  analysisIds.forEach((id) => reachedStage['deposited'].add(id));
 
+  // Pipeline lineaire (declined est un cul-de-sac, pas dans l ordre).
+  const PIPELINE = ['deposited', 'in_review', 'dd_field', 'ic_review', 'signed'];
+
+  analyses.forEach((a) => {
+    const currentStage = a.workflowStage || 'in_review';
+    if (currentStage === 'declined') {
+      // Refus : passe par deposited et in_review au minimum
+      reachedStage['deposited'].add(a.id);
+      reachedStage['in_review'].add(a.id);
+      return;
+    }
+    const idx = PIPELINE.indexOf(currentStage);
+    if (idx < 0) {
+      reachedStage['deposited'].add(a.id);
+      return;
+    }
+    // Ajoute le dossier a tous les stages jusqu au courant inclus.
+    for (let i = 0; i <= idx; i++) {
+      reachedStage[PIPELINE[i]].add(a.id);
+    }
+  });
+
+  // L historique workflow vient enrichir : si un dossier a ete en
+  // dd_field puis revenu en in_review, il a quand meme atteint dd_field.
   Object.entries(historyByAnalysis).forEach(([analysisId, rows]) => {
     rows.forEach((row) => {
       if (reachedStage[row.to_stage]) {
         reachedStage[row.to_stage].add(analysisId);
       }
     });
-  });
-  analyses.forEach((a) => {
-    const currentStage = a.workflowStage;
-    if (currentStage && reachedStage[currentStage]) {
-      reachedStage[currentStage].add(a.id);
-    }
   });
 
   const conversionPairs: Array<[string, string]> = [
