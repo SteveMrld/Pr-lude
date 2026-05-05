@@ -239,18 +239,18 @@ function selectRelevantExtendedCases(
     if (isIndustrial && (c.wagerType === 'industrial' || c.wagerType === 'hardware')) return true;
     if (isFintech && c.wagerType === 'fintech-regulated') return true;
     if (isMarketplace && c.wagerType === 'marketplace') return true;
-    // WeWork et Cazoo sont des references universelles d aveuglement,
-    // toujours injectees si capex marketplace ou consumer
+    // WeWork et Cazoo : invocation calibree sur asset_class structurellement
+    // proche (capex/marketplace ou industriel), JAMAIS comme reference universelle.
+    // Conformement a la garde-fou narrative_specificity du moteur Comparables V5,
+    // un pattern Strate D ne doit pas etre injecte hors contexte d asset class.
     if (c.id === 'wework-eu' || c.id === 'cazoo') {
       return Boolean(isMarketplace) || Boolean(isIndustrial);
     }
     return false;
   });
-  // Si rien ne matche, on injecte WeWork comme reference universelle minimale
-  if (failures.length === 0) {
-    const wework = allFailures.find((c) => c.id === 'wework-eu');
-    if (wework) failures.push(wework);
-  }
+  // Si rien ne matche : on retourne un tableau vide. Pas d injection forcee.
+  // Mieux vaut zero pattern que des patterns hors contexte qui pollueraient
+  // la sortie sur des dossiers media, software pur, services, etc.
 
   // Strate B/C : paris ouverts ou risques structurels du meme type
   const risky = EXTENDED_CORPUS.filter((c) => {
@@ -400,9 +400,21 @@ Sinon utilise des fourchettes prudentes ("plusieurs centaines de M$").
 ` : ''}
 
 REGLES D USAGE GENERALES
-- Si le dossier matche structurellement un cas Strate D (Ynsect, Cazoo,
-  Northvolt, WeWork, Klarna), tu DOIS l ajouter dans matchedPatterns
-  avec un proximityScore eleve et le pattern critique associe.
+- Les cas Strate D (Ynsect, Cazoo, Northvolt, WeWork, Klarna) ne doivent etre
+  cites dans matchedPatterns QUE si le dossier en cours partage explicitement
+  leur asset class ET leur ordre de grandeur de funding. Concretement :
+  * Ynsect (deeptech industriel, 600M EUR cumules) : reservé aux dossiers
+    industriels ou hardware avec capex significatif et levée >50M EUR.
+  * WeWork (real estate deguise tech, 12,8Md USD) : reserve aux dossiers
+    marketplace lourds avec baux longs ou modele asset-heavy similaire.
+  * Cazoo (e-commerce capex, IPO ratee) : reserve aux dossiers e-commerce
+    avec stock physique et capex marketing massif.
+  * Northvolt (battery cell manufacturing) : reserve aux dossiers
+    industriels capex >100M EUR.
+  * Klarna (BNPL fintech) : reserve aux dossiers fintech credit conso.
+  Pour un dossier media, software pur, services, education, sante non capex :
+  ces patterns Strate D N ONT PAS leur place. Mieux vaut un matchedPatterns vide
+  qu un pattern hors contexte qui pollue le verdict.
 - Pour chaque cas Strate D cite, mentionne explicitement le statut
   ('in-difficulty', 'fragile') dans le keyInsight.
 - Pour les cas Strate B/C, calibre la confiance du comparable selon
