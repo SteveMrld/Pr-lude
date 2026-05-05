@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
+import HistoricalComparables from './components/HistoricalComparables';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
@@ -3171,6 +3172,63 @@ export default function HomeClient({
               <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
                 <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={false} />
               </div>
+            )}
+
+            {/* SECTION COMPARABLES HISTORIQUES - Visible en mode dashboard.
+                En mode note, la section est rendue dans InvestmentNoteView
+                (Section 5). En mode print, idem. Ici on l affiche standalone
+                pour que les utilisateurs en vue dashboard la voient aussi. */}
+            {savedAnalysisId && !printMode && viewMode !== 'note' && (
+              <section style={{
+                maxWidth: 1080,
+                margin: '48px auto 32px',
+                padding: '0 24px',
+              }}>
+                <div style={{
+                  marginBottom: 18,
+                }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    fontFamily: 'var(--sans)',
+                    fontSize: 11,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: 'var(--accent)',
+                    fontWeight: 700,
+                    marginBottom: 12,
+                  }}>
+                    <span style={{
+                      width: 6, height: 6, background: 'var(--accent)', borderRadius: '50%',
+                    }} />
+                    <span>Memoire institutionnelle</span>
+                  </div>
+                  <h2 style={{
+                    fontFamily: 'var(--serif)',
+                    fontSize: 28,
+                    fontWeight: 700,
+                    letterSpacing: '-0.014em',
+                    margin: '0 0 8px',
+                    color: 'var(--ink)',
+                  }}>
+                    Cas comparables historiques
+                  </h2>
+                  <p style={{
+                    fontFamily: 'var(--serif)',
+                    fontSize: 15,
+                    lineHeight: 1.55,
+                    color: 'var(--ink-soft)',
+                    margin: 0,
+                    maxWidth: 720,
+                  }}>
+                    Rapprochement avec un corpus de 40 startups europeennes documentees au moment
+                    de leur tour qualifiant. Le matching s appuie sur six dimensions
+                    (founder, market, traction, deal, defensibility, risk) et pondere un boost sectoriel.
+                  </p>
+                </div>
+                <HistoricalComparables analysisId={savedAnalysisId} />
+              </section>
             )}
 
             <div className="reset-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
