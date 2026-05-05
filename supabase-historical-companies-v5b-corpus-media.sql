@@ -136,7 +136,7 @@ select
   'Europe', 'EU', 'Potential', 'High', 'https://www.lesechos.fr/tech-medias/medias/cma-media-le-projet-mediatique-de-rodolphe-saade-prend-forme',
   'Lance 2016 par Renaud Le Van Kim. Leve cumule estime 165M EUR (Series C 2021 Bpifrance, KKR, Tikehau). 13.8M TikTok, 5.2M Instagram. Internationalisation US/UK/India. Acquis par CMA Media (groupe Saade) 2024 pour montant non disclosed. verify_source : le multiple final pour les early investors n est pas public, l acquisition est consideree comme un soft exit plutot qu un home run.', 4,
   'software_pure', 5, 'medium', 'Social video news premium',
-  'https://www.bfmtv.com/economie/entreprises/medias/cma-cgm-rachete-brut_AV-202410230400.html', 'Differenciateur editorial sur reportage social et environnement. Internationalisation US/UK/India. Capital massif soutenant production premium. Pivot podcasts plus studio plus services pour chercher rentabilite.',
+  'https://www.bfmtv.com/economie/entreprises/medias/cma-cgm-rachete-brut_AV-202410230400.html', 'Differenciateur editorial sur reportage social et environnement. Internationalisation US/UK/India. Capital massif soutenant production premium. Pivot podcasts plus studio plus services pour chercher rentabilite.', 'Risque structurel : modele media social pur ne genere pas de profitabilite a 165M EUR cumules. Diversification forcee. Acquisition par groupe industriel signe que le modele autonome n etait pas viable.',
   'late_ipo', 'social_video_media',
   165, 'EUR', '2024',
   'Profitabilite jamais atteinte en standalone malgre 165M EUR leves sur 8 ans. Diversification forcee (podcasts, studios, services) signe que le modele media social pur ne suffisait pas. Acquis defensivement par groupe industriel.'
