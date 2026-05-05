@@ -7,7 +7,7 @@
 // en cours, avec leur outcome (success / medium / fail / active),
 // et le pattern dominant.
 //
-// Inspiration : PULSAR VC Comparable Engine.
+// Inspiration : moteur de comparables historiques.
 // Repond a la question editoriale : "ce dossier ressemble a quels
 // cas passes du marche europeen ?".
 // ============================================================
@@ -196,7 +196,7 @@ export default function HistoricalComparables({ analysisId }: Props) {
 
   return (
     <div className="hc">
-      {/* Onglets de filtre regional. PULSAR V3 recommande de ne pas
+      {/* Onglets de filtre regional. corpus V3 recommande de ne pas
           melanger US/EU/China dans une meme vue : on offre la vue
           globale par defaut + 4 vues regionales filtrees. */}
       <div className="hc-region-tabs">

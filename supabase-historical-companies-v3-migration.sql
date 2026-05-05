@@ -1,7 +1,7 @@
 -- ============================================================
 -- HISTORICAL COMPANIES V3 - MIGRATION
 -- ------------------------------------------------------------
--- Etend la table avec les colonnes de PULSAR V3 :
+-- Etend la table avec les colonnes de corpus V3 :
 --   region              : Europe / US / Asia / Israel / NorthAmerica / Global
 --   eu_status           : EU / Non-EU / Non-EU mixed
 --   state_influence_tag : No / Potential / Probable / Yes/Probable

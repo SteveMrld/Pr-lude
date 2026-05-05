@@ -1180,7 +1180,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
       {/* SECTION COMPARABLES HISTORIQUES - Memoire institutionnelle factuelle.
           Compare le dossier en cours aux 40 startups europeennes du corpus
-          PULSAR (success, medium, fail, active). Repond a la question :
+          corpus historique (success, medium, fail, active). Repond a la question :
           ce dossier ressemble a quels cas passes du marche europeen ?
           Ne s'affiche que si analysisId est fourni (la note doit etre
           sauvegardee en base pour pouvoir etre rapprochee). */}

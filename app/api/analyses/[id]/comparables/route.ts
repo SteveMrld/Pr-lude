@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // Retourne les comparables historiques pour une analyse donnee.
 // Charge le resultat complet de l analyse, extrait les features
-// PULSAR, puis interroge le moteur de comparables.
+// corpus historique, puis interroge le moteur de comparables.
 // ============================================================
 
 import { NextResponse, type NextRequest } from 'next/server';

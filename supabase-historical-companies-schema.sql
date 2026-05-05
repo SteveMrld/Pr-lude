@@ -7,7 +7,7 @@
 -- pour repondre a la question "ce dossier ressemble a quels
 -- cas passes du marche europeen ?".
 --
--- Inspiration : PULSAR VC Global Blueprint V1.
+-- Inspiration : corpus de comparables historiques V1.
 -- Principe : ne pas s entrainer que sur les winners. Le corpus
 -- contient des successes, des outcomes moyens, des fails et des
 -- actifs en cours.
@@ -34,7 +34,7 @@ create table if not exists public.historical_companies (
   )),
   exit_type text, -- IPO, M&A, late_private, shutdown, etc.
 
-  -- 6 dimensions PULSAR au moment du tour qualifiant
+  -- 6 dimensions du scoring au moment du tour qualifiant
   -- (typiquement seriesA ou seriesB selon disponibilite des donnees)
   founder_score integer check (founder_score between 0 and 100),
   market_score integer check (market_score between 0 and 100),
@@ -69,11 +69,11 @@ create policy "historical_companies_read_all"
   using (true);
 
 -- ============================================================
--- SEED DATA : 40 startups europeennes (PULSAR V1)
+-- SEED DATA : 40 startups europeennes (corpus historique V1)
 -- ============================================================
 -- Convention : tous les scores sont des inferences V1 (confidence=2)
 -- a sourcer avant usage. Le final_score est calcule selon la formule
--- PULSAR : 0.20*founder + 0.20*market + 0.20*traction + 0.15*deal
+-- corpus historique : 0.20*founder + 0.20*market + 0.20*traction + 0.15*deal
 -- + 0.15*defensibility - 0.10*risk, arrondi.
 -- ============================================================
 

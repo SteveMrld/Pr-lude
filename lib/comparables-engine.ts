@@ -23,7 +23,7 @@ function getAdmin() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// 6 dimensions PULSAR au format 0-100
+// 6 dimensions du scoring au format 0-100
 export interface ComparableFeatures {
   founder: number;
   market: number;
@@ -46,7 +46,7 @@ export interface Comparable {
   founded: number | null;
   outcome: string;
   exitType: string | null;
-  // Champs V3 PULSAR
+  // Champs V3 enrichis
   region: string | null;            // Europe / US / Asia / Israel / NorthAmerica / Global
   euStatus: string | null;          // EU / Non-EU / Non-EU mixed
   stateInfluenceTag: string | null; // No / Potential / Probable / Yes/Probable
@@ -603,7 +603,7 @@ function formatMult(n: number): string {
 }
 
 /**
- * Extrait un feature vector PULSAR a partir d un OrchestratedResult Prelude.
+ * Extrait un feature vector corpus historique a partir d un OrchestratedResult Prelude.
  * Mapping V1 :
  *   - founder       : team.systemicCoverage.score (couverture exec)
  *                     fallback : moyenne scores team
