@@ -34,39 +34,43 @@ function FoldableSection({
     <details open={defaultOpen} style={{ margin: '14px 0' }} className="prelude-fold">
       <summary style={{
         cursor: 'pointer',
-        fontFamily: 'var(--serif, Georgia, serif)',
+        fontFamily: 'var(--serif)',
         fontSize: 14,
-        fontWeight: 500,
-        padding: '10px 12px',
-        background: 'rgba(196, 164, 132, 0.06)',
-        borderLeft: '2px solid #c4a484',
+        fontWeight: 600,
+        padding: '12px 14px',
+        background: 'var(--accent-soft)',
+        borderLeft: '3px solid var(--accent)',
+        borderRadius: '0 8px 8px 0',
         listStyle: 'none',
         userSelect: 'none',
         outline: 'none',
-        transition: 'background 0.15s',
+        transition: 'all var(--motion-base)',
+        color: 'var(--ink)',
       }}>
         <span className="prelude-fold-arrow" style={{
-          marginRight: 8,
-          fontSize: 11,
-          opacity: 0.6,
+          marginRight: 10,
+          fontSize: 12,
+          color: 'var(--accent)',
           display: 'inline-block',
-          transition: 'transform 0.18s',
+          transition: 'transform var(--motion-base)',
+          fontWeight: 700,
         }}>▸</span>
         {title}
         {count !== undefined && (
-          <span style={{ marginLeft: 10, fontSize: 11, opacity: 0.55, fontWeight: 400 }}>({count})</span>
+          <span style={{ marginLeft: 10, fontSize: 11.5, color: 'var(--muted)', fontWeight: 500 }}>({count})</span>
         )}
         <span style={{
           float: 'right',
           fontSize: 10,
-          letterSpacing: '0.06em',
+          letterSpacing: '0.10em',
           textTransform: 'uppercase',
-          opacity: 0.5,
-          fontWeight: 400,
-          marginTop: 3,
+          color: 'var(--muted)',
+          fontWeight: 600,
+          marginTop: 4,
+          fontFamily: 'var(--sans)',
         }}>Replié en lecture rapide</span>
       </summary>
-      <div style={{ paddingTop: 12 }}>
+      <div style={{ paddingTop: 14 }}>
         {children}
       </div>
       <style jsx>{`
@@ -78,7 +82,10 @@ function FoldableSection({
           transform: rotate(90deg);
         }
         :global(details.prelude-fold[open]) > summary {
-          background: rgba(196, 164, 132, 0.04);
+          background: var(--accent-soft);
+        }
+        :global(details.prelude-fold) > summary:hover {
+          filter: brightness(0.97);
         }
         :global(details.prelude-fold) > summary::-webkit-details-marker {
           display: none;
@@ -180,20 +187,21 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           marqueur statique si pas de handler fourni. */}
       {compactMode && (
         <div style={{
-          marginBottom: 14,
-          padding: '8px 14px',
-          fontFamily: 'var(--sans, system-ui, sans-serif)',
-          fontSize: 11,
+          marginBottom: 16,
+          padding: '10px 16px',
+          fontFamily: 'var(--sans)',
+          fontSize: 11.5,
           letterSpacing: '0.05em',
-          color: '#5a4a32',
-          background: 'rgba(196, 164, 132, 0.10)',
-          borderLeft: '2px solid #c4a484',
+          color: 'var(--accent)',
+          background: 'var(--accent-soft)',
+          borderLeft: '3px solid var(--accent)',
+          borderRadius: '0 8px 8px 0',
         }}>
-          <span style={{ textTransform: 'uppercase', letterSpacing: '0.10em', fontWeight: 500 }}>
+          <span style={{ textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>
             Lecture rapide
           </span>
-          <span style={{ opacity: 0.65, marginLeft: 8 }}>
-            · Sections secondaires repliées. Verdict, score et conditions clés visibles.
+          <span style={{ color: 'var(--ink-soft)', marginLeft: 10, fontFamily: 'var(--serif)' }}>
+            Sections secondaires repliées. Verdict, score et conditions clés visibles.
           </span>
         </div>
       )}
@@ -1020,32 +1028,32 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
            ============================================================ */
 
         .investment-note {
-          /* PALETTE EDITORIALE C3
-             Encre, papier, hairlines, accents semantiques.
-             L'accent unique de la marque est bleu encre #1a2e4a
-             (utilise tres parcimonieusement : nameplate, links, citations
-             de la marque). Les couleurs semantiques (rouge sourd, vert profond,
-             ambre) sont reservees aux indicateurs et restent sobres. */
+          /* PALETTE EDITORIALE - alignee sur le design system global
+             (app/globals.css). Le composant gardait historiquement sa
+             propre palette creme var(--paper) / ink var(--ink), mais la refonte
+             design imposait un alignement complet. Variables locales
+             reproduisant les tokens globaux pour ne pas avoir a renommer
+             toutes les references --paper / --ink dans le composant. */
 
-          --paper: #fbfaf7;
-          --paper-accent: #f3efe6;
-          --paper-warm: #f6e8e0;
-          --ink: #1d1c1a;
-          --ink-secondary: #555049;
-          --ink-tertiary: #6a655d;
-          --ink-quaternary: #a8a094;
-          --hairline: #d8d2c5;
-          --hairline-soft: #ebe5d6;
+          --paper: #ffffff;
+          --paper-accent: #f6f8fb;
+          --paper-warm: #fef7f4;
+          --ink: #0f172a;
+          --ink-secondary: #475569;
+          --ink-tertiary: #64748b;
+          --ink-quaternary: #94a3b8;
+          --hairline: #e2e8f0;
+          --hairline-soft: #f1f5f9;
 
-          --accent-marque: #1a2e4a;
-          --accent-marque-soft: #e6ebf2;
+          --accent-marque: #1e3a8a;
+          --accent-marque-soft: #eff6ff;
 
-          --semantic-critical: #6b1a1a;
-          --semantic-critical-soft: #f8caca;
-          --semantic-warning: #5d4216;
-          --semantic-warning-soft: #fbf3df;
-          --semantic-positive: #2d4a2d;
-          --semantic-positive-soft: #cfe5cf;
+          --semantic-critical: #b91c1c;
+          --semantic-critical-soft: #fef2f2;
+          --semantic-warning: #b45309;
+          --semantic-warning-soft: #fffbeb;
+          --semantic-positive: #15803d;
+          --semantic-positive-soft: #f0fdf4;
 
           max-width: 920px;
           margin: 0 auto;
@@ -1068,7 +1076,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           justify-content: space-between;
           align-items: flex-end;
           padding-bottom: 18px;
-          border-bottom: 1px solid #1d1c1a;
+          border-bottom: 1px solid var(--ink);
           margin-bottom: 48px;
           position: relative;
         }
@@ -1079,7 +1087,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           left: 0;
           right: 0;
           height: 1px;
-          background: #1d1c1a;
+          background: var(--ink);
           opacity: 0.4;
         }
         .note-brand {
@@ -1096,7 +1104,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 500;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           margin-top: 8px;
         }
         .note-header-right {
@@ -1106,7 +1114,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 11px;
           font-weight: 500;
-          color: #1d1c1a;
+          color: var(--ink);
           letter-spacing: 0.04em;
         }
         .note-classification {
@@ -1135,8 +1143,8 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           padding: 0 0 14px 0;
           margin: 0 0 32px 0;
           background: transparent;
-          color: #1d1c1a;
-          border-bottom: 1px solid #1d1c1a;
+          color: var(--ink);
+          border-bottom: 1px solid var(--ink);
           position: relative;
         }
         .note-section-num {
@@ -1144,7 +1152,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 28px;
           font-weight: 400;
           font-style: italic;
-          color: #a8a094;
+          color: var(--ink-quaternary);
           margin-right: 14px;
           font-feature-settings: "lnum";
         }
@@ -1210,7 +1218,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           margin: 0 0 22px 0;
           line-height: 1.78;
           font-size: 15.5px;
-          color: #1d1c1a;
+          color: var(--ink);
           text-align: left;
           hyphens: manual;
           max-width: 68ch;
@@ -1276,7 +1284,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-variant-caps: all-small-caps;
           letter-spacing: 0.04em;
           font-weight: 600;
-          color: #1d1c1a;
+          color: var(--ink);
           margin-right: 0.3em;
         }
         .note-paragraph-dark .lede {
@@ -1293,7 +1301,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           line-height: 0.85;
           float: left;
           margin: 6px 10px 0 0;
-          color: #1d1c1a;
+          color: var(--ink);
         }
 
         /* PULL QUOTES - Phrase clé extraite du flow narratif et mise en
@@ -1312,13 +1320,13 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 400;
           line-height: 1.45;
           letter-spacing: -0.005em;
-          color: #1d1c1a;
+          color: var(--ink);
           margin: 32px 40px 32px 40px;
           padding: 8px 0;
           text-align: center;
           position: relative;
-          border-top: 1px solid #1d1c1a;
-          border-bottom: 1px solid #1d1c1a;
+          border-top: 1px solid var(--ink);
+          border-bottom: 1px solid var(--ink);
           padding-top: 28px;
           padding-bottom: 28px;
         }
@@ -1327,7 +1335,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-style: normal;
           font-size: 32px;
           font-weight: 400;
-          color: #a8a094;
+          color: var(--ink-quaternary);
           margin: 0 6px;
           vertical-align: -4px;
           line-height: 1;
@@ -1340,24 +1348,24 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 600;
           letter-spacing: 0.16em;
           text-transform: uppercase;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           margin-top: 18px;
         }
         .pull-quote-cite::before {
           content: '— ';
         }
         .pull-quote-contrarian {
-          color: #2d4a2d;
-          border-top-color: #2d4a2d;
-          border-bottom-color: #2d4a2d;
+          color: var(--semantic-positive);
+          border-top-color: var(--semantic-positive);
+          border-bottom-color: var(--semantic-positive);
         }
         .pull-quote-contrarian .pull-quote-mark {
           color: rgba(45, 74, 45, 0.5);
         }
         .pull-quote-blindspot {
-          color: #6b1a1a;
-          border-top-color: #6b1a1a;
-          border-bottom-color: #6b1a1a;
+          color: var(--semantic-critical);
+          border-top-color: var(--semantic-critical);
+          border-bottom-color: var(--semantic-critical);
         }
         .pull-quote-blindspot .pull-quote-mark {
           color: rgba(107, 26, 26, 0.5);
@@ -1373,13 +1381,13 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 22px;
-          border-top: 1px solid #1d1c1a;
-          border-bottom: 1px solid #1d1c1a;
+          border-top: 1px solid var(--ink);
+          border-bottom: 1px solid var(--ink);
         }
         .note-table td {
           padding: 12px 14px;
           border: none;
-          border-bottom: 1px solid #d8d2c5;
+          border-bottom: 1px solid var(--hairline);
           vertical-align: top;
         }
         .note-table tr:last-child td {
@@ -1391,14 +1399,14 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 10px;
           font-weight: 600;
           background: transparent;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           letter-spacing: 0.12em;
           text-transform: uppercase;
         }
         .note-value {
           font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
           font-size: 14px;
-          color: #1d1c1a;
+          color: var(--ink);
           line-height: 1.55;
         }
         .note-value.bold {
@@ -1422,19 +1430,19 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           line-height: 1;
           vertical-align: middle;
         }
-        .sizing-confidence[data-conf="high"]   { color: #2d4a2d; }
+        .sizing-confidence[data-conf="high"]   { color: var(--semantic-positive); }
         .sizing-confidence[data-conf="medium"] { color: #a8732e; }
         .sizing-confidence[data-conf="low"]    { color: #8b2e1f; }
         
         .sizing-meta {
-          color: #6a655d;
+          color: var(--ink-tertiary);
           font-size: 12.5px;
           font-weight: 400;
         }
         .sizing-source {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 11px;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           font-style: italic;
           margin-top: 3px;
           letter-spacing: 0.01em;
@@ -1449,7 +1457,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         .pitch-alignment {
           margin-top: 16px;
           padding: 10px 14px;
-          border-left: 3px solid #6a655d;
+          border-left: 3px solid var(--ink-tertiary);
           background: #f4f0e6;
           font-size: 13px;
           line-height: 1.55;
@@ -1459,11 +1467,11 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           background: #f7eedc;
         }
         .pitch-alignment-underestimated {
-          border-left-color: #2d4a2d;
+          border-left-color: var(--semantic-positive);
           background: #e8f0e8;
         }
         .pitch-alignment-pitch-not-cited {
-          border-left-color: #6a655d;
+          border-left-color: var(--ink-tertiary);
           background: #ede9de;
         }
         .pitch-alignment-label {
@@ -1472,16 +1480,16 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 700;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           margin-right: 8px;
         }
         .pitch-alignment-value {
           font-weight: 600;
-          color: #1d1c1a;
+          color: var(--ink);
         }
         .pitch-alignment-note {
           margin-top: 6px;
-          color: #1d1c1a;
+          color: var(--ink);
         }
 
         /* TABLE FINANCIALS - Tableau à colonnes pour les projections.
@@ -1492,13 +1500,13 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           border-collapse: collapse;
           margin-bottom: 22px;
           font-size: 13px;
-          border-top: 1px solid #1d1c1a;
-          border-bottom: 1px solid #1d1c1a;
+          border-top: 1px solid var(--ink);
+          border-bottom: 1px solid var(--ink);
         }
         .note-financials-table th, .note-financials-table td {
           padding: 10px 12px;
           border: none;
-          border-bottom: 1px solid #d8d2c5;
+          border-bottom: 1px solid var(--hairline);
           text-align: right;
           font-feature-settings: "lnum", "tnum";
         }
@@ -1507,13 +1515,13 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         }
         .note-financials-table th {
           background: transparent;
-          color: #1d1c1a;
+          color: var(--ink);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.1em;
           text-transform: uppercase;
-          border-bottom: 1px solid #1d1c1a;
+          border-bottom: 1px solid var(--ink);
         }
         .note-financials-table .row-label {
           text-align: left;
@@ -1523,13 +1531,13 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 600;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           width: 28%;
         }
         .founder-block {
           margin-bottom: 22px;
           padding-bottom: 18px;
-          border-bottom: 1px solid #d8d2c5;
+          border-bottom: 1px solid var(--hairline);
         }
         .founder-block:last-child {
           border-bottom: none;
@@ -1549,7 +1557,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         .founder-role {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 10px;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           letter-spacing: 0.1em;
           text-transform: uppercase;
           font-weight: 500;
@@ -1560,8 +1568,8 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 13px;
           font-weight: 600;
           padding: 3px 10px;
-          background: #1d1c1a;
-          color: #fbfaf7;
+          background: var(--ink);
+          color: var(--paper);
           letter-spacing: 0.02em;
           font-feature-settings: "lnum";
         }
@@ -1594,7 +1602,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 14px;
           margin-bottom: 6px;
           line-height: 1.65;
-          color: #1d1c1a;
+          color: var(--ink);
         }
         .founder-text strong {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -1602,7 +1610,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 700;
           letter-spacing: 0.1em;
           text-transform: uppercase;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           margin-right: 6px;
         }
 
@@ -1610,12 +1618,12 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
            clair, hairlines fines, typo de chiffres "lining numerals" pour
            alignement vertical parfait. */
         .verdict-box {
-          background: #f3efe6;
+          background: var(--paper-accent);
           border: none;
           padding: 22px 26px;
           margin-bottom: 16px;
-          border-top: 1px solid #1d1c1a;
-          border-bottom: 1px solid #1d1c1a;
+          border-top: 1px solid var(--ink);
+          border-bottom: 1px solid var(--ink);
         }
         .verdict-line {
           display: flex;
@@ -1635,7 +1643,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 10px;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           font-weight: 500;
         }
         .verdict-value {
@@ -1643,7 +1651,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 16px;
           font-weight: 600;
           text-transform: capitalize;
-          color: #1d1c1a;
+          color: var(--ink);
           font-feature-settings: "lnum";
         }
         .verdict-value.big {
@@ -1676,16 +1684,16 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           height: 100%;
         }
         .zone-refuser {
-          background: linear-gradient(90deg, #f8caca 0%, #f8caca 100%);
+          background: linear-gradient(90deg, var(--semantic-critical-soft) 0%, var(--semantic-critical-soft) 100%);
         }
         .zone-approfondir {
-          background: linear-gradient(90deg, #fbf3df 0%, #fbf3df 100%);
+          background: linear-gradient(90deg, var(--semantic-warning-soft) 0%, var(--semantic-warning-soft) 100%);
         }
         .zone-conditions {
           background: linear-gradient(90deg, #e8efe8 0%, #e8efe8 100%);
         }
         .zone-investir {
-          background: linear-gradient(90deg, #cfe5cf 0%, #cfe5cf 100%);
+          background: linear-gradient(90deg, var(--semantic-positive-soft) 0%, var(--semantic-positive-soft) 100%);
         }
         .score-marker {
           position: absolute;
@@ -1710,9 +1718,9 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           text-align: center;
           padding: 0 4px;
         }
-        .lbl-refuser { color: #6b1a1a; }
+        .lbl-refuser { color: var(--semantic-critical); }
         .lbl-approfondir { color: #6b4d2c; }
-        .lbl-conditions { color: #2d4a2d; }
+        .lbl-conditions { color: var(--semantic-positive); }
         .lbl-investir { color: #1f3a1f; }
         .score-thresholds-axis {
           position: relative;
@@ -1732,11 +1740,11 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         .risk-list li {
           padding: 16px 20px;
           margin-bottom: 10px;
-          background: #f3efe6;
-          border-left: 3px solid #1d1c1a;
+          background: var(--paper-accent);
+          border-left: 3px solid var(--ink);
           font-size: 14px;
           line-height: 1.65;
-          color: #1d1c1a;
+          color: var(--ink);
           display: flex;
           gap: 16px;
           align-items: flex-start;
@@ -1765,12 +1773,12 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           justify-content: center;
         }
         .signal-score-blindspot {
-          background: #6b1a1a;
-          color: #fbfaf7;
+          background: var(--semantic-critical);
+          color: var(--paper);
         }
         .signal-score-contrarian {
-          background: #2d4a2d;
-          color: #fbfaf7;
+          background: var(--semantic-positive);
+          color: var(--paper);
         }
         .risk-sev {
           display: inline-block;
@@ -1789,8 +1797,8 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           border: 1px solid #cfd8cf;
         }
         .sev-medium {
-          background: #fbf3df;
-          color: #5d4216;
+          background: var(--semantic-warning-soft);
+          color: var(--semantic-warning);
           border: 1px solid #ead9b3;
         }
         .sev-high {
@@ -1799,7 +1807,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           border: 1px solid #f0b896;
         }
         .sev-critical {
-          background: #f8caca;
+          background: var(--semantic-critical-soft);
           color: #5e0f0f;
           border: 1px solid #e89696;
         }
@@ -1813,14 +1821,14 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           width: 100%;
           border-collapse: collapse;
           font-size: 12px;
-          border-top: 1px solid #1d1c1a;
-          border-bottom: 1px solid #1d1c1a;
+          border-top: 1px solid var(--ink);
+          border-bottom: 1px solid var(--ink);
         }
         .matrix-table th, .matrix-table td {
           padding: 8px 10px;
           border: none;
-          border-bottom: 1px solid #d8d2c5;
-          border-right: 1px solid #d8d2c5;
+          border-bottom: 1px solid var(--hairline);
+          border-right: 1px solid var(--hairline);
           text-align: center;
         }
         .matrix-table th:last-child, .matrix-table td:last-child {
@@ -1831,13 +1839,13 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         }
         .matrix-dim {
           background: transparent;
-          color: #1d1c1a;
+          color: var(--ink);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-weight: 700;
           font-size: 9px;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          border-bottom: 1px solid #1d1c1a !important;
+          border-bottom: 1px solid var(--ink) !important;
         }
         .matrix-player {
           text-align: left !important;
@@ -1846,11 +1854,11 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 11px;
           font-weight: 600;
           letter-spacing: 0.04em;
-          color: #6a655d;
+          color: var(--ink-tertiary);
         }
         .matrix-table tr.target .matrix-player {
-          background: #1d1c1a;
-          color: #fbfaf7;
+          background: var(--ink);
+          color: var(--paper);
           font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
           font-size: 14px;
           font-weight: 700;
@@ -1858,18 +1866,18 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           text-transform: none;
         }
         .matrix-table tr.target td {
-          background: #f3efe6;
+          background: var(--paper-accent);
         }
         .cov-yes { color: #1f3a1f; font-weight: 700; font-size: 14px; }
-        .cov-no { color: #6b1a1a; font-size: 14px; }
+        .cov-no { color: var(--semantic-critical); font-size: 14px; }
 
         /* ALERT BOX - Encart d'alertes critiques. Style "callout" éditorial :
            bordure gauche épaisse rouge sourd, fond crème un peu plus saturé. */
         .alert-box {
           padding: 18px 22px;
-          background: #f6e8e0;
+          background: var(--paper-warm);
           border: none;
-          border-left: 4px solid #6b1a1a;
+          border-left: 4px solid var(--semantic-critical);
           margin-bottom: 18px;
           font-size: 13px;
           line-height: 1.65;
@@ -1880,14 +1888,14 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 700;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          color: #6b1a1a;
+          color: var(--semantic-critical);
           display: block;
           margin-bottom: 8px;
         }
         .alert-box ul {
           margin: 0;
           padding-left: 18px;
-          color: #1d1c1a;
+          color: var(--ink);
         }
         .alert-box ul li {
           margin-bottom: 6px;
@@ -1907,7 +1915,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         .ordered-list li::marker {
           font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
           font-weight: 600;
-          color: #6a655d;
+          color: var(--ink-tertiary);
         }
 
         /* BENCHMARK BLOCK - Encarts pour les comparables. Style "sidebar"
@@ -1921,12 +1929,12 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         .benchmark-block {
           margin-bottom: 18px;
           padding: 16px 20px;
-          background: #f3efe6;
-          border-left: 3px solid #1d1c1a;
+          background: var(--paper-accent);
+          border-left: 3px solid var(--ink);
         }
         .benchmark-block.caution-positive {
-          background: #f3efe6;
-          border-left-color: #1a2e4a;
+          background: var(--paper-accent);
+          border-left-color: var(--accent-marque);
         }
         .benchmark-block.caution-caveat {
           background: #f3e3c8;
@@ -1953,7 +1961,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         .benchmark-geo {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 9px;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           letter-spacing: 0.14em;
           text-transform: uppercase;
           font-weight: 600;
@@ -1975,42 +1983,42 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           padding: 3px 8px;
         }
         .benchmark-badge.caution-positive {
-          background: #1a2e4a;
-          color: #fbfaf7;
+          background: var(--accent-marque);
+          color: var(--paper);
         }
         .benchmark-badge.caution-caveat {
           background: #a8732e;
-          color: #fbfaf7;
+          color: var(--paper);
         }
         .benchmark-badge.caution-tale {
           background: #8b2e1f;
-          color: #fbfaf7;
+          color: var(--paper);
         }
         .benchmark-badge.status-confirmed {
           background: #2d4a2e;
-          color: #fbfaf7;
+          color: var(--paper);
         }
         .benchmark-badge.status-promising {
           background: #3a5378;
-          color: #fbfaf7;
+          color: var(--paper);
         }
         .benchmark-badge.status-fragile {
           background: #8a7a3c;
-          color: #fbfaf7;
+          color: var(--paper);
         }
         .benchmark-badge.status-difficulty {
-          background: #6b1a1a;
-          color: #fbfaf7;
+          background: var(--semantic-critical);
+          color: var(--paper);
         }
         .benchmark-badge.status-too-early {
           background: #5a564e;
-          color: #fbfaf7;
+          color: var(--paper);
         }
         .benchmark-bet, .benchmark-relevance {
           font-size: 14px;
           margin-bottom: 8px;
           line-height: 1.65;
-          color: #1d1c1a;
+          color: var(--ink);
         }
         .benchmark-bet strong, .benchmark-relevance strong {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -2018,7 +2026,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-weight: 700;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           margin-right: 6px;
         }
 
@@ -2030,7 +2038,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         }
         .action-list li {
           padding: 12px 0;
-          border-bottom: 1px solid #d8d2c5;
+          border-bottom: 1px solid var(--hairline);
           font-size: 14px;
           line-height: 1.55;
           font-size: 12px;
@@ -2043,8 +2051,8 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 9px;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          background: #1d1c1a;
-          color: #fbfaf7;
+          background: var(--ink);
+          color: var(--paper);
           padding: 3px 10px;
           margin-right: 12px;
           font-weight: 700;
@@ -2086,7 +2094,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
         .note-sources {
           margin-top: 64px;
           padding-top: 32px;
-          border-top: 1px solid #1d1c1a;
+          border-top: 1px solid var(--ink);
         }
         .note-sources .note-h4 {
           margin-top: 0;
@@ -2096,7 +2104,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
           font-size: 13px;
           font-style: italic;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           line-height: 1.65;
           margin: 0 0 18px 0;
         }
@@ -2123,8 +2131,8 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-size: 9px;
           font-weight: 700;
           letter-spacing: 0.1em;
-          color: #fbfaf7;
-          background: #1d1c1a;
+          color: var(--paper);
+          background: var(--ink);
           width: 22px;
           height: 22px;
           display: flex;
@@ -2140,7 +2148,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           letter-spacing: -0.005em;
         }
         .note-sources-detail {
-          color: #555049;
+          color: var(--ink-secondary);
         }
 
         /* COLOPHON - Footer stylé comme un colophon d'article. Filet horizontal,
@@ -2152,7 +2160,7 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 9.5px;
           font-weight: 500;
-          color: #6a655d;
+          color: var(--ink-tertiary);
           text-align: center;
           line-height: 1.8;
           letter-spacing: 0.12em;

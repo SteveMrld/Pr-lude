@@ -1697,9 +1697,11 @@ ul, ol { list-style: none; }
 .ic-page {
   max-width: 760px;
   margin: 0 auto 56px;
-  padding: 36px 44px;
+  padding: 40px 48px;
   background: var(--surface);
   border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: var(--shadow-2);
   position: relative;
 }
 
@@ -1834,18 +1836,23 @@ ul, ol { list-style: none; }
 
 .ic-verdict {
   font-family: var(--serif);
-  font-size: 38px;
-  font-weight: 500;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.022em;
   margin-top: 4px;
+  color: var(--ink);
 }
 
 .ic-prob-block {
-  min-width: 240px;
+  min-width: 260px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  padding: 18px 22px;
+  background: var(--accent-soft);
+  border-radius: 10px;
+  border: 1px solid var(--hairline);
 }
 
 .ic-prob-row {
@@ -1853,8 +1860,8 @@ ul, ol { list-style: none; }
   justify-content: space-between;
   align-items: baseline;
   gap: 18px;
-  padding: 4px 0;
-  border-bottom: 1px dotted var(--hairline);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hairline-soft);
   font-size: 13px;
 }
 
@@ -1866,32 +1873,36 @@ ul, ol { list-style: none; }
   color: var(--muted);
   font-family: var(--sans);
   font-size: 11px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .ic-prob-value {
   font-family: var(--serif);
-  font-size: 18px;
-  font-weight: 500;
+  font-size: 22px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  letter-spacing: -0.01em;
 }
 
 .ic-tension {
-  padding: 16px 18px;
-  background: var(--paper-accent);
+  padding: 18px 22px;
+  background: var(--ocre-brule-soft);
   border-left: 3px solid var(--ocre-brule);
-  margin-top: 8px;
+  border-radius: 0 8px 8px 0;
+  margin-top: 12px;
 }
 
 .ic-tension-label {
   font-family: var(--sans);
   font-size: 10px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ocre-brule);
-  font-weight: 500;
-  margin-bottom: 8px;
+  font-weight: 700;
+  margin-bottom: 10px;
 }
 
 .ic-tension-text {
