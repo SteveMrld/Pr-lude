@@ -3,6 +3,7 @@
 import React from 'react';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import HistoricalComparables from './HistoricalComparables';
+import OutcomeTracking from './OutcomeTracking';
 
 interface Props {
   result: any;
@@ -1179,19 +1180,38 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       </NoteSectionWrapper>
 
       {/* SECTION COMPARABLES HISTORIQUES - Memoire institutionnelle factuelle.
-          Compare le dossier en cours aux 40 startups europeennes du corpus
-          corpus historique (success, medium, fail, active). Repond a la question :
-          ce dossier ressemble a quels cas passes du marche europeen ?
+          Compare le dossier en cours aux startups documentees du corpus
+          historique (success, medium, fail, active). Repond a la question :
+          ce dossier ressemble a quels cas passes du marche ?
           Ne s'affiche que si analysisId est fourni (la note doit etre
           sauvegardee en base pour pouvoir etre rapprochee). */}
       {analysisId && (
         <NoteSectionWrapper number="5." title="Historical Comparables" compactMode={compactMode} collapseInCompact={true}>
           <p className="note-section-intro">
-            Rapprochement avec un corpus de 40 startups européennes documentées au moment de leur tour
-            qualifiant. Le matching s&apos;appuie sur six dimensions (founder, market, traction, deal,
-            defensibility, risk) et pondère un boost sectoriel.
+            Rapprochement avec un corpus de startups documentées au moment de leur tour qualifiant.
+            Le matching s&apos;appuie sur six dimensions (founder, market, traction, deal,
+            defensibility, risk), pondère un boost sectoriel et applique un hard filter
+            par classe d&apos;actif (hardware industriel, deeptech, software pur).
           </p>
           <HistoricalComparables analysisId={analysisId} />
+        </NoteSectionWrapper>
+      )}
+
+      {/* SECTION RECONCILIATION PREDICTION VS REALITY (Bloc E3)
+          Permet d enregistrer la decision finale du fonds (invested/passed/
+          declined/waitlisted) et d ajouter au fil du temps les milestones
+          observes (levee, pivot, exit, fail). C est la matiere brute qui,
+          accumulee sur 30+ dossiers, permettra a Prelude de cartographier
+          ses biais structurels et d apprendre. */}
+      {analysisId && (
+        <NoteSectionWrapper number="6." title="Suivi & réconciliation" compactMode={compactMode} collapseInCompact={true}>
+          <p className="note-section-intro">
+            Trace de ce qui s&apos;est réellement passé après la décision. Une mémoire
+            institutionnelle d&apos;apprentissage qui, accumulée dossier après dossier,
+            permettra de réconcilier ce que Prélude prédisait avec ce que les marchés
+            ont validé ou contredit.
+          </p>
+          <OutcomeTracking analysisId={analysisId} />
         </NoteSectionWrapper>
       )}
 
