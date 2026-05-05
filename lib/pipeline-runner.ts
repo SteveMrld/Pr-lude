@@ -14,6 +14,7 @@ import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
 import { auditAssertions } from './engines/assertion-validator';
+import { parseLedger } from './ledger-parser';
 import { getJobStore } from './job-store';
 
 interface RunOpts {
@@ -22,13 +23,15 @@ interface RunOpts {
   pitchDeckName: string;
   businessPlanPayload: string | null; // texte BP ou null
   businessPlanName: string | null;
+  generalLedgerPayload: string | null; // texte grand livre comptable ou null
+  generalLedgerName: string | null;
   otherFileNames: string[];
 }
 
 export async function runPipeline(opts: RunOpts): Promise<void> {
   const store = getJobStore();
   const startTime = Date.now();
-  const { jobId, pitchDeckPayload, pitchDeckName, businessPlanPayload, businessPlanName, otherFileNames } = opts;
+  const { jobId, pitchDeckPayload, pitchDeckName, businessPlanPayload, businessPlanName, generalLedgerPayload, generalLedgerName, otherFileNames } = opts;
 
   try {
     // Moteur 1 : Extraction du pitch deck
@@ -76,6 +79,22 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     } catch (err: any) {
       console.warn('[tech-claim] engine failed, continuing without:', err?.message);
       await store.setEngineDone(jobId, 'tech-claim', null);
+    }
+
+    // Parsing du grand livre comptable (deterministe, pas d appel LLM).
+    // Module 1 DD financiere etape 1 : extraction structuree des
+    // ecritures comptables. Si pas de grand livre uploade, l extraction
+    // reste null et le moteur DD financier (etape 2) ne tournera pas.
+    await store.setEngineRunning(jobId, 'ledger-parsing');
+    let ledgerExtraction: any = null;
+    try {
+      if (generalLedgerPayload) {
+        ledgerExtraction = parseLedger(generalLedgerPayload);
+      }
+      await store.setEngineDone(jobId, 'ledger-parsing', ledgerExtraction);
+    } catch (err: any) {
+      console.warn('[ledger-parsing] failed:', err?.message);
+      await store.setEngineDone(jobId, 'ledger-parsing', null);
     }
 
     // Moteur Friction d execution commerciale et industrielle :
@@ -221,6 +240,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       financialCoherence,
       techClaimCoherence,
       executionFriction,
+      ledgerExtraction,
       finalRecommendation,
       referenceChecks,
       assertionAudit,

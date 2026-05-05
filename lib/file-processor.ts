@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 
-export type FileNature = 'pitch_deck' | 'business_plan' | 'financial_other' | 'unknown';
+export type FileNature = 'pitch_deck' | 'business_plan' | 'general_ledger' | 'financial_other' | 'unknown';
 
 export interface ClassifiedFile {
   name: string;
@@ -17,7 +17,22 @@ export interface ClassifiedFile {
 export function classifyFile(file: File): FileNature {
   const lowerName = file.name.toLowerCase();
 
-  // Heuristiques sur le nom
+  // Heuristiques sur le nom : grand livre comptable / FEC.
+  // Detection prioritaire sur le BP parce que ces termes sont tres
+  // specifiques et ne se confondent pas avec un BP projete.
+  if (lowerName.includes('grand livre') || lowerName.includes('grand_livre') ||
+      lowerName.includes('grandlivre') || lowerName.includes('general ledger') ||
+      lowerName.includes('general_ledger') || lowerName.includes('generalledger') ||
+      lowerName.includes('fec.') || lowerName.startsWith('fec_') ||
+      lowerName.includes('_fec_') || lowerName.includes(' fec ') ||
+      lowerName.includes('ecritures comptables') || lowerName.includes('ecritures_comptables') ||
+      lowerName.includes('compta_') || lowerName.includes('_compta.') ||
+      lowerName.includes('balance generale') || lowerName.includes('balance_generale') ||
+      lowerName.includes('journal_compta') || lowerName.includes('ledger.')) {
+    return 'general_ledger';
+  }
+
+  // Heuristiques sur le nom : business plan
   if (lowerName.includes('business plan') || lowerName.includes('businessplan') ||
       lowerName.includes('bp ') || lowerName.includes('_bp_') ||
       lowerName.includes('financial') || lowerName.includes('financier') ||
@@ -97,6 +112,7 @@ export function extractCSVContent(buffer: Buffer): string {
 export async function processFiles(files: File[]): Promise<{
   pitchDeck: ClassifiedFile | null;
   businessPlan: ClassifiedFile | null;
+  generalLedger: ClassifiedFile | null;
   others: ClassifiedFile[];
 }> {
   const classified: ClassifiedFile[] = [];
@@ -135,17 +151,68 @@ export async function processFiles(files: File[]): Promise<{
     pitchDeck = classified.find(f => f.type === 'pdf') || null;
   }
 
-  // Identifier le BP (Excel ou CSV)
+  // Identifier le grand livre comptable en priorite (signal explicite
+  // dans le nom ou structure FEC reconnue). Doit etre identifie avant
+  // le BP pour eviter qu un fichier nomme "FEC.xlsx" soit pris pour
+  // un BP.
+  let generalLedger: ClassifiedFile | null = classified.find(f =>
+    f.nature === 'general_ledger' && (f.type === 'excel' || f.type === 'csv')
+  ) || null;
+
+  // Detection structurelle si pas de match par nom : un Excel/CSV
+  // dont le contenu commence par les headers FEC standard ou
+  // par un schema "compte/debit/credit" est probablement un grand livre.
+  if (!generalLedger) {
+    const candidates = classified.filter(f => f !== pitchDeck && (f.type === 'excel' || f.type === 'csv'));
+    for (const c of candidates) {
+      if (looksLikeLedger(c.payload)) {
+        c.nature = 'general_ledger';
+        generalLedger = c;
+        break;
+      }
+    }
+  }
+
+  // Identifier le BP (Excel ou CSV, distinct du grand livre)
   let businessPlan: ClassifiedFile | null = classified.find(f =>
+    f !== generalLedger &&
     f.nature === 'business_plan' && (f.type === 'excel' || f.type === 'csv')
   ) || null;
 
-  // Sinon, premier Excel/CSV
+  // Sinon, premier Excel/CSV qui ne soit ni le pitch ni le grand livre
   if (!businessPlan) {
-    businessPlan = classified.find(f => f.type === 'excel' || f.type === 'csv') || null;
+    businessPlan = classified.find(f =>
+      f !== pitchDeck && f !== generalLedger &&
+      (f.type === 'excel' || f.type === 'csv')
+    ) || null;
   }
 
-  const others = classified.filter(f => f !== pitchDeck && f !== businessPlan);
+  const others = classified.filter(f =>
+    f !== pitchDeck && f !== businessPlan && f !== generalLedger
+  );
 
-  return { pitchDeck, businessPlan, others };
+  return { pitchDeck, businessPlan, generalLedger, others };
+}
+
+/**
+ * Heuristique structurelle : un payload texte ressemble-t-il a un
+ * grand livre comptable ? On cherche les marqueurs FEC ou les
+ * combinaisons de colonnes typiques (compte + debit + credit).
+ */
+function looksLikeLedger(payload: string): boolean {
+  if (!payload) return false;
+  const head = payload.toLowerCase().slice(0, 4000);
+
+  // Marqueurs FEC standard (texte tabule, 18 colonnes)
+  const fecMarkers = ['journalcode', 'ecriturenum', 'comptenum', 'compaux', 'pieceref'];
+  const fecHits = fecMarkers.filter(m => head.includes(m)).length;
+  if (fecHits >= 3) return true;
+
+  // Marqueurs Excel libre : compte + debit + credit dans la zone headers
+  const hasCompte = /(\bcompte\b|\bnumero compte\b|\bn° compte\b|\bcompte num\b|\bcode compte\b)/.test(head);
+  const hasDebit = /\bdebit\b|\bdébit\b/.test(head);
+  const hasCredit = /\bcredit\b|\bcrédit\b/.test(head);
+  if (hasCompte && hasDebit && hasCredit) return true;
+
+  return false;
 }

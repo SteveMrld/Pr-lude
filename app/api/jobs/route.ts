@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Au moins un fichier requis' }), { status: 400 });
     }
 
-    const { pitchDeck, businessPlan, others } = await processFiles(files);
+    const { pitchDeck, businessPlan, generalLedger, others } = await processFiles(files);
 
     if (!pitchDeck) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
@@ -40,8 +40,9 @@ export async function POST(req: NextRequest) {
       filesReceived: {
         pitchDeck: pitchDeck.name,
         businessPlan: businessPlan?.name || null,
+        generalLedger: generalLedger?.name || null,
         others: others.map(o => o.name),
-      },
+      } as any,
     });
 
     // Lancer le pipeline. La fonction POST attend sa fin (jusqu'au maxDuration de 300s).
@@ -53,6 +54,8 @@ export async function POST(req: NextRequest) {
       pitchDeckName: pitchDeck.name,
       businessPlanPayload: businessPlan?.payload || null,
       businessPlanName: businessPlan?.name || null,
+      generalLedgerPayload: generalLedger?.payload || null,
+      generalLedgerName: generalLedger?.name || null,
       otherFileNames: others.map(o => o.name),
     });
 

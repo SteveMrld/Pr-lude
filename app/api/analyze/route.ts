@@ -39,14 +39,19 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Au moins un fichier requis' }), { status: 400 });
     }
 
-    const { pitchDeck, businessPlan, others } = await processFiles(files);
+    const { pitchDeck, businessPlan, generalLedger, others } = await processFiles(files);
 
     if (!pitchDeck) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
     }
 
     const startTime = Date.now();
-    const allFileNames = [pitchDeck.name, ...(businessPlan ? [businessPlan.name] : []), ...others.map(o => o.name)];
+    const allFileNames = [
+      pitchDeck.name,
+      ...(businessPlan ? [businessPlan.name] : []),
+      ...(generalLedger ? [generalLedger.name] : []),
+      ...others.map(o => o.name),
+    ];
 
     // Streaming SSE simple comme dans la version qui marchait
     const stream = new ReadableStream({
@@ -81,6 +86,7 @@ export async function POST(req: NextRequest) {
           send('files-received', {
             pitchDeck: pitchDeck.name,
             businessPlan: businessPlan?.name || null,
+            generalLedger: generalLedger?.name || null,
             others: others.map(o => o.name),
           });
 

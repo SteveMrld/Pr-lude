@@ -769,6 +769,16 @@ export interface OrchestratedResult {
   // positifs. Optionnel : peut etre null si le moteur n a pas
   // tourne ou si le profil ne presente pas de friction structurelle.
   executionFriction?: ExecutionFrictionOutput | null;
+  // Extraction du grand livre comptable (Module 1 DD financiere).
+  // Parsing deterministe d un fichier FEC ou Excel libre. Soldes
+  // par classe de compte, CA et charges reels sur 12 mois, marges
+  // reelles, top clients/fournisseurs, cash, engagements hors
+  // bilan, burn et runway reels, DSO/DPO, drapeaux automatiques.
+  // Sert d input au moteur DD financier (a venir, etape 2) qui
+  // confronte le BP projete a la realite comptable.
+  // any pour ne pas creer de couplage avec types.ts a cette etape.
+  // Le type LedgerExtraction est defini dans lib/ledger-parser.ts.
+  ledgerExtraction?: any | null;
   // Audit consolide des assertions (Niveau 2.B). Liste les noms propres
   // non sourcees, les conversions de devise non taggees, les annees
   // inventees detectees dans tous les outputs des moteurs. Sert a
