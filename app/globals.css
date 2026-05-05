@@ -626,81 +626,214 @@ ul, ol { list-style: none; }
   margin-bottom: 0;
 }
 
-/* DIMENSIONS GRID - Section II : 12 dimensions d analyse en pipeline. */
-.dimensions-grid {
+/* METHOD ACCORDION - Section II : 12 moteurs en accordeon par categorie.
+   4 cartes principales (categories), depliables au clic, qui revelent
+   leurs moteurs en lignes denses. Chaque categorie a sa couleur thematique
+   appliquee a la pastille du picto et a la barre verticale gauche.
+   Pas de fond colore en bandes sur la page : le blanc reste dominant,
+   la couleur ne vient que des pastilles et accents. */
+
+.method-accordion {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0;
-  border-top: 1px solid var(--ink);
-  border-left: 1px solid var(--ink);
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
-.dim-card {
-  position: relative;
-  padding: 26px 24px 28px;
-  border-right: 1px solid var(--ink);
-  border-bottom: 1px solid var(--ink);
-  background: var(--paper);
-  transition: background 0.18s ease;
-  list-style: none;
+.method-cat {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all var(--motion-base);
 }
-.dim-card:hover {
-  background: var(--paper-accent);
+.method-cat:hover {
+  border-color: var(--muted-soft);
+  box-shadow: var(--shadow-2);
 }
-/* Alternance subtile pour donner du rythme : 1 carte sur 3 prend un fond
-   creme accentue, ce qui structure la lecture sans rompre l unite. */
-.dim-card:nth-child(3n+2) {
-  background: var(--paper-accent);
+.method-cat[open] {
+  box-shadow: var(--shadow-3);
 }
-.dim-card:nth-child(3n+2):hover {
-  background: var(--surface-deep);
-}
-.dim-card-head {
+
+/* Couleurs thematiques par categorie. La couleur s applique a :
+   - la barre verticale gauche du header (4px de large)
+   - le numero de categorie
+   - les pastilles de pictos quand la categorie est ouverte */
+.method-cat-blue   { --cat: var(--accent);       --cat-soft: var(--accent-soft); }
+.method-cat-violet { --cat: var(--violet-rare);  --cat-soft: var(--violet-rare-soft); }
+.method-cat-amber  { --cat: var(--ocre-brule);   --cat-soft: var(--ocre-brule-soft); }
+.method-cat-green  { --cat: var(--vert-foret);   --cat-soft: var(--vert-foret-soft); }
+
+.method-cat-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 14px;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  position: relative;
+  background: var(--surface);
+  transition: background var(--motion-fast);
 }
-.dim-num {
+.method-cat-head::-webkit-details-marker { display: none; }
+.method-cat-head:hover { background: var(--paper-accent); }
+.method-cat-head::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--cat);
+  transition: width var(--motion-fast);
+}
+.method-cat[open] .method-cat-head::before { width: 6px; }
+
+.method-cat-meta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.method-cat-num {
   font-family: var(--serif);
   font-size: 32px;
-  font-weight: 500;
+  font-weight: 700;
+  color: var(--cat);
   letter-spacing: -0.02em;
-  color: var(--ocre-brule);
-  font-feature-settings: "lnum", "tnum";
   line-height: 1;
+  font-feature-settings: "lnum", "tnum";
+  flex-shrink: 0;
 }
-.dim-picto {
-  color: var(--accent);
+.method-cat-label {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+.method-cat-sub {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+.method-cat-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sans);
+  flex-shrink: 0;
+}
+.method-cat-count-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cat);
+}
+.method-cat-count-label {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.method-cat-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--hairline);
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--paper-accent);
+  color: var(--muted);
+  margin-left: 6px;
+  transition: all var(--motion-base);
 }
-.dim-card:hover .dim-picto {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.method-cat[open] .method-cat-chevron {
+  background: var(--cat-soft);
+  color: var(--cat);
+  transform: rotate(90deg);
 }
-.dim-name {
+
+.method-cat-body {
+  padding: 4px 22px 18px;
+  border-top: 1px solid var(--hairline-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.method-engine {
+  display: grid;
+  grid-template-columns: 38px 32px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--hairline-soft);
+  transition: background var(--motion-fast);
+  border-radius: 6px;
+}
+.method-engine:last-child { border-bottom: none; }
+.method-engine:hover {
+  background: var(--paper-accent);
+}
+.method-engine-picto {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--cat-soft);
+  color: var(--cat);
+  flex-shrink: 0;
+}
+.method-engine-picto svg { width: 18px; height: 18px; }
+.method-engine-num {
   font-family: var(--serif);
-  font-size: 19px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cat);
   letter-spacing: -0.01em;
-  margin-bottom: 8px;
-  color: var(--ink);
-  line-height: 1.2;
+  line-height: 1;
+  text-align: right;
+  font-feature-settings: "lnum", "tnum";
 }
-.dim-desc {
+.method-engine-text { min-width: 0; }
+.method-engine-name {
+  font-family: var(--serif);
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+  margin-bottom: 2px;
+}
+.method-engine-desc {
   font-family: var(--serif);
   font-size: 13.5px;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--ink-soft);
+}
+
+@media (max-width: 720px) {
+  .method-cat-head { padding: 14px 16px; gap: 10px; }
+  .method-cat-meta { gap: 12px; }
+  .method-cat-num { font-size: 26px; }
+  .method-cat-label { font-size: 16px; }
+  .method-cat-sub { font-size: 11px; }
+  .method-cat-count-label { display: none; }
+  .method-cat-body { padding: 4px 14px 14px; }
+  .method-engine {
+    grid-template-columns: 32px 28px 1fr;
+    gap: 10px;
+    padding: 10px 2px;
+  }
+  .method-engine-picto { width: 32px; height: 32px; }
+  .method-engine-picto svg { width: 16px; height: 16px; }
+  .method-engine-num { font-size: 14px; }
+  .method-engine-name { font-size: 14.5px; }
+  .method-engine-desc { font-size: 12.5px; }
 }
 
 /* DELIVERABLE GRID - Section IV : 4 grands blocs livrable de la note. */
@@ -712,9 +845,17 @@ ul, ol { list-style: none; }
 }
 .deliverable-block {
   padding: 24px 24px 26px;
-  background: var(--paper-accent);
-  border-left: 3px solid var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
   position: relative;
+  transition: all var(--motion-base);
+}
+.deliverable-block:hover {
+  border-color: var(--muted-soft);
+  border-left-color: var(--accent);
+  box-shadow: var(--shadow-2);
 }
 .deliverable-num {
   font-family: var(--serif);

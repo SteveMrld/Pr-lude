@@ -787,43 +787,104 @@ export default function HomeClient({
               </div>
             </section>
 
-            {/* SECTION 3 - Ce que fait Prélude (les 12 dimensions) */}
+            {/* SECTION 3 - Méthode : 12 moteurs en accordéon par catégorie.
+                Au repos : 4 cartes compactes (une par catégorie semantique).
+                Au clic : la catégorie se déplie et révèle ses moteurs en
+                lignes denses avec picto coloré différencié par groupe.
+                Beaucoup plus aére qu une grille de 12 carres. */}
             <section className="landing-section" id="methode">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">II.</div>
-                <h2 className="landing-h2">Douze dimensions d'analyse, en pipeline.</h2>
+                <h2 className="landing-h2">Douze moteurs, une méthode.</h2>
               </div>
               <p className="landing-section-intro">
-                Chaque dossier traverse douze étapes d'analyse interconnectées. Certaines extraient les données brutes, d'autres confrontent au corpus de cas, d'autres encore débusquent les biais de jugement systémiques du métier.
+                Chaque dossier traverse douze étapes regroupées en quatre temps. Certaines extraient les données brutes, d&apos;autres confrontent au corpus de cas, d&apos;autres encore débusquent les biais de jugement.
               </p>
-              <ol className="dimensions-grid">
+
+              <div className="method-accordion">
                 {[
-                  { id: 'extraction', num: '01', name: 'Lecture du dossier', desc: 'Structuration des informations du pitch deck, identification des fondateurs, du modèle, des projections.' },
-                  { id: 'team', num: '02', name: 'Équipe', desc: "Couverture systémique de l'équipe, anti-fragilité, transposition d'expérience sectorielle." },
-                  { id: 'market', num: '03', name: 'Marché', desc: 'Intensité du besoin, défensibilité, comparables internationaux.' },
-                  { id: 'macro', num: '04', name: 'Macro', desc: 'Position dans le cycle, géopolitique, fenêtre temporelle critique, capital VC sur le segment.' },
-                  { id: 'financial-extraction', num: '05', name: 'Extraction financière', desc: 'Données financières du deck et du business plan, projections, hypothèses sous-jacentes.' },
-                  { id: 'pattern', num: '06', name: 'Pattern matching', desc: 'Confrontation au corpus de cas instruits historiques, identification des trajectoires comparables.' },
-                  { id: 'causal', num: '07', name: 'Retournement causal', desc: 'Sept angles morts du métier VC et questions critiques à instruire en due diligence.' },
-                  { id: 'blindspot', num: '08', name: 'Aveuglement collectif', desc: "Détection des dix patterns d'erreur de jugement systémique du métier (Theranos, WeWork, Ynsect)." },
-                  { id: 'contrarian', num: '09', name: 'Singularités contrariennes', desc: 'Détection des dix signaux qui justifient le pari à contre-courant (Wiz, Stripe, Deepmind).' },
-                  { id: 'financial-coherence', num: '10', name: 'Cohérence financière', desc: 'Sept tests de cohérence des projections et unit economics, calibrés selon le business model.' },
-                  { id: 'orchestrate', num: '11', name: 'Orchestration', desc: "Synthèse, probabilités chiffrées par dimension, résolution dialectique de la tension d'investissement." },
-                  { id: 'reference-checks', num: '12', name: 'Reference checks', desc: "Plan d'appels DD terrain : fondateurs, clients, gouvernance, signaux faibles à vérifier." },
-                ].map((d) => {
-                  const Picto = ENGINE_PICTOS[d.id as keyof typeof ENGINE_PICTOS];
-                  return (
-                    <li className="dim-card" key={d.id}>
-                      <div className="dim-card-head">
-                        <div className="dim-num">{d.num}</div>
-                        <div className="dim-picto" aria-hidden="true">{Picto && <Picto />}</div>
+                  {
+                    id: 'diagnostic',
+                    label: 'Diagnostic chiffré',
+                    sub: 'La matière brute du dossier',
+                    color: 'blue',
+                    engines: [
+                      { id: 'extraction',           num: '01', name: 'Lecture du dossier',     desc: 'Pitch deck, fondateurs, modèle, projections.' },
+                      { id: 'team',                 num: '02', name: 'Équipe',                 desc: 'Couverture systémique, anti-fragilité, transposition.' },
+                      { id: 'market',               num: '03', name: 'Marché',                 desc: 'Intensité du besoin, défensibilité, comparables.' },
+                      { id: 'macro',                num: '04', name: 'Macro',                  desc: 'Cycle, géopolitique, fenêtre, capital VC sur segment.' },
+                      { id: 'financial-extraction', num: '05', name: 'Extraction financière',  desc: 'Projections, hypothèses, modèle décomposé.' },
+                    ],
+                  },
+                  {
+                    id: 'critique',
+                    label: 'Lecture critique',
+                    sub: 'Confrontation aux corpus de cas',
+                    color: 'violet',
+                    engines: [
+                      { id: 'pattern',              num: '06', name: 'Pattern matching',       desc: 'Confrontation aux trajectoires comparables historiques.' },
+                      { id: 'financial-coherence',  num: '10', name: 'Cohérence financière',   desc: 'Sept tests de cohérence des projections et unit economics.' },
+                    ],
+                  },
+                  {
+                    id: 'dialectique',
+                    label: 'Lecture dialectique',
+                    sub: 'Aveuglement vs singularité',
+                    color: 'amber',
+                    engines: [
+                      { id: 'causal',               num: '07', name: 'Retournement causal',    desc: 'Sept angles morts et questions critiques à instruire.' },
+                      { id: 'blindspot',            num: '08', name: 'Aveuglement collectif',  desc: 'Patterns d\u2019erreur systémiques (Theranos, WeWork, Ynsect).' },
+                      { id: 'contrarian',           num: '09', name: 'Singularités contrariennes', desc: 'Signaux qui justifient le pari à contre-courant (Wiz, Stripe).' },
+                    ],
+                  },
+                  {
+                    id: 'decision',
+                    label: 'Décision',
+                    sub: 'Synthèse et plan d\u2019action',
+                    color: 'green',
+                    engines: [
+                      { id: 'orchestrate',          num: '11', name: 'Orchestration',          desc: 'Synthèse, probabilités, résolution dialectique.' },
+                      { id: 'reference-checks',     num: '12', name: 'Reference checks',       desc: 'Plan d\u2019appels DD terrain et signaux faibles.' },
+                    ],
+                  },
+                ].map((cat, idx) => (
+                  <details key={cat.id} className={`method-cat method-cat-${cat.color}`} open={idx === 0}>
+                    <summary className="method-cat-head">
+                      <div className="method-cat-meta">
+                        <div className="method-cat-num">{String(idx + 1).padStart(2, '0')}</div>
+                        <div>
+                          <div className="method-cat-label">{cat.label}</div>
+                          <div className="method-cat-sub">{cat.sub}</div>
+                        </div>
                       </div>
-                      <div className="dim-name">{d.name}</div>
-                      <div className="dim-desc">{d.desc}</div>
-                    </li>
-                  );
-                })}
-              </ol>
+                      <div className="method-cat-count">
+                        <span className="method-cat-count-num">{cat.engines.length}</span>
+                        <span className="method-cat-count-label">moteur{cat.engines.length > 1 ? 's' : ''}</span>
+                        <span className="method-cat-chevron" aria-hidden="true">
+                          <Picto name="chevron-right" size={14} />
+                        </span>
+                      </div>
+                    </summary>
+                    <div className="method-cat-body">
+                      {cat.engines.map((e) => {
+                        const EnginePicto = ENGINE_PICTOS[e.id as keyof typeof ENGINE_PICTOS];
+                        return (
+                          <div className="method-engine" key={e.id}>
+                            <div className="method-engine-picto" aria-hidden="true">
+                              {EnginePicto && <EnginePicto />}
+                            </div>
+                            <div className="method-engine-num">{e.num}</div>
+                            <div className="method-engine-text">
+                              <div className="method-engine-name">{e.name}</div>
+                              <div className="method-engine-desc">{e.desc}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+              </div>
             </section>
 
             {/* SECTION 4 - Pour qui */}
