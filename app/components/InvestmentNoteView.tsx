@@ -2,9 +2,16 @@
 
 import React from 'react';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
+import HistoricalComparables from './HistoricalComparables';
 
 interface Props {
   result: any;
+  /**
+   * ID de l analyse en base. Permet de charger les comparables historiques
+   * via /api/analyses/[id]/comparables. Si absent, la section comparables
+   * n est pas affichee (cas typique : note generee en live avant sauvegarde).
+   */
+  analysisId?: string;
   /**
    * Mode compact : sections secondaires repliees par defaut, lecture rapide
    * pour partner presse. Le verdict, le score, la dialectique et les
@@ -149,7 +156,7 @@ function NoteSectionWrapper({
   );
 }
 
-export default function InvestmentNoteView({ result, compactMode = false }: Props) {
+export default function InvestmentNoteView({ result, analysisId, compactMode = false }: Props) {
   const r = result;
   const e = r.extraction || {};
   const t = r.team || {};
@@ -986,6 +993,23 @@ export default function InvestmentNoteView({ result, compactMode = false }: Prop
           </>
         )}
       </NoteSectionWrapper>
+
+      {/* SECTION COMPARABLES HISTORIQUES - Memoire institutionnelle factuelle.
+          Compare le dossier en cours aux 40 startups europeennes du corpus
+          PULSAR (success, medium, fail, active). Repond a la question :
+          ce dossier ressemble a quels cas passes du marche europeen ?
+          Ne s'affiche que si analysisId est fourni (la note doit etre
+          sauvegardee en base pour pouvoir etre rapprochee). */}
+      {analysisId && (
+        <NoteSectionWrapper number="5." title="Historical Comparables" compactMode={compactMode} collapseInCompact={true}>
+          <p className="note-section-intro">
+            Rapprochement avec un corpus de 40 startups européennes documentées au moment de leur tour
+            qualifiant. Le matching s&apos;appuie sur six dimensions (founder, market, traction, deal,
+            defensibility, risk) et pondère un boost sectoriel.
+          </p>
+          <HistoricalComparables analysisId={analysisId} />
+        </NoteSectionWrapper>
+      )}
 
       {/* SECTION SOURCES & METHODOLOGY - Documentation des références externes
           consolidées par les moteurs Prélude. Montre la rigueur méthodologique

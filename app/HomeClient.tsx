@@ -1443,7 +1443,7 @@ export default function HomeClient({
 
             {/* En mode normal: bascule selon viewMode. En mode print: rend dashboard + note en cascade. */}
             {(viewMode === 'note' && !printMode) ? (
-              <InvestmentNoteView result={result} compactMode={compactNoteMode} />
+              <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={compactNoteMode} />
             ) : (
               <>
             {/* Bandeau audit des assertions : signale les noms / dates / devises
@@ -3169,7 +3169,7 @@ export default function HomeClient({
                 meme si l utilisateur consultait en mode lecture rapide. */}
             {printMode && (
               <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
-                <InvestmentNoteView result={result} compactMode={false} />
+                <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={false} />
               </div>
             )}
 
