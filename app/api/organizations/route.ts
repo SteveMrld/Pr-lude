@@ -72,3 +72,63 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ id: org.id, name: org.name });
 }
+
+// ============================================================
+// PATCH /api/organizations - renomme l organisation courante
+// ------------------------------------------------------------
+// Reserve aux admins de l org. Ne touche pas a owner_id ni aux
+// memberships, modifie uniquement organizations.name.
+// ============================================================
+export async function PATCH(req: NextRequest) {
+  if (!isAuthEnabled()) {
+    return NextResponse.json({ error: 'Auth desactivee' }, { status: 400 });
+  }
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+  }
+
+  let body: { name?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Body JSON invalide' }, { status: 400 });
+  }
+  const name = (body.name || '').trim();
+  if (!name) {
+    return NextResponse.json({ error: 'Nom requis' }, { status: 400 });
+  }
+  if (name.length > 120) {
+    return NextResponse.json({ error: 'Nom trop long (max 120)' }, { status: 400 });
+  }
+
+  const admin = getSupabaseAdminClient();
+
+  // Recupere l org du user et verifie role admin
+  const { data: membership } = await admin
+    .from('organization_members')
+    .select('organization_id, role')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!membership) {
+    return NextResponse.json({ error: 'Aucune organisation' }, { status: 404 });
+  }
+  if (membership.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Seul un admin peut renommer l organisation' },
+      { status: 403 },
+    );
+  }
+
+  const { data: updated, error } = await admin
+    .from('organizations')
+    .update({ name })
+    .eq('id', membership.organization_id)
+    .select('id, name')
+    .single();
+  if (error || !updated) {
+    console.error('Failed to rename org:', error);
+    return NextResponse.json({ error: 'Mise a jour echouee' }, { status: 500 });
+  }
+  return NextResponse.json({ id: updated.id, name: updated.name });
+}

@@ -36,6 +36,7 @@ export default async function SettingsPage() {
       orgName={org.name}
       orgRole={org.role}
       userEmail={user.email}
+      userDisplayName={user.displayName}
       byokSources={byokSources}
       configuredKeys={configuredKeys}
     />

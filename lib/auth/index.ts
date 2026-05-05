@@ -19,6 +19,7 @@ export function isAuthEnabled(): boolean {
 export interface CurrentUser {
   id: string;
   email: string;
+  displayName: string | null;
 }
 
 export type OrgRole = 'admin' | 'member' | 'observer';
@@ -55,9 +56,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const supabase = getSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  const meta = (user.user_metadata || {}) as Record<string, any>;
   return {
     id: user.id,
     email: user.email || '',
+    displayName: typeof meta.display_name === 'string' ? meta.display_name : null,
   };
 }
 

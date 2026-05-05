@@ -9,6 +9,7 @@ interface Props {
   orgName: string;
   orgRole: 'admin' | 'member' | 'observer';
   userEmail: string;
+  userDisplayName: string | null;
   byokSources: SourceDescriptor[];
   configuredKeys: OrgApiKeyRow[];
 }
@@ -27,14 +28,116 @@ type LocalState = {
 };
 
 export default function SettingsClient({
-  orgName,
+  orgName: initialOrgName,
   orgRole,
-  userEmail,
+  userEmail: initialUserEmail,
+  userDisplayName: initialDisplayName,
   byokSources,
   configuredKeys,
 }: Props) {
   const initialKnown: Record<string, OrgApiKeyRow> = {};
   for (const k of configuredKeys) initialKnown[k.source_id] = k;
+
+  // State edition profil et org. Optimiste : on update localement
+  // tout de suite, et on recharge en cas d echec serveur.
+  const [orgName, setOrgName] = useState(initialOrgName);
+  const [userEmail, setUserEmail] = useState(initialUserEmail);
+  const [displayName, setDisplayName] = useState(initialDisplayName || '');
+  const [editingOrg, setEditingOrg] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [orgDraft, setOrgDraft] = useState(initialOrgName);
+  const [profileDraft, setProfileDraft] = useState({
+    displayName: initialDisplayName || '',
+    email: initialUserEmail,
+    newPassword: '',
+    currentPassword: '',
+  });
+  const [profileMsg, setProfileMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [orgMsg, setOrgMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingOrg, setSavingOrg] = useState(false);
+
+  async function handleSaveOrg() {
+    const trimmed = orgDraft.trim();
+    if (!trimmed) {
+      setOrgMsg({ type: 'err', text: 'Nom requis' });
+      return;
+    }
+    setSavingOrg(true);
+    setOrgMsg(null);
+    try {
+      const res = await fetch('/api/organizations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setOrgMsg({ type: 'err', text: json.error || 'Erreur' });
+        setSavingOrg(false);
+        return;
+      }
+      setOrgName(json.name);
+      setEditingOrg(false);
+      setOrgMsg({ type: 'ok', text: 'Nom de l organisation mis a jour' });
+      setTimeout(() => setOrgMsg(null), 3000);
+    } catch (err: any) {
+      setOrgMsg({ type: 'err', text: err?.message || 'Erreur reseau' });
+    }
+    setSavingOrg(false);
+  }
+
+  async function handleSaveProfile() {
+    setSavingProfile(true);
+    setProfileMsg(null);
+    const body: any = {};
+    if (profileDraft.displayName !== (displayName || '')) {
+      body.displayName = profileDraft.displayName;
+    }
+    if (profileDraft.email !== userEmail) {
+      body.email = profileDraft.email;
+    }
+    if (profileDraft.newPassword) {
+      body.newPassword = profileDraft.newPassword;
+      body.currentPassword = profileDraft.currentPassword;
+    }
+    if (Object.keys(body).length === 0) {
+      setProfileMsg({ type: 'err', text: 'Rien a mettre a jour' });
+      setSavingProfile(false);
+      return;
+    }
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setProfileMsg({ type: 'err', text: json.error || 'Erreur' });
+        setSavingProfile(false);
+        return;
+      }
+      // Update local sauf email si confirmation pending
+      if (body.displayName !== undefined) setDisplayName(body.displayName);
+      if (body.email && !json.emailConfirmationPending) setUserEmail(body.email);
+      setProfileDraft({
+        displayName: body.displayName !== undefined ? body.displayName : profileDraft.displayName,
+        email: profileDraft.email,
+        newPassword: '',
+        currentPassword: '',
+      });
+      setEditingProfile(false);
+      setProfileMsg({
+        type: 'ok',
+        text: json.detail || 'Profil mis a jour',
+      });
+      setTimeout(() => setProfileMsg(null), 5000);
+    } catch (err: any) {
+      setProfileMsg({ type: 'err', text: err?.message || 'Erreur reseau' });
+    }
+    setSavingProfile(false);
+  }
 
   const [state, setState] = useState<LocalState>({
     drafts: {},
@@ -125,7 +228,9 @@ export default function SettingsClient({
         <Link href="/" className="settings-back">← Retour à l&apos;analyse</Link>
         <div className="settings-header-id">
           <div className="settings-org-name">{orgName}</div>
-          <div className="settings-user-email">{userEmail}</div>
+          <div className="settings-user-email">
+            {displayName ? `${displayName} · ${userEmail}` : userEmail}
+          </div>
         </div>
       </header>
 
@@ -143,6 +248,158 @@ export default function SettingsClient({
             Mode lecture seule. Seul un administrateur de l&apos;organisation peut modifier les clés.
           </div>
         )}
+      </section>
+
+      {/* COMPTE & ORGANISATION - editable */}
+      <section className="settings-account">
+        <div className="settings-account-grid">
+          {/* Carte ORG */}
+          <div className="settings-card">
+            <div className="settings-card-header">
+              <h3 className="settings-card-title">Organisation</h3>
+              {orgRole === 'admin' && !editingOrg && (
+                <button className="settings-card-edit" onClick={() => { setOrgDraft(orgName); setEditingOrg(true); }}>
+                  Modifier
+                </button>
+              )}
+            </div>
+            {!editingOrg ? (
+              <>
+                <div className="settings-card-value">{orgName}</div>
+                <div className="settings-card-meta">
+                  Votre rôle : {orgRole === 'admin' ? 'Administrateur' : orgRole === 'observer' ? 'Observateur' : 'Membre'}
+                </div>
+              </>
+            ) : (
+              <div className="settings-card-form">
+                <input
+                  type="text"
+                  className="settings-input"
+                  value={orgDraft}
+                  onChange={(e) => setOrgDraft(e.target.value)}
+                  placeholder="Nom du fonds"
+                  maxLength={120}
+                />
+                <div className="settings-card-actions">
+                  <button
+                    className="settings-btn-cancel"
+                    onClick={() => { setEditingOrg(false); setOrgMsg(null); }}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    className="settings-btn-submit"
+                    onClick={handleSaveOrg}
+                    disabled={savingOrg}
+                  >
+                    {savingOrg ? 'Enregistrement...' : 'Enregistrer'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {orgMsg && (
+              <div className={`settings-msg settings-msg-${orgMsg.type}`}>{orgMsg.text}</div>
+            )}
+          </div>
+
+          {/* Carte PROFIL */}
+          <div className="settings-card">
+            <div className="settings-card-header">
+              <h3 className="settings-card-title">Profil</h3>
+              {!editingProfile && (
+                <button
+                  className="settings-card-edit"
+                  onClick={() => {
+                    setProfileDraft({
+                      displayName: displayName || '',
+                      email: userEmail,
+                      newPassword: '',
+                      currentPassword: '',
+                    });
+                    setEditingProfile(true);
+                  }}
+                >
+                  Modifier
+                </button>
+              )}
+            </div>
+            {!editingProfile ? (
+              <>
+                {displayName && <div className="settings-card-value">{displayName}</div>}
+                <div className="settings-card-meta">{userEmail}</div>
+              </>
+            ) : (
+              <div className="settings-card-form">
+                <label className="settings-field">
+                  <span className="settings-field-label">Nom affiché</span>
+                  <input
+                    type="text"
+                    className="settings-input"
+                    value={profileDraft.displayName}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, displayName: e.target.value })}
+                    placeholder="Votre nom"
+                    maxLength={120}
+                  />
+                </label>
+                <label className="settings-field">
+                  <span className="settings-field-label">Email</span>
+                  <input
+                    type="email"
+                    className="settings-input"
+                    value={profileDraft.email}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, email: e.target.value })}
+                  />
+                  <span className="settings-field-help">
+                    Un mail de confirmation sera envoyé à la nouvelle adresse.
+                  </span>
+                </label>
+                <details className="settings-password-toggle">
+                  <summary>Changer le mot de passe</summary>
+                  <label className="settings-field">
+                    <span className="settings-field-label">Mot de passe actuel</span>
+                    <input
+                      type="password"
+                      className="settings-input"
+                      value={profileDraft.currentPassword}
+                      onChange={(e) => setProfileDraft({ ...profileDraft, currentPassword: e.target.value })}
+                      autoComplete="current-password"
+                    />
+                  </label>
+                  <label className="settings-field">
+                    <span className="settings-field-label">Nouveau mot de passe</span>
+                    <input
+                      type="password"
+                      className="settings-input"
+                      value={profileDraft.newPassword}
+                      onChange={(e) => setProfileDraft({ ...profileDraft, newPassword: e.target.value })}
+                      autoComplete="new-password"
+                      minLength={8}
+                    />
+                    <span className="settings-field-help">Minimum 8 caractères.</span>
+                  </label>
+                </details>
+                <div className="settings-card-actions">
+                  <button
+                    className="settings-btn-cancel"
+                    onClick={() => { setEditingProfile(false); setProfileMsg(null); }}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    className="settings-btn-submit"
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                  >
+                    {savingProfile ? 'Enregistrement...' : 'Enregistrer'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {profileMsg && (
+              <div className={`settings-msg settings-msg-${profileMsg.type}`}>{profileMsg.text}</div>
+            )}
+          </div>
+        </div>
       </section>
 
       {tier2.length > 0 && (
@@ -328,6 +585,147 @@ export default function SettingsClient({
           font-family: var(--sans);
           font-size: 13px;
           color: var(--signal);
+        }
+        .settings-account {
+          margin-top: 24px;
+          margin-bottom: 32px;
+        }
+        .settings-account-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        @media (max-width: 720px) {
+          .settings-account-grid { grid-template-columns: 1fr; }
+        }
+        .settings-card {
+          padding: 18px 20px;
+          background: var(--surface);
+          border: 1px solid var(--hairline);
+          border-radius: 10px;
+        }
+        .settings-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin-bottom: 10px;
+        }
+        .settings-card-title {
+          font-family: var(--serif);
+          font-size: 15px;
+          font-weight: 700;
+          color: var(--ink);
+          margin: 0;
+        }
+        .settings-card-edit {
+          background: none;
+          border: none;
+          color: var(--accent);
+          font-family: var(--sans);
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+        }
+        .settings-card-edit:hover { text-decoration: underline; }
+        .settings-card-value {
+          font-family: var(--serif);
+          font-size: 17px;
+          font-weight: 600;
+          color: var(--ink);
+          margin-bottom: 4px;
+        }
+        .settings-card-meta {
+          font-family: var(--sans);
+          font-size: 12px;
+          color: var(--muted);
+        }
+        .settings-card-form { display: flex; flex-direction: column; gap: 12px; }
+        .settings-field { display: flex; flex-direction: column; gap: 4px; }
+        .settings-field-label {
+          font-family: var(--sans);
+          font-size: 10px;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--muted);
+        }
+        .settings-field-help {
+          font-size: 11px;
+          color: var(--muted);
+          font-style: italic;
+        }
+        .settings-input {
+          padding: 8px 10px;
+          border: 1px solid var(--hairline);
+          border-radius: 6px;
+          font-family: var(--sans);
+          font-size: 14px;
+          color: var(--ink);
+          background: var(--paper);
+        }
+        .settings-input:focus { outline: none; border-color: var(--accent); }
+        .settings-password-toggle {
+          padding: 10px 0;
+          border-top: 1px solid var(--hairline);
+        }
+        .settings-password-toggle summary {
+          cursor: pointer;
+          font-family: var(--sans);
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--muted);
+          padding: 4px 0;
+        }
+        .settings-password-toggle summary:hover { color: var(--ink); }
+        .settings-password-toggle .settings-field { margin-top: 10px; }
+        .settings-card-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          padding-top: 8px;
+          border-top: 1px solid var(--hairline);
+        }
+        .settings-btn-cancel {
+          padding: 7px 14px;
+          background: none;
+          border: 1px solid var(--hairline);
+          border-radius: 6px;
+          color: var(--muted);
+          font-family: var(--sans);
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .settings-btn-submit {
+          padding: 7px 14px;
+          background: var(--accent);
+          border: 1px solid var(--accent);
+          border-radius: 6px;
+          color: var(--paper);
+          font-family: var(--sans);
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .settings-btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .settings-msg {
+          margin-top: 10px;
+          padding: 8px 12px;
+          border-radius: 6px;
+          font-family: var(--sans);
+          font-size: 12px;
+          line-height: 1.4;
+        }
+        .settings-msg-ok {
+          background: var(--vert-foret-soft);
+          color: var(--vert-foret);
+          border: 1px solid var(--vert-foret);
+        }
+        .settings-msg-err {
+          background: var(--warn-soft);
+          color: var(--warn);
+          border: 1px solid var(--warn);
         }
       `}</style>
     </main>
