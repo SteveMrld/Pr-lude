@@ -1384,6 +1384,50 @@ ul, ol { list-style: none; }
   .upload-guide-row strong { display: block; min-width: 0; margin-bottom: 2px; }
 }
 
+/* DD DEEPEN PANEL - Zone d upload Bloc 2 (DD approfondie)
+   Apparait quand le partner clique sur le bandeau "Passer en DD
+   approfondie" dans la note d instruction. Visuellement marque
+   comme une transition de phase pour bien distinguer Bloc 1
+   (deja calcule) du Bloc 2 (en cours d ouverture). Border accent
+   pour souligner que c est une etape consciente du workflow. */
+.dd-deepen-panel {
+  margin-bottom: 24px;
+  padding: 22px 24px;
+  background: var(--paper, #fffaf0);
+  border: 1px solid var(--accent, #1a2e4a);
+  border-left: 4px solid var(--accent, #1a2e4a);
+  border-radius: 4px;
+}
+.dd-deepen-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.dd-deepen-panel-tag {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent, #1a2e4a);
+  margin-bottom: 4px;
+}
+.dd-deepen-panel-title {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.dd-deepen-panel-desc {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+
 /* FILE INFO - Liste des fichiers deposes. Style sobre, hairline. */
 .file-info {
   display: flex;

@@ -249,6 +249,16 @@ export default function HomeClient({
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  // DD APPROFONDIE (Bloc 2) : workflow en deux temps. Le partner
+  // declenche cette phase apres avoir lu la note Bloc 1 et decide
+  // que le dossier merite une instruction approfondie (verdict
+  // different de refuser). La zone d upload Bloc 2 ne s ouvre qu a
+  // sa demande, via le bandeau dans la note.
+  const [ddDeepenOpen, setDdDeepenOpen] = useState<boolean>(false);
+  const [ddDeepenFiles, setDdDeepenFiles] = useState<File[]>([]);
+  const [ddDeepenAnalyzing, setDdDeepenAnalyzing] = useState<boolean>(false);
+  const [ddDeepenError, setDdDeepenError] = useState<string | null>(null);
+  const ddDeepenInputRef = useRef<HTMLInputElement | null>(null);
   const [engineStates, setEngineStates] = useState<Record<string, EngineState>>(
     Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }]))
   );
@@ -782,6 +792,178 @@ export default function HomeClient({
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
     setActiveTab('synthesis');
     if (inputRef.current) inputRef.current.value = '';
+  }
+
+  // ============================================================
+  // DD APPROFONDIE (Bloc 2) - mecanique de re-run incrementale
+  // ------------------------------------------------------------
+  // Le partner declenche cette phase apres avoir lu la note Bloc 1
+  // et decide que le dossier merite l ouverture de la data room.
+  // Ne tourne que si une analyse est sauvegardee (savedAnalysisId)
+  // et que le verdict autorise la DD (controle cote serveur dans
+  // la route /api/analyses/[id]/dd-deepen).
+  //
+  // Workflow :
+  //   1. Bandeau dans la note clique : ddDeepenOpen passe a true
+  //   2. Zone d upload Bloc 2 visible au-dessus de la note
+  //   3. Partner depose les documents data room
+  //   4. Click sur "Lancer la DD approfondie" : analyzeDDDeepen()
+  //   5. Streaming SSE des moteurs Bloc 2, bandeau pipeline visible
+  //   6. Au callback complete : result mis a jour, sections Data
+  //      Room apparaissent dans la note, zone d upload se ferme
+  // ============================================================
+
+  function handleDdDeepenFilesSelect(filelist: FileList | null) {
+    if (!filelist || filelist.length === 0) return;
+    const accepted: File[] = [];
+    const rejected: string[] = [];
+    for (let i = 0; i < filelist.length; i += 1) {
+      const f = filelist[i];
+      const lower = f.name.toLowerCase();
+      const ok = lower.endsWith('.pdf') || lower.endsWith('.xlsx') ||
+        lower.endsWith('.xls') || lower.endsWith('.csv');
+      if (!ok) {
+        rejected.push(f.name);
+      } else {
+        accepted.push(f);
+      }
+    }
+    if (rejected.length > 0) {
+      setDdDeepenError('Fichiers refuses : ' + rejected.join(', ') + '. Formats acceptes : PDF, XLSX, XLS, CSV.');
+    } else {
+      setDdDeepenError(null);
+    }
+    setDdDeepenFiles(prev => [...prev, ...accepted]);
+  }
+
+  function removeDdDeepenFile(index: number) {
+    setDdDeepenFiles(prev => prev.filter((_, i) => i !== index));
+  }
+
+  async function analyzeDDDeepen() {
+    if (!savedAnalysisId) {
+      setDdDeepenError('Analyse non sauvegardee. Impossible de lancer la DD approfondie.');
+      return;
+    }
+    if (ddDeepenFiles.length === 0) {
+      setDdDeepenError('Au moins un document data room requis (grand livre, pacte, statuts, cap table, contrats clients ou dossier technique).');
+      return;
+    }
+
+    setDdDeepenAnalyzing(true);
+    setDdDeepenError(null);
+
+    // Reset les etats des moteurs Bloc 2 a idle, pour que le bandeau
+    // pipeline les affiche en cours d execution. Les moteurs Bloc 1
+    // restent a done pour montrer qu ils sont conserves.
+    const bloc2EngineIds = ['ledger-parsing', 'dd-financial', 'cap-table-parsing', 'dd-contractual', 'dd-technical'];
+    setEngineStates(prev => {
+      const next = { ...prev };
+      for (const id of bloc2EngineIds) {
+        next[id] = { status: 'idle' };
+      }
+      return next;
+    });
+    setPipelineStartTime(Date.now());
+
+    let wakeLock: any = null;
+    try {
+      if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+        wakeLock = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (_e) {}
+
+    try {
+      const formData = new FormData();
+      for (const f of ddDeepenFiles) {
+        formData.append('files', f);
+      }
+
+      const response = await fetch(`/api/analyses/${savedAnalysisId}/dd-deepen`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok || !response.body) {
+        const errBody = await response.text();
+        let msg = errBody || 'Erreur reseau';
+        try {
+          const parsed = JSON.parse(errBody);
+          msg = parsed.error || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let receivedTerminal = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const event of events) {
+          if (!event.trim()) continue;
+          const evtLines = event.split('\n');
+          let eventType = '';
+          let dataStr = '';
+          for (const line of evtLines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+            else if (line.startsWith('data: ')) dataStr = line.slice(6);
+          }
+          if (!eventType || !dataStr) continue;
+
+          try {
+            const data = JSON.parse(dataStr);
+
+            if (eventType === 'engine-start') {
+              setEngineStates(prev => ({
+                ...prev,
+                [data.engine]: { status: 'running', startedAt: Date.now() }
+              }));
+            } else if (eventType === 'engine-done') {
+              setEngineStates(prev => ({
+                ...prev,
+                [data.engine]: {
+                  ...prev[data.engine],
+                  status: 'done',
+                  completedAt: Date.now(),
+                  durationMs: typeof data.durationMs === 'number'
+                    ? data.durationMs
+                    : prev[data.engine]?.durationMs,
+                }
+              }));
+            } else if (eventType === 'complete') {
+              setResult(data.result);
+              setDdDeepenOpen(false);
+              setDdDeepenFiles([]);
+              receivedTerminal = true;
+            } else if (eventType === 'error') {
+              setDdDeepenError(data.error || 'Erreur pipeline DD approfondie');
+              receivedTerminal = true;
+            }
+          } catch (e) {
+            console.error('Parse error:', e);
+          }
+        }
+      }
+
+      if (!receivedTerminal) {
+        throw new Error('Le pipeline DD approfondie s est interrompu avant la fin (probable timeout serveur). Recharger la page et reessayer.');
+      }
+    } catch (e: any) {
+      setDdDeepenError(e.message || 'Erreur reseau');
+    } finally {
+      setDdDeepenAnalyzing(false);
+      if (wakeLock) {
+        try { await wakeLock.release(); } catch (_e) {}
+      }
+    }
   }
 
   function getBarClass(score: number) {
@@ -1480,6 +1662,125 @@ export default function HomeClient({
 
         {result && (
           <>
+            {/* PANEL DD APPROFONDIE
+                Visible uniquement si le partner a clique sur le bandeau
+                "Passer en DD approfondie" dans la note d instruction. La
+                zone d upload n accepte que les documents Bloc 2. Au
+                lancement, /api/analyses/[id]/dd-deepen tourne les
+                moteurs Data Room et merge dans le result_json existant
+                sans recalculer le Bloc 1. */}
+            {ddDeepenOpen && savedAnalysisId && (
+              <div className="dd-deepen-panel">
+                <div className="dd-deepen-panel-head">
+                  <div>
+                    <div className="dd-deepen-panel-tag">Phase 2 - Data Room</div>
+                    <div className="dd-deepen-panel-title">DD approfondie</div>
+                  </div>
+                  <button
+                    className="btn"
+                    onClick={() => { setDdDeepenOpen(false); setDdDeepenFiles([]); setDdDeepenError(null); }}
+                    disabled={ddDeepenAnalyzing}
+                    style={{ alignSelf: 'flex-start' }}
+                  >
+                    Fermer
+                  </button>
+                </div>
+                <p className="dd-deepen-panel-desc">
+                  Deposer les documents data room transmis par la startup. Les moteurs Bloc 2 vont enrichir la note existante sans recalculer le Bloc 1. Documents reconnus : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients, dossier technique.
+                </p>
+
+                {ddDeepenFiles.length === 0 ? (
+                  <div className="upload-box" onClick={() => ddDeepenInputRef.current?.click()}>
+                    <div className="upload-icon" aria-hidden="true">
+                      <Picto name="upload" size={32} strokeWidth={1.5} />
+                    </div>
+                    <div className="upload-label">Deposer les documents data room</div>
+                    <div className="upload-hint">PDF, XLSX, CSV - Plusieurs fichiers acceptes</div>
+                    <input
+                      ref={ddDeepenInputRef}
+                      type="file"
+                      multiple
+                      accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                      className="upload-input"
+                      onChange={(e) => handleDdDeepenFilesSelect(e.target.files)}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 16 }}>
+                    {ddDeepenFiles.map((f, i) => {
+                      const family = classifyFileClient(f);
+                      const label = FAMILY_LABELS[family];
+                      const isUnknown = family === 'unknown';
+                      const isBloc1Family = family === 'pitch_deck' || family === 'business_plan';
+                      const isInvalid = isUnknown || isBloc1Family;
+                      return (
+                        <div key={i} className="file-info" style={{ marginBottom: 8 }}>
+                          <div>
+                            <div className="file-name">{f.name}</div>
+                            <div className="file-size">
+                              {(f.size / 1024 / 1024).toFixed(2)} Mo &middot;{' '}
+                              <span style={{
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                fontSize: 10,
+                                color: isInvalid ? 'var(--ocre-brule, #b47832)' : 'inherit',
+                                fontWeight: isInvalid ? 600 : 400,
+                              }}>
+                                {label}
+                              </span>
+                              {isBloc1Family && (
+                                <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.7, fontStyle: 'italic' }}>
+                                  &middot; document Bloc 1, ne sera pas traite ici
+                                </span>
+                              )}
+                              {isUnknown && (
+                                <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.7, fontStyle: 'italic' }}>
+                                  &middot; non reconnu, renommer ou retirer
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button className="btn" onClick={() => removeDdDeepenFile(i)} disabled={ddDeepenAnalyzing}>Retirer</button>
+                        </div>
+                      );
+                    })}
+                    <button
+                      className="btn"
+                      style={{ marginTop: 8 }}
+                      onClick={() => ddDeepenInputRef.current?.click()}
+                      disabled={ddDeepenAnalyzing}
+                    >
+                      + Ajouter un fichier
+                    </button>
+                    <input
+                      ref={ddDeepenInputRef}
+                      type="file"
+                      multiple
+                      accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                      style={{ display: 'none' }}
+                      onChange={(e) => { handleDdDeepenFilesSelect(e.target.files); if (ddDeepenInputRef.current) ddDeepenInputRef.current.value = ''; }}
+                    />
+                    <div className="cta-row" style={{ marginTop: 16 }}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={analyzeDDDeepen}
+                        disabled={ddDeepenAnalyzing}
+                      >
+                        {ddDeepenAnalyzing ? 'DD approfondie en cours...' : 'Lancer la DD approfondie \u2192'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {ddDeepenError && (
+                  <div className="error-box" style={{ marginTop: 12 }}>
+                    <div className="error-title">Erreur</div>
+                    <div>{ddDeepenError}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Bandeau d avertissement quand l utilisateur consulte une
                 version historique. Discret mais explicite, pour eviter qu il
                 pense regarder la version live. */}
@@ -1820,7 +2121,19 @@ export default function HomeClient({
 
             {/* En mode normal: bascule selon viewMode. En mode print: rend dashboard + note en cascade. */}
             {(viewMode === 'note' && !printMode) ? (
-              <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={compactNoteMode} />
+              <InvestmentNoteView
+                result={result}
+                analysisId={savedAnalysisId || undefined}
+                compactMode={compactNoteMode}
+                onDeepenDDClick={() => {
+                  setDdDeepenOpen(true);
+                  setDdDeepenError(null);
+                  // Scroll en haut de page pour que la zone d upload soit visible
+                  if (typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+              />
             ) : (
               <>
             {/* Bandeau audit des assertions : signale les noms / dates / devises

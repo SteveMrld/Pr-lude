@@ -20,6 +20,15 @@ interface Props {
    * compactMode={false} (defaut).
    */
   compactMode?: boolean;
+  /**
+   * Callback appele quand le partner clique sur le bandeau "Passer en DD
+   * approfondie". Si fourni, le bandeau apparait en haut de la section
+   * Bloc 2 de la note quand le verdict autorise la DD (different de
+   * "refuser") et qu aucune section Data Room n a encore ete declenchee.
+   * Si non fourni (cas export PDF par exemple), aucun bandeau interactif
+   * n est affiche.
+   */
+  onDeepenDDClick?: () => void;
 }
 
 /**
@@ -157,7 +166,7 @@ function NoteSectionWrapper({
   );
 }
 
-export default function InvestmentNoteView({ result, analysisId, compactMode = false }: Props) {
+export default function InvestmentNoteView({ result, analysisId, compactMode = false, onDeepenDDClick }: Props) {
   const r = result;
   const e = r.extraction || {};
   const t = r.team || {};
@@ -1291,6 +1300,38 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             sensibles), et a venir : DD technique (repo GitHub) + ref
             checks structures.
             ============================================================ */}
+        {/* BANDEAU PASSER EN DD APPROFONDIE
+            Apparait quand toutes les conditions sont reunies :
+              - Le partner a un onDeepenDDClick (capacite de declencher)
+              - L analyse est sauvegardee (analysisId present)
+              - Le verdict de l instruction prealable autorise la DD
+                (different de "refuser")
+              - Aucune section Bloc 2 n est encore triggered
+            Si une section Bloc 2 est deja la, le bandeau disparait
+            naturellement et on passe directement aux sections Data
+            Room. Le partner peut toujours redeposer des documents
+            complementaires ulterieurement (la route /dd-deepen est
+            idempotente et capitalise sur les sorties precedentes). */}
+        {(() => {
+          const hasBloc2 = ddf?.triggered || ddc?.triggered || (r as any).ddTechnical?.triggered;
+          const verdict = reco?.verdict;
+          const canDeepen = !!onDeepenDDClick && !!analysisId &&
+            verdict && verdict !== 'refuser' && !hasBloc2;
+          if (!canDeepen) return null;
+          return (
+            <div className="dd-deepen-banner">
+              <div className="dd-deepen-banner-tag">Etape suivante</div>
+              <div className="dd-deepen-banner-title">Passer en DD approfondie</div>
+              <div className="dd-deepen-banner-desc">
+                L&apos;instruction Bloc 1 conclut a un verdict <strong>{verdict}</strong>. Le passage en DD approfondie active les moteurs Data Room sur les documents transmis par la startup : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira sans recalculer le Bloc 1 deja produit.
+              </div>
+              <button className="btn btn-primary dd-deepen-banner-btn" onClick={onDeepenDDClick}>
+                Ouvrir la zone d&apos;upload Data Room &rarr;
+              </button>
+            </div>
+          );
+        })()}
+
         {(ddf?.triggered || ddc?.triggered || (r as any).ddTechnical?.triggered) && (
           <div className="block-marker block-marker-dataroom">
             <div className="block-marker-tag">Bloc 2</div>
@@ -2984,6 +3025,47 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           background: var(--paper-accent, var(--surface));
           border-color: var(--ink-tertiary, #6b6b6b);
           color: var(--ink-soft);
+        }
+
+        /* DD DEEPEN BANNER - Bandeau Passer en DD approfondie.
+           Apparait dans la note quand le verdict Bloc 1 autorise la
+           DD (different de refuser) et qu aucune section Data Room
+           n est encore triggered. Visuellement marque comme une
+           transition de phase, pas comme un simple bouton : tag
+           uppercase, titre, description, bouton primaire. */
+        .dd-deepen-banner {
+          margin: 24px 0 28px;
+          padding: 22px 24px;
+          border: 1px solid var(--accent, #1a2e4a);
+          border-left: 4px solid var(--accent, #1a2e4a);
+          background: var(--paper, #fffaf0);
+          border-radius: 4px;
+        }
+        .dd-deepen-banner-tag {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--accent, #1a2e4a);
+          margin-bottom: 8px;
+        }
+        .dd-deepen-banner-title {
+          font-family: var(--serif);
+          font-size: 22px;
+          font-weight: 600;
+          line-height: 1.25;
+          color: var(--ink);
+          margin-bottom: 10px;
+        }
+        .dd-deepen-banner-desc {
+          font-size: 14px;
+          line-height: 1.6;
+          color: var(--ink);
+          margin-bottom: 16px;
+        }
+        .dd-deepen-banner-btn {
+          margin-top: 4px;
         }
 
         .dd-questions {
