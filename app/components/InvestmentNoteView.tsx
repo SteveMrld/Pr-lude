@@ -719,55 +719,116 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         <h3 className="note-h3">Recommendation</h3>
         <div className="verdict-box">
-          <div className="verdict-line">
-            <span className="verdict-label">Verdict</span>
-            <span className="verdict-value">{reco.verdict || '—'}</span>
+          {/* Verdict comme titre principal du bloc, pas comme une ligne
+              parmi d autres. C est la conclusion narrative de l instruction
+              Bloc 1, elle merite un traitement typographique distinct. */}
+          <div className="verdict-headline">
+            <div className="verdict-headline-label">Verdict de l&apos;instruction prealable</div>
+            <div className="verdict-headline-value">{reco.verdict || '—'}</div>
           </div>
-          <div className="verdict-line feature">
-            <span className="verdict-label">Score global</span>
-            <span className="verdict-value big">{reco.globalScore || 0}<span style={{ fontSize: 13, opacity: 0.5, fontWeight: 400 }}> / 100</span></span>
+
+          {/* BLOC 1 : SCORE D ATTRACTIVITE STRUCTURELLE
+              Le partner doit comprendre que ce chiffre est la note d
+              attractivite ponderee sur six dimensions, et que c est lui
+              qui determine le verdict via les seuils 45/60/75. La jauge
+              visuelle vient juste apres pour matérialiser la position. */}
+          <div className="verdict-block">
+            <div className="verdict-block-head">
+              <span className="verdict-block-num" aria-hidden="true">1</span>
+              <span className="verdict-block-title">Score d&apos;attractivite structurelle</span>
+              <span className="verdict-block-figure">
+                {reco.globalScore || 0}
+                <span style={{ fontSize: 14, opacity: 0.45, fontWeight: 400, marginLeft: 2 }}>/100</span>
+              </span>
+            </div>
+            {typeof reco.globalScore === 'number' && (
+              <div className="score-thresholds">
+                <div className="score-thresholds-track">
+                  <div className="zone zone-refuser" style={{ width: '45%' }} title="Refuser : score &lt; 45" />
+                  <div className="zone zone-approfondir" style={{ width: '15%' }} title="Approfondir : 45-60" />
+                  <div className="zone zone-conditions" style={{ width: '15%' }} title="Investir avec conditions : 60-75" />
+                  <div className="zone zone-investir" style={{ width: '25%' }} title="Investir : 75+" />
+                  <div
+                    className="score-marker"
+                    style={{ left: `${Math.min(100, Math.max(0, reco.globalScore))}%` }}
+                    aria-label={`Score actuel : ${reco.globalScore} sur 100`}
+                  />
+                </div>
+                <div className="score-thresholds-labels">
+                  <span className="lbl lbl-refuser">Refuser</span>
+                  <span className="lbl lbl-approfondir">Approfondir</span>
+                  <span className="lbl lbl-conditions">Conditions</span>
+                  <span className="lbl lbl-investir">Investir</span>
+                </div>
+                <div className="score-thresholds-axis">
+                  <span>0</span>
+                  <span style={{ flex: '0 0 auto', position: 'absolute', left: '45%', transform: 'translateX(-50%)' }}>45</span>
+                  <span style={{ flex: '0 0 auto', position: 'absolute', left: '60%', transform: 'translateX(-50%)' }}>60</span>
+                  <span style={{ flex: '0 0 auto', position: 'absolute', left: '75%', transform: 'translateX(-50%)' }}>75</span>
+                  <span>100</span>
+                </div>
+              </div>
+            )}
+            <div className="verdict-block-legend">
+              Note ponderee sur six dimensions (equipe 0,20 ; marche 0,22 ; macro 0,15 ; modele economique 0,13 ; singularites contrariennes 0,15 ; vigilance critique inversee 0,15). Determine le verdict via les seuils 45 / 60 / 75.
+              {reco.computedScoreBreakdown && Math.abs(reco.computedScoreBreakdown.delta || 0) > 5 && (
+                <span className="verdict-block-audit">
+                  {' '}Ecart {reco.computedScoreBreakdown.delta > 0 ? '+' : ''}{reco.computedScoreBreakdown.delta} points entre le jugement LLM ({reco.computedScoreBreakdown.llmScore}) et le calcul mecanique ponderé ({reco.computedScoreBreakdown.finalComputedScore}).
+                </span>
+              )}
+            </div>
           </div>
-          <div className="verdict-line feature">
-            <span className="verdict-label">Probabilité de succès</span>
-            <span className="verdict-value big">{reco.successProbability || 0}<span style={{ fontSize: 13, opacity: 0.5, fontWeight: 400 }}>%</span></span>
-          </div>
-          <div className="verdict-line">
-            <span className="verdict-label">Probabilité d'échec</span>
-            <span className="verdict-value">{reco.failureProbability || 0}%</span>
+
+          {/* BLOC 2 : PROBABILITE DE SUCCES
+              Distincte du score : reflète la confiance dans la these face
+              aux signaux contradictoires (blindspots vs contrariens). Le
+              partner doit comprendre que ces deux chiffres ne mesurent
+              pas la meme chose. Mini-barre succes/echec en bicolore. */}
+          {typeof reco.successProbability === 'number' && (
+            <div className="verdict-block">
+              <div className="verdict-block-head">
+                <span className="verdict-block-num" aria-hidden="true">2</span>
+                <span className="verdict-block-title">Probabilite de succes</span>
+                <span className="verdict-block-figure">
+                  {reco.successProbability}
+                  <span style={{ fontSize: 14, opacity: 0.45, fontWeight: 400, marginLeft: 2 }}>%</span>
+                </span>
+              </div>
+              <div className="success-failure-bar">
+                <div className="sf-success" style={{ width: `${reco.successProbability}%` }}>
+                  <span>{reco.successProbability}% succes</span>
+                </div>
+                <div className="sf-failure" style={{ width: `${100 - reco.successProbability}%` }}>
+                  <span>{100 - reco.successProbability}% echec</span>
+                </div>
+              </div>
+              <div className="verdict-block-legend">
+                Estimation bayesienne de retour positif sur l&apos;investissement. Distincte du score : integre l&apos;incertitude residuelle face aux signaux contradictoires (blindspots versus contrariens). Plus pessimiste que le score quand la dialectique reste non tranchee.
+              </div>
+            </div>
+          )}
+
+          {/* LECTURE - Synthèse narrative qui relie les deux chiffres et
+              indique la suite logique (DD approfondie, refus, etc.).
+              Texte adapté selon le verdict. */}
+          <div className="verdict-reading">
+            <div className="verdict-reading-label">Lecture</div>
+            <div className="verdict-reading-text">
+              {reco.verdict === 'investir' && (
+                <>L&apos;instruction conclut a un go franc. Le passage en DD approfondie sert a confirmer les hypotheses structurantes et formaliser les conditions de la term sheet.</>
+              )}
+              {reco.verdict === 'investir avec conditions' && (
+                <>L&apos;instruction conclut a un go conditionne. Les conditions cles enumerees plus loin doivent etre verifiees ou negociees lors de la DD approfondie avant signature.</>
+              )}
+              {reco.verdict === 'approfondir' && (
+                <>L&apos;instruction Bloc 1 ne tranche pas. Le score positionne le dossier en zone d&apos;instruction approfondie ; la probabilite de succes signale que les signaux contradictoires ne sont pas leves. La DD Bloc 2 (data room) doit cristalliser l&apos;arbitrage.</>
+              )}
+              {reco.verdict === 'refuser' && (
+                <>L&apos;instruction conclut au refus. Les drapeaux rouges structurels ne sont pas compenses par les signaux contrariens. Pas de DD approfondie justifiee a ce stade.</>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Polish 3 : barre de seuils visuelle. Permet de capter instantanement
-            ou se situe le dossier dans l axe REFUSER / APPROFONDIR / CONDITIONS
-            / INVESTIR. Les seuils par defaut sont 45 / 60 / 75. */}
-        {typeof reco.globalScore === 'number' && (
-          <div className="score-thresholds">
-            <div className="score-thresholds-track">
-              <div className="zone zone-refuser" style={{ width: '45%' }} title="Refuser : score &lt; 45" />
-              <div className="zone zone-approfondir" style={{ width: '15%' }} title="Approfondir : 45-60" />
-              <div className="zone zone-conditions" style={{ width: '15%' }} title="Investir avec conditions : 60-75" />
-              <div className="zone zone-investir" style={{ width: '25%' }} title="Investir : 75+" />
-              <div
-                className="score-marker"
-                style={{ left: `${Math.min(100, Math.max(0, reco.globalScore))}%` }}
-                aria-label={`Score actuel : ${reco.globalScore} sur 100`}
-              />
-            </div>
-            <div className="score-thresholds-labels">
-              <span className="lbl lbl-refuser">Refuser</span>
-              <span className="lbl lbl-approfondir">Approfondir</span>
-              <span className="lbl lbl-conditions">Conditions</span>
-              <span className="lbl lbl-investir">Investir</span>
-            </div>
-            <div className="score-thresholds-axis">
-              <span>0</span>
-              <span style={{ flex: '0 0 auto', position: 'absolute', left: '45%', transform: 'translateX(-50%)' }}>45</span>
-              <span style={{ flex: '0 0 auto', position: 'absolute', left: '60%', transform: 'translateX(-50%)' }}>60</span>
-              <span style={{ flex: '0 0 auto', position: 'absolute', left: '75%', transform: 'translateX(-50%)' }}>75</span>
-              <span>100</span>
-            </div>
-          </div>
-        )}
 
         {/* Argumentation reco - prose dense decoupee en paragraphes
             courts (3 phrases) avec chiffres-cles mis en valeur. */}
@@ -2306,6 +2367,168 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           border-top: 1px solid var(--ink);
           border-bottom: 1px solid var(--ink);
         }
+
+        /* VERDICT HEADLINE - Verdict comme titre du bloc, ton fort.
+           Le partner doit voir d abord la conclusion narrative, puis
+           comprendre les chiffres qui la sous-tendent. */
+        .verdict-headline {
+          padding-bottom: 18px;
+          border-bottom: 1px solid rgba(29, 28, 26, 0.15);
+          margin-bottom: 22px;
+        }
+        .verdict-headline-label {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--ink-tertiary);
+          font-weight: 600;
+          margin-bottom: 6px;
+        }
+        .verdict-headline-value {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 36px;
+          font-weight: 600;
+          line-height: 1.05;
+          letter-spacing: -0.02em;
+          color: var(--ink);
+          text-transform: capitalize;
+        }
+
+        /* VERDICT BLOCK - Bloc semantique pour score d attractivite ou
+           probabilite de succes. Numerote (1, 2) pour souligner la
+           cascade narrative de la lecture. Tete avec numero, titre, et
+           chiffre aligne a droite. */
+        .verdict-block {
+          margin-bottom: 22px;
+        }
+        .verdict-block-head {
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .verdict-block-num {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          border: 1px solid var(--ink);
+          border-radius: 50%;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--ink);
+          flex: 0 0 auto;
+          line-height: 1;
+        }
+        .verdict-block-title {
+          flex: 1;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--ink-tertiary);
+          font-weight: 600;
+        }
+        .verdict-block-figure {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 30px;
+          font-weight: 600;
+          line-height: 1;
+          letter-spacing: -0.02em;
+          color: var(--ink);
+          font-feature-settings: "lnum";
+        }
+        .verdict-block-legend {
+          margin-top: 12px;
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 12.5px;
+          line-height: 1.55;
+          color: var(--ink-soft);
+          font-style: italic;
+        }
+        .verdict-block-audit {
+          color: var(--ink);
+          font-style: normal;
+          font-weight: 500;
+        }
+
+        /* SUCCESS/FAILURE BAR - Barre bicolore qui materialise le partage
+           probabilite succes / probabilite echec. Plus lisible qu un
+           chiffre isole, et complementaire de la jauge demi-cercle du
+           dashboard. */
+        .success-failure-bar {
+          display: flex;
+          height: 28px;
+          border: 1px solid var(--ink);
+          border-radius: 2px;
+          overflow: hidden;
+          margin-top: 4px;
+        }
+        .success-failure-bar .sf-success {
+          background: var(--ink);
+          color: var(--paper, #fffaf0);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10.5px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          min-width: 0;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+        .success-failure-bar .sf-failure {
+          background: transparent;
+          color: var(--ink);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10.5px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          min-width: 0;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+        .success-failure-bar .sf-success span,
+        .success-failure-bar .sf-failure span {
+          padding: 0 8px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* VERDICT READING - Synthèse narrative qui relie les deux chiffres
+           et propose la suite logique. Texte adapte au verdict. Style
+           sobre, italic, ressort de l ensemble par sa position
+           terminale. */
+        .verdict-reading {
+          margin-top: 24px;
+          padding-top: 18px;
+          border-top: 1px solid rgba(29, 28, 26, 0.15);
+        }
+        .verdict-reading-label {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--ink-tertiary);
+          font-weight: 600;
+          margin-bottom: 6px;
+        }
+        .verdict-reading-text {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 14px;
+          line-height: 1.6;
+          color: var(--ink);
+        }
+
         .verdict-line {
           display: flex;
           justify-content: space-between;
