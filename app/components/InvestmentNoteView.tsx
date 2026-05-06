@@ -231,17 +231,17 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       <div className="note-header">
         <div className="note-header-left">
           <div className="note-brand">PRÉLUDE</div>
-          <div className="note-title">Investment Note · Strategy & Solutions</div>
+          <div className="note-title">Note d&apos;instruction</div>
         </div>
         <div className="note-header-right">
           <div className="note-date">{dateAnalyzed}</div>
-          <div className="note-classification">CONFIDENTIAL · IC PRELIMINARY</div>
+          <div className="note-classification">CONFIDENTIEL · COMITÉ D&apos;INVESTISSEMENT</div>
         </div>
       </div>
 
-      {/* Bloc 1 - Company */}
+      {/* Bloc 1 - Société */}
       <section className="note-section">
-        <h2 className="note-section-title"><span className="note-section-num">1.</span> Company</h2>
+        <h2 className="note-section-title"><span className="note-section-num">1.</span> Société</h2>
 
         <table className="note-table">
           <tbody>
@@ -281,7 +281,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <div className="block-marker-sub">Screening initial et deal qualification &middot; Lecture en 5 minutes</div>
         </div>
 
-        <h3 className="note-h3">History</h3>
+        <h3 className="note-h3">Historique</h3>
         {compactMode ? (
           <details>
             <summary style={{
@@ -303,7 +303,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <p className="note-paragraph">{enrichProse(e.rawSummary) || '—'}</p>
         )}
 
-        <h3 className="note-h3">Executive Staff</h3>
+        <h3 className="note-h3">Équipe dirigeante</h3>
         {(() => {
           // Filtre les fondateurs artefacts. Le moteur Team peut occasionnellement
           // generer des entrees corrompues issues du parsing (ex: name='1.',
@@ -432,7 +432,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {fd && fd.revenueProjection?.length > 0 && (
           <>
-            <h3 className="note-h3">Company financials</h3>
+            <h3 className="note-h3">Profil financier</h3>
             <table className="note-financials-table">
               <thead>
                 <tr>
@@ -470,16 +470,16 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       </section>
 
       {/* Bloc 2 - Project description (collapsible en mode compact) */}
-      <NoteSectionWrapper number="2." title="Proposed Project" compactMode={compactMode} collapseInCompact={true}>
-        <h3 className="note-h3">Overall product</h3>
+      <NoteSectionWrapper number="2." title="Projet proposé" compactMode={compactMode} collapseInCompact={true}>
+        <h3 className="note-h3">Produit</h3>
         <p className="note-paragraph">{enrichProse(e.productDescription) || '—'}</p>
 
-        <h3 className="note-h3">Business model</h3>
+        <h3 className="note-h3">Modèle économique</h3>
         <p className="note-paragraph">{enrichProse(e.businessModel) || '—'}</p>
 
         {fd?.unitEconomics && (fd.unitEconomics.estimatedCAC !== '' || fd.unitEconomics.averageContractValue !== '') && (
           <>
-            <h3 className="note-h3">Economic assumptions</h3>
+            <h3 className="note-h3">Hypothèses économiques</h3>
             <table className="note-table">
               <tbody>
                 {fd.unitEconomics.averageContractValue && (
@@ -502,7 +502,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </>
         )}
 
-        <h3 className="note-h3">Market opportunity</h3>
+        <h3 className="note-h3">Opportunité de marché</h3>
         <p className="note-paragraph">{enrichProse(m.needIntensity?.rationale) || '—'}</p>
         {m.defensibility?.moats?.length > 0 && (
           <p className="note-paragraph"><strong>Moats identifiés :</strong> {m.defensibility.moats.join(' · ')}</p>
@@ -559,7 +559,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             anciennes, le bloc reste invisible (retrocompatibilite). */}
         {m.marketSizing && (
           <>
-            <h3 className="note-h3">Market sizing</h3>
+            <h3 className="note-h3">Dimensionnement du marché</h3>
             {m.marketSizing.sizingNarrative && (
               <p className="note-paragraph">{enrichProse(m.marketSizing.sizingNarrative)}</p>
             )}
@@ -708,7 +708,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
       {/* Bloc 3 - Due diligence */}
       <section className="note-section">
-        <h2 className="note-section-title"><span className="note-section-num">3.</span> Investment Thesis</h2>
+        <h2 className="note-section-title"><span className="note-section-num">3.</span> Thèse d&apos;investissement</h2>
 
         <div className="dd-meta">
           <span className="dd-meta-bullet" aria-hidden="true">●</span>
@@ -717,7 +717,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <span className="dd-meta-text">Note préliminaire IC</span>
         </div>
 
-        <h3 className="note-h3">Recommendation</h3>
+        <h3 className="note-h3">Recommandation</h3>
         <div className="verdict-box">
           {/* Verdict comme titre principal du bloc, pas comme une ligne
               parmi d autres. C est la conclusion narrative de l instruction
@@ -855,7 +855,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             memo IC dialectique. */}
         {(ca?.syntheseSingularite || (ca?.signals && Object.values(ca.signals).some((s: any) => s?.detected && s.strength >= 60))) && (
           <>
-            <h3 className="note-h3">The case for</h3>
+            <h3 className="note-h3">Plaidoyer en faveur</h3>
             {ca.syntheseSingularite && (
               <>{splitIntoParagraphs(ca.syntheseSingularite, 3).map((p, i) => (
                 <p key={i} className="note-paragraph">{enrichProse(p)}</p>
@@ -925,7 +925,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             patterns historiques (Theranos, Ynsect, etc.) + alertes critiques. */}
         {(ba?.syntheseAveuglement || (ba?.patterns && Object.values(ba.patterns).some((p: any) => p?.detected && p.intensity >= 60))) && (
           <>
-            <h3 className="note-h3">The case against</h3>
+            <h3 className="note-h3">Plaidoyer contre</h3>
             {ba.syntheseAveuglement && (
               <>{splitIntoParagraphs(ba.syntheseAveuglement, 3).map((p, i) => (
                 <p key={i} className="note-paragraph">{enrichProse(p)}</p>
@@ -994,7 +994,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             le moment central du raisonnement IC. */}
         {reco.blindspotsVsContrarian?.resolution && (
           <>
-            <h3 className="note-h3">Dialectical resolution</h3>
+            <h3 className="note-h3">Résolution dialectique</h3>
             <div className="verdict-box" style={{ marginBottom: 12 }}>
               <div className="verdict-line">
                 <span className="verdict-label">Poids de la vigilance</span>
@@ -1019,7 +1019,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             s inscrit. */}
         {(macro?.cyclePosition || macro?.structuralTrends?.length > 0 || macro?.regulatoryEnvironment) && (
           <>
-            <h3 className="note-h3">Macro context</h3>
+            <h3 className="note-h3">Contexte macro</h3>
             <table className="note-table">
               <tbody>
                 {macro.cyclePosition && (
@@ -1062,7 +1062,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </table>
             {macro.structuralTrends?.length > 0 && (
               <>
-                <h4 className="note-h4">Structural trends</h4>
+                <h4 className="note-h4">Tendances structurelles</h4>
                 <ul className="risk-list">
                   {(macro.structuralTrends || []).map((t: string, i: number) => (
                     <li key={i}>{t}</li>
@@ -1072,7 +1072,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             )}
             {macro.regulatoryEnvironment && (
               <>
-                <h4 className="note-h4">Regulatory environment</h4>
+                <h4 className="note-h4">Environnement réglementaire</h4>
                 {splitIntoParagraphs(macro.regulatoryEnvironment, 3).map((p, i) => (
                   <p key={i} className="note-paragraph">{enrichProse(p)}</p>
                 ))}
@@ -1083,8 +1083,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {ba?.riskMap && (
           <>
-            <h3 className="note-h3">Risk factors</h3>
-            <h4 className="note-h4">Strategic risks</h4>
+            <h3 className="note-h3">Cartographie des risques</h3>
+            <h4 className="note-h4">Risques stratégiques</h4>
             {(ba.riskMap.strategicRisks || []).length === 0 ? <p className="note-paragraph muted">Aucun risque stratégique identifié.</p> : (
               <ul className="risk-list">
                 {(ba.riskMap.strategicRisks || []).map((r: any, i: number) => (
@@ -1095,7 +1095,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 ))}
               </ul>
             )}
-            <h4 className="note-h4">Operational risks</h4>
+            <h4 className="note-h4">Risques opérationnels</h4>
             {(ba.riskMap.operationalRisks || []).length === 0 ? <p className="note-paragraph muted">Aucun risque opérationnel identifié.</p> : (
               <ul className="risk-list">
                 {(ba.riskMap.operationalRisks || []).map((r: any, i: number) => (
@@ -1106,7 +1106,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 ))}
               </ul>
             )}
-            <h4 className="note-h4">Financial risks</h4>
+            <h4 className="note-h4">Risques financiers</h4>
             {(ba.riskMap.financialRisks || []).length === 0 ? <p className="note-paragraph muted">Aucun risque financier identifié.</p> : (
               <ul className="risk-list">
                 {(ba.riskMap.financialRisks || []).map((r: any, i: number) => (
@@ -1122,7 +1122,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {m?.competitiveMatrix?.dimensions?.length > 0 && (
           <>
-            <h3 className="note-h3">Competitive positioning</h3>
+            <h3 className="note-h3">Positionnement concurrentiel</h3>
             <div className="matrix-wrap">
               <table className="matrix-table">
                 <thead>
@@ -1151,7 +1151,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {fc?.hasFinancialData && (
           <>
-            <h3 className="note-h3">Financial assessment</h3>
+            <h3 className="note-h3">Examen financier</h3>
             {splitIntoParagraphs(fc.syntheseCoherence, 3).map((p, i) => (
               <p key={i} className="note-paragraph">{enrichProse(p)}</p>
             ))}
@@ -1167,7 +1167,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {tcc?.triggered && (
           <>
-            <h3 className="note-h3">Coherence de la revendication technologique</h3>
+            <h3 className="note-h3">Cohérence de la revendication technologique</h3>
             {splitIntoParagraphs(tcc.synthesis, 3).map((p: string, i: number) => (
               <p key={i} className="note-paragraph">{enrichProse(p)}</p>
             ))}
@@ -1211,7 +1211,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {efr?.triggered && (efr.axes?.length || 0) > 0 && (
           <>
-            <h3 className="note-h3">Friction d&apos;execution commerciale et industrielle</h3>
+            <h3 className="note-h3">Friction d&apos;exécution commerciale et industrielle</h3>
             {splitIntoParagraphs(efr.synthesis, 3).map((p: string, i: number) => (
               <p key={i} className="note-paragraph">{enrichProse(p)}</p>
             ))}
@@ -1257,7 +1257,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </>
         )}
 
-        <h3 className="note-h3">Decision drivers</h3>
+        <h3 className="note-h3">Facteurs décisifs</h3>
         {reco.decisionDrivers?.length > 0 ? (
           <ol className="ordered-list">
             {(reco.decisionDrivers || []).map((d: string, i: number) => <li key={i}>{d}</li>)}
@@ -1266,7 +1266,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {pm?.internationalBenchmarks?.length > 0 && (
           <>
-            <h3 className="note-h3">Comparables & precedents</h3>
+            <h3 className="note-h3">Comparables et précédents</h3>
             <p className="comparable-scope-note">
               Ces comparables internationaux sont retenus pour la pertinence d&apos;asset class avec le dossier (nature business, modele economique, intensite capitalistique). Les comparables d&apos;archetype d&apos;instruction (proximite de pattern sans similarite sectorielle) sont identifies separement plus loin dans la note.
             </p>
@@ -1318,7 +1318,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       </section>
 
       {/* Bloc 4 - Transaction features (collapsible en mode compact) */}
-      <NoteSectionWrapper number="4." title="Transaction Features" compactMode={compactMode} collapseInCompact={true}>
+      <NoteSectionWrapper number="4." title="Modalités de la transaction" compactMode={compactMode} collapseInCompact={true}>
         <table className="note-table">
           <tbody>
             <tr>
@@ -1348,7 +1348,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {reco.keyConditions?.length > 0 && (
           <>
-            <h3 className="note-h3">Key conditions before signature</h3>
+            <h3 className="note-h3">Conditions clés avant signature</h3>
             <ol className="ordered-list">
               {(reco.keyConditions || []).map((c: string, i: number) => <li key={i}>{c}</li>)}
             </ol>
@@ -1357,7 +1357,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {reco.structuringPlan && (
           <>
-            <h3 className="note-h3">Structuring plan</h3>
+            <h3 className="note-h3">Plan de structuration</h3>
             <h4 className="note-h4">Court terme · 0-3 mois</h4>
             {(reco.structuringPlan.shortTerm || []).length === 0 ? <p className="note-paragraph muted">Aucune action court terme.</p> : (
               <ul className="action-list">
@@ -1434,7 +1434,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {ddf?.triggered && (
           <>
-            <h3 className="note-h3">Data Room - DD Financiere</h3>
+            <h3 className="note-h3">Data Room · DD financière</h3>
             <p className="note-paragraph muted">
               Periode du grand livre : {ddf.ledgerPeriod.start || 'n.a.'} au {ddf.ledgerPeriod.end || 'n.a.'}.
               {' '}Score global de l&apos;audit : {ddf.globalScore}/100.
@@ -1497,7 +1497,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {ddc?.triggered && (
           <>
-            <h3 className="note-h3">Data Room - DD Contractuelle</h3>
+            <h3 className="note-h3">Data Room · DD contractuelle</h3>
             <div className="ddc-disclaimer">
               {(ddc.disclaimers || []).map((d: string, i: number) => (
                 <div key={i} className="ddc-disclaimer-line">{d}</div>
@@ -1516,7 +1516,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
             {ddc.capTableSummary && (
               <>
-                <h4 className="note-h4">Cap table - photo a date</h4>
+                <h4 className="note-h4">Cap table à date</h4>
                 <div className="ddc-cap-summary">
                   <div className="ddc-cap-row"><span>Fondateurs cumules</span><strong>{ddc.capTableSummary.founderPercentage.toFixed(1)}%</strong></div>
                   <div className="ddc-cap-row"><span>Investisseurs cumules</span><strong>{ddc.capTableSummary.investorPercentage.toFixed(1)}%</strong></div>
@@ -1636,7 +1636,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           const tests: any[] = Array.isArray(ddt.tests) ? ddt.tests : [];
           return (
             <>
-              <h3 className="note-h3">Data Room - DD Technique</h3>
+              <h3 className="note-h3">Data Room · DD technique</h3>
               <p className="note-paragraph muted">
                 Audit du dossier technique transmis par la startup, aligne sur les sections 4 (Technology/Product), 6 (Intellectual Property), 7 (Information Technology) et 8 (Data Protection) de la GCV Investor Due Diligence Checklist.
                 {' '}{(ddt.documentsAnalyzed || []).length > 0 && (
@@ -1731,7 +1731,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           Ne s'affiche que si analysisId est fourni (la note doit etre
           sauvegardee en base pour pouvoir etre rapprochee). */}
       {analysisId && (
-        <NoteSectionWrapper number="5." title="Historical Comparables" compactMode={compactMode} collapseInCompact={true}>
+        <NoteSectionWrapper number="5." title="Comparables historiques" compactMode={compactMode} collapseInCompact={true}>
           <p className="note-section-intro">
             Rapprochement avec un corpus de startups documentées au moment de leur tour qualifiant.
             Le matching s&apos;appuie sur six dimensions (founder, market, traction, deal,
@@ -1764,7 +1764,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           consolidées par les moteurs Prélude. Montre la rigueur méthodologique
           de la note. */}
       <section className="note-sources">
-        <h4 className="note-h4">Sources & methodology</h4>
+        <h4 className="note-h4">Sources et méthodologie</h4>
         <p className="note-sources-intro">
           Cette note s'appuie sur l'analyse du dossier déposé et sur un corpus de bornes externes consolidées trimestriellement.
         </p>

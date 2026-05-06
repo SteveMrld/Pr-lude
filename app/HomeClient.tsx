@@ -1970,7 +1970,7 @@ export default function HomeClient({
                 <div style={{ display: 'flex', marginLeft: 6 }}>
                   <button
                     onClick={() => setCompactNoteMode(true)}
-                    title="Replie les sections secondaires (Proposed Project, Transaction Features). Verdict, score et conditions cles restent visibles."
+                    title="Replie les sections secondaires (Projet proposé, Modalités de la transaction). Verdict, score et conditions clés restent visibles."
                     style={{
                       padding: '8px 14px',
                       fontSize: 11,
