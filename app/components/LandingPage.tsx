@@ -276,28 +276,19 @@ export default function LandingPage() {
             <div className="lp-pillar-picto"><Picto name="pillar-rigueur" size={32} strokeWidth={1.5} /></div>
             <div className="lp-pillar-num">I</div>
             <h3 className="lp-pillar-title">{t('section.pillar-1')}</h3>
-            <p className="lp-pillar-text">
-              Quatorze moteurs scrutent un dossier sous des angles complémentaires.
-              Aucun raccourci. Une réflexion par moteur, conservée, datée, signée.
-            </p>
+            <p className="lp-pillar-text">{t('section.pillar-1-body')}</p>
           </article>
           <article className="lp-pillar">
             <div className="lp-pillar-picto"><Picto name="pillar-comite" size={32} strokeWidth={1.5} /></div>
             <div className="lp-pillar-num">II</div>
             <h3 className="lp-pillar-title">{t('section.pillar-2')}</h3>
-            <p className="lp-pillar-text">
-              Le pack IC tient en trois pages. Verdict, score, probabilité de succès.
-              Vote en ligne, consolidation immédiate, conditions retenues archivées.
-            </p>
+            <p className="lp-pillar-text">{t('section.pillar-2-body')}</p>
           </article>
           <article className="lp-pillar">
             <div className="lp-pillar-picto"><Picto name="pillar-memoire" size={32} strokeWidth={1.5} /></div>
             <div className="lp-pillar-num">III</div>
             <h3 className="lp-pillar-title">{t('section.pillar-3')}</h3>
-            <p className="lp-pillar-text">
-              Chaque dossier reste consultable, versionné, commenté. Le fonds
-              construit progressivement sa cartographie cognitive et ses zones de force.
-            </p>
+            <p className="lp-pillar-text">{t('section.pillar-3-body')}</p>
           </article>
         </div>
       </section>
@@ -306,12 +297,8 @@ export default function LandingPage() {
       <section className="lp-quote-section">
         <blockquote className="lp-quote">
           <div className="lp-quote-mark" aria-hidden="true">«</div>
-          <p>
-            Un fonds n&apos;investit pas dans des entreprises. Il investit dans
-            la qualité de ses propres jugements. Prélude est l&apos;outil qui
-            préserve cette exigence quand le rythme de deals s&apos;accélère.
-          </p>
-          <footer className="lp-quote-attr">Note d&apos;intention · Mai 2026</footer>
+          <p>{t('quote.body')}</p>
+          <footer className="lp-quote-attr">{t('quote.attr')}</footer>
         </blockquote>
       </section>
 
@@ -319,18 +306,14 @@ export default function LandingPage() {
       <section className="lp-final">
         <div className="lp-final-kicker">
           <span className="lp-kicker-dot"></span>
-          Commencer
+          {t('final.kicker')}
         </div>
         <h2 className="lp-final-title">
-          Une analyse en quelques minutes.
+          {t('final.h2')}
         </h2>
-        <p className="lp-final-text">
-          Déposez un pitch deck. Le pipeline démarre. Vous recevez en quelques
-          minutes une note d&apos;investissement complète, un dossier d&apos;analyse
-          navigable, un pack IC prêt à circuler.
-        </p>
+        <p className="lp-final-text">{t('final.body')}</p>
         <Link href="/login" className="lp-cta-primary lp-cta-final">
-          <span>Accéder à Prélude</span>
+          <span>{t('final.cta-final')}</span>
           <Picto name="arrow-right" size={16} />
         </Link>
       </section>
@@ -339,9 +322,9 @@ export default function LandingPage() {
         <div className="lp-footer-line">
           <span className="lp-footer-brand">PRÉLUDE</span>
           <span className="lp-footer-sep">·</span>
-          <span>Le moteur d&apos;instruction des fonds de capital-risque</span>
+          <span>{t('footer.tagline')}</span>
         </div>
-        <div className="lp-footer-meta">Paris · 2026 · Confidentiel</div>
+        <div className="lp-footer-meta">{t('footer.meta')}</div>
       </footer>
 
       <style jsx>{`

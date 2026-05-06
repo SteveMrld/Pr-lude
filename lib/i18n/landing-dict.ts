@@ -51,14 +51,29 @@ export const landingDict: Record<Locale, Record<string, string>> = {
     'section.philosophy-kicker': 'Philosophie',
     'section.philosophy-title': "Ce que Prélude rend possible.",
     'section.pillar-1': "L'instruction prend le pas sur la décision rapide.",
+    'section.pillar-1-body': "Quatorze moteurs scrutent un dossier sous des angles complémentaires. Aucun raccourci. Une réflexion par moteur, conservée, datée, signée.",
     'section.pillar-2': 'Le comité retrouve sa fonction de jugement.',
+    'section.pillar-2-body': "Le pack IC tient en trois pages. Verdict, score, probabilité de succès. Vote en ligne, consolidation immédiate, conditions retenues archivées.",
     'section.pillar-3': 'La mémoire du fonds devient un actif.',
+    'section.pillar-3-body': "Chaque dossier reste consultable, versionné, commenté. Le fonds construit progressivement sa cartographie cognitive et ses zones de force.",
+
+    // Citation
+    'quote.body': "Un fonds n'investit pas dans des entreprises. Il investit dans la qualité de ses propres jugements. Prélude est l'outil qui préserve cette exigence quand le rythme de deals s'accélère.",
+    'quote.attr': "Note d'intention · Mai 2026",
 
     // Final CTA
+    'final.kicker': 'Commencer',
     'final.title-1': 'Voir Prélude',
     'final.title-2': 'sur un dossier réel.',
+    'final.h2': 'Une analyse en quelques minutes.',
+    'final.body': "Déposez un pitch deck. Le pipeline démarre. Vous recevez en quelques minutes une note d'investissement complète, un dossier d'analyse navigable, un pack IC prêt à circuler.",
     'final.cta-primary': "Démarrer l'instruction",
+    'final.cta-final': 'Accéder à Prélude',
     'final.cta-secondary': 'Demander une démonstration',
+
+    // Footer
+    'footer.tagline': "Le moteur d'instruction des fonds de capital-risque",
+    'footer.meta': 'Paris · 2026 · Confidentiel',
   },
   en: {
     // Header / nav
@@ -92,14 +107,29 @@ export const landingDict: Record<Locale, Record<string, string>> = {
     'section.philosophy-kicker': 'Philosophy',
     'section.philosophy-title': 'What Prélude makes possible.',
     'section.pillar-1': 'Instruction takes precedence over the quick decision.',
+    'section.pillar-1-body': 'Fourteen engines scrutinise a deal from complementary angles. No shortcuts. One reflection per engine, preserved, dated, signed.',
     'section.pillar-2': 'The committee recovers its function of judgment.',
+    'section.pillar-2-body': 'The IC pack fits in three pages. Verdict, score, probability of success. Online voting, immediate consolidation, recorded conditions archived.',
     'section.pillar-3': "The fund's memory becomes an asset.",
+    'section.pillar-3-body': 'Every deal remains accessible, versioned, annotated. The fund progressively builds its cognitive map and identifies its zones of strength.',
+
+    // Citation
+    'quote.body': "A fund does not invest in companies. It invests in the quality of its own judgments. Prélude is the tool that preserves this requirement when the deal flow accelerates.",
+    'quote.attr': 'Statement of intent · May 2026',
 
     // Final CTA
+    'final.kicker': 'Get started',
     'final.title-1': 'See Prélude',
     'final.title-2': 'on a real deal.',
+    'final.h2': 'An analysis in minutes.',
+    'final.body': 'Upload a pitch deck. The pipeline starts. Within minutes you receive a full investment note, a navigable analysis, an IC pack ready to circulate.',
     'final.cta-primary': 'Start the instruction',
+    'final.cta-final': 'Access Prélude',
     'final.cta-secondary': 'Request a demonstration',
+
+    // Footer
+    'footer.tagline': 'The instruction engine for venture capital funds',
+    'footer.meta': 'Paris · 2026 · Confidential',
   },
 };
 
