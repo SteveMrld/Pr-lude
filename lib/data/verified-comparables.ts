@@ -1142,11 +1142,104 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
 
 /**
  * Genere un bloc texte structure pour injection dans les prompts LLM
- * (contrarian-engine, pattern-engine). Compact mais lisible : le LLM
- * peut chercher rapidement un comparable et trouver les chiffres
- * verifies sans avoir a parser un JSON.
+ * (contrarian-engine, pattern-engine, blindspot-engine). Compact mais
+ * lisible : le LLM peut chercher rapidement un comparable et trouver
+ * les chiffres verifies sans avoir a parser un JSON.
+ *
+ * Si filterAssetClass est fourni, le bloc est filtre aux comparables
+ * pertinents pour cet asset class plus une whitelist universelle de
+ * reperes (Stripe, Airbnb, Uber, Theranos, WeWork, Ynsect, Helsing).
+ * Cela divise par ~3 la taille du bloc injecte (de ~20k a ~6-7k tokens
+ * sur Sonnet 4.5) et reduit le bruit dans le contexte LLM. Pour un
+ * dossier deeptech defense, le LLM n a aucun usage des 34 comparables
+ * SaaS B2B. Le filtrage est lossy : certains cas borderline (AI deep-
+ * tech avec composante SaaS) gardent les deux univers grace au
+ * matching tolerant.
+ *
+ * Si filterAssetClass est null ou 'all', le bloc complet est genere
+ * (compatibilite avec les usages existants et fallback si la detection
+ * echoue).
  */
-export function buildVerifiedComparablesBlock(): string {
+export type ComparablesAssetClass =
+  | 'saas'
+  | 'deeptech_hardware'
+  | 'ai_deeptech'
+  | 'biotech_medtech'
+  | 'fintech'
+  | 'marketplace'
+  | 'consumer'
+  | 'all';
+
+/**
+ * Whitelist universelle. Ces comparables sont toujours injectes parce
+ * qu ils servent de reperes archetypaux que tout VC connait. Ajouter
+ * a la marge si un cas devient incontournable.
+ */
+const UNIVERSAL_KEYS = new Set([
+  'airbnb', 'uber', 'stripe', 'theranos', 'wework', 'ynsect', 'helsing',
+  'doctolib', 'datadog', 'figma',
+]);
+
+/**
+ * Mapping de mots-cles trouves dans sectorAssetClass vers nos
+ * categories canoniques. Le matching est sur sous-chaine inclusive
+ * (case-insensitive). Un comparable peut matcher plusieurs categories
+ * (ex : 'AI deeptech / SaaS B2B' matche saas ET ai_deeptech).
+ */
+const CLASS_KEYWORDS: Record<Exclude<ComparablesAssetClass, 'all'>, string[]> = {
+  saas: ['saas', 'b2b software', 'software b2b', 'plateforme saas', 'logiciel'],
+  deeptech_hardware: ['hardware deeptech', 'hardware industriel', 'hardware grand public', 'capex', 'industriel', 'manufacturing', 'aerospace', 'defense', 'fleet'],
+  ai_deeptech: ['ai deeptech', 'fondation models', 'gpu', 'llm', 'ai infrastructure'],
+  biotech_medtech: ['biotech', 'medtech', 'mrna', 'therapeutics', 'pharma', 'cardiology', 'diagnostics'],
+  fintech: ['fintech', 'bnpl', 'paiement', 'banque', 'credit conso', 'insurance'],
+  marketplace: ['marketplace', 'c2c', 'b2c+c2c', 'b2c+b2b'],
+  consumer: ['consumer', 'e-commerce b2c', 'd2c', 'streaming', 'media', 'gaming', 'food delivery', 'mobility'],
+};
+
+function matchesAssetClass(sectorAssetClass: string, klass: Exclude<ComparablesAssetClass, 'all'>): boolean {
+  const lower = sectorAssetClass.toLowerCase();
+  return CLASS_KEYWORDS[klass].some(kw => lower.includes(kw));
+}
+
+/**
+ * Detecte l asset class dominant d un dossier a partir des champs
+ * d extraction. Heuristique deterministe : on scanne sector,
+ * subSector, businessModel, productDescription pour des signaux
+ * caracteristiques. Retourne 'all' si rien de net.
+ */
+export function detectAssetClass(extraction: any): ComparablesAssetClass {
+  const text = [
+    extraction?.sector,
+    extraction?.subSector,
+    extraction?.businessModel,
+    extraction?.productDescription,
+    extraction?.marketPitch,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (!text) return 'all';
+
+  // Ordre de priorite : on classe selon la categorie qui a le plus
+  // de signaux discriminants. Deeptech industriel/hardware passe
+  // avant SaaS parce qu un dossier peut etre 'SaaS pour usine' qui
+  // est en realite un dossier industriel.
+  const signals = [
+    { klass: 'biotech_medtech' as const, kw: ['biotech', 'medtech', 'pharmaceut', 'therapeutic', 'mrna', 'clinical', 'diagnost', 'medical device'] },
+    { klass: 'deeptech_hardware' as const, kw: ['hardware', 'manufacturing', 'industrial', 'industriel', 'defense', 'défense', 'aerospace', 'aéronautique', 'spatial', 'robotic', 'capex', 'fleet', 'composant', 'production'] },
+    { klass: 'ai_deeptech' as const, kw: ['foundation model', 'llm', 'large language', 'modele de fondation', 'gpu', 'training cluster', 'ai infrastructure'] },
+    { klass: 'fintech' as const, kw: ['fintech', 'banque', 'banking', 'credit', 'paiement', 'payment', 'bnpl', 'insurtech', 'insurance'] },
+    { klass: 'marketplace' as const, kw: ['marketplace', 'place de marché', 'two-sided', 'multi-sided', 'plateforme c2c'] },
+    { klass: 'consumer' as const, kw: ['d2c', 'e-commerce', 'consumer goods', 'streaming', 'media', 'gaming', 'food delivery', 'micromobility', 'consumer brand'] },
+    { klass: 'saas' as const, kw: ['saas', 'software', 'logiciel', 'b2b platform', 'plateforme b2b'] },
+  ];
+
+  for (const s of signals) {
+    if (s.kw.some(k => text.includes(k))) return s.klass;
+  }
+
+  return 'all';
+}
+
+export function buildVerifiedComparablesBlock(filterAssetClass?: ComparablesAssetClass | null): string {
   const lines: string[] = [];
   lines.push('# BASE DE CHIFFRES VERIFIES DES COMPARABLES (NE PAS DEROGER)');
   lines.push('');
@@ -1156,7 +1249,24 @@ export function buildVerifiedComparablesBlock(): string {
   lines.push('');
   lines.push('Pour les fiches marquees [verifier via source primaire], les chiffres recents 2025-2026 ou les valuations particulierement fragiles ne sont PAS triangules par communique officiel. Tu peux citer la fiche mais tu ajoutes "(a verifier via source primaire avant diffusion)" ou tu omets le chiffre fragile.');
   lines.push('');
-  for (const key of Object.keys(VERIFIED_COMPARABLES)) {
+
+  // Filtrage par asset class si demande. Cas par cas :
+  // - 'all' ou null/undefined : on injecte tout (legacy)
+  // - autre : on garde les comparables qui matchent la classe + la
+  //   whitelist universelle (Stripe, Airbnb, etc. comme reperes)
+  const useFilter = filterAssetClass && filterAssetClass !== 'all';
+  const keys = Object.keys(VERIFIED_COMPARABLES).filter(key => {
+    if (!useFilter) return true;
+    if (UNIVERSAL_KEYS.has(key)) return true;
+    return matchesAssetClass(VERIFIED_COMPARABLES[key].sectorAssetClass, filterAssetClass);
+  });
+
+  if (useFilter) {
+    lines.push(`# Filtrage applique : asset class principal du dossier identifie comme '${filterAssetClass}'. La selection ci-dessous comporte ${keys.length} comparables pertinents pour ce profil, plus les reperes universels (Stripe, Airbnb, Uber, etc.). Les comparables hors profil ont ete retires pour reduire le bruit dans le contexte.`);
+    lines.push('');
+  }
+
+  for (const key of keys) {
     const c = VERIFIED_COMPARABLES[key];
     const checkMark = c.needsExternalCheck ? ' [verifier via source primaire]' : '';
     lines.push(`## ${c.name} (${c.founded}) · ${c.sectorAssetClass}${checkMark}`);
