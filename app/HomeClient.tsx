@@ -87,6 +87,153 @@ type EngineState = {
   durationMs?: number;
 };
 
+// Classification cote client des fichiers deposes pour donner un
+// retour visuel immediat au partner. Logique alignee sur celle du
+// file-processor cote serveur (seul le nom et le type sont
+// inspectes), sans dependance Excel pour pouvoir tourner en
+// navigateur. Utilise pour afficher la nature detectee de chaque
+// fichier dans la liste apres upload.
+type FileFamily =
+  | 'pitch_deck'
+  | 'business_plan'
+  | 'general_ledger'
+  | 'shareholders_agreement'
+  | 'statutes'
+  | 'cap_table'
+  | 'client_contract'
+  | 'technical_doc'
+  | 'unknown';
+
+const FAMILY_LABELS: Record<FileFamily, string> = {
+  pitch_deck: 'Pitch Deck',
+  business_plan: 'Business Plan',
+  general_ledger: 'Grand livre comptable',
+  shareholders_agreement: 'Pacte d\u2019actionnaires',
+  statutes: 'Statuts',
+  cap_table: 'Cap table',
+  client_contract: 'Contrat client',
+  technical_doc: 'Dossier technique',
+  unknown: 'Non classifié',
+};
+
+function classifyFileClient(file: File): FileFamily {
+  const lower = file.name.toLowerCase();
+  const isPdf = file.type.includes('pdf') || lower.endsWith('.pdf');
+  const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv');
+
+  // Grand livre / FEC en priorite
+  if (lower.includes('grand livre') || lower.includes('grand_livre') ||
+      lower.includes('grandlivre') || lower.includes('general ledger') ||
+      lower.includes('general_ledger') || lower.includes('generalledger') ||
+      lower.includes('fec.') || lower.startsWith('fec_') ||
+      lower.includes('_fec_') || lower.includes(' fec ') ||
+      lower.includes('ecritures comptables') || lower.includes('ecritures_comptables') ||
+      lower.includes('compta_') || lower.includes('_compta.') ||
+      lower.includes('balance generale') || lower.includes('balance_generale') ||
+      lower.includes('journal_compta') || lower.includes('ledger.')) {
+    return 'general_ledger';
+  }
+  // Pacte
+  if (lower.includes('pacte') ||
+      lower.includes('shareholders agreement') ||
+      lower.includes('shareholders_agreement') ||
+      lower.includes('shareholdersagreement') ||
+      lower.includes(' sha.') || lower.startsWith('sha_') ||
+      lower.includes('_sha_') || lower.includes('sha-') ||
+      lower.includes('shareholder_agreement') ||
+      lower.includes('investment agreement')) {
+    return 'shareholders_agreement';
+  }
+  // Statuts
+  if (lower.includes('statuts') || lower.includes('articles of association') ||
+      lower.includes('articles_of_association') ||
+      lower.includes(' aoa.') || lower.startsWith('aoa_') ||
+      lower.includes('articlesofassociation') ||
+      lower.includes('bylaws') ||
+      lower.includes('memorandum and articles')) {
+    return 'statutes';
+  }
+  // Cap table
+  if (lower.includes('cap table') || lower.includes('cap_table') ||
+      lower.includes('captable') || lower.includes('capitalisation') ||
+      lower.includes('capitalization') || lower.includes('actionnariat') ||
+      lower.includes('cap-table') ||
+      lower.includes('table de capitalisation') ||
+      lower.includes('cap_structure') || lower.includes('capstructure') ||
+      lower.includes('repartition capital')) {
+    return 'cap_table';
+  }
+  // Contrat client
+  if (lower.includes('contrat client') || lower.includes('contrat_client') ||
+      lower.includes('contract_client') || lower.includes('clientcontract') ||
+      lower.includes('client_agreement') ||
+      lower.includes(' msa.') || lower.startsWith('msa_') ||
+      lower.includes('_msa_') || lower.includes('master services agreement') ||
+      lower.includes('master_services_agreement') ||
+      lower.includes(' sla.') || lower.startsWith('sla_') ||
+      lower.includes('order form') || lower.includes('order_form') ||
+      lower.includes('purchase agreement') ||
+      lower.includes('framework agreement')) {
+    return 'client_contract';
+  }
+  // Dossier technique (Module 3)
+  if (lower.includes('tech overview') || lower.includes('tech_overview') ||
+      lower.includes('techoverview') ||
+      lower.includes('tech & ip') || lower.includes('tech and ip') ||
+      lower.includes('tech_ip') || lower.includes('techip') ||
+      lower.includes('dossier technique') || lower.includes('dossier_technique') ||
+      lower.includes('dossiertechnique') ||
+      lower.includes('technical overview') || lower.includes('technical_overview') ||
+      lower.includes('technicaloverview') ||
+      lower.includes('architecture') ||
+      lower.includes('security policy') || lower.includes('security_policy') ||
+      lower.includes('securitypolicy') || lower.includes('security-policy') ||
+      lower.includes('infosec') ||
+      lower.includes('iso 27001') || lower.includes('iso_27001') ||
+      lower.includes('iso27001') ||
+      lower.includes(' soc2') || lower.includes('_soc2') ||
+      lower.includes('soc 2') || lower.startsWith('soc2_') ||
+      lower.includes('bcp') ||
+      lower.includes('business continuity') ||
+      lower.includes('business_continuity') ||
+      lower.includes('disaster recovery') ||
+      lower.includes('disaster_recovery') ||
+      lower.includes('disasterrecovery') ||
+      lower.includes('rgpd') ||
+      lower.includes(' gdpr') || lower.includes('_gdpr') ||
+      lower.includes('gdpr_') || lower.includes('gdpr-') ||
+      lower.startsWith('gdpr') ||
+      lower.includes('data protection') ||
+      lower.includes('data_protection') ||
+      lower.includes('dataprotection') ||
+      lower.includes('registre des traitements') ||
+      lower.includes('registre_des_traitements') ||
+      lower.includes('processing register') ||
+      lower.includes('technical_dd') || lower.includes('technicaldd') ||
+      lower.includes('tech_dd') || lower.includes('techdd') ||
+      lower.includes('tech-dd') ||
+      lower.includes('ip schedule') || lower.includes('ip_schedule') ||
+      lower.includes('ipschedule')) {
+    return 'technical_doc';
+  }
+  // Business plan
+  if (lower.includes('business plan') || lower.includes('businessplan') ||
+      lower.includes('bp ') || lower.includes('_bp_') ||
+      lower.includes('financial') || lower.includes('financier') ||
+      lower.includes('budget') || lower.includes('forecast') ||
+      lower.includes('projection')) {
+    return 'business_plan';
+  }
+  // Pitch deck par defaut sur PDF non identifie
+  if (lower.includes('pitch') || lower.includes('deck') ||
+      lower.includes('teaser') || lower.includes('investor')) {
+    return 'pitch_deck';
+  }
+  if (isPdf) return 'pitch_deck';
+  if (isExcel) return 'business_plan';
+  return 'unknown';
+}
+
 export default function HomeClient({
   userEmail,
   userId,
@@ -1140,39 +1287,84 @@ export default function HomeClient({
                 <h2 className="landing-h2">Commencer l&apos;instruction.</h2>
               </div>
               <p className="landing-section-intro">
-                Pour le Bloc 1 (note d&apos;instruction), déposer le pitch deck PDF avec le business plan optionnel. Pour le Bloc 2 (data room), ajouter le grand livre comptable, le pacte d&apos;actionnaires, les statuts, les contrats clients principaux, le cap table et le dossier technique transmis par la startup (architecture, sécurité, RGPD, BCP, IP). Les moteurs Bloc 2 ne tournent que si les documents correspondants sont fournis. Pour la classification automatique, nommer les fichiers en conséquence : pitch_deck.pdf, business_plan.xlsx, grand_livre.xlsx, pacte.pdf, statuts.pdf, cap_table.xlsx, contrat_client_X.pdf, architecture.pdf, security_policy.pdf, rgpd.pdf, bcp.pdf.
+                Pour le Bloc 1 (note d&apos;instruction), déposer le pitch deck PDF avec le business plan optionnel. Pour le Bloc 2 (data room), ajouter le grand livre comptable, le pacte d&apos;actionnaires, les statuts, les contrats clients principaux, le cap table et le dossier technique transmis par la startup. Les moteurs Bloc 2 ne tournent que si les documents correspondants sont fournis. Voir ci-dessous la convention de nommage attendue pour la classification automatique.
               </p>
 
               {files.length === 0 ? (
-                <div className={`upload-box ${dragging ? 'dragging' : ''}`}
-                  onClick={() => inputRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragging(false); handleFilesSelect(e.dataTransfer.files); }}>
-                  <div className="upload-icon" aria-hidden="true">
-                    <Picto name="upload" size={36} strokeWidth={1.5} />
+                <>
+                  <div className={`upload-box ${dragging ? 'dragging' : ''}`}
+                    onClick={() => inputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(e) => { e.preventDefault(); setDragging(false); handleFilesSelect(e.dataTransfer.files); }}>
+                    <div className="upload-icon" aria-hidden="true">
+                      <Picto name="upload" size={36} strokeWidth={1.5} />
+                    </div>
+                    <div className="upload-label">Déposer un dossier d&apos;investissement</div>
+                    <div className="upload-hint">PDF (deck), XLSX/CSV (BP), 32 Mo max par fichier &middot; Cliquer ou glisser-déposer &middot; Plusieurs fichiers acceptés</div>
+                    <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                      className="upload-input"
+                      onChange={(e) => handleFilesSelect(e.target.files)} />
                   </div>
-                  <div className="upload-label">Déposer un dossier d&apos;investissement</div>
-                  <div className="upload-hint">PDF (deck), XLSX/CSV (BP), 32 Mo max par fichier · Cliquer ou glisser-déposer · Plusieurs fichiers acceptés</div>
-                  <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
-                    className="upload-input"
-                    onChange={(e) => handleFilesSelect(e.target.files)} />
-                </div>
+
+                  {/* Guide de classification : liste des familles de
+                      documents reconnues automatiquement, avec exemples
+                      de noms de fichiers. La detection se fait sur le
+                      nom au moment de l upload (cf. classifyFileClient).
+                      Les fichiers non reconnus partent dans others et
+                      ne declenchent pas de moteur Bloc 2. */}
+                  <div className="upload-guide">
+                    <div className="upload-guide-title">Documents reconnus automatiquement par leur nom</div>
+                    <div className="upload-guide-grid">
+                      <div className="upload-guide-block">
+                        <div className="upload-guide-block-tag">Bloc 1 (Note)</div>
+                        <div className="upload-guide-row"><strong>Pitch Deck</strong> <span>pitch_deck.pdf, deck.pdf, teaser.pdf, investor_deck.pdf</span></div>
+                        <div className="upload-guide-row"><strong>Business Plan</strong> <span>business_plan.xlsx, bp_2026.xlsx, financial_model.xlsx, forecast.csv</span></div>
+                      </div>
+                      <div className="upload-guide-block">
+                        <div className="upload-guide-block-tag">Bloc 2 (Data Room)</div>
+                        <div className="upload-guide-row"><strong>Grand livre</strong> <span>grand_livre.xlsx, FEC_2025.xlsx, ecritures_comptables.csv, balance_generale.xlsx</span></div>
+                        <div className="upload-guide-row"><strong>Pacte d&apos;actionnaires</strong> <span>pacte.pdf, shareholders_agreement.pdf, sha.pdf, investment_agreement.pdf</span></div>
+                        <div className="upload-guide-row"><strong>Statuts</strong> <span>statuts.pdf, articles_of_association.pdf, aoa.pdf, bylaws.pdf</span></div>
+                        <div className="upload-guide-row"><strong>Cap table</strong> <span>cap_table.xlsx, captable.xlsx, capitalisation.xlsx, actionnariat.xlsx</span></div>
+                        <div className="upload-guide-row"><strong>Contrats clients</strong> <span>contrat_client_X.pdf, msa_acmecorp.pdf, sla_acmecorp.pdf, master_services_agreement.pdf</span></div>
+                        <div className="upload-guide-row"><strong>Dossier technique</strong> <span>architecture.pdf, security_policy.pdf, bcp.pdf, rgpd.pdf, gdpr_register.pdf, iso27001.pdf, soc2.pdf, dossier_technique.pdf, ip_schedule.pdf, disaster_recovery.pdf</span></div>
+                      </div>
+                    </div>
+                    <div className="upload-guide-footer">
+                      Les moteurs du Bloc 2 ne tournent que si les documents correspondants sont fournis. Un fichier non reconnu par son nom est ajouté dans &laquo; autres &raquo; et n&apos;active aucun moteur. Pour le Module 3 DD technique, plusieurs documents techniques peuvent être déposés (architecture + sécurité + RGPD séparés), ils seront tous lus en un seul appel.
+                    </div>
+                  </div>
+                </>
               ) : (
                 <>
                   <div style={{ marginBottom: 16 }}>
                     {files.map((f, i) => {
-                      const lower = f.name.toLowerCase();
-                      const isPdf = f.type.includes('pdf') || lower.endsWith('.pdf');
-                      const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv');
-                      const nature = lower.includes('business plan') || lower.includes('bp ') || lower.includes('financial') || isExcel
-                        ? 'Business Plan'
-                        : (lower.includes('pitch') || lower.includes('deck') || lower.includes('teaser') || isPdf ? 'Pitch Deck' : 'Document');
+                      const family = classifyFileClient(f);
+                      const label = FAMILY_LABELS[family];
+                      const isUnknown = family === 'unknown';
                       return (
                         <div key={i} className="file-info" style={{ marginBottom: 8 }}>
                           <div>
                             <div className="file-name">{f.name}</div>
-                            <div className="file-size">{(f.size / 1024 / 1024).toFixed(2)} Mo · <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 10, opacity: 0.7 }}>{nature}</span></div>
+                            <div className="file-size">
+                              {(f.size / 1024 / 1024).toFixed(2)} Mo &middot;{' '}
+                              <span style={{
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                fontSize: 10,
+                                opacity: isUnknown ? 0.6 : 0.9,
+                                color: isUnknown ? 'var(--ocre-brule, #b47832)' : 'inherit',
+                                fontWeight: isUnknown ? 600 : 400,
+                              }}>
+                                {label}
+                              </span>
+                              {isUnknown && (
+                                <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.7, fontStyle: 'italic' }}>
+                                  &middot; renommer pour activer un moteur Bloc 2
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <button className="btn" onClick={() => removeFile(i)}>Retirer</button>
                         </div>
