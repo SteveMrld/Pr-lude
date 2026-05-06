@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const searchParams = useSearchParams();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -15,12 +17,30 @@ export default function LoginPage() {
     setErrorMsg('');
     try {
       const supabase = getSupabaseBrowserClient();
+
+      // Propagation du parametre next : si l user a ete redirige vers
+      // /login?next=/history par le middleware, on doit transmettre cette
+      // route au callback pour qu il y revienne apres l echange du code
+      // contre une session. Sans cela, l user perd son contexte initial
+      // et atterrit sur la home.
+      //
+      // On valide que next commence par / et ne contient pas de redirec-
+      // tion externe (open redirect protection).
+      const rawNext = searchParams.get('next');
+      const safeNext = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//')
+        ? rawNext
+        : null;
+      const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+      if (safeNext) {
+        callbackUrl.searchParams.set('next', safeNext);
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
           // Apres clic sur le lien, l user atterrit sur /auth/callback
           // qui completera l echange du code contre une session.
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: callbackUrl.toString(),
         },
       });
       if (error) throw error;

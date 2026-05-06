@@ -3,17 +3,31 @@
 // code contre une session (cookies poses), puis on redirige.
 //
 // Si l user n a pas encore d organisation, on l envoie sur /onboarding.
-// Sinon sur la home (analyse).
+// Sinon sur la route initialement demandee (parametre next propage par
+// le middleware via /login?next=/history) ou la home par defaut.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServerClient, getSupabaseAdminClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Validation defensive du parametre next pour eviter les open redirects.
+ * Doit commencer par / et ne pas etre un schema-relative URL (//evil.com)
+ * ou un protocole externe (http://). Sinon on tombe sur '/'.
+ */
+function safeRedirectPath(next: string | null): string {
+  if (!next) return '/';
+  if (!next.startsWith('/')) return '/';
+  if (next.startsWith('//')) return '/';
+  if (next.includes('://')) return '/';
+  return next;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') || '/';
+  const next = safeRedirectPath(searchParams.get('next'));
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`);
