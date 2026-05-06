@@ -478,6 +478,44 @@ export default function SettingsClient({
       </section>
 
       <section className="src-group" style={{ marginTop: 12 }}>
+        <h2 className="src-group-title">These du fonds</h2>
+        <p className="src-group-subtitle">
+          Configurez les criteres d investissement de votre fonds : secteurs cibles, zones
+          geographiques, gamme de tickets, stades investis. Ces parametres alimentent le moteur
+          de pre-scan qui evalue en quelques secondes si un dossier entrant correspond a votre
+          perimetre, avant de lancer le pipeline complet.
+        </p>
+        <Link
+          href="/settings/fonds"
+          style={{
+            display: 'block',
+            padding: '18px 22px',
+            background: 'var(--surface)',
+            border: '1px solid var(--hairline)',
+            textDecoration: 'none',
+            color: 'inherit',
+            transition: 'border-color 0.15s',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, marginBottom: 4 }}>
+                Profil fonds et these d investissement
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
+                Secteurs cibles et exclus, zones geographiques, gamme de tickets, stades investis,
+                notes libres. Permet au pre-scan d ecarter automatiquement les dossiers hors these
+                et d economiser environ deux dollars de credits LLM par dossier ecarte.
+              </div>
+            </div>
+            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+              Configurer &rarr;
+            </span>
+          </div>
+        </Link>
+      </section>
+
+      <section className="src-group" style={{ marginTop: 12 }}>
         <h2 className="src-group-title">Intégrations</h2>
         <p className="src-group-subtitle">
           Connectez Prélude aux outils de votre fonds pour porter les analyses dans les rituels

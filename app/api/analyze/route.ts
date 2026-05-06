@@ -58,6 +58,48 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
     }
 
+    // ============================================================
+    // RECUPERATION DU PROFIL FONDS
+    // ------------------------------------------------------------
+    // Si l auth est activee et que l utilisateur a une organisation,
+    // on charge le profil fonds (these d investissement). Le pre-scan
+    // l utilisera pour evaluer le sector_fit, geography_fit, ticket_fit
+    // et stage_fit du dossier.
+    //
+    // Si pas d auth, ou pas d org, ou pas de profil configure, le
+    // pre-scan tourne avec les 6 tests universels uniquement.
+    // ============================================================
+    let fundProfileForPreScan: any = null;
+    try {
+      const { isAuthEnabled, getAuthenticatedContext } = await import('@/lib/auth');
+      if (isAuthEnabled()) {
+        const ctx = await getAuthenticatedContext();
+        if (ctx) {
+          const { getSupabaseAdminClient } = await import('@/lib/supabase/server');
+          const admin = getSupabaseAdminClient();
+          const { data } = await admin
+            .from('fund_profiles')
+            .select('*')
+            .eq('organization_id', ctx.org.id)
+            .maybeSingle();
+          if (data) {
+            fundProfileForPreScan = {
+              sectorsFocus: data.sectors_focus || [],
+              sectorsExcluded: data.sectors_excluded || [],
+              geographiesFocus: data.geographies_focus || [],
+              geographiesExcluded: data.geographies_excluded || [],
+              ticketMinEur: data.ticket_min_eur,
+              ticketMaxEur: data.ticket_max_eur,
+              stagesFocus: data.stages_focus || [],
+              notes: data.notes,
+            };
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('[fund-profile] failed to load, continuing without:', err?.message);
+    }
+
     const startTime = Date.now();
     const allFileNames = [
       pitchDeck.name,
@@ -148,10 +190,12 @@ export async function POST(req: NextRequest) {
           // entrants sur un fonds early stage) sans frustrer le partner
           // qui veut quand meme regarder un dossier pres-ecarte.
           // ============================================================
-          sendStart('prescan', 'Pre-scan : triage rapide six tests eliminatoires');
+          sendStart('prescan', fundProfileForPreScan
+            ? 'Pre-scan : triage rapide dix tests (six universels + quatre fit these)'
+            : 'Pre-scan : triage rapide six tests eliminatoires');
           let preScan: any = null;
           try {
-            preScan = await runPreScan(pitchDeck.payload);
+            preScan = await runPreScan(pitchDeck.payload, fundProfileForPreScan || undefined);
           } catch (err: any) {
             console.warn('[prescan] engine failed, continuing without:', err?.message);
           }
