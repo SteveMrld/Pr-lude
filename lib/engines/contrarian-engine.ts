@@ -1,4 +1,5 @@
 import { callClaude, parseJSON } from './anthropic-client';
+import { buildVerifiedComparablesBlock } from '../data/verified-comparables';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, ContrarianAnalysisOutput
@@ -76,18 +77,11 @@ Tu dis explicitement dans la recommandationContrarienne : "Aucun comparable cont
 
 # RÈGLE SUR LES CHIFFRES HISTORIQUES
 
-Si tu cites un comparable avec des chiffres précis (seed amount, valuation, multiple), tu dois être absolument certain de ces chiffres. En cas de doute, préférer "environ Xm$" ou ne pas citer le chiffre du tout. Mieux vaut imprécis que faux. Les chiffres faux dans une note d'instruction détruisent la crédibilité de l'analyse plus vite qu'une absence de chiffre.
+Si tu cites un comparable avec des chiffres précis (seed amount, valuation, multiple, IPO date), ce chiffre DOIT venir de la base de chiffres vérifiés injectée plus bas dans ce prompt (section "BASE DE CHIFFRES VERIFIES DES COMPARABLES"). Pour tout chiffre absent de cette base, tu OMETS plutôt que d'inventer.
 
-Vérifié et fiable :
-- Airbnb : Y Combinator W2009, seed ~600k$, IPO 2020 ~100Md$
-- SpaceX : fondé 2002, levées ~250M$ avant 2008 réussite Falcon 1, valuation 2024 ~210Md$
-- Stripe : YC S2010, seed ~2M$ a16z, valuation 2024 ~65Md$
-- Tesla : fondé 2003, IPO 2010 à ~17$/share, peak market cap 2021 ~1Tn$
-- Figma : fondé 2012, seed ~4M$, acquisition Adobe annulée fin 2023, valuation indépendante 2024 ~12,5Md$
-- Anthropic : fondé 2021, valuation 2024 ~60Md$
-- OpenAI : fondé 2015 (non-profit), valuation 2024 ~157Md$
+Mieux vaut imprécis que faux. Les chiffres faux dans une note d'instruction détruisent la crédibilité de l'analyse plus vite qu'une absence de chiffre, surtout si la note arrive sur le bureau d'un fonds qui a co-investi dans le comparable cité (Sequoia pour Airbnb, a16z pour Stripe, Index/Greylock pour Figma : ces partners savent les vrais chiffres parce qu'ils étaient dans le deal).
 
-NE JAMAIS inventer un seed ou une valuation. Si pas certain, omettre.
+NE JAMAIS inventer un seed, une Series A/B/C, une valuation, ou un multiple. Si pas dans la base, omettre le chiffre et garder seulement la trajectoire qualitative.
 
 # RÈGLE DE STYLE ÉDITORIAL
 
@@ -201,7 +195,9 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 # RÉSUMÉ BRUT DOSSIER
 ${extraction?.rawSummary ?? '?'}
 
-Détecte les 10 signaux de singularité contrarienne. Pour chaque signal, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Calcule le score global contrarien. Identifie les comparables historiques pertinents (Airbnb, Tesla, Stripe, etc.). Articule la recommandation contrarienne (ou son absence).
+${buildVerifiedComparablesBlock()}
+
+Détecte les 10 signaux de singularité contrarienne. Pour chaque signal, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Calcule le score global contrarien. Identifie les comparables historiques pertinents en respectant la regle d asset class match ET la regle de chiffres verifies. Articule la recommandation contrarienne (ou son absence).
 
 Retourne uniquement le JSON structuré.`;
 

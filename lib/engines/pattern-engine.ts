@@ -10,6 +10,7 @@ import {
   NOTABLE_EUROPEAN_ROUNDS_2025,
   EUROPEAN_DEEPTECH_2025,
 } from '../benchmarks';
+import { buildVerifiedComparablesBlock } from '../data/verified-comparables';
 import type { ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput, MacroAnalysisOutput, PatternMatchingOutput } from './types';
 
 // Calcul algorithmique de proximité structurelle entre dossier et cas du corpus
@@ -250,18 +251,13 @@ selon ces regles strictes :
 
 # RÈGLE SUR LES CHIFFRES HISTORIQUES
 
-Si tu cites un comparable avec des chiffres précis (seed amount, valuation, multiple), tu dois être absolument certain de ces chiffres. En cas de doute, préférer "environ Xm$" ou ne pas citer le chiffre du tout. Mieux vaut imprécis que faux. Les chiffres faux dans une note d'instruction détruisent la crédibilité plus vite qu'une absence de chiffre.
+Si tu cites un comparable avec des chiffres précis (seed amount, valuation, multiple, IPO date), ce chiffre DOIT venir de la base de chiffres vérifiés injectée plus bas dans le user prompt (section "BASE DE CHIFFRES VERIFIES DES COMPARABLES"). Pour tout chiffre absent de cette base, tu OMETS plutôt que d'inventer.
 
-Vérifié et fiable :
-- Airbnb : YC W2009, seed environ 600k$, IPO 2020 environ 100Md$
-- SpaceX : fondé 2002, valuation 2024 environ 210Md$
-- Stripe : YC S2010, seed environ 2M$ a16z, valuation 2024 environ 65Md$
-- Tesla : fondé 2003, IPO 2010, peak market cap 2021 environ 1Tn$
-- Figma : fondé 2012, seed environ 4M$, acquisition Adobe annulée fin 2023, valuation 2024 environ 12,5Md$
-- Anthropic : fondé 2021, valuation 2024 environ 60Md$
-- OpenAI : fondé 2015, valuation 2024 environ 157Md$
+Mieux vaut imprécis que faux. Les chiffres faux dans une note d'instruction détruisent la crédibilité de l'analyse plus vite qu'une absence de chiffre, surtout si la note arrive sur le bureau d'un fonds qui a co-investi dans le comparable cité (Sequoia pour Airbnb, a16z pour Stripe, Index/Greylock pour Figma : ces partners savent les vrais chiffres parce qu'ils étaient dans le deal).
 
-NE JAMAIS inventer un seed ou une valuation. Si pas certain, omettre le chiffre et garder seulement la trajectoire qualitative.`;
+Pour les comparables ABSENTS de la base, tu peux mentionner le nom et le contexte qualitatif (année fondation si certaine, secteur), mais AUCUN chiffre précis (ni seed, ni Series, ni valuation, ni multiple). Tu peux dire "early stage seed", "scale-up", "succès IPO", "rachat", sans chiffrer.
+
+NE JAMAIS inventer un seed, une Series A/B/C, une valuation, ou un multiple. Toute violation = faute critique à corriger.`;
 
 // ============================================================
 // SELECTION INTELLIGENTE DU CORPUS ETENDU
@@ -532,7 +528,10 @@ ${JSON.stringify({
 ${top8.map(s => `- ${s.case.id} (${s.case.name}, ${s.case.yearOfRefusal}, ${s.case.country}) · proximité algorithmique ${s.proximity}% · archétype ${s.case.archetype} · patterns ${s.case.comparablePatterns.join(', ')} · score rétrospectif ${s.case.retrospectiveScore}`).join('\n')}
 ${europeanComparablesBlock}
 ${extendedCorpusBlock}
-Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Retourne uniquement le JSON structuré.`;
+
+${buildVerifiedComparablesBlock()}
+
+Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour chaque comparable cité avec des chiffres précis, ces chiffres doivent venir de la base de chiffres vérifiés ci-dessus. Retourne uniquement le JSON structuré.`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
   return parseJSON<PatternMatchingOutput>(rawResponse);
