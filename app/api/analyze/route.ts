@@ -99,6 +99,22 @@ export async function POST(req: NextRequest) {
           send('engine-done', { engine, output, durationMs });
         }
 
+        // Heartbeat SSE : envoie un commentaire SSE vide ":\n\n"
+        // toutes les 15 secondes pour maintenir la connexion vivante.
+        // Sans ce ping, les proxys (Vercel edge, Cloudflare, navigateur
+        // mobile en arriere-plan) peuvent couper une connexion qui n a
+        // pas envoye de donnees pendant 30-60s, ce qui produit le
+        // "network error" client alors que le serveur tourne encore.
+        // Particulierement critique sur les moteurs longs (orchestrate,
+        // contrarian, blindspot) qui peuvent prendre 60-120s chacun.
+        const heartbeatInterval = setInterval(() => {
+          try {
+            controller.enqueue(encoder.encode(': heartbeat\n\n'));
+          } catch (err) {
+            // Connection closed, on arrete le heartbeat
+          }
+        }, 15000);
+
         try {
           send('files-received', {
             pitchDeck: pitchDeck.name,
@@ -224,12 +240,58 @@ export async function POST(req: NextRequest) {
 
           // ============================================================
           // VAGUE 5 : ORCHESTRATION FINALE
+          // Moteur le plus critique du pipeline : il produit le verdict
+          // et la synthese. Wrap dans un retry (max 2 retries avec backoff
+          // exponential) pour absorber les 529 / timeouts transitoires
+          // d Anthropic. Si tous les retries echouent, on continue avec
+          // un finalRecommendation minimal (verdict "Approfondir" prudent
+          // par defaut + alerte "synthese degradee") plutot que de
+          // planter tout le pipeline et perdre les 13 moteurs Bloc 1.
           // ============================================================
           sendStart('orchestrate', 'Synthese finale');
-          const finalRecommendation = await orchestrateFinalRecommendation(
-            extraction, team, market, macro, patternMatching, causalReversal,
-            blindspotAnalysis, contrarianAnalysis
-          );
+          let finalRecommendation: any = null;
+          {
+            const maxRetries = 2;
+            let lastError: any = null;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+              try {
+                finalRecommendation = await orchestrateFinalRecommendation(
+                  extraction, team, market, macro, patternMatching, causalReversal,
+                  blindspotAnalysis, contrarianAnalysis
+                );
+                lastError = null;
+                break;
+              } catch (err: any) {
+                lastError = err;
+                console.warn(`[orchestrate] attempt ${attempt + 1}/${maxRetries + 1} failed:`, err?.message);
+                if (attempt < maxRetries) {
+                  // Backoff : 2s puis 5s
+                  const backoffMs = attempt === 0 ? 2000 : 5000;
+                  await new Promise(resolve => setTimeout(resolve, backoffMs));
+                }
+              }
+            }
+            if (!finalRecommendation) {
+              // Fallback minimal : on construit une recommandation degradee
+              // pour ne pas perdre le pipeline. Le partner verra qu il y a
+              // eu un probleme et pourra relancer juste cette partie
+              // ulterieurement (ou contacter le support).
+              console.error('[orchestrate] all retries failed, using degraded fallback:', lastError?.message);
+              finalRecommendation = {
+                verdict: 'A reinstruire',
+                successProbability: null,
+                failureProbability: null,
+                globalScore: null,
+                argumentation: 'La synthese finale n a pas pu etre produite (echec du moteur d orchestration apres ' + (maxRetries + 1) + ' tentatives). Les 13 moteurs Bloc 1 precedents ont neanmoins tourne et leurs resultats sont consultables dans le dashboard. Pour obtenir un verdict complet, relancer l analyse sur ce dossier (la plupart des echecs sont transitoires : 529 Anthropic, timeout reseau, surcharge LLM).',
+                keyConditions: [],
+                blindspotsVsContrarian: null,
+                computedScoreBreakdown: null,
+                investmentThreshold: null,
+                degraded: true,
+                degradedReason: lastError?.message || 'orchestrator failed after retries',
+              };
+            }
+          }
           sendDone('orchestrate', finalRecommendation);
 
           // ============================================================
@@ -364,8 +426,12 @@ export async function POST(req: NextRequest) {
           send('complete', result);
         } catch (error: any) {
           console.error('Erreur pipeline:', error);
-          send('error', { message: error.message || 'Erreur pipeline' });
+          send('error', {
+            message: error.message || 'Erreur pipeline',
+            stack: error.stack ? String(error.stack).slice(0, 500) : undefined,
+          });
         } finally {
+          clearInterval(heartbeatInterval);
           controller.close();
         }
       },

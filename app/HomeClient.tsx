@@ -802,7 +802,28 @@ export default function HomeClient({
         throw new Error('Le pipeline s\'est interrompu avant la fin (probable timeout serveur). Recharge la page et réessaie. Si le problème persiste, le pipeline prend trop de temps et il faut réduire la charge.');
       }
     } catch (e: any) {
-      setError(e.message || 'Erreur reseau');
+      // Enrichissement du message d erreur : on ajoute le contexte du
+      // dernier moteur en running au moment de l erreur, ce qui permet
+      // au partner de comprendre OU le pipeline a plante (orchestrate ?
+      // contrarian ? execution-friction ?). Une simple "network error"
+      // n est pas exploitable, alors qu un "le moteur orchestrate a
+      // plante apres 87s" oriente le diagnostic.
+      const states = engineStates;
+      const runningEngine = ENGINES.find(e => states[e.id]?.status === 'running');
+      const lastDoneEngine = [...ENGINES].reverse().find(e => states[e.id]?.status === 'done');
+      let contextSuffix = '';
+      if (runningEngine) {
+        contextSuffix = `\n\nDernier moteur actif : ${runningEngine.label} (${runningEngine.id}). Il etait en cours d execution au moment de la coupure.`;
+      } else if (lastDoneEngine) {
+        contextSuffix = `\n\nDernier moteur termine avec succes : ${lastDoneEngine.label} (${lastDoneEngine.id}).`;
+      }
+      const baseMsg = e.message || 'Erreur reseau';
+      const enrichedMsg = baseMsg.includes('network')
+        || baseMsg.includes('Network')
+        || baseMsg.toLowerCase().includes('failed to fetch')
+        ? `Connexion interrompue avec le serveur Prelude. Causes possibles : timeout reseau (mobile en arriere-plan), surcharge LLM Anthropic (529), proxy intermediaire. Solution : recharger la page et relancer. Le pipeline reprendra a zero.${contextSuffix}`
+        : baseMsg + contextSuffix;
+      setError(enrichedMsg);
     } finally {
       setAnalyzing(false);
       // Release Wake Lock
