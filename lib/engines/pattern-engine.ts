@@ -249,15 +249,19 @@ selon ces regles strictes :
   - Si tu cites un comparable dont tu n es pas sur du statut actuel,
     omet currentStatus et cautionLevel plutot que de les inventer.
 
-# RÈGLE SUR LES CHIFFRES HISTORIQUES
+# RÈGLE SUR LES CHIFFRES HISTORIQUES (DISCIPLINE ABSOLUE)
 
-Si tu cites un comparable avec des chiffres précis (seed amount, valuation, multiple, IPO date), ce chiffre DOIT venir de la base de chiffres vérifiés injectée plus bas dans le user prompt (section "BASE DE CHIFFRES VERIFIES DES COMPARABLES"). Pour tout chiffre absent de cette base, tu OMETS plutôt que d'inventer.
+Si tu cites un comparable avec des chiffres précis (seed amount, valuation, multiple, IPO date, nom d'investisseur, montant de tour, date de tour, premier chèque, Series A/B/C, ARR, market cap, exit multiple), ce chiffre DOIT venir de la base de chiffres vérifiés injectée plus bas dans le user prompt (section "BASE DE CHIFFRES VERIFIES DES COMPARABLES"). Pour tout chiffre absent de cette base, tu OMETS plutôt que d'inventer.
+
+CETTE RÈGLE COUVRE TOUS LES CHIFFRES, MÊME SECONDAIRES :
+- Pas seulement les valuations principales mais aussi : nom des fonds qui ont mené chaque tour, montants exacts, dates précises, premiers chèques, secondary sales, tenders.
+- Exemple : si la base mentionne "Saildrone Series C 2021 100M$ BOND lead" sans préciser la Series A, tu NE peux PAS écrire "Series A 2016 14M$ Social Capital". Tu écris juste "Saildrone, fondée en 2012, valorisation ~1Md$ en 2024".
 
 Mieux vaut imprécis que faux. Les chiffres faux dans une note d'instruction détruisent la crédibilité de l'analyse plus vite qu'une absence de chiffre, surtout si la note arrive sur le bureau d'un fonds qui a co-investi dans le comparable cité (Sequoia pour Airbnb, a16z pour Stripe, Index/Greylock pour Figma : ces partners savent les vrais chiffres parce qu'ils étaient dans le deal).
 
 Pour les comparables ABSENTS de la base, tu peux mentionner le nom et le contexte qualitatif (année fondation si certaine, secteur), mais AUCUN chiffre précis (ni seed, ni Series, ni valuation, ni multiple). Tu peux dire "early stage seed", "scale-up", "succès IPO", "rachat", sans chiffrer.
 
-NE JAMAIS inventer un seed, une Series A/B/C, une valuation, ou un multiple. Toute violation = faute critique à corriger.`;
+NE JAMAIS inventer un seed, une Series A/B/C, une valuation, un nom d'investisseur, ou un multiple. Toute violation = faute critique à corriger.`;
 
 // ============================================================
 // SELECTION INTELLIGENTE DU CORPUS ETENDU

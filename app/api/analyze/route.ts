@@ -12,21 +12,19 @@ import { analyzeFinancialCoherence } from '@/lib/engines/financial-coherence-eng
 import { analyzeBenchmarks } from '@/lib/engines/benchmark-engine';
 import { analyzeTechClaimCoherence } from '@/lib/engines/tech-claim-coherence-engine';
 import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engine';
-import { analyzeDDFinancial } from '@/lib/engines/dd-financial-engine';
-import { analyzeDDContractual } from '@/lib/engines/dd-contractual-engine';
-import { analyzeDDTechnical } from '@/lib/engines/dd-technical-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
-import { parseLedger } from '@/lib/ledger-parser';
-import { parseCapTable } from '@/lib/cap-table-parser';
 import { processFiles } from '@/lib/file-processor';
 
 // Vercel Pro permet jusqu a 800s par function (13 min). Avec 12+ moteurs
 // Claude dont certains prennent 60s+ chacun, on a besoin de cette marge
-// pour les dossiers complexes qui mobilisent toute la machinerie. Mesure
-// logs prod : pipeline complet 210-300s en fonction de la latence
-// Anthropic du moment, parfois plus avec les modules Data Room.
+// pour les dossiers complexes qui mobilisent toute la machinerie.
+// NOTE : depuis le fix Bloc1/Bloc2, /api/analyze ne fait QUE le Bloc 1
+// (instruction / screening). Les moteurs Bloc 2 (Data Room) tournent
+// uniquement via /api/analyses/[id]/dd-deepen quand le VC declenche
+// explicitement la DD approfondie apres avoir lu le verdict Bloc 1.
+// Mesure logs prod : Bloc 1 seul tourne en 90-180s.
 export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 
@@ -181,86 +179,25 @@ export async function POST(req: NextRequest) {
           sendDone('execution-friction', executionFriction);
 
           // ============================================================
-          // BLOC 2 DATA ROOM : MODULE 1 DD FINANCIERE
-          // Etape 1 : parsing deterministe du grand livre comptable.
-          // Etape 2 : moteur de reconciliation BP vs realite (7 tests +
-          // synthese LLM Sonnet). Ne tournent que si BP + grand livre
-          // presents, sinon not_applicable.
+          // FIN DU BLOC 1 (INSTRUCTION / SCREENING)
+          // ------------------------------------------------------------
+          // Les moteurs Bloc 2 (Data Room : ledger-parsing, dd-financial,
+          // cap-table-parsing, dd-contractual, dd-technical) ne tournent
+          // PAS ici. Ils s executent uniquement via la route dediee
+          // /api/analyses/[id]/dd-deepen lorsque le VC decide d ouvrir
+          // la DD approfondie apres avoir lu le verdict Bloc 1.
+          //
+          // Cette separation respecte le workflow VC standard :
+          //   1. Screening sur pitch + BP (Bloc 1) -> verdict
+          //   2. Decision : approfondir / refuser
+          //   3. Si on approfondit, demande des pieces data room a la
+          //      startup (grand livre, pacte, statuts, cap table, etc.)
+          //   4. Run Bloc 2 sur ces pieces (route /dd-deepen)
+          //
+          // Resultat : le pipeline Bloc 1 est plus rapide (90-180s vs
+          // 210-300s precedemment) et les moteurs Bloc 2 ne sont plus
+          // marques "valides a 0s" quand les fichiers manquent.
           // ============================================================
-          sendStart('ledger-parsing', 'Parsing grand livre comptable');
-          let ledgerExtraction: any = null;
-          try {
-            if (generalLedger) {
-              ledgerExtraction = parseLedger(generalLedger.payload);
-            }
-          } catch (err: any) {
-            console.warn('[ledger-parsing] failed:', err?.message);
-          }
-          sendDone('ledger-parsing', ledgerExtraction);
-
-          sendStart('dd-financial', 'DD financiere : reconciliation BP vs realite');
-          let ddFinancial: any = null;
-          try {
-            ddFinancial = await analyzeDDFinancial(extraction, financialData ?? null, ledgerExtraction);
-          } catch (err: any) {
-            console.warn('[dd-financial] engine failed, continuing without:', err?.message);
-          }
-          sendDone('dd-financial', ddFinancial);
-
-          // ============================================================
-          // BLOC 2 DATA ROOM : MODULE 2 DD CONTRACTUELLE
-          // Etape 1 : parsing deterministe du cap table.
-          // Etape 2 : cartographie LLM des clauses sensibles (pacte,
-          // statuts, contrats clients).
-          // ============================================================
-          sendStart('cap-table-parsing', 'Parsing cap table');
-          let capTableExtraction: any = null;
-          try {
-            if (capTable && (capTable.type === 'excel' || capTable.type === 'csv' || capTable.type === 'pdf')) {
-              capTableExtraction = parseCapTable(capTable.payload, capTable.type);
-            }
-          } catch (err: any) {
-            console.warn('[cap-table-parsing] failed:', err?.message);
-          }
-          sendDone('cap-table-parsing', capTableExtraction);
-
-          sendStart('dd-contractual', 'DD contractuelle : cartographie clauses sensibles');
-          let ddContractual: any = null;
-          try {
-            if (shareholdersAgreement || statutes) {
-              ddContractual = await analyzeDDContractual(extraction, {
-                shareholdersAgreementPdf: shareholdersAgreement?.payload || null,
-                shareholdersAgreementName: shareholdersAgreement?.name || null,
-                statutesPdf: statutes?.payload || null,
-                statutesName: statutes?.name || null,
-                capTableExtraction,
-                clientContracts: clientContracts.map(c => ({ name: c.name, pdfBase64: c.payload })),
-              });
-            }
-          } catch (err: any) {
-            console.warn('[dd-contractual] engine failed, continuing without:', err?.message);
-          }
-          sendDone('dd-contractual', ddContractual);
-
-          // ============================================================
-          // BLOC 2 DATA ROOM : MODULE 3 DD TECHNIQUE
-          // Lecture du dossier technique fourni par la startup
-          // (architecture overview, security policy, BCP, RGPD register,
-          // fiche IP, certifications). Dix tests structures alignes sur
-          // les sections 4/6/7/8 de la GCV Investor DD Checklist, avec
-          // citation mot pour mot facon ddc. Ne tourne que si au moins
-          // un document technique a ete fourni.
-          // ============================================================
-          sendStart('dd-technical', 'DD technique : audit du dossier technique fourni');
-          let ddTechnical: any = null;
-          try {
-            ddTechnical = await analyzeDDTechnical(extraction, {
-              techDocs: technicalDocs.map(t => ({ name: t.name, pdfBase64: t.payload })),
-            });
-          } catch (err: any) {
-            console.warn('[dd-technical] engine failed, continuing without:', err?.message);
-          }
-          sendDone('dd-technical', ddTechnical);
 
           // ============================================================
           // VAGUE 3 : PATTERN MATCHING
@@ -391,21 +328,24 @@ export async function POST(req: NextRequest) {
             financialCoherence,
             techClaimCoherence,
             executionFriction,
-            ledgerExtraction,
-            ddFinancial,
-            capTableExtraction,
-            ddContractual,
-            ddTechnical,
-            // Metadonnees des documents techniques uploades, sans
-            // payloads bruts : on n expose que les noms et le compte
-            // pour ne pas persister les fichiers source dans result_json.
+            // Bloc 2 (Data Room) : volontairement non execute ici. Sera
+            // peuple par /api/analyses/[id]/dd-deepen quand le VC declenche
+            // la DD approfondie. Les champs ledgerExtraction, ddFinancial,
+            // capTableExtraction, ddContractual, ddTechnical seront merges
+            // dans le resultJson lors de cet appel.
+            ledgerExtraction: null,
+            ddFinancial: null,
+            capTableExtraction: null,
+            ddContractual: null,
+            ddTechnical: null,
+            // Metadonnees des documents techniques uploades. Au Bloc 1
+            // (run /api/analyze), on capture seulement les noms : les
+            // contenus seront lus au Bloc 2 si les fichiers sont uploades
+            // a nouveau via /dd-deepen.
             technicalDocsMeta: {
               count: technicalDocs.length,
               names: technicalDocs.map(t => t.name),
             },
-            // Metadonnees des documents juridiques uploades, sans payloads
-            // bruts : on n expose que les noms et la presence pour ne pas
-            // persister de documents juridiques sensibles dans result_json.
             legalDocumentsMeta: {
               hasShareholdersAgreement: !!shareholdersAgreement,
               shareholdersAgreementName: shareholdersAgreement?.name || null,

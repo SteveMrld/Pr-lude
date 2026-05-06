@@ -429,20 +429,48 @@ export default function HomeClient({
         if (data?.analysis?.resultJson) {
           setResult(data.analysis.resultJson);
           setSavedAnalysisId(analysisId);
-          // Restaure les etats de moteurs en done. Si la base a stocke
-          // pipeline_engines_status (par moteur), on l utilise. Sinon on
-          // suppose que tous les moteurs ont reussi puisqu un resultJson
-          // existe et qu on a un verdict.
-          // Si le resultJson contient meta.engineDurations (capture par
-          // le pipeline), on injecte aussi les durees pour reaffichage.
+          // Restaure les etats de moteurs.
+          // Pour le Bloc 1 (instruction) : tous done si resultJson existe.
+          // Pour le Bloc 2 (dataroom) : done UNIQUEMENT si l output
+          // correspondant est present dans resultJson (sinon idle).
+          // Critere par moteur Bloc 2 :
+          //   ledger-parsing -> resultJson.ledgerExtraction non null
+          //   dd-financial -> resultJson.ddFinancial non null
+          //   cap-table-parsing -> resultJson.capTableExtraction non null
+          //   dd-contractual -> resultJson.ddContractual non null
+          //   dd-technical -> resultJson.ddTechnical non null
+          // Sans ce filtre, on affichait 5 coches vertes a 0.0s pour des
+          // moteurs qui n avaient jamais tourne.
           const enginesStatus = data.analysis.pipelineEnginesStatus || {};
           const engineDurations = data.analysis.resultJson?.meta?.engineDurations || {};
           const restored: Record<string, EngineState> = {};
+          const rj = data.analysis.resultJson || {};
+          const bloc2OutputKeys: Record<string, string> = {
+            'ledger-parsing': 'ledgerExtraction',
+            'dd-financial': 'ddFinancial',
+            'cap-table-parsing': 'capTableExtraction',
+            'dd-contractual': 'ddContractual',
+            'dd-technical': 'ddTechnical',
+          };
           ENGINES.forEach((e) => {
             const stored = enginesStatus[e.id];
             const duration = typeof engineDurations[e.id] === 'number'
               ? engineDurations[e.id]
               : undefined;
+            // Bloc 2 : verification de la presence reelle de l output
+            if (e.block === 'dataroom') {
+              const outputKey = bloc2OutputKeys[e.id];
+              const hasOutput = outputKey && rj[outputKey] != null;
+              if (stored === 'failed' || stored === 'error') {
+                restored[e.id] = { status: 'error', durationMs: duration };
+              } else if (hasOutput) {
+                restored[e.id] = { status: 'done', durationMs: duration };
+              } else {
+                restored[e.id] = { status: 'idle' };
+              }
+              return;
+            }
+            // Bloc 1 : done si pas explicitement failed
             if (stored && (stored === 'failed' || stored === 'error')) {
               restored[e.id] = { status: 'error', durationMs: duration };
             } else {
@@ -1018,21 +1046,39 @@ export default function HomeClient({
             une fois le pipeline termine pour permettre de cliquer sur
             un moteur et scroller vers la section correspondante du
             dashboard. Inspire du flow Meegle. */}
-        {(analyzing || result) && (
-          <PipelineProgress
-            engines={ENGINES}
-            states={engineStates}
-            analyzing={analyzing}
-            elapsedMs={pipelineStartTime ? Date.now() - pipelineStartTime : undefined}
-            onEngineClick={(engineId) => {
-              // Scroll vers l'ancre du moteur si elle existe dans le dashboard
-              const target = document.getElementById(`engine-section-${engineId}`);
-              if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            }}
-          />
-        )}
+        {(analyzing || result) && (() => {
+          // Filtrage des moteurs affiches : on cache les moteurs Bloc 2
+          // (Data Room) tant que le run /dd-deepen n a pas ete declenche.
+          // Critere : si AUCUN moteur Bloc 2 n est en running ou done, on
+          // les retire de la liste affichee. Des qu un moteur Bloc 2 passe
+          // a running ou done, toute la liste Bloc 2 reapparait.
+          // Evite l effet "5 moteurs Data Room valides a 0.0s" quand ils
+          // n ont pas tourne.
+          const hasBloc2Activity = ENGINES
+            .filter(e => e.block === 'dataroom')
+            .some(e => {
+              const s = engineStates[e.id]?.status;
+              return s === 'running' || s === 'done' || s === 'error';
+            });
+          const visibleEngines = hasBloc2Activity
+            ? ENGINES
+            : ENGINES.filter(e => e.block !== 'dataroom');
+          return (
+            <PipelineProgress
+              engines={visibleEngines}
+              states={engineStates}
+              analyzing={analyzing}
+              elapsedMs={pipelineStartTime ? Date.now() - pipelineStartTime : undefined}
+              onEngineClick={(engineId) => {
+                // Scroll vers l'ancre du moteur si elle existe dans le dashboard
+                const target = document.getElementById(`engine-section-${engineId}`);
+                if (target) {
+                  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+            />
+          );
+        })()}
 
         {!result && !analyzing && (
           <>
@@ -2434,6 +2480,84 @@ export default function HomeClient({
               )}
             </div>
 
+            {/* BANDEAU PASSER EN DD APPROFONDIE (mode dashboard)
+                Equivalent du bandeau present dans InvestmentNoteView mais
+                visible directement dans le dashboard, juste apres le verdict.
+                Sans ce bandeau, le partner qui regarde le dashboard ne voit
+                aucun mecanisme pour passer en Bloc 2 et reste bloque sur
+                le screening sans savoir comment continuer.
+                Conditions d affichage :
+                  - Analyse sauvegardee (savedAnalysisId present)
+                  - Verdict different de "refuser" (pas de DD sur dossier elimine)
+                  - Aucun moteur Bloc 2 deja triggered (sinon les sections
+                    Data Room sont deja visibles plus bas)
+                  - La zone d upload n est pas deja ouverte (sinon doublon) */}
+            {(() => {
+              const verdict = result.finalRecommendation?.verdict;
+              const hasBloc2Output = !!result.ledgerExtraction
+                || !!result.ddFinancial
+                || !!result.capTableExtraction
+                || !!result.ddContractual
+                || !!result.ddTechnical;
+              const canDeepen = !!savedAnalysisId
+                && verdict
+                && verdict !== 'refuser'
+                && !hasBloc2Output
+                && !ddDeepenOpen;
+              if (!canDeepen) return null;
+              return (
+                <div style={{
+                  marginTop: 24,
+                  marginBottom: 32,
+                  padding: '24px 28px',
+                  background: 'linear-gradient(135deg, rgba(192, 138, 63, 0.08) 0%, rgba(192, 138, 63, 0.03) 100%)',
+                  borderLeft: '3px solid #c08a3f',
+                  borderRadius: 2,
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#c08a3f',
+                    fontWeight: 600,
+                    marginBottom: 8,
+                  }}>
+                    Etape suivante
+                  </div>
+                  <div style={{
+                    fontFamily: 'var(--serif)',
+                    fontSize: 22,
+                    fontWeight: 500,
+                    marginBottom: 10,
+                    lineHeight: 1.25,
+                  }}>
+                    Passer en DD approfondie
+                  </div>
+                  <div style={{
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: 'var(--ink-soft)',
+                    marginBottom: 18,
+                    maxWidth: 720,
+                  }}>
+                    L&apos;instruction Bloc 1 conclut a un verdict <strong>{verdict}</strong>. Le passage en DD approfondie active les moteurs Data Room sur les documents transmis par la startup : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira sans recalculer le Bloc 1 deja produit.
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setDdDeepenOpen(true);
+                      setDdDeepenError(null);
+                      if (typeof window !== 'undefined') {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                  >
+                    Ouvrir la zone d&apos;upload Data Room &rarr;
+                  </button>
+                </div>
+              );
+            })()}
+
             {/* Dashboard navigation - sidebar sticky desktop, dropdown mobile.
                 Les 14 dimensions d analyse sont regroupees en 4 sections
                 semantiques pour clarifier la hierarchie de lecture :
@@ -3124,24 +3248,43 @@ export default function HomeClient({
 
               {(activeTab === 'team' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
-                  <div className="kv-grid" style={{ marginBottom: 22 }}>
-                    <div className="kv-item">
-                      <div className="kv-key">Couverture systémique</div>
-                      <div className="kv-val serif">{result.team?.systemicCoverage?.score}/100</div>
-                    </div>
-                    <div className="kv-item">
-                      <div className="kv-key">Anti-fragilité collective</div>
-                      <div className="kv-val serif">{result.team?.collectiveAntiFragility?.score}/100</div>
-                    </div>
-                    <div className="kv-item">
-                      <div className="kv-key">Transposition d'expérience</div>
-                      <div className="kv-val serif">{result.team?.experienceTransposition?.score}/100</div>
-                    </div>
-                    <div className="kv-item">
-                      <div className="kv-key">Obsession produit</div>
-                      <div className="kv-val serif">{result.team?.founderObsession?.score}/100</div>
-                    </div>
-                  </div>
+                  {(() => {
+                    // Helper : affiche le score s il est defini, sinon
+                    // un message lisible "Donnees insuffisantes". Evite
+                    // l affichage "/100" sans chiffre devant qui s est
+                    // produit en prod sur des dossiers ou le moteur Team
+                    // n a pas reussi a extraire les 4 axes (parse JSON
+                    // partiel ou input deck trop pauvre).
+                    const renderTeamScore = (label: string, score: number | undefined | null) => (
+                      <div className="kv-item">
+                        <div className="kv-key">{label}</div>
+                        {typeof score === 'number' ? (
+                          <div className="kv-val serif">{score}/100</div>
+                        ) : (
+                          <div
+                            className="kv-val"
+                            style={{
+                              fontStyle: 'italic',
+                              color: 'var(--ink-tertiary)',
+                              fontSize: 13,
+                              fontFamily: 'inherit',
+                            }}
+                            title="Le moteur Equipe n a pas pu produire ce score. Verifier que le pitch deck contient une section equipe exploitable."
+                          >
+                            Donnees insuffisantes
+                          </div>
+                        )}
+                      </div>
+                    );
+                    return (
+                      <div className="kv-grid" style={{ marginBottom: 22 }}>
+                        {renderTeamScore('Couverture systémique', result.team?.systemicCoverage?.score)}
+                        {renderTeamScore('Anti-fragilité collective', result.team?.collectiveAntiFragility?.score)}
+                        {renderTeamScore('Transposition d\'expérience', result.team?.experienceTransposition?.score)}
+                        {renderTeamScore('Obsession produit', result.team?.founderObsession?.score)}
+                      </div>
+                    );
+                  })()}
 
                   <h3>Couverture systémique de l'équipe</h3>
                   <p>{result.team?.systemicCoverage?.rationale}</p>
@@ -3301,22 +3444,35 @@ export default function HomeClient({
                       <div className="kv-grid" style={{ marginBottom: 14 }}>
                         {(() => {
                           const apl = rd.scoresApplicability;
-                          // Helper : rend le score si applicable, sinon Non applicable
-                          // avec rationale en tooltip natif. Pour un profil business/
-                          // industriel, OpenAlex / GitHub / Wikipedia ne sont pas des
-                          // metriques pertinentes ; afficher 0/100 induit en erreur.
+                          // Critere "donnees insuffisantes" : aucune source ne
+                          // retourne de resultat ET les 4 scores sont a zero.
+                          // Dans ce cas, on n affiche pas 0/100 (qui suggere un
+                          // jugement negatif) mais un libelle neutre. C est la
+                          // distinction entre :
+                          //   - applicable=false : la source n est pas pertinente
+                          //     pour ce profil (ex: OpenAlex pour un commercial)
+                          //   - donnees insuffisantes : la source pourrait etre
+                          //     pertinente mais n a rien retourne (ex: profil
+                          //     trop discret, homonymie non levee, etc.)
+                          const noSourceData = (rd.sourcesFound?.length || 0) === 0;
+                          const allScoresZero = !rd.objectiveScores?.scientific_signature
+                            && !rd.objectiveScores?.technical_signature
+                            && !rd.objectiveScores?.public_presence
+                            && !rd.objectiveScores?.recent_activity;
+                          const insufficientData = noSourceData && allScoresZero;
+
+                          // Helper : rend le score si applicable et sourcable.
                           const renderScore = (
                             label: string,
                             value: number | undefined,
                             applicable: boolean | undefined,
                           ) => {
                             const isApplicable = applicable !== false;
-                            return (
-                              <div className="kv-item">
-                                <div className="kv-key">{label}</div>
-                                {isApplicable ? (
-                                  <div className="kv-val serif">{value || 0}/100</div>
-                                ) : (
+                            // Cas 1 : source non pertinente pour le profil
+                            if (!isApplicable) {
+                              return (
+                                <div className="kv-item">
+                                  <div className="kv-key">{label}</div>
                                   <div
                                     className="kv-val"
                                     style={{
@@ -3329,7 +3485,34 @@ export default function HomeClient({
                                   >
                                     Non applicable
                                   </div>
-                                )}
+                                </div>
+                              );
+                            }
+                            // Cas 2 : applicable mais aucune donnee disponible
+                            if (insufficientData) {
+                              return (
+                                <div className="kv-item">
+                                  <div className="kv-key">{label}</div>
+                                  <div
+                                    className="kv-val"
+                                    style={{
+                                      fontStyle: 'italic',
+                                      color: 'var(--ink-tertiary)',
+                                      fontSize: 13,
+                                      fontFamily: 'inherit',
+                                    }}
+                                    title="Aucune donnee disponible. Les sources interrogees n ont retourne aucun resultat exploitable."
+                                  >
+                                    Donnees insuffisantes
+                                  </div>
+                                </div>
+                              );
+                            }
+                            // Cas 3 : score normal
+                            return (
+                              <div className="kv-item">
+                                <div className="kv-key">{label}</div>
+                                <div className="kv-val serif">{value || 0}/100</div>
                               </div>
                             );
                           };
@@ -3343,6 +3526,36 @@ export default function HomeClient({
                           );
                         })()}
                       </div>
+
+                      {/* Bandeau "donnees insuffisantes" : visible quand
+                          aucune source n a retourne de resultat. Distinct
+                          du bandeau "Calibration des sources" qui parle de
+                          la pertinence. Ici le message est differente :
+                          les sources etaient potentiellement utiles mais
+                          le profil est trop discret pour qu on puisse
+                          conclure quoi que ce soit. Le partner doit faire
+                          ses propres recherches presse / LinkedIn avant
+                          de s appuyer sur cette section. */}
+                      {(rd.sourcesFound?.length || 0) === 0
+                        && !rd.objectiveScores?.scientific_signature
+                        && !rd.objectiveScores?.technical_signature
+                        && !rd.objectiveScores?.public_presence
+                        && !rd.objectiveScores?.recent_activity && (
+                        <div style={{
+                          marginTop: -4,
+                          marginBottom: 14,
+                          padding: '10px 14px',
+                          background: 'rgba(192, 138, 63, 0.08)',
+                          borderLeft: '3px solid #c08a3f',
+                          fontSize: 12,
+                          color: 'var(--ink)',
+                          lineHeight: 1.5,
+                        }}>
+                          <strong style={{ fontWeight: 600, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em', color: '#c08a3f' }}>Donnees insuffisantes</strong>
+                          <br />
+                          Les sources publiques interrogees n ont retourne aucune information exploitable sur ce profil. Cela ne signifie pas que le fondateur manque de credibilite : cela signifie que les outils de scan automatique (OpenAlex, GitHub, Wikipedia, arXiv) ne sont pas adaptes a son parcours, ou que sa presence digitale est volontairement discrete. Verifier manuellement via LinkedIn, presse business (Les Echos, Forbes France, Sifted), interviews, conferences, et reseau professionnel avant de conclure.
+                        </div>
+                      )}
 
                       {rd.scoresApplicability && rd.profileType && rd.profileType !== 'unknown' && (
                         <div style={{
