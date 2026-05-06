@@ -258,7 +258,7 @@ export default function IcPackView({
       {/* PAGE 1 : COUVERTURE COMITE */}
       <section className="ic-page ic-page-cover">
         <div className="ic-cover-header">
-          <div className="ic-eyebrow">Pack comite d investissement</div>
+          <div className="ic-eyebrow">Pack comité d&apos;investissement</div>
           <div className="ic-cover-meta">
             {formatDate(meta.analyzedAt) && <span>Instruit le {formatDate(meta.analyzedAt)}</span>}
             {filename && <span className="ic-meta-sep">·</span>}
@@ -309,7 +309,7 @@ export default function IcPackView({
         <div className="ic-verdict-block" style={{ borderTop: `2px solid ${verdictColor}` }}>
           <div className="ic-verdict-row">
             <div>
-              <div className="ic-fact-label">Verdict d instruction</div>
+              <div className="ic-fact-label">Verdict d&apos;instruction</div>
               <div className="ic-verdict" style={{ color: verdictColor }}>
                 {VERDICT_LABELS[verdict] || verdict}
               </div>
@@ -351,7 +351,7 @@ export default function IcPackView({
               l instruction avant le passage en comite. */}
           {workflowHistory && workflowHistory.length > 0 && (
             <div className="ic-timeline">
-              <div className="ic-timeline-label">Parcours d instruction</div>
+              <div className="ic-timeline-label">Parcours d&apos;instruction</div>
               <ol className="ic-timeline-list">
                 {[...workflowHistory]
                   .sort((a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime())
@@ -431,7 +431,7 @@ export default function IcPackView({
       <section className="ic-page">
         <div className="ic-page-title">
           <span className="ic-page-num">III.</span>
-          <span>Decision et suite d instruction</span>
+          <span>Décision et suite d&apos;instruction</span>
         </div>
 
         {topQuestions.length > 0 && (
@@ -445,7 +445,7 @@ export default function IcPackView({
 
         {totalCalls > 0 && (
           <div className="ic-block">
-            <h3 className="ic-block-title">Plan d instruction terrain</h3>
+            <h3 className="ic-block-title">Plan d&apos;instruction terrain</h3>
             <div className="ic-dd-grid">
               <div className="ic-dd-stat">
                 <span className="ic-dd-num">{founderCalls}</span>
@@ -548,8 +548,8 @@ export default function IcPackView({
           <h3 className="ic-block-title">Points de vote</h3>
           <p className="ic-vote-instruction">
             {onVote
-              ? 'Chaque membre du comite clique pour enregistrer son vote. Le compteur a droite consolide les votes en temps reel.'
-              : 'Chaque membre du comite se prononce sur l une des quatre options. La position du partner principal apparait en pre-rempli a partir du verdict d instruction.'}
+              ? 'Chaque membre du comité clique pour enregistrer son vote. Le compteur à droite consolide les votes en temps réel.'
+              : 'Chaque membre du comité se prononce sur l\u2019une des quatre options. La position du partner principal apparaît en pré-rempli à partir du verdict d\u2019instruction.'}
           </p>
           <div className="ic-vote-grid">
             {(() => {

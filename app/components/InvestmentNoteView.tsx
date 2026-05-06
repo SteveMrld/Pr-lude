@@ -1481,10 +1481,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </div>
             <div className={`dd-verdict dd-verdict-${ddf.verdict}`}>
               <strong>Verdict :</strong>{' '}
-              {ddf.verdict === 'dd_aligned' && 'BP et realite comptable alignes. Confirmer en DD le maintien sur les exercices a venir.'}
-              {ddf.verdict === 'dd_partial_alignment' && 'Alignement partiel. Une a deux zones d ecart sectoriel a documenter avant comite d investissement.'}
-              {ddf.verdict === 'dd_significant_gaps' && 'Ecarts significatifs sur plusieurs postes. Investigation DD approfondie requise avant toute decision.'}
-              {ddf.verdict === 'dd_red_flags' && 'Red flags identifies. Le BP presente des decalages structurels avec la realite comptable qui exigent clarification immediate.'}
+              {ddf.verdict === 'dd_aligned' && 'BP et réalité comptable alignés. Confirmer en DD le maintien sur les exercices à venir.'}
+              {ddf.verdict === 'dd_partial_alignment' && 'Alignement partiel. Une à deux zones d\u2019écart sectoriel à documenter avant comité d\u2019investissement.'}
+              {ddf.verdict === 'dd_significant_gaps' && 'Écarts significatifs sur plusieurs postes. Investigation DD approfondie requise avant toute décision.'}
+              {ddf.verdict === 'dd_red_flags' && 'Red flags identifiés. Le BP présente des décalages structurels avec la réalité comptable qui exigent clarification immédiate.'}
             </div>
             {ddf.questionsToInstruct?.length > 0 && (
               <div className="dd-questions">
@@ -1599,10 +1599,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
             <div className={`ddc-verdict ddc-verdict-${ddc.verdict}`}>
               <strong>Verdict :</strong>{' '}
-              {ddc.verdict === 'contractual_aligned' && 'Profil contractuel aligne sur les standards VC francais. Confirmer en DD juridique aupres de l avocat.'}
-              {ddc.verdict === 'contractual_attention' && 'Quelques points d attention identifies. Investigation ciblee aupres de l avocat M&A recommandee.'}
-              {ddc.verdict === 'contractual_significant_gaps' && 'Plusieurs clauses non standards identifiees. DD juridique approfondie requise avant comite d investissement.'}
-              {ddc.verdict === 'contractual_red_flags' && 'Red flags contractuels identifies. Clarification urgente aupres de l avocat M&A et negociation potentielle avant decision.'}
+              {ddc.verdict === 'contractual_aligned' && 'Profil contractuel aligné sur les standards VC français. Confirmer en DD juridique auprès de l\u2019avocat.'}
+              {ddc.verdict === 'contractual_attention' && 'Quelques points d\u2019attention identifiés. Investigation ciblée auprès de l\u2019avocat M&A recommandée.'}
+              {ddc.verdict === 'contractual_significant_gaps' && 'Plusieurs clauses non standards identifiées. DD juridique approfondie requise avant comité d\u2019investissement.'}
+              {ddc.verdict === 'contractual_red_flags' && 'Red flags contractuels identifiés. Clarification urgente auprès de l\u2019avocat M&A et négociation potentielle avant décision.'}
             </div>
             {ddc.questionsToInstruct?.length > 0 && (
               <div className="dd-questions">
@@ -1704,13 +1704,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               <div className={`dd-verdict dd-verdict-${ddt.verdict}`}>
                 <strong>Verdict :</strong>{' '}
-                {ddt.verdict === 'tech_strong' && 'Discipline technique elevee. Le dossier transmis couvre les dimensions cles avec un niveau de detail satisfaisant. Confirmer en entretien CTO et audit externe cible.'}
-                {ddt.verdict === 'tech_solid' && 'Dossier technique correct avec quelques zones d ombre mineures. Investigation ciblee aupres du CTO sur les points d attention identifies.'}
-                {ddt.verdict === 'tech_partial' && 'Signaux mixtes. Plusieurs dimensions sont solides, d autres incompletes. DD technique externe recommandee sur les axes en alerte.'}
-                {ddt.verdict === 'tech_concerns' && 'Plusieurs alertes sur la maintenabilite, la securite ou l ownership du code. Documenter les zones rouges aupres du CTO et de l avocat IP avant comite d investissement.'}
-                {ddt.verdict === 'tech_red_flags' && 'Red flags structurels identifies (ownership du code non securise, non conformite RGPD, securite critique absente, ou pratique IP problematique). Clarification urgente requise et expert externe a mandater.'}
-                {ddt.verdict === 'tech_under_documented' && 'Le dossier technique transmis est trop leger pour conclure. Plus de la moitie des dimensions cles ne sont pas adressees. Demander un complement de documentation a la startup avant de poursuivre l instruction.'}
-                {ddt.verdict === 'not_applicable' && 'Audit non realise.'}
+                {ddt.verdict === 'tech_strong' && 'Discipline technique élevée. Le dossier transmis couvre les dimensions clés avec un niveau de détail satisfaisant. Confirmer en entretien CTO et audit externe ciblé.'}
+                {ddt.verdict === 'tech_solid' && 'Dossier technique correct avec quelques zones d\u2019ombre mineures. Investigation ciblée auprès du CTO sur les points d\u2019attention identifiés.'}
+                {ddt.verdict === 'tech_partial' && 'Signaux mixtes. Plusieurs dimensions sont solides, d\u2019autres incomplètes. DD technique externe recommandée sur les axes en alerte.'}
+                {ddt.verdict === 'tech_concerns' && 'Plusieurs alertes sur la maintenabilité, la sécurité ou l\u2019ownership du code. Documenter les zones rouges auprès du CTO et de l\u2019avocat IP avant comité d\u2019investissement.'}
+                {ddt.verdict === 'tech_red_flags' && 'Red flags structurels identifiés (ownership du code non sécurisé, non conformité RGPD, sécurité critique absente, ou pratique IP problématique). Clarification urgente requise et expert externe à mandater.'}
+                {ddt.verdict === 'tech_under_documented' && 'Le dossier technique transmis est trop léger pour conclure. Plus de la moitié des dimensions clés ne sont pas adressées. Demander un complément de documentation à la startup avant de poursuivre l\u2019instruction.'}
+                {ddt.verdict === 'not_applicable' && 'Audit non réalisé.'}
               </div>
 
               {ddt.questionsToInstruct?.length > 0 && (

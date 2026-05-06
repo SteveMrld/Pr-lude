@@ -1132,7 +1132,7 @@ export default function HomeClient({
                   </p>
 
                   <div className="hero-modes">
-                    <a href="#commencer" className="hero-mode hero-mode-screening" aria-label="Lancer une note d instruction">
+                    <a href="#commencer" className="hero-mode hero-mode-screening" aria-label="Lancer une note d&apos;instruction">
                       <div className="hero-mode-tag">Bloc 1</div>
                       <div className="hero-mode-title">Note d&apos;instruction</div>
                       <div className="hero-mode-sub">Screening &middot; 5 min</div>
@@ -2077,7 +2077,7 @@ export default function HomeClient({
                     setPrintMode(false);
                   }
                 }}
-                title="Exporter le dashboard analytique complet et la note d investissement en PDF"
+                title="Exporter le dashboard analytique complet et la note d&apos;investissement en PDF"
                 style={{
                   padding: '8px 18px',
                   fontSize: 12,
@@ -2765,7 +2765,7 @@ export default function HomeClient({
               return (
                 <div className="dashboard-grid">
                   {/* SIDEBAR DESKTOP : navigation verticale sticky */}
-                  <aside className="dashboard-sidebar" aria-label="Sections d analyse">
+                  <aside className="dashboard-sidebar" aria-label="Sections d&apos;analyse">
                     {tabGroups.map(group => (
                       <div className="sidebar-group" key={group.label}>
                         <div className="sidebar-group-label">{group.label}</div>
@@ -2799,7 +2799,7 @@ export default function HomeClient({
                         className="dashboard-mobile-select"
                         value={activeTab}
                         onChange={(e) => setActiveTab(e.target.value)}
-                        aria-label="Naviguer entre les sections d analyse"
+                        aria-label="Naviguer entre les sections d&apos;analyse"
                       >
                         {tabGroups.map(group => (
                           <optgroup key={group.label} label={group.label}>
@@ -3423,7 +3423,7 @@ export default function HomeClient({
                               fontSize: 13,
                               fontFamily: 'inherit',
                             }}
-                            title="Le moteur Equipe n a pas pu produire ce score. Verifier que le pitch deck contient une section equipe exploitable."
+                            title="Le moteur Équipe n&apos;a pas pu produire ce score. Verifier que le pitch deck contient une section equipe exploitable."
                           >
                             Donnees insuffisantes
                           </div>
@@ -4501,7 +4501,7 @@ export default function HomeClient({
                     setTimeout(() => setPrintMode(false), 500);
                   }, 400);
                 }}
-                title="Exporter le dashboard analytique complet et la note d investissement en PDF">
+                title="Exporter le dashboard analytique complet et la note d&apos;investissement en PDF">
                 ⤓ Exporter en PDF
               </button>
             </div>

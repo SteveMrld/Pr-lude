@@ -147,20 +147,20 @@ export default function HistoryPage() {
           fontSize: 14, lineHeight: 1.6,
         }}>
           <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
-            Persistence desactivee
+            Persistance désactivée
           </div>
           <p style={{ marginBottom: 12 }}>
-            La sauvegarde des analyses n est pas encore activee sur cette
-            instance. Pour l activer, l administrateur doit :
+            La sauvegarde des analyses n&apos;est pas encore activée sur cette
+            instance. Pour l&apos;activer, l&apos;administrateur doit :
           </p>
           <ol style={{ paddingLeft: 20, marginBottom: 12 }}>
-            <li>Executer le script <code>supabase-persistence-schema.sql</code> dans le SQL Editor de Supabase</li>
-            <li>Definir <code>ENABLE_PERSISTENCE=true</code> dans les variables d environnement Vercel</li>
-            <li>Redeployer l application</li>
+            <li>Exécuter le script <code>supabase-persistence-schema.sql</code> dans le SQL Editor de Supabase</li>
+            <li>Définir <code>ENABLE_PERSISTENCE=true</code> dans les variables d&apos;environnement Vercel</li>
+            <li>Redéployer l&apos;application</li>
           </ol>
           <p style={{ opacity: 0.7 }}>
-            En attendant, le pipeline d analyse reste pleinement fonctionnel.
-            Les analyses ne sont simplement pas conservees entre sessions.
+            En attendant, le pipeline d&apos;analyse reste pleinement fonctionnel.
+            Les analyses ne sont simplement pas conservées entre sessions.
           </p>
         </div>
       </main>
@@ -762,7 +762,7 @@ function InlineStageEditor({
           opacity: updating ? 0.6 : 1,
           fontFamily: 'inherit',
         }}
-        title="Cliquer pour changer le stade d instruction"
+        title="Cliquer pour changer le stade d&apos;instruction"
       >
         <span style={{
           width: 5,

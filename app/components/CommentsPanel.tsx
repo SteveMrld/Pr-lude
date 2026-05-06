@@ -215,7 +215,7 @@ export default function CommentsPanel({
               marginBottom: 4,
               fontWeight: 500,
             }}>
-              Commentaires d instruction
+              Commentaires d&apos;instruction
             </div>
             <div style={{
               fontFamily: 'var(--serif)',

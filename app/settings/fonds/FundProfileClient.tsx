@@ -247,7 +247,7 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
       <Section
         num="05"
         title="Gamme de tickets"
-        subtitle="Cliquez sur une plage typique pour la pré-remplir, ou saisissez manuellement vos bornes en euros. Laisser vide si le fonds n a pas de plage stricte."
+        subtitle="Cliquez sur une plage typique pour la pré-remplir, ou saisissez manuellement vos bornes en euros. Laisser vide si le fonds n&apos;a pas de plage stricte."
       >
         <div className="fp-ticket-presets">
           {TICKET_PRESETS.map(preset => {
