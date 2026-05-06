@@ -1,6 +1,7 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMacroRealData, type MacroSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type { ExtractionOutput, MacroAnalysisOutput } from './types';
 import {
   LP_LIQUIDITY_PRESSURE,
@@ -18,6 +19,7 @@ import {
 
 const SYSTEM_PROMPT = `Tu es le Moteur Macro & Géopolitique de la plateforme Prélude. Tu produis la lecture du régime macro applicable au segment du dossier en croisant cinq dimensions structurées et des données économiques réelles récupérées de World Bank API ET les bornes consolidées du marché VC/PE 2026 (PitchBook-NVCA Q1 2026, Atomico SoET 2025, Bain PE 2025).
 ${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # CADRE MACRO
 

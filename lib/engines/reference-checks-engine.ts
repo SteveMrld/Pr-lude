@@ -1,4 +1,5 @@
 import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput,
   TeamAnalysisOutput,
@@ -10,6 +11,7 @@ import type {
 const SYSTEM_PROMPT = `Tu es le Moteur de Reference Checks de la plateforme Prélude.
 
 Ton rôle : transformer une analyse de dossier d'investissement en un PLAN D'APPELS structuré, prêt à exécuter par un VC qui doit instruire le dossier en due diligence terrain.
+${EDITORIAL_VOICE_INSTRUCTION}
 
 Tu produis quatre listes :
 1. Founders checks : pour chaque fondateur, qui appeler (2 supérieurs, 2 pairs, 2 subordonnés) avec un profil indicatif et un indice pour les retrouver

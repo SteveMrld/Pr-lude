@@ -1,4 +1,6 @@
 import { callClaude, parseJSON } from './anthropic-client';
+import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput
@@ -10,6 +12,8 @@ const SYSTEM_PROMPT = `Tu es le Moteur de Retournement Causal de la plateforme P
 3. Les opérateurs lift-the-hood à mobiliser
 4. Les proxies quantitatifs à calculer
 5. Le narratif de retournement causal
+${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # LES SEPT ANGLES MORTS
 
@@ -160,5 +164,10 @@ Benchmark rétrospectif : ${patternMatching?.retrospectiveBenchmark?.averageScor
 Produis le retournement causal complet. Retourne uniquement le JSON structuré.`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
-  return parseJSON<CausalReversalOutput>(rawResponse);
+  const analysis = parseJSON<CausalReversalOutput>(rawResponse);
+  const audit = auditTagging(analysis, 'causal-engine');
+  if (audit.level !== 'ok') {
+    console.warn('[causal-engine] tagging audit:', audit.message);
+  }
+  return analysis;
 }

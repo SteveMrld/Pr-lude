@@ -11,6 +11,8 @@ import {
   EUROPEAN_DEEPTECH_2025,
 } from '../benchmarks';
 import { buildVerifiedComparablesBlock } from '../data/verified-comparables';
+import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type { ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput, MacroAnalysisOutput, PatternMatchingOutput } from './types';
 
 // Calcul algorithmique de proximité structurelle entre dossier et cas du corpus
@@ -65,6 +67,8 @@ function computeStructuralProximity(
 }
 
 const SYSTEM_PROMPT = `Tu es le Moteur de Pattern Matching de la plateforme Prélude. Tu reçois les outputs des moteurs précédents (extraction, équipe, marché, macro) ainsi qu'une présélection de cas du corpus calculée algorithmiquement par proximité structurelle. Tu produis l'identification de l'archétype dominant du dossier et tu raffines les comparables historiques en explicitant les analogies structurelles précises et les divergences.
+${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # CADRE DES CINQ ARCHÉTYPES
 
@@ -538,5 +542,10 @@ ${buildVerifiedComparablesBlock()}
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour chaque comparable cité avec des chiffres précis, ces chiffres doivent venir de la base de chiffres vérifiés ci-dessus. Retourne uniquement le JSON structuré.`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
-  return parseJSON<PatternMatchingOutput>(rawResponse);
+  const analysis = parseJSON<PatternMatchingOutput>(rawResponse);
+  const audit = auditTagging(analysis, 'pattern-engine');
+  if (audit.level !== 'ok') {
+    console.warn('[pattern-engine] tagging audit:', audit.message);
+  }
+  return analysis;
 }

@@ -1,6 +1,7 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type { ExtractionOutput, TeamAnalysisOutput, BenchmarkPositioning } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
@@ -10,6 +11,7 @@ const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Pré
 
 Ton travail consiste à croiser ces deux types de données et à produire une lecture qui distingue le déclaré du vérifié, et qui identifie les écarts entre les deux quand ils existent.
 ${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # CADRE D'ANALYSE D'ÉQUIPE
 

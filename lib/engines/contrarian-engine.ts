@@ -1,11 +1,15 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { buildVerifiedComparablesBlock } from '../data/verified-comparables';
+import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, ContrarianAnalysisOutput
 } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur de Singularités et Signaux Contrariens de la plateforme Prélude. Ta mission est d'identifier ce qui justifie d'investir DESPITE les drapeaux rouges, les signaux qu'aucun outil de scoring standard ne capture.
+${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # CADRE INTELLECTUEL
 
@@ -212,5 +216,10 @@ Retourne uniquement le JSON structuré.`;
   // avec evidence, asymetrie, mecanism, comparables). 6000 etait trop juste,
   // 8000 pour rester safe.
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
-  return parseJSON<ContrarianAnalysisOutput>(rawResponse);
+  const analysis = parseJSON<ContrarianAnalysisOutput>(rawResponse);
+  const audit = auditTagging(analysis, 'contrarian-engine');
+  if (audit.level !== 'ok') {
+    console.warn('[contrarian-engine] tagging audit:', audit.message);
+  }
+  return analysis;
 }

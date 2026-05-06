@@ -1,12 +1,16 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { findByStrate, type ExtendedCaseRecord } from '../corpus/extended-database';
 import { buildVerifiedComparablesBlock } from '../data/verified-comparables';
+import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, BlindspotAnalysisOutput
 } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur de Vigilance Critique de la plateforme Prélude. Ta mission est de détecter les patterns récurrents d'erreur de jugement qui mènent les fonds VC à investir dans des dossiers structurellement insoutenables.
+${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # CADRE INTELLECTUEL
 
@@ -304,5 +308,10 @@ Retourne uniquement le JSON structuré.`;
   // detaillee). On monte a 14000 pour garder une vraie marge et eviter
   // les troncatures qui font echouer parseJSON meme avec jsonrepair.
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 14000);
-  return parseJSON<BlindspotAnalysisOutput>(rawResponse);
+  const analysis = parseJSON<BlindspotAnalysisOutput>(rawResponse);
+  const audit = auditTagging(analysis, 'blindspot-engine');
+  if (audit.level !== 'ok') {
+    console.warn('[blindspot-engine] tagging audit:', audit.message);
+  }
+  return analysis;
 }

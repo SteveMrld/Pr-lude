@@ -1,4 +1,6 @@
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
+import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput,
@@ -8,6 +10,8 @@ import type {
 import { getRelevantPastAnnotations, formatPastAnnotationsForPrompt } from '../analysis-store';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
+${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # TON RÔLE
 
@@ -316,6 +320,11 @@ Retourne uniquement le JSON structuré.`;
     console.warn('[orchestrator] JSON parse failed, retrying once:', firstErr?.message);
     rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
     recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+  }
+
+  const audit = auditTagging(recommendation, 'orchestrator');
+  if (audit.level !== 'ok') {
+    console.warn('[orchestrator] tagging audit:', audit.message);
   }
 
   // ============================================================

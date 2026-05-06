@@ -1,5 +1,6 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput, FinancialDataExtraction, FinancialCoherenceOutput,
   MarketAnalysisOutput, BenchmarkPositioning
@@ -7,6 +8,7 @@ import type {
 
 const SYSTEM_PROMPT = `Tu es le Moteur de Cohérence Financière de la plateforme Prélude. Ta mission est de tester la solidité interne et externe des projections financières du dossier en appliquant 7 tests rigoureux que les meilleurs partners VC font à la main sur Excel.
 ${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 # CADRE INTELLECTUEL
 

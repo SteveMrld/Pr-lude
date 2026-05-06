@@ -1,6 +1,7 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
+import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type { ExtractionOutput, MarketAnalysisOutput } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Prélude. Tu reçois deux types de données :
@@ -8,6 +9,7 @@ const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Pr�
 1. Les données déclarées par le pitch deck (taille de marché annoncée, concurrents cités, traction)
 2. Les données vérifiées par interrogation de sources publiques (Hacker News, OpenAlex concepts, Wikipedia, GitHub Topics)
 ${SOURCE_TAGGING_INSTRUCTION}
+${EDITORIAL_VOICE_INSTRUCTION}
 
 Ton travail consiste à croiser ces deux types pour produire une lecture rigoureuse du marché qui distingue ce qui est confirmé par les sources publiques de ce qui est purement déclaratif.
 
