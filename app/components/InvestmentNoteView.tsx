@@ -879,16 +879,34 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             {ca.comparablesContrariens?.length > 0 && (
               <>
                 <h4 className="note-h4">Comparables contrariens</h4>
-                {ca.comparablesContrariens.map((c: any, i: number) => (
-                  <div key={i} className="benchmark-block">
-                    <div className="benchmark-header">
-                      <span className="benchmark-name">{c.name}</span>
-                      <span className="benchmark-geo">{c.outcome} {c.multipleAtExit && `· ${c.multipleAtExit}`}</span>
+                <p className="comparable-scope-note">
+                  Comparables retenus pour la similarite d&apos;asset class avec le dossier en cours (nature business, modele economique, intensite capitalistique). Si aucune analogie sectorielle directe n&apos;est trouvee dans le corpus, le moteur le signale dans la recommandation plutot que de forcer une comparaison.
+                </p>
+                {ca.comparablesContrariens.map((c: any, i: number) => {
+                  const acm = c.assetClassMatch;
+                  const alignmentLabel = acm?.alignment === 'high' ? 'Asset class : alignement fort'
+                    : acm?.alignment === 'medium' ? 'Asset class : alignement partiel'
+                    : acm?.alignment === 'low' ? 'Asset class : alignement faible'
+                    : null;
+                  return (
+                    <div key={i} className="benchmark-block">
+                      <div className="benchmark-header">
+                        <span className="benchmark-name">{c.name}</span>
+                        <span className="benchmark-geo">{c.outcome} {c.multipleAtExit && `· ${c.multipleAtExit}`}</span>
+                      </div>
+                      {c.sectorContext && (
+                        <div className="benchmark-sector">{c.sectorContext}</div>
+                      )}
+                      {alignmentLabel && (
+                        <div className={`asset-class-tag asset-class-${acm.alignment}`}>
+                          {alignmentLabel}{acm.rationale ? ` · ${acm.rationale}` : ''}
+                        </div>
+                      )}
+                      <div className="benchmark-bet"><strong>Consensus initial :</strong> {c.initialConsensus}</div>
+                      <div className="benchmark-relevance"><strong>Pari contrarien :</strong> {c.contrarianBet}</div>
                     </div>
-                    <div className="benchmark-bet"><strong>Consensus initial :</strong> {c.initialConsensus}</div>
-                    <div className="benchmark-relevance"><strong>Pari contrarien :</strong> {c.contrarianBet}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
             {ca.recommandationContrarienne && (
@@ -1249,6 +1267,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         {pm?.internationalBenchmarks?.length > 0 && (
           <>
             <h3 className="note-h3">Comparables & precedents</h3>
+            <p className="comparable-scope-note">
+              Ces comparables internationaux sont retenus pour la pertinence d&apos;asset class avec le dossier (nature business, modele economique, intensite capitalistique). Les comparables d&apos;archetype d&apos;instruction (proximite de pattern sans similarite sectorielle) sont identifies separement plus loin dans la note.
+            </p>
             {(pm.internationalBenchmarks || []).map((b: any, i: number) => {
               // Mapping cautionLevel -> classe + libelle pour le badge
               const cautionConfig: Record<string, { cls: string; label: string }> = {
@@ -1265,6 +1286,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               };
               const caution = b.cautionLevel ? cautionConfig[b.cautionLevel] : null;
               const status = b.currentStatus ? statusConfig[b.currentStatus] : null;
+              const acm = b.assetClassMatch;
+              const alignmentLabel = acm?.alignment === 'high' ? 'Asset class : alignement fort'
+                : acm?.alignment === 'medium' ? 'Asset class : alignement partiel'
+                : acm?.alignment === 'low' ? 'Asset class : alignement faible · comparable de pattern'
+                : null;
               return (
                 <div key={i} className={`benchmark-block ${caution ? caution.cls : ''}`}>
                   <div className="benchmark-header">
@@ -1275,6 +1301,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     <div className="benchmark-badges">
                       {caution && <span className={`benchmark-badge ${caution.cls}`}>{caution.label}</span>}
                       {status && <span className={`benchmark-badge ${status.cls}`}>{status.label}</span>}
+                    </div>
+                  )}
+                  {alignmentLabel && (
+                    <div className={`asset-class-tag asset-class-${acm.alignment}`}>
+                      {alignmentLabel}{acm.rationale ? ` · ${acm.rationale}` : ''}
                     </div>
                   )}
                   <div className="benchmark-bet"><strong>Pari initial :</strong> {b.initialBet}</div>
@@ -3669,6 +3700,67 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           background: var(--paper-accent);
           border-left: 3px solid var(--ink);
         }
+
+        /* COMPARABLE SCOPE NOTE - Preambule explicatif au-dessus des
+           sections comparables, qui indique au lecteur si les comparables
+           qui suivent sont sectoriels ou de pattern. Style sobre italic
+           hairline, ne distrait pas du contenu mais le contextualise. */
+        .comparable-scope-note {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 12.5px;
+          line-height: 1.55;
+          color: var(--ink-soft);
+          font-style: italic;
+          margin-top: -8px;
+          margin-bottom: 18px;
+          padding: 10px 14px;
+          background: rgba(29, 28, 26, 0.03);
+          border-left: 2px solid var(--hairline);
+        }
+
+        /* ASSET CLASS TAG - Tag visuel par carte de comparable indiquant
+           le degre d alignement asset class (high / medium / low). En
+           low, signale explicitement qu il s agit d un comparable de
+           pattern et non sectoriel. */
+        .asset-class-tag {
+          margin-bottom: 8px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10.5px;
+          line-height: 1.5;
+          letter-spacing: 0.04em;
+          padding: 5px 10px;
+          border-radius: 2px;
+          font-weight: 500;
+        }
+        .asset-class-tag.asset-class-high {
+          background: rgba(59, 122, 90, 0.10);
+          color: #2d5a44;
+          border-left: 2px solid #3b7a5a;
+        }
+        .asset-class-tag.asset-class-medium {
+          background: rgba(122, 92, 31, 0.08);
+          color: #5a4a32;
+          border-left: 2px solid #7a5c1f;
+        }
+        .asset-class-tag.asset-class-low {
+          background: rgba(139, 46, 31, 0.08);
+          color: #6a3525;
+          border-left: 2px solid #8b2e1f;
+          font-weight: 600;
+        }
+
+        /* BENCHMARK SECTOR - Petit label sous le header qui rappelle le
+           secteur du comparable, pour que le lecteur identifie tout de
+           suite l asset class du comparable. */
+        .benchmark-sector {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          color: var(--ink-tertiary);
+          letter-spacing: 0.06em;
+          margin-bottom: 8px;
+          font-style: italic;
+        }
+
         .benchmark-block.caution-positive {
           background: var(--paper-accent);
           border-left-color: var(--accent-marque);

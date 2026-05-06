@@ -1707,6 +1707,39 @@ ul, ol { list-style: none; }
 .comp-patterns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pattern-pill { font-size: 10.5px; background: var(--surface-deep); border: 1px solid var(--hairline); padding: 2px 8px; color: var(--ink-soft); }
 
+/* COMP TYPE TAG - Tag visuel sur chaque carte de comparable historique
+   du corpus, indique si le comparable est sectoriel (asset class match
+   direct), pattern (proximite d archetype sans similarite sectorielle),
+   ou mixte. Le partner sait au coup d oeil si le comparable est de
+   marche direct ou structurel. */
+.comp-type-tag {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 9.5px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 8px;
+  margin-left: 8px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+.comp-type-tag.comp-type-sectoral {
+  background: rgba(59, 122, 90, 0.12);
+  color: #2d5a44;
+  border: 1px solid rgba(59, 122, 90, 0.30);
+}
+.comp-type-tag.comp-type-pattern {
+  background: rgba(122, 92, 31, 0.10);
+  color: #5a4a32;
+  border: 1px solid rgba(122, 92, 31, 0.30);
+}
+.comp-type-tag.comp-type-mixed {
+  background: rgba(29, 28, 26, 0.06);
+  color: var(--ink-soft);
+  border: 1px solid var(--hairline);
+}
+
 /* QUESTIONS */
 .questions-list { counter-reset: q-counter; }
 .questions-list li {

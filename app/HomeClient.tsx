@@ -3500,26 +3500,44 @@ export default function HomeClient({
                   <p>{result.patternMatching?.archetypeRationale}</p>
 
                   <h3>Comparables historiques du corpus</h3>
-                  {(result.patternMatching?.comparables || []).map((c: any, i: number) => (
-                    <div className="comp-row" key={i}>
-                      <div>
-                        <span className="comp-name">{c.name}</span>
-                        <span className="comp-year">{c.year}</span>
-                        <div className="comp-reason">{c.structuralAnalogy}</div>
-                        {c.divergences?.length > 0 && (
-                          <div className="comp-reason" style={{ marginTop: 6, fontStyle: 'italic' }}>
-                            <strong>Divergences :</strong> {c.divergences.join(' · ')}
-                          </div>
-                        )}
-                        {c.sharedPatterns?.length > 0 && (
-                          <div className="comp-patterns">
-                            {c.sharedPatterns.map((p: string, j: number) => <span key={j} className="pattern-pill">{p}</span>)}
-                          </div>
-                        )}
+                  <p style={{ fontSize: 13, opacity: 0.8, marginTop: -6, marginBottom: 16, fontStyle: 'italic', lineHeight: 1.55 }}>
+                    Comparables retenus pour leur proximité de pattern d&apos;instruction (archétype dominant identifié, dynamiques structurelles partagées). Le tag par carte signale s&apos;il s&apos;agit d&apos;un comparable sectoriel direct (même asset class) ou d&apos;un comparable de pattern (analogie structurelle sans similarité sectorielle).
+                  </p>
+                  {(result.patternMatching?.comparables || []).map((c: any, i: number) => {
+                    const typeLabel = c.comparableType === 'sectoral' ? 'Sectoriel'
+                      : c.comparableType === 'pattern' ? 'Pattern'
+                      : c.comparableType === 'mixed' ? 'Mixte' : null;
+                    return (
+                      <div className="comp-row" key={i}>
+                        <div>
+                          <span className="comp-name">{c.name}</span>
+                          <span className="comp-year">{c.year}</span>
+                          {typeLabel && (
+                            <span className={`comp-type-tag comp-type-${c.comparableType}`} title={c.comparableTypeRationale || ''}>
+                              {typeLabel}
+                            </span>
+                          )}
+                          <div className="comp-reason">{c.structuralAnalogy}</div>
+                          {c.comparableTypeRationale && c.comparableType !== 'sectoral' && (
+                            <div className="comp-reason" style={{ marginTop: 4, fontSize: 12, opacity: 0.75, fontStyle: 'italic' }}>
+                              {c.comparableTypeRationale}
+                            </div>
+                          )}
+                          {c.divergences?.length > 0 && (
+                            <div className="comp-reason" style={{ marginTop: 6, fontStyle: 'italic' }}>
+                              <strong>Divergences :</strong> {c.divergences.join(' · ')}
+                            </div>
+                          )}
+                          {c.sharedPatterns?.length > 0 && (
+                            <div className="comp-patterns">
+                              {c.sharedPatterns.map((p: string, j: number) => <span key={j} className="pattern-pill">{p}</span>)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="comp-prox">Proximité {c.proximity}%</div>
                       </div>
-                      <div className="comp-prox">Proximité {c.proximity}%</div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <h3>Patterns transversaux identifiés</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -3606,6 +3624,21 @@ export default function HomeClient({
                   <p><strong>Score moyen des comparables :</strong> {result.patternMatching?.retrospectiveBenchmark?.averageScore}/100</p>
                   <p>{result.patternMatching?.retrospectiveBenchmark?.successRate}</p>
                   <p>{result.patternMatching?.retrospectiveBenchmark?.insights}</p>
+                  {result.patternMatching?.retrospectiveBenchmark?.comparableScopeWarning && (
+                    <div style={{
+                      marginTop: 14,
+                      padding: '10px 14px',
+                      background: 'rgba(122,92,31,0.08)',
+                      border: '1px solid rgba(122,92,31,0.25)',
+                      borderLeft: '3px solid #7a5c1f',
+                      fontSize: 12,
+                      color: '#5a4a32',
+                      lineHeight: 1.55,
+                      fontStyle: 'italic',
+                    }}>
+                      <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Mise en garde sur la portée des comparables :</strong> {result.patternMatching.retrospectiveBenchmark.comparableScopeWarning}
+                    </div>
+                  )}
                 </div>
               )}
 
