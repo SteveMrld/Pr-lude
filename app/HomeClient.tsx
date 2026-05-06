@@ -731,28 +731,26 @@ export default function HomeClient({
                   </p>
 
                   <div className="hero-modes">
-                    <div className="hero-mode hero-mode-screening">
+                    <a href="#commencer" className="hero-mode hero-mode-screening" aria-label="Lancer une note d instruction">
                       <div className="hero-mode-tag">Bloc 1</div>
                       <div className="hero-mode-title">Note d&apos;instruction</div>
-                      <div className="hero-mode-sub">Screening initial &middot; Deal qualification</div>
-                      <div className="hero-mode-meta">
-                        <div><strong>Inputs</strong> Pitch deck PDF + business plan optionnel</div>
-                        <div><strong>Output</strong> Verdict, drivers, vigilance critique, friction d&apos;exécution</div>
-                        <div><strong>Durée</strong> 5 minutes</div>
-                        <div><strong>Lecteur</strong> Analyste, principal, partner en qualification</div>
+                      <div className="hero-mode-sub">Screening &middot; 5 min</div>
+                      <div className="hero-mode-stats">
+                        <div className="hero-mode-stat-line">Pitch + BP</div>
+                        <div className="hero-mode-stat-line muted">Verdict, drivers, vigilance critique, friction d&apos;exécution</div>
                       </div>
-                    </div>
-                    <div className="hero-mode hero-mode-dataroom">
+                      <div className="hero-mode-cta">Lancer <Picto name="arrow-right" size={11} /></div>
+                    </a>
+                    <a href="#commencer" className="hero-mode hero-mode-dataroom" aria-label="Lancer une data room">
                       <div className="hero-mode-tag">Bloc 2</div>
                       <div className="hero-mode-title">Data Room</div>
-                      <div className="hero-mode-sub">Due diligence approfondie &middot; Préparation IC</div>
-                      <div className="hero-mode-meta">
-                        <div><strong>Inputs additionnels</strong> Grand livre comptable, pacte d&apos;actionnaires, statuts, contrats clients, cap table</div>
-                        <div><strong>Output</strong> Réconciliation BP versus réel, cartographie des clauses sensibles, audit data room</div>
-                        <div><strong>Durée</strong> 15 minutes</div>
-                        <div><strong>Lecteur</strong> Partner senior, IC, avocat M&amp;A en relais</div>
+                      <div className="hero-mode-sub">DD approfondie &middot; 15 min</div>
+                      <div className="hero-mode-stats">
+                        <div className="hero-mode-stat-line">+ grand livre, pacte, statuts, contrats, cap table</div>
+                        <div className="hero-mode-stat-line muted">Réconciliation BP vs réel, cartographie des clauses</div>
                       </div>
-                    </div>
+                      <div className="hero-mode-cta">Lancer <Picto name="arrow-right" size={11} /></div>
+                    </a>
                   </div>
 
                   <div className="hero-cta-row" style={{ justifyContent: 'flex-start' }}>
