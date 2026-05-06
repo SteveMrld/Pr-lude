@@ -31,6 +31,9 @@ export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  // Declare au scope outer pour que le catch global puisse liberer
+  // le slot rate-limit si une erreur survient apres son acquisition.
+  let jobId: string | null = null;
   try {
     const formData = await req.formData();
 
@@ -87,11 +90,18 @@ export async function POST(req: NextRequest) {
       financial: string | null;
       general: string | null;
     } | null = null;
+    // Ces deux valeurs sont capturees pour le rate limiting (acquireJobSlot)
+    // et pour le contexte des logs d erreur. Restent null en mode auth
+    // desactivee, auquel cas le rate limiting est skip.
+    let activeOrgId: string | null = null;
+    let activeUserId: string | null = null;
     try {
       const { isAuthEnabled, getAuthenticatedContext } = await import('@/lib/auth');
       if (isAuthEnabled()) {
         const ctx = await getAuthenticatedContext();
         if (ctx) {
+          activeOrgId = ctx.org.id;
+          activeUserId = ctx.user.id;
           const { getSupabaseAdminClient } = await import('@/lib/supabase/server');
           const admin = getSupabaseAdminClient();
           const { data } = await admin
@@ -130,6 +140,35 @@ export async function POST(req: NextRequest) {
         severity: 'warning',
         context: { phase: 'fund-profile-load' },
       });
+    }
+
+    // ============================================================
+    // RATE LIMITING : reserve un slot dans active_jobs
+    // ------------------------------------------------------------
+    // Plafonne le nombre de pipelines simultanes par organisation
+    // (defaut 3). Si la limite est atteinte, on retourne 429 sans
+    // lancer le pipeline. Cela evite qu un acteur malveillant ou
+    // un bug client ne brule les credits Anthropic.
+    //
+    // En mode auth desactivee (pas d activeOrgId), le rate limiting
+    // est skip. Le slot est libere dans le finally du stream pour
+    // garantir le cleanup meme en cas de pipeline qui plante.
+    // ============================================================
+    if (activeOrgId) {
+      const { acquireJobSlot } = await import('@/lib/rate-limit');
+      const slot = await acquireJobSlot(activeOrgId, activeUserId, pitchDeck.name);
+      if (slot.jobId === null && slot.reason === 'limit-reached') {
+        return new Response(JSON.stringify({
+          error: `Limite de pipelines simultanes atteinte (${slot.currentCount}/${slot.maxAllowed}). Attendez la fin d'une analyse en cours pour en lancer une nouvelle.`,
+          code: 'rate-limit-reached',
+          currentCount: slot.currentCount,
+          maxAllowed: slot.maxAllowed,
+        }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      jobId = slot.jobId;
     }
 
     const startTime = Date.now();
@@ -590,6 +629,14 @@ export async function POST(req: NextRequest) {
           });
         } finally {
           clearInterval(heartbeatInterval);
+          // Liberation du slot rate-limit. Async fire-and-forget pour
+          // ne pas retarder la fermeture du stream. Le cleanup au pire
+          // des cas se fait par la purge MAX_JOB_AGE_MS au prochain
+          // appel acquireJobSlot.
+          if (jobId) {
+            const { releaseJobSlot } = await import('@/lib/rate-limit');
+            releaseJobSlot(jobId).catch(() => {});
+          }
           controller.close();
         }
       },
@@ -603,6 +650,14 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    // Si le slot a ete acquis avant l erreur, on le libere pour ne
+    // pas bloquer l org sur un pipeline qui n a pas demarre.
+    if (jobId) {
+      try {
+        const { releaseJobSlot } = await import('@/lib/rate-limit');
+        await releaseJobSlot(jobId);
+      } catch {}
+    }
     return new Response(JSON.stringify({ error: error.message || 'Erreur' }), { status: 500 });
   }
 }

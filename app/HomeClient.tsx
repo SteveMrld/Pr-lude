@@ -735,6 +735,15 @@ export default function HomeClient({
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
 
+      // Cas 429 : rate limit atteint au niveau de l organisation. Le
+      // serveur retourne un JSON structure avec currentCount et
+      // maxAllowed pour qu on affiche un message clair au partner.
+      if (response.status === 429) {
+        const body = await response.json().catch(() => ({}));
+        const msg = body?.error || 'Limite de pipelines simultanes atteinte. Patientez avant de relancer.';
+        throw new Error(msg);
+      }
+
       if (!response.ok || !response.body) {
         const errBody = await response.text();
         throw new Error(errBody || 'Erreur reseau');
