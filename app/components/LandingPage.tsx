@@ -26,33 +26,37 @@ interface DemoStage {
 }
 
 const DEMO_STAGES: DemoStage[] = [
-  { engine: 'Lecture du dossier',     picto: 'lecture',       action: 'Pitch deck ingere',         output: 'Dossier reconnu : 28 pages, modele financier en annexe Excel.' },
-  { engine: 'Equipe',                 picto: 'equipe',        action: 'Profils croisés',           output: 'Founder Market Fit : 78/100. Trois cofondateurs, antecedents corporate notables.' },
-  { engine: 'Marche',                 picto: 'marche',        action: 'Taille adressable testee',  output: 'TAM revendique 12 Md€ verifie a 9.8 Md€. Croissance 14 % CAGR confirmee.' },
-  { engine: 'Macro',                  picto: 'macro',         action: 'Contexte sectoriel',        output: 'Vent porteur : reglementation europeenne 2026 favorable.' },
-  { engine: 'Extraction financiere',  picto: 'financiers',    action: 'Modele decompose',          output: 'Revenue projection 8.2 M€ a horizon 2028. EBITDA positif Y3.' },
-  { engine: 'Concurrence',            picto: 'concurrence',   action: 'Map dressee',               output: 'Sept concurrents identifies dont deux serieux. Differentiation technique claire.' },
-  { engine: 'Brevets',                picto: 'brevets',       action: 'Propriete intellectuelle',  output: 'Trois brevets EPO actifs. Liberte d exploitation verifiee.' },
-  { engine: 'Risques',                picto: 'risques',       action: 'Top 5 enjeux',              output: 'Risque cle : dependance fournisseur unique. Plan B mentionne, non chiffre.' },
+  { engine: 'Lecture du dossier',     picto: 'lecture',       action: 'Pitch deck ingéré',         output: 'Dossier reconnu : 28 pages, modèle financier en annexe Excel.' },
+  { engine: 'Équipe',                 picto: 'equipe',        action: 'Profils croisés',           output: 'Founder Market Fit : 78/100. Trois cofondateurs, antécédents corporate notables.' },
+  { engine: 'Marché',                 picto: 'marche',        action: 'Taille adressable testée',  output: 'TAM revendiqué 12 Md€ vérifié à 9,8 Md€. Croissance 14 % CAGR confirmée.' },
+  { engine: 'Macro',                  picto: 'macro',         action: 'Contexte sectoriel',        output: 'Vent porteur : réglementation européenne 2026 favorable.' },
+  { engine: 'Extraction financière',  picto: 'financiers',    action: 'Modèle décomposé',          output: 'Revenue projection 8,2 M€ à horizon 2028. EBITDA positif Y3.' },
+  { engine: 'Concurrence',            picto: 'concurrence',   action: 'Cartographie dressée',      output: 'Sept concurrents identifiés dont deux sérieux. Différenciation technique claire.' },
+  { engine: 'Brevets',                picto: 'brevets',       action: 'Propriété intellectuelle',  output: 'Trois brevets EPO actifs. Liberté d\u2019exploitation vérifiée.' },
+  { engine: 'Risques',                picto: 'risques',       action: 'Top 5 enjeux',              output: 'Risque clé : dépendance fournisseur unique. Plan B mentionné, non chiffré.' },
   { engine: 'Blindspot',              picto: 'blindspot',     action: 'Angles morts du fonds',     output: 'Dossier en zone de confort historique. Pas de signal de rejet structurel.' },
-  { engine: 'Verdict',                picto: 'verdict',       action: 'Recommandation IC',         output: 'Investir avec conditions. Score 71/100. Probabilite de succes 64 %.' },
+  { engine: 'Verdict',                picto: 'verdict',       action: 'Recommandation IC',         output: 'Investir avec conditions. Score 71/100. Probabilité de succès 64 %.' },
 ];
 
-// Treize moteurs avec leur picto pour la cartographie visuelle.
+// Quatorze moteurs Bloc 1 et cartographie en trois blocs.
+// Bloc 0 : pre-scan Haiku, dix tests de qualification rapide.
+// Bloc 1 : note d instruction, quatorze moteurs Sonnet.
+// Bloc 2 : Data Room approfondie, cinq moteurs declenches sur demande.
 const ENGINE_MAP: Array<{ num: string; name: string; picto: PictoName; desc: string }> = [
   { num: '01', name: 'Lecture',         picto: 'lecture',        desc: 'Ingestion et structuration du pitch deck' },
-  { num: '02', name: 'Equipe',          picto: 'equipe',         desc: 'Founder Market Fit et antecedents' },
-  { num: '03', name: 'Marche',          picto: 'marche',         desc: 'Taille adressable et croissance' },
-  { num: '04', name: 'Macro',           picto: 'macro',          desc: 'Contexte sectoriel et reglementation' },
-  { num: '05', name: 'Financiers',      picto: 'financiers',     desc: 'Decomposition du modele et unit economics' },
-  { num: '06', name: 'Concurrence',     picto: 'concurrence',    desc: 'Cartographie des acteurs en place' },
-  { num: '07', name: 'Brevets',         picto: 'brevets',        desc: 'Propriete intellectuelle et FTO' },
-  { num: '08', name: 'Reglementaire',   picto: 'reglementaire',  desc: 'Conformite et trajectoire normative' },
-  { num: '09', name: 'Risques',         picto: 'risques',        desc: 'Top 5 enjeux et mitigations' },
-  { num: '10', name: 'Blindspot',       picto: 'blindspot',      desc: 'Angles morts cognitifs du fonds' },
-  { num: '11', name: 'Argumentation',   picto: 'argumentation',  desc: 'Synthese narrative pour le comite' },
-  { num: '12', name: 'Verdict',         picto: 'verdict',        desc: 'Recommandation argumentee et score' },
-  { num: '13', name: 'Pack IC',         picto: 'pack-ic',        desc: 'Document final pret a circuler' },
+  { num: '02', name: 'Équipe',          picto: 'equipe',         desc: 'Founder Market Fit et antécédents' },
+  { num: '03', name: 'Marché',          picto: 'marche',         desc: 'Taille adressable et croissance' },
+  { num: '04', name: 'Macro',           picto: 'macro',          desc: 'Contexte sectoriel et réglementation' },
+  { num: '05', name: 'Financiers',      picto: 'financiers',     desc: 'Décomposition du modèle et unit economics' },
+  { num: '06', name: 'Pattern',         picto: 'concurrence',    desc: 'Confrontation au corpus de cas instruits' },
+  { num: '07', name: 'Causal',          picto: 'brevets',        desc: 'Retournement causal et angles morts' },
+  { num: '08', name: 'Blindspot',       picto: 'blindspot',      desc: 'Aveuglement collectif du capital-risque' },
+  { num: '09', name: 'Contrarian',      picto: 'argumentation',  desc: 'Singularités contrariennes du dossier' },
+  { num: '10', name: 'Cohérence',       picto: 'reglementaire',  desc: 'Cohérence financière et tests sectoriels' },
+  { num: '11', name: 'Tech claim',      picto: 'risques',        desc: 'Cohérence des revendications technologiques' },
+  { num: '12', name: 'Friction',        picto: 'macro',          desc: 'Friction d\u2019exécution commerciale et industrielle' },
+  { num: '13', name: 'Orchestration',   picto: 'verdict',        desc: 'Synthèse, score auditable, dialectique' },
+  { num: '14', name: 'Référence',       picto: 'pack-ic',        desc: 'Plan d\u2019appels DD et grille post-call' },
 ];
 
 export default function LandingPage() {
@@ -109,7 +113,7 @@ export default function LandingPage() {
             <span className="lp-dropcap">P</span>
             rélude est un moteur d&apos;instruction conçu pour les fonds qui
             considèrent qu&apos;un dossier mérite mieux qu&apos;un résumé en
-            trois bullet points. Treize moteurs analytiques travaillent en
+            trois bullet points. Quatorze moteurs analytiques travaillent en
             parallèle sur chaque pitch deck, chaque modèle financier, chaque
             jeu de données. La synthèse produite tient en une note rédigée,
             un pack de comité, un verdict argumenté.
@@ -127,21 +131,21 @@ export default function LandingPage() {
       {/* BANDE DE STATS sobres. Style FT/Atlantic, pas de couleur tape-a-l-oeil. */}
       <section className="lp-stats">
         <div className="lp-stat">
-          <div className="lp-stat-num">13</div>
+          <div className="lp-stat-num">14</div>
           <div className="lp-stat-label">Moteurs analytiques</div>
-          <div className="lp-stat-detail">Equipe, marche, brevets, financiers, concurrence, risques, blindspot.</div>
+          <div className="lp-stat-detail">Équipe, marché, macro, financiers, pattern, blindspot, contrarien, cohérence, exécution.</div>
         </div>
         <div className="lp-stat-divider"></div>
         <div className="lp-stat">
           <div className="lp-stat-num">3<span className="lp-stat-unit">min</span></div>
           <div className="lp-stat-label">Temps d&apos;instruction</div>
-          <div className="lp-stat-detail">Du depot du pitch deck a la note d&apos;investissement consolidee.</div>
+          <div className="lp-stat-detail">Du dépôt du pitch deck à la note d&apos;investissement consolidée.</div>
         </div>
         <div className="lp-stat-divider"></div>
         <div className="lp-stat">
           <div className="lp-stat-num">100<span className="lp-stat-unit">%</span></div>
-          <div className="lp-stat-label">Tracabilite</div>
-          <div className="lp-stat-detail">Chaque verdict est argumente, chaque source citee, chaque vote archive.</div>
+          <div className="lp-stat-label">Traçabilité</div>
+          <div className="lp-stat-detail">Chaque verdict est argumenté, chaque source citée, chaque vote archivé.</div>
         </div>
       </section>
 
@@ -194,7 +198,7 @@ export default function LandingPage() {
                 <span className="lp-demo-verdict-stats">
                   <span><strong>71</strong>/100</span>
                   <span className="lp-vs-sep">·</span>
-                  <span>P(succes) <strong>64</strong>%</span>
+                  <span>P(succès) <strong>64</strong>%</span>
                 </span>
               </div>
             </div>
@@ -202,7 +206,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CARTOGRAPHIE des 13 moteurs avec pictos. */}
+      {/* CARTOGRAPHIE des 14 moteurs Bloc 1 avec pictos. */}
       <section className="lp-engines">
         <div className="lp-section-head">
           <div className="lp-section-kicker">
@@ -210,7 +214,7 @@ export default function LandingPage() {
             Architecture
           </div>
           <h2 className="lp-section-title">
-            Treize moteurs.
+            Quatorze moteurs.
             <br />
             <em>Une lecture exhaustive.</em>
           </h2>
@@ -248,8 +252,8 @@ export default function LandingPage() {
             <div className="lp-pillar-num">I</div>
             <h3 className="lp-pillar-title">L&apos;instruction prend le pas sur la décision rapide.</h3>
             <p className="lp-pillar-text">
-              Treize moteurs scrutent un dossier sous des angles complementaires.
-              Aucun raccourci. Une reflexion par moteur, conservee, datee, signee.
+              Quatorze moteurs scrutent un dossier sous des angles complémentaires.
+              Aucun raccourci. Une réflexion par moteur, conservée, datée, signée.
             </p>
           </article>
           <article className="lp-pillar">
@@ -257,8 +261,8 @@ export default function LandingPage() {
             <div className="lp-pillar-num">II</div>
             <h3 className="lp-pillar-title">Le comité retrouve sa fonction de jugement.</h3>
             <p className="lp-pillar-text">
-              Le pack IC tient en trois pages. Verdict, score, probabilite de succes.
-              Vote en ligne, consolidation immediate, conditions retenues archivees.
+              Le pack IC tient en trois pages. Verdict, score, probabilité de succès.
+              Vote en ligne, consolidation immédiate, conditions retenues archivées.
             </p>
           </article>
           <article className="lp-pillar">
@@ -266,7 +270,7 @@ export default function LandingPage() {
             <div className="lp-pillar-num">III</div>
             <h3 className="lp-pillar-title">La mémoire du fonds devient un actif.</h3>
             <p className="lp-pillar-text">
-              Chaque dossier reste consultable, versionne, commente. Le fonds
+              Chaque dossier reste consultable, versionné, commenté. Le fonds
               construit progressivement sa cartographie cognitive et ses zones de force.
             </p>
           </article>
@@ -296,12 +300,12 @@ export default function LandingPage() {
           Une analyse en quelques minutes.
         </h2>
         <p className="lp-final-text">
-          Deposez un pitch deck. Le pipeline demarre. Vous recevez en quelques
-          minutes une note d&apos;investissement complete, un dossier d&apos;analyse
-          navigable, un pack IC pret a circuler.
+          Déposez un pitch deck. Le pipeline démarre. Vous recevez en quelques
+          minutes une note d&apos;investissement complète, un dossier d&apos;analyse
+          navigable, un pack IC prêt à circuler.
         </p>
         <Link href="/login" className="lp-cta-primary lp-cta-final">
-          <span>Acceder a Prélude</span>
+          <span>Accéder à Prélude</span>
           <Picto name="arrow-right" size={16} />
         </Link>
       </section>
