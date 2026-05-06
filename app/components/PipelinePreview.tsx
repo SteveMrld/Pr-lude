@@ -8,15 +8,19 @@ interface Step {
 }
 
 const PIPELINE_STEPS: Step[] = [
-  { label: 'Lecture du dossier', durationMs: 600 },
-  { label: 'Équipe', durationMs: 800 },
-  { label: 'Marché', durationMs: 700 },
-  { label: 'Macro', durationMs: 500 },
-  { label: 'Pattern matching', durationMs: 700 },
-  { label: 'Vigilance critique', durationMs: 800 },
-  { label: 'Singularités contrariennes', durationMs: 800 },
-  { label: 'Cohérence financière', durationMs: 700 },
-  { label: 'Orchestration', durationMs: 600 },
+  { label: 'Lecture du dossier', durationMs: 500 },
+  { label: 'Équipe', durationMs: 600 },
+  { label: 'Marché', durationMs: 500 },
+  { label: 'Macro', durationMs: 400 },
+  { label: 'Pattern matching', durationMs: 550 },
+  { label: 'Vigilance critique', durationMs: 600 },
+  { label: 'Singularités contrariennes', durationMs: 550 },
+  { label: 'Cohérence financière', durationMs: 500 },
+  { label: 'Cohérence revendication tech', durationMs: 500 },
+  { label: 'Friction d\'exécution', durationMs: 600 },
+  { label: 'Orchestration', durationMs: 500 },
+  { label: 'Data Room - DD financière', durationMs: 600 },
+  { label: 'Data Room - DD contractuelle', durationMs: 700 },
 ];
 
 const TOTAL_LOOP_MS = PIPELINE_STEPS.reduce((s, x) => s + x.durationMs, 0) + 1500; // +pause finale

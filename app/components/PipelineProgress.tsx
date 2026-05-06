@@ -18,6 +18,10 @@ export interface EngineDescriptor {
   id: string;
   name: string;
   label?: string;
+  // Bloc d appartenance pour la separation visuelle Note d instruction
+  // (screening) vs Data Room (DD approfondie). Optionnel pour
+  // compatibilite : si absent, le bandeau fonctionne comme avant.
+  block?: 'instruction' | 'dataroom';
 }
 
 interface Props {

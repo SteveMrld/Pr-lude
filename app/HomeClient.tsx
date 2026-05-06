@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import HistoricalComparables from './components/HistoricalComparables';
 import RadarDimensions from './components/RadarDimensions';
@@ -31,19 +31,33 @@ import {
 } from './components/Pictos';
 import { Picto } from './components/Picto';
 
+// Liste des moteurs affiches pendant l execution. Organisee selon
+// la structure du repositionnement Bloc 1 (Note d instruction) /
+// Bloc 2 (Data Room). Les moteurs Bloc 2 ne tournent que si les
+// documents data room correspondants ont ete uploades, sinon ils
+// sont silencieux.
 const ENGINES = [
-  { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck' },
-  { id: 'team', name: 'Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience' },
-  { id: 'market', name: 'Marché', label: 'Intensité du besoin, défensibilité, comparables internationaux' },
-  { id: 'macro', name: 'Macro', label: 'Position cycle, géopolitique, fenêtre temporelle critique' },
-  { id: 'financial-extraction', name: 'Extraction financière', label: 'Données financières du deck et du business plan' },
-  { id: 'pattern', name: 'Pattern matching', label: 'Confrontation au corpus de cas instruits' },
-  { id: 'causal', name: 'Retournement causal', label: 'Sept angles morts et questions à instruire' },
-  { id: 'blindspot', name: 'Vigilance critique', label: 'Détection des dix patterns d\'erreur de jugement VC' },
-  { id: 'contrarian', name: 'Singularités contrariennes', label: 'Détection des dix signaux contrariens à évaluer' },
-  { id: 'financial-coherence', name: 'Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics' },
-  { id: 'orchestrate', name: 'Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique' },
-  { id: 'reference-checks', name: 'Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance' },
+  // BLOC 1 - NOTE D INSTRUCTION
+  { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck', block: 'instruction' },
+  { id: 'team', name: 'Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience', block: 'instruction' },
+  { id: 'market', name: 'Marché', label: 'Intensité du besoin, défensibilité, comparables internationaux', block: 'instruction' },
+  { id: 'macro', name: 'Macro', label: 'Position cycle, géopolitique, fenêtre temporelle critique', block: 'instruction' },
+  { id: 'financial-extraction', name: 'Extraction financière', label: 'Données financières du deck et du business plan', block: 'instruction' },
+  { id: 'pattern', name: 'Pattern matching', label: 'Confrontation au corpus de cas instruits', block: 'instruction' },
+  { id: 'causal', name: 'Retournement causal', label: 'Sept angles morts et questions à instruire', block: 'instruction' },
+  { id: 'blindspot', name: 'Vigilance critique', label: 'Détection des dix patterns d\'erreur de jugement VC', block: 'instruction' },
+  { id: 'contrarian', name: 'Singularités contrariennes', label: 'Détection des dix signaux contrariens à évaluer', block: 'instruction' },
+  { id: 'financial-coherence', name: 'Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics', block: 'instruction' },
+  { id: 'tech-claim', name: 'Cohérence revendication tech', label: 'Audit du moat technologique revendiqué : budget, traçabilité, contre-factuel', block: 'instruction' },
+  { id: 'execution-friction', name: 'Friction d\'exécution', label: 'Huit axes : go-to-market, financement transactionnel, industrialisation, supply chain, écosystème, régulation, référencement, talent rare', block: 'instruction' },
+  { id: 'orchestrate', name: 'Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique', block: 'instruction' },
+  { id: 'reference-checks', name: 'Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance', block: 'instruction' },
+
+  // BLOC 2 - DATA ROOM (DD approfondie)
+  { id: 'ledger-parsing', name: 'Parsing grand livre', label: 'Lecture FEC ou Excel : soldes, CA réel 12M, marge réelle, top clients, engagements', block: 'dataroom' },
+  { id: 'dd-financial', name: 'DD financière', label: 'Sept tests : CA, marge, burn, headcount, concentration, trajectoire, engagements vs narratif', block: 'dataroom' },
+  { id: 'cap-table-parsing', name: 'Parsing cap table', label: 'Structure d\'actionnariat : fondateurs, investisseurs, pool d\'options, dilution', block: 'dataroom' },
+  { id: 'dd-contractual', name: 'DD contractuelle', label: 'Cartographie de quinze clauses sensibles avec citation exacte : pacte, statuts, contrats clients', block: 'dataroom' },
 ];
 
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -1107,25 +1121,51 @@ export default function HomeClient({
             {/* Vue detaillee verticale conservee en complement du bandeau sticky.
                 Le bandeau donne la vue de flux ; cette liste donne le detail
                 avec sous-titres explicatifs. Utile pour les utilisateurs qui
-                veulent comprendre ce que fait chaque moteur. */}
+                veulent comprendre ce que fait chaque moteur.
+                Liste structuree en deux blocs : Note d instruction (screening)
+                et Data Room (DD approfondie). Les moteurs Data Room ne
+                tournent que si les documents data room ont ete uploades. */}
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
               const duration = state.completedAt && state.startedAt
                 ? formatDuration(state.completedAt - state.startedAt) : null;
+
+              // Insertion du separateur Bloc 1 avant le premier moteur
+              const showInstructionHeader = idx === 0;
+              // Insertion du separateur Bloc 2 avant le premier moteur dataroom
+              const prevBlock = idx > 0 ? ENGINES[idx - 1].block : null;
+              const showDataRoomHeader = engine.block === 'dataroom' && prevBlock !== 'dataroom';
+
               return (
-                <div key={engine.id} className="engine-row">
-                  <div className={`engine-status ${state.status}`}>
-                    {state.status === 'idle' && (idx + 1)}
-                    {state.status === 'running' && '·'}
-                    {state.status === 'done' && '✓'}
-                    {state.status === 'error' && '✕'}
+                <React.Fragment key={engine.id}>
+                  {showInstructionHeader && (
+                    <div className="engine-block-header engine-block-header-instruction">
+                      <span className="engine-block-tag">Bloc 1</span>
+                      <span className="engine-block-title">Note d&apos;instruction</span>
+                      <span className="engine-block-sub">Screening &middot; Deal qualification</span>
+                    </div>
+                  )}
+                  {showDataRoomHeader && (
+                    <div className="engine-block-header engine-block-header-dataroom">
+                      <span className="engine-block-tag">Bloc 2</span>
+                      <span className="engine-block-title">Data Room</span>
+                      <span className="engine-block-sub">Due diligence approfondie</span>
+                    </div>
+                  )}
+                  <div className="engine-row">
+                    <div className={`engine-status ${state.status}`}>
+                      {state.status === 'idle' && (idx + 1)}
+                      {state.status === 'running' && '·'}
+                      {state.status === 'done' && '✓'}
+                      {state.status === 'error' && '✕'}
+                    </div>
+                    <div>
+                      <div className="engine-name">{engine.name}</div>
+                      <div className="engine-label">{engine.label}</div>
+                    </div>
+                    <div className="engine-time">{duration || ''}</div>
                   </div>
-                  <div>
-                    <div className="engine-name">{engine.name}</div>
-                    <div className="engine-label">{engine.label}</div>
-                  </div>
-                  <div className="engine-time">{duration || ''}</div>
-                </div>
+                </React.Fragment>
               );
             })}
           </div>
