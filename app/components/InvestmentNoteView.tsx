@@ -1833,7 +1833,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           padding: 56px 64px;
           background: var(--paper);
           color: var(--ink);
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 15px;
           line-height: 1.7;
           font-feature-settings: "kern", "liga", "onum";
@@ -1864,7 +1864,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           opacity: 0.4;
         }
         .note-brand {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 30px;
           font-weight: 700;
           letter-spacing: 0.16em;
@@ -1908,7 +1908,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           position: relative;
         }
         .note-section-title {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 32px;
           font-weight: 600;
           line-height: 1.15;
@@ -1921,7 +1921,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           position: relative;
         }
         .note-section-num {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 28px;
           font-weight: 400;
           font-style: italic;
@@ -1937,7 +1937,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            Quand un H3 suit immédiatement un autre H3 (sans contenu intermédiaire),
            on évite le double filet via :first-of-type. */
         .note-h3 {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 21px;
           font-weight: 600;
           line-height: 1.25;
@@ -2068,7 +2068,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            un H3. Style FT/Economist : capitale grande, alignée sur 3 lignes,
            en serif gras. */
         .note-h3 + .note-paragraph::first-letter {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 52px;
           font-weight: 700;
           line-height: 0.85;
@@ -2087,7 +2087,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            - .pull-quote-contrarian : accent bleu/vert pour case for
            - .pull-quote-blindspot : accent rouge sourd pour case against */
         .pull-quote {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 22px;
           font-style: italic;
           font-weight: 400;
@@ -2104,7 +2104,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           padding-bottom: 28px;
         }
         .pull-quote-mark {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-style: normal;
           font-size: 32px;
           font-weight: 400;
@@ -2177,7 +2177,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           text-transform: uppercase;
         }
         .note-value {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 14px;
           color: var(--ink);
           line-height: 1.55;
@@ -2322,7 +2322,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-bottom: 10px;
         }
         .founder-name {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 18px;
           font-weight: 600;
           letter-spacing: -0.005em;
@@ -2337,7 +2337,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         }
         .founder-fit {
           margin-left: auto;
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 13px;
           font-weight: 600;
           padding: 3px 10px;
@@ -2417,7 +2417,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-bottom: 6px;
         }
         .verdict-headline-value {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 36px;
           font-weight: 600;
           line-height: 1.05;
@@ -2464,7 +2464,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-weight: 600;
         }
         .verdict-block-figure {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 30px;
           font-weight: 600;
           line-height: 1;
@@ -2474,7 +2474,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         }
         .verdict-block-legend {
           margin-top: 12px;
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 12.5px;
           line-height: 1.55;
           color: var(--ink-soft);
@@ -2554,7 +2554,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-bottom: 6px;
         }
         .verdict-reading-text {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 14px;
           line-height: 1.6;
           color: var(--ink);
@@ -2582,7 +2582,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-weight: 500;
         }
         .verdict-value {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 16px;
           font-weight: 600;
           text-transform: capitalize;
@@ -2693,7 +2693,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            Couleur sourde rouge pour blindspot, vert pour contrarian. */
         .signal-score-pill {
           flex: 0 0 auto;
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 24px;
           font-weight: 700;
           font-feature-settings: "lnum";
@@ -2794,7 +2794,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .matrix-table tr.target .matrix-player {
           background: var(--ink);
           color: var(--paper);
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 14px;
           font-weight: 700;
           letter-spacing: 0;
@@ -2865,7 +2865,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           color: var(--ink-soft);
         }
         .tech-claim-test-score {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 16px;
           font-weight: 700;
           text-align: center;
@@ -2977,7 +2977,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           color: var(--ink-soft);
         }
         .exec-friction-score {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 16px;
           font-weight: 700;
           text-align: center;
@@ -3472,7 +3472,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           background: var(--paper-accent, var(--surface));
         }
         .ddc-clause-citation {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 13.5px;
           color: var(--ink);
           padding: 10px 14px;
@@ -3646,7 +3646,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-bottom: 6px;
         }
         .block-marker-title {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 26px;
           font-weight: 600;
           color: #fafaf6;
@@ -3681,7 +3681,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           padding-left: 6px;
         }
         .ordered-list li::marker {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-weight: 600;
           color: var(--ink-tertiary);
         }
@@ -3706,7 +3706,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            qui suivent sont sectoriels ou de pattern. Style sobre italic
            hairline, ne distrait pas du contenu mais le contextualise. */
         .comparable-scope-note {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 12.5px;
           line-height: 1.55;
           color: var(--ink-soft);
@@ -3782,7 +3782,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           gap: 8px;
         }
         .benchmark-name {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 18px;
           font-weight: 700;
           letter-spacing: -0.005em;
@@ -3930,7 +3930,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-bottom: 14px;
         }
         .note-sources-intro {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 13px;
           font-style: italic;
           color: var(--ink-tertiary);
@@ -3971,7 +3971,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-feature-settings: "lnum";
         }
         .note-sources-list li strong {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 13.5px;
           font-weight: 700;
           letter-spacing: -0.005em;

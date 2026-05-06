@@ -59,22 +59,20 @@ export async function POST(req: NextRequest) {
   // Construction du document HTML complet avec le CSS injecte.
   //
   // PROBLEME RESOLU : @sparticuz/chromium-min serverless est depouille de
-  // polices systeme pour gagner du poids. La chaine Iowan Old Style /
-  // Charter / Cambria / Georgia / serif tombe sur un fallback ultime qui
-  // ne couvre pas tout l Unicode. Resultat : caracteres €, accents
-  // complexes, ligatures comme "ti" sont mangees a l export, donnant
-  // des "certi cation", "(juillet ).", "M$ insusant", etc.
+  // polices systeme pour gagner du poids. La chaine de fallback Charter
+  // Cambria Georgia tombe sur un fallback ultime qui ne couvre pas tout
+  // l Unicode. Resultat : caracteres €, accents complexes, ligatures
+  // comme "ti" sont mangees a l export, donnant des "certi cation",
+  // "(juillet ).", "M$ insusant", etc.
   //
-  // SOLUTION : on embarque deux Google Fonts en preload (Crimson Pro
-  // pour le serif, Inter pour le sans-serif) qui couvrent l Unicode
-  // latin etendu complet. On attend ensuite document.fonts.ready avant
-  // de generer le PDF pour s assurer que les fontes sont chargees.
-  // Le rendu web (cote React) reste sur la chaine Iowan/Charter/Cambria
-  // qui marche bien sur Mac/Windows/Linux desktop. Ces ajouts ne touchent
-  // QUE le rendu PDF serveur.
-  //
-  // On force la couleur d impression pour que les badges colores
-  // (caution-tale rouge anglais, etc.) ressortent bien.
+  // SOLUTION : on embarque deux Google Fonts en preload : Source Serif 4
+  // pour le serif (meme fonte que le rendu web cote React via next/font)
+  // et Inter pour le sans-serif. Source Serif 4 couvre l Unicode latin
+  // etendu complet et garantit que le PDF est typographiquement
+  // identique a la note vue en ligne. On attend ensuite
+  // document.fonts.ready avant de generer le PDF pour s assurer que les
+  // fontes sont chargees. On force la couleur d impression pour que les
+  // badges colores (caution-tale rouge anglais, etc.) ressortent bien.
   const fullHtml = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -82,7 +80,7 @@ export async function POST(req: NextRequest) {
   <title>${escapeHtml(title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -91,7 +89,7 @@ export async function POST(req: NextRequest) {
       padding: 0;
       background: #ffffff;
       color: #1a1a1a;
-      font-family: 'Crimson Pro', 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+      font-family: 'Source Serif 4', 'Charter', 'Cambria', Georgia, serif;
       font-size: 11pt;
       line-height: 1.55;
       -webkit-font-feature-settings: "liga", "kern";
@@ -99,12 +97,12 @@ export async function POST(req: NextRequest) {
     }
     /* Force la chaine de fontes complete pour les elements qui auraient
        leur propre font-family heritee du CSS injecte. Important : on
-       prepend Crimson Pro et Inter sur les chaines existantes pour
-       garantir que le rendu serverless utilise une fonte Unicode-safe.
-       Le CSS du body.css ci-dessous peut overrider, c est intentionnel
-       (les composants choisissent leur fonte). */
+       prepend Source Serif 4 sur les chaines existantes pour garantir
+       que le rendu serverless utilise une fonte Unicode-safe identique
+       au rendu web. Le CSS du body.css ci-dessous peut overrider, c est
+       intentionnel (les composants choisissent leur fonte). */
     body, p, li, td, th, div, span, h1, h2, h3, h4, h5, h6, blockquote, cite {
-      font-family: 'Crimson Pro', 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+      font-family: 'Source Serif 4', 'Charter', 'Cambria', Georgia, serif;
     }
     /* Eviter les coupures dans les blocs critiques */
     .note-section, .note-block, .reco-card, .benchmark-block,
@@ -167,7 +165,7 @@ export async function POST(req: NextRequest) {
 
     // ATTENTE EXPLICITE DU CHARGEMENT DES FONTES
     // ------------------------------------------------------------
-    // Crimson Pro et Inter sont charges via Google Fonts <link>.
+    // Source Serif 4 et Inter sont charges via Google Fonts <link>.
     // networkidle0 indique que les requetes reseau sont stabilisees
     // mais ne garantit pas que les fontes sont disponibles pour le
     // rendu. document.fonts.ready est une Promise qui se resout quand

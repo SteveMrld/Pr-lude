@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { Source_Serif_4, Inter } from 'next/font/google';
 
 // ============================================================
 // ROOT LAYOUT
@@ -8,7 +9,32 @@ import type { Metadata, Viewport } from 'next';
 // mobile, presence dans les onglets et lecteurs RSS / Slack / Notion.
 // Favicon : app/icon.svg (32x32) et app/apple-icon.svg (180x180)
 // pris en charge automatiquement par Next.js 14 App Router.
+//
+// Typographie : Source Serif 4 (serif editorial, utilisation premiere)
+// et Inter (sans-serif UI, micro-elements). Charges via next/font/google
+// pour stabiliser le rendu cross-OS. Auparavant la stack reposait sur
+// Iowan Old Style (Apple uniquement) avec fallback Cambria/Georgia,
+// ce qui produisait trois rendus tres differents selon l OS du
+// partner. Source Serif 4 est concue par Adobe pour la lecture
+// editoriale longue, exactement le registre Le Grand Continent.
 // ============================================================
+
+const sourceSerif = Source_Serif_4({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-serif',
+  display: 'swap',
+  preload: true,
+});
+
+const inter = Inter({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans',
+  display: 'swap',
+  preload: false,
+});
 
 const SITE_URL = 'https://pr-lude.vercel.app';
 const SITE_NAME = 'Prélude';
@@ -78,7 +104,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={`${sourceSerif.variable} ${inter.variable}`}>
       <body>{children}</body>
     </html>
   );

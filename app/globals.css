@@ -42,8 +42,8 @@
   --signal: #b45309;
   --signal-soft: #fffbeb;
 
-  --serif: 'Iowan Old Style', 'Charter', 'Cambria', 'Georgia', serif;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --serif: var(--font-serif), 'Charter', 'Cambria', 'Georgia', serif;
+  --sans: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
 
   /* MOTION - durations et easings unifies (style Linear / Stripe).
@@ -369,7 +369,7 @@ ul, ol { list-style: none; }
   color: var(--ink-soft);
 }
 .hero-mode-title {
-  font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+  font-family: var(--serif);
   font-size: 17px;
   font-weight: 600;
   color: var(--ink);
@@ -3343,7 +3343,7 @@ select.ic-decision-input {
 }
 
 .ref-calls-title {
-  font-family: var(--serif, 'Crimson Pro', Georgia, serif);
+  font-family: var(--serif);
   font-size: 22px;
   font-weight: 600;
   margin: 0 0 4px 0;
@@ -3535,7 +3535,7 @@ select.ic-decision-input {
 }
 
 .ref-calls-synthesis-title {
-  font-family: var(--serif, 'Crimson Pro', Georgia, serif);
+  font-family: var(--serif);
   font-size: 18px;
   font-weight: 600;
   margin: 0;

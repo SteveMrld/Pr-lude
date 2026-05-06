@@ -138,7 +138,7 @@ export default function ReconciliationClient({
           max-width: 1100px;
           margin: 0 auto;
           padding: 28px 22px 60px;
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           color: #1d1d1f;
         }
         .reco-header {
@@ -151,7 +151,7 @@ export default function ReconciliationClient({
           border-bottom: 1px solid #e6e3dd;
         }
         .reco-title {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 30px;
           margin: 0 0 4px;
           color: #16213a;
@@ -339,7 +339,7 @@ function PortfolioPane({ portfolio }: { portfolio: PortfolioReconciliation }) {
           margin-bottom: 16px;
         }
         .stat-num {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 30px;
           font-weight: 600;
           color: #16213a;
@@ -363,7 +363,7 @@ function PortfolioPane({ portfolio }: { portfolio: PortfolioReconciliation }) {
           line-height: 1.55;
         }
         .section-title {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 20px;
           color: #16213a;
           margin: 32px 0 6px;
@@ -662,7 +662,7 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
           border-bottom: 1px solid #e6e3dd;
         }
         .d-title {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 26px;
           color: #16213a;
           margin: 0 0 4px;
@@ -673,7 +673,7 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
           color: #6e6c66;
         }
         .d-section-title {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 19px;
           color: #16213a;
           margin: 28px 0 10px;
@@ -700,7 +700,7 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
           border-radius: 6px;
         }
         .prob-num {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 36px;
           font-weight: 600;
           color: #16213a;
@@ -802,7 +802,7 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
           text-align: center;
         }
         .rs-num {
-          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-family: var(--serif);
           font-size: 22px;
           font-weight: 600;
           color: #16213a;
