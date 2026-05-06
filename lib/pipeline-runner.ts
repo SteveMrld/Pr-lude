@@ -12,6 +12,7 @@ import { analyzeTechClaimCoherence } from './engines/tech-claim-coherence-engine
 import { analyzeExecutionFriction } from './engines/execution-friction-engine';
 import { analyzeDDFinancial } from './engines/dd-financial-engine';
 import { analyzeDDContractual } from './engines/dd-contractual-engine';
+import { analyzeDDTechnical } from './engines/dd-technical-engine';
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
@@ -39,6 +40,14 @@ interface RunOpts {
     capTableType: 'excel' | 'csv' | 'pdf' | null;
     clientContracts: Array<{ name: string; pdfBase64: string }>;
   };
+  // Audit GitHub (Module 3 DD technique). URL et token optionnels :
+  // si githubRepoUrl est null, le moteur retourne not_applicable sans
+  // requete reseau. Le token n est jamais persiste, on garde
+  // seulement le booleen tokenProvided dans l output.
+  githubAuditConfig?: {
+    repoUrl: string | null;
+    token: string | null;
+  };
   otherFileNames: string[];
 }
 
@@ -50,6 +59,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     businessPlanPayload, businessPlanName,
     generalLedgerPayload, generalLedgerName,
     legalDocuments,
+    githubAuditConfig,
     otherFileNames,
   } = opts;
 
@@ -174,6 +184,25 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     } catch (err: any) {
       console.warn('[dd-contractual] engine failed, continuing without:', err?.message);
       await store.setEngineDone(jobId, 'dd-contractual', null);
+    }
+
+    // Moteur DD technique (Module 3) : audit deterministe d un depot
+    // GitHub via l API REST v3. Aucun appel LLM, dix tests structures
+    // sur cadence releases, cadence commits, fraicheur, issues, PRs,
+    // CI, securite, documentation, bus factor, dependances. Ne tourne
+    // que si githubAuditConfig.repoUrl est fourni. Sinon retourne
+    // not_applicable.
+    await store.setEngineRunning(jobId, 'dd-technical');
+    let ddTechnical: any = null;
+    try {
+      ddTechnical = await analyzeDDTechnical(
+        githubAuditConfig?.repoUrl || null,
+        githubAuditConfig?.token || null,
+      );
+      await store.setEngineDone(jobId, 'dd-technical', ddTechnical);
+    } catch (err: any) {
+      console.warn('[dd-technical] engine failed, continuing without:', err?.message);
+      await store.setEngineDone(jobId, 'dd-technical', null);
     }
 
     // Moteur Friction d execution commerciale et industrielle :
@@ -323,6 +352,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       ddFinancial,
       capTableExtraction,
       ddContractual,
+      ddTechnical,
       // Metadonnees des documents juridiques uploades, pour l etape 2
       // du moteur DD contractuel (LLM) qui s appuiera sur ces fichiers.
       // On expose les noms et la presence sans persister les payloads

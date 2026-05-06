@@ -14,6 +14,7 @@ import { analyzeTechClaimCoherence } from '@/lib/engines/tech-claim-coherence-en
 import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engine';
 import { analyzeDDFinancial } from '@/lib/engines/dd-financial-engine';
 import { analyzeDDContractual } from '@/lib/engines/dd-contractual-engine';
+import { analyzeDDTechnical } from '@/lib/engines/dd-technical-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
@@ -56,6 +57,20 @@ export async function POST(req: NextRequest) {
     if (!pitchDeck) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
     }
+
+    // Module 3 DD technique : URL du depot GitHub et token PAT optionnel.
+    // Inputs textuels separes des fichiers, transmis dans le FormData
+    // sous les cles githubRepoUrl et githubToken. Le token n est jamais
+    // logge ni persiste dans le payload final, on garde seulement un
+    // booleen tokenProvided dans output.audit.
+    const githubRepoUrl = (() => {
+      const v = formData.get('githubRepoUrl');
+      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
+    })();
+    const githubToken = (() => {
+      const v = formData.get('githubToken');
+      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
+    })();
 
     const startTime = Date.now();
     const allFileNames = [
@@ -239,6 +254,27 @@ export async function POST(req: NextRequest) {
           sendDone('dd-contractual', ddContractual);
 
           // ============================================================
+          // BLOC 2 DATA ROOM : MODULE 3 DD TECHNIQUE
+          // Audit deterministe d un depot GitHub via l API REST v3 :
+          // qualite de la discipline d ingenierie, dette technique
+          // observable, cadence des releases, securite basique. Aucun
+          // appel LLM, dix tests structures avec evidence chiffree et
+          // questions DD ciblees. Ne tourne que si l URL est fournie
+          // dans le formulaire. Le token est optionnel : sans token, le
+          // moteur reste fonctionnel sur depots publics avec un rate
+          // limit reduit (60 req/h) et certains champs securite
+          // structurellement non observables.
+          // ============================================================
+          sendStart('dd-technical', 'DD technique : audit du depot GitHub');
+          let ddTechnical: any = null;
+          try {
+            ddTechnical = await analyzeDDTechnical(githubRepoUrl, githubToken);
+          } catch (err: any) {
+            console.warn('[dd-technical] engine failed, continuing without:', err?.message);
+          }
+          sendDone('dd-technical', ddTechnical);
+
+          // ============================================================
           // VAGUE 3 : PATTERN MATCHING
           // ============================================================
           sendStart('pattern', 'Pattern matching contre le corpus de cas');
@@ -371,6 +407,7 @@ export async function POST(req: NextRequest) {
             ddFinancial,
             capTableExtraction,
             ddContractual,
+            ddTechnical,
             // Metadonnees des documents juridiques uploades, sans payloads
             // bruts : on n expose que les noms et la presence pour ne pas
             // persister de documents juridiques sensibles dans result_json.
