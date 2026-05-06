@@ -37,18 +37,6 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
     }
 
-    // Module 3 DD technique : URL et token GitHub passes dans le
-    // FormData. Token jamais persiste dans le job-store, transmis
-    // uniquement au pipeline-runner.
-    const githubRepoUrl = (() => {
-      const v = formData.get('githubRepoUrl');
-      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
-    })();
-    const githubToken = (() => {
-      const v = formData.get('githubToken');
-      return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
-    })();
-
     const store = getJobStore();
     await store.createWithId(clientJobId);
     await store.update(clientJobId, {
@@ -87,10 +75,6 @@ export async function POST(req: NextRequest) {
           ? capTable.type as 'excel' | 'csv' | 'pdf'
           : null,
         clientContracts: clientContracts.map(c => ({ name: c.name, pdfBase64: c.payload })),
-      },
-      githubAuditConfig: {
-        repoUrl: githubRepoUrl,
-        token: githubToken,
       },
       otherFileNames: others.map(o => o.name),
     });

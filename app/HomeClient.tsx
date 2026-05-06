@@ -59,7 +59,6 @@ const ENGINES: Array<{ id: string; name: string; label: string; block: EngineBlo
   { id: 'dd-financial', name: 'DD financière', label: 'Sept tests : CA, marge, burn, headcount, concentration, trajectoire, engagements vs narratif', block: 'dataroom' },
   { id: 'cap-table-parsing', name: 'Parsing cap table', label: 'Structure d\'actionnariat : fondateurs, investisseurs, pool d\'options, dilution', block: 'dataroom' },
   { id: 'dd-contractual', name: 'DD contractuelle', label: 'Cartographie de quinze clauses sensibles avec citation exacte : pacte, statuts, contrats clients', block: 'dataroom' },
-  { id: 'dd-technical', name: 'DD technique', label: 'Audit GitHub : cadence releases, discipline commits, sécurité, bus factor, dépendances', block: 'dataroom' },
 ];
 
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -102,13 +101,6 @@ export default function HomeClient({
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
-  // Module 3 DD technique : URL du depot GitHub et token PAT optionnel.
-  // Le token est jamais persiste cote client au-dela de la session
-  // courante, et le serveur ne le persiste pas non plus dans le payload
-  // final. Il est utilise uniquement pour authentifier les requetes
-  // API GitHub pendant le run du pipeline.
-  const [githubRepoUrl, setGithubRepoUrl] = useState<string>('');
-  const [githubToken, setGithubToken] = useState<string>('');
   const [engineStates, setEngineStates] = useState<Record<string, EngineState>>(
     Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }]))
   );
@@ -532,17 +524,6 @@ export default function HomeClient({
       const formData = new FormData();
       for (const f of files) {
         formData.append('files', f);
-      }
-      // Module 3 DD technique : repo URL et token PAT optionnel.
-      // On envoie le token dans le FormData pour qu il ne soit pas
-      // visible dans l URL ou les query params. Cote serveur, le
-      // token n est jamais persiste, on garde seulement un booleen
-      // tokenProvided dans le resultat final.
-      if (githubRepoUrl.trim().length > 0) {
-        formData.append('githubRepoUrl', githubRepoUrl.trim());
-      }
-      if (githubToken.trim().length > 0) {
-        formData.append('githubToken', githubToken.trim());
       }
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
@@ -988,7 +969,7 @@ export default function HomeClient({
                     {[
                       { id: 'dd-financial',  num: '15', name: 'DD financière',     desc: 'Sept tests de réconciliation BP versus grand livre comptable : CA, marge, burn, headcount, concentration client, trajectoire, engagements hors bilan.' },
                       { id: 'dd-contractual', num: '16', name: 'DD contractuelle', desc: 'Cartographie de quinze clauses sensibles avec citation exacte mot pour mot : pacte, statuts, contrats clients, comparaison France Invest Series A/B.' },
-                      { id: 'dd-technical',  num: '17', name: 'DD technique',      desc: 'Audit déterministe d\'un dépôt GitHub via token PAT lecture seule : cadence releases, discipline commits et pull requests, intégration continue, sécurité basique, bus factor, gestion des dépendances. Dix tests structurés avec evidence chiffrée.' },
+                      { id: 'dd-technical',  num: '17', name: 'DD technique',      desc: 'Audit repo GitHub : qualité du code, cadence release, dépendances obsolètes, secrets en dur. À venir.' },
                       { id: 'dd-references', num: '18', name: 'Reference checks structurés', desc: 'Agrégation des notes d\u2019appels DD terrain pour faire émerger les patterns récurrents et les signaux faibles. À venir.' },
                     ].map((e) => {
                       const EnginePicto = ENGINE_PICTOS[e.id as keyof typeof ENGINE_PICTOS];
@@ -1201,80 +1182,6 @@ export default function HomeClient({
                       style={{ display: 'none' }}
                       onChange={(e) => { handleFilesSelect(e.target.files); if (inputRef.current) inputRef.current.value = ''; }} />
                   </div>
-
-                  {/* MODULE 3 DD TECHNIQUE : input depot GitHub.
-                      Optionnel. Si l URL est fournie, le moteur DD
-                      technique tourne et produit un audit deterministe
-                      du depot. Le token PAT (lecture seule) est lui
-                      aussi optionnel : sans token, l API GitHub limite
-                      a 60 req/h et certains champs securite restent non
-                      observables (branch protection, dependabot
-                      alerts). Le token n est jamais persiste cote
-                      serveur, transmis uniquement en memoire pendant
-                      le run du pipeline. */}
-                  <details className="github-audit-details" style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--paper-soft, #faf6ef)', border: '1px solid var(--ink-faint, #d8cfc1)', borderRadius: 6 }}>
-                    <summary style={{ cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--accent, #1a2e4a)' }}>
-                      DD technique · Audit GitHub (optionnel)
-                    </summary>
-                    <div style={{ marginTop: 12, fontFamily: 'var(--serif)', fontSize: 13.5, lineHeight: 1.55, color: 'var(--ink-soft, #333)' }}>
-                      Renseigner l URL du dépôt principal pour déclencher l audit déterministe : cadence releases, discipline commits et pull requests, intégration continue, sécurité basique, bus factor, gestion des dépendances. Dix tests structurés, aucun appel LLM. Le token est facultatif. Sans token, l audit fonctionne sur dépôts publics avec un débit réduit et certains signaux sécurité restent non observables.
-                    </div>
-                    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div>
-                        <label htmlFor="github-repo-url" style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 11, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-soft, #555)', marginBottom: 4 }}>
-                          URL du dépôt GitHub
-                        </label>
-                        <input
-                          id="github-repo-url"
-                          type="text"
-                          inputMode="url"
-                          autoComplete="off"
-                          spellCheck={false}
-                          placeholder="https://github.com/owner/repo"
-                          value={githubRepoUrl}
-                          onChange={(e) => setGithubRepoUrl(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '8px 10px',
-                            fontFamily: 'var(--mono, monospace)',
-                            fontSize: 13,
-                            border: '1px solid var(--ink-faint, #c8bfb1)',
-                            background: 'var(--paper, #fffaf0)',
-                            color: 'var(--ink, #1a1a1a)',
-                            borderRadius: 4,
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="github-token" style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 11, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--ink-soft, #555)', marginBottom: 4 }}>
-                          Token PAT lecture seule (optionnel)
-                        </label>
-                        <input
-                          id="github-token"
-                          type="password"
-                          autoComplete="off"
-                          spellCheck={false}
-                          placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                          value={githubToken}
-                          onChange={(e) => setGithubToken(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '8px 10px',
-                            fontFamily: 'var(--mono, monospace)',
-                            fontSize: 13,
-                            border: '1px solid var(--ink-faint, #c8bfb1)',
-                            background: 'var(--paper, #fffaf0)',
-                            color: 'var(--ink, #1a1a1a)',
-                            borderRadius: 4,
-                          }}
-                        />
-                        <div style={{ marginTop: 6, fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-soft, #777)' }}>
-                          Scopes recommandés : <code style={{ fontFamily: 'var(--mono, monospace)' }}>public_repo</code> ou <code style={{ fontFamily: 'var(--mono, monospace)' }}>repo</code> pour les dépôts privés, plus <code style={{ fontFamily: 'var(--mono, monospace)' }}>security_events</code> pour les alertes Dependabot. Le token n est jamais persisté.
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
                   <div className="cta-row">
                     <button className="btn btn-primary" onClick={analyze}>Lancer le pipeline →</button>
                   </div>
