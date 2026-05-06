@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
 
 export type FileNature =
   | 'pitch_deck'
@@ -211,6 +212,38 @@ export function extractCSVContent(buffer: Buffer): string {
 }
 
 /**
+ * Extrait le contenu textuel d un fichier Word .docx via mammoth.
+ * Sert principalement pour les business plans rediges en Word
+ * plutot qu en PDF, frequents pour les startups francaises early
+ * stage qui n ont pas encore mis en page leur dossier en PDF.
+ *
+ * Mammoth parse le .docx (format Office Open XML, en realite un
+ * zip qui contient du XML) et retourne le texte plein. Les images
+ * et les mises en page sont perdues, mais le contenu textuel suffit
+ * pour l extraction financiere et le matching contre le pitch.
+ *
+ * Limite : .doc (ancien format binaire Word 97-2003) n est PAS
+ * supporte par mammoth. On retourne une indication d erreur claire
+ * dans ce cas pour que le LLM downstream comprenne pourquoi le
+ * fichier est vide.
+ */
+export async function extractWordContent(buffer: Buffer, fileName: string): Promise<string> {
+  const lowerName = fileName.toLowerCase();
+  if (lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+    return '[Format .doc (Word 97-2003 binaire) non supporte. Demander a la startup une version .docx ou PDF.]';
+  }
+  try {
+    const result = await mammoth.extractRawText({ buffer });
+    const text = result.value || '';
+    // Garde-fou taille pour ne pas saturer le contexte LLM. Un BP
+    // depasse rarement 20 pages = ~30k caracteres en plein texte.
+    return text.slice(0, 30000);
+  } catch (e: any) {
+    return `[Erreur lors de l extraction du fichier Word : ${e?.message || 'inconnue'}]`;
+  }
+}
+
+/**
  * Classifie et extrait le contenu de tous les fichiers d'un dossier
  */
 export async function processFiles(files: File[]): Promise<{
@@ -241,6 +274,10 @@ export async function processFiles(files: File[]): Promise<{
       payload = extractExcelContent(buffer);
     } else if (type === 'csv') {
       payload = extractCSVContent(buffer);
+    } else if (type === 'word') {
+      // Extraction docx via mammoth. Permet aux startups d uploader
+      // leur business plan en Word plutot qu en PDF.
+      payload = await extractWordContent(buffer, file.name);
     } else {
       payload = buffer.toString('utf-8').slice(0, 30000);
     }

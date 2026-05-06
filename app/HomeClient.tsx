@@ -669,7 +669,8 @@ export default function HomeClient({
       const lower = f.name.toLowerCase();
       const isPdf = f.type.includes('pdf') || lower.endsWith('.pdf');
       const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv');
-      if (!isPdf && !isExcel) {
+      const isWord = lower.endsWith('.docx');
+      if (!isPdf && !isExcel && !isWord) {
         rejected.push(f.name);
         continue;
       }
@@ -680,7 +681,7 @@ export default function HomeClient({
       accepted.push(f);
     }
     if (rejected.length > 0) {
-      setError('Fichiers refusés : ' + rejected.join(', ') + '. Formats acceptés : PDF, XLSX, XLS, CSV.');
+      setError('Fichiers refusés : ' + rejected.join(', ') + '. Formats acceptés : PDF, XLSX, XLS, CSV, DOCX.');
     } else {
       setError(null);
     }
@@ -904,7 +905,7 @@ export default function HomeClient({
       const f = filelist[i];
       const lower = f.name.toLowerCase();
       const ok = lower.endsWith('.pdf') || lower.endsWith('.xlsx') ||
-        lower.endsWith('.xls') || lower.endsWith('.csv');
+        lower.endsWith('.xls') || lower.endsWith('.csv') || lower.endsWith('.docx');
       if (!ok) {
         rejected.push(f.name);
       } else {
@@ -912,7 +913,7 @@ export default function HomeClient({
       }
     }
     if (rejected.length > 0) {
-      setDdDeepenError('Fichiers refuses : ' + rejected.join(', ') + '. Formats acceptes : PDF, XLSX, XLS, CSV.');
+      setDdDeepenError('Fichiers refuses : ' + rejected.join(', ') + '. Formats acceptés : PDF, XLSX, XLS, CSV, DOCX.');
     } else {
       setDdDeepenError(null);
     }
@@ -1585,7 +1586,7 @@ export default function HomeClient({
                     </div>
                     <div className="upload-label">Déposer un dossier d&apos;investissement</div>
                     <div className="upload-hint">PDF (deck), XLSX/CSV (BP), 32 Mo max par fichier &middot; Cliquer ou glisser-déposer &middot; Plusieurs fichiers acceptés</div>
-                    <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                    <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv,.docx"
                       className="upload-input"
                       onChange={(e) => handleFilesSelect(e.target.files)} />
                   </div>
@@ -1654,7 +1655,7 @@ export default function HomeClient({
                       );
                     })}
                     <button className="btn" style={{ marginTop: 8 }} onClick={() => inputRef.current?.click()}>+ Ajouter un fichier</button>
-                    <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                    <input ref={inputRef} type="file" multiple accept="application/pdf,.pdf,.xlsx,.xls,.csv,.docx"
                       style={{ display: 'none' }}
                       onChange={(e) => { handleFilesSelect(e.target.files); if (inputRef.current) inputRef.current.value = ''; }} />
                   </div>
@@ -1838,12 +1839,12 @@ export default function HomeClient({
                       <Picto name="upload" size={32} strokeWidth={1.5} />
                     </div>
                     <div className="upload-label">Deposer les documents data room</div>
-                    <div className="upload-hint">PDF, XLSX, CSV - Plusieurs fichiers acceptes</div>
+                    <div className="upload-hint">PDF, XLSX, CSV, DOCX - Plusieurs fichiers acceptes</div>
                     <input
                       ref={ddDeepenInputRef}
                       type="file"
                       multiple
-                      accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                      accept="application/pdf,.pdf,.xlsx,.xls,.csv,.docx"
                       className="upload-input"
                       onChange={(e) => handleDdDeepenFilesSelect(e.target.files)}
                     />
@@ -1899,7 +1900,7 @@ export default function HomeClient({
                       ref={ddDeepenInputRef}
                       type="file"
                       multiple
-                      accept="application/pdf,.pdf,.xlsx,.xls,.csv"
+                      accept="application/pdf,.pdf,.xlsx,.xls,.csv,.docx"
                       style={{ display: 'none' }}
                       onChange={(e) => { handleDdDeepenFilesSelect(e.target.files); if (ddDeepenInputRef.current) ddDeepenInputRef.current.value = ''; }}
                     />

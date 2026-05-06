@@ -119,7 +119,7 @@ Société : ${extraction.companyName}
 Secteur : ${extraction.sector}
 Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 
-# BUSINESS PLAN (contenu textuel extrait du fichier Excel/CSV)
+# BUSINESS PLAN (contenu textuel extrait du fichier Excel, CSV ou Word)
 
 ${bpContent.slice(0, 8000)}
 
