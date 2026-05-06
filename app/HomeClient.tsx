@@ -10,6 +10,7 @@ import PipelinePreview from './components/PipelinePreview';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import IcPackView from './components/IcPackView';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
+import ThemeToggle from './components/ThemeToggle';
 import CommentsPanel from './components/CommentsPanel';
 import VersionSelector from './components/VersionSelector';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
@@ -1085,12 +1086,14 @@ export default function HomeClient({
               >
                 Déconnexion
               </button>
+              <ThemeToggle />
             </div>
           </div>
         ) : (
           <div className="header-identity">
             <div className="header-actions">
               <a className="header-action" href="/history">Historique</a>
+              <ThemeToggle />
             </div>
           </div>
         )}

@@ -76,6 +76,106 @@
   --picto-stroke-thick: 1.75;
 }
 
+/* ============================================================
+   MODE SOMBRE
+   ------------------------------------------------------------
+   Active par data-theme="dark" pose sur <html> via JS. Le toggle
+   est dans le header, persistance en localStorage (cle prelude_
+   theme : 'light' | 'dark' | 'system'). Le defaut suit la pre-
+   ference systeme via prefers-color-scheme.
+   
+   La palette inverse les valeurs de fond et d encre tout en
+   conservant les accents fonctionnels (rouge anglais, vert foret,
+   ocre brule) qui restent identifiables sur fond sombre. Le
+   bleu accent passe a une teinte legerement plus claire pour
+   garder le contraste lecteur.
+   
+   Cibles AAA WCAG sur les paires ink/paper : ratio ~14:1.
+   ============================================================ */
+:root[data-theme="dark"] {
+  --paper: #0f172a;             /* fond slate-900, equivalent encre clair */
+  --paper-accent: #1e293b;      /* fond callouts, slate-800 */
+  --paper-warm: #1f1c1a;        /* fond alertes douces */
+  --surface: #131c2e;           /* surface cartes */
+  --surface-deep: #1e293b;      /* surface plus contrastee */
+  --ink: #f1f5f9;               /* encre principale, slate-100 */
+  --ink-soft: #cbd5e1;          /* texte secondaire, slate-300 */
+  --muted: #94a3b8;             /* labels meta, slate-400 */
+  --muted-soft: #64748b;        /* numerotation discrete, slate-500 */
+  --hairline: #334155;          /* separateurs internes, slate-700 */
+  --hairline-soft: #1e293b;     /* separateurs tres legers, slate-800 */
+  --hairline-strong: #f1f5f9;   /* filets editoriaux */
+
+  --accent: #93c5fd;            /* bleu clair, blue-300 (contraste sur sombre) */
+  --accent-soft: #1e3a8a;       /* bleu profond pour fonds */
+  --accent-deep: #dbeafe;       /* bleu tres clair pour highlights */
+  --accent-mid: #60a5fa;        /* bleu mid */
+
+  /* Couleurs editoriales : versions adaptees au sombre, fond
+     soft passe en teinte sombre pour cohabitation. */
+  --rouge-anglais: #fca5a5;     /* rouge clair, lisible sur sombre */
+  --rouge-anglais-soft: #450a0a;
+  --ocre-brule: #fcd34d;        /* ocre clair */
+  --ocre-brule-soft: #451a03;
+  --vert-foret: #86efac;        /* vert clair */
+  --vert-foret-soft: #052e16;
+  --violet-rare: #c4b5fd;
+  --violet-rare-soft: #2e1065;
+
+  --warn: #fca5a5;
+  --warn-soft: #450a0a;
+  --good: #86efac;
+  --good-soft: #052e16;
+  --signal: #fcd34d;
+  --signal-soft: #451a03;
+
+  /* Shadows attenuees en sombre : on ne veut pas un trou noir
+     mais une legere elevation par contraste de lumiere. */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.30);
+  --shadow-4: 0 24px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-blue: 0 8px 24px rgba(96, 165, 250, 0.18), 0 2px 6px rgba(96, 165, 250, 0.10);
+}
+
+/* Suivi de la preference systeme pour les utilisateurs qui n ont
+   pas explicitement choisi (data-theme absent ou 'system'). On
+   active le sombre uniquement si le systeme le demande. */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"], :root:not([data-theme]) {
+    --paper: #0f172a;
+    --paper-accent: #1e293b;
+    --paper-warm: #1f1c1a;
+    --surface: #131c2e;
+    --surface-deep: #1e293b;
+    --ink: #f1f5f9;
+    --ink-soft: #cbd5e1;
+    --muted: #94a3b8;
+    --muted-soft: #64748b;
+    --hairline: #334155;
+    --hairline-soft: #1e293b;
+    --hairline-strong: #f1f5f9;
+    --accent: #93c5fd;
+    --accent-soft: #1e3a8a;
+    --accent-deep: #dbeafe;
+    --accent-mid: #60a5fa;
+    --rouge-anglais: #fca5a5;
+    --rouge-anglais-soft: #450a0a;
+    --ocre-brule: #fcd34d;
+    --ocre-brule-soft: #451a03;
+    --vert-foret: #86efac;
+    --vert-foret-soft: #052e16;
+    --violet-rare: #c4b5fd;
+    --violet-rare-soft: #2e1065;
+    --warn: #fca5a5;
+    --warn-soft: #450a0a;
+    --good: #86efac;
+    --good-soft: #052e16;
+    --signal: #fcd34d;
+    --signal-soft: #451a03;
+  }
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: var(--paper); color: var(--ink); }
 body { font-family: var(--serif); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; min-height: 100vh; font-feature-settings: "kern", "liga", "onum"; }
@@ -4351,6 +4451,43 @@ select.ic-decision-input {
   color: var(--muted);
   font-weight: 500;
   margin-bottom: 8px;
+}
+
+/* THEME TOGGLE
+   Bouton compact dans le header, cycle clair/sombre/systeme.
+   Voix discrete : pas une accroche visuelle, un controle utilitaire. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: border-color var(--motion-fast), color var(--motion-fast);
+}
+.theme-toggle:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.theme-toggle-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+.theme-toggle-label {
+  font-weight: 500;
+}
+.theme-toggle-placeholder {
+  width: 80px;
+  height: 28px;
+}
+@media print {
+  .theme-toggle, .theme-toggle-placeholder { display: none !important; }
 }
 
 .fp-actions {

@@ -98,13 +98,33 @@ export const viewport: Viewport = {
   maximumScale: 5,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1e3a8a' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
   ],
 };
+
+// Script pose en tete du <head> pour appliquer le theme avant le
+// premier paint et eviter le flash blanc en mode sombre. Lit
+// localStorage prelude_theme et pose data-theme="dark" sur <html>
+// si le user a explicitement choisi sombre, ou si 'system' et que
+// la prefers-color-scheme est dark. Si rien en localStorage, on
+// laisse vide et la media query @prefers-color-scheme prend le relais.
+const themeInitScript = `
+(function() {
+  try {
+    var t = localStorage.getItem('prelude_theme');
+    if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    else if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else if (t === 'system' || !t) document.documentElement.setAttribute('data-theme', 'system');
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className={`${sourceSerif.variable} ${inter.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );
