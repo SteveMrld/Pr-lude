@@ -191,8 +191,8 @@ export async function POST(req: NextRequest) {
           // qui veut quand meme regarder un dossier pres-ecarte.
           // ============================================================
           sendStart('prescan', fundProfileForPreScan
-            ? 'Pre-scan : triage rapide dix tests (six universels + quatre fit these)'
-            : 'Pre-scan : triage rapide six tests eliminatoires');
+            ? 'Pré-scan : triage rapide dix tests (six universels et quatre fit thèse)'
+            : 'Pré-scan : triage rapide six tests éliminatoires');
           let preScan: any = null;
           try {
             preScan = await runPreScan(pitchDeck.payload, fundProfileForPreScan || undefined);

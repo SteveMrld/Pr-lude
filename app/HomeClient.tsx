@@ -39,7 +39,7 @@ import { Picto } from './components/Picto';
 type EngineBlock = 'instruction' | 'dataroom';
 const ENGINES: Array<{ id: string; name: string; label: string; block: EngineBlock }> = [
   // BLOC 0 - PRE-SCAN (TRIAGE RAPIDE)
-  { id: 'prescan', name: 'Pré-scan', label: 'Triage rapide six tests éliminatoires (Haiku, ~5s, ~0.02$)', block: 'instruction' },
+  { id: 'prescan', name: 'Pré-scan', label: 'Triage rapide six à dix tests éliminatoires selon la thèse du fonds', block: 'instruction' },
 
   // BLOC 1 - NOTE D INSTRUCTION
   { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck', block: 'instruction' },
@@ -2287,10 +2287,17 @@ export default function HomeClient({
                 ? { bg: 'rgba(192, 138, 63, 0.08)', border: 'rgba(192, 138, 63, 0.5)', accent: '#c08a3f' }
                 : { bg: 'rgba(192, 64, 60, 0.08)', border: 'rgba(192, 64, 60, 0.5)', accent: '#c0403c' };
               const verdictLabel = isOk
-                ? 'Pre-scan favorable'
+                ? 'Pré-scan favorable'
                 : isCaveats
-                ? 'Pre-scan avec reserves'
-                : 'Pre-scan defavorable';
+                ? 'Pré-scan avec réserves'
+                : 'Pré-scan défavorable';
+              // Le pre-scan applique six tests universels par defaut, et
+              // jusqu a dix si la these du fonds est renseignee (fit
+              // sectoriel, geographique, ticket, stade). Le total reel
+              // est dans ps.totalTests (fallback six si absent pour
+              // compat avec anciennes analyses).
+              const totalTests = typeof ps.totalTests === 'number' ? ps.totalTests : 6;
+              const testCountLabel = totalTests === 10 ? 'dix' : 'six';
               return (
                 <div style={{
                   marginBottom: 24,
@@ -2317,7 +2324,7 @@ export default function HomeClient({
                       Triage Bloc 0 · {verdictLabel}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--ink-tertiary)' }}>
-                      Score {ps.score}/6 · {ps.durationMs ? `${(ps.durationMs / 1000).toFixed(1)}s` : ''} · {ps.estimatedCostUsd ? `~$${ps.estimatedCostUsd.toFixed(2)}` : ''}
+                      Score {ps.score}/{totalTests}{ps.durationMs ? ` · ${(ps.durationMs / 1000).toFixed(1)}s` : ''}{ps.estimatedCostUsd ? ` · ~$${ps.estimatedCostUsd.toFixed(2)}` : ''}
                     </div>
                   </div>
                   <div style={{
@@ -2339,7 +2346,7 @@ export default function HomeClient({
                         fontWeight: 600,
                         userSelect: 'none',
                       }}>
-                        Voir le detail des six tests
+                        Voir le détail des {testCountLabel} tests
                       </summary>
                       <div style={{ marginTop: 12 }}>
                         {ps.tests.map((t: any, i: number) => {
