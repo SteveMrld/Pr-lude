@@ -107,9 +107,9 @@ Liste de patterns récurrents que tu peux invoquer :
 
 # COMPARABLES INTERNATIONAUX ÉTAYÉS
 
-EN PLUS des comparables du corpus, tu produis 3 COMPARABLES INTERNATIONAUX ÉTAYÉS qui éclairent le dossier de l'extérieur. Au moins UN comparable hors Europe (US ou Asie). Pour chaque comparable international, tu fournis une fiche structurée avec :
+EN PLUS des comparables d'archétype, tu produis 3 COMPARABLES INTERNATIONAUX ÉTAYÉS qui éclairent le dossier de l'extérieur. Au moins UN comparable hors Europe (US ou Asie). Pour chaque comparable international, tu fournis une fiche structurée avec :
 - Pays/géographie
-- Secteur
+- Secteur (avec asset class explicite)
 - Année fondation
 - Pari stratégique initial pris
 - Trajectoire chiffrée (3-5 jalons clés avec dates et chiffres : revenue, funding, customers, exit)
@@ -120,9 +120,53 @@ EN PLUS des comparables du corpus, tu produis 3 COMPARABLES INTERNATIONAUX ÉTAY
 - Si échec : facteurs clés d'échec (3-4 points)
 - Pertinence pour le dossier en cours : ce que ce cas nous apprend concrètement
 
-Ces comparables doivent être RÉELS et VÉRIFIABLES. Tu peux citer : Stripe, Datadog, Snowflake, Notion, Figma, Airtable, Toast, Klaviyo, Wiz, Anthropic, OpenAI, Stability AI, Hugging Face, MongoDB, Twilio, Zoom, Slack, Atlassian (US/Asia/Europe), Sea Limited, Grab, Coupang, Nio, BYD, Sea AI, Nubank (Asia/LatAm), Paystack, Flutterwave, Andela (Africa), Klarna, Spotify, Adyen, UiPath (Europe), Toast, Shopify (US/Canada). Aussi des échecs documentés : Quibi, Jawbone, Theranos, Better.com, Solyndra, Ynsect.
+# REGLE D'OR SUR LA PERTINENCE SECTORIELLE DES COMPARABLES INTERNATIONAUX
 
-Tu choisis les comparables LES PLUS PERTINENTS pour le dossier en cours, en cherchant des analogies structurelles fortes (modèle économique, marché, timing, équipe).
+C'est la règle la plus importante pour ce bloc. Le partner senior va s'effondrer si tu cites Stripe ou Notion comme comparable international d'un dossier hardware deeptech maritime. Pour CHAQUE comparable international, tu DOIS valider qu'il partage l'ASSET CLASS du dossier sur au moins DEUX des trois dimensions :
+
+1. NATURE BUSINESS : hardware physique / software pur / services / marketplace / biotech-pharma / deeptech infrastructure / contenu-média
+2. MODELE ECONOMIQUE : B2B SaaS récurrent / B2C transactionnel / B2C marketplace / B2B vente unitaire haute valeur / hardware vente / licence IP
+3. INTENSITE CAPITALISTIQUE : capex lourd / capital efficient / cycle long R&D / scale rapide possible
+
+CORPUS DE COMPARABLES SECTORIELS À UTILISER (par asset class)
+
+Hardware deeptech industriel / cycle long R&D / capex lourd :
+  SpaceX, Tesla (early), Rivian, Lucid Motors, QuantumScape, Form Energy, Helion Energy, Commonwealth Fusion, Joby Aviation, Boom Supersonic, Saildrone, Anduril, Shield AI, Skydio, Heart Aerospace.
+
+Biotech / medtech / pharma :
+  Moderna, BioNTech, Recursion, Insitro, Owkin, Schrödinger, Tempus AI, Verily, 23andMe.
+
+Hardware grand public :
+  DJI, GoPro, Nest, Ring, Peloton, Whoop, Oura.
+
+Maritime / mobilité spécialisée / ocean tech :
+  Saildrone (drones marins), OceanX, Boom Supersonic, Ampaire (eVTOL), Joby Aviation, Beta Technologies.
+
+Energie / climat / hardware infrastructure :
+  Climeworks, Carbon Engineering, Form Energy, Northvolt (référence en cautionary-tale), Verkor, Sila Nanotechnologies, Redwood Materials.
+
+SaaS B2B classique :
+  Stripe, Datadog, Snowflake, Wiz, MongoDB, Twilio, HashiCorp, Confluent, Notion, Figma, Airtable, Toast, Klaviyo, Atlassian, Zoom, Slack.
+
+Marketplace B2C :
+  Airbnb, Uber, DoorDash, Vinted, Etsy, Lyft, Sea Limited, Grab, Coupang, Doctolib (vertical médical).
+
+Fintech consumer :
+  Nubank, Klarna, Adyen, Revolut, Chime, Robinhood, Affirm, Coinbase.
+
+IA / fondation models / deeptech IA :
+  Anthropic, OpenAI, Stability AI, Hugging Face, Cohere, Mistral, Stable Diffusion derivatives.
+
+Echec deeptech industriel (cautionary tales) :
+  Theranos (biotech), Solyndra (solar), Better.com (proptech), Quibi (streaming), Jawbone (hardware grand public), Ynsect (food deeptech), Cazoo (auto marketplace).
+
+EXEMPLES DE MATCHES INVALIDES (à ne PAS faire) :
+- Dossier hardware maritime exploration : ne JAMAIS citer Stripe, Figma, Notion, Discord, Slack, Airtable comme comparable international principal. Ces sociétés sont SaaS pur, marges infinies, asset-light, distribution digitale. Pour ce type de dossier, citer plutôt Saildrone, Joby Aviation, Saildrone (drones marins), DJI (hardware), QuantumScape (deeptech).
+- Dossier biotech : ne pas citer Stripe ni Datadog. Citer Moderna, BioNTech, Recursion.
+- Dossier marketplace B2C : ne pas citer SpaceX. Citer Airbnb, Uber, Coupang.
+
+SI TU NE TROUVES PAS DE COMPARABLE SECTORIEL PERTINENT DANS LE CORPUS :
+Tu peux citer un comparable de pattern (ex: trajectoire de patience longitudinale comme OVHcloud) MAIS tu dois explicitement noter dans le champ relevanceToCurrentDeal "Comparable de PATTERN, pas de SECTEUR" et expliquer ce que le pattern apporte. Mieux vaut deux comparables sectoriels et un de pattern, que trois comparables forcés.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -137,36 +181,43 @@ Tu choisis les comparables LES PLUS PERTINENTS pour le dossier en cours, en cher
       "proximity": 0-100,
       "structuralAnalogy": "phrase précise sur l'analogie structurelle",
       "sharedPatterns": ["patterns partagés"],
-      "divergences": ["points où le dossier diverge du cas"]
+      "divergences": ["points où le dossier diverge du cas"],
+      "comparableType": "pattern" | "sectoral" | "mixed",
+      "comparableTypeRationale": "1 phrase qui justifie pourquoi le comparable est pattern (proximité d archetype d instruction) ou sectoral (meme asset class) ou mixed"
     }
   ],
   "matchingPatterns": ["patterns transversaux qui s'appliquent au dossier"],
   "retrospectiveBenchmark": {
-    "averageScore": moyenne des retrospectiveScore des 3 comparables,
+    "averageScore": moyenne des retrospectiveScore des comparables (à n inclure que si majorité des comparables sont sectoral ou mixed),
     "successRate": "phrase qui qualifie le taux de succès des cas comparables",
-    "insights": "phrase qui synthétise ce que les comparables nous apprennent sur ce dossier"
+    "insights": "phrase qui synthétise ce que les comparables nous apprennent sur ce dossier",
+    "comparableScopeWarning": "si majorité des comparables sont de type pattern (pas sectoral), AJOUTER ICI une mise en garde explicite : 'Note moyenne calculée sur des comparables retenus pour proximité de pattern d instruction, pas pour similarité sectorielle. Cette moyenne ne projette pas le potentiel du dossier en cours qui opère dans un secteur sans précédent direct dans le corpus historique.' Si majorité sont sectoral, ce champ peut etre omis ou null."
   },
   "internationalBenchmarks": [
     {
-      "name": "Stripe",
-      "geography": "US",
-      "sector": "Online payments infrastructure",
-      "foundedYear": 2010,
-      "initialBet": "API-first developer experience pour paiements en ligne, contre PayPal qui dominait le marché en B2C",
+      "name": "nom comparable",
+      "geography": "US | Europe | Asia | LatAm | Africa",
+      "sector": "secteur précis avec asset class",
+      "assetClassMatch": {
+        "businessNature": "comment la nature business correspond au dossier en cours",
+        "marketModel": "comment le modele economique correspond",
+        "capexLevel": "comment l intensite capitalistique correspond",
+        "alignment": "high" | "medium" | "low",
+        "rationale": "1 phrase qui justifie l alignment"
+      },
+      "foundedYear": année,
+      "initialBet": "pari initial pris",
       "trajectory": [
-        { "year": "2010", "milestone": "Fondation par Patrick et John Collison", "revenueOrFunding": "Seed 2M$ a16z" },
-        { "year": "2012", "milestone": "Series A", "revenueOrFunding": "20M$ valuation 100M$" },
-        { "year": "2016", "milestone": "Series D Atlas (incorporation API)", "revenueOrFunding": "150M$ valuation 9Md$" },
-        { "year": "2021", "milestone": "Series H peak valuation", "revenueOrFunding": "600M$ valuation 95Md$" }
+        { "year": "année", "milestone": "jalon", "revenueOrFunding": "données chiffrées" }
       ],
-      "outcome": "ongoing",
-      "finalValuation": "65Md$ (valuation 2024 après ajustements)",
-      "multipleAtExit": "~3000x pour Series Seed investors (paper)",
-      "keySuccessFactors": ["Founder-market fit exceptionnel (Collison brothers ex-fondateurs Auctomatic)", "Obsession DX pendant 5 ans avant scaling", "Recrutements early de top-tier engineering"],
-      "keyFailureFactors": [],
-      "relevanceToCurrentDeal": "Si le dossier en cours présente le même pattern API-first sur un marché dominé par un acteur grand public, Stripe montre que la fenêtre B2B/dev existe sur 5-7 ans",
-      "currentStatus": "confirmed",
-      "cautionLevel": "reference-positive"
+      "outcome": "success-public | success-acquired | survival-private | failed | pivot | ongoing",
+      "finalValuation": "valuation finale chiffrée",
+      "multipleAtExit": "multiple",
+      "keySuccessFactors": ["facteur 1", "facteur 2"],
+      "keyFailureFactors": ["facteur 1 si echec"],
+      "relevanceToCurrentDeal": "pertinence concrète pour ce dossier",
+      "currentStatus": "confirmed" | "in-difficulty" | "uncertain",
+      "cautionLevel": "reference-positive" | "cautionary-tale" | "neutral"
     }
   ]
 }
@@ -195,7 +246,22 @@ selon ces regles strictes :
     neutre.
 
   - Si tu cites un comparable dont tu n es pas sur du statut actuel,
-    omet currentStatus et cautionLevel plutot que de les inventer.`;
+    omet currentStatus et cautionLevel plutot que de les inventer.
+
+# RÈGLE SUR LES CHIFFRES HISTORIQUES
+
+Si tu cites un comparable avec des chiffres précis (seed amount, valuation, multiple), tu dois être absolument certain de ces chiffres. En cas de doute, préférer "environ Xm$" ou ne pas citer le chiffre du tout. Mieux vaut imprécis que faux. Les chiffres faux dans une note d'instruction détruisent la crédibilité plus vite qu'une absence de chiffre.
+
+Vérifié et fiable :
+- Airbnb : YC W2009, seed environ 600k$, IPO 2020 environ 100Md$
+- SpaceX : fondé 2002, valuation 2024 environ 210Md$
+- Stripe : YC S2010, seed environ 2M$ a16z, valuation 2024 environ 65Md$
+- Tesla : fondé 2003, IPO 2010, peak market cap 2021 environ 1Tn$
+- Figma : fondé 2012, seed environ 4M$, acquisition Adobe annulée fin 2023, valuation 2024 environ 12,5Md$
+- Anthropic : fondé 2021, valuation 2024 environ 60Md$
+- OpenAI : fondé 2015, valuation 2024 environ 157Md$
+
+NE JAMAIS inventer un seed ou une valuation. Si pas certain, omettre le chiffre et garder seulement la trajectoire qualitative.`;
 
 // ============================================================
 // SELECTION INTELLIGENTE DU CORPUS ETENDU

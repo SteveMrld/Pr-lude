@@ -354,12 +354,29 @@ export interface PatternMatchingOutput {
     structuralAnalogy: string;
     sharedPatterns: string[];
     divergences: string[];
+    /**
+     * Type de comparable retenu :
+     *   - 'sectoral'  : meme asset class (nature business + modele economique + capex)
+     *   - 'pattern'   : proximite d archetype d instruction sans similarite sectorielle
+     *   - 'mixed'     : partage des dimensions structurelles partielles
+     * Permet a l UI de signaler explicitement quand le comparable n est pas un
+     * comparable de marche direct mais un comparable de pattern.
+     */
+    comparableType?: 'sectoral' | 'pattern' | 'mixed';
+    comparableTypeRationale?: string;
   }>;
   matchingPatterns: string[];
   retrospectiveBenchmark: {
     averageScore: number;
     successRate: string;
     insights: string;
+    /**
+     * Mise en garde explicite quand la majorite des comparables retenus sont
+     * de type pattern (non sectoral). La moyenne ne projette alors pas le
+     * potentiel du dossier en cours qui opere dans un secteur sans precedent
+     * direct dans le corpus historique.
+     */
+    comparableScopeWarning?: string | null;
   };
   // Comparables internationaux étayés avec trajectoire chiffrée
   internationalBenchmarks: Array<{
@@ -376,23 +393,23 @@ export interface PatternMatchingOutput {
     keyFailureFactors: string[]; // pourquoi ça a raté (si échec)
     relevanceToCurrentDeal: string; // ce que ça nous apprend sur le dossier en cours
     /**
+     * Validation de pertinence sectorielle. Le comparable n est valide que
+     * s il partage l asset class du dossier sur au moins deux des trois
+     * dimensions (businessNature, marketModel, capexLevel). Si alignment
+     * est 'low', le moteur doit soit retirer le comparable, soit le marquer
+     * explicitement comme comparable de pattern dans relevanceToCurrentDeal.
+     */
+    assetClassMatch?: {
+      businessNature: string;
+      marketModel: string;
+      capexLevel: string;
+      alignment: 'high' | 'medium' | 'low';
+      rationale: string;
+    };
+    /**
      * Statut actuel du comparable, hérité du corpus étendu si le cas y est référencé.
-     * Permet au lecteur de calibrer la confiance du comparable :
-     *   - 'confirmed'     : succès validé, comparable solide pour défendre une thèse
-     *   - 'promising'     : forte traction mais pas encore prouvé, à citer avec calibrage
-     *   - 'fragile'       : signaux mixtes, à citer comme avertissement
-     *   - 'in-difficulty' : baisse / restructuration / faillite, à citer comme rappel critique
-     *   - 'too-early'     : <3 ans, prudence, ne pas prendre comme garantie
-     * Optionnel : si le comparable n'est pas dans le corpus étendu, ce champ est absent.
      */
     currentStatus?: 'confirmed' | 'promising' | 'fragile' | 'in-difficulty' | 'too-early';
-    /**
-     * Niveau de prudence à signaler au lecteur quand le comparable est cité.
-     *   - 'reference-positive' : à utiliser comme exemple à suivre
-     *   - 'cite-with-caveat'   : à citer mais avec nuance
-     *   - 'cautionary-tale'    : à citer comme avertissement (cas Strate D)
-     * Optionnel : permet d'orienter le ton de la prose.
-     */
     cautionLevel?: 'reference-positive' | 'cite-with-caveat' | 'cautionary-tale';
   }>;
 }
@@ -514,6 +531,17 @@ export interface ContrarianAnalysisOutput {
     contrarianBet: string;
     outcome: string;
     multipleAtExit: string;
+    // Validation de pertinence : un comparable contrarien n est valide
+    // que s il partage l asset class du dossier (nature business, modele
+    // economique, intensite capitalistique). Si alignment < medium, le
+    // moteur ne doit pas retenir le comparable.
+    assetClassMatch?: {
+      businessNature: string;
+      marketModel: string;
+      capexLevel: string;
+      alignment: 'high' | 'medium' | 'low';
+      rationale: string;
+    };
   }>;
   syntheseSingularite: string;
   recommandationContrarienne: string;
