@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isAuthEnabled } from '@/lib/auth';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
+import { logException } from '@/lib/error-logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,11 @@ export async function POST(req: NextRequest) {
     .select('id, name')
     .single();
   if (orgErr || !org) {
-    console.error('Failed to create org:', orgErr);
+    await logException('api.organizations.create-org', orgErr, {
+      severity: 'error',
+      userId: user.id,
+      context: { name, phase: 'organization-insert' },
+    });
     return NextResponse.json({ error: 'Creation echouee' }, { status: 500 });
   }
 
@@ -64,7 +69,12 @@ export async function POST(req: NextRequest) {
     role: 'admin',
   });
   if (memberErr) {
-    console.error('Failed to create membership:', memberErr);
+    await logException('api.organizations.create-membership', memberErr, {
+      severity: 'error',
+      userId: user.id,
+      organizationId: org.id,
+      context: { phase: 'membership-insert', orgRolledBack: true },
+    });
     // Cleanup pour eviter une org orpheline
     await admin.from('organizations').delete().eq('id', org.id);
     return NextResponse.json({ error: 'Creation echouee' }, { status: 500 });
@@ -127,7 +137,12 @@ export async function PATCH(req: NextRequest) {
     .select('id, name')
     .single();
   if (error || !updated) {
-    console.error('Failed to rename org:', error);
+    await logException('api.organizations.rename', error, {
+      severity: 'error',
+      userId: user.id,
+      organizationId: membership.organization_id,
+      context: { newName: name },
+    });
     return NextResponse.json({ error: 'Mise a jour echouee' }, { status: 500 });
   }
   return NextResponse.json({ id: updated.id, name: updated.name });

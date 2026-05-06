@@ -24,6 +24,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logException } from '@/lib/error-logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -203,7 +204,10 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: any) {
-    console.error('[export-pdf] Erreur generation PDF:', err);
+    await logException('api.export-pdf', err, {
+      severity: 'error',
+      context: { phase: 'puppeteer-render' },
+    });
     if (browser) {
       try { await browser.close(); } catch {}
     }

@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isAuthEnabled } from '@/lib/auth';
 import { getSupabaseAdminClient, getSupabaseServerClient } from '@/lib/supabase/server';
+import { logException } from '@/lib/error-logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -107,7 +108,11 @@ export async function PATCH(req: NextRequest) {
 
   const { error } = await admin.auth.admin.updateUserById(user.id, updates);
   if (error) {
-    console.error('Failed to update user:', error);
+    await logException('api.auth.profile-update', error, {
+      severity: 'error',
+      userId: user.id,
+      context: { phase: 'updateUserById' },
+    });
     return NextResponse.json({ error: 'Mise a jour echouee' }, { status: 500 });
   }
 

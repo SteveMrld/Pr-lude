@@ -6,6 +6,7 @@ import { parseCapTable } from '@/lib/cap-table-parser';
 import { analyzeDDFinancial } from '@/lib/engines/dd-financial-engine';
 import { analyzeDDContractual } from '@/lib/engines/dd-contractual-engine';
 import { analyzeDDTechnical } from '@/lib/engines/dd-technical-engine';
+import { logException } from '@/lib/error-logger';
 
 // ============================================================
 // ROUTE DD APPROFONDIE (Module Bloc 2)
@@ -157,7 +158,7 @@ export async function POST(
             try {
               ledgerExtraction = parseLedger(generalLedger.payload);
             } catch (err: any) {
-              console.warn('[ledger-parsing] failed:', err?.message);
+              logException('pipeline.ledger-parsing', err, { severity: 'warning', analysisId: params.id });
             }
             sendDone('ledger-parsing', ledgerExtraction);
           }
@@ -175,7 +176,7 @@ export async function POST(
                 ledgerExtraction,
               );
             } catch (err: any) {
-              console.warn('[dd-financial] failed:', err?.message);
+              logException('pipeline.dd-financial', err, { severity: 'warning', analysisId: params.id });
             }
             sendDone('dd-financial', ddFinancial);
           }
@@ -192,7 +193,7 @@ export async function POST(
                 : 'excel';
               capTableExtraction = parseCapTable(capTable.payload, fileType);
             } catch (err: any) {
-              console.warn('[cap-table-parsing] failed:', err?.message);
+              logException('pipeline.cap-table-parsing', err, { severity: 'warning', analysisId: params.id });
             }
             sendDone('cap-table-parsing', capTableExtraction);
           }
@@ -213,7 +214,7 @@ export async function POST(
                 clientContracts: clientContracts.map(c => ({ name: c.name, pdfBase64: c.payload })),
               });
             } catch (err: any) {
-              console.warn('[dd-contractual] failed:', err?.message);
+              logException('pipeline.dd-contractual', err, { severity: 'warning', analysisId: params.id });
             }
             sendDone('dd-contractual', ddContractual);
           }
@@ -229,7 +230,7 @@ export async function POST(
                 techDocs: technicalDocs.map(t => ({ name: t.name, pdfBase64: t.payload })),
               });
             } catch (err: any) {
-              console.warn('[dd-technical] failed:', err?.message);
+              logException('pipeline.dd-technical', err, { severity: 'warning', analysisId: params.id });
             }
             sendDone('dd-technical', ddTechnical);
           }
@@ -315,7 +316,11 @@ export async function POST(
           send('complete', { result: newResult });
           controller.close();
         } catch (err: any) {
-          console.error('[dd-deepen] pipeline error:', err);
+          await logException('api.dd-deepen.pipeline', err, {
+            severity: 'error',
+            analysisId: params.id,
+            context: { phase: 'pipeline-stream' },
+          });
           send('error', { error: err?.message || 'Erreur pipeline DD approfondie' });
           controller.close();
         }
@@ -330,7 +335,11 @@ export async function POST(
       },
     });
   } catch (error: any) {
-    console.error('[dd-deepen] route error:', error);
+    await logException('api.dd-deepen.route', error, {
+      severity: 'error',
+      analysisId: params.id,
+      context: { phase: 'route-entry' },
+    });
     return new Response(
       JSON.stringify({ error: error.message || 'Erreur' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },

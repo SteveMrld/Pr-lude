@@ -20,6 +20,7 @@ import {
 } from '@/lib/reference-call-notes-store';
 import { aggregateReferenceCallNotes } from '@/lib/engines/reference-aggregation-engine';
 import { isPersistenceEnabled, getAnalysis } from '@/lib/analysis-store';
+import { logException } from '@/lib/error-logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -81,7 +82,10 @@ export async function GET(
     const result = await buildAggregation(params.id, false);
     return NextResponse.json({ enabled: true, ...result });
   } catch (err: any) {
-    console.error('[reference-aggregation] GET exception:', err);
+    await logException('api.reference-aggregation.GET', err, {
+      severity: 'error',
+      analysisId: params.id,
+    });
     return NextResponse.json({ error: err?.message || 'aggregation-failed' }, { status: 500 });
   }
 }
@@ -97,7 +101,11 @@ export async function POST(
     const result = await buildAggregation(params.id, true);
     return NextResponse.json({ enabled: true, ...result });
   } catch (err: any) {
-    console.error('[reference-aggregation] POST exception:', err);
+    await logException('api.reference-aggregation.POST', err, {
+      severity: 'error',
+      analysisId: params.id,
+      context: { force: true },
+    });
     return NextResponse.json({ error: err?.message || 'aggregation-failed' }, { status: 500 });
   }
 }
