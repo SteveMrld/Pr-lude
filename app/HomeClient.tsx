@@ -36,7 +36,8 @@ import { Picto } from './components/Picto';
 // Bloc 2 (Data Room). Les moteurs Bloc 2 ne tournent que si les
 // documents data room correspondants ont ete uploades, sinon ils
 // sont silencieux.
-const ENGINES = [
+type EngineBlock = 'instruction' | 'dataroom';
+const ENGINES: Array<{ id: string; name: string; label: string; block: EngineBlock }> = [
   // BLOC 1 - NOTE D INSTRUCTION
   { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck', block: 'instruction' },
   { id: 'team', name: 'Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience', block: 'instruction' },
