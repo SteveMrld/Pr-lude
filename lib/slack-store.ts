@@ -725,7 +725,7 @@ export async function notifyIcVoteQuorum(params: {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: `🎯 ${params.companyName} — Quorum IC atteint`,
+        text: `🎯 ${params.companyName} · Quorum IC atteint`,
         emoji: true,
       },
     },
@@ -756,7 +756,7 @@ export async function notifyIcVoteQuorum(params: {
   ];
 
   const result = await postToSlack(cfg.webhookUrl, {
-    text: `${params.companyName} — Quorum IC atteint (${params.votes.length} votes)`,
+    text: `${params.companyName} · Quorum IC atteint (${params.votes.length} votes)`,
     blocks,
   });
 

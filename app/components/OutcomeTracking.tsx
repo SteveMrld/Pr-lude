@@ -864,7 +864,7 @@ function MilestoneForm({ onCancel }: { onCancel: () => void }) {
       <label className="otf-label">
         Impact qualitatif
         <select name="impact" defaultValue="">
-          <option value="">— non spécifié —</option>
+          <option value="">Non spécifié</option>
           <option value="positive">Positif</option>
           <option value="negative">Négatif</option>
           <option value="mixed">Mixte</option>
@@ -875,7 +875,7 @@ function MilestoneForm({ onCancel }: { onCancel: () => void }) {
       <label className="otf-label">
         Lien à la thèse initiale
         <select name="thesisAlignment" defaultValue="">
-          <option value="">— non spécifié —</option>
+          <option value="">Non spécifié</option>
           <option value="confirms_driver">Valide un driver positif identifié</option>
           <option value="confirms_risk">Valide un risque identifié</option>
           <option value="contradicts_driver">Un driver positif ne se matérialise pas</option>

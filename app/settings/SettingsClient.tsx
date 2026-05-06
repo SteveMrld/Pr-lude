@@ -404,7 +404,7 @@ export default function SettingsClient({
 
       {tier2.length > 0 && (
         <SourceGroup
-          title="Tier 2 — Sources premium"
+          title="Tier 2 · Sources premium"
           subtitle="Deal data, intelligence corporate, données financières institutionnelles. Activation recommandée pour une instruction comparable à celle d&apos;une équipe d&apos;associés senior."
           sources={tier2}
           state={state}
@@ -417,7 +417,7 @@ export default function SettingsClient({
 
       {tier1Optional.length > 0 && (
         <SourceGroup
-          title="Tier 1 — Sources primaires (optionnel)"
+          title="Tier 1 · Sources primaires (optionnel)"
           subtitle="Sources accessibles gratuitement avec un quota limité. L&apos;ajout de votre clé personnelle débloque des quotas plus élevés et accélère l&apos;analyse."
           sources={tier1Optional}
           state={state}
@@ -430,7 +430,7 @@ export default function SettingsClient({
 
       {tier3.length > 0 && (
         <SourceGroup
-          title="Tier 3 — Signaux complémentaires"
+          title="Tier 3 · Signaux complémentaires"
           subtitle="Sources de signaux faibles : profils LinkedIn structurés, communautés produit, mentions presse spécialisée."
           sources={tier3}
           state={state}

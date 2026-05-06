@@ -171,7 +171,7 @@ export function bodaccToCitation(rec: BodaccAnnouncement): AdapterCitation {
   return {
     sourceId: 'bodacc',
     url: rec.url,
-    title: `BODACC ${rec.publicationDate} — ${rec.rawType || rec.type}`,
+    title: `BODACC ${rec.publicationDate} · ${rec.rawType || rec.type}`,
     date: rec.publicationDate,
     tier: 1,
   };

@@ -194,7 +194,7 @@ export function epoPatentToCitation(rec: EpoPatentRecord): AdapterCitation {
   return {
     sourceId: 'epo-espacenet',
     url: rec.url,
-    title: `${rec.publicationNumber} — ${rec.title}`,
+    title: `${rec.publicationNumber} · ${rec.title}`,
     date: rec.publicationDate,
     tier: 1,
   };

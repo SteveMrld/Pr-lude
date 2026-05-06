@@ -1120,7 +1120,7 @@ export default function HomeClient({
                   <div className="hero-rule" aria-hidden="true"></div>
                   <div className="page-kicker">
                     <span className="page-kicker-bullet" aria-hidden="true"></span>
-                    <span>Prélude — Depuis 2026</span>
+                    <span>Prélude · Depuis 2026</span>
                   </div>
                   <h1 className="page-title">
                     <span className="page-title-line">Instruire un dossier</span>

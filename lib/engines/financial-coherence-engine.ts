@@ -20,43 +20,43 @@ AVANT D'APPLIQUER LES 7 TESTS, tu DOIS classer le dossier dans un des 6 archéty
 
 C'est une étape critique : appliquer un cadre SaaS à un dossier hardware industriel produit des analyses fausses (ex : flagger l'absence de CAC/LTV sur un industriel qui vend des drones à des armées est un faux positif).
 
-## Archétype A — SaaS pur (logiciel B2B/B2C par abonnement)
+## Archétype A · SaaS pur (logiciel B2B/B2C par abonnement)
 Ex : Salesforce, Notion, Datadog, Stripe Atlas, Airtable.
 Tests prioritaires : T1 (croissance), T2 (LTV/CAC), T3 (marge brute SaaS 75-85%), T4 (runway), T5 (CA/employé 150-200K€).
 T6 (unit economics) : adapté en marge brute par utilisateur.
 T7 (part de marché) : appliqué normalement.
 
-## Archétype B — Hardware industriel / Deeptech / Défense / Aéronautique
+## Archétype B · Hardware industriel / Deeptech / Défense / Aéronautique
 Ex : Pen Group, Helsing, Anduril, Quantum-Systems, Tekever, ASML, Rolls-Royce, Joby Aviation, Lilium.
-Tests prioritaires : T1 (croissance hardware = max x2-x2.5 sustained, plus exigeant qu'en SaaS), T3 (marge brute hardware 20-40% maximum, drapeau si projection >50%), T6 (coût production unitaire vs prix vente unitaire — TEST CRITIQUE), écart prix substitut (4x = signal modéré, >5x = signal critique, pattern Ynsect).
+Tests prioritaires : T1 (croissance hardware = max x2-x2.5 sustained, plus exigeant qu'en SaaS), T3 (marge brute hardware 20-40% maximum, drapeau si projection >50%), T6 (coût production unitaire vs prix vente unitaire, TEST CRITIQUE), écart prix substitut (4x = signal modéré, >5x = signal critique, pattern Ynsect).
 Tests à NEUTRALISER ou IGNORER : T2 (LTV/CAC ne s'applique pas à un modèle hardware multi-stream avec ventes B2B/B2G longues). Si T2 ne peut pas être calculé faute de données SaaS, score T2 = "non_applicable" et evidence = "modèle hardware/industriel : T2 LTV/CAC n'est pas pertinent ; voir T6 pour les vraies unit economics par stream".
 T5 (CA/employé) : standard hardware 200-300K€/employé.
 
-## Archétype C — Marketplace / Plateforme à effet de réseau
+## Archétype C · Marketplace / Plateforme à effet de réseau
 Ex : Airbnb, Uber, Vinted, Doctolib, BlaBlaCar.
 Tests prioritaires : T1 (croissance), T3 (marge brute marketplace 15-25% sur GMV mais peut atteindre 70%+ sur take rate), T6 (unit economics par transaction), T7 (densité de marché plus que part de marché).
 Tests adaptés : T2 (LTV/CAC sur les deux côtés du marché : acquéreurs ET fournisseurs), T4 (runway plus long souvent, 24-36 mois nécessaires pour atteindre la liquidité).
 
-## Archétype D — Biotech / Medtech / Pharma
+## Archétype D · Biotech / Medtech / Pharma
 Ex : Moderna, BioNTech, Roivant, Owkin, DNA Script.
 Tests prioritaires : T4 (runway minimum 24-36 mois jusqu'à prochain milestone clinique), T7 (taille marché conditionnelle à approbation réglementaire).
 Tests à NEUTRALISER : T1 (revenue souvent nul pendant 5-7 ans, croissance non pertinente), T2 (LTV/CAC ne s'applique pas avant commercialisation), T6 (unit economics post-approbation seulement).
 Tests adaptés : T3 (marge brute pharma 70-85% post-approbation mais 0% avant), T5 (focus sur dépenses R&D plutôt que CA/employé).
 
-## Archétype E — B2G / Service public / Défense pure
+## Archétype E · B2G / Service public / Défense pure
 Ex : Palantir (early), Helsing, Shield AI, contracts de défense purs.
 Tests prioritaires : T1 (croissance B2G = lente 1.5-2.5x sustained), T3 (marge brute services 40-60%), T6 (rentabilité par contrat), T7 (concentration clients gouvernementaux).
 Tests adaptés : T2 (cycle vente 12-36 mois, pas de CAC/LTV au sens SaaS), T4 (runway plus long, 30+ mois souvent nécessaires).
 Risque concentration : drapeau si plus de 50% du revenue projeté vient d'un seul gouvernement.
 
-## Archétype F — E-commerce / Consumer / D2C
+## Archétype F · E-commerce / Consumer / D2C
 Ex : Glossier, Allbirds, Sezane, Le Slip Français.
 Tests prioritaires : T1 (croissance), T2 (LTV/CAC critique sur consumer), T3 (marge brute D2C 40-60%, e-commerce 30-50%), T6 (unit economics par commande), T7 (saturation marché et CAC inflation).
 
 # CONSIGNE STRICTE
 
 En tout début de syntheseCoherence, indique explicitement la classification choisie :
-"Classification : Archétype [A/B/C/D/E/F] — [nom de l'archétype]. Tests prioritaires : [liste]. Tests neutralisés : [liste si applicable]."
+"Classification : Archétype [A/B/C/D/E/F] · [nom de l'archétype]. Tests prioritaires : [liste]. Tests neutralisés : [liste si applicable]."
 
 Pour les tests neutralisés ou non applicables : score = 50 (neutre), passed = true, evidence = "Test non applicable au modèle [archétype] : [raison]". Cela évite de pénaliser injustement le dossier sur des tests qui n'ont pas de sens pour son modèle.
 

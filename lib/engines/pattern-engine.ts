@@ -392,13 +392,13 @@ export async function matchPatterns(
 Le dossier est europeen. Pour les internationalBenchmarks, privilegie les references europeennes recentes ci-dessous plutot que des references US obsoletes (ex: Stripe 2010, Dassault 1977). Ces comparables sont issus du Mighty 50 Atomico 2025 et des levees notables Q3-Q4 2025.
 
 ## Mighty 50 (selection)
-${MIGHTY_50_SAMPLE.map(c => `- ${c.name} (${c.country}) — ${c.sector}${c.notes ? ' · ' + c.notes : ''}`).join('\n')}
+${MIGHTY_50_SAMPLE.map(c => `- ${c.name} (${c.country}) · ${c.sector}${c.notes ? ' · ' + c.notes : ''}`).join('\n')}
 
 ## Levees notables 2025
 ${(NOTABLE_EUROPEAN_ROUNDS_2025 as readonly any[]).map((r) => {
   const amount = r.amountMillionsUsd ? `${r.amountMillionsUsd}M$` : `${r.amountMillionsEur}M€`;
   const notesPart = r.notes ? ` · ${r.notes}` : '';
-  return `- ${r.company} (${r.country}) — ${r.sector} — ${r.round} ${amount}${notesPart}`;
+  return `- ${r.company} (${r.country}) · ${r.sector} · ${r.round} ${amount}${notesPart}`;
 }).join('\n')}
 
 ## Contexte deeptech europeen 2025

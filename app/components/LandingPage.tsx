@@ -282,7 +282,7 @@ export default function LandingPage() {
             la qualité de ses propres jugements. Prélude est l&apos;outil qui
             préserve cette exigence quand le rythme de deals s&apos;accélère.
           </p>
-          <footer className="lp-quote-attr">— Note d&apos;intention · Mai 2026</footer>
+          <footer className="lp-quote-attr">Note d&apos;intention · Mai 2026</footer>
         </blockquote>
       </section>
 

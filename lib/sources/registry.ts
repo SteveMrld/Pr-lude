@@ -569,13 +569,13 @@ export function instructionLevel(sourceIds: string[]): InstructionLevel {
 
 /**
  * Libelle court affichable a cote d une citation pour qualifier le tier.
- * Format : 'Tier 1 — Primaire' / 'Tier 4 — Contexte'.
+ * Format : 'Tier 1 · Primaire' / 'Tier 4 · Contexte'.
  */
 export function tierLabel(tier: SourceTier): string {
   switch (tier) {
-    case 1: return 'Tier 1 — Primaire';
-    case 2: return 'Tier 2 — Premium';
-    case 3: return 'Tier 3 — Signal faible';
-    case 4: return 'Tier 4 — Contexte';
+    case 1: return 'Tier 1 · Primaire';
+    case 2: return 'Tier 2 · Premium';
+    case 3: return 'Tier 3 · Signal faible';
+    case 4: return 'Tier 4 · Contexte';
   }
 }
