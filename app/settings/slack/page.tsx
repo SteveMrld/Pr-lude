@@ -406,8 +406,8 @@ export default function SlackSettingsPage() {
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
                     background: 'transparent',
-                    color: '#7a1f1f',
-                    border: '1px solid #7a1f1f',
+                    color: 'var(--rouge-anglais)',
+                    border: '1px solid var(--rouge-anglais)',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     marginLeft: 'auto',
@@ -424,9 +424,9 @@ export default function SlackSettingsPage() {
               marginTop: 16,
               padding: '12px 16px',
               background: 'rgba(122,31,31,0.05)',
-              borderLeft: '3px solid #7a1f1f',
+              borderLeft: '3px solid var(--rouge-anglais)',
               fontSize: 13,
-              color: '#7a1f1f',
+              color: 'var(--rouge-anglais)',
               lineHeight: 1.5,
             }}>
               {error}
@@ -438,9 +438,9 @@ export default function SlackSettingsPage() {
               marginTop: 16,
               padding: '12px 16px',
               background: testResult.ok ? 'rgba(31,122,60,0.08)' : 'rgba(122,31,31,0.05)',
-              borderLeft: `3px solid ${testResult.ok ? '#1f7a3c' : '#7a1f1f'}`,
+              borderLeft: `3px solid ${testResult.ok ? 'var(--vert-foret)' : 'var(--rouge-anglais)'}`,
               fontSize: 13,
-              color: testResult.ok ? '#1f7a3c' : '#7a1f1f',
+              color: testResult.ok ? 'var(--vert-foret)' : 'var(--rouge-anglais)',
               lineHeight: 1.5,
             }}>
               {testResult.ok

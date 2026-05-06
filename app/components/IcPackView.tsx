@@ -244,7 +244,7 @@ export default function IcPackView({
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             background: 'var(--ink)',
-            color: '#fefefe',
+            color: 'var(--paper)',
             border: '1px solid var(--ink)',
             cursor: 'pointer',
             fontFamily: 'inherit',

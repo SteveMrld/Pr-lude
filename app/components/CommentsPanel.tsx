@@ -422,7 +422,7 @@ export default function CommentsPanel({
               }}
             />
             {error && (
-              <div style={{ fontSize: 11, color: '#7a1f1f', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--rouge-anglais)', marginBottom: 8 }}>
                 {error}
               </div>
             )}

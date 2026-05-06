@@ -1736,7 +1736,7 @@ export default function HomeClient({
               <div className="pipeline-title">Pipeline en cours d'exécution</div>
               <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances. Suivi en temps réel dans le bandeau ci-dessus.</div>
             </div>
-            <div style={{ padding: '12px 18px', background: '#faf3ec', border: '1px solid #c4a484', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
+            <div style={{ padding: '12px 18px', background: 'var(--ocre-brule-soft)', border: '1px solid var(--ocre-brule)', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
               <strong>Sur mobile :</strong> ne verrouille pas l'écran et ne change pas d'application pendant les 3-4 minutes du pipeline.
               La connexion au serveur se coupe si le téléphone passe en veille. Pose le téléphone à plat avec l'écran allumé.
             </div>
@@ -1948,7 +1948,7 @@ export default function HomeClient({
                 border: '1px solid rgba(122,92,31,0.30)',
                 borderLeft: '3px solid #7a5c1f',
                 fontSize: 12,
-                color: '#5a4a32',
+                color: 'var(--ocre-brule)',
                 lineHeight: 1.5,
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -1968,7 +1968,7 @@ export default function HomeClient({
                     letterSpacing: '0.06em',
                     textTransform: 'uppercase',
                     background: 'transparent',
-                    color: '#5a4a32',
+                    color: 'var(--ocre-brule)',
                     border: '1px solid #5a4a32',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
@@ -2765,7 +2765,7 @@ export default function HomeClient({
                     fontSize: 10,
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                    color: '#c08a3f',
+                    color: 'var(--ocre-brule)',
                     fontWeight: 600,
                     marginBottom: 8,
                   }}>
@@ -3084,8 +3084,8 @@ export default function HomeClient({
                   </h3>
 
                   {(!result.financialCoherence || !result.financialCoherence.hasFinancialData) ? (
-                    <div style={{ padding: '20px 24px', background: '#faf3ec', border: '1px solid #c4a484', marginBottom: 20 }}>
-                      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#7c4d2c', marginBottom: 6 }}>Données financières insuffisantes</div>
+                    <div style={{ padding: '20px 24px', background: 'var(--ocre-brule-soft)', border: '1px solid var(--ocre-brule)', marginBottom: 20 }}>
+                      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ocre-brule)', marginBottom: 6 }}>Données financières insuffisantes</div>
                       <p style={{ fontSize: 14, margin: 0 }}>
                         Aucun business plan exploitable n'a été fourni avec ce dossier. La cohérence financière ne peut pas être testée en l'état.
                         Demander au fondateur un BP structuré au format Excel ou CSV avant de poursuivre l'instruction.
@@ -3110,8 +3110,8 @@ export default function HomeClient({
                       </div>
 
                       {result.financialCoherence.alertesCritiques?.length > 0 && (
-                        <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid #c4a484', background: '#faf3ec' }}>
-                          <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: '#7c4d2c' }}>Alertes critiques</div>
+                        <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid var(--ocre-brule)', background: 'var(--ocre-brule-soft)' }}>
+                          <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: 'var(--ocre-brule)' }}>Alertes critiques</div>
                           <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.5 }}>
                             {(result.financialCoherence.alertesCritiques || []).map((a: string, i: number) => <li key={i}>{a}</li>)}
                           </ul>
@@ -3203,9 +3203,9 @@ export default function HomeClient({
                   {result.blindspotAnalysis?.riskMap ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
                       {[
-                        { key: 'strategicRisks', title: 'Risques stratégiques', color: '#1F2D3D' },
-                        { key: 'operationalRisks', title: 'Risques opérationnels', color: '#3a5a3a' },
-                        { key: 'financialRisks', title: 'Risques financiers', color: '#a04040' },
+                        { key: 'strategicRisks', title: 'Risques stratégiques', color: 'var(--accent)' },
+                        { key: 'operationalRisks', title: 'Risques opérationnels', color: 'var(--vert-foret)' },
+                        { key: 'financialRisks', title: 'Risques financiers', color: 'var(--rouge-anglais)' },
                       ].map(cat => {
                         const risks = result.blindspotAnalysis.riskMap[cat.key] || [];
                         return (
@@ -3332,8 +3332,8 @@ export default function HomeClient({
                   </div>
 
                   {result.blindspotAnalysis.alertesCritiques?.length > 0 && (
-                    <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid #c4a484', background: '#faf3ec' }}>
-                      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: '#7c4d2c' }}>Alertes critiques</div>
+                    <div style={{ marginBottom: 20, padding: '12px 16px', border: '1px solid var(--ocre-brule)', background: 'var(--ocre-brule-soft)' }}>
+                      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6, color: 'var(--ocre-brule)' }}>Alertes critiques</div>
                       <ul style={{ paddingLeft: 18, margin: 0, fontSize: 13, lineHeight: 1.5 }}>
                         {(result.blindspotAnalysis.alertesCritiques || []).map((a: string, i: number) => <li key={i}>{a}</li>)}
                       </ul>
@@ -3620,7 +3620,7 @@ export default function HomeClient({
 
                             {f.fitSignals?.length > 0 && (
                               <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#3a5a3a' }}>Signaux positifs</div>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: 'var(--vert-foret)' }}>Signaux positifs</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
                                   {(f.fitSignals || []).map((s: string, j: number) => <li key={j}>{s}</li>)}
                                 </ul>
@@ -3629,7 +3629,7 @@ export default function HomeClient({
 
                             {f.fitGaps?.length > 0 && (
                               <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#a04040' }}>Gaps identifiés</div>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: 'var(--rouge-anglais)' }}>Gaps identifiés</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
                                   {(f.fitGaps || []).map((g: string, j: number) => <li key={j}>{g}</li>)}
                                 </ul>
@@ -3647,7 +3647,7 @@ export default function HomeClient({
 
                             {f.redFlagsForRole?.length > 0 && (
                               <div>
-                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: '#a04040' }}>Red flags pour le rôle</div>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: 'var(--rouge-anglais)' }}>Red flags pour le rôle</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
                                   {(f.redFlagsForRole || []).map((r: string, j: number) => <li key={j}>{r}</li>)}
                                 </ul>
@@ -3798,7 +3798,7 @@ export default function HomeClient({
                           color: 'var(--ink)',
                           lineHeight: 1.5,
                         }}>
-                          <strong style={{ fontWeight: 600, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em', color: '#c08a3f' }}>Donnees insuffisantes</strong>
+                          <strong style={{ fontWeight: 600, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ocre-brule)' }}>Donnees insuffisantes</strong>
                           <br />
                           Les sources publiques interrogees n ont retourne aucune information exploitable sur ce profil. Cela ne signifie pas que le fondateur manque de credibilite : cela signifie que les outils de scan automatique (OpenAlex, GitHub, Wikipedia, arXiv) ne sont pas adaptes a son parcours, ou que sa presence digitale est volontairement discrete. Verifier manuellement via LinkedIn, presse business (Les Echos, Forbes France, Sifted), interviews, conferences, et reseau professionnel avant de conclure.
                         </div>
@@ -4260,7 +4260,7 @@ export default function HomeClient({
                       border: '1px solid rgba(122,92,31,0.25)',
                       borderLeft: '3px solid #7a5c1f',
                       fontSize: 12,
-                      color: '#5a4a32',
+                      color: 'var(--ocre-brule)',
                       lineHeight: 1.55,
                       fontStyle: 'italic',
                     }}>
@@ -4419,7 +4419,7 @@ export default function HomeClient({
                                     textTransform: 'uppercase',
                                     padding: '2px 8px',
                                     background: 'rgba(122,92,31,0.12)',
-                                    color: '#7a5c1f',
+                                    color: 'var(--ocre-brule)',
                                     fontWeight: 500,
                                   }}>
                                     {label}
@@ -4450,7 +4450,7 @@ export default function HomeClient({
 
                       {(result.referenceChecks.redFlagsToProbe || []).length > 0 && (
                         <div style={{ padding: '16px 18px', background: 'rgba(122,31,31,0.05)', borderLeft: '3px solid #7a1f1f' }}>
-                          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7a1f1f', marginBottom: 8, fontWeight: 500 }}>
+                          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--rouge-anglais)', marginBottom: 8, fontWeight: 500 }}>
                             Red flags à sonder en priorité
                           </div>
                           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
