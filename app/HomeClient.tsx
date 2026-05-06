@@ -267,6 +267,16 @@ export default function HomeClient({
   );
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  // Gating doux du pre-scan : si verdict Bloc 0 knockout sans force,
+  // le pipeline s arrete et on stocke le verdict ici pour afficher le
+  // bandeau de gating qui propose au partner de forcer l analyse
+  // complete malgre tout (relance avec forcePrescan=true).
+  const [prescanKnockout, setPrescanKnockout] = useState<{
+    summary: string;
+    failedTests: string[];
+    score: number;
+    totalTests: number;
+  } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState('synthesis');
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
@@ -684,7 +694,7 @@ export default function HomeClient({
   }
 
 
-  async function analyze() {
+  async function analyze(opts: { forcePrescan?: boolean } = {}) {
     if (files.length === 0) return;
     const hasPdf = files.some(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
     if (!hasPdf) {
@@ -694,6 +704,7 @@ export default function HomeClient({
     setAnalyzing(true);
     setError(null);
     setResult(null);
+    setPrescanKnockout(null);
     setSavedAnalysisId(null);
     setPipelineStartTime(Date.now());
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
@@ -713,6 +724,11 @@ export default function HomeClient({
       const formData = new FormData();
       for (const f of files) {
         formData.append('files', f);
+      }
+      // Si l user force apres un knockout pre-scan, on l indique au
+      // serveur pour qu il bypasse le gating.
+      if (opts.forcePrescan) {
+        formData.append('forcePrescan', 'true');
       }
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
@@ -790,6 +806,20 @@ export default function HomeClient({
                 sourceFilename,
                 pipelineDurationMs,
               });
+            } else if (eventType === 'prescan-knockout') {
+              // Gating doux du pre-scan : le verdict Bloc 0 est knockout
+              // et le pipeline complet n a pas tourne pour economiser les
+              // credits LLM. On stocke le verdict pre-scan pour affichage,
+              // on flag prescanKnockout pour que l UI propose le bouton
+              // 'Lancer l analyse complete malgre tout' qui repostera la
+              // meme analyse avec forcePrescan=true.
+              setPrescanKnockout({
+                summary: data.summary,
+                failedTests: data.failedTests || [],
+                score: data.score,
+                totalTests: data.totalTests,
+              });
+              receivedTerminal = true;
             } else if (eventType === 'error') {
               setError(data.message);
               receivedTerminal = true;
@@ -841,6 +871,7 @@ export default function HomeClient({
     setFiles([]);
     setResult(null);
     setError(null);
+    setPrescanKnockout(null);
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
     setActiveTab('synthesis');
     if (inputRef.current) inputRef.current.value = '';
@@ -1628,12 +1659,54 @@ export default function HomeClient({
                       onChange={(e) => { handleFilesSelect(e.target.files); if (inputRef.current) inputRef.current.value = ''; }} />
                   </div>
                   <div className="cta-row">
-                    <button className="btn btn-primary" onClick={analyze}>Lancer le pipeline →</button>
+                    <button className="btn btn-primary" onClick={() => analyze()}>Lancer le pipeline →</button>
                   </div>
                 </>
               )}
 
               {error && <div className="error-box"><div className="error-title">Erreur</div><div>{error}</div></div>}
+
+              {/* GATING DOUX DU PRE-SCAN
+                  Visible uniquement quand le pre-scan a leve un knockout
+                  et que le pipeline complet ne s est pas declenche pour
+                  economiser les credits. Le partner peut soit ranger le
+                  dossier, soit forcer l analyse complete malgre tout.
+                  Voix Le Grand Continent : ton chirurgical, pas de ton
+                  alarmiste, on expose les faits et on rend le choix. */}
+              {prescanKnockout && !analyzing && (
+                <div className="prescan-gate">
+                  <div className="prescan-gate-eyebrow">Triage Bloc 0 · Pré-scan défavorable</div>
+                  <div className="prescan-gate-title">Le pré-scan a levé un drapeau éliminatoire</div>
+                  <div className="prescan-gate-summary">{prescanKnockout.summary}</div>
+                  {prescanKnockout.failedTests.length > 0 && (
+                    <div className="prescan-gate-tests">
+                      <div className="prescan-gate-tests-label">Tests échoués</div>
+                      <ul className="prescan-gate-tests-list">
+                        {prescanKnockout.failedTests.map((t, i) => (
+                          <li key={i}>{t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="prescan-gate-meta">
+                    Score {prescanKnockout.score}/{prescanKnockout.totalTests}. Le pipeline complet, qui mobilise quatorze moteurs analytiques pour environ 2,80 USD de crédits, n&apos;a pas été déclenché.
+                  </div>
+                  <div className="prescan-gate-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => analyze({ forcePrescan: true })}
+                    >
+                      Lancer l&apos;analyse complète malgré tout
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => { setPrescanKnockout(null); reset(); }}
+                    >
+                      Ranger le dossier
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* COLOPHON FOOTER */}

@@ -47,6 +47,15 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Au moins un fichier requis' }), { status: 400 });
     }
 
+    // Flag d override du gating pre-scan. Si le pre-scan retourne un
+    // verdict not_recommended (knockout), le pipeline s arrete par defaut
+    // et l UI propose au partner de relancer avec ce flag a true s il
+    // veut analyser le dossier malgre le verdict du Bloc 0. Permet
+    // l economie reelle des credits LLM sur les dossiers eliminatoires
+    // sans retirer le pouvoir de decision au partner.
+    const forcePrescanRaw = formData.get('forcePrescan');
+    const forcePrescan = forcePrescanRaw === 'true' || forcePrescanRaw === '1';
+
     const {
       pitchDeck, businessPlan, generalLedger,
       shareholdersAgreement, statutes, capTable, clientContracts,
@@ -177,18 +186,21 @@ export async function POST(req: NextRequest) {
           // Tourne en tete du pipeline en 5-8 secondes sur Haiku 4.5
           // pour 0.02$. Applique six tests eliminatoires structurels
           // (narrative, founder, financial, stage_ticket, market,
-          // thesis_fit) et produit un verdict de triage.
+          // thesis_fit) et produit un verdict de triage. Si la these
+          // du fonds est renseignee, quatre tests fit these s ajoutent
+          // (sector, geography, ticket, stage) pour un total de dix.
           //
-          // Architecture conservatrice : NON BLOQUANT. Le pre-scan
-          // produit un verdict consultatif. Le pipeline complet tourne
-          // ensuite quel que soit le verdict, et l UI affiche un encart
-          // d alerte au-dessus de la note si le pre-scan a leve des
-          // drapeaux. Le partner garde le controle.
-          //
-          // Justification : economiser des credits sur les dossiers
+          // GATING DOUX : si verdict not_recommended (knockout), le
+          // pipeline s arrete apres le pre-scan et envoie un signal
+          // SSE prescan-knockout au client. L UI affiche le bandeau
+          // rouge avec un bouton 'Lancer l analyse complete malgre tout'
+          // qui repostera la meme analyse avec forcePrescan=true. Cela
+          // economise les ~2.80$ du Bloc 1 complet sur les dossiers
           // manifestement eliminatoires (estimation 30% des dossiers
-          // entrants sur un fonds early stage) sans frustrer le partner
-          // qui veut quand meme regarder un dossier pres-ecarte.
+          // entrants sur un fonds early stage) tout en preservant le
+          // pouvoir de decision du partner. Verdicts ready_for_pipeline
+          // et pipeline_with_caveats laissent le pipeline continuer
+          // normalement.
           // ============================================================
           sendStart('prescan', fundProfileForPreScan
             ? 'Pré-scan : triage rapide dix tests (six universels et quatre fit thèse)'
@@ -200,6 +212,28 @@ export async function POST(req: NextRequest) {
             console.warn('[prescan] engine failed, continuing without:', err?.message);
           }
           sendDone('prescan', preScan);
+
+          // Gating doux : on ne stoppe que si le pre-scan a effectivement
+          // tourne (preScan non null), si son verdict est knockout, et si
+          // le client n a pas explicitement forcé. En cas d echec du
+          // pre-scan (preScan=null), on continue par securite, sinon une
+          // panne API Anthropic empecherait toute analyse.
+          if (preScan && preScan.recommendation === 'not_recommended' && !forcePrescan) {
+            send('prescan-knockout', {
+              recommendation: preScan.recommendation,
+              summary: preScan.summary,
+              failedTests: preScan.failedTests || [],
+              score: preScan.score,
+              totalTests: preScan.totalTests,
+              message: 'Le pre-scan a leve un knockout. Pipeline complet non lance pour economiser les credits. Le partner peut forcer l analyse complete via le bouton dedie.',
+            });
+            // Termine proprement le stream sans envoyer 'complete'. Le
+            // client recoit prescan-knockout et arrete le pipeline en
+            // affichant le bandeau de gating.
+            clearInterval(heartbeatInterval);
+            controller.close();
+            return;
+          }
 
           // ============================================================
           // VAGUE 1 : EXTRACTION

@@ -1929,6 +1929,91 @@ ul, ol { list-style: none; }
 }
 .error-title { font-weight: 500; color: var(--warn); margin-bottom: 6px; }
 
+/* PRESCAN GATING DOUX
+   Bandeau qui apparait quand le pre-scan Bloc 0 a leve un knockout.
+   Ton editorial sobre, encart rouge anglais avec barre laterale,
+   donne le verdict, expose les tests echoues, et propose deux actions
+   nettement differenciees. Voix Le Grand Continent. */
+.prescan-gate {
+  margin-top: 28px;
+  padding: 28px 30px 24px;
+  background: var(--rouge-anglais-soft);
+  border-left: 3px solid var(--rouge-anglais);
+}
+.prescan-gate-eyebrow {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rouge-anglais);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.prescan-gate-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+.prescan-gate-summary {
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin-bottom: 18px;
+}
+.prescan-gate-tests {
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+}
+.prescan-gate-tests-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.prescan-gate-tests-list {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  padding-left: 18px;
+  list-style: disc;
+}
+.prescan-gate-tests-list li { margin-bottom: 4px; }
+.prescan-gate-meta {
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-bottom: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+.prescan-gate-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.prescan-gate-actions .btn-primary {
+  background: var(--accent);
+  color: #fefefe;
+  border: 1px solid var(--accent);
+}
+@media (max-width: 700px) {
+  .prescan-gate { padding: 22px 20px 18px; }
+  .prescan-gate-title { font-size: 18px; }
+  .prescan-gate-actions { flex-direction: column; }
+  .prescan-gate-actions .btn { width: 100%; }
+}
+
 .reset-row { margin: 32px 0; text-align: center; }
 
 /* RESPONSIVE */
