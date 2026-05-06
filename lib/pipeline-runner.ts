@@ -11,6 +11,7 @@ import { analyzeFinancialCoherence } from './engines/financial-coherence-engine'
 import { analyzeTechClaimCoherence } from './engines/tech-claim-coherence-engine';
 import { analyzeExecutionFriction } from './engines/execution-friction-engine';
 import { analyzeDDFinancial } from './engines/dd-financial-engine';
+import { analyzeDDContractual } from './engines/dd-contractual-engine';
 import { orchestrateFinalRecommendation } from './engines/orchestrator';
 import { generateReferenceChecks } from './engines/reference-checks-engine';
 import { analyzeBenchmarks } from './engines/benchmark-engine';
@@ -148,6 +149,31 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
     } catch (err: any) {
       console.warn('[cap-table-parsing] failed:', err?.message);
       await store.setEngineDone(jobId, 'cap-table-parsing', null);
+    }
+
+    // Moteur DD contractuel (Module 2 etape 2) : cartographie des
+    // clauses sensibles dans le pacte, les statuts et les contrats
+    // clients. Ne tourne que si le pacte ou les statuts sont fournis.
+    // Trois appels LLM avec PDF natif (pacte, statuts, jusqu a 3
+    // contrats clients), plus un appel de synthese finale.
+    // Non bloquant : si echec, on continue sans cette section.
+    await store.setEngineRunning(jobId, 'dd-contractual');
+    let ddContractual: any = null;
+    try {
+      if (legalDocuments && (legalDocuments.shareholdersAgreementPdf || legalDocuments.statutesPdf)) {
+        ddContractual = await analyzeDDContractual(extraction, {
+          shareholdersAgreementPdf: legalDocuments.shareholdersAgreementPdf,
+          shareholdersAgreementName: legalDocuments.shareholdersAgreementName,
+          statutesPdf: legalDocuments.statutesPdf,
+          statutesName: legalDocuments.statutesName,
+          capTableExtraction,
+          clientContracts: legalDocuments.clientContracts,
+        });
+      }
+      await store.setEngineDone(jobId, 'dd-contractual', ddContractual);
+    } catch (err: any) {
+      console.warn('[dd-contractual] engine failed, continuing without:', err?.message);
+      await store.setEngineDone(jobId, 'dd-contractual', null);
     }
 
     // Moteur Friction d execution commerciale et industrielle :
@@ -296,6 +322,7 @@ export async function runPipeline(opts: RunOpts): Promise<void> {
       ledgerExtraction,
       ddFinancial,
       capTableExtraction,
+      ddContractual,
       // Metadonnees des documents juridiques uploades, pour l etape 2
       // du moteur DD contractuel (LLM) qui s appuiera sur ces fichiers.
       // On expose les noms et la presence sans persister les payloads

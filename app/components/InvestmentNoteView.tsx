@@ -168,6 +168,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   const tcc = r.techClaimCoherence;
   const efr = r.executionFriction;
   const ddf = r.ddFinancial;
+  const ddc = r.ddContractual;
   const ba = r.blindspotAnalysis;
   const ca = r.contrarianAnalysis;
   const pm = r.patternMatching;
@@ -1124,6 +1125,124 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <div className="dd-questions">
                 <strong>Questions DD prioritaires :</strong>
                 <ol>{ddf.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
+              </div>
+            )}
+          </>
+        )}
+
+        {ddc?.triggered && (
+          <>
+            <h3 className="note-h3">Data Room - DD Contractuelle</h3>
+            <div className="ddc-disclaimer">
+              {(ddc.disclaimers || []).map((d: string, i: number) => (
+                <div key={i} className="ddc-disclaimer-line">{d}</div>
+              ))}
+            </div>
+            <p className="note-paragraph muted">
+              Documents analyses :
+              {ddc.documentsAnalyzed.shareholdersAgreement && ` pacte (${ddc.documentsAnalyzed.shareholdersAgreement.name})`}
+              {ddc.documentsAnalyzed.statutes && `${ddc.documentsAnalyzed.shareholdersAgreement ? ', ' : ' '}statuts (${ddc.documentsAnalyzed.statutes.name})`}
+              {(ddc.documentsAnalyzed.clientContracts?.length || 0) > 0 && `, ${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length} contrat${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length > 1 ? 's' : ''} client`}
+              {' '}. Score global : {ddc.globalScore}/100.
+            </p>
+            {splitIntoParagraphs(ddc.synthesis, 3).map((p: string, i: number) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
+
+            {ddc.capTableSummary && (
+              <>
+                <h4 className="note-h4">Cap table - photo a date</h4>
+                <div className="ddc-cap-summary">
+                  <div className="ddc-cap-row"><span>Fondateurs cumules</span><strong>{ddc.capTableSummary.founderPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Investisseurs cumules</span><strong>{ddc.capTableSummary.investorPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Pool d options</span><strong>{ddc.capTableSummary.optionPoolPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Allocation employes</span><strong>{ddc.capTableSummary.employeeAllocatedPercentage.toFixed(1)}%</strong></div>
+                  {ddc.capTableSummary.topInvestor && (
+                    <div className="ddc-cap-row"><span>Top investisseur</span><strong>{ddc.capTableSummary.topInvestor.name} ({ddc.capTableSummary.topInvestor.percentage.toFixed(1)}%)</strong></div>
+                  )}
+                </div>
+                {(ddc.capTableSummary.keyFlags?.length || 0) > 0 && (
+                  <ul className="ddc-cap-flags">
+                    {ddc.capTableSummary.keyFlags.map((m: string, i: number) => <li key={i}>{m}</li>)}
+                  </ul>
+                )}
+              </>
+            )}
+
+            {(ddc.clauses?.length || 0) > 0 && (
+              <>
+                <h4 className="note-h4">Cartographie des clauses sensibles</h4>
+                <div className="ddc-clauses">
+                  {ddc.clauses.map((c: any, i: number) => (
+                    <div key={i} className={`ddc-clause-row ddc-clause-${c.severity}`}>
+                      <div className="ddc-clause-header">
+                        <span className="ddc-clause-label">{c.clauseLabel}</span>
+                        <span className={`ddc-clause-pill ddc-clause-pill-${c.severity}`}>
+                          {c.severity === 'standard' && 'Standard'}
+                          {c.severity === 'attention' && 'Attention'}
+                          {c.severity === 'non_standard' && 'Non standard'}
+                          {c.severity === 'red_flag' && 'Red flag'}
+                          {c.severity === 'not_found' && 'Non trouvee'}
+                        </span>
+                      </div>
+                      {c.citation && (
+                        <div className="ddc-clause-citation">{c.citation}</div>
+                      )}
+                      <div className="ddc-clause-meta">
+                        {c.reference && <span><strong>Ref :</strong> {c.reference}</span>}
+                        <span><strong>Source :</strong> {c.source}</span>
+                      </div>
+                      {c.marketComparison && (
+                        <div className="ddc-clause-market"><strong>Marche :</strong> {c.marketComparison}</div>
+                      )}
+                      {c.implication && (
+                        <div className="ddc-clause-implication">{c.implication}</div>
+                      )}
+                      {c.ddQuestion && (
+                        <div className="ddc-clause-question"><strong>Question DD :</strong> {c.ddQuestion}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {(ddc.clientContractFlags?.length || 0) > 0 && (
+              <>
+                <h4 className="note-h4">Flags contrats clients</h4>
+                <div className="ddc-flags">
+                  {ddc.clientContractFlags.map((f: any, i: number) => (
+                    <div key={i} className={`ddc-flag-row ddc-flag-${f.severity}`}>
+                      <div className="ddc-flag-header">
+                        <span className="ddc-flag-type">{f.flagType.replace(/_/g, ' ')}</span>
+                        <span className="ddc-flag-contract">{f.contractName}</span>
+                        <span className={`ddc-clause-pill ddc-clause-pill-${f.severity}`}>
+                          {f.severity === 'standard' && 'Standard'}
+                          {f.severity === 'attention' && 'Attention'}
+                          {f.severity === 'non_standard' && 'Non standard'}
+                          {f.severity === 'red_flag' && 'Red flag'}
+                        </span>
+                      </div>
+                      {f.citation && <div className="ddc-clause-citation">{f.citation}</div>}
+                      {f.reference && <div className="ddc-clause-meta"><strong>Ref :</strong> {f.reference}</div>}
+                      {f.implication && <div className="ddc-clause-implication">{f.implication}</div>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className={`ddc-verdict ddc-verdict-${ddc.verdict}`}>
+              <strong>Verdict :</strong>{' '}
+              {ddc.verdict === 'contractual_aligned' && 'Profil contractuel aligne sur les standards VC francais. Confirmer en DD juridique aupres de l avocat.'}
+              {ddc.verdict === 'contractual_attention' && 'Quelques points d attention identifies. Investigation ciblee aupres de l avocat M&A recommandee.'}
+              {ddc.verdict === 'contractual_significant_gaps' && 'Plusieurs clauses non standards identifiees. DD juridique approfondie requise avant comite d investissement.'}
+              {ddc.verdict === 'contractual_red_flags' && 'Red flags contractuels identifies. Clarification urgente aupres de l avocat M&A et negociation potentielle avant decision.'}
+            </div>
+            {ddc.questionsToInstruct?.length > 0 && (
+              <div className="dd-questions">
+                <strong>Questions DD prioritaires :</strong>
+                <ol>{ddc.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
               </div>
             )}
           </>
@@ -2713,6 +2832,265 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         @media (max-width: 700px) {
           .dd-test-values { grid-template-columns: 1fr; }
+        }
+
+        /* DD CONTRACTUEL - Section Data Room contractuelle.
+           Cartographie des clauses sensibles avec citation exacte
+           mot pour mot. */
+        .ddc-disclaimer {
+          background: var(--paper-accent, var(--surface));
+          border-left: 3px solid var(--ink-tertiary, #6b6b6b);
+          padding: 10px 14px;
+          margin: 8px 0 16px;
+          font-size: 11.5px;
+          line-height: 1.5;
+          color: var(--ink-soft);
+          font-style: italic;
+        }
+        .ddc-disclaimer-line {
+          margin-bottom: 4px;
+        }
+        .ddc-disclaimer-line:last-child { margin-bottom: 0; }
+
+        .ddc-cap-summary {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px 24px;
+          margin: 12px 0 16px;
+          padding: 14px 18px;
+          background: var(--paper-accent, var(--surface));
+          border-radius: 4px;
+          font-size: 13px;
+        }
+        .ddc-cap-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 4px 0;
+          border-bottom: 1px dotted var(--hairline-soft);
+        }
+        .ddc-cap-row span {
+          color: var(--ink-soft);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11.5px;
+          letter-spacing: 0.04em;
+        }
+        .ddc-cap-row strong {
+          font-variant-numeric: tabular-nums;
+          color: var(--ink);
+        }
+        .ddc-cap-flags {
+          margin: 8px 0 16px;
+          padding-left: 22px;
+          font-size: 12.5px;
+          color: var(--ink-soft);
+        }
+        .ddc-cap-flags li { margin-bottom: 4px; }
+
+        .ddc-clauses {
+          margin: 14px 0 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .ddc-clause-row {
+          border: 1px solid var(--hairline);
+          border-left: 4px solid var(--hairline);
+          border-radius: 4px;
+          padding: 14px 16px;
+          background: var(--surface);
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .ddc-clause-standard { border-left-color: var(--vert-foret, #1f5f3f); }
+        .ddc-clause-attention { border-left-color: var(--ocre-brule, #b47832); }
+        .ddc-clause-non_standard { border-left-color: var(--warn, #b14842); }
+        .ddc-clause-red_flag { border-left-color: #7a2520; background: rgba(122, 37, 32, 0.04); }
+        .ddc-clause-not_found { border-left-color: var(--ink-tertiary, #6b6b6b); opacity: 0.75; }
+
+        .ddc-clause-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 8px;
+          flex-wrap: wrap;
+        }
+        .ddc-clause-label {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11.5px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--ink);
+          flex: 1;
+        }
+        .ddc-clause-pill {
+          display: inline-block;
+          padding: 2px 10px;
+          border-radius: 11px;
+          font-size: 10.5px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          letter-spacing: 0.04em;
+          font-weight: 600;
+        }
+        .ddc-clause-pill-standard {
+          color: var(--vert-foret, #1f5f3f);
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+        }
+        .ddc-clause-pill-attention {
+          color: var(--ocre-brule, #b47832);
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.08));
+        }
+        .ddc-clause-pill-non_standard {
+          color: var(--warn, #b14842);
+          background: rgba(177, 72, 66, 0.08);
+        }
+        .ddc-clause-pill-red_flag {
+          color: #fff;
+          background: #7a2520;
+        }
+        .ddc-clause-pill-not_found {
+          color: var(--ink-soft);
+          background: var(--paper-accent, var(--surface));
+        }
+        .ddc-clause-citation {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 13.5px;
+          color: var(--ink);
+          padding: 10px 14px;
+          margin: 6px 0;
+          background: var(--paper-accent, var(--surface));
+          border-left: 2px solid var(--ink-tertiary, #6b6b6b);
+          font-style: italic;
+        }
+        .ddc-clause-meta {
+          font-size: 11.5px;
+          color: var(--ink-soft);
+          margin: 4px 0;
+          display: flex;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+        .ddc-clause-meta strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .ddc-clause-market {
+          font-size: 12.5px;
+          color: var(--ink);
+          margin: 6px 0;
+        }
+        .ddc-clause-market strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--ink-soft);
+          margin-right: 4px;
+        }
+        .ddc-clause-implication {
+          font-size: 12.5px;
+          color: var(--ink);
+          margin: 6px 0;
+        }
+        .ddc-clause-question {
+          font-size: 12.5px;
+          color: var(--ink-soft);
+          font-style: italic;
+          padding-top: 8px;
+          margin-top: 6px;
+          border-top: 1px dotted var(--hairline-soft);
+        }
+        .ddc-clause-question strong {
+          font-style: normal;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 9.5px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--ink);
+          margin-right: 4px;
+        }
+
+        .ddc-flags {
+          margin: 14px 0 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .ddc-flag-row {
+          border: 1px solid var(--hairline);
+          border-left: 4px solid var(--hairline);
+          border-radius: 4px;
+          padding: 12px 14px;
+          background: var(--surface);
+          font-size: 12.5px;
+        }
+        .ddc-flag-standard { border-left-color: var(--vert-foret, #1f5f3f); }
+        .ddc-flag-attention { border-left-color: var(--ocre-brule, #b47832); }
+        .ddc-flag-non_standard { border-left-color: var(--warn, #b14842); }
+        .ddc-flag-red_flag { border-left-color: #7a2520; background: rgba(122, 37, 32, 0.04); }
+        .ddc-flag-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 6px;
+          flex-wrap: wrap;
+        }
+        .ddc-flag-type {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10.5px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: var(--ink);
+        }
+        .ddc-flag-contract {
+          font-size: 11.5px;
+          color: var(--ink-soft);
+          font-style: italic;
+          flex: 1;
+        }
+
+        .ddc-verdict {
+          padding: 14px 18px;
+          margin: 16px 0 14px;
+          border-radius: 4px;
+          font-size: 13.5px;
+          line-height: 1.6;
+          border-left: 4px solid;
+        }
+        .ddc-verdict strong {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          margin-right: 6px;
+        }
+        .ddc-verdict-contractual_aligned {
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
+          border-color: var(--vert-foret, #1f5f3f);
+          color: var(--ink);
+        }
+        .ddc-verdict-contractual_attention {
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.06));
+          border-color: var(--ocre-brule, #b47832);
+          color: var(--ink);
+        }
+        .ddc-verdict-contractual_significant_gaps {
+          background: rgba(177, 72, 66, 0.06);
+          border-color: var(--warn, #b14842);
+          color: var(--ink);
+        }
+        .ddc-verdict-contractual_red_flags {
+          background: rgba(122, 37, 32, 0.07);
+          border-color: #7a2520;
+          color: var(--ink);
+        }
+
+        @media (max-width: 700px) {
+          .ddc-cap-summary { grid-template-columns: 1fr; }
         }
 
         /* ORDERED LIST - Listes numérotées style éditorial. */

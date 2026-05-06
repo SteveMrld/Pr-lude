@@ -798,6 +798,16 @@ export interface OrchestratedResult {
   // sensibles. Le type CapTableExtraction est defini dans
   // lib/cap-table-parser.ts.
   capTableExtraction?: any | null;
+  // Audit DD contractuel (Module 2 etape 2) : cartographie des
+  // clauses sensibles dans le pacte d actionnaires, les statuts
+  // et les contrats clients principaux. Quinze clauses standardisees
+  // extraites avec citation exacte mot pour mot, severity descriptive
+  // et comparaison aux standards de marche VC francais. Verdict sur
+  // 4 niveaux (contractual_aligned / attention / significant_gaps
+  // / red_flags). Synthese editoriale niveau memo IC. Disclaimers
+  // obligatoires : ne remplace pas un avis juridique. Ne tourne
+  // que si pacte ou statuts presents.
+  ddContractual?: any | null;
   // Metadonnees des documents juridiques (Module 2 DD contractuelle).
   // On stocke la presence et les noms sans le payload brut pour
   // ne pas persister de documents sensibles dans le result_json.
