@@ -1,6 +1,7 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
+import { buildFundNoteBlock } from './fund-context';
 import type {
   ExtractionOutput, FinancialDataExtraction, FinancialCoherenceOutput,
   MarketAnalysisOutput, BenchmarkPositioning
@@ -154,7 +155,8 @@ export async function analyzeFinancialCoherence(
   extraction: ExtractionOutput,
   financialData: FinancialDataExtraction,
   market: MarketAnalysisOutput,
-  benchmarks?: BenchmarkPositioning | null
+  benchmarks?: BenchmarkPositioning | null,
+  fundNote?: string | null,
 ): Promise<FinancialCoherenceOutput> {
 
   // Si aucune donnée financière, retour court-circuit
@@ -272,7 +274,7 @@ hardware, etc.). Recherches type :
 2-3 recherches max. Privilegier les chiffres precis qui peuvent
 contredire ou valider les projections du dossier.
 
-Retourne uniquement le JSON structuré.`;
+Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'financière')}`;
 
   // Niveau 2.A : web search active sur 3 recherches pour verifier
   // les benchmarks de marges/croissance du secteur

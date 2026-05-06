@@ -2,6 +2,7 @@ import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
+import { buildFundNoteBlock } from './fund-context';
 import type { ExtractionOutput, MarketAnalysisOutput } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Prélude. Tu reçois deux types de données :
@@ -221,7 +222,7 @@ INTEGRATION : tout chiffre cite (TAM, market size, croissance) doit
 provenir SOIT du dossier, SOIT d une source web verifiable. JAMAIS
 d hallucination de chiffre. Cite la source quand pertinent.`;
 
-export async function analyzeMarket(extraction: ExtractionOutput): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
+export async function analyzeMarket(extraction: ExtractionOutput, fundNote?: string | null): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
   // ÉTAPE 1 : Récupération de data réelle
   // Mots-clés à utiliser pour interroger les sources
   const sectorKeyword = extraction.subSector || extraction.sector || 'technology';
@@ -384,7 +385,7 @@ REGLE STRICTE D INTERPRETATION DU PIPELINE :
 
 ${realDataSummary}
 
-Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.`;
+Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.${buildFundNoteBlock(fundNote, 'marché')}`;
 
   // Niveau 2.A v2 : web search active sur 4 recherches max (1-2 dediees
   // au sizing TAM/SAM/SOM + 2-3 pour concurrents/dynamique)

@@ -2,6 +2,7 @@ import { callClaude, parseJSON } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
+import { buildFundNoteBlock } from './fund-context';
 import type { ExtractionOutput, TeamAnalysisOutput, BenchmarkPositioning } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
@@ -250,7 +251,8 @@ recherches web pour le confirmer. Sinon mets 'partially-evaluable'.`;
 
 export async function analyzeTeam(
   extraction: ExtractionOutput,
-  benchmarks?: BenchmarkPositioning | null
+  benchmarks?: BenchmarkPositioning | null,
+  fundNote?: string | null,
 ): Promise<TeamAnalysisOutput & { realData?: FounderRealData[] }> {
   // ÉTAPE 1 : Récupération de data réelle pour chaque fondateur (timeout 8s par fondateur)
   const realDataPromises = (extraction.founders || []).map(async (founder) => {
@@ -396,7 +398,7 @@ Intègre dans ton analyse :
 - Le différentiel Slope vs Y-Intercept de chaque fondateur (visible dans fitSignals/fitGaps)
 - La capacité d'attraction si tu as des indices (greenFlags ou commentaire dans systemicCoverage)
 - L'insight propriétaire dans tacitExpertise du fondateur concerné
-- Le founder commitment et la team chemistry dans collectiveAntiFragility et redFlags/greenFlags`;
+- Le founder commitment et la team chemistry dans collectiveAntiFragility et redFlags/greenFlags${buildFundNoteBlock(fundNote, 'équipe')}`;
 
   // Niveau 2.A : web search active. Le moteur Equipe est le plus
   // critique pour la verification fondateurs, donc max_uses=4 (2-3 par

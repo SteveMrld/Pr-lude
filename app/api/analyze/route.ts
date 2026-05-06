@@ -80,6 +80,13 @@ export async function POST(req: NextRequest) {
     // pre-scan tourne avec les 6 tests universels uniquement.
     // ============================================================
     let fundProfileForPreScan: any = null;
+    let fundDimensionalNotes: {
+      team: string | null;
+      market: string | null;
+      macro: string | null;
+      financial: string | null;
+      general: string | null;
+    } | null = null;
     try {
       const { isAuthEnabled, getAuthenticatedContext } = await import('@/lib/auth');
       if (isAuthEnabled()) {
@@ -102,6 +109,18 @@ export async function POST(req: NextRequest) {
               ticketMaxEur: data.ticket_max_eur,
               stagesFocus: data.stages_focus || [],
               notes: data.notes,
+            };
+            // Notes structurees par dimension. Permet d injecter dans
+            // chaque moteur Bloc 1 les nuances de these qui le concer-
+            // nent, sans diluer son contexte avec les notes des autres
+            // dimensions. Champs facultatifs : si null, l injection
+            // est skip pour le moteur correspondant.
+            fundDimensionalNotes = {
+              team: data.notes_team || null,
+              market: data.notes_market || null,
+              macro: data.notes_macro || null,
+              financial: data.notes_financial || null,
+              general: data.notes_general || null,
             };
           }
         }
@@ -259,9 +278,9 @@ export async function POST(req: NextRequest) {
           sendStart('financial-extraction', businessPlan ? 'Extraction des donnees financieres (deck + BP)' : 'Extraction des donnees financieres (deck)');
 
           const [team, market, macro, financialData] = await Promise.all([
-            analyzeTeam(extraction).then(r => { sendDone('team', r); return r; }),
-            analyzeMarket(extraction).then(r => { sendDone('market', r); return r; }),
-            analyzeMacro(extraction).then(r => { sendDone('macro', r); return r; }),
+            analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
+            analyzeMarket(extraction, fundDimensionalNotes?.market).then(r => { sendDone('market', r); return r; }),
+            analyzeMacro(extraction, fundDimensionalNotes?.macro).then(r => { sendDone('macro', r); return r; }),
             extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { sendDone('financial-extraction', r); return r; }),
           ]);
 
@@ -342,7 +361,7 @@ export async function POST(req: NextRequest) {
               .then(r => { sendDone('blindspot', r); return r; }),
             analyzeContrarian(extraction, team, market, macro)
               .then(r => { sendDone('contrarian', r); return r; }),
-            analyzeFinancialCoherence(extraction, financialData, market, benchmarks)
+            analyzeFinancialCoherence(extraction, financialData, market, benchmarks, fundDimensionalNotes?.financial)
               .then(r => { sendDone('financial-coherence', r); return r; }),
             analyzeTechClaimCoherence(extraction, financialData)
               .then(r => { sendDone('tech-claim', r); return r; })
@@ -387,7 +406,7 @@ export async function POST(req: NextRequest) {
               try {
                 const result = await orchestrateFinalRecommendation(
                   extraction, team, market, macro, patternMatching, causalReversal,
-                  blindspotAnalysis, contrarianAnalysis
+                  blindspotAnalysis, contrarianAnalysis, fundDimensionalNotes?.general,
                 );
                 return result;
               } catch (err: any) {

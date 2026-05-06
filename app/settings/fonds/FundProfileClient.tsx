@@ -20,6 +20,11 @@ interface FundProfile {
   ticketMaxEur: number | null;
   stagesFocus: string[];
   notes: string | null;
+  notesTeam: string | null;
+  notesMarket: string | null;
+  notesMacro: string | null;
+  notesFinancial: string | null;
+  notesGeneral: string | null;
   updatedAt?: string;
 }
 
@@ -84,6 +89,11 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
   );
   const [stagesFocus, setStagesFocus] = useState<string[]>(initialProfile?.stagesFocus || []);
   const [notes, setNotes] = useState<string>(initialProfile?.notes || '');
+  const [notesTeam, setNotesTeam] = useState<string>(initialProfile?.notesTeam || '');
+  const [notesMarket, setNotesMarket] = useState<string>(initialProfile?.notesMarket || '');
+  const [notesMacro, setNotesMacro] = useState<string>(initialProfile?.notesMacro || '');
+  const [notesFinancial, setNotesFinancial] = useState<string>(initialProfile?.notesFinancial || '');
+  const [notesGeneral, setNotesGeneral] = useState<string>(initialProfile?.notesGeneral || '');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +122,11 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
       ticketMaxEur: ticketMax ? parseInt(ticketMax, 10) : null,
       stagesFocus,
       notes: notes.trim() || null,
+      notesTeam: notesTeam.trim() || null,
+      notesMarket: notesMarket.trim() || null,
+      notesMacro: notesMacro.trim() || null,
+      notesFinancial: notesFinancial.trim() || null,
+      notesGeneral: notesGeneral.trim() || null,
     };
 
     try {
@@ -339,6 +354,72 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
           placeholder="Exemple : on peut investir hors thèse sectorielle si le fondateur est un ancien CEO de portfolio. On évite les modèles purement publicitaires."
           className="fp-textarea"
         />
+      </Section>
+
+      <Section
+        num="08"
+        title="Nuances par dimension"
+        subtitle="Notes spécifiques injectées dans le prompt du moteur correspondant. Permet d'expliquer au moteur d'analyse les biais ou préférences propres au fonds sur chaque dimension. Toutes facultatives."
+      >
+        <div className="fp-dim-note">
+          <label className="fp-dim-label">Équipe et fondateurs</label>
+          <textarea
+            value={notesTeam}
+            onChange={(e) => setNotesTeam(e.target.value)}
+            disabled={!isAdmin}
+            rows={3}
+            placeholder="Exemple : nous privilégions les fondateurs sectoriels avec dix ans d'expérience opérationnelle dans l'industrie cible. Les serial entrepreneurs sont valorisés pour le scaling, moins pour la pénétration produit. Tolérons les solo founders si l'écosystème board est solide."
+            className="fp-textarea"
+          />
+        </div>
+
+        <div className="fp-dim-note">
+          <label className="fp-dim-label">Marché et clients</label>
+          <textarea
+            value={notesMarket}
+            onChange={(e) => setNotesMarket(e.target.value)}
+            disabled={!isAdmin}
+            rows={3}
+            placeholder="Exemple : nous évitons les marchés saturés où le coût d'acquisition compétitif dépasse 30 pour cent du LTV. Les niches premium B2B avec sticky integration sont privilégiées. Méfiance sur les marchés purement réglementaires sans moat technologique."
+            className="fp-textarea"
+          />
+        </div>
+
+        <div className="fp-dim-note">
+          <label className="fp-dim-label">Macro et timing</label>
+          <textarea
+            value={notesMacro}
+            onChange={(e) => setNotesMacro(e.target.value)}
+            disabled={!isAdmin}
+            rows={3}
+            placeholder="Exemple : sensibilité forte au timing contracyclique. Une fenêtre réglementaire qui se ferme dans dix-huit mois est un signal positif. Exposition limitée au risque de change non couvert."
+            className="fp-textarea"
+          />
+        </div>
+
+        <div className="fp-dim-note">
+          <label className="fp-dim-label">Financier et unit economics</label>
+          <textarea
+            value={notesFinancial}
+            onChange={(e) => setNotesFinancial(e.target.value)}
+            disabled={!isAdmin}
+            rows={3}
+            placeholder="Exemple : tolérance jusqu'à vingt-quatre mois de runway sans path to profitability documenté pour les dossiers infrastructure. Multiple LTV CAC cible supérieur à trois pour les SaaS B2B. Nous excluons les modèles dont la marge brute reste inférieure à quarante pour cent à maturité."
+            className="fp-textarea"
+          />
+        </div>
+
+        <div className="fp-dim-note">
+          <label className="fp-dim-label">Générale et style</label>
+          <textarea
+            value={notesGeneral}
+            onChange={(e) => setNotesGeneral(e.target.value)}
+            disabled={!isAdmin}
+            rows={3}
+            placeholder="Exemple : critères ESG stricts, exclusion de toute exposition aux énergies fossiles. Préférence pour les dossiers avec au moins un investisseur français au tour précédent. Pas d'investissement sans présence d'au moins un membre indépendant au board."
+            className="fp-textarea"
+          />
+        </div>
       </Section>
 
       {isAdmin && (

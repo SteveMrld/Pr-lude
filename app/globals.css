@@ -4336,6 +4336,23 @@ select.ic-decision-input {
   border-color: var(--ink);
 }
 
+.fp-dim-note {
+  margin-bottom: 22px;
+}
+.fp-dim-note:last-child {
+  margin-bottom: 0;
+}
+.fp-dim-label {
+  display: block;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
 .fp-actions {
   margin-top: 48px;
   padding-top: 28px;

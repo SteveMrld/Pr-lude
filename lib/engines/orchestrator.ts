@@ -1,6 +1,7 @@
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
+import { buildFundNoteBlock } from './fund-context';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput,
@@ -178,7 +179,8 @@ export async function orchestrateFinalRecommendation(
   patternMatching: PatternMatchingOutput,
   causalReversal: CausalReversalOutput,
   blindspotAnalysis: BlindspotAnalysisOutput,
-  contrarianAnalysis: ContrarianAnalysisOutput
+  contrarianAnalysis: ContrarianAnalysisOutput,
+  fundNote?: string | null,
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
   // ============================================================
@@ -307,7 +309,7 @@ Produis la recommandation finale avec :
 6. Conditions clés actionnables
 7. Decision drivers (3-5 facteurs décisifs)
 
-Retourne uniquement le JSON structuré.`;
+Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'générale')}`;
 
   // maxTokens reduit de 8000 a 5000 : la sortie de l orchestrator est un JSON
   // de synthese compact, pas besoin de plus. Le retry est conserve mais

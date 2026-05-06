@@ -2,6 +2,7 @@ import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMacroRealData, type MacroSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
+import { buildFundNoteBlock } from './fund-context';
 import type { ExtractionOutput, MacroAnalysisOutput } from './types';
 import {
   LP_LIQUIDITY_PRESSURE,
@@ -116,7 +117,7 @@ Tu reçois dans le user prompt un bloc "CADRAGE PRELUDE 2026" qui consolide les 
 
 Note : tu disposes de connaissance jusqu'à début 2026. Sois explicite sur les bascules récentes.`;
 
-export async function analyzeMacro(extraction: ExtractionOutput): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot }> {
+export async function analyzeMacro(extraction: ExtractionOutput, fundNote?: string | null): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot }> {
   // ÉTAPE 1 : Récupération des indicateurs macro réels du pays (timeout 8s pour éviter de bloquer le pipeline)
   const realData = await Promise.race([
     gatherMacroRealData(extraction.country || 'France'),
@@ -272,7 +273,7 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
   - Annonces reglementaires recentes du secteur (lois EU/US passees)
   - Mouvements geopolitiques majeurs affectant le secteur
   - Tendances de financement VC du secteur sur les 6 derniers mois
-2 recherches max. Privilegier les donnees pre-2026 deja dans le contexte.`;
+2 recherches max. Privilegier les donnees pre-2026 deja dans le contexte.${buildFundNoteBlock(fundNote, 'macro')}`;
 
   // Niveau 2.A : web search active sur 2 recherches max (le moteur Macro
   // a deja beaucoup de donnees structurees, on cherche juste a verifier

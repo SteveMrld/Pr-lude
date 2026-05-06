@@ -22,6 +22,11 @@ interface FundProfileRow {
   ticket_max_eur: number | null;
   stages_focus: string[];
   notes: string | null;
+  notes_team: string | null;
+  notes_market: string | null;
+  notes_macro: string | null;
+  notes_financial: string | null;
+  notes_general: string | null;
   updated_at: string;
 }
 
@@ -59,6 +64,11 @@ export default async function FundProfilePage({
         ticketMaxEur: (data as FundProfileRow).ticket_max_eur,
         stagesFocus: (data as FundProfileRow).stages_focus || [],
         notes: (data as FundProfileRow).notes,
+        notesTeam: (data as FundProfileRow).notes_team,
+        notesMarket: (data as FundProfileRow).notes_market,
+        notesMacro: (data as FundProfileRow).notes_macro,
+        notesFinancial: (data as FundProfileRow).notes_financial,
+        notesGeneral: (data as FundProfileRow).notes_general,
         updatedAt: (data as FundProfileRow).updated_at,
       }
     : null;

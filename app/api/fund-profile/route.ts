@@ -24,6 +24,11 @@ interface FundProfileRow {
   ticket_max_eur: number | null;
   stages_focus: string[];
   notes: string | null;
+  notes_team: string | null;
+  notes_market: string | null;
+  notes_macro: string | null;
+  notes_financial: string | null;
+  notes_general: string | null;
   created_at: string;
   updated_at: string;
   updated_by: string | null;
@@ -40,6 +45,11 @@ function rowToProfile(row: FundProfileRow) {
     ticketMaxEur: row.ticket_max_eur,
     stagesFocus: row.stages_focus || [],
     notes: row.notes,
+    notesTeam: row.notes_team,
+    notesMarket: row.notes_market,
+    notesMacro: row.notes_macro,
+    notesFinancial: row.notes_financial,
+    notesGeneral: row.notes_general,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
@@ -124,6 +134,15 @@ export async function PUT(req: NextRequest) {
     : [];
   const notes = typeof body.notes === 'string' ? body.notes.trim() || null : null;
 
+  // Notes structurees par dimension. Chacune sera injectee dans le
+  // user prompt du moteur correspondant pour adapter son raisonne-
+  // ment aux nuances dimensionnelles du fonds. Toutes optionnelles.
+  const notesTeam = typeof body.notesTeam === 'string' ? body.notesTeam.trim() || null : null;
+  const notesMarket = typeof body.notesMarket === 'string' ? body.notesMarket.trim() || null : null;
+  const notesMacro = typeof body.notesMacro === 'string' ? body.notesMacro.trim() || null : null;
+  const notesFinancial = typeof body.notesFinancial === 'string' ? body.notesFinancial.trim() || null : null;
+  const notesGeneral = typeof body.notesGeneral === 'string' ? body.notesGeneral.trim() || null : null;
+
   // Coherence ticket : si min > max on rejette pour eviter une these
   // ininterpretable par le pre-scan.
   if (ticketMinEur !== null && ticketMaxEur !== null && ticketMinEur > ticketMaxEur) {
@@ -144,6 +163,11 @@ export async function PUT(req: NextRequest) {
     ticket_max_eur: ticketMaxEur,
     stages_focus: stagesFocus,
     notes,
+    notes_team: notesTeam,
+    notes_market: notesMarket,
+    notes_macro: notesMacro,
+    notes_financial: notesFinancial,
+    notes_general: notesGeneral,
     updated_by: ctx.user.id,
   };
 
