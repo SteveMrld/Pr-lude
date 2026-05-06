@@ -712,9 +712,35 @@ export default function HomeClient({
                     <span className="page-title-line page-title-emph">comme on instruit une affaire.</span>
                   </h1>
                   <p className="page-subtitle">
-                    Du screening initial à la deal qualification approfondie. Sonder l&apos;équipe, auditer le marché, tester la cohérence des unit economics, soulever les points de vigilance critique.
-                    Chaque étape d&apos;une due diligence partner-grade, avant le comité d&apos;investissement.
+                    Du screening initial à la due diligence approfondie, deux registres d&apos;instruction dans un seul outil.
+                    Lecture rapide pour qualifier un dossier en cinq minutes, ou Data Room complète quand le dossier passe en DD comité.
                   </p>
+
+                  <div className="hero-modes">
+                    <div className="hero-mode hero-mode-screening">
+                      <div className="hero-mode-tag">Bloc 1</div>
+                      <div className="hero-mode-title">Note d&apos;instruction</div>
+                      <div className="hero-mode-sub">Screening initial &middot; Deal qualification</div>
+                      <div className="hero-mode-meta">
+                        <div><strong>Inputs</strong> Pitch deck PDF + business plan optionnel</div>
+                        <div><strong>Output</strong> Verdict, drivers, vigilance critique, friction d&apos;exécution</div>
+                        <div><strong>Durée</strong> 5 minutes</div>
+                        <div><strong>Lecteur</strong> Analyste, principal, partner en qualification</div>
+                      </div>
+                    </div>
+                    <div className="hero-mode hero-mode-dataroom">
+                      <div className="hero-mode-tag">Bloc 2</div>
+                      <div className="hero-mode-title">Data Room</div>
+                      <div className="hero-mode-sub">Due diligence approfondie &middot; Préparation IC</div>
+                      <div className="hero-mode-meta">
+                        <div><strong>Inputs additionnels</strong> Grand livre comptable, pacte d&apos;actionnaires, statuts, contrats clients, cap table</div>
+                        <div><strong>Output</strong> Réconciliation BP versus réel, cartographie des clauses sensibles, audit data room</div>
+                        <div><strong>Durée</strong> 15 minutes</div>
+                        <div><strong>Lecteur</strong> Partner senior, IC, avocat M&amp;A en relais</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="hero-cta-row" style={{ justifyContent: 'flex-start' }}>
                     <a href="#commencer" className="btn btn-primary">
                       Lancer une instruction

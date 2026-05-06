@@ -263,6 +263,15 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </tbody>
         </table>
 
+        {/* ============================================================
+            BLOC 1 - NOTE D INSTRUCTION (screening / deal qualification)
+            ============================================================ */}
+        <div className="block-marker block-marker-instruction">
+          <div className="block-marker-tag">Bloc 1</div>
+          <div className="block-marker-title">Note d&apos;instruction</div>
+          <div className="block-marker-sub">Screening initial et deal qualification &middot; Lecture en 5 minutes</div>
+        </div>
+
         <h3 className="note-h3">History</h3>
         {compactMode ? (
           <details>
@@ -1067,186 +1076,6 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </>
         )}
 
-        {ddf?.triggered && (
-          <>
-            <h3 className="note-h3">Data Room - DD Financiere</h3>
-            <p className="note-paragraph muted">
-              Periode du grand livre : {ddf.ledgerPeriod.start || 'n.a.'} au {ddf.ledgerPeriod.end || 'n.a.'}.
-              {' '}Score global de l&apos;audit : {ddf.globalScore}/100.
-            </p>
-            {splitIntoParagraphs(ddf.synthesis, 3).map((p: string, i: number) => (
-              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
-            ))}
-            <div className="dd-tests">
-              {[
-                { key: 'revenueGap', label: 'Ecart CA declare vs CA reel' },
-                { key: 'grossMarginGap', label: 'Marge brute projetee vs reelle' },
-                { key: 'burnRateGap', label: 'Burn rate declare vs reel' },
-                { key: 'headcountGap', label: 'Headcount vs charges salariales' },
-                { key: 'clientConcentration', label: 'Concentration client reelle' },
-                { key: 'growthTrajectory', label: 'Trajectoire recente vs BP' },
-                { key: 'offBalanceVsNarrative', label: 'Engagements hors bilan vs narratif' },
-              ].map((row) => {
-                const t = ddf.tests[row.key];
-                if (!t) return null;
-                return (
-                  <div key={row.key} className={`dd-test-row dd-test-${t.severity}`}>
-                    <div className="dd-test-header">
-                      <span className="dd-test-id">{t.testId}</span>
-                      <span className="dd-test-label">{row.label}</span>
-                      <span className={`dd-test-pill dd-test-pill-${t.severity}`}>
-                        {t.severity === 'aligned' && 'Aligne'}
-                        {t.severity === 'attention' && 'Attention'}
-                        {t.severity === 'alert' && 'Alerte'}
-                        {t.severity === 'red_flag' && 'Red flag'}
-                        {t.severity === 'not_assessable' && 'Non evaluable'}
-                      </span>
-                    </div>
-                    <div className="dd-test-values">
-                      <div className="dd-test-bp"><strong>BP / Pitch</strong>{' '}{t.bpValue}</div>
-                      <div className="dd-test-real"><strong>Reel</strong>{' '}{t.realValue}</div>
-                    </div>
-                    <div className="dd-test-evidence">{t.evidence}</div>
-                    {t.ddQuestion && (
-                      <div className="dd-test-question"><strong>Question DD :</strong>{' '}{t.ddQuestion}</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className={`dd-verdict dd-verdict-${ddf.verdict}`}>
-              <strong>Verdict :</strong>{' '}
-              {ddf.verdict === 'dd_aligned' && 'BP et realite comptable alignes. Confirmer en DD le maintien sur les exercices a venir.'}
-              {ddf.verdict === 'dd_partial_alignment' && 'Alignement partiel. Une a deux zones d ecart sectoriel a documenter avant comite d investissement.'}
-              {ddf.verdict === 'dd_significant_gaps' && 'Ecarts significatifs sur plusieurs postes. Investigation DD approfondie requise avant toute decision.'}
-              {ddf.verdict === 'dd_red_flags' && 'Red flags identifies. Le BP presente des decalages structurels avec la realite comptable qui exigent clarification immediate.'}
-            </div>
-            {ddf.questionsToInstruct?.length > 0 && (
-              <div className="dd-questions">
-                <strong>Questions DD prioritaires :</strong>
-                <ol>{ddf.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
-              </div>
-            )}
-          </>
-        )}
-
-        {ddc?.triggered && (
-          <>
-            <h3 className="note-h3">Data Room - DD Contractuelle</h3>
-            <div className="ddc-disclaimer">
-              {(ddc.disclaimers || []).map((d: string, i: number) => (
-                <div key={i} className="ddc-disclaimer-line">{d}</div>
-              ))}
-            </div>
-            <p className="note-paragraph muted">
-              Documents analyses :
-              {ddc.documentsAnalyzed.shareholdersAgreement && ` pacte (${ddc.documentsAnalyzed.shareholdersAgreement.name})`}
-              {ddc.documentsAnalyzed.statutes && `${ddc.documentsAnalyzed.shareholdersAgreement ? ', ' : ' '}statuts (${ddc.documentsAnalyzed.statutes.name})`}
-              {(ddc.documentsAnalyzed.clientContracts?.length || 0) > 0 && `, ${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length} contrat${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length > 1 ? 's' : ''} client`}
-              {' '}. Score global : {ddc.globalScore}/100.
-            </p>
-            {splitIntoParagraphs(ddc.synthesis, 3).map((p: string, i: number) => (
-              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
-            ))}
-
-            {ddc.capTableSummary && (
-              <>
-                <h4 className="note-h4">Cap table - photo a date</h4>
-                <div className="ddc-cap-summary">
-                  <div className="ddc-cap-row"><span>Fondateurs cumules</span><strong>{ddc.capTableSummary.founderPercentage.toFixed(1)}%</strong></div>
-                  <div className="ddc-cap-row"><span>Investisseurs cumules</span><strong>{ddc.capTableSummary.investorPercentage.toFixed(1)}%</strong></div>
-                  <div className="ddc-cap-row"><span>Pool d options</span><strong>{ddc.capTableSummary.optionPoolPercentage.toFixed(1)}%</strong></div>
-                  <div className="ddc-cap-row"><span>Allocation employes</span><strong>{ddc.capTableSummary.employeeAllocatedPercentage.toFixed(1)}%</strong></div>
-                  {ddc.capTableSummary.topInvestor && (
-                    <div className="ddc-cap-row"><span>Top investisseur</span><strong>{ddc.capTableSummary.topInvestor.name} ({ddc.capTableSummary.topInvestor.percentage.toFixed(1)}%)</strong></div>
-                  )}
-                </div>
-                {(ddc.capTableSummary.keyFlags?.length || 0) > 0 && (
-                  <ul className="ddc-cap-flags">
-                    {ddc.capTableSummary.keyFlags.map((m: string, i: number) => <li key={i}>{m}</li>)}
-                  </ul>
-                )}
-              </>
-            )}
-
-            {(ddc.clauses?.length || 0) > 0 && (
-              <>
-                <h4 className="note-h4">Cartographie des clauses sensibles</h4>
-                <div className="ddc-clauses">
-                  {ddc.clauses.map((c: any, i: number) => (
-                    <div key={i} className={`ddc-clause-row ddc-clause-${c.severity}`}>
-                      <div className="ddc-clause-header">
-                        <span className="ddc-clause-label">{c.clauseLabel}</span>
-                        <span className={`ddc-clause-pill ddc-clause-pill-${c.severity}`}>
-                          {c.severity === 'standard' && 'Standard'}
-                          {c.severity === 'attention' && 'Attention'}
-                          {c.severity === 'non_standard' && 'Non standard'}
-                          {c.severity === 'red_flag' && 'Red flag'}
-                          {c.severity === 'not_found' && 'Non trouvee'}
-                        </span>
-                      </div>
-                      {c.citation && (
-                        <div className="ddc-clause-citation">{c.citation}</div>
-                      )}
-                      <div className="ddc-clause-meta">
-                        {c.reference && <span><strong>Ref :</strong> {c.reference}</span>}
-                        <span><strong>Source :</strong> {c.source}</span>
-                      </div>
-                      {c.marketComparison && (
-                        <div className="ddc-clause-market"><strong>Marche :</strong> {c.marketComparison}</div>
-                      )}
-                      {c.implication && (
-                        <div className="ddc-clause-implication">{c.implication}</div>
-                      )}
-                      {c.ddQuestion && (
-                        <div className="ddc-clause-question"><strong>Question DD :</strong> {c.ddQuestion}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {(ddc.clientContractFlags?.length || 0) > 0 && (
-              <>
-                <h4 className="note-h4">Flags contrats clients</h4>
-                <div className="ddc-flags">
-                  {ddc.clientContractFlags.map((f: any, i: number) => (
-                    <div key={i} className={`ddc-flag-row ddc-flag-${f.severity}`}>
-                      <div className="ddc-flag-header">
-                        <span className="ddc-flag-type">{f.flagType.replace(/_/g, ' ')}</span>
-                        <span className="ddc-flag-contract">{f.contractName}</span>
-                        <span className={`ddc-clause-pill ddc-clause-pill-${f.severity}`}>
-                          {f.severity === 'standard' && 'Standard'}
-                          {f.severity === 'attention' && 'Attention'}
-                          {f.severity === 'non_standard' && 'Non standard'}
-                          {f.severity === 'red_flag' && 'Red flag'}
-                        </span>
-                      </div>
-                      {f.citation && <div className="ddc-clause-citation">{f.citation}</div>}
-                      {f.reference && <div className="ddc-clause-meta"><strong>Ref :</strong> {f.reference}</div>}
-                      {f.implication && <div className="ddc-clause-implication">{f.implication}</div>}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div className={`ddc-verdict ddc-verdict-${ddc.verdict}`}>
-              <strong>Verdict :</strong>{' '}
-              {ddc.verdict === 'contractual_aligned' && 'Profil contractuel aligne sur les standards VC francais. Confirmer en DD juridique aupres de l avocat.'}
-              {ddc.verdict === 'contractual_attention' && 'Quelques points d attention identifies. Investigation ciblee aupres de l avocat M&A recommandee.'}
-              {ddc.verdict === 'contractual_significant_gaps' && 'Plusieurs clauses non standards identifiees. DD juridique approfondie requise avant comite d investissement.'}
-              {ddc.verdict === 'contractual_red_flags' && 'Red flags contractuels identifies. Clarification urgente aupres de l avocat M&A et negociation potentielle avant decision.'}
-            </div>
-            {ddc.questionsToInstruct?.length > 0 && (
-              <div className="dd-questions">
-                <strong>Questions DD prioritaires :</strong>
-                <ol>{ddc.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
-              </div>
-            )}
-          </>
-        )}
 
         {tcc?.triggered && (
           <>
@@ -1451,6 +1280,202 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   <li key={i}><span className="action-axis">{a.axis}</span>{a.action}</li>
                 ))}
               </ul>
+            )}
+          </>
+        )}
+
+        {/* ============================================================
+            BLOC 2 - DATA ROOM (DD approfondie)
+            S affiche uniquement si au moins un module DD a tourne :
+            DD financiere (BP vs grand livre), DD contractuelle (clauses
+            sensibles), et a venir : DD technique (repo GitHub) + ref
+            checks structures.
+            ============================================================ */}
+        {(ddf?.triggered || ddc?.triggered) && (
+          <div className="block-marker block-marker-dataroom">
+            <div className="block-marker-tag">Bloc 2</div>
+            <div className="block-marker-title">Data Room</div>
+            <div className="block-marker-sub">Due diligence approfondie &middot; Lecture pour comite d&apos;investissement</div>
+          </div>
+        )}
+
+        {ddf?.triggered && (
+          <>
+            <h3 className="note-h3">Data Room - DD Financiere</h3>
+            <p className="note-paragraph muted">
+              Periode du grand livre : {ddf.ledgerPeriod.start || 'n.a.'} au {ddf.ledgerPeriod.end || 'n.a.'}.
+              {' '}Score global de l&apos;audit : {ddf.globalScore}/100.
+            </p>
+            {splitIntoParagraphs(ddf.synthesis, 3).map((p: string, i: number) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
+            <div className="dd-tests">
+              {[
+                { key: 'revenueGap', label: 'Ecart CA declare vs CA reel' },
+                { key: 'grossMarginGap', label: 'Marge brute projetee vs reelle' },
+                { key: 'burnRateGap', label: 'Burn rate declare vs reel' },
+                { key: 'headcountGap', label: 'Headcount vs charges salariales' },
+                { key: 'clientConcentration', label: 'Concentration client reelle' },
+                { key: 'growthTrajectory', label: 'Trajectoire recente vs BP' },
+                { key: 'offBalanceVsNarrative', label: 'Engagements hors bilan vs narratif' },
+              ].map((row) => {
+                const t = ddf.tests[row.key];
+                if (!t) return null;
+                return (
+                  <div key={row.key} className={`dd-test-row dd-test-${t.severity}`}>
+                    <div className="dd-test-header">
+                      <span className="dd-test-id">{t.testId}</span>
+                      <span className="dd-test-label">{row.label}</span>
+                      <span className={`dd-test-pill dd-test-pill-${t.severity}`}>
+                        {t.severity === 'aligned' && 'Aligne'}
+                        {t.severity === 'attention' && 'Attention'}
+                        {t.severity === 'alert' && 'Alerte'}
+                        {t.severity === 'red_flag' && 'Red flag'}
+                        {t.severity === 'not_assessable' && 'Non evaluable'}
+                      </span>
+                    </div>
+                    <div className="dd-test-values">
+                      <div className="dd-test-bp"><strong>BP / Pitch</strong>{' '}{t.bpValue}</div>
+                      <div className="dd-test-real"><strong>Reel</strong>{' '}{t.realValue}</div>
+                    </div>
+                    <div className="dd-test-evidence">{t.evidence}</div>
+                    {t.ddQuestion && (
+                      <div className="dd-test-question"><strong>Question DD :</strong>{' '}{t.ddQuestion}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className={`dd-verdict dd-verdict-${ddf.verdict}`}>
+              <strong>Verdict :</strong>{' '}
+              {ddf.verdict === 'dd_aligned' && 'BP et realite comptable alignes. Confirmer en DD le maintien sur les exercices a venir.'}
+              {ddf.verdict === 'dd_partial_alignment' && 'Alignement partiel. Une a deux zones d ecart sectoriel a documenter avant comite d investissement.'}
+              {ddf.verdict === 'dd_significant_gaps' && 'Ecarts significatifs sur plusieurs postes. Investigation DD approfondie requise avant toute decision.'}
+              {ddf.verdict === 'dd_red_flags' && 'Red flags identifies. Le BP presente des decalages structurels avec la realite comptable qui exigent clarification immediate.'}
+            </div>
+            {ddf.questionsToInstruct?.length > 0 && (
+              <div className="dd-questions">
+                <strong>Questions DD prioritaires :</strong>
+                <ol>{ddf.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
+              </div>
+            )}
+          </>
+        )}
+
+        {ddc?.triggered && (
+          <>
+            <h3 className="note-h3">Data Room - DD Contractuelle</h3>
+            <div className="ddc-disclaimer">
+              {(ddc.disclaimers || []).map((d: string, i: number) => (
+                <div key={i} className="ddc-disclaimer-line">{d}</div>
+              ))}
+            </div>
+            <p className="note-paragraph muted">
+              Documents analyses :
+              {ddc.documentsAnalyzed.shareholdersAgreement && ` pacte (${ddc.documentsAnalyzed.shareholdersAgreement.name})`}
+              {ddc.documentsAnalyzed.statutes && `${ddc.documentsAnalyzed.shareholdersAgreement ? ', ' : ' '}statuts (${ddc.documentsAnalyzed.statutes.name})`}
+              {(ddc.documentsAnalyzed.clientContracts?.length || 0) > 0 && `, ${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length} contrat${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length > 1 ? 's' : ''} client`}
+              {' '}. Score global : {ddc.globalScore}/100.
+            </p>
+            {splitIntoParagraphs(ddc.synthesis, 3).map((p: string, i: number) => (
+              <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+            ))}
+
+            {ddc.capTableSummary && (
+              <>
+                <h4 className="note-h4">Cap table - photo a date</h4>
+                <div className="ddc-cap-summary">
+                  <div className="ddc-cap-row"><span>Fondateurs cumules</span><strong>{ddc.capTableSummary.founderPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Investisseurs cumules</span><strong>{ddc.capTableSummary.investorPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Pool d options</span><strong>{ddc.capTableSummary.optionPoolPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Allocation employes</span><strong>{ddc.capTableSummary.employeeAllocatedPercentage.toFixed(1)}%</strong></div>
+                  {ddc.capTableSummary.topInvestor && (
+                    <div className="ddc-cap-row"><span>Top investisseur</span><strong>{ddc.capTableSummary.topInvestor.name} ({ddc.capTableSummary.topInvestor.percentage.toFixed(1)}%)</strong></div>
+                  )}
+                </div>
+                {(ddc.capTableSummary.keyFlags?.length || 0) > 0 && (
+                  <ul className="ddc-cap-flags">
+                    {ddc.capTableSummary.keyFlags.map((m: string, i: number) => <li key={i}>{m}</li>)}
+                  </ul>
+                )}
+              </>
+            )}
+
+            {(ddc.clauses?.length || 0) > 0 && (
+              <>
+                <h4 className="note-h4">Cartographie des clauses sensibles</h4>
+                <div className="ddc-clauses">
+                  {ddc.clauses.map((c: any, i: number) => (
+                    <div key={i} className={`ddc-clause-row ddc-clause-${c.severity}`}>
+                      <div className="ddc-clause-header">
+                        <span className="ddc-clause-label">{c.clauseLabel}</span>
+                        <span className={`ddc-clause-pill ddc-clause-pill-${c.severity}`}>
+                          {c.severity === 'standard' && 'Standard'}
+                          {c.severity === 'attention' && 'Attention'}
+                          {c.severity === 'non_standard' && 'Non standard'}
+                          {c.severity === 'red_flag' && 'Red flag'}
+                          {c.severity === 'not_found' && 'Non trouvee'}
+                        </span>
+                      </div>
+                      {c.citation && (
+                        <div className="ddc-clause-citation">{c.citation}</div>
+                      )}
+                      <div className="ddc-clause-meta">
+                        {c.reference && <span><strong>Ref :</strong> {c.reference}</span>}
+                        <span><strong>Source :</strong> {c.source}</span>
+                      </div>
+                      {c.marketComparison && (
+                        <div className="ddc-clause-market"><strong>Marche :</strong> {c.marketComparison}</div>
+                      )}
+                      {c.implication && (
+                        <div className="ddc-clause-implication">{c.implication}</div>
+                      )}
+                      {c.ddQuestion && (
+                        <div className="ddc-clause-question"><strong>Question DD :</strong> {c.ddQuestion}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {(ddc.clientContractFlags?.length || 0) > 0 && (
+              <>
+                <h4 className="note-h4">Flags contrats clients</h4>
+                <div className="ddc-flags">
+                  {ddc.clientContractFlags.map((f: any, i: number) => (
+                    <div key={i} className={`ddc-flag-row ddc-flag-${f.severity}`}>
+                      <div className="ddc-flag-header">
+                        <span className="ddc-flag-type">{f.flagType.replace(/_/g, ' ')}</span>
+                        <span className="ddc-flag-contract">{f.contractName}</span>
+                        <span className={`ddc-clause-pill ddc-clause-pill-${f.severity}`}>
+                          {f.severity === 'standard' && 'Standard'}
+                          {f.severity === 'attention' && 'Attention'}
+                          {f.severity === 'non_standard' && 'Non standard'}
+                          {f.severity === 'red_flag' && 'Red flag'}
+                        </span>
+                      </div>
+                      {f.citation && <div className="ddc-clause-citation">{f.citation}</div>}
+                      {f.reference && <div className="ddc-clause-meta"><strong>Ref :</strong> {f.reference}</div>}
+                      {f.implication && <div className="ddc-clause-implication">{f.implication}</div>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className={`ddc-verdict ddc-verdict-${ddc.verdict}`}>
+              <strong>Verdict :</strong>{' '}
+              {ddc.verdict === 'contractual_aligned' && 'Profil contractuel aligne sur les standards VC francais. Confirmer en DD juridique aupres de l avocat.'}
+              {ddc.verdict === 'contractual_attention' && 'Quelques points d attention identifies. Investigation ciblee aupres de l avocat M&A recommandee.'}
+              {ddc.verdict === 'contractual_significant_gaps' && 'Plusieurs clauses non standards identifiees. DD juridique approfondie requise avant comite d investissement.'}
+              {ddc.verdict === 'contractual_red_flags' && 'Red flags contractuels identifies. Clarification urgente aupres de l avocat M&A et negociation potentielle avant decision.'}
+            </div>
+            {ddc.questionsToInstruct?.length > 0 && (
+              <div className="dd-questions">
+                <strong>Questions DD prioritaires :</strong>
+                <ol>{ddc.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
+              </div>
             )}
           </>
         )}
@@ -3091,6 +3116,63 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         @media (max-width: 700px) {
           .ddc-cap-summary { grid-template-columns: 1fr; }
+        }
+
+        /* BLOCK MARKERS - Separateurs visuels entre Bloc 1 (Note
+           d instruction / screening) et Bloc 2 (Data Room / DD
+           approfondie). Le partner senior doit voir d un coup d oeil
+           ou il est dans la note. Page break PDF avant le Bloc 2
+           pour qu il demarre sur une page nouvelle a l export. */
+        .block-marker {
+          margin: 18px 0 30px;
+          padding: 22px 28px;
+          background: linear-gradient(135deg, #16213a 0%, #1f2d4a 100%);
+          color: #fafaf6;
+          border-radius: 6px;
+          position: relative;
+          overflow: hidden;
+        }
+        .block-marker-instruction {
+          background: linear-gradient(135deg, #16213a 0%, #243352 100%);
+        }
+        .block-marker-dataroom {
+          background: linear-gradient(135deg, #4a3320 0%, #5e4128 100%);
+          margin-top: 60px;
+          /* Page break en mode print pour que le Bloc 2 commence sur
+             une nouvelle page a l export PDF. */
+          page-break-before: always;
+        }
+        .block-marker-tag {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 10px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.55);
+          margin-bottom: 6px;
+        }
+        .block-marker-title {
+          font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+          font-size: 26px;
+          font-weight: 600;
+          color: #fafaf6;
+          letter-spacing: -0.01em;
+          line-height: 1.2;
+          margin-bottom: 4px;
+        }
+        .block-marker-sub {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 12px;
+          letter-spacing: 0.04em;
+          color: rgba(255, 255, 255, 0.78);
+          font-style: italic;
+        }
+
+        @media print {
+          .block-marker-dataroom {
+            page-break-before: always !important;
+            break-before: page !important;
+          }
         }
 
         /* ORDERED LIST - Listes numérotées style éditorial. */

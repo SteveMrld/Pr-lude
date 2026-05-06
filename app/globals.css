@@ -321,6 +321,95 @@ ul, ol { list-style: none; }
   display: inline-block;
 }
 
+/* HERO MODES : deux blocs visibles cote a cote sur la landing pour
+   exposer clairement les deux registres d instruction. Bloc 1
+   screening (note d instruction, lecture rapide) et Bloc 2 Data
+   Room (DD approfondie pour comite d investissement). Le partner
+   senior comprend en 5 secondes la difference d usage. */
+.hero-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 22px 0 26px;
+}
+.hero-mode {
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 22px 24px;
+  background: var(--surface);
+  position: relative;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+.hero-mode:hover {
+  border-color: var(--hairline-strong, #c9c4ba);
+}
+.hero-mode-screening {
+  background: linear-gradient(180deg, rgba(22, 33, 58, 0.025) 0%, var(--surface) 60%);
+  border-left: 3px solid #16213a;
+}
+.hero-mode-dataroom {
+  background: linear-gradient(180deg, rgba(74, 51, 32, 0.025) 0%, var(--surface) 60%);
+  border-left: 3px solid #4a3320;
+}
+.hero-mode-tag {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+.hero-mode-title {
+  font-family: 'Iowan Old Style', 'Charter', 'Cambria', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  margin-bottom: 3px;
+}
+.hero-mode-sub {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  font-style: italic;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+.hero-mode-meta {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.hero-mode-meta > div {
+  margin-bottom: 6px;
+}
+.hero-mode-meta > div:last-child {
+  margin-bottom: 0;
+}
+.hero-mode-meta strong {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2px;
+}
+
+@media (max-width: 800px) {
+  .hero-modes {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .hero-mode {
+    padding: 18px 20px;
+  }
+}
+
 /* CARTE STATS FONDS dans le hero : box blanche elevee a droite du
    titre, contenant 2 grands chiffres (instruits / en cours), une
    meta-line de date relative, et un lien vers le portefeuille.
