@@ -828,6 +828,9 @@ export default function HomeClient({
                 <p>
                   Prélude est lui-même un produit pensé à l&apos;ère de l&apos;intelligence artificielle générative. Sa défensibilité ne repose pas sur le code, qui est reproductible. Elle repose sur trois choses : la qualité éditoriale du raisonnement, le corpus historique et les annotations des dossiers passés que chaque fonds accumule au fil de son usage, et l&apos;intégration au workflow d&apos;un partner habitué à l&apos;ouvrir le matin. Le seul de ces trois leviers qui se construit avec le temps est le deuxième. C&apos;est pour cela que la mémoire institutionnelle, et la réconciliation entre prédiction et réalité, ne sont pas des fonctionnalités annexes. Elles sont la matière même que Prélude rend opérable.
                 </p>
+                <p>
+                  De la première lecture à la signature, Prélude couvre désormais deux temps distincts de l&apos;instruction. Le Bloc 1 produit la note d&apos;instruction qui qualifie un dossier en cinq minutes pour un analyste ou un principal. Le Bloc 2 ouvre la data room et produit l&apos;audit approfondi qui prépare le comité d&apos;investissement, à la lecture du partner senior et de l&apos;avocat M&amp;A. Deux registres complémentaires dans un seul outil.
+                </p>
               </div>
             </section>
 
@@ -839,11 +842,17 @@ export default function HomeClient({
             <section className="landing-section" id="methode">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">II.</div>
-                <h2 className="landing-h2">Douze moteurs, une méthode.</h2>
+                <h2 className="landing-h2">Une méthode, deux registres.</h2>
               </div>
               <p className="landing-section-intro">
-                Chaque dossier traverse douze étapes regroupées en quatre temps. Certaines extraient les données brutes, d&apos;autres confrontent au corpus de cas, d&apos;autres encore débusquent les biais de jugement.
+                Dix-huit moteurs articulés en deux blocs distincts. Le Bloc 1 instruit un dossier au moment du screening : quatorze moteurs en quatre temps. Le Bloc 2 ouvre la data room en due diligence approfondie : quatre moteurs supplémentaires qui confrontent le pitch projeté à la réalité opérationnelle.
               </p>
+
+              <div className="method-block-header method-block-header-instruction">
+                <span className="method-block-tag">Bloc 1</span>
+                <span className="method-block-title">Note d&apos;instruction &middot; 14 moteurs</span>
+                <span className="method-block-sub">Pitch deck + BP optionnel &middot; 5 minutes</span>
+              </div>
 
               <div className="method-accordion">
                 {[
@@ -867,7 +876,8 @@ export default function HomeClient({
                     color: 'violet',
                     engines: [
                       { id: 'pattern',              num: '06', name: 'Pattern matching',       desc: 'Confrontation aux trajectoires comparables historiques.' },
-                      { id: 'financial-coherence',  num: '10', name: 'Cohérence financière',   desc: 'Sept tests de cohérence des projections et unit economics.' },
+                      { id: 'financial-coherence',  num: '07', name: 'Cohérence financière',   desc: 'Sept tests de cohérence des projections et unit economics.' },
+                      { id: 'tech-claim',           num: '08', name: 'Cohérence revendication tech', desc: 'Audit du moat technologique : budget, traçabilité, contre-factuel.' },
                     ],
                   },
                   {
@@ -876,9 +886,10 @@ export default function HomeClient({
                     sub: 'Vigilance vs singularité',
                     color: 'amber',
                     engines: [
-                      { id: 'causal',               num: '07', name: 'Retournement causal',    desc: 'Sept angles morts et questions critiques à instruire.' },
-                      { id: 'blindspot',            num: '08', name: 'Vigilance critique',  desc: 'Patterns d\u2019erreur systémiques (Theranos, WeWork, Ynsect).' },
-                      { id: 'contrarian',           num: '09', name: 'Singularités contrariennes', desc: 'Signaux qui justifient le pari à contre-courant (Wiz, Stripe).' },
+                      { id: 'causal',               num: '09', name: 'Retournement causal',    desc: 'Sept angles morts et questions critiques à instruire.' },
+                      { id: 'blindspot',            num: '10', name: 'Vigilance critique',  desc: 'Patterns d\u2019erreur systémiques (Theranos, WeWork, Ynsect).' },
+                      { id: 'contrarian',           num: '11', name: 'Singularités contrariennes', desc: 'Signaux qui justifient le pari à contre-courant (Wiz, Stripe).' },
+                      { id: 'execution-friction',   num: '12', name: 'Friction d\u2019exécution', desc: 'Huit axes : go-to-market, financement transactionnel, industrialisation, supply chain, écosystème, régulation, référencement, talent rare.' },
                     ],
                   },
                   {
@@ -887,8 +898,8 @@ export default function HomeClient({
                     sub: 'Synthèse et plan d\u2019action',
                     color: 'green',
                     engines: [
-                      { id: 'orchestrate',          num: '11', name: 'Orchestration',          desc: 'Synthèse, probabilités, résolution dialectique.' },
-                      { id: 'reference-checks',     num: '12', name: 'Reference checks',       desc: 'Plan d\u2019appels DD terrain et signaux faibles.' },
+                      { id: 'orchestrate',          num: '13', name: 'Orchestration',          desc: 'Synthèse, probabilités, résolution dialectique.' },
+                      { id: 'reference-checks',     num: '14', name: 'Reference checks',       desc: 'Plan d\u2019appels DD terrain et signaux faibles.' },
                     ],
                   },
                 ].map((cat, idx) => (
@@ -929,17 +940,69 @@ export default function HomeClient({
                   </details>
                 ))}
               </div>
+
+              <div className="method-block-header method-block-header-dataroom">
+                <span className="method-block-tag">Bloc 2</span>
+                <span className="method-block-title">Data Room &middot; 4 moteurs</span>
+                <span className="method-block-sub">+ grand livre, pacte, statuts, contrats clients, cap table &middot; 15 minutes</span>
+              </div>
+
+              <div className="method-accordion">
+                <details className="method-cat method-cat-bronze" open>
+                  <summary className="method-cat-head">
+                    <div className="method-cat-meta">
+                      <div className="method-cat-num">05</div>
+                      <div>
+                        <div className="method-cat-label">Due diligence approfondie</div>
+                        <div className="method-cat-sub">Confrontation BP versus réalité opérationnelle</div>
+                      </div>
+                    </div>
+                    <div className="method-cat-count">
+                      <span className="method-cat-count-num">4</span>
+                      <span className="method-cat-count-label">moteurs</span>
+                      <span className="method-cat-chevron" aria-hidden="true">
+                        <Picto name="chevron-right" size={14} />
+                      </span>
+                    </div>
+                  </summary>
+                  <div className="method-cat-body">
+                    {[
+                      { id: 'dd-financial',  num: '15', name: 'DD financière',     desc: 'Sept tests de réconciliation BP versus grand livre comptable : CA, marge, burn, headcount, concentration client, trajectoire, engagements hors bilan.' },
+                      { id: 'dd-contractual', num: '16', name: 'DD contractuelle', desc: 'Cartographie de quinze clauses sensibles avec citation exacte mot pour mot : pacte, statuts, contrats clients, comparaison France Invest Series A/B.' },
+                      { id: 'dd-technical',  num: '17', name: 'DD technique',      desc: 'Audit repo GitHub : qualité du code, cadence release, dépendances obsolètes, secrets en dur. À venir.' },
+                      { id: 'dd-references', num: '18', name: 'Reference checks structurés', desc: 'Agrégation des notes d\u2019appels DD terrain pour faire émerger les patterns récurrents et les signaux faibles. À venir.' },
+                    ].map((e) => {
+                      const EnginePicto = ENGINE_PICTOS[e.id as keyof typeof ENGINE_PICTOS];
+                      return (
+                        <div className="method-engine" key={e.id}>
+                          <div className="method-engine-picto" aria-hidden="true">
+                            {EnginePicto && <EnginePicto />}
+                          </div>
+                          <div className="method-engine-num">{e.num}</div>
+                          <div className="method-engine-text">
+                            <div className="method-engine-name">{e.name}</div>
+                            <div className="method-engine-desc">{e.desc}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              </div>
             </section>
 
             {/* SECTION 4 - Pour qui */}
             <section className="landing-section">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">III.</div>
-                <h2 className="landing-h2">Pensé pour les comités d&apos;investissement exigeants.</h2>
+                <h2 className="landing-h2">Pensé pour les fonds qui instruisent réellement.</h2>
               </div>
               <div className="landing-prose">
                 <p>
-                  Prélude s'adresse aux fonds early-stage et growth-stage qui instruisent en moyenne 200 à 500 dossiers par an et n'en transforment qu'une poignée. Le goulot d'étranglement n'est pas l'accès au deal flow, c'est la qualité et la profondeur de l'instruction.
+                  Prélude s&apos;adresse aux fonds early-stage et growth-stage qui instruisent en moyenne 200 à 500 dossiers par an et n&apos;en transforment qu&apos;une poignée. Le goulot d&apos;étranglement n&apos;est pas l&apos;accès au deal flow, c&apos;est la qualité et la profondeur de l&apos;instruction.
+                </p>
+                <p>
+                  Deux destinataires complémentaires utilisent la plateforme à des moments différents du pipeline. L&apos;analyste ou le principal qualifie un dossier en cinq minutes avec la note d&apos;instruction du Bloc 1 : verdict chiffré, drivers, vigilance critique, friction d&apos;exécution. Si le dossier mérite d&apos;être poussé, le partner senior ouvre la data room du Bloc 2 et obtient en quinze minutes la confrontation BP versus réalité comptable, la cartographie des clauses sensibles du pacte et des contrats clients, et l&apos;audit data room qui prépare le comité d&apos;investissement. L&apos;avocat M&amp;A peut prendre le relais avec les citations exactes des clauses déjà extraites.
                 </p>
                 <p>
                   La plateforme est calibrée pour la rigueur européenne sans s&apos;y limiter : sources consolidées trimestriellement (Atomico, PitchBook, Bain, Correlation Ventures), pipeline réglementaire EU 2026 (28e régime, AI Development Act, Quantum Act), comparables européens 2024-2026 (Helsing, Mistral, NScale, Quantum-Systems), méthode applicable à tout dossier mondial.
@@ -951,31 +1014,71 @@ export default function HomeClient({
             <section className="landing-section">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">IV.</div>
-                <h2 className="landing-h2">Une note d'investissement IC-ready en quelques minutes.</h2>
+                <h2 className="landing-h2">Deux livrables, deux usages.</h2>
               </div>
               <p className="landing-section-intro">
-                En sortie de pipeline, Prélude produit une note d'instruction structurée comme un memo de partner senior : argumentaire dialectique, scores chiffrés, conditions actionnables.
+                En sortie, Prélude produit deux livrables complémentaires : la note d&apos;instruction qui qualifie un dossier au screening, et la data room qui prépare le comité d&apos;investissement. Chacun a sa structure propre, calibrée pour son lecteur.
               </p>
-              <div className="deliverable-grid">
-                <div className="deliverable-block">
-                  <div className="deliverable-num">1.</div>
-                  <div className="deliverable-name">Company &amp; Project</div>
-                  <div className="deliverable-desc">Synthèse du dossier, executive staff, projections financières, modèle économique.</div>
+
+              <div className="deliverable-columns">
+                <div className="deliverable-column deliverable-column-instruction">
+                  <div className="deliverable-column-header">
+                    <span className="deliverable-column-tag">Bloc 1</span>
+                    <span className="deliverable-column-title">Note d&apos;instruction</span>
+                    <span className="deliverable-column-sub">IC-ready en 5 minutes</span>
+                  </div>
+                  <div className="deliverable-grid deliverable-grid-stack">
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">1.</div>
+                      <div className="deliverable-name">Company &amp; Project</div>
+                      <div className="deliverable-desc">Synthèse du dossier, executive staff, projections financières, modèle économique.</div>
+                    </div>
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">2.</div>
+                      <div className="deliverable-name">Investment Thesis</div>
+                      <div className="deliverable-desc">Verdict, score chiffré, probabilité de succès. The case for, the case against, dialectical resolution.</div>
+                    </div>
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">3.</div>
+                      <div className="deliverable-name">Risk &amp; Comparables</div>
+                      <div className="deliverable-desc">Strategic, operational, financial risks. Competitive positioning. Comparables historiques internationaux.</div>
+                    </div>
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">4.</div>
+                      <div className="deliverable-name">Transaction &amp; Conditions</div>
+                      <div className="deliverable-desc">Stage, nominal, valuation. Conditions clés actionnables, plan de structuring 0-3 / 3-12 / 12+ mois.</div>
+                    </div>
+                  </div>
                 </div>
-                <div className="deliverable-block">
-                  <div className="deliverable-num">2.</div>
-                  <div className="deliverable-name">Investment Thesis</div>
-                  <div className="deliverable-desc">Verdict, score chiffré, probabilité de succès. The case for, the case against, dialectical resolution.</div>
-                </div>
-                <div className="deliverable-block">
-                  <div className="deliverable-num">3.</div>
-                  <div className="deliverable-name">Risk &amp; Comparables</div>
-                  <div className="deliverable-desc">Strategic, operational, financial risks. Competitive positioning. Comparables historiques internationaux.</div>
-                </div>
-                <div className="deliverable-block">
-                  <div className="deliverable-num">4.</div>
-                  <div className="deliverable-name">Transaction &amp; Conditions</div>
-                  <div className="deliverable-desc">Stage, nominal, valuation. Conditions clés actionnables, plan de structuring 0-3 / 3-12 / 12+ mois.</div>
+
+                <div className="deliverable-column deliverable-column-dataroom">
+                  <div className="deliverable-column-header">
+                    <span className="deliverable-column-tag">Bloc 2</span>
+                    <span className="deliverable-column-title">Data Room</span>
+                    <span className="deliverable-column-sub">Audit DD en 15 minutes</span>
+                  </div>
+                  <div className="deliverable-grid deliverable-grid-stack">
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">5.</div>
+                      <div className="deliverable-name">DD financière</div>
+                      <div className="deliverable-desc">Sept tests de réconciliation BP versus grand livre comptable : CA déclaré vs réel, marge brute projetée vs réelle, burn rate, headcount vs charges salariales, concentration client, trajectoire récente, engagements hors bilan.</div>
+                    </div>
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">6.</div>
+                      <div className="deliverable-name">DD contractuelle</div>
+                      <div className="deliverable-desc">Cartographie de quinze clauses sensibles avec citation exacte mot pour mot : pacte d&apos;actionnaires, statuts, contrats clients top dix. Comparaison aux standards France Invest Series A/B.</div>
+                    </div>
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">7.</div>
+                      <div className="deliverable-name">DD technique <span className="deliverable-tag-soon">à venir</span></div>
+                      <div className="deliverable-desc">Audit du repo GitHub : qualité du code, cadence release, dépendances obsolètes, secrets en dur, couverture de tests.</div>
+                    </div>
+                    <div className="deliverable-block">
+                      <div className="deliverable-num">8.</div>
+                      <div className="deliverable-name">Reference checks structurés <span className="deliverable-tag-soon">à venir</span></div>
+                      <div className="deliverable-desc">Agrégation des notes d&apos;appels DD terrain pour faire émerger les patterns récurrents, les signaux faibles et les contradictions entre sources.</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -984,10 +1087,10 @@ export default function HomeClient({
             <section className="landing-section">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">V.</div>
-                <h2 className="landing-h2">Quatre sources externes, consolidées trimestriellement.</h2>
+                <h2 className="landing-h2">Sources externes et standards calibrés.</h2>
               </div>
               <p className="landing-section-intro">
-                La rigueur méthodologique de Prélude repose sur un corpus externe consolidé chaque trimestre, qui sert de borne calibrée pour tous les jugements quantitatifs.
+                La rigueur méthodologique de Prélude repose sur un corpus externe consolidé chaque trimestre, qui sert de borne calibrée pour tous les jugements quantitatifs du Bloc 1. Pour le Bloc 2, les standards juridiques et comptables français servent de référentiel.
               </p>
               <ol className="sources-grid">
                 <li className="source-card">
@@ -1014,6 +1117,18 @@ export default function HomeClient({
                   <div className="source-edition">Power-law VC returns</div>
                   <div className="source-desc">Loi de puissance des retours VC, benchmarks TRI et TVPI par quartile, persistance Kaplan-Schoar.</div>
                 </li>
+                <li className="source-card">
+                  <div className="source-num">05</div>
+                  <div className="source-name">France Invest &amp; BPI Capital</div>
+                  <div className="source-edition">Standards Series A/B France</div>
+                  <div className="source-desc">Calibration des clauses sensibles du pacte d&apos;actionnaires : liquidation preference, anti-dilution, drag along, tag along, droits de veto, répartition standards France 2024-2026.</div>
+                </li>
+                <li className="source-card">
+                  <div className="source-num">06</div>
+                  <div className="source-name">Plan Comptable Général</div>
+                  <div className="source-edition">PCG 2024 &middot; FEC légal</div>
+                  <div className="source-desc">Parsing du grand livre comptable au format FEC standard ou Excel libre. Soldes par classe (1 à 7), réconciliation BP versus réalité opérationnelle.</div>
+                </li>
               </ol>
             </section>
 
@@ -1021,10 +1136,10 @@ export default function HomeClient({
             <section className="landing-section landing-cta-section" id="commencer">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">VI.</div>
-                <h2 className="landing-h2">Commencer l'instruction.</h2>
+                <h2 className="landing-h2">Commencer l&apos;instruction.</h2>
               </div>
               <p className="landing-section-intro">
-                Déposez un dossier d'investissement complet : pitch deck PDF, business plan Excel ou CSV, et tout autre document utile. Le pipeline démarre immédiatement.
+                Pour le Bloc 1 (note d&apos;instruction), déposer le pitch deck PDF avec le business plan optionnel. Pour le Bloc 2 (data room), ajouter le grand livre comptable, le pacte d&apos;actionnaires, les statuts, les contrats clients principaux et le cap table. Les moteurs Bloc 2 ne tournent que si les documents correspondants sont fournis.
               </p>
 
               {files.length === 0 ? (

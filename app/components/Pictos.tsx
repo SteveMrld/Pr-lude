@@ -187,6 +187,12 @@ export const ENGINE_PICTOS = {
   blindspot: PictoEye,
   contrarian: PictoCompass,
   'financial-coherence': PictoScale,
+  'tech-claim': PictoNet,
+  'execution-friction': PictoCompass,
   orchestrate: PictoPyramid,
   'reference-checks': PictoPhone,
+  'dd-financial': PictoScale,
+  'dd-contractual': PictoDocument,
+  'dd-technical': PictoDocument,
+  'dd-references': PictoPhone,
 } as const;
