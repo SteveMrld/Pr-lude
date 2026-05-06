@@ -38,6 +38,9 @@ import { Picto } from './components/Picto';
 // sont silencieux.
 type EngineBlock = 'instruction' | 'dataroom';
 const ENGINES: Array<{ id: string; name: string; label: string; block: EngineBlock }> = [
+  // BLOC 0 - PRE-SCAN (TRIAGE RAPIDE)
+  { id: 'prescan', name: 'Pré-scan', label: 'Triage rapide six tests éliminatoires (Haiku, ~5s, ~0.02$)', block: 'instruction' },
+
   // BLOC 1 - NOTE D INSTRUCTION
   { id: 'extraction', name: 'Lecture du dossier', label: 'Structuration des informations du pitch deck', block: 'instruction' },
   { id: 'team', name: 'Équipe', label: 'Couverture systémique, anti-fragilité, transposition d\'expérience', block: 'instruction' },
@@ -2263,6 +2266,136 @@ export default function HomeClient({
                 </details>
               </div>
             )}
+
+            {/* ENCART PRE-SCAN
+                Affiche le verdict du moteur de triage Bloc 0 si present.
+                Trois etats visuels :
+                  - ready_for_pipeline : encart vert sobre, mentionne juste
+                    que le triage est passe
+                  - pipeline_with_caveats : encart ambre, liste les warns
+                  - not_recommended : encart rouge, liste les fails et
+                    invite a reflechir avant d aller plus loin
+                Toujours affiche pour la transparence : le partner doit
+                voir que le pre-scan a tourne et savoir ce qu il a dit. */}
+            {result.preScan && (() => {
+              const ps = result.preScan;
+              const isOk = ps.recommendation === 'ready_for_pipeline';
+              const isCaveats = ps.recommendation === 'pipeline_with_caveats';
+              const colors = isOk
+                ? { bg: 'rgba(80, 140, 90, 0.06)', border: 'rgba(80, 140, 90, 0.45)', accent: '#508c5a' }
+                : isCaveats
+                ? { bg: 'rgba(192, 138, 63, 0.08)', border: 'rgba(192, 138, 63, 0.5)', accent: '#c08a3f' }
+                : { bg: 'rgba(192, 64, 60, 0.08)', border: 'rgba(192, 64, 60, 0.5)', accent: '#c0403c' };
+              const verdictLabel = isOk
+                ? 'Pre-scan favorable'
+                : isCaveats
+                ? 'Pre-scan avec reserves'
+                : 'Pre-scan defavorable';
+              return (
+                <div style={{
+                  marginBottom: 24,
+                  padding: '20px 24px',
+                  background: colors.bg,
+                  borderLeft: `3px solid ${colors.border}`,
+                  borderRadius: 2,
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    marginBottom: 10,
+                    flexWrap: 'wrap',
+                    gap: 8,
+                  }}>
+                    <div style={{
+                      fontSize: 10,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      color: colors.accent,
+                      fontWeight: 600,
+                    }}>
+                      Triage Bloc 0 · {verdictLabel}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-tertiary)' }}>
+                      Score {ps.score}/6 · {ps.durationMs ? `${(ps.durationMs / 1000).toFixed(1)}s` : ''} · {ps.estimatedCostUsd ? `~$${ps.estimatedCostUsd.toFixed(2)}` : ''}
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: 'var(--ink)',
+                    marginBottom: ps.tests?.length ? 14 : 0,
+                  }}>
+                    {ps.summary}
+                  </div>
+                  {Array.isArray(ps.tests) && ps.tests.length > 0 && (
+                    <details style={{ marginTop: 6 }}>
+                      <summary style={{
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        color: colors.accent,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        fontWeight: 600,
+                        userSelect: 'none',
+                      }}>
+                        Voir le detail des six tests
+                      </summary>
+                      <div style={{ marginTop: 12 }}>
+                        {ps.tests.map((t: any, i: number) => {
+                          const testColor = t.status === 'pass'
+                            ? '#508c5a'
+                            : t.status === 'warn'
+                            ? '#c08a3f'
+                            : '#c0403c';
+                          return (
+                            <div key={i} style={{
+                              marginBottom: 12,
+                              paddingLeft: 12,
+                              borderLeft: `2px solid ${testColor}`,
+                            }}>
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                marginBottom: 4,
+                                gap: 8,
+                                flexWrap: 'wrap',
+                              }}>
+                                <strong style={{ fontSize: 13, fontFamily: 'var(--serif)' }}>
+                                  {t.name}
+                                </strong>
+                                <span style={{
+                                  fontSize: 10,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.08em',
+                                  color: testColor,
+                                  fontWeight: 600,
+                                }}>
+                                  {t.status}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--ink-soft)' }}>
+                                {t.rationale}
+                              </div>
+                              {t.evidence && (
+                                <div style={{
+                                  fontSize: 11,
+                                  fontStyle: 'italic',
+                                  color: 'var(--ink-tertiary)',
+                                  marginTop: 4,
+                                }}>
+                                  « {t.evidence} »
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Recommandation hero enrichie */}
             <div className="reco-card">

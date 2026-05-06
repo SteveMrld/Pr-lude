@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { runPreScan } from '@/lib/engines/prescan-engine';
 import { extractFromDeck } from '@/lib/engines/extraction-engine';
 import { analyzeTeam } from '@/lib/engines/team-engine';
 import { analyzeMarket } from '@/lib/engines/market-engine';
@@ -127,6 +128,34 @@ export async function POST(req: NextRequest) {
             technicalDocs: technicalDocs.map(t => t.name),
             others: others.map(o => o.name),
           });
+
+          // ============================================================
+          // VAGUE 0 : PRE-SCAN (TRIAGE BLOC 0)
+          // ------------------------------------------------------------
+          // Tourne en tete du pipeline en 5-8 secondes sur Haiku 4.5
+          // pour 0.02$. Applique six tests eliminatoires structurels
+          // (narrative, founder, financial, stage_ticket, market,
+          // thesis_fit) et produit un verdict de triage.
+          //
+          // Architecture conservatrice : NON BLOQUANT. Le pre-scan
+          // produit un verdict consultatif. Le pipeline complet tourne
+          // ensuite quel que soit le verdict, et l UI affiche un encart
+          // d alerte au-dessus de la note si le pre-scan a leve des
+          // drapeaux. Le partner garde le controle.
+          //
+          // Justification : economiser des credits sur les dossiers
+          // manifestement eliminatoires (estimation 30% des dossiers
+          // entrants sur un fonds early stage) sans frustrer le partner
+          // qui veut quand meme regarder un dossier pres-ecarte.
+          // ============================================================
+          sendStart('prescan', 'Pre-scan : triage rapide six tests eliminatoires');
+          let preScan: any = null;
+          try {
+            preScan = await runPreScan(pitchDeck.payload);
+          } catch (err: any) {
+            console.warn('[prescan] engine failed, continuing without:', err?.message);
+          }
+          sendDone('prescan', preScan);
 
           // ============================================================
           // VAGUE 1 : EXTRACTION
@@ -377,6 +406,7 @@ export async function POST(req: NextRequest) {
               durationMs: Date.now() - startTime,
               engineDurations,
             },
+            preScan,
             extraction,
             financialData,
             team,
