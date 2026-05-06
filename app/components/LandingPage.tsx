@@ -17,6 +17,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Picto, type PictoName } from './Picto';
+import { tr, type Locale } from '@/lib/i18n/landing-dict';
 
 interface DemoStage {
   engine: string;
@@ -63,6 +64,26 @@ export default function LandingPage() {
   const [stageIdx, setStageIdx] = useState(0);
   const [completed, setCompleted] = useState<DemoStage[]>([]);
 
+  // Locale FR/EN avec persistance localStorage. Defaut FR. Le
+  // toggle dans le header bascule entre les deux. Pas d auto-
+  // detection du browser pour ne pas surprendre les visiteurs
+  // francophones avec une landing en anglais (ou inversement).
+  const [locale, setLocale] = useState<Locale>('fr');
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('prelude_landing_locale');
+      if (stored === 'fr' || stored === 'en') setLocale(stored);
+    } catch {}
+  }, []);
+  function toggleLocale() {
+    const next: Locale = locale === 'fr' ? 'en' : 'fr';
+    setLocale(next);
+    try {
+      localStorage.setItem('prelude_landing_locale', next);
+    } catch {}
+  }
+  const t = (key: string) => tr(locale, key);
+
   useEffect(() => {
     const id = setInterval(() => {
       setStageIdx((prev) => {
@@ -89,10 +110,21 @@ export default function LandingPage() {
           </div>
           <div className="lp-brand-meta">DEPUIS 2026 · CONFIDENTIEL</div>
         </div>
-        <Link href="/login" className="lp-header-link">
-          Se connecter
-          <Picto name="arrow-right" size={14} />
-        </Link>
+        <div className="lp-header-actions">
+          <button
+            type="button"
+            onClick={toggleLocale}
+            className="lp-locale-toggle"
+            aria-label={`Switch to ${locale === 'fr' ? 'English' : 'French'}`}
+            title={`Switch to ${locale === 'fr' ? 'English' : 'French'}`}
+          >
+            {t('nav.toggle-lang')}
+          </button>
+          <Link href="/login" className="lp-header-link">
+            {t('nav.login')}
+            <Picto name="arrow-right" size={14} />
+          </Link>
+        </div>
       </header>
 
       {/* HERO editorial. Reprend la grammaire du hero HomeClient
@@ -101,51 +133,46 @@ export default function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-kicker">
           <span className="lp-kicker-dot"></span>
-          <span>Capital-risque européen · Instruction rigoureuse</span>
+          <span>{t('hero.kicker')}</span>
         </div>
         <h1 className="lp-hero-title">
-          Instruire un dossier
+          {t('hero.title-line1')}
           <br />
-          <em>comme on instruit une affaire.</em>
+          <em>{t('hero.title-line2')}</em>
         </h1>
         <div className="lp-hero-lede">
           <p>
-            <span className="lp-dropcap">P</span>
-            rélude est un moteur d&apos;instruction conçu pour les fonds qui
-            considèrent qu&apos;un dossier mérite mieux qu&apos;un résumé en
-            trois bullet points. Quatorze moteurs analytiques travaillent en
-            parallèle sur chaque pitch deck, chaque modèle financier, chaque
-            jeu de données. La synthèse produite tient en une note rédigée,
-            un pack de comité, un verdict argumenté.
+            <span className="lp-dropcap">{t('hero.lede').charAt(0)}</span>
+            {t('hero.lede').slice(1)}
           </p>
         </div>
         <div className="lp-hero-cta">
           <Link href="/login" className="lp-cta-primary">
-            <span>Lancer une instruction</span>
+            <span>{t('hero.cta-primary')}</span>
             <Picto name="arrow-right" size={16} />
           </Link>
-          <span className="lp-cta-meta">Lien magique par email · Aucun mot de passe</span>
+          <span className="lp-cta-meta">{t('hero.cta-meta')}</span>
         </div>
       </section>
 
       {/* BANDE DE STATS sobres. Style FT/Atlantic, pas de couleur tape-a-l-oeil. */}
       <section className="lp-stats">
         <div className="lp-stat">
-          <div className="lp-stat-num">14</div>
-          <div className="lp-stat-label">Moteurs analytiques</div>
-          <div className="lp-stat-detail">Équipe, marché, macro, financiers, pattern, blindspot, contrarien, cohérence, exécution.</div>
+          <div className="lp-stat-num">{t('stats.engines-num')}</div>
+          <div className="lp-stat-label">{t('stats.engines-label')}</div>
+          <div className="lp-stat-detail">{t('stats.engines-detail')}</div>
         </div>
         <div className="lp-stat-divider"></div>
         <div className="lp-stat">
           <div className="lp-stat-num">3<span className="lp-stat-unit">min</span></div>
-          <div className="lp-stat-label">Temps d&apos;instruction</div>
-          <div className="lp-stat-detail">Du dépôt du pitch deck à la note d&apos;investissement consolidée.</div>
+          <div className="lp-stat-label">{t('stats.time-label')}</div>
+          <div className="lp-stat-detail">{t('stats.time-detail')}</div>
         </div>
         <div className="lp-stat-divider"></div>
         <div className="lp-stat">
           <div className="lp-stat-num">100<span className="lp-stat-unit">%</span></div>
-          <div className="lp-stat-label">Traçabilité</div>
-          <div className="lp-stat-detail">Chaque verdict est argumenté, chaque source citée, chaque vote archivé.</div>
+          <div className="lp-stat-label">{t('stats.trace-label')}</div>
+          <div className="lp-stat-detail">{t('stats.trace-detail')}</div>
         </div>
       </section>
 
@@ -156,10 +183,10 @@ export default function LandingPage() {
         <div className="lp-section-head">
           <div className="lp-section-kicker">
             <span className="lp-kicker-dot"></span>
-            Démonstration
+            {t('section.demo-kicker')}
           </div>
           <h2 className="lp-section-title">
-            Une instruction <em>en temps réel.</em>
+            {t('section.demo-title-1')} <em>{t('section.demo-title-2')}</em>
           </h2>
         </div>
 
@@ -211,12 +238,12 @@ export default function LandingPage() {
         <div className="lp-section-head">
           <div className="lp-section-kicker">
             <span className="lp-kicker-dot"></span>
-            Architecture
+            {t('section.engines-kicker')}
           </div>
           <h2 className="lp-section-title">
-            Quatorze moteurs.
+            {t('section.engines-title-1')}
             <br />
-            <em>Une lecture exhaustive.</em>
+            <em>{t('section.engines-title-2')}</em>
           </h2>
         </div>
         <div className="lp-engines-grid">
@@ -238,19 +265,17 @@ export default function LandingPage() {
         <div className="lp-section-head">
           <div className="lp-section-kicker">
             <span className="lp-kicker-dot"></span>
-            Manifeste
+            {t('section.philosophy-kicker')}
           </div>
           <h2 className="lp-section-title">
-            Trois principes
-            <br />
-            <em>qui nous tiennent.</em>
+            {t('section.philosophy-title')}
           </h2>
         </div>
         <div className="lp-pillars-grid">
           <article className="lp-pillar">
             <div className="lp-pillar-picto"><Picto name="pillar-rigueur" size={32} strokeWidth={1.5} /></div>
             <div className="lp-pillar-num">I</div>
-            <h3 className="lp-pillar-title">L&apos;instruction prend le pas sur la décision rapide.</h3>
+            <h3 className="lp-pillar-title">{t('section.pillar-1')}</h3>
             <p className="lp-pillar-text">
               Quatorze moteurs scrutent un dossier sous des angles complémentaires.
               Aucun raccourci. Une réflexion par moteur, conservée, datée, signée.
@@ -259,7 +284,7 @@ export default function LandingPage() {
           <article className="lp-pillar">
             <div className="lp-pillar-picto"><Picto name="pillar-comite" size={32} strokeWidth={1.5} /></div>
             <div className="lp-pillar-num">II</div>
-            <h3 className="lp-pillar-title">Le comité retrouve sa fonction de jugement.</h3>
+            <h3 className="lp-pillar-title">{t('section.pillar-2')}</h3>
             <p className="lp-pillar-text">
               Le pack IC tient en trois pages. Verdict, score, probabilité de succès.
               Vote en ligne, consolidation immédiate, conditions retenues archivées.
@@ -268,7 +293,7 @@ export default function LandingPage() {
           <article className="lp-pillar">
             <div className="lp-pillar-picto"><Picto name="pillar-memoire" size={32} strokeWidth={1.5} /></div>
             <div className="lp-pillar-num">III</div>
-            <h3 className="lp-pillar-title">La mémoire du fonds devient un actif.</h3>
+            <h3 className="lp-pillar-title">{t('section.pillar-3')}</h3>
             <p className="lp-pillar-text">
               Chaque dossier reste consultable, versionné, commenté. Le fonds
               construit progressivement sa cartographie cognitive et ses zones de force.
@@ -392,6 +417,28 @@ export default function LandingPage() {
           background: var(--accent);
           color: var(--paper);
           border-color: var(--accent);
+        }
+        .lp-header-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .lp-locale-toggle {
+          padding: 8px 12px;
+          background: transparent;
+          border: 1px solid var(--hairline);
+          border-radius: var(--radius-pill);
+          font-family: var(--sans);
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.08em;
+          color: var(--muted);
+          cursor: pointer;
+          transition: all var(--motion-fast);
+        }
+        .lp-locale-toggle:hover {
+          border-color: var(--ink);
+          color: var(--ink);
         }
 
         /* ============ HERO ============ */
