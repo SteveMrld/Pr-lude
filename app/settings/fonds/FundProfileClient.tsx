@@ -187,6 +187,7 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
           options={COMMON_SECTORS}
           selected={sectorsFocus}
           onToggle={(item) => toggle(sectorsFocus, setSectorsFocus, item)}
+          onSetAll={setSectorsFocus}
           customPlaceholder="Ajouter un secteur libre"
           onAddCustom={(value) => setSectorsFocus([...sectorsFocus, value])}
           disabled={!isAdmin}
@@ -202,6 +203,7 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
           options={COMMON_SECTORS_EXCLUDED}
           selected={sectorsExcluded}
           onToggle={(item) => toggle(sectorsExcluded, setSectorsExcluded, item)}
+          onSetAll={setSectorsExcluded}
           customPlaceholder="Ajouter un secteur exclu"
           onAddCustom={(value) => setSectorsExcluded([...sectorsExcluded, value])}
           disabled={!isAdmin}
@@ -218,6 +220,7 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
           options={COMMON_GEOGRAPHIES}
           selected={geographiesFocus}
           onToggle={(item) => toggle(geographiesFocus, setGeographiesFocus, item)}
+          onSetAll={setGeographiesFocus}
           customPlaceholder="Ajouter une zone libre"
           onAddCustom={(value) => setGeographiesFocus([...geographiesFocus, value])}
           disabled={!isAdmin}
@@ -233,6 +236,7 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
           options={COMMON_GEOGRAPHIES_EXCLUDED}
           selected={geographiesExcluded}
           onToggle={(item) => toggle(geographiesExcluded, setGeographiesExcluded, item)}
+          onSetAll={setGeographiesExcluded}
           customPlaceholder="Ajouter une zone exclue"
           onAddCustom={(value) => setGeographiesExcluded([...geographiesExcluded, value])}
           disabled={!isAdmin}
@@ -315,6 +319,7 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
           options={COMMON_STAGES}
           selected={stagesFocus}
           onToggle={(item) => toggle(stagesFocus, setStagesFocus, item)}
+          onSetAll={setStagesFocus}
           customPlaceholder="Ajouter un stade libre"
           onAddCustom={(value) => setStagesFocus([...stagesFocus, value])}
           disabled={!isAdmin}
@@ -367,11 +372,12 @@ function Section({ num, title, subtitle, children }: { num: string; title: strin
 }
 
 function ChipPicker({
-  options, selected, onToggle, customPlaceholder, onAddCustom, disabled, variant = 'normal',
+  options, selected, onToggle, onSetAll, customPlaceholder, onAddCustom, disabled, variant = 'normal',
 }: {
   options: string[];
   selected: string[];
   onToggle: (item: string) => void;
+  onSetAll: (next: string[]) => void;
   customPlaceholder: string;
   onAddCustom: (value: string) => void;
   disabled?: boolean;
@@ -389,9 +395,45 @@ function ChipPicker({
 
   const customs = selected.filter(s => !options.includes(s));
   const allOptions = [...options, ...customs];
+  // Combien de presets sont selectionnes ? Permet d afficher Tout
+  // selectionner ou Tout deselectionner intelligemment selon l etat.
+  const selectedPresetsCount = options.filter(o => selected.includes(o)).length;
+  const allPresetsSelected = selectedPresetsCount === options.length && options.length > 0;
+  const noPresetSelected = selectedPresetsCount === 0;
 
   return (
     <div>
+      {!disabled && options.length > 0 && (
+        <div className="fp-chip-actions">
+          <button
+            type="button"
+            className="fp-chip-action"
+            onClick={() => {
+              // Tout selectionner : on ajoute tous les presets manquants,
+              // on garde les customs deja presents.
+              const next = Array.from(new Set([...selected, ...options]));
+              onSetAll(next);
+            }}
+            disabled={allPresetsSelected}
+          >
+            Tout sélectionner
+          </button>
+          <span className="fp-chip-action-sep">·</span>
+          <button
+            type="button"
+            className="fp-chip-action"
+            onClick={() => {
+              // Tout deselectionner : on retire les presets, on garde les
+              // customs (l utilisateur a explicitement saisi ces zones).
+              const next = selected.filter(s => !options.includes(s));
+              onSetAll(next);
+            }}
+            disabled={noPresetSelected}
+          >
+            Tout désélectionner
+          </button>
+        </div>
+      )}
       <div className="fp-chips">
         {allOptions.map(opt => {
           const isSelected = selected.includes(opt);
