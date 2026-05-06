@@ -41,12 +41,23 @@ interface CallClaudeOptions {
   maxWebSearches?: number;
 }
 
-// Helper appel texte simple, avec option web_search natif
+// Helper appel texte simple, avec option web_search natif.
+//
+// IMPORTANT : le defaut est MODEL (Sonnet 4.5) parce que la majorite des
+// moteurs Bloc 1 (team, market, macro, pattern, causal, blindspot,
+// contrarian, financial-coherence) tournent sur Sonnet pour la qualite
+// dialectique. Haiku reste explicite quand voulu (prescan Bloc 0,
+// reference-checks, reference-aggregation, tech-claim-coherence) en
+// passant FAST_MODEL en quatrieme parametre.
+//
+// Avant : le defaut etait FAST_MODEL (Haiku) ce qui faisait tourner
+// silencieusement huit moteurs Bloc 1 sur Haiku au lieu de Sonnet,
+// degradant massivement la qualite des analyses dialectiques.
 export async function callClaude(
   systemPrompt: string,
   userPrompt: string,
   maxTokens = 2000,
-  model: string = FAST_MODEL,
+  model: string = MODEL,
   options: CallClaudeOptions = {},
 ): Promise<string> {
   const client = getClient();
@@ -129,8 +140,9 @@ function stripCiteTags(text: string): string {
   return cleaned;
 }
 
-// Helper appel avec PDF (toujours Sonnet pour la qualité d'extraction)
-export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string, pdfBase64: string, maxTokens = 3000, model: string = FAST_MODEL): Promise<string> {
+// Helper appel avec PDF natif (vision multimodale). Defaut MODEL (Sonnet)
+// pour la qualite d'extraction. Aligne avec callClaude ci-dessus.
+export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string, pdfBase64: string, maxTokens = 3000, model: string = MODEL): Promise<string> {
   const client = getClient();
   const response = await client.messages.create({
     model,
