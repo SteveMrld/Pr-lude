@@ -3249,23 +3249,68 @@ export default function HomeClient({
                       </p>
 
                       <div className="kv-grid" style={{ marginBottom: 14 }}>
-                        <div className="kv-item">
-                          <div className="kv-key">Score scientifique (objectif)</div>
-                          <div className="kv-val serif">{rd.objectiveScores?.scientific_signature || 0}/100</div>
-                        </div>
-                        <div className="kv-item">
-                          <div className="kv-key">Score technique (objectif)</div>
-                          <div className="kv-val serif">{rd.objectiveScores?.technical_signature || 0}/100</div>
-                        </div>
-                        <div className="kv-item">
-                          <div className="kv-key">Présence publique</div>
-                          <div className="kv-val serif">{rd.objectiveScores?.public_presence || 0}/100</div>
-                        </div>
-                        <div className="kv-item">
-                          <div className="kv-key">Activité récente</div>
-                          <div className="kv-val serif">{rd.objectiveScores?.recent_activity || 0}/100</div>
-                        </div>
+                        {(() => {
+                          const apl = rd.scoresApplicability;
+                          // Helper : rend le score si applicable, sinon Non applicable
+                          // avec rationale en tooltip natif. Pour un profil business/
+                          // industriel, OpenAlex / GitHub / Wikipedia ne sont pas des
+                          // metriques pertinentes ; afficher 0/100 induit en erreur.
+                          const renderScore = (
+                            label: string,
+                            value: number | undefined,
+                            applicable: boolean | undefined,
+                          ) => {
+                            const isApplicable = applicable !== false;
+                            return (
+                              <div className="kv-item">
+                                <div className="kv-key">{label}</div>
+                                {isApplicable ? (
+                                  <div className="kv-val serif">{value || 0}/100</div>
+                                ) : (
+                                  <div
+                                    className="kv-val"
+                                    style={{
+                                      fontStyle: 'italic',
+                                      color: 'var(--ink-tertiary)',
+                                      fontSize: 13,
+                                      fontFamily: 'inherit',
+                                    }}
+                                    title={apl?.rationale || 'Source non pertinente pour ce profil de fondateur'}
+                                  >
+                                    Non applicable
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          };
+                          return (
+                            <>
+                              {renderScore('Score scientifique (objectif)', rd.objectiveScores?.scientific_signature, apl?.scientific_applicable)}
+                              {renderScore('Score technique (objectif)', rd.objectiveScores?.technical_signature, apl?.technical_applicable)}
+                              {renderScore('Présence publique', rd.objectiveScores?.public_presence, apl?.public_applicable)}
+                              {renderScore('Activité récente', rd.objectiveScores?.recent_activity, apl?.recent_applicable)}
+                            </>
+                          );
+                        })()}
                       </div>
+
+                      {rd.scoresApplicability && rd.profileType && rd.profileType !== 'unknown' && (
+                        <div style={{
+                          marginTop: -4,
+                          marginBottom: 14,
+                          padding: '8px 12px',
+                          background: 'rgba(29, 28, 26, 0.04)',
+                          borderLeft: '2px solid var(--hairline)',
+                          fontSize: 12,
+                          fontStyle: 'italic',
+                          color: 'var(--ink-soft)',
+                          lineHeight: 1.5,
+                        }}>
+                          <strong style={{ fontWeight: 600, fontStyle: 'normal', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-tertiary)' }}>Calibration des sources</strong>
+                          <br />
+                          {rd.scoresApplicability.rationale}
+                        </div>
+                      )}
 
                       {rd.openalex && (
                         <div style={{ padding: '12px 16px', background: 'var(--paper)', border: '1px solid var(--hairline)', marginBottom: 10 }}>
@@ -3451,44 +3496,117 @@ export default function HomeClient({
 
               {(activeTab === 'macro' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
-                  <div className="kv-grid" style={{ marginBottom: 22 }}>
-                    <div className="kv-item">
-                      <div className="kv-key">Position cycle</div>
-                      <div className="kv-val">{result.macro?.cyclePosition}</div>
+                  {/* Si tous les champs macro sont vides ou null, afficher un
+                      message unique plutot que des en-tetes vides. Le moteur
+                      Macro peut renvoyer des champs null si les sources de
+                      donnees manquent ou si la dimension n est pas pertinente
+                      pour le dossier. Mieux vaut signaler honnetement que
+                      l information n est pas disponible que d afficher des
+                      blocs vides qui font cosmetiquement faiblir la note. */}
+                  {(() => {
+                    const macro = result.macro || {};
+                    const hasCycle = !!macro.cyclePosition;
+                    const hasVc = !!macro.vcCapitalOnSegment;
+                    const hasRate = !!macro.interestRateRegime;
+                    const hasGeo = !!macro.geopolitics;
+                    const hasTiming = !!macro.criticalTimingWindow?.rationale || macro.criticalTimingWindow?.exists != null;
+                    const hasContraryc = !!macro.contraryclicalOpportunity?.rationale || typeof macro.contraryclicalOpportunity?.score === 'number';
+                    const hasTrends = (macro.structuralTrends || []).length > 0;
+                    const hasReg = !!macro.regulatoryEnvironment;
+                    const hasCycleD = !!macro.demandCycle;
+                    const anyFilled = hasCycle || hasVc || hasRate || hasGeo || hasTiming || hasContraryc || hasTrends || hasReg || hasCycleD;
+                    if (!anyFilled) {
+                      return (
+                        <div style={{
+                          padding: '20px 24px',
+                          background: 'rgba(29, 28, 26, 0.04)',
+                          borderLeft: '3px solid var(--hairline)',
+                          fontSize: 13.5,
+                          fontStyle: 'italic',
+                          color: 'var(--ink-soft)',
+                          lineHeight: 1.6,
+                        }}>
+                          Analyse macro non concluante pour ce dossier. Les sources interrogees n ont pas produit de signal sur le cycle, le capital VC, la geopolitique ou les tendances structurelles applicables. Pour completer cette dimension : verifier le contexte sectoriel via un brief macro externe (Atomico SoET, PitchBook, Bain Global Private Equity Report).
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {(result.macro?.cyclePosition || result.macro?.vcCapitalOnSegment || result.macro?.interestRateRegime || result.macro?.geopolitics) && (
+                    <div className="kv-grid" style={{ marginBottom: 22 }}>
+                      {result.macro?.cyclePosition && (
+                        <div className="kv-item">
+                          <div className="kv-key">Position cycle</div>
+                          <div className="kv-val">{result.macro.cyclePosition}</div>
+                        </div>
+                      )}
+                      {result.macro?.vcCapitalOnSegment && (
+                        <div className="kv-item">
+                          <div className="kv-key">Capital VC sur segment</div>
+                          <div className="kv-val">{result.macro.vcCapitalOnSegment}</div>
+                        </div>
+                      )}
+                      {result.macro?.interestRateRegime && (
+                        <div className="kv-item">
+                          <div className="kv-key">Régime de taux</div>
+                          <div className="kv-val">{result.macro.interestRateRegime}</div>
+                        </div>
+                      )}
+                      {result.macro?.geopolitics && (
+                        <div className="kv-item">
+                          <div className="kv-key">Géopolitique</div>
+                          <div className="kv-val">{result.macro.geopolitics}</div>
+                        </div>
+                      )}
                     </div>
-                    <div className="kv-item">
-                      <div className="kv-key">Capital VC sur segment</div>
-                      <div className="kv-val">{result.macro?.vcCapitalOnSegment}</div>
-                    </div>
-                    <div className="kv-item">
-                      <div className="kv-key">Régime de taux</div>
-                      <div className="kv-val">{result.macro?.interestRateRegime}</div>
-                    </div>
-                    <div className="kv-item">
-                      <div className="kv-key">Géopolitique</div>
-                      <div className="kv-val">{result.macro?.geopolitics}</div>
-                    </div>
-                  </div>
+                  )}
 
-                  <h3>Fenêtre temporelle critique</h3>
-                  <p><strong>{result.macro?.criticalTimingWindow?.exists ? 'OUI' : 'Non'}</strong>
-                    {result.macro?.criticalTimingWindow?.horizon && ` · Horizon : ${result.macro.criticalTimingWindow.horizon}`}</p>
-                  <p>{result.macro?.criticalTimingWindow?.rationale}</p>
+                  {(result.macro?.criticalTimingWindow?.rationale || result.macro?.criticalTimingWindow?.exists != null) && (
+                    <>
+                      <h3>Fenêtre temporelle critique</h3>
+                      <p><strong>{result.macro?.criticalTimingWindow?.exists ? 'OUI' : 'Non'}</strong>
+                        {result.macro?.criticalTimingWindow?.horizon && ` · Horizon : ${result.macro.criticalTimingWindow.horizon}`}</p>
+                      {result.macro?.criticalTimingWindow?.rationale && (
+                        <p>{result.macro.criticalTimingWindow.rationale}</p>
+                      )}
+                    </>
+                  )}
 
-                  <h3>Opportunité contracyclique</h3>
-                  <p><strong>Score : {result.macro?.contraryclicalOpportunity?.score}/100</strong></p>
-                  <p>{result.macro?.contraryclicalOpportunity?.rationale}</p>
+                  {(result.macro?.contraryclicalOpportunity?.rationale || typeof result.macro?.contraryclicalOpportunity?.score === 'number') && (
+                    <>
+                      <h3>Opportunité contracyclique</h3>
+                      {typeof result.macro?.contraryclicalOpportunity?.score === 'number' && (
+                        <p><strong>Score : {result.macro.contraryclicalOpportunity.score}/100</strong></p>
+                      )}
+                      {result.macro?.contraryclicalOpportunity?.rationale && (
+                        <p>{result.macro.contraryclicalOpportunity.rationale}</p>
+                      )}
+                    </>
+                  )}
 
-                  <h3>Tendances structurelles</h3>
-                  <ul className="flag-list">
-                    {(result.macro?.structuralTrends || []).map((t: string, i: number) => <li key={i}>{t}</li>)}
-                  </ul>
+                  {(result.macro?.structuralTrends || []).length > 0 && (
+                    <>
+                      <h3>Tendances structurelles</h3>
+                      <ul className="flag-list">
+                        {(result.macro?.structuralTrends || []).map((t: string, i: number) => <li key={i}>{t}</li>)}
+                      </ul>
+                    </>
+                  )}
 
-                  <h3>Environnement réglementaire</h3>
-                  <p>{result.macro?.regulatoryEnvironment}</p>
+                  {result.macro?.regulatoryEnvironment && (
+                    <>
+                      <h3>Environnement réglementaire</h3>
+                      <p>{result.macro.regulatoryEnvironment}</p>
+                    </>
+                  )}
 
-                  <h3>Cycle de demande</h3>
-                  <p>{result.macro?.demandCycle}</p>
+                  {result.macro?.demandCycle && (
+                    <>
+                      <h3>Cycle de demande</h3>
+                      <p>{result.macro.demandCycle}</p>
+                    </>
+                  )}
                 </div>
               )}
 
