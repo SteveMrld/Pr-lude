@@ -272,36 +272,6 @@ export async function POST(req: NextRequest) {
           }
 
           // ============================================================
-          // TECH CLAIM COHERENCE : audit la revendication technologique.
-          // Se declenche uniquement si triggers detectes dans le pitch.
-          // Sinon retourne not_applicable sans appel LLM.
-          // Non bloquant.
-          // ============================================================
-          sendStart('tech-claim', 'Coherence revendication technologique');
-          let techClaimCoherence: any = null;
-          try {
-            techClaimCoherence = await analyzeTechClaimCoherence(extraction, financialData);
-          } catch (err: any) {
-            console.warn('[tech-claim] engine failed, continuing without:', err?.message);
-          }
-          sendDone('tech-claim', techClaimCoherence);
-
-          // ============================================================
-          // EXECUTION FRICTION : 8 axes de friction commerciale et
-          // industrielle. Se declenche si au moins 2 flags sur 8.
-          // Sinon retourne not_applicable sans appel LLM. Non bloquant.
-          // ============================================================
-          sendStart('execution-friction', 'Friction d\'execution');
-          let executionFriction: any = null;
-          try {
-            const rawSummary = (extraction as any)?.rawSummary || '';
-            executionFriction = await analyzeExecutionFriction(extraction, financialData ?? null, rawSummary);
-          } catch (err: any) {
-            console.warn('[execution-friction] engine failed, continuing without:', err?.message);
-          }
-          sendDone('execution-friction', executionFriction);
-
-          // ============================================================
           // FIN DU BLOC 1 (INSTRUCTION / SCREENING)
           // ------------------------------------------------------------
           // Les moteurs Bloc 2 (Data Room : ledger-parsing, dd-financial,
@@ -316,58 +286,100 @@ export async function POST(req: NextRequest) {
           //   3. Si on approfondit, demande des pieces data room a la
           //      startup (grand livre, pacte, statuts, cap table, etc.)
           //   4. Run Bloc 2 sur ces pieces (route /dd-deepen)
-          //
-          // Resultat : le pipeline Bloc 1 est plus rapide (90-180s vs
-          // 210-300s precedemment) et les moteurs Bloc 2 ne sont plus
-          // marques "valides a 0s" quand les fichiers manquent.
           // ============================================================
 
           // ============================================================
-          // VAGUE 3 : PATTERN MATCHING
+          // VAGUE 3 : SIX MOTEURS EN PARALLELE
+          // ------------------------------------------------------------
+          // Audit fonctionnel a constate que pattern, blindspot, contrarian,
+          // financial-coherence, tech-claim et execution-friction sont
+          // mutuellement independants : aucun n attend le resultat d un
+          // autre. Les six peuvent demarrer simultanement des que la vague
+          // 2 (extraction + team + market + macro + financial-extraction)
+          // est terminee. Avant ce commit, ils tournaient en sequence
+          // (~250s cumules) puis pattern bloquait la vague suivante.
+          //
+          // Apres : Promise.all sur les six. Duree dominee par le plus
+          // lent (typiquement blindspot 60-90s). Gain ~140s sur le temps
+          // total du pipeline.
+          //
+          // Risque maitrise : six appels Anthropic en pic. Sur Tier 2
+          // (80k TPM Sonnet input), un dossier deeptech complexe peut
+          // pousser ~200k tokens en pic. La fenetre rate limit etant par
+          // minute glissante, le pic est etale sur 60-90s donc tient.
+          // Surveiller les 429 Anthropic dans les logs si symptomes.
           // ============================================================
           sendStart('pattern', 'Pattern matching contre le corpus de cas');
-          const patternMatching = await matchPatterns(extraction, team, market, macro);
-          sendDone('pattern', patternMatching);
+          sendStart('blindspot', 'Détection des patterns de vigilance critique');
+          sendStart('contrarian', 'Détection des singularités contrariennes');
+          sendStart('financial-coherence', 'Tests de cohérence financière');
+          sendStart('tech-claim', 'Cohérence revendication technologique');
+          sendStart('execution-friction', 'Friction d\'exécution');
 
-          // ============================================================
-          // VAGUE 4 : DIALECTIQUE EN PARALLELE
-          // (causal, blindspot, contrarian, financial-coherence)
-          // ============================================================
-          sendStart('causal', 'Retournement causal');
-          sendStart('blindspot', 'Detection des patterns de vigilance critique');
-          sendStart('contrarian', 'Detection des singularites contrariennes');
-          sendStart('financial-coherence', 'Tests de coherence financiere');
+          const rawSummary = (extraction as any)?.rawSummary || '';
 
-          const [causalReversal, blindspotAnalysis, contrarianAnalysis, financialCoherence] = await Promise.all([
-            performCausalReversal(extraction, team, market, macro, patternMatching).then(r => { sendDone('causal', r); return r; }),
-            analyzeBlindspots(extraction, team, market, macro).then(r => { sendDone('blindspot', r); return r; }),
-            analyzeContrarian(extraction, team, market, macro).then(r => { sendDone('contrarian', r); return r; }),
-            analyzeFinancialCoherence(extraction, financialData, market, benchmarks).then(r => { sendDone('financial-coherence', r); return r; }),
+          const [
+            patternMatching,
+            blindspotAnalysis,
+            contrarianAnalysis,
+            financialCoherence,
+            techClaimCoherence,
+            executionFriction,
+          ] = await Promise.all([
+            matchPatterns(extraction, team, market, macro)
+              .then(r => { sendDone('pattern', r); return r; }),
+            analyzeBlindspots(extraction, team, market, macro)
+              .then(r => { sendDone('blindspot', r); return r; }),
+            analyzeContrarian(extraction, team, market, macro)
+              .then(r => { sendDone('contrarian', r); return r; }),
+            analyzeFinancialCoherence(extraction, financialData, market, benchmarks)
+              .then(r => { sendDone('financial-coherence', r); return r; }),
+            analyzeTechClaimCoherence(extraction, financialData)
+              .then(r => { sendDone('tech-claim', r); return r; })
+              .catch(err => { console.warn('[tech-claim] engine failed:', err?.message); sendDone('tech-claim', null); return null; }),
+            analyzeExecutionFriction(extraction, financialData ?? null, rawSummary)
+              .then(r => { sendDone('execution-friction', r); return r; })
+              .catch(err => { console.warn('[execution-friction] engine failed:', err?.message); sendDone('execution-friction', null); return null; }),
           ]);
 
           // ============================================================
-          // VAGUE 5 : ORCHESTRATION FINALE
-          // Moteur le plus critique du pipeline : il produit le verdict
-          // et la synthese. Wrap dans un retry (max 2 retries avec backoff
-          // exponential) pour absorber les 529 / timeouts transitoires
-          // d Anthropic. Si tous les retries echouent, on continue avec
-          // un finalRecommendation minimal (verdict "Approfondir" prudent
-          // par defaut + alerte "synthese degradee") plutot que de
-          // planter tout le pipeline et perdre les 13 moteurs Bloc 1.
+          // VAGUE 4 : RETOURNEMENT CAUSAL
+          // ------------------------------------------------------------
+          // Sequentiel apres pattern. Le seul moteur Bloc 1 qui necessite
+          // patternMatching dans ses inputs (les autres ont ete deplaces
+          // en vague 3 parallele).
           // ============================================================
-          sendStart('orchestrate', 'Synthese finale');
-          let finalRecommendation: any = null;
-          {
+          sendStart('causal', 'Retournement causal');
+          const causalReversal = await performCausalReversal(extraction, team, market, macro, patternMatching);
+          sendDone('causal', causalReversal);
+
+          // ============================================================
+          // VAGUE 5 : ORCHESTRATION FINALE ET REFERENCE CHECKS EN PARALLELE
+          // ------------------------------------------------------------
+          // orchestrate consomme tous les outputs amont (extraction, team,
+          // market, macro, pattern, causal, blindspot, contrarian) mais
+          // PAS reference-checks. reference-checks consomme extraction,
+          // team, blindspot, causal mais PAS orchestrate. Les deux sont
+          // donc parallelisables. Gain ~40s sur le temps total.
+          //
+          // orchestrate garde son retry loop (2 retries avec backoff)
+          // pour absorber les 529 transitoires d Anthropic. reference-
+          // checks reste non-bloquant : si echec, on continue sans cette
+          // section.
+          // ============================================================
+          sendStart('orchestrate', 'Synthèse finale');
+          sendStart('reference-checks', 'Plan d\'appels DD terrain');
+
+          const orchestratePromise = (async () => {
             const maxRetries = 2;
             let lastError: any = null;
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
               try {
-                finalRecommendation = await orchestrateFinalRecommendation(
+                const result = await orchestrateFinalRecommendation(
                   extraction, team, market, macro, patternMatching, causalReversal,
                   blindspotAnalysis, contrarianAnalysis
                 );
-                lastError = null;
-                break;
+                return result;
               } catch (err: any) {
                 lastError = err;
                 console.warn(`[orchestrate] attempt ${attempt + 1}/${maxRetries + 1} failed:`, err?.message);
@@ -378,43 +390,36 @@ export async function POST(req: NextRequest) {
                 }
               }
             }
-            if (!finalRecommendation) {
-              // Fallback minimal : on construit une recommandation degradee
-              // pour ne pas perdre le pipeline. Le partner verra qu il y a
-              // eu un probleme et pourra relancer juste cette partie
-              // ulterieurement (ou contacter le support).
-              console.error('[orchestrate] all retries failed, using degraded fallback:', lastError?.message);
-              finalRecommendation = {
-                verdict: 'A reinstruire',
-                successProbability: null,
-                failureProbability: null,
-                globalScore: null,
-                argumentation: 'La synthese finale n a pas pu etre produite (echec du moteur d orchestration apres ' + (maxRetries + 1) + ' tentatives). Les 13 moteurs Bloc 1 precedents ont neanmoins tourne et leurs resultats sont consultables dans le dashboard. Pour obtenir un verdict complet, relancer l analyse sur ce dossier (la plupart des echecs sont transitoires : 529 Anthropic, timeout reseau, surcharge LLM).',
-                keyConditions: [],
-                blindspotsVsContrarian: null,
-                computedScoreBreakdown: null,
-                investmentThreshold: null,
-                degraded: true,
-                degradedReason: lastError?.message || 'orchestrator failed after retries',
-              };
-            }
-          }
-          sendDone('orchestrate', finalRecommendation);
+            // Fallback minimal : on construit une recommandation degradee
+            // pour ne pas perdre le pipeline. Le partner verra qu il y a
+            // eu un probleme et pourra relancer ulterieurement.
+            console.error('[orchestrate] all retries failed, using degraded fallback:', lastError?.message);
+            return {
+              verdict: 'A reinstruire',
+              successProbability: null,
+              failureProbability: null,
+              globalScore: null,
+              argumentation: 'La synthèse finale n\'a pas pu être produite (échec du moteur d\'orchestration après plusieurs tentatives). Les moteurs Bloc 1 précédents ont néanmoins tourné et leurs résultats sont consultables dans le dashboard. Pour obtenir un verdict complet, relancer l\'analyse sur ce dossier (la plupart des échecs sont transitoires : 529 Anthropic, timeout réseau, surcharge LLM).',
+              keyConditions: [],
+              blindspotsVsContrarian: null,
+              computedScoreBreakdown: null,
+              investmentThreshold: null,
+              degraded: true,
+              degradedReason: lastError?.message || 'orchestrator failed after retries',
+            };
+          })();
 
-          // ============================================================
-          // REFERENCE CHECKS : plan d'appels DD terrain.
-          // Non bloquant : si echec, on continue sans cette section.
-          // ============================================================
-          sendStart('reference-checks', 'Plan d\'appels DD terrain');
-          let referenceChecks: any = null;
-          try {
-            referenceChecks = await generateReferenceChecks(
-              extraction, team, blindspotAnalysis, causalReversal,
-            );
-          } catch (err: any) {
-            console.warn('[reference-checks] engine failed, continuing without:', err?.message);
-          }
-          sendDone('reference-checks', referenceChecks);
+          const referenceChecksPromise = generateReferenceChecks(
+            extraction, team, blindspotAnalysis, causalReversal,
+          ).catch(err => {
+            console.warn('[reference-checks] engine failed:', err?.message);
+            return null;
+          });
+
+          const [finalRecommendation, referenceChecks] = await Promise.all([
+            orchestratePromise.then(r => { sendDone('orchestrate', r); return r; }),
+            referenceChecksPromise.then(r => { sendDone('reference-checks', r); return r; }),
+          ]);
 
           // ============================================================
           // AUDIT CONSOLIDE DES ASSERTIONS (Niveau 2.B)
