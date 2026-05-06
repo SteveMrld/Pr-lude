@@ -22,6 +22,7 @@ import {
   type IcVoteResult,
   type IcDecision,
 } from '@/lib/ic-decision-types';
+import ReferenceCallNotesPanel from './ReferenceCallNotesPanel';
 
 export type WorkflowHistoryItem = {
   fromStage: string | null;
@@ -62,6 +63,13 @@ type Props = {
       conditions: string | null;
     }>,
   ) => Promise<void> | void;
+  // Module 4 reference call notes : si analysisId est fourni, le panel
+  // est affiche en page 3 (apres le plan d instruction terrain). Permet
+  // au VC de saisir les notes de retour d appel et d obtenir une
+  // synthese aggregee par LLM. canEditReferenceCalls controle si le
+  // formulaire de saisie est accessible (false en mode observer / solo).
+  analysisId?: string | null;
+  canEditReferenceCalls?: boolean;
 };
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -116,6 +124,8 @@ export default function IcPackView({
   partnerPrincipalDefault,
   icDecision,
   onUpdateDecision,
+  analysisId,
+  canEditReferenceCalls,
 }: Props) {
   if (!result) return null;
 
@@ -465,6 +475,21 @@ export default function IcPackView({
               </div>
             )}
           </div>
+        )}
+
+        {/* Module 4 : saisie des retours d appel et synthese aggregee.
+            Visible uniquement si analysisId est fourni (donc dossier persiste).
+            Le panel se charge tout seul via fetch sur les routes API. */}
+        {analysisId && (
+          <ReferenceCallNotesPanel
+            analysisId={analysisId}
+            canEdit={Boolean(canEditReferenceCalls)}
+            plan={{
+              founderChecks: refchecks.founderChecks,
+              customerChecks: refchecks.customerChecks,
+              boardChecks: refchecks.boardChecks,
+            }}
+          />
         )}
 
         {(structuringPlan.shortTerm?.length || structuringPlan.mediumTerm?.length || structuringPlan.longTerm?.length) ? (

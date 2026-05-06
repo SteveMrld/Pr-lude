@@ -1300,7 +1300,7 @@ export default function HomeClient({
                       { id: 'dd-financial',  num: '15', name: 'DD financière',     desc: 'Sept tests de réconciliation BP versus grand livre comptable : CA, marge, burn, headcount, concentration client, trajectoire, engagements hors bilan.' },
                       { id: 'dd-contractual', num: '16', name: 'DD contractuelle', desc: 'Cartographie de quinze clauses sensibles avec citation exacte mot pour mot : pacte, statuts, contrats clients, comparaison France Invest Series A/B.' },
                       { id: 'dd-technical',  num: '17', name: 'DD technique',      desc: 'Lecture du dossier technique transmis par la startup au fonds (architecture, sécurité IT, RGPD, BCP, IP). Dix tests structurés alignés sur la GCV Investor Due Diligence Checklist sections 4, 6, 7 et 8, avec citation mot pour mot et identification des zones non documentées comme questions DD.' },
-                      { id: 'dd-references', num: '18', name: 'Reference checks structurés', desc: 'Agrégation des notes d\u2019appels DD terrain pour faire émerger les patterns récurrents et les signaux faibles. À venir.' },
+                      { id: 'dd-references', num: '18', name: 'Reference checks structurés', desc: 'Saisie des notes d\u2019appels DD terrain (anciens supérieurs, pairs, subordonnés du fondateur, clients, board, signaux faibles) puis agrégation par moteur LLM dédié. Détecte les signaux convergents par 2+ sources, les divergences entre interlocuteurs, les red flags confirmés, les lacunes restantes et la conviction émergente. Disponible dans le Pack IC une fois le dossier persisté.' },
                     ].map((e) => {
                       const EnginePicto = ENGINE_PICTOS[e.id as keyof typeof ENGINE_PICTOS];
                       return (
@@ -4045,6 +4045,8 @@ export default function HomeClient({
                   partnerPrincipalDefault={userEmail || null}
                   icDecision={icDecision}
                   onUpdateDecision={authEnabled && savedAnalysisId && userRole !== 'observer' ? handleUpdateDecision : undefined}
+                  analysisId={savedAnalysisId || null}
+                  canEditReferenceCalls={Boolean(authEnabled && savedAnalysisId && userRole !== 'observer')}
                 />
               )}
                   </div>
