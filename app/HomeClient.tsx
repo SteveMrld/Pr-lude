@@ -4249,9 +4249,20 @@ export default function HomeClient({
                   )}
 
                   <h3 style={{ marginTop: 32 }}>Benchmark rétrospectif</h3>
-                  <p><strong>Score moyen des comparables :</strong> {result.patternMatching?.retrospectiveBenchmark?.averageScore}/100</p>
-                  <p>{result.patternMatching?.retrospectiveBenchmark?.successRate}</p>
-                  <p>{result.patternMatching?.retrospectiveBenchmark?.insights}</p>
+                  {/* Le score moyen n est affiche que si la majorite des
+                      comparables sont sectoraux ou mixtes. Pour les comparables
+                      de pattern pur, le moteur retourne null et on cache la
+                      ligne pour eviter d afficher 'Score moyen : /100'.
+                      Le comparableScopeWarning rendu en dessous explique pourquoi. */}
+                  {typeof result.patternMatching?.retrospectiveBenchmark?.averageScore === 'number' && (
+                    <p><strong>Score moyen des comparables :</strong> {result.patternMatching.retrospectiveBenchmark.averageScore}/100</p>
+                  )}
+                  {result.patternMatching?.retrospectiveBenchmark?.successRate && (
+                    <p>{result.patternMatching.retrospectiveBenchmark.successRate}</p>
+                  )}
+                  {result.patternMatching?.retrospectiveBenchmark?.insights && (
+                    <p>{result.patternMatching.retrospectiveBenchmark.insights}</p>
+                  )}
                   {result.patternMatching?.retrospectiveBenchmark?.comparableScopeWarning && (
                     <div style={{
                       marginTop: 14,

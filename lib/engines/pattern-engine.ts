@@ -547,5 +547,39 @@ Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour cha
   if (audit.level !== 'ok') {
     console.warn('[pattern-engine] tagging audit:', audit.message);
   }
+  // Sanitization post-parsing : il arrive que le LLM concatene les champs
+  // comparableType et comparableTypeRationale a la fin du dernier element
+  // du tableau divergences au lieu de les mettre dans leurs champs propres.
+  // Pattern observe : "...divergence reelle. · comparableType · : · sectoral
+  // · comparableTypeRationale · : · Comparable sectoriel direct..."
+  // On detecte ce pattern et on redistribue dans les champs corrects.
+  if (analysis?.comparables && Array.isArray(analysis.comparables)) {
+    for (const comp of analysis.comparables as any[]) {
+      if (!Array.isArray(comp.divergences) || comp.divergences.length === 0) continue;
+      const lastIdx = comp.divergences.length - 1;
+      const last = comp.divergences[lastIdx];
+      if (typeof last !== 'string') continue;
+      // Detecte le marker de leak
+      const typeMatch = last.match(/[·]\s*comparableType\s*[·]\s*[:.]?\s*[·]?\s*(sectoral|pattern|mixed)\s*[·]/i);
+      const rationaleMatch = last.match(/[·]\s*comparableTypeRationale\s*[·]\s*[:.]?\s*[·]?\s*(.+?)(?:\s*[·]\s*$|\s*$)/i);
+      if (typeMatch || rationaleMatch) {
+        // Retire la portion polluee de la divergence
+        const cleanedLast = last
+          .replace(/\s*[·]\s*comparableType\s*[·][\s\S]*$/i, '')
+          .trim();
+        comp.divergences[lastIdx] = cleanedLast;
+        // Si la divergence devient vide, on la supprime
+        if (!cleanedLast || cleanedLast === '·') {
+          comp.divergences.pop();
+        }
+        if (typeMatch && !comp.comparableType) {
+          comp.comparableType = typeMatch[1].toLowerCase();
+        }
+        if (rationaleMatch && !comp.comparableTypeRationale) {
+          comp.comparableTypeRationale = rationaleMatch[1].trim();
+        }
+      }
+    }
+  }
   return analysis;
 }

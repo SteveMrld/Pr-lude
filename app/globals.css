@@ -2250,6 +2250,18 @@ ul, ol { list-style: none; }
     color: #1a1a1a !important;
   }
 
+  /* Desactivation des ligatures pour le rendu PDF Puppeteer.
+     Source Serif 4 chargee via next/font supporte les ligatures
+     ffi/ffl, mais Puppeteer en environnement serverless Vercel
+     ne charge pas systematiquement les sous-tables OpenType
+     necessaires, ce qui produit des caracteres manquants
+     (ex : 'difficulte' rendu 'diculte', 'final' rendu 'inal').
+     On force la decomposition pour garantir l affichage. */
+  body, html, * {
+    font-variant-ligatures: none !important;
+    font-feature-settings: "kern", "onum" !important;
+  }
+
   /* Cacher tout le chrome de l'application en print */
   .header,
   .upload-box,
