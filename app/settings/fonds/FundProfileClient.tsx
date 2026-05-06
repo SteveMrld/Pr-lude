@@ -55,6 +55,11 @@ const COMMON_GEOGRAPHIES = [
 
 const COMMON_STAGES = [
   'pre-seed', 'seed', 'series-a', 'series-b', 'series-c', 'growth',
+  'late-stage', 'pre-IPO',
+];
+
+const COMMON_GEOGRAPHIES_EXCLUDED = [
+  'Russie', 'Chine', 'Iran', 'Coree du Nord', 'Pays sous sanctions',
 ];
 
 export default function FundProfileClient({ orgName, orgRole, initialProfile, isOnboarding }: Props) {
@@ -261,7 +266,7 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
 
       <Section title="Zones geographiques exclues" subtitle="Pays ou regions hors perimetre. Optionnel.">
         <ChipPicker
-          options={[]}
+          options={COMMON_GEOGRAPHIES_EXCLUDED}
           selected={geographiesExcluded}
           onToggle={(item) => toggle(geographiesExcluded, setGeographiesExcluded, item)}
           customPlaceholder="Ajouter une zone exclue"
@@ -272,7 +277,69 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
       </Section>
 
       {/* TICKETS */}
-      <Section title="Gamme de tickets" subtitle="Montant minimum et maximum que le fonds peut investir, en euros.">
+      <Section title="Gamme de tickets" subtitle="Cliquez sur une plage typique pour la pre-remplir, ou saisissez manuellement vos bornes en euros. Laisser vide si le fonds n a pas de plage stricte.">
+        {/* Presets cliquables : pre-remplissent min/max d un clic */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+          {[
+            { label: 'Pre-seed (50k - 500k)', min: 50_000, max: 500_000 },
+            { label: 'Seed early (250k - 1M)', min: 250_000, max: 1_000_000 },
+            { label: 'Seed (500k - 2M)', min: 500_000, max: 2_000_000 },
+            { label: 'Seed+ (1M - 3M)', min: 1_000_000, max: 3_000_000 },
+            { label: 'Series A (2M - 8M)', min: 2_000_000, max: 8_000_000 },
+            { label: 'Series A+ (5M - 15M)', min: 5_000_000, max: 15_000_000 },
+            { label: 'Series B (10M - 30M)', min: 10_000_000, max: 30_000_000 },
+            { label: 'Growth (20M+)', min: 20_000_000, max: 100_000_000 },
+          ].map(preset => {
+            const currentMin = ticketMin ? parseInt(ticketMin, 10) : null;
+            const currentMax = ticketMax ? parseInt(ticketMax, 10) : null;
+            const isActive = currentMin === preset.min && currentMax === preset.max;
+            return (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  if (!isAdmin) return;
+                  setTicketMin(String(preset.min));
+                  setTicketMax(String(preset.max));
+                }}
+                disabled={!isAdmin}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  background: isActive ? 'rgba(31, 41, 95, 0.18)' : 'transparent',
+                  border: `1px solid ${isActive ? 'var(--ink)' : 'var(--rule)'}`,
+                  color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
+                  cursor: isAdmin ? 'pointer' : 'default',
+                  borderRadius: 2,
+                  fontFamily: 'inherit',
+                  opacity: !isAdmin ? 0.6 : 1,
+                }}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+          {/* Reset */}
+          {(ticketMin || ticketMax) && isAdmin && (
+            <button
+              type="button"
+              onClick={() => { setTicketMin(''); setTicketMax(''); }}
+              style={{
+                padding: '6px 12px',
+                fontSize: 11,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                background: 'transparent',
+                border: '1px solid transparent',
+                color: 'var(--ink-tertiary)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Effacer
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 240px' }}>
             <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-tertiary)', marginBottom: 6 }}>
