@@ -351,10 +351,10 @@ export default function SlackSettingsPage() {
             />
 
             <ToggleField
-              label="Alerte sur aveuglement collectif eleve"
+              label="Alerte sur vigilance critique elevee"
               checked={notifyBlindspotInput}
               onChange={setNotifyBlindspotInput}
-              help="Declenche quand le score d aveuglement global depasse 75/100."
+              help="Declenche quand le score global de vigilance depasse 75/100."
             />
           </section>
 

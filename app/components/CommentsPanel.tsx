@@ -27,7 +27,7 @@ const SECTION_LABELS: Record<string, string> = {
   macro: 'Macro',
   financial: 'Financier',
   pattern: 'Pattern matching',
-  aveuglement: 'Aveuglements',
+  aveuglement: 'Vigilance critique',
   singularite: 'Singularites',
   blindspots: 'Vigilance critique et singularites',
   risksplan: 'Risques et plan',

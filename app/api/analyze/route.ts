@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 
           // Moteurs 6, 7, 8, 14 en parallèle
           sendStart('causal', 'Retournement causal');
-          sendStart('blindspot', 'Détection des patterns d\'aveuglement collectif');
+          sendStart('blindspot', 'Détection des patterns de vigilance critique');
           sendStart('contrarian', 'Détection des singularités contrariennes');
           sendStart('financial-coherence', 'Tests de cohérence financière');
 

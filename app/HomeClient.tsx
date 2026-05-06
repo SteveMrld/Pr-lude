@@ -1833,7 +1833,7 @@ export default function HomeClient({
                   noye page 4 ; ce bloc le remonte au-dessus du fold. */}
               {(() => {
                 const topRisks: Array<{ label: string; intensity: number; evidence: string }> = [];
-                // 1. Patterns d aveuglement haute intensite (>= 70)
+                // 1. Patterns de vigilance critique haute intensite (>= 70)
                 const patterns = result.blindspotAnalysis?.patterns || {};
                 Object.values(patterns).forEach((p: any) => {
                   if (p?.detected && (p.intensity || 0) >= 70) {
@@ -1933,7 +1933,7 @@ export default function HomeClient({
                 semantiques pour clarifier la hierarchie de lecture :
                   1. Diagnostic chiffre  : la matiere brute du dossier
                   2. Lecture critique    : confrontation aux corpus de cas
-                  3. Lecture dialectique : aveuglement vs singularite
+                  3. Lecture dialectique : vigilance critique vs singularite
                   4. Decision            : plan d action et points a instruire */}
             {(() => {
               const tabGroups: Array<{

@@ -596,7 +596,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
         )}
         {analysis.blindspotScore != null && (
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-            Aveuglement : <strong style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>{Math.round(analysis.blindspotScore)}</strong>
+            Vigilance : <strong style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>{Math.round(analysis.blindspotScore)}</strong>
           </div>
         )}
         <div style={{
