@@ -17,6 +17,7 @@ import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
 import { processFiles } from '@/lib/file-processor';
+import { logException } from '@/lib/error-logger';
 
 // Vercel Pro permet jusqu a 800s par function (13 min). Avec 12+ moteurs
 // Claude dont certains prennent 60s+ chacun, on a besoin de cette marge
@@ -106,7 +107,10 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (err: any) {
-      console.warn('[fund-profile] failed to load, continuing without:', err?.message);
+      logException('api.analyze.fund-profile', err, {
+        severity: 'warning',
+        context: { phase: 'fund-profile-load' },
+      });
     }
 
     const startTime = Date.now();
@@ -209,7 +213,10 @@ export async function POST(req: NextRequest) {
           try {
             preScan = await runPreScan(pitchDeck.payload, fundProfileForPreScan || undefined);
           } catch (err: any) {
-            console.warn('[prescan] engine failed, continuing without:', err?.message);
+            logException('pipeline.prescan', err, {
+              severity: 'warning',
+              context: { phase: 'prescan-bloc-0' },
+            });
           }
           sendDone('prescan', preScan);
 
@@ -268,7 +275,10 @@ export async function POST(req: NextRequest) {
           try {
             benchmarks = await analyzeBenchmarks(extraction, financialData);
           } catch (err: any) {
-            console.warn('[benchmarks] engine failed, continuing without:', err?.message);
+            logException('pipeline.benchmarks', err, {
+              severity: 'warning',
+              context: { phase: 'benchmarks-deterministic' },
+            });
           }
 
           // ============================================================
@@ -336,10 +346,10 @@ export async function POST(req: NextRequest) {
               .then(r => { sendDone('financial-coherence', r); return r; }),
             analyzeTechClaimCoherence(extraction, financialData)
               .then(r => { sendDone('tech-claim', r); return r; })
-              .catch(err => { console.warn('[tech-claim] engine failed:', err?.message); sendDone('tech-claim', null); return null; }),
+              .catch(err => { logException('pipeline.tech-claim', err, { severity: 'warning' }); sendDone('tech-claim', null); return null; }),
             analyzeExecutionFriction(extraction, financialData ?? null, rawSummary)
               .then(r => { sendDone('execution-friction', r); return r; })
-              .catch(err => { console.warn('[execution-friction] engine failed:', err?.message); sendDone('execution-friction', null); return null; }),
+              .catch(err => { logException('pipeline.execution-friction', err, { severity: 'warning' }); sendDone('execution-friction', null); return null; }),
           ]);
 
           // ============================================================
@@ -393,7 +403,10 @@ export async function POST(req: NextRequest) {
             // Fallback minimal : on construit une recommandation degradee
             // pour ne pas perdre le pipeline. Le partner verra qu il y a
             // eu un probleme et pourra relancer ulterieurement.
-            console.error('[orchestrate] all retries failed, using degraded fallback:', lastError?.message);
+            await logException('pipeline.orchestrate', lastError, {
+              severity: 'error',
+              context: { attempts: maxRetries + 1, fallback: 'degraded' },
+            });
             return {
               verdict: 'A reinstruire',
               successProbability: null,
@@ -412,7 +425,7 @@ export async function POST(req: NextRequest) {
           const referenceChecksPromise = generateReferenceChecks(
             extraction, team, blindspotAnalysis, causalReversal,
           ).catch(err => {
-            console.warn('[reference-checks] engine failed:', err?.message);
+            logException('pipeline.reference-checks', err, { severity: 'warning' });
             return null;
           });
 
@@ -478,7 +491,10 @@ export async function POST(req: NextRequest) {
               console.warn(`[assertion-audit] ${allWarnings.length} warnings across engines:`, byCategory);
             }
           } catch (err: any) {
-            console.warn('[assertion-audit] failed, continuing without:', err?.message);
+            logException('pipeline.assertion-audit', err, {
+              severity: 'warning',
+              context: { phase: 'post-pipeline-assertion-audit' },
+            });
           }
 
           const result = {
@@ -538,7 +554,17 @@ export async function POST(req: NextRequest) {
 
           send('complete', result);
         } catch (error: any) {
-          console.error('Erreur pipeline:', error);
+          // Persistence du log structure : permet de retrouver
+          // l erreur dans le dashboard admin meme si la connexion
+          // SSE client a deja coupe.
+          await logException('api.analyze.pipeline', error, {
+            severity: 'error',
+            context: {
+              pitchDeckName: pitchDeck.name,
+              hasBP: !!businessPlan,
+              forcePrescan,
+            },
+          });
           send('error', {
             message: error.message || 'Erreur pipeline',
             stack: error.stack ? String(error.stack).slice(0, 500) : undefined,
