@@ -1,10 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+// Composant interne qui appelle useSearchParams. Doit etre wrappe
+// dans un Suspense boundary par le composant exporte par defaut,
+// sinon Next.js 14 echoue au pre-rendu statique de la page (le
+// hook bailout du SSG sans Suspense). Cf. https://nextjs.org/docs/
+// messages/missing-suspense-with-csr-bailout
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -234,5 +239,20 @@ export default function LoginPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+/**
+ * Composant exporte par defaut. Wrappe LoginForm dans un Suspense
+ * pour que Next.js 14 puisse pre-rendre la page statiquement malgre
+ * l usage de useSearchParams() dans LoginForm. Le fallback est
+ * minimal (vide) parce que la page se rend tres vite cote client
+ * une fois la session etablie.
+ */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
