@@ -6,17 +6,9 @@ import Link from 'next/link';
 // ============================================================
 // PAGE PROFIL FONDS
 // ------------------------------------------------------------
-// Permet a un admin de l organisation de saisir la these
-// d investissement du fonds : secteurs cibles, secteurs exclus,
-// zones geographiques, gamme de tickets, stades investis, notes
-// libres.
-//
-// Ces parametres sont injectes dans le moteur de pre-scan Bloc 0
-// pour evaluer le sector_fit, geography_fit, ticket_fit, stage_fit
-// d un dossier entrant et permettre le triage automatique des
-// dossiers hors these avant le pipeline complet.
-//
-// Lecture : tout membre. Ecriture : admin uniquement.
+// These d investissement de l organisation. Lecture pour tout
+// membre, edition reservee aux admins.
+// Voix Le Grand Continent / The Atlantic. Pas d em-dashes.
 // ============================================================
 
 interface FundProfile {
@@ -41,16 +33,24 @@ interface Props {
 const COMMON_SECTORS = [
   'SaaS B2B', 'Fintech', 'Insurtech', 'Healthtech', 'Biotech', 'Medtech',
   'Deeptech', 'Cleantech', 'Climate tech', 'AI / ML', 'Cyber',
-  'Mobilite', 'Spatial', 'Defense', 'Agritech', 'Foodtech',
+  'Mobilité', 'Spatial', 'Defense', 'Agritech', 'Foodtech',
   'E-commerce', 'Marketplace', 'Consumer', 'Education', 'HR tech',
   'Proptech', 'Industrial tech', 'Robotique', 'IoT', 'Web3 / Crypto',
 ];
 
+const COMMON_SECTORS_EXCLUDED = [
+  'Defense', 'Tabac', 'Alcool', 'Jeu', 'Adult', 'Fossile', 'Crypto spéculatif',
+];
+
 const COMMON_GEOGRAPHIES = [
   'France', 'Royaume-Uni', 'Allemagne', 'Espagne', 'Italie',
-  'Benelux', 'Nordics', 'Europe (EU)', 'Royaume-Uni + Irlande',
-  'Etats-Unis', 'Canada', 'Amerique du Nord',
-  'Israel', 'MENA', 'Afrique', 'Amerique latine', 'Asie', 'Monde',
+  'Benelux', 'Nordics', 'Europe (UE)', 'Royaume-Uni + Irlande',
+  'États-Unis', 'Canada', 'Amérique du Nord',
+  'Israël', 'MENA', 'Afrique', 'Amérique latine', 'Asie', 'Monde',
+];
+
+const COMMON_GEOGRAPHIES_EXCLUDED = [
+  'Russie', 'Chine', 'Iran', 'Corée du Nord', 'Pays sous sanctions',
 ];
 
 const COMMON_STAGES = [
@@ -58,8 +58,15 @@ const COMMON_STAGES = [
   'late-stage', 'pre-IPO',
 ];
 
-const COMMON_GEOGRAPHIES_EXCLUDED = [
-  'Russie', 'Chine', 'Iran', 'Coree du Nord', 'Pays sous sanctions',
+const TICKET_PRESETS = [
+  { label: 'Pre-seed', range: '50k - 500k', min: 50_000, max: 500_000 },
+  { label: 'Seed early', range: '250k - 1M', min: 250_000, max: 1_000_000 },
+  { label: 'Seed', range: '500k - 2M', min: 500_000, max: 2_000_000 },
+  { label: 'Seed+', range: '1M - 3M', min: 1_000_000, max: 3_000_000 },
+  { label: 'Series A', range: '2M - 8M', min: 2_000_000, max: 8_000_000 },
+  { label: 'Series A+', range: '5M - 15M', min: 5_000_000, max: 15_000_000 },
+  { label: 'Series B', range: '10M - 30M', min: 10_000_000, max: 30_000_000 },
+  { label: 'Growth', range: '20M et au-delà', min: 20_000_000, max: 100_000_000 },
 ];
 
 export default function FundProfileClient({ orgName, orgRole, initialProfile, isOnboarding }: Props) {
@@ -115,120 +122,450 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Erreur a la sauvegarde');
+        setError(data.error || 'Erreur à la sauvegarde');
       } else {
         if (isOnboarding) {
-          // Onboarding : la racine attendait que la these soit configuree.
-          // Maintenant qu elle l est, on retourne au pipeline.
           window.location.href = '/';
           return;
         }
-        setSuccess('These du fonds enregistree. Le pre-scan utilisera ces criteres pour les prochains dossiers.');
+        setSuccess('Thèse du fonds enregistrée. Le pré-scan utilisera ces critères pour les prochains dossiers.');
         setUpdatedAt(data.profile?.updatedAt);
       }
     } catch (e: any) {
-      setError(e.message || 'Erreur reseau');
+      setError(e.message || 'Erreur réseau');
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 880, margin: '0 auto', padding: '40px 24px' }}>
+    <div className="fund-profile-page">
+      <style jsx>{`
+        .fund-profile-page {
+          max-width: 920px;
+          margin: 0 auto;
+          padding: 56px 32px 80px;
+          font-family: var(--sans);
+        }
+        @media (max-width: 720px) {
+          .fund-profile-page {
+            padding: 32px 20px 64px;
+          }
+        }
+
+        .fp-back {
+          display: inline-block;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--muted);
+          text-decoration: none;
+          margin-bottom: 32px;
+          transition: color var(--motion-fast);
+        }
+        .fp-back:hover { color: var(--ink); }
+
+        .fp-onboarding {
+          margin-bottom: 48px;
+          padding: 28px 32px;
+          background: var(--ocre-brule-soft);
+          border-left: 3px solid var(--ocre-brule);
+        }
+        .fp-onboarding-eyebrow {
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--ocre-brule);
+          font-weight: 600;
+          margin-bottom: 10px;
+        }
+        .fp-onboarding-title {
+          font-family: var(--serif);
+          font-size: 26px;
+          font-weight: 500;
+          line-height: 1.25;
+          margin-bottom: 14px;
+          color: var(--ink);
+        }
+        .fp-onboarding-body {
+          font-size: 14.5px;
+          line-height: 1.7;
+          color: var(--ink-soft);
+          max-width: 700px;
+        }
+
+        .fp-eyebrow {
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--muted);
+          font-weight: 600;
+          margin-bottom: 12px;
+        }
+        .fp-title {
+          font-family: var(--serif);
+          font-size: 40px;
+          font-weight: 500;
+          line-height: 1.1;
+          letter-spacing: -0.01em;
+          margin: 0 0 20px;
+          color: var(--ink);
+        }
+        @media (max-width: 720px) {
+          .fp-title { font-size: 32px; }
+        }
+        .fp-lede {
+          font-family: var(--serif);
+          font-size: 18px;
+          line-height: 1.55;
+          color: var(--ink-soft);
+          max-width: 720px;
+          margin: 0 0 12px;
+        }
+
+        .fp-meta-bar {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 14px 0;
+          margin: 28px 0 0;
+          border-top: 1px solid var(--hairline);
+          border-bottom: 1px solid var(--hairline);
+          font-size: 12px;
+          color: var(--muted);
+          flex-wrap: wrap;
+        }
+        .fp-meta-bar strong {
+          color: var(--ink);
+          font-weight: 600;
+        }
+
+        .fp-readonly-banner {
+          padding: 14px 18px;
+          background: var(--ocre-brule-soft);
+          border-left: 3px solid var(--ocre-brule);
+          font-size: 13px;
+          line-height: 1.55;
+          margin: 28px 0;
+          color: var(--ink-soft);
+        }
+
+        .fp-section {
+          padding: 36px 0;
+          border-bottom: 1px solid var(--hairline);
+        }
+        .fp-section:last-of-type {
+          border-bottom: none;
+        }
+        .fp-section-header {
+          margin-bottom: 18px;
+        }
+        .fp-section-num {
+          display: inline-block;
+          font-family: var(--serif);
+          font-size: 12px;
+          color: var(--muted-soft);
+          margin-right: 10px;
+          vertical-align: 2px;
+        }
+        .fp-section-title {
+          display: inline;
+          font-family: var(--serif);
+          font-size: 22px;
+          font-weight: 500;
+          line-height: 1.25;
+          color: var(--ink);
+        }
+        .fp-section-subtitle {
+          font-size: 14px;
+          color: var(--ink-soft);
+          line-height: 1.6;
+          margin: 8px 0 0;
+          max-width: 720px;
+        }
+
+        .fp-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 14px;
+        }
+        .fp-chip {
+          padding: 7px 14px;
+          font-size: 13px;
+          background: transparent;
+          border: 1px solid var(--hairline);
+          color: var(--ink-soft);
+          cursor: pointer;
+          font-family: inherit;
+          border-radius: 999px;
+          transition: all var(--motion-fast);
+          white-space: nowrap;
+        }
+        .fp-chip:hover:not(:disabled) {
+          border-color: var(--muted);
+          color: var(--ink);
+        }
+        .fp-chip[data-selected="true"] {
+          background: var(--ink);
+          border-color: var(--ink);
+          color: #fff;
+        }
+        .fp-chip[data-selected="true"][data-variant="excluded"] {
+          background: var(--rouge-anglais);
+          border-color: var(--rouge-anglais);
+          color: #fff;
+        }
+        .fp-chip:disabled {
+          opacity: 0.55;
+          cursor: default;
+        }
+
+        .fp-add-row {
+          display: flex;
+          gap: 8px;
+          align-items: stretch;
+          margin-top: 4px;
+          max-width: 460px;
+        }
+        .fp-add-input {
+          flex: 1;
+          padding: 9px 14px;
+          font-size: 13px;
+          border: 1px solid var(--hairline);
+          background: var(--surface);
+          font-family: inherit;
+          border-radius: 4px;
+          color: var(--ink);
+          transition: border-color var(--motion-fast);
+        }
+        .fp-add-input:focus {
+          outline: none;
+          border-color: var(--ink);
+        }
+        .fp-add-btn {
+          padding: 9px 16px;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-weight: 600;
+          border: 1px solid var(--hairline);
+          background: var(--surface);
+          color: var(--ink);
+          cursor: pointer;
+          font-family: inherit;
+          border-radius: 4px;
+          transition: all var(--motion-fast);
+        }
+        .fp-add-btn:hover {
+          background: var(--ink);
+          color: #fff;
+          border-color: var(--ink);
+        }
+
+        .fp-ticket-presets {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 10px;
+          margin-bottom: 24px;
+        }
+        @media (max-width: 720px) {
+          .fp-ticket-presets {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+        .fp-ticket-preset {
+          padding: 14px 16px;
+          background: var(--surface);
+          border: 1px solid var(--hairline);
+          border-radius: 4px;
+          cursor: pointer;
+          font-family: inherit;
+          text-align: left;
+          transition: all var(--motion-fast);
+        }
+        .fp-ticket-preset:hover:not(:disabled) {
+          border-color: var(--ink);
+        }
+        .fp-ticket-preset[data-active="true"] {
+          background: var(--accent-soft);
+          border-color: var(--accent);
+        }
+        .fp-ticket-preset:disabled {
+          opacity: 0.55;
+          cursor: default;
+        }
+        .fp-ticket-preset-label {
+          font-family: var(--serif);
+          font-size: 15px;
+          font-weight: 500;
+          color: var(--ink);
+          display: block;
+          margin-bottom: 2px;
+        }
+        .fp-ticket-preset-range {
+          font-size: 12px;
+          color: var(--muted);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .fp-ticket-inputs {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          max-width: 520px;
+        }
+        @media (max-width: 480px) {
+          .fp-ticket-inputs {
+            grid-template-columns: 1fr;
+          }
+        }
+        .fp-input-label {
+          display: block;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--muted);
+          margin-bottom: 8px;
+          font-weight: 600;
+        }
+        .fp-input-num {
+          width: 100%;
+          padding: 11px 14px;
+          font-size: 14px;
+          border: 1px solid var(--hairline);
+          background: var(--surface);
+          font-family: inherit;
+          border-radius: 4px;
+          color: var(--ink);
+          font-variant-numeric: tabular-nums;
+          transition: border-color var(--motion-fast);
+        }
+        .fp-input-num:focus {
+          outline: none;
+          border-color: var(--ink);
+        }
+        .fp-clear-btn {
+          background: transparent;
+          border: none;
+          padding: 0;
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--muted);
+          cursor: pointer;
+          font-family: inherit;
+          margin-bottom: 12px;
+          transition: color var(--motion-fast);
+        }
+        .fp-clear-btn:hover { color: var(--ink); }
+
+        .fp-textarea {
+          width: 100%;
+          padding: 14px 16px;
+          font-size: 14px;
+          line-height: 1.6;
+          border: 1px solid var(--hairline);
+          background: var(--surface);
+          font-family: inherit;
+          border-radius: 4px;
+          color: var(--ink);
+          resize: vertical;
+          min-height: 110px;
+          transition: border-color var(--motion-fast);
+        }
+        .fp-textarea:focus {
+          outline: none;
+          border-color: var(--ink);
+        }
+
+        .fp-actions {
+          margin-top: 48px;
+          padding-top: 28px;
+          border-top: 1px solid var(--hairline);
+        }
+        .fp-alert {
+          padding: 14px 18px;
+          font-size: 13.5px;
+          line-height: 1.55;
+          margin-bottom: 18px;
+          border-left: 3px solid;
+        }
+        .fp-alert-error {
+          background: var(--rouge-anglais-soft);
+          border-color: var(--rouge-anglais);
+          color: var(--ink);
+        }
+        .fp-alert-success {
+          background: var(--vert-foret-soft);
+          border-color: var(--vert-foret);
+          color: var(--ink);
+        }
+        .fp-save-btn {
+          padding: 14px 32px;
+          font-size: 12px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          font-weight: 600;
+          background: var(--ink);
+          color: #fff;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          border-radius: 4px;
+          transition: background var(--motion-fast);
+        }
+        .fp-save-btn:hover:not(:disabled) {
+          background: var(--accent);
+        }
+        .fp-save-btn:disabled {
+          opacity: 0.55;
+          cursor: default;
+        }
+      `}</style>
+
       {!isOnboarding && (
-        <div style={{ marginBottom: 32 }}>
-          <Link href="/" style={{
-            fontSize: 11,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            color: 'var(--ink-tertiary)',
-            textDecoration: 'none',
-          }}>
-            &larr; Retour au pipeline
-          </Link>
-        </div>
+        <Link href="/" className="fp-back">
+          ← Retour au pipeline
+        </Link>
       )}
 
       {isOnboarding && (
-        <div style={{
-          marginBottom: 36,
-          padding: '24px 28px',
-          background: 'linear-gradient(135deg, rgba(192, 138, 63, 0.10) 0%, rgba(192, 138, 63, 0.03) 100%)',
-          borderLeft: '3px solid #c08a3f',
-          borderRadius: 2,
-        }}>
-          <div style={{
-            fontSize: 10,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: '#c08a3f',
-            fontWeight: 600,
-            marginBottom: 8,
-          }}>
-            Etape preliminaire
+        <div className="fp-onboarding">
+          <div className="fp-onboarding-eyebrow">Étape préliminaire</div>
+          <div className="fp-onboarding-title">
+            Renseignez la thèse de votre fonds avant la première analyse
           </div>
-          <div style={{
-            fontFamily: 'var(--serif)',
-            fontSize: 22,
-            fontWeight: 500,
-            marginBottom: 12,
-            lineHeight: 1.3,
-          }}>
-            Renseignez la these de votre fonds avant la premiere analyse
-          </div>
-          <div style={{
-            fontSize: 14,
-            lineHeight: 1.65,
-            color: 'var(--ink-soft)',
-            maxWidth: 680,
-          }}>
-            Prelude utilise ces parametres pour faire un triage rapide des dossiers entrants en quelques secondes. Sans these renseignee, le moteur de pre-scan ne peut pas evaluer si un dossier correspond a votre perimetre, et tourne en mode degrade. Ce passage est obligatoire avant la premiere analyse, mais vous pouvez modifier la these a tout moment depuis cette meme page. Si vous etes un fonds generaliste sans filtre particulier, laissez les listes vides et cliquez sur enregistrer, c est suffisant.
+          <div className="fp-onboarding-body">
+            Prélude utilise ces paramètres pour faire un triage rapide des dossiers entrants en quelques secondes. Sans thèse renseignée, le moteur de pré-scan ne peut pas évaluer si un dossier correspond à votre périmètre, et tourne en mode dégradé. Ce passage est obligatoire avant la première analyse, mais vous pouvez modifier la thèse à tout moment depuis cette même page. Si vous êtes un fonds généraliste sans filtre particulier, laissez les listes vides et cliquez sur enregistrer, c&apos;est suffisant.
           </div>
         </div>
       )}
 
-      <div style={{ marginBottom: 8, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-tertiary)' }}>
-        {orgName} &middot; Parametres
-      </div>
-      <h1 style={{
-        fontFamily: 'var(--serif)',
-        fontSize: 36,
-        fontWeight: 500,
-        lineHeight: 1.15,
-        marginBottom: 16,
-      }}>
-        These d investissement du fonds
-      </h1>
-      <p style={{
-        fontSize: 15,
-        lineHeight: 1.65,
-        color: 'var(--ink-soft)',
-        marginBottom: 32,
-        maxWidth: 720,
-      }}>
-        Ces parametres definissent la these d investissement du fonds. Ils sont utilises par le moteur de pre-scan pour evaluer en quelques secondes si un dossier entrant correspond a votre perimetre, avant de lancer le pipeline complet. Un dossier hors these recoit un verdict de pre-scan defavorable, ce qui permet d economiser environ 2 dollars de credits LLM par dossier ecarte.
+      <div className="fp-eyebrow">{orgName} · Paramètres</div>
+      <h1 className="fp-title">Thèse d&apos;investissement du fonds</h1>
+      <p className="fp-lede">
+        Ces paramètres définissent la thèse d&apos;investissement du fonds. Ils alimentent le moteur de pré-scan qui évalue en quelques secondes si un dossier entrant correspond à votre périmètre, avant de lancer le pipeline complet. Un dossier hors thèse reçoit un verdict défavorable, ce qui économise environ deux dollars de crédits LLM par dossier écarté.
       </p>
 
+      <div className="fp-meta-bar">
+        <span>Rôle : <strong>{orgRole === 'admin' ? 'Administrateur' : orgRole === 'observer' ? 'Observateur' : 'Membre'}</strong></span>
+        {updatedAt && (
+          <span>Dernière mise à jour : <strong>{new Date(updatedAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })}</strong></span>
+        )}
+      </div>
+
       {!isAdmin && (
-        <div style={{
-          padding: '14px 18px',
-          background: 'rgba(192, 138, 63, 0.08)',
-          borderLeft: '3px solid #c08a3f',
-          fontSize: 13,
-          marginBottom: 28,
-        }}>
-          Vous etes membre observateur ou simple membre de cette organisation. La these est consultable mais seul un administrateur peut la modifier.
+        <div className="fp-readonly-banner">
+          Vous êtes membre observateur ou simple membre de cette organisation. La thèse est consultable mais seul un administrateur peut la modifier.
         </div>
       )}
 
-      {updatedAt && (
-        <div style={{ fontSize: 12, color: 'var(--ink-tertiary)', marginBottom: 24 }}>
-          Derniere mise a jour : {new Date(updatedAt).toLocaleString('fr-FR')}
-        </div>
-      )}
-
-      {/* SECTEURS CIBLES */}
-      <Section title="Secteurs cibles" subtitle="Les domaines dans lesquels le fonds investit prioritairement. Laisser vide si fonds generaliste.">
+      <Section
+        num="01"
+        title="Secteurs cibles"
+        subtitle="Les domaines dans lesquels le fonds investit prioritairement. Laisser vide si fonds généraliste."
+      >
         <ChipPicker
           options={COMMON_SECTORS}
           selected={sectorsFocus}
@@ -239,10 +576,13 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
         />
       </Section>
 
-      {/* SECTEURS EXCLUS */}
-      <Section title="Secteurs exclus" subtitle="Les domaines explicitement hors these. Un dossier dans un secteur exclus est knockout immediat.">
+      <Section
+        num="02"
+        title="Secteurs exclus"
+        subtitle="Les domaines explicitement hors thèse. Un dossier dans un secteur exclu est knockout immédiat."
+      >
         <ChipPicker
-          options={['Defense', 'Tabac', 'Alcool', 'Jeu', 'Adult', 'Fossile', 'Crypto speculatif']}
+          options={COMMON_SECTORS_EXCLUDED}
           selected={sectorsExcluded}
           onToggle={(item) => toggle(sectorsExcluded, setSectorsExcluded, item)}
           customPlaceholder="Ajouter un secteur exclu"
@@ -252,8 +592,11 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
         />
       </Section>
 
-      {/* ZONES GEOGRAPHIQUES */}
-      <Section title="Zones geographiques cibles" subtitle="Pays ou regions dans lesquels le fonds investit. Laisser vide si pas de filtre geographique.">
+      <Section
+        num="03"
+        title="Zones géographiques cibles"
+        subtitle="Pays ou régions dans lesquels le fonds investit. Laisser vide si pas de filtre géographique."
+      >
         <ChipPicker
           options={COMMON_GEOGRAPHIES}
           selected={geographiesFocus}
@@ -264,7 +607,11 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
         />
       </Section>
 
-      <Section title="Zones geographiques exclues" subtitle="Pays ou regions hors perimetre. Optionnel.">
+      <Section
+        num="04"
+        title="Zones géographiques exclues"
+        subtitle="Pays ou régions hors périmètre. Optionnel."
+      >
         <ChipPicker
           options={COMMON_GEOGRAPHIES_EXCLUDED}
           selected={geographiesExcluded}
@@ -276,20 +623,13 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
         />
       </Section>
 
-      {/* TICKETS */}
-      <Section title="Gamme de tickets" subtitle="Cliquez sur une plage typique pour la pre-remplir, ou saisissez manuellement vos bornes en euros. Laisser vide si le fonds n a pas de plage stricte.">
-        {/* Presets cliquables : pre-remplissent min/max d un clic */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-          {[
-            { label: 'Pre-seed (50k - 500k)', min: 50_000, max: 500_000 },
-            { label: 'Seed early (250k - 1M)', min: 250_000, max: 1_000_000 },
-            { label: 'Seed (500k - 2M)', min: 500_000, max: 2_000_000 },
-            { label: 'Seed+ (1M - 3M)', min: 1_000_000, max: 3_000_000 },
-            { label: 'Series A (2M - 8M)', min: 2_000_000, max: 8_000_000 },
-            { label: 'Series A+ (5M - 15M)', min: 5_000_000, max: 15_000_000 },
-            { label: 'Series B (10M - 30M)', min: 10_000_000, max: 30_000_000 },
-            { label: 'Growth (20M+)', min: 20_000_000, max: 100_000_000 },
-          ].map(preset => {
+      <Section
+        num="05"
+        title="Gamme de tickets"
+        subtitle="Cliquez sur une plage typique pour la pré-remplir, ou saisissez manuellement vos bornes en euros. Laisser vide si le fonds n a pas de plage stricte."
+      >
+        <div className="fp-ticket-presets">
+          {TICKET_PRESETS.map(preset => {
             const currentMin = ticketMin ? parseInt(ticketMin, 10) : null;
             const currentMax = ticketMax ? parseInt(ticketMax, 10) : null;
             const isActive = currentMin === preset.min && currentMax === preset.max;
@@ -303,75 +643,57 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
                   setTicketMax(String(preset.max));
                 }}
                 disabled={!isAdmin}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  background: isActive ? 'rgba(31, 41, 95, 0.18)' : 'transparent',
-                  border: `1px solid ${isActive ? 'var(--ink)' : 'var(--rule)'}`,
-                  color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
-                  cursor: isAdmin ? 'pointer' : 'default',
-                  borderRadius: 2,
-                  fontFamily: 'inherit',
-                  opacity: !isAdmin ? 0.6 : 1,
-                }}
+                data-active={isActive}
+                className="fp-ticket-preset"
               >
-                {preset.label}
+                <span className="fp-ticket-preset-label">{preset.label}</span>
+                <span className="fp-ticket-preset-range">{preset.range} €</span>
               </button>
             );
           })}
-          {/* Reset */}
-          {(ticketMin || ticketMax) && isAdmin && (
-            <button
-              type="button"
-              onClick={() => { setTicketMin(''); setTicketMax(''); }}
-              style={{
-                padding: '6px 12px',
-                fontSize: 11,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                background: 'transparent',
-                border: '1px solid transparent',
-                color: 'var(--ink-tertiary)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              Effacer
-            </button>
-          )}
         </div>
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 240px' }}>
-            <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-tertiary)', marginBottom: 6 }}>
-              Ticket minimum (EUR)
-            </label>
+
+        {(ticketMin || ticketMax) && isAdmin && (
+          <button
+            type="button"
+            onClick={() => { setTicketMin(''); setTicketMax(''); }}
+            className="fp-clear-btn"
+          >
+            Effacer les bornes
+          </button>
+        )}
+
+        <div className="fp-ticket-inputs">
+          <div>
+            <label className="fp-input-label">Ticket minimum (EUR)</label>
             <input
               type="number"
               value={ticketMin}
               onChange={(e) => setTicketMin(e.target.value)}
               disabled={!isAdmin}
               placeholder="ex. 250000"
-              style={inputStyle}
+              className="fp-input-num"
             />
           </div>
-          <div style={{ flex: '1 1 240px' }}>
-            <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-tertiary)', marginBottom: 6 }}>
-              Ticket maximum (EUR)
-            </label>
+          <div>
+            <label className="fp-input-label">Ticket maximum (EUR)</label>
             <input
               type="number"
               value={ticketMax}
               onChange={(e) => setTicketMax(e.target.value)}
               disabled={!isAdmin}
               placeholder="ex. 5000000"
-              style={inputStyle}
+              className="fp-input-num"
             />
           </div>
         </div>
       </Section>
 
-      {/* STADES */}
-      <Section title="Stades investis" subtitle="Les stades du cycle de vie auxquels le fonds entre dans un dossier.">
+      <Section
+        num="06"
+        title="Stades investis"
+        subtitle="Les stades du cycle de vie auxquels le fonds entre dans un dossier."
+      >
         <ChipPicker
           options={COMMON_STAGES}
           selected={stagesFocus}
@@ -382,49 +704,31 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
         />
       </Section>
 
-      {/* NOTES LIBRES */}
-      <Section title="Notes libres" subtitle="Nuances, exceptions, criteres specifiques que les listes ci-dessus ne capturent pas. Le moteur de pre-scan les lit et en tient compte.">
+      <Section
+        num="07"
+        title="Notes libres"
+        subtitle="Nuances, exceptions, critères spécifiques que les listes ci-dessus ne capturent pas. Le moteur de pré-scan les lit et en tient compte."
+      >
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           disabled={!isAdmin}
           rows={5}
-          placeholder="Exemple : on peut investir hors these sectorielle si le fondateur est un ancien CEO de portfolio. On evite les modeles purement publicitaires."
-          style={{ ...inputStyle, fontFamily: 'inherit', minHeight: 100 }}
+          placeholder="Exemple : on peut investir hors thèse sectorielle si le fondateur est un ancien CEO de portfolio. On évite les modèles purement publicitaires."
+          className="fp-textarea"
         />
       </Section>
 
-      {/* ACTIONS */}
       {isAdmin && (
-        <div style={{ marginTop: 36, paddingTop: 24, borderTop: '1px solid var(--rule-soft)' }}>
-          {error && (
-            <div style={{
-              padding: '12px 16px',
-              background: 'rgba(192, 64, 60, 0.08)',
-              borderLeft: '3px solid #c0403c',
-              fontSize: 13,
-              marginBottom: 16,
-            }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div style={{
-              padding: '12px 16px',
-              background: 'rgba(80, 140, 90, 0.08)',
-              borderLeft: '3px solid #508c5a',
-              fontSize: 13,
-              marginBottom: 16,
-            }}>
-              {success}
-            </div>
-          )}
+        <div className="fp-actions">
+          {error && <div className="fp-alert fp-alert-error">{error}</div>}
+          {success && <div className="fp-alert fp-alert-success">{success}</div>}
           <button
             onClick={handleSave}
             disabled={saving}
-            className="btn btn-primary"
+            className="fp-save-btn"
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer la these'}
+            {saving ? 'Enregistrement...' : 'Enregistrer la thèse'}
           </button>
         </div>
       )}
@@ -432,26 +736,16 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile, is
   );
 }
 
-// ============================================================
-// COMPOSANTS LOCAUX
-// ============================================================
-
-function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function Section({ num, title, subtitle, children }: { num: string; title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 32 }}>
-      <h2 style={{
-        fontFamily: 'var(--serif)',
-        fontSize: 18,
-        fontWeight: 500,
-        marginBottom: 4,
-      }}>
-        {title}
-      </h2>
-      <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14, lineHeight: 1.55 }}>
-        {subtitle}
-      </p>
+    <section className="fp-section">
+      <div className="fp-section-header">
+        <span className="fp-section-num">{num}</span>
+        <h2 className="fp-section-title">{title}</h2>
+        <p className="fp-section-subtitle">{subtitle}</p>
+      </div>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -476,16 +770,12 @@ function ChipPicker({
     }
   }
 
-  // Toutes les options : presets + selections custom non dans presets
   const customs = selected.filter(s => !options.includes(s));
   const allOptions = [...options, ...customs];
 
-  const selectedColor = variant === 'excluded' ? 'rgba(192, 64, 60, 0.2)' : 'rgba(31, 41, 95, 0.18)';
-  const selectedBorder = variant === 'excluded' ? '#c0403c' : 'var(--ink)';
-
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+      <div className="fp-chips">
         {allOptions.map(opt => {
           const isSelected = selected.includes(opt);
           return (
@@ -494,17 +784,9 @@ function ChipPicker({
               type="button"
               onClick={() => !disabled && onToggle(opt)}
               disabled={disabled}
-              style={{
-                padding: '6px 12px',
-                fontSize: 12,
-                background: isSelected ? selectedColor : 'transparent',
-                border: `1px solid ${isSelected ? selectedBorder : 'var(--rule)'}`,
-                color: isSelected ? 'var(--ink)' : 'var(--ink-soft)',
-                cursor: disabled ? 'default' : 'pointer',
-                borderRadius: 2,
-                fontFamily: 'inherit',
-                opacity: disabled ? 0.6 : 1,
-              }}
+              data-selected={isSelected}
+              data-variant={variant}
+              className="fp-chip"
             >
               {opt}
             </button>
@@ -512,28 +794,19 @@ function ChipPicker({
         })}
       </div>
       {!disabled && (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="fp-add-row">
           <input
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustom(); } }}
             placeholder={customPlaceholder}
-            style={{ ...inputStyle, flex: 1, fontSize: 12, padding: '6px 10px' }}
+            className="fp-add-input"
           />
           <button
             type="button"
             onClick={handleAddCustom}
-            style={{
-              padding: '6px 14px',
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              border: '1px solid var(--rule)',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
+            className="fp-add-btn"
           >
             Ajouter
           </button>
@@ -542,14 +815,3 @@ function ChipPicker({
     </div>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 12px',
-  fontSize: 14,
-  border: '1px solid var(--rule)',
-  background: 'var(--bg)',
-  fontFamily: 'inherit',
-  borderRadius: 2,
-  color: 'var(--ink)',
-};
