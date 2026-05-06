@@ -2625,9 +2625,34 @@ export default function HomeClient({
 
               {(activeTab === 'dimensions' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
-                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 18 }}>
+                  <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Probabilités de succès par dimension
                   </h3>
+                  {/* LEGENDE EXPLICATIVE
+                      ----------------------------------------------------------
+                      Le partner peut etre dérouté par la coexistence de deux
+                      chiffres par carte (Succes en % et Risque sur 100). Sur le
+                      PDF Platypus, on lit Equipe Succes 48% Risque 62/100, et
+                      48 + 62 ne fait pas 100. La raison : il s agit de deux
+                      mesures distinctes que le moteur produit separement,
+                      basees sur des cadres differents (probabilite bayesienne
+                      de retour positif vs score de risque structurel
+                      compose). Sans legende, l ambiguite suggere une erreur
+                      de calcul. */}
+                  <div style={{
+                    marginBottom: 18,
+                    padding: '10px 14px',
+                    background: 'rgba(29, 28, 26, 0.04)',
+                    borderLeft: '2px solid var(--hairline)',
+                    fontSize: 12,
+                    color: 'var(--ink-soft)',
+                    lineHeight: 1.55,
+                    fontStyle: 'italic',
+                  }}>
+                    <strong style={{ fontWeight: 600, fontStyle: 'normal', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-tertiary)' }}>Lecture des deux chiffres</strong>
+                    <br />
+                    <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Succès %</strong> : probabilité bayésienne de retour positif sur cette dimension, integre l incertitude residuelle. <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Risque /100</strong> : score de risque structurel composé sur la dimension, mesure différente. Les deux chiffres ne s additionnent pas a 100 car ils répondent à deux questions distinctes : la probabilité de réussir vs l intensité des facteurs de risque structurels.
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                     {(result.finalRecommendation?.dimensionProbabilities || [])
                       .filter((dim: any) => dim && typeof dim === 'object')
@@ -2638,14 +2663,14 @@ export default function HomeClient({
                           <div style={{ fontSize: 11, opacity: 0.6 }}>poids {Math.round((dim?.weight ?? 0) * 100)}%</div>
                         </div>
                         <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
-                          <div>
-                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Succès</div>
+                          <div title="Probabilité bayésienne de retour positif sur cette dimension">
+                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Probabilité succès</div>
                             <div style={{ fontSize: 28, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1.1 }}>
                               {dim?.successProbability ?? '—'}<span style={{ fontSize: 14, opacity: 0.6 }}>%</span>
                             </div>
                           </div>
-                          <div>
-                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Risque</div>
+                          <div title="Score composé d intensité des facteurs de risque structurels">
+                            <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score risque structurel</div>
                             <div style={{ fontSize: 28, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1.1, opacity: 0.85 }}>
                               {dim?.riskScore ?? '—'}<span style={{ fontSize: 14, opacity: 0.6 }}>/100</span>
                             </div>
@@ -3151,9 +3176,34 @@ export default function HomeClient({
                   {result.team?.founderMarketFit?.length > 0 && (
                     <>
                       <h3 style={{ marginTop: 32 }}>Founder-Market Fit · Évaluation par fondateur</h3>
-                      <p style={{ fontSize: 13, opacity: 0.8, marginTop: -6, marginBottom: 16 }}>
+                      <p style={{ fontSize: 13, opacity: 0.8, marginTop: -6, marginBottom: 6 }}>
                         Cadre Eisenmann (2020). Pour chaque fondateur : trajectoire, signaux positifs, gaps, expertise tacite asymétrique, expériences transposables.
                       </p>
+                      {/* GLOSSAIRE EISENMANN
+                          ----------------------------------------------------------
+                          La litterature Eisenmann (HBS, Why Startups Fail 2021)
+                          utilise les termes Y-intercept et Slope dans l evaluation
+                          du founder-market fit. Sans definition, le partner peut
+                          rater la finesse de l analyse. Y-intercept = niveau
+                          de depart (pedigree, network, capital intellectuel a
+                          l instant zero). Slope = vitesse d apprentissage et
+                          d execution dans le temps. Un fondateur peut avoir un
+                          Y-intercept faible (pas de pedigree startup) mais un
+                          Slope exceptionnel (trajectoire d apprentissage et
+                          d execution forte sur 10 ans), ce qui est typiquement
+                          le profil contrarien (Bertrand, etc.). */}
+                      <div style={{
+                        marginBottom: 18,
+                        padding: '8px 14px',
+                        background: 'rgba(29, 28, 26, 0.04)',
+                        borderLeft: '2px solid var(--hairline)',
+                        fontSize: 11.5,
+                        color: 'var(--ink-soft)',
+                        lineHeight: 1.55,
+                        fontStyle: 'italic',
+                      }}>
+                        <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Y-intercept</strong> : niveau de départ du fondateur (pedigree, network, capital intellectuel a l instant zéro). <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Slope</strong> : vitesse d apprentissage et d exécution dans le temps. Un Y-intercept faible compensé par un Slope exceptionnel est typiquement le profil contrarien (trajectoire silencieuse longue, expertise accumulée sans pedigree startup).
+                      </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16 }}>
                         {(result.team.founderMarketFit || []).map((f: any, i: number) => (
                           <div key={i} style={{ padding: 18, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>

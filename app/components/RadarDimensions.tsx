@@ -29,13 +29,41 @@ function colorFromVerdict(verdict?: string): string {
   return '#0f172a';
 }
 
+// Mapping des noms longs vers des labels courts adaptes a l affichage radar.
+// Les labels longs (Singularites contrariennes, Vigilance critique / risques,
+// Modele economique) etaient tronques a 16 caracteres avec ellipsis, ce qui
+// donnait sur le PDF Platypus des libelles peu lisibles : Macro / t...,
+// Singularites con..., Vigilance critiq.... On utilise des labels courts mais
+// reconnaissables, et un fallback sur la troncation si le nom de dimension
+// n est pas dans le mapping.
+const SHORT_LABELS: Record<string, string> = {
+  'Équipe': 'Équipe',
+  'Equipe': 'Equipe',
+  'Marché': 'Marché',
+  'Marche': 'Marche',
+  'Macro / timing': 'Macro',
+  'Macro/ timing': 'Macro',
+  'Modèle économique': 'Modèle éco.',
+  'Modele economique': 'Modele eco.',
+  'Singularités contrariennes': 'Contrariens',
+  'Singularites contrariennes': 'Contrariens',
+  'Vigilance critique / risques': 'Vigilance',
+  'Vigilance critique/risques': 'Vigilance',
+};
+
+function shortLabel(name: string): string {
+  if (SHORT_LABELS[name]) return SHORT_LABELS[name];
+  // Fallback : tronquer a 14 caracteres pour eviter coupure visuelle dans le radar
+  if (name.length > 14) return name.slice(0, 12) + '…';
+  return name;
+}
+
 export default function RadarDimensions({ dimensions, verdict }: Props) {
   if (!dimensions || dimensions.length === 0) return null;
 
-  // Recharts attend un format { dimension: 'nom', value: nombre }.
-  // On simplifie les noms longs pour qu'ils tiennent autour du radar.
+  // Format Recharts : { dimension, fullName, value, weight }
   const data = dimensions.map(d => ({
-    dimension: d.dimensionName.length > 18 ? d.dimensionName.slice(0, 16) + '…' : d.dimensionName,
+    dimension: shortLabel(d.dimensionName),
     fullName: d.dimensionName,
     value: d.successProbability,
     weight: d.weight,
@@ -46,7 +74,7 @@ export default function RadarDimensions({ dimensions, verdict }: Props) {
   return (
     <div style={{ width: '100%', height: 380 }}>
       <ResponsiveContainer width="100%" height="100%">
-        <RadarChart data={data} margin={{ top: 24, right: 32, bottom: 24, left: 32 }}>
+        <RadarChart data={data} margin={{ top: 28, right: 56, bottom: 28, left: 56 }}>
           <PolarGrid stroke="#e2e8f0" />
           <PolarAngleAxis
             dataKey="dimension"
