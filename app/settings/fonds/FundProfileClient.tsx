@@ -35,6 +35,7 @@ interface Props {
   orgName: string;
   orgRole: 'admin' | 'member' | 'observer';
   initialProfile: FundProfile | null;
+  isOnboarding?: boolean;
 }
 
 const COMMON_SECTORS = [
@@ -56,7 +57,7 @@ const COMMON_STAGES = [
   'pre-seed', 'seed', 'series-a', 'series-b', 'series-c', 'growth',
 ];
 
-export default function FundProfileClient({ orgName, orgRole, initialProfile }: Props) {
+export default function FundProfileClient({ orgName, orgRole, initialProfile, isOnboarding }: Props) {
   const isAdmin = orgRole === 'admin';
 
   const [sectorsFocus, setSectorsFocus] = useState<string[]>(initialProfile?.sectorsFocus || []);
@@ -111,6 +112,12 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile }: 
       if (!res.ok) {
         setError(data.error || 'Erreur a la sauvegarde');
       } else {
+        if (isOnboarding) {
+          // Onboarding : la racine attendait que la these soit configuree.
+          // Maintenant qu elle l est, on retourne au pipeline.
+          window.location.href = '/';
+          return;
+        }
         setSuccess('These du fonds enregistree. Le pre-scan utilisera ces criteres pour les prochains dossiers.');
         setUpdatedAt(data.profile?.updatedAt);
       }
@@ -123,17 +130,57 @@ export default function FundProfileClient({ orgName, orgRole, initialProfile }: 
 
   return (
     <div style={{ maxWidth: 880, margin: '0 auto', padding: '40px 24px' }}>
-      <div style={{ marginBottom: 32 }}>
-        <Link href="/" style={{
-          fontSize: 11,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: 'var(--ink-tertiary)',
-          textDecoration: 'none',
+      {!isOnboarding && (
+        <div style={{ marginBottom: 32 }}>
+          <Link href="/" style={{
+            fontSize: 11,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--ink-tertiary)',
+            textDecoration: 'none',
+          }}>
+            &larr; Retour au pipeline
+          </Link>
+        </div>
+      )}
+
+      {isOnboarding && (
+        <div style={{
+          marginBottom: 36,
+          padding: '24px 28px',
+          background: 'linear-gradient(135deg, rgba(192, 138, 63, 0.10) 0%, rgba(192, 138, 63, 0.03) 100%)',
+          borderLeft: '3px solid #c08a3f',
+          borderRadius: 2,
         }}>
-          &larr; Retour au pipeline
-        </Link>
-      </div>
+          <div style={{
+            fontSize: 10,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: '#c08a3f',
+            fontWeight: 600,
+            marginBottom: 8,
+          }}>
+            Etape preliminaire
+          </div>
+          <div style={{
+            fontFamily: 'var(--serif)',
+            fontSize: 22,
+            fontWeight: 500,
+            marginBottom: 12,
+            lineHeight: 1.3,
+          }}>
+            Renseignez la these de votre fonds avant la premiere analyse
+          </div>
+          <div style={{
+            fontSize: 14,
+            lineHeight: 1.65,
+            color: 'var(--ink-soft)',
+            maxWidth: 680,
+          }}>
+            Prelude utilise ces parametres pour faire un triage rapide des dossiers entrants en quelques secondes. Sans these renseignee, le moteur de pre-scan ne peut pas evaluer si un dossier correspond a votre perimetre, et tourne en mode degrade. Ce passage est obligatoire avant la premiere analyse, mais vous pouvez modifier la these a tout moment depuis cette meme page. Si vous etes un fonds generaliste sans filtre particulier, laissez les listes vides et cliquez sur enregistrer, c est suffisant.
+          </div>
+        </div>
+      )}
 
       <div style={{ marginBottom: 8, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-tertiary)' }}>
         {orgName} &middot; Parametres

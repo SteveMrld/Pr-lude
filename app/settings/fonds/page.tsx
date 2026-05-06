@@ -25,7 +25,11 @@ interface FundProfileRow {
   updated_at: string;
 }
 
-export default async function FundProfilePage() {
+export default async function FundProfilePage({
+  searchParams,
+}: {
+  searchParams?: { onboarding?: string };
+}) {
   if (!isAuthEnabled()) {
     redirect('/');
   }
@@ -59,11 +63,19 @@ export default async function FundProfilePage() {
       }
     : null;
 
+  // Mode onboarding : la racine / a redirige ici parce que la these
+  // n etait pas configuree. On affiche un bandeau d explication et
+  // un bouton "Continuer en generaliste" qui cree une ligne vide
+  // pour debloquer l acces au pipeline sans contraindre le partner
+  // a saisir une these s il ne le souhaite pas.
+  const isOnboarding = searchParams?.onboarding === '1';
+
   return (
     <FundProfileClient
       orgName={org.name}
       orgRole={org.role}
       initialProfile={initialProfile}
+      isOnboarding={isOnboarding}
     />
   );
 }

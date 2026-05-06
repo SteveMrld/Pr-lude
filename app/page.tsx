@@ -31,6 +31,38 @@ export default async function Home() {
     redirect('/onboarding');
   }
 
+  // Verifie que la these du fonds est renseignee avant de laisser
+  // l utilisateur lancer une analyse. Sans these, le pre-scan ne peut
+  // pas evaluer le fit sectoriel/geographique/ticket/stade et tourne
+  // en mode degrade (6 tests universels au lieu de 10). On force donc
+  // l onboarding profil fonds des la premiere connexion d un nouveau
+  // fonds, pour materialiser que la these est un pre-requis structurel
+  // de Prelude, pas un setting optionnel.
+  //
+  // Une these est consideree comme renseignee des qu une ligne existe
+  // pour l org dans fund_profiles, meme si tous les tableaux sont
+  // vides. C est suffisant : le fonds a fait acte de configuration,
+  // meme s il choisit le mode generaliste pur. Le check ci-dessous
+  // ne redirige donc QUE si le profil n a jamais ete cree.
+  //
+  // Le redirect ne s applique pas aux super-admins Prelude (Steve +
+  // ops) qui peuvent avoir besoin d acceder au pipeline pour debug
+  // sans avoir configure un profil sur leur org de test.
+  const { getSupabaseAdminClient } = await import('@/lib/supabase/server');
+  const { isSuperAdmin } = await import('@/lib/auth');
+  const isOpsUser = await isSuperAdmin(user.id);
+  if (!isOpsUser) {
+    const admin = getSupabaseAdminClient();
+    const { data: profileRow } = await admin
+      .from('fund_profiles')
+      .select('organization_id')
+      .eq('organization_id', org.id)
+      .maybeSingle();
+    if (!profileRow) {
+      redirect('/settings/fonds?onboarding=1');
+    }
+  }
+
   return (
     <HomeClient
       authEnabled={true}
