@@ -59,6 +59,7 @@ const ENGINES: Array<{ id: string; name: string; label: string; block: EngineBlo
   { id: 'dd-financial', name: 'DD financière', label: 'Sept tests : CA, marge, burn, headcount, concentration, trajectoire, engagements vs narratif', block: 'dataroom' },
   { id: 'cap-table-parsing', name: 'Parsing cap table', label: 'Structure d\'actionnariat : fondateurs, investisseurs, pool d\'options, dilution', block: 'dataroom' },
   { id: 'dd-contractual', name: 'DD contractuelle', label: 'Cartographie de quinze clauses sensibles avec citation exacte : pacte, statuts, contrats clients', block: 'dataroom' },
+  { id: 'dd-technical', name: 'DD technique', label: 'Lecture du dossier technique fourni : architecture, sécurité, RGPD, IP, BCP. Citation mot pour mot.', block: 'dataroom' },
 ];
 
 const ARCHETYPE_LABELS: Record<string, string> = {
@@ -969,7 +970,7 @@ export default function HomeClient({
                     {[
                       { id: 'dd-financial',  num: '15', name: 'DD financière',     desc: 'Sept tests de réconciliation BP versus grand livre comptable : CA, marge, burn, headcount, concentration client, trajectoire, engagements hors bilan.' },
                       { id: 'dd-contractual', num: '16', name: 'DD contractuelle', desc: 'Cartographie de quinze clauses sensibles avec citation exacte mot pour mot : pacte, statuts, contrats clients, comparaison France Invest Series A/B.' },
-                      { id: 'dd-technical',  num: '17', name: 'DD technique',      desc: 'Audit repo GitHub : qualité du code, cadence release, dépendances obsolètes, secrets en dur. À venir.' },
+                      { id: 'dd-technical',  num: '17', name: 'DD technique',      desc: 'Lecture du dossier technique transmis par la startup au fonds (architecture, sécurité IT, RGPD, BCP, IP). Dix tests structurés alignés sur la GCV Investor Due Diligence Checklist sections 4, 6, 7 et 8, avec citation mot pour mot et identification des zones non documentées comme questions DD.' },
                       { id: 'dd-references', num: '18', name: 'Reference checks structurés', desc: 'Agrégation des notes d\u2019appels DD terrain pour faire émerger les patterns récurrents et les signaux faibles. À venir.' },
                     ].map((e) => {
                       const EnginePicto = ENGINE_PICTOS[e.id as keyof typeof ENGINE_PICTOS];
@@ -1139,7 +1140,7 @@ export default function HomeClient({
                 <h2 className="landing-h2">Commencer l&apos;instruction.</h2>
               </div>
               <p className="landing-section-intro">
-                Pour le Bloc 1 (note d&apos;instruction), déposer le pitch deck PDF avec le business plan optionnel. Pour le Bloc 2 (data room), ajouter le grand livre comptable, le pacte d&apos;actionnaires, les statuts, les contrats clients principaux et le cap table. Les moteurs Bloc 2 ne tournent que si les documents correspondants sont fournis.
+                Pour le Bloc 1 (note d&apos;instruction), déposer le pitch deck PDF avec le business plan optionnel. Pour le Bloc 2 (data room), ajouter le grand livre comptable, le pacte d&apos;actionnaires, les statuts, les contrats clients principaux, le cap table et le dossier technique transmis par la startup (architecture, sécurité, RGPD, BCP, IP). Les moteurs Bloc 2 ne tournent que si les documents correspondants sont fournis. Pour la classification automatique, nommer les fichiers en conséquence : pitch_deck.pdf, business_plan.xlsx, grand_livre.xlsx, pacte.pdf, statuts.pdf, cap_table.xlsx, contrat_client_X.pdf, architecture.pdf, security_policy.pdf, rgpd.pdf, bcp.pdf.
               </p>
 
               {files.length === 0 ? (

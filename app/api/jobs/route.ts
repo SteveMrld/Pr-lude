@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     const {
       pitchDeck, businessPlan, generalLedger,
       shareholdersAgreement, statutes, capTable, clientContracts,
+      technicalDocs,
       others,
     } = await processFiles(files);
 
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
         statutes: statutes?.name || null,
         capTable: capTable?.name || null,
         clientContracts: clientContracts.map(c => c.name),
+        technicalDocs: technicalDocs.map(t => t.name),
         others: others.map(o => o.name),
       } as any,
     });
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
           : null,
         clientContracts: clientContracts.map(c => ({ name: c.name, pdfBase64: c.payload })),
       },
+      technicalDocs: technicalDocs.map(t => ({ name: t.name, pdfBase64: t.payload })),
       otherFileNames: others.map(o => o.name),
     });
 

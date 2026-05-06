@@ -14,6 +14,7 @@ import { analyzeTechClaimCoherence } from '@/lib/engines/tech-claim-coherence-en
 import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engine';
 import { analyzeDDFinancial } from '@/lib/engines/dd-financial-engine';
 import { analyzeDDContractual } from '@/lib/engines/dd-contractual-engine';
+import { analyzeDDTechnical } from '@/lib/engines/dd-technical-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
     const {
       pitchDeck, businessPlan, generalLedger,
       shareholdersAgreement, statutes, capTable, clientContracts,
+      technicalDocs,
       others,
     } = await processFiles(files);
 
@@ -66,6 +68,7 @@ export async function POST(req: NextRequest) {
       ...(statutes ? [statutes.name] : []),
       ...(capTable ? [capTable.name] : []),
       ...clientContracts.map(c => c.name),
+      ...technicalDocs.map(t => t.name),
       ...others.map(o => o.name),
     ];
 
@@ -107,6 +110,7 @@ export async function POST(req: NextRequest) {
             statutes: statutes?.name || null,
             capTable: capTable?.name || null,
             clientContracts: clientContracts.map(c => c.name),
+            technicalDocs: technicalDocs.map(t => t.name),
             others: others.map(o => o.name),
           });
 
@@ -237,6 +241,26 @@ export async function POST(req: NextRequest) {
             console.warn('[dd-contractual] engine failed, continuing without:', err?.message);
           }
           sendDone('dd-contractual', ddContractual);
+
+          // ============================================================
+          // BLOC 2 DATA ROOM : MODULE 3 DD TECHNIQUE
+          // Lecture du dossier technique fourni par la startup
+          // (architecture overview, security policy, BCP, RGPD register,
+          // fiche IP, certifications). Dix tests structures alignes sur
+          // les sections 4/6/7/8 de la GCV Investor DD Checklist, avec
+          // citation mot pour mot facon ddc. Ne tourne que si au moins
+          // un document technique a ete fourni.
+          // ============================================================
+          sendStart('dd-technical', 'DD technique : audit du dossier technique fourni');
+          let ddTechnical: any = null;
+          try {
+            ddTechnical = await analyzeDDTechnical(extraction, {
+              techDocs: technicalDocs.map(t => ({ name: t.name, pdfBase64: t.payload })),
+            });
+          } catch (err: any) {
+            console.warn('[dd-technical] engine failed, continuing without:', err?.message);
+          }
+          sendDone('dd-technical', ddTechnical);
 
           // ============================================================
           // VAGUE 3 : PATTERN MATCHING
@@ -371,6 +395,14 @@ export async function POST(req: NextRequest) {
             ddFinancial,
             capTableExtraction,
             ddContractual,
+            ddTechnical,
+            // Metadonnees des documents techniques uploades, sans
+            // payloads bruts : on n expose que les noms et le compte
+            // pour ne pas persister les fichiers source dans result_json.
+            technicalDocsMeta: {
+              count: technicalDocs.length,
+              names: technicalDocs.map(t => t.name),
+            },
             // Metadonnees des documents juridiques uploades, sans payloads
             // bruts : on n expose que les noms et la presence pour ne pas
             // persister de documents juridiques sensibles dans result_json.

@@ -1291,7 +1291,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             sensibles), et a venir : DD technique (repo GitHub) + ref
             checks structures.
             ============================================================ */}
-        {(ddf?.triggered || ddc?.triggered) && (
+        {(ddf?.triggered || ddc?.triggered || (r as any).ddTechnical?.triggered) && (
           <div className="block-marker block-marker-dataroom">
             <div className="block-marker-tag">Bloc 2</div>
             <div className="block-marker-title">Data Room</div>
@@ -1479,6 +1479,116 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             )}
           </>
         )}
+
+        {/* MODULE 3 DD TECHNIQUE
+            Lecture du dossier technique fourni par la startup,
+            calque sur GCV Investor DD Checklist sections 4/6/7/8.
+            Dix tests structures avec citation mot pour mot. Ne
+            s affiche que si triggered (au moins un document
+            technique fourni ET fetch reussi). Sinon on peut afficher
+            un bandeau d explication minimal si reasonNotTriggered
+            est present. */}
+        {(() => {
+          const ddt = (r as any).ddTechnical;
+          if (!ddt) return null;
+          if (!ddt.triggered) {
+            // Si la raison est explicite (URL fournie sans docs ou
+            // erreur LLM), on l affiche en bandeau pour le partner.
+            // Sinon on ne pollue pas la note.
+            if (ddt.reasonNotTriggered) {
+              return null; // silencieux : pas de doc technique, on ne mentionne rien
+            }
+            return null;
+          }
+          const tests: any[] = Array.isArray(ddt.tests) ? ddt.tests : [];
+          return (
+            <>
+              <h3 className="note-h3">Data Room - DD Technique</h3>
+              <p className="note-paragraph muted">
+                Audit du dossier technique transmis par la startup, aligne sur les sections 4 (Technology/Product), 6 (Intellectual Property), 7 (Information Technology) et 8 (Data Protection) de la GCV Investor Due Diligence Checklist.
+                {' '}{(ddt.documentsAnalyzed || []).length > 0 && (
+                  <>Documents analyses : {ddt.documentsAnalyzed.map((d: any) => d.name).join(', ')}.{' '}</>
+                )}
+                Score global de l&apos;audit : {ddt.globalScore}/100.
+                {' '}Taux de zones non documentees : {ddt.underDocumentationRate}%.
+              </p>
+
+              {/* Disclaimers obligatoires */}
+              {Array.isArray(ddt.disclaimers) && ddt.disclaimers.length > 0 && (
+                <div className="ddc-disclaimer">
+                  {ddt.disclaimers.map((d: string, i: number) => (
+                    <div key={i} className="ddc-disclaimer-line">{d}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Synthese editoriale rule-based */}
+              {ddt.synthesis && splitIntoParagraphs(ddt.synthesis, 3).map((p: string, i: number) => (
+                <p key={i} className="note-paragraph">{p}</p>
+              ))}
+
+              {/* Dix tests, meme markup que ddf et ddc pour heriter
+                  des styles dd-tests / dd-test-row / dd-test-{severity} */}
+              <div className="dd-tests">
+                {tests.map((t: any, i: number) => {
+                  if (!t) return null;
+                  return (
+                    <div key={i} className={`dd-test-row dd-test-${t.severity}`}>
+                      <div className="dd-test-header">
+                        <span className="dd-test-id">{t.testId}</span>
+                        <span className="dd-test-label">{t.testLabel}</span>
+                        <span className={`dd-test-pill dd-test-pill-${t.severity}`}>
+                          {t.severity === 'aligned' && 'Aligne'}
+                          {t.severity === 'attention' && 'Attention'}
+                          {t.severity === 'alert' && 'Alerte'}
+                          {t.severity === 'red_flag' && 'Red flag'}
+                          {t.severity === 'non_documented' && 'Non documente'}
+                        </span>
+                      </div>
+                      {/* Citation mot pour mot (facon ddc) si presente */}
+                      {t.citation && (
+                        <div className="ddc-clause-citation">
+                          {t.citation}
+                        </div>
+                      )}
+                      {t.source && (
+                        <div className="ddc-clause-meta"><strong>Source :</strong> {t.source}</div>
+                      )}
+                      <div className="dd-test-values">
+                        <div><strong>Observation</strong>{t.observation}</div>
+                        <div><strong>Standard attendu</strong>{t.benchmark}</div>
+                      </div>
+                      {t.implication && (
+                        <div className="dd-test-evidence"><strong style={{ fontFamily: 'inherit', fontSize: 'inherit', textTransform: 'none', letterSpacing: 0 }}>Implication : </strong>{t.implication}</div>
+                      )}
+                      {t.ddQuestion && (
+                        <div className="dd-test-question"><strong>Question DD</strong>{t.ddQuestion}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className={`dd-verdict dd-verdict-${ddt.verdict}`}>
+                <strong>Verdict :</strong>{' '}
+                {ddt.verdict === 'tech_strong' && 'Discipline technique elevee. Le dossier transmis couvre les dimensions cles avec un niveau de detail satisfaisant. Confirmer en entretien CTO et audit externe cible.'}
+                {ddt.verdict === 'tech_solid' && 'Dossier technique correct avec quelques zones d ombre mineures. Investigation ciblee aupres du CTO sur les points d attention identifies.'}
+                {ddt.verdict === 'tech_partial' && 'Signaux mixtes. Plusieurs dimensions sont solides, d autres incompletes. DD technique externe recommandee sur les axes en alerte.'}
+                {ddt.verdict === 'tech_concerns' && 'Plusieurs alertes sur la maintenabilite, la securite ou l ownership du code. Documenter les zones rouges aupres du CTO et de l avocat IP avant comite d investissement.'}
+                {ddt.verdict === 'tech_red_flags' && 'Red flags structurels identifies (ownership du code non securise, non conformite RGPD, securite critique absente, ou pratique IP problematique). Clarification urgente requise et expert externe a mandater.'}
+                {ddt.verdict === 'tech_under_documented' && 'Le dossier technique transmis est trop leger pour conclure. Plus de la moitie des dimensions cles ne sont pas adressees. Demander un complement de documentation a la startup avant de poursuivre l instruction.'}
+                {ddt.verdict === 'not_applicable' && 'Audit non realise.'}
+              </div>
+
+              {ddt.questionsToInstruct?.length > 0 && (
+                <div className="dd-questions">
+                  <strong>Questions DD prioritaires :</strong>
+                  <ol>{ddt.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ol>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </NoteSectionWrapper>
 
       {/* SECTION COMPARABLES HISTORIQUES - Memoire institutionnelle factuelle.
@@ -2693,6 +2803,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .dd-test-alert { border-left-color: var(--warn, #b14842); }
         .dd-test-red_flag { border-left-color: #7a2520; background: rgba(122, 37, 32, 0.04); }
         .dd-test-not_assessable { border-left-color: var(--ink-tertiary, #6b6b6b); }
+        .dd-test-non_documented { border-left-color: var(--ink-tertiary, #6b6b6b); background: rgba(107, 107, 107, 0.03); }
 
         .dd-test-header {
           display: flex;
@@ -2747,6 +2858,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .dd-test-pill-not_assessable {
           color: var(--ink-soft);
           background: var(--paper-accent, var(--surface));
+        }
+        .dd-test-pill-non_documented {
+          color: var(--ink-soft);
+          background: var(--paper-accent, var(--surface));
+          font-style: italic;
         }
 
         .dd-test-values {
@@ -2826,6 +2942,48 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           background: rgba(122, 37, 32, 0.07);
           border-color: #7a2520;
           color: var(--ink);
+        }
+
+        /* DD TECHNIQUE - verdicts module 3.
+           Sept niveaux paralleles aux verdicts ddf/ddc, avec un
+           code couleur identique pour faciliter la lecture
+           transverse Bloc 2. tech_under_documented utilise un
+           registre neutre car ce n est pas un red flag, juste un
+           dossier insuffisant a juger. */
+        .dd-verdict-tech_strong {
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
+          border-color: var(--vert-foret, #1f5f3f);
+          color: var(--ink);
+        }
+        .dd-verdict-tech_solid {
+          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.04));
+          border-color: var(--vert-foret, #1f5f3f);
+          color: var(--ink);
+        }
+        .dd-verdict-tech_partial {
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.06));
+          border-color: var(--ocre-brule, #b47832);
+          color: var(--ink);
+        }
+        .dd-verdict-tech_concerns {
+          background: rgba(177, 72, 66, 0.06);
+          border-color: var(--warn, #b14842);
+          color: var(--ink);
+        }
+        .dd-verdict-tech_red_flags {
+          background: rgba(122, 37, 32, 0.07);
+          border-color: #7a2520;
+          color: var(--ink);
+        }
+        .dd-verdict-tech_under_documented {
+          background: var(--paper-accent, var(--surface));
+          border-color: var(--ink-tertiary, #6b6b6b);
+          color: var(--ink);
+        }
+        .dd-verdict-not_applicable {
+          background: var(--paper-accent, var(--surface));
+          border-color: var(--ink-tertiary, #6b6b6b);
+          color: var(--ink-soft);
         }
 
         .dd-questions {

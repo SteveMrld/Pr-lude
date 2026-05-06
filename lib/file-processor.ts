@@ -8,6 +8,7 @@ export type FileNature =
   | 'statutes'                // statuts
   | 'cap_table'               // tableau d actionnariat
   | 'client_contract'         // contrat client
+  | 'technical_doc'           // dossier technique (architecture, securite, RGPD, BCP, IP)
   | 'financial_other'
   | 'unknown';
 
@@ -87,6 +88,52 @@ export function classifyFile(file: File): FileNature {
       lowerName.includes('purchase agreement') ||
       lowerName.includes('framework agreement')) {
     return 'client_contract';
+  }
+
+  // Dossier technique (Module 3 DD technique). Famille large qui
+  // couvre tout document transmis par la startup au fonds dans le
+  // cadre de la dimension technique : architecture systeme, security
+  // policy, BCP, disaster recovery, RGPD register, fiche IP, SOC2,
+  // ISO 27001. Plusieurs documents peuvent etre fournis et seront
+  // tous passes au moteur DD technique.
+  if (lowerName.includes('tech overview') || lowerName.includes('tech_overview') ||
+      lowerName.includes('techoverview') ||
+      lowerName.includes('tech & ip') || lowerName.includes('tech and ip') ||
+      lowerName.includes('tech_ip') || lowerName.includes('techip') ||
+      lowerName.includes('dossier technique') || lowerName.includes('dossier_technique') ||
+      lowerName.includes('dossiertechnique') ||
+      lowerName.includes('technical overview') || lowerName.includes('technical_overview') ||
+      lowerName.includes('technicaloverview') ||
+      lowerName.includes('architecture') ||
+      lowerName.includes('security policy') || lowerName.includes('security_policy') ||
+      lowerName.includes('securitypolicy') || lowerName.includes('security-policy') ||
+      lowerName.includes('infosec') ||
+      lowerName.includes('iso 27001') || lowerName.includes('iso_27001') ||
+      lowerName.includes('iso27001') ||
+      lowerName.includes(' soc2') || lowerName.includes('_soc2') ||
+      lowerName.includes('soc 2') || lowerName.startsWith('soc2_') ||
+      lowerName.includes('bcp') ||
+      lowerName.includes('business continuity') ||
+      lowerName.includes('business_continuity') ||
+      lowerName.includes('disaster recovery') ||
+      lowerName.includes('disaster_recovery') ||
+      lowerName.includes('disasterrecovery') ||
+      lowerName.includes('rgpd') ||
+      lowerName.includes(' gdpr') || lowerName.includes('_gdpr') ||
+      lowerName.includes('gdpr_') || lowerName.includes('gdpr-') ||
+      lowerName.startsWith('gdpr') ||
+      lowerName.includes('data protection') ||
+      lowerName.includes('data_protection') ||
+      lowerName.includes('dataprotection') ||
+      lowerName.includes('registre des traitements') ||
+      lowerName.includes('registre_des_traitements') ||
+      lowerName.includes('processing register') ||
+      lowerName.includes('technical_dd') || lowerName.includes('technicaldd') ||
+      lowerName.includes('tech_dd') || lowerName.includes('techdd') ||
+      lowerName.includes('tech-dd') ||
+      lowerName.includes('ip schedule') || lowerName.includes('ip_schedule') ||
+      lowerName.includes('ipschedule')) {
+    return 'technical_doc';
   }
 
   // Heuristiques sur le nom : business plan
@@ -175,6 +222,8 @@ export async function processFiles(files: File[]): Promise<{
   statutes: ClassifiedFile | null;
   capTable: ClassifiedFile | null;
   clientContracts: ClassifiedFile[]; // peut etre plusieurs
+  // Dossier technique (Module 3 DD technique)
+  technicalDocs: ClassifiedFile[]; // peut etre plusieurs
   others: ClassifiedFile[];
 }> {
   const classified: ClassifiedFile[] = [];
@@ -223,14 +272,23 @@ export async function processFiles(files: File[]): Promise<{
     f.nature === 'client_contract' && f.type === 'pdf'
   );
 
+  // Dossier technique (Module 3 DD technique). Plusieurs PDFs
+  // possibles : architecture overview, security policy, BCP, RGPD
+  // register, fiche IP, certifications. Seuls les PDFs sont
+  // collectes pour passage direct au LLM en mode multi-document.
+  const technicalDocs: ClassifiedFile[] = classified.filter(f =>
+    f.nature === 'technical_doc' && f.type === 'pdf'
+  );
+
   // Identifier le pitch deck principal (le PDF nommé pitch_deck), en
   // excluant explicitement les PDF deja classes comme documents
-  // juridiques.
+  // juridiques ou techniques.
   const legalPdfs = new Set<ClassifiedFile>([
     ...(shareholdersAgreement ? [shareholdersAgreement] : []),
     ...(statutes ? [statutes] : []),
     ...(capTable && capTable.type === 'pdf' ? [capTable] : []),
     ...clientContracts,
+    ...technicalDocs,
   ]);
 
   let pitchDeck: ClassifiedFile | null = classified.find(f =>
@@ -291,6 +349,7 @@ export async function processFiles(files: File[]): Promise<{
     ...(statutes ? [statutes] : []),
     ...(capTable ? [capTable] : []),
     ...clientContracts,
+    ...technicalDocs,
   ]);
   const others = classified.filter(f => !allClassified.has(f));
 
@@ -302,6 +361,7 @@ export async function processFiles(files: File[]): Promise<{
     statutes,
     capTable,
     clientContracts,
+    technicalDocs,
     others,
   };
 }
