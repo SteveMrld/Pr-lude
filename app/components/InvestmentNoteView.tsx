@@ -1063,6 +1063,130 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </div>
           )}
 
+          {/* PERIMETRE D ANALYSE
+              Affiche les criteres structurels detectes du dossier (asset
+              class, modele business, chaine de production, expositions)
+              et le verdict de pertinence par moteur ou sous-bloc (full /
+              partial / none) avec le rationale. Rend transparent au
+              partner le polymorphisme applique : pourquoi tel moteur a
+              tourne, pourquoi tel autre s est declare non applicable.
+              Cache si la matrice est absente (anciennes analyses non
+              re-instruites apres deploiement du polymorphisme). */}
+          {r.relevanceMatrix && (
+            <div className="verdict-block" style={{ marginTop: 14 }}>
+              <div className="verdict-block-head">
+                <span className="verdict-block-num" aria-hidden="true">1.6b</span>
+                <span className="verdict-block-title">Périmètre d&apos;analyse</span>
+              </div>
+              <div style={{ marginTop: 10, fontSize: '0.92rem', color: '#444', lineHeight: 1.5 }}>
+                Moteurs activés selon le profil structurel du dossier. La matrice de pertinence sélectionne le cadre d&apos;analyse adapté au modèle économique avant de lancer chaque moteur.
+              </div>
+
+              {/* Critères structurels détectés */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#777', marginBottom: 8 }}>
+                  Critères structurels
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 24px', fontSize: '0.9rem' }}>
+                  {[
+                    { label: 'Asset class', value: r.relevanceMatrix.assetClass },
+                    { label: 'Modèle business', value: r.relevanceMatrix.businessModel },
+                    { label: 'Chaîne de production', value: r.relevanceMatrix.productionChain },
+                    { label: 'Funnel d\'acquisition', value: r.relevanceMatrix.acquisitionFunnel },
+                    {
+                      label: 'Exposition supply chain',
+                      value: r.relevanceMatrix.supplyChainExposureFactors?.length > 0
+                        ? `${r.relevanceMatrix.supplyChainExposure} (${r.relevanceMatrix.supplyChainExposureFactors.join(', ')})`
+                        : r.relevanceMatrix.supplyChainExposure,
+                    },
+                    {
+                      label: 'Exposition géopolitique',
+                      value: r.relevanceMatrix.geopoliticalExposureFactors?.length > 0
+                        ? `${r.relevanceMatrix.geopoliticalExposure} (${r.relevanceMatrix.geopoliticalExposureFactors.join(', ')})`
+                        : r.relevanceMatrix.geopoliticalExposure,
+                    },
+                    {
+                      label: 'Sensibilité macro',
+                      value: r.relevanceMatrix.macroSensitivityFactors?.length > 0
+                        ? `${r.relevanceMatrix.macroSensitivity} (${r.relevanceMatrix.macroSensitivityFactors.join(', ')})`
+                        : r.relevanceMatrix.macroSensitivity,
+                    },
+                    {
+                      label: 'Reproductibilité numérique',
+                      value: r.relevanceMatrix.digitalReproducibilityFactors?.length > 0
+                        ? `${r.relevanceMatrix.digitalReproducibility} (${r.relevanceMatrix.digitalReproducibilityFactors.join(', ')})`
+                        : r.relevanceMatrix.digitalReproducibility,
+                    },
+                  ].map((row, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                      <span style={{ color: '#666', flexShrink: 0, minWidth: 160, fontSize: '0.82rem' }}>{row.label}</span>
+                      <span style={{ color: '#1a1a1a' }}>{row.value || 'non applicable'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Verdicts par moteur */}
+              <div style={{ marginTop: 18 }}>
+                <div style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#777', marginBottom: 8 }}>
+                  Verdict par moteur
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { label: 'Lecture géopolitique', verdict: r.relevanceMatrix.verdicts?.macroGeopolitical },
+                    { label: 'Lecture cyclique et conjoncture', verdict: r.relevanceMatrix.verdicts?.macroCyclical },
+                    { label: 'Reproductibilité par IA', verdict: r.relevanceMatrix.verdicts?.marketAiReplicability },
+                    { label: 'Modèle économique AI-native', verdict: r.relevanceMatrix.verdicts?.marketAiBusinessModel },
+                    { label: 'Indicateurs SaaS canoniques', verdict: r.relevanceMatrix.verdicts?.indicatorsSaas },
+                    { label: 'Indicateurs industriels', verdict: r.relevanceMatrix.verdicts?.indicatorsIndustrial },
+                    { label: 'Métriques de rétention (NDR, Magic Number)', verdict: r.relevanceMatrix.verdicts?.saasMetricsRetention },
+                    { label: 'Unit economics (CAC, CVR, Payback)', verdict: r.relevanceMatrix.verdicts?.saasMetricsUnitEconomics },
+                  ].filter((row) => row.verdict).map((row, i) => {
+                    const v = row.verdict!;
+                    const color = v.applicable === 'full' ? '#0a7c2f'
+                      : v.applicable === 'partial' ? '#a36b00'
+                      : '#888';
+                    const bg = v.applicable === 'full' ? '#e6f3ea'
+                      : v.applicable === 'partial' ? '#faf2e0'
+                      : '#f0f0f0';
+                    const labelText = v.applicable === 'full' ? 'Activé'
+                      : v.applicable === 'partial' ? 'Partiel'
+                      : 'Non applicable';
+                    return (
+                      <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontSize: '0.9rem' }}>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            color,
+                            backgroundColor: bg,
+                            padding: '3px 8px',
+                            borderRadius: 3,
+                            flexShrink: 0,
+                            minWidth: 90,
+                            textAlign: 'center',
+                          }}
+                        >
+                          {labelText}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 500, color: '#1a1a1a' }}>{row.label}</div>
+                          <div style={{ color: '#555', fontSize: '0.85rem', marginTop: 2 }}>{v.rationale}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14, fontSize: '0.8rem', color: '#888', fontStyle: 'italic' }}>
+                Lecture. Le polymorphisme évite d&apos;imposer un cadre d&apos;analyse SaaS générique aux dossiers dont le modèle économique relève d&apos;une autre nature (fabrication unitaire, projet long, services réglementés). Les moteurs marqués non applicable n&apos;ont pas tourné sur ce dossier ; les moteurs partiels ont scopé leur réponse aux composantes pertinentes du dossier.
+              </div>
+            </div>
+          )}
+
           {/* BLOC 1.7 : FOURCHETTE DE VALORISATION
               Resultat du moteur valuation-engine (calcul deterministe).
               Affiche la fourchette pre-money plausible, le detail des
