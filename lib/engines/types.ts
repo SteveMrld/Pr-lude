@@ -886,7 +886,28 @@ export interface OrchestratedResult {
       delta: number; // computed - llm
       auditNote: string; // explication de l ecart si > 15 points
       formula: string; // formule textuelle exacte appliquee
+      mechanicalDimensions?: any; // breakdown complet par dimension (depuis score-calculator)
+      thresholds?: { invest: number; conditions: number; investigate: number };
     };
+    /**
+     * Desaccord motive du moteur d orchestration. Quand le score mecanique
+     * (calcule a partir des moteurs Bloc 1) est utilise comme source de
+     * verite, le LLM peut signaler qu il aurait calibre differemment. Ce
+     * desaccord est affiche en alerte editoriale dans la note pour que le
+     * partner sache qu il y a un signal qualitatif au-dela du calcul.
+     * Ne change pas le score affiche, qui reste le mecanique.
+     */
+    assessorDisagreement?: {
+      present: boolean;
+      mechanicalVerdict?: string;
+      llmVerdict?: string;
+      mechanicalScore?: number;
+      llmScoreSuggestion?: number;
+      scoreDelta?: number;
+      rationale?: string;
+    };
+    /** Champ optionnel rempli par le LLM pour exprimer le rationale du desaccord (lu et integre dans assessorDisagreement par le code apres parse). */
+    assessorDisagreementRationale?: string;
     successProbability: number; // 0-100, probabilité chiffrée explicite
     failureProbability: number; // 0-100
     investmentThreshold: {

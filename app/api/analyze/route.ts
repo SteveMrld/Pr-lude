@@ -14,6 +14,7 @@ import { analyzeBenchmarks } from '@/lib/engines/benchmark-engine';
 import { analyzeTechClaimCoherence } from '@/lib/engines/tech-claim-coherence-engine';
 import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
+import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
 import { processFiles } from '@/lib/file-processor';
@@ -438,6 +439,19 @@ export async function POST(req: NextRequest) {
           sendStart('orchestrate', 'Synthèse finale');
           sendStart('reference-checks', 'Plan d\'appels DD terrain');
 
+          // Score mecanique calcule a partir des moteurs Bloc 1. Source de
+          // verite pour le score global et le verdict, qui ne sont plus
+          // produits par l orchestrator LLM. Voir lib/engines/score-calculator.ts
+          // pour la formule complete et les seuils.
+          const mechanicalScore = computeMechanicalScore({
+            team,
+            market,
+            macro,
+            financial: financialCoherence,
+            contrarian: contrarianAnalysis,
+            blindspot: blindspotAnalysis,
+          });
+
           const orchestratePromise = (async () => {
             const maxRetries = 2;
             let lastError: any = null;
@@ -446,6 +460,7 @@ export async function POST(req: NextRequest) {
                 const result = await orchestrateFinalRecommendation(
                   extraction, team, market, macro, patternMatching, causalReversal,
                   blindspotAnalysis, contrarianAnalysis, fundDimensionalNotes?.general,
+                  mechanicalScore,
                 );
                 return result;
               } catch (err: any) {

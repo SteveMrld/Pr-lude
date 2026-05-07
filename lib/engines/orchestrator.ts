@@ -199,6 +199,18 @@ export async function orchestrateFinalRecommendation(
   blindspotAnalysis: BlindspotAnalysisOutput,
   contrarianAnalysis: ContrarianAnalysisOutput,
   fundNote?: string | null,
+  /**
+   * Score mecanique pre-calcule par lib/engines/score-calculator.ts a
+   * partir des sorties des moteurs Bloc 1. Si fourni, le LLM orchestrator
+   * recoit le score, le verdict derive et les dimensions deja calcules :
+   * il devient narrateur du verdict (argumentation, decision drivers,
+   * dialecticalResolution) au lieu de juge. Il peut signaler un desaccord
+   * motive via assessorDisagreement si son jugement structurel diverge
+   * fortement du calcul mecanique.
+   * Si non fourni (mode legacy / retro-compatibilite), l orchestrator
+   * fonctionne comme avant : LLM produit verdict + score + dimensions.
+   */
+  mechanicalScore?: import('./score-calculator').MechanicalScoreResult | null,
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
   // ============================================================
@@ -317,15 +329,61 @@ ${Object.values(contrarianAnalysis.signals || {})
   .slice(0, 5)
   .map((s: any) => `- ${s.signalName} (${s.strength}/100) : ${truncate(s.evidence, 200)}`)
   .join('\n') || 'Aucun signal contrarien fort détecté'}
+${mechanicalScore ? `
 
+# SCORE MECANIQUE PRE-CALCULE (source de verite)
+
+Le code a deja calcule le score global et derive le verdict de maniere
+deterministe a partir des six scores des moteurs Bloc 1 ci-dessus :
+
+- SCORE GLOBAL : ${mechanicalScore.globalScore}/100
+- VERDICT DERIVE : ${mechanicalScore.verdict.toUpperCase()}
+- DECOMPOSITION :
+  · Equipe ${mechanicalScore.dimensions.team.score}/100 (poids 0.20, contrib ${mechanicalScore.dimensions.team.contribution})
+  · Marche ${mechanicalScore.dimensions.market.score}/100 (poids 0.22, contrib ${mechanicalScore.dimensions.market.contribution})
+  · Macro ${mechanicalScore.dimensions.macro.score}/100 (poids 0.15, contrib ${mechanicalScore.dimensions.macro.contribution})
+  · Modele economique ${mechanicalScore.dimensions.financial.score}/100 (poids 0.13, contrib ${mechanicalScore.dimensions.financial.contribution})
+  · Contrariens ${mechanicalScore.dimensions.contrarian.score}/100 (poids 0.15, contrib ${mechanicalScore.dimensions.contrarian.contribution})
+  · Vigilance ${mechanicalScore.dimensions.vigilance.score}/100 (poids 0.15, contrib ${mechanicalScore.dimensions.vigilance.contribution})
+- SEUILS : <45 = REFUSER, 45-59 = APPROFONDIR, 60-74 = INVESTIR AVEC CONDITIONS, >=75 = INVESTIR
+
+TON ROLE A CHANGE : tu n es plus le juge qui decide du verdict, tu es le
+NARRATEUR qui argumente le verdict deja calcule. Le score affiche au
+partner sera ${mechanicalScore.globalScore}/100 et le verdict sera
+${mechanicalScore.verdict.toUpperCase()}, point. Tu ne peux pas les changer.
+
+CE QUE TU DOIS FAIRE :
+- Ecrire le narratif de retournement causal (pourquoi le dossier reussit /
+  echoue dans les deux scenarios)
+- Argumenter la coherence du score avec les faits du dossier
+- Identifier la resolution dialectique (blindspots-dominate /
+  contrarian-justifies / balanced-investigate)
+- Lister les decision drivers et conditions cles
+- Produire le plan de chantiers si verdict = INVESTIR AVEC CONDITIONS ou
+  APPROFONDIR
+
+CHAMPS JSON QUE TU PRODUIS NORMALEMENT (verdict, globalScore,
+dimensionProbabilities) : tu peux les renseigner avec les valeurs
+mecaniques ci-dessus, ou avec ta propre estimation. Ils seront de toute
+facon ecrases par les valeurs mecaniques avant l affichage. Mais si tu
+es FORTEMENT EN DESACCORD avec le calcul mecanique (par exemple si tu
+penses que le dossier merite REFUSER alors que le score donne
+APPROFONDIR a 47, ou inversement), tu peux le signaler via le champ
+optionnel assessorDisagreementRationale (string libre 2-4 phrases). Ce
+desaccord motive sera affiche en alerte editoriale dans la note finale,
+sans modifier le score affiche. Utilise-le UNIQUEMENT si l ecart depasse
+12 points ou si le verdict ne te semble pas le bon : c est un signal fort
+qui sera lu par le partner.
+
+` : ''}
 Produis la recommandation finale avec :
-1. Probabilité de succès chiffrée (et son inverse)
-2. Score global avec seuils explicites
-3. Probabilités par dimension (6 dimensions avec poids)
-4. Résolution de la tension blindspots/contrarian
-5. Argumentation dense
-6. Conditions clés actionnables
-7. Decision drivers (3-5 facteurs décisifs)
+1. ${mechanicalScore ? 'Argumentation dense (voir SCORE MECANIQUE ci-dessus, le verdict est deja calcule)' : 'Probabilité de succès chiffrée (et son inverse)'}
+2. ${mechanicalScore ? 'Resolution de la tension blindspots/contrarian' : 'Score global avec seuils explicites'}
+3. ${mechanicalScore ? 'Decision drivers (3-5 facteurs decisifs)' : 'Probabilités par dimension (6 dimensions avec poids)'}
+4. ${mechanicalScore ? 'Conditions cles actionnables' : 'Résolution de la tension blindspots/contrarian'}
+5. ${mechanicalScore ? 'Plan de chantiers si applicable' : 'Argumentation dense'}
+6. ${mechanicalScore ? 'Optionnel : assessorDisagreementRationale si tu es en desaccord motive' : 'Conditions clés actionnables'}
+7. ${mechanicalScore ? 'Narratif de retournement causal' : 'Decision drivers (3-5 facteurs décisifs)'}
 
 Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'générale')}`;
 
@@ -446,6 +504,71 @@ Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'général
         }
       } catch {}
     }
+  }
+
+  // ============================================================
+  // OVERRIDE PAR LE SCORE MECANIQUE (si fourni)
+  // ------------------------------------------------------------
+  // Si l API a fourni un mechanicalScore (calcul deterministe a partir
+  // des moteurs Bloc 1), on l utilise comme source de verite. Le LLM
+  // a produit une argumentation, mais le score affiche et le verdict
+  // utilise sont les valeurs mecaniques. Le LLM peut signaler un
+  // desaccord motive via le champ assessorDisagreement (rempli dans
+  // son output JSON s il a estime que son jugement diverge fortement).
+  // ============================================================
+  if (mechanicalScore) {
+    const llmVerdict = recommendation.verdict;
+    const llmGlobalScore = recommendation.globalScore || 0;
+
+    // On capture le desaccord avant override pour pouvoir l afficher
+    // dans la note. Le LLM peut avoir voulu un autre verdict que celui
+    // dicte par les seuils.
+    const verdictsMatch = llmVerdict === mechanicalScore.verdict;
+    const scoreDelta = llmGlobalScore - mechanicalScore.globalScore;
+    const significantDisagreement = !verdictsMatch || Math.abs(scoreDelta) > 12;
+
+    recommendation.assessorDisagreement = significantDisagreement
+      ? {
+          present: true,
+          mechanicalVerdict: mechanicalScore.verdict,
+          llmVerdict,
+          mechanicalScore: mechanicalScore.globalScore,
+          llmScoreSuggestion: llmGlobalScore,
+          scoreDelta,
+          rationale: (recommendation as any).assessorDisagreementRationale || `Le jugement structurel du moteur d orchestration suggere ${llmVerdict} a ${llmGlobalScore} alors que le calcul mecanique des dimensions donne ${mechanicalScore.verdict} a ${mechanicalScore.globalScore}. Cet ecart merite une lecture attentive avant decision.`,
+        }
+      : { present: false };
+
+    // Override : le score affiche est mecanique, le verdict aussi
+    recommendation.globalScore = mechanicalScore.globalScore;
+    recommendation.verdict = mechanicalScore.verdict;
+
+    // Les dimensionProbabilities sont remplacees par les scores reels
+    // des moteurs Bloc 1. Le LLM ne peut plus les calibrer a la baisse
+    // ou a la hausse pour rendre son verdict plus coherent.
+    recommendation.dimensionProbabilities = [
+      { dimensionName: 'Equipe', successProbability: mechanicalScore.dimensions.team.score, riskScore: 100 - mechanicalScore.dimensions.team.score, weight: mechanicalScore.dimensions.team.weight, rationale: mechanicalScore.dimensions.team.rationale, keyDrivers: [], keyRisks: [] },
+      { dimensionName: 'Marche', successProbability: mechanicalScore.dimensions.market.score, riskScore: 100 - mechanicalScore.dimensions.market.score, weight: mechanicalScore.dimensions.market.weight, rationale: mechanicalScore.dimensions.market.rationale, keyDrivers: [], keyRisks: [] },
+      { dimensionName: 'Macro', successProbability: mechanicalScore.dimensions.macro.score, riskScore: 100 - mechanicalScore.dimensions.macro.score, weight: mechanicalScore.dimensions.macro.weight, rationale: mechanicalScore.dimensions.macro.rationale, keyDrivers: [], keyRisks: [] },
+      { dimensionName: 'Modele economique', successProbability: mechanicalScore.dimensions.financial.score, riskScore: 100 - mechanicalScore.dimensions.financial.score, weight: mechanicalScore.dimensions.financial.weight, rationale: mechanicalScore.dimensions.financial.rationale, keyDrivers: [], keyRisks: [] },
+      { dimensionName: 'Singularites contrariennes', successProbability: mechanicalScore.dimensions.contrarian.score, riskScore: 100 - mechanicalScore.dimensions.contrarian.score, weight: mechanicalScore.dimensions.contrarian.weight, rationale: mechanicalScore.dimensions.contrarian.rationale, keyDrivers: [], keyRisks: [] },
+      { dimensionName: 'Vigilance critique', successProbability: mechanicalScore.dimensions.vigilance.score, riskScore: 100 - mechanicalScore.dimensions.vigilance.score, weight: mechanicalScore.dimensions.vigilance.weight, rationale: mechanicalScore.dimensions.vigilance.rationale, keyDrivers: [], keyRisks: [] },
+    ];
+
+    // computedScoreBreakdown reflete le calcul mecanique deterministe
+    recommendation.computedScoreBreakdown = {
+      weightedDimensionScore: mechanicalScore.globalScore,
+      blindspotsContrarianAdjustment: 0,
+      finalComputedScore: mechanicalScore.globalScore,
+      llmScore: llmGlobalScore,
+      delta: scoreDelta,
+      auditNote: significantDisagreement
+        ? `Desaccord motive du moteur d orchestration : il aurait calibre a ${llmGlobalScore} (verdict ${llmVerdict}) si on lui avait laisse le choix. Le score affiche (${mechanicalScore.globalScore}, verdict ${mechanicalScore.verdict}) est issu du calcul mecanique sur les six dimensions Bloc 1. Voir le champ assessorDisagreement pour le rationale du desaccord.`
+        : `Score mecanique aligne avec le jugement structurel du moteur d orchestration (ecart ${Math.abs(scoreDelta)} points, verdict identique).`,
+      formula: mechanicalScore.formula,
+      mechanicalDimensions: mechanicalScore.dimensions,
+      thresholds: mechanicalScore.thresholds,
+    };
   }
 
   return recommendation;
