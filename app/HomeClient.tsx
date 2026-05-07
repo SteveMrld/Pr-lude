@@ -4662,21 +4662,25 @@ export default function HomeClient({
                   canEditReferenceCalls={Boolean(authEnabled && savedAnalysisId && userRole !== 'observer')}
                 />
               )}
+
+              {/* PRINT MODE : note d investissement complete (sections 1, 1.5,
+                  1.6, 1.7 valorisation, 1.8 indicateurs deal type, 2, 3)
+                  rendue a la suite des onglets dashboard pour que l export
+                  PDF contienne tout. CRUCIAL : ce bloc doit rester DANS
+                  .dashboard-content puisque c est le selecteur que la
+                  fonction d export PDF capture. Place precedemment hors
+                  du wrapper, la note etait silencieusement absente du PDF
+                  meme si correctement rendue dans le DOM. */}
+              {printMode && (
+                <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
+                  <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={false} />
+                </div>
+              )}
                   </div>
                 </div>
               );
             })()}
               </>
-            )}
-
-            {/* En mode print, on rend aussi la note d investissement apres le dashboard
-                pour que l export PDF contienne TOUT (dashboard analytique + note).
-                compactMode={false} explicite pour garantir que l export PDF est complet
-                meme si l utilisateur consultait en mode lecture rapide. */}
-            {printMode && (
-              <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
-                <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={false} />
-              </div>
             )}
 
             {/* SECTION COMPARABLES HISTORIQUES - Visible en mode dashboard.
