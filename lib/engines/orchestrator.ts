@@ -83,6 +83,24 @@ Une erreur classique est de calibrer tous tes scores autour de la valeur central
 
 **RÈGLE 4 - Vérification finale.** Avant de finaliser ton output, relis tes dimensionProbabilities. Si tu vois plusieurs valeurs identiques ou un cluster autour de 50, RÉVISE-les pour qu elles reflètent le contraste réel entre dimensions. Le partner qui lit ta note doit voir au premier coup d œil quelles dimensions tirent le verdict vers le haut et lesquelles le tirent vers le bas.
 
+# DIFFERENCIATION SCORE D ATTRACTIVITE vs PROBABILITE DE SUCCES
+
+Tu produis deux chiffres distincts qui ne mesurent pas la meme chose. Une erreur frequente est de les aligner mecaniquement, ce qui les rend redondants et fait perdre l information clef au partner.
+
+**globalScore (0-100)** : note d attractivite structurelle ponderee sur les six dimensions. Mesure ce que VAUT le dossier en lecture statique (qualite de l equipe, taille du marche, fenetre macro, modele eco, signaux contrariens, gestion des risques). C est une note de qualite intrinseque.
+
+**successProbability (0-100)** : estimation de la probabilite REELLE de retour positif sur l investissement. Integre l incertitude residuelle face aux signaux contradictoires. Distinct du score parce qu un dossier peut avoir une excellente note structurelle mais une dialectique blindspots / contrarien non levee, ce qui maintient une zone d incertitude.
+
+**Regle de calibration entre les deux** :
+
+- Si tensionResolved = blindspots-dominate : successProbability << globalScore. Decote de 10 a 20 points selon l ampleur des drapeaux rouges. Exemple : globalScore 42, tension blindspots-dominate forte, successProbability 22-28.
+
+- Si tensionResolved = balanced-investigate : successProbability < globalScore. Decote de 5 a 12 points qui reflete que l incertitude n est pas levee. Exemple : globalScore 55, tension balanced, successProbability 43-50.
+
+- Si tensionResolved = contrarian-justifies : successProbability ~ globalScore (decote 0 a 5 points). La tension est resolue en faveur des contrariens, l incertitude residuelle est faible. Exemple : globalScore 72, tension contrarian-justifies, successProbability 67-72.
+
+**Erreur a eviter ABSOLUMENT** : produire successProbability identique ou collee au globalScore (ecart < 3 points) sur un dossier ou la tension n est pas tranchee. C est faux methodologiquement et le partner perd l information clef. Les deux chiffres existent precisement pour porter cette nuance. Si tu trouves que les deux sont egaux apres calibration, relis ta tensionResolved et ta dialectique : soit la tension est vraiment resolue en faveur des contrariens (et alors c est legitime), soit tu as evite la decote par paresse.
+
 # RÉSOLUTION DE LA TENSION DIALECTIQUE
 
 Trois résolutions possibles :
@@ -504,6 +522,52 @@ Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'général
         }
       } catch {}
     }
+  }
+
+  // ============================================================
+  // GARDE DETERMINISTE : DECOTE successProbability vs globalScore
+  // ------------------------------------------------------------
+  // Le LLM a tendance a aligner successProbability sur globalScore,
+  // ce qui rend les deux chiffres redondants. La doctrine Prelude
+  // veut que successProbability integre une decote pour incertitude
+  // residuelle dependant de la dialectique blindspots / contrariens.
+  // On force un ecart minimal coherent avec la tension resolue, sauf
+  // dans le cas contrarian-justifies ou un alignement est legitime.
+  // ============================================================
+  const finalScore = recommendation.globalScore || 0;
+  const llmSuccessProb = typeof recommendation.successProbability === 'number'
+    ? recommendation.successProbability
+    : finalScore;
+  const probDelta = finalScore - llmSuccessProb;
+
+  let probAdjusted = llmSuccessProb;
+  let probAdjustmentApplied = false;
+  let probAdjustmentRationale = '';
+
+  if (tension === 'blindspots-dominate') {
+    // Decote attendue : 10 a 20 points selon ampleur des drapeaux rouges
+    const expectedMinDecote = 10 + Math.round((blindspotScore / 100) * 8);
+    if (probDelta < expectedMinDecote) {
+      probAdjusted = Math.max(0, finalScore - expectedMinDecote);
+      probAdjustmentApplied = true;
+      probAdjustmentRationale = `Decote forcee : tension blindspots-dominate, score blindspot ${blindspotScore}, decote attendue minimale ${expectedMinDecote} points. LLM avait produit ${llmSuccessProb} (decote ${probDelta}).`;
+    }
+  } else if (tension === 'balanced-investigate') {
+    // Decote attendue : 5 a 12 points pour refleter l incertitude non levee
+    const expectedMinDecote = 5;
+    if (probDelta < expectedMinDecote) {
+      probAdjusted = Math.max(0, finalScore - 7);
+      probAdjustmentApplied = true;
+      probAdjustmentRationale = `Decote forcee : tension balanced-investigate non levee, decote attendue minimale ${expectedMinDecote} points. LLM avait produit ${llmSuccessProb} (decote ${probDelta}).`;
+    }
+  }
+  // Pour contrarian-justifies, on ne force aucune decote : alignement
+  // legitime quand la tension est resolue en faveur des contrariens.
+
+  if (probAdjustmentApplied) {
+    console.warn(`[orchestrator] successProbability ajustee : ${llmSuccessProb} -> ${probAdjusted}. ${probAdjustmentRationale}`);
+    recommendation.successProbability = probAdjusted;
+    recommendation.failureProbability = 100 - probAdjusted;
   }
 
   // ============================================================
