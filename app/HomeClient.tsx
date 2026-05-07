@@ -3065,7 +3065,7 @@ export default function HomeClient({
                       </div>
                       <div className="kv-item">
                         <div className="kv-key">Tour</div>
-                        <div className="kv-val">{joinNonEmpty([result.extraction?.fundraise?.stage, result.extraction?.fundraise?.amount], ' · ')}</div>
+                        <div className="kv-val">{joinNonEmpty([result.extraction?.fundraise?.stage, result.extraction?.fundraise?.amount], ' · ', 'non renseigné')}</div>
                       </div>
                       <div className="kv-item">
                         <div className="kv-key">Année fondation</div>

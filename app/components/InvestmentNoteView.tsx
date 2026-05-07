@@ -349,7 +349,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </tr>
             <tr>
               <td className="note-label">Deal type</td>
-              <td className="note-value">{joinNonEmpty([e.fundraise?.stage, e.fundraise?.amount || (e.fundraise?.stage ? 'montant non précisé' : null)], ' · ')}</td>
+              <td className="note-value">{joinNonEmpty([e.fundraise?.stage, e.fundraise?.amount || (e.fundraise?.stage ? 'montant non précisé' : null)], ' · ', 'non renseigné')}</td>
             </tr>
             <tr>
               <td className="note-label">Deal context</td>
