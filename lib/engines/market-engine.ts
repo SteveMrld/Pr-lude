@@ -478,42 +478,10 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
   // explicitement listes ci-dessus (futurs ajouts, champs optionnels).
   const merged = { ...analysis, ...normalized };
 
-  // Post-processing deterministe selon la matrice de pertinence. Le LLM
-  // est invite a respecter le verdict, mais on ferme la porte des
-  // derives par un override final. Pour les dossiers hardware physique,
-  // infrastructure, biotech humide ou service regule a barriere humaine,
-  // on garantit que le bloc aiReplicability reflete une non-applicabilite
-  // structurelle au lieu d une speculation generique sur la duplication
-  // par IA.
-  if (relevanceMatrix) {
-    if (relevanceMatrix.verdicts.marketAiReplicability.applicable === 'none' && merged.defensibility) {
-      const factors = relevanceMatrix.digitalReproducibilityFactors;
-      (merged.defensibility as any).aiReplicability = {
-        verdict: 'protected',
-        timeToReplicate: 'non applicable',
-        reasoning: `Produit hors software pur : la reproduction par IA n est pas une menace pertinente pour ce dossier. ${factors.join('. ')}.`,
-        protectingFactors: factors.length > 0 ? factors : ['chaine de production physique ou regulee non duplicable par logiciel'],
-        replicableComponents: [],
-      };
-    }
-
-    if (relevanceMatrix.verdicts.marketAiBusinessModel.applicable === 'none') {
-      merged.aiBusinessModel = {
-        isAiNative: false,
-        isLlmWrapper: false,
-        classification: 'not_applicable',
-        grossMarginEstimate: 'non applicable',
-        grossMarginRationale: 'Modele economique sans dependance structurelle a un LLM tiers : la grille AI-native ne s applique pas.',
-        llmProviderConcentration: 'non applicable',
-        aiTaxSensitivity: 'non applicable',
-        commoditizationRisk: 'low',
-        commoditizationReasoning: 'Pas d exposition au compute LLM puisque pas de dependance LLM tiers detectee.',
-        multipleAdjustment: 'non applicable',
-        redFlags: [],
-        sustainableSignals: [],
-      };
-    }
-  }
+  // Post-processing deterministe selon la matrice de pertinence.
+  // Extrait en fonction pure pour permettre des tests unitaires
+  // independants du LLM et du fetcher reseau.
+  applyMarketVerdictPostProcessing(merged, relevanceMatrix);
 
   // Log si on a du normaliser, pour suivre la frequence du probleme
   // sans casser la pipeline.
@@ -531,4 +499,53 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
   }
 
   return { ...merged, realData };
+}
+
+/**
+ * Post-processing deterministe du resultat market selon la matrice
+ * de pertinence. Si la matrice dit qu un sous-bloc IA n est pas
+ * applicable, on construit un bloc deterministe qui reflete la
+ * non-applicabilite structurelle au lieu d une speculation
+ * generique. Le LLM est invite a respecter le verdict via le
+ * system prompt, mais ce post-processing ferme la porte des
+ * derives.
+ *
+ * Mute merged sur place et le retourne. Si relevanceMatrix est
+ * null ou undefined, retourne merged inchange.
+ */
+export function applyMarketVerdictPostProcessing(
+  merged: MarketAnalysisOutput,
+  relevanceMatrix?: RelevanceMatrix | null,
+): MarketAnalysisOutput {
+  if (!relevanceMatrix) return merged;
+
+  if (relevanceMatrix.verdicts.marketAiReplicability.applicable === 'none' && merged.defensibility) {
+    const factors = relevanceMatrix.digitalReproducibilityFactors;
+    (merged.defensibility as any).aiReplicability = {
+      verdict: 'protected',
+      timeToReplicate: 'non applicable',
+      reasoning: `Produit hors software pur : la reproduction par IA n est pas une menace pertinente pour ce dossier. ${factors.join('. ')}.`,
+      protectingFactors: factors.length > 0 ? factors : ['chaine de production physique ou regulee non duplicable par logiciel'],
+      replicableComponents: [],
+    };
+  }
+
+  if (relevanceMatrix.verdicts.marketAiBusinessModel.applicable === 'none') {
+    merged.aiBusinessModel = {
+      isAiNative: false,
+      isLlmWrapper: false,
+      classification: 'not_applicable',
+      grossMarginEstimate: 'non applicable',
+      grossMarginRationale: 'Modele economique sans dependance structurelle a un LLM tiers : la grille AI-native ne s applique pas.',
+      llmProviderConcentration: 'non applicable',
+      aiTaxSensitivity: 'non applicable',
+      commoditizationRisk: 'low',
+      commoditizationReasoning: 'Pas d exposition au compute LLM puisque pas de dependance LLM tiers detectee.',
+      multipleAdjustment: 'non applicable',
+      redFlags: [],
+      sustainableSignals: [],
+    };
+  }
+
+  return merged;
 }

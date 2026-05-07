@@ -411,23 +411,40 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
     console.warn('[macro-engine] tagging audit:', audit.message);
   }
 
-  // Post-processing deterministe : si la matrice dit que le sous-bloc
-  // geopolitique n est pas applicable, on garantit que le rendu final
-  // n imprime pas un commentaire generique. Le LLM est invite a
-  // respecter le verdict, mais on ferme la porte des derives.
-  if (relevanceMatrix) {
-    if (relevanceMatrix.verdicts.macroGeopolitical.applicable === 'none') {
-      analysis.geopolitics = 'Exposition geopolitique non significative pour ce dossier : aucune chaine de composants critiques, aucune presence en zone a risque pays, aucune intensite energetique fossile detectee. La dimension geopolitique n est pas un signal d instruction pour ce dossier.';
-    }
-    if (relevanceMatrix.verdicts.macroCyclical.applicable === 'none') {
-      // On ne force pas cyclePosition a "mature" : le LLM peut
-      // legitimement avoir lu un signal de cycle technologique
-      // independant de la conjoncture macro consumer. Mais on
-      // remplace demandCycle pour eviter le commentaire conjoncturel
-      // generique. structuralTrends reste a la main du LLM.
-      analysis.demandCycle = 'Modele economique peu sensible a la conjoncture consumer : la dynamique de demande depend d autres facteurs structurels (cycle technologique, regulation, structuration de marche) traites dans structuralTrends.';
-    }
-  }
+  // Post-processing deterministe selon la matrice de pertinence.
+  // Extrait en fonction pure pour permettre des tests unitaires
+  // independants du LLM et du fetcher reseau.
+  applyMacroVerdictPostProcessing(analysis, relevanceMatrix);
 
   return { ...analysis, realData, weoData: weoData ?? undefined };
+}
+
+/**
+ * Post-processing deterministe du resultat macro selon la matrice
+ * de pertinence. Si la matrice dit qu un sous-bloc n est pas
+ * applicable, on ecrase le champ correspondant pour garantir que
+ * le rendu final ne contient pas un commentaire generique. Le LLM
+ * est invite a respecter le verdict via le system prompt, mais ce
+ * post-processing ferme la porte des derives.
+ *
+ * Mute analysis sur place et le retourne. Si relevanceMatrix est
+ * null ou undefined, retourne analysis inchange.
+ */
+export function applyMacroVerdictPostProcessing(
+  analysis: MacroAnalysisOutput,
+  relevanceMatrix?: RelevanceMatrix | null,
+): MacroAnalysisOutput {
+  if (!relevanceMatrix) return analysis;
+  if (relevanceMatrix.verdicts.macroGeopolitical.applicable === 'none') {
+    analysis.geopolitics = 'Exposition geopolitique non significative pour ce dossier : aucune chaine de composants critiques, aucune presence en zone a risque pays, aucune intensite energetique fossile detectee. La dimension geopolitique n est pas un signal d instruction pour ce dossier.';
+  }
+  if (relevanceMatrix.verdicts.macroCyclical.applicable === 'none') {
+    // On ne force pas cyclePosition a "mature" : le LLM peut
+    // legitimement avoir lu un signal de cycle technologique
+    // independant de la conjoncture macro consumer. Mais on
+    // remplace demandCycle pour eviter le commentaire conjoncturel
+    // generique. structuralTrends reste a la main du LLM.
+    analysis.demandCycle = 'Modele economique peu sensible a la conjoncture consumer : la dynamique de demande depend d autres facteurs structurels (cycle technologique, regulation, structuration de marche) traites dans structuralTrends.';
+  }
+  return analysis;
 }
