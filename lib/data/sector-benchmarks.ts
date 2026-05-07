@@ -330,6 +330,216 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
       min: 5, central: 12, max: 25, multipleType: 'arr', confidence: 'low',
     },
   },
+
+  // ============================================================
+  // ADTECH / MEDIATECH
+  // Sources : LUMA Partners 2024, eMarketer 2024
+  // ============================================================
+  'adtech': {
+    seed: {
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium',
+      notes: 'Multiples plus bas que SaaS pur a cause du rev share et de la dependance plateformes (Google, Meta). Premium si ad tech infrastructure plutot que media buying.',
+    },
+    'series-a': {
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-b': {
+      min: 2, central: 4.5, max: 8, multipleType: 'revenue', confidence: 'high',
+    },
+    'series-c-plus': {
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'high',
+    },
+  },
+
+  // ============================================================
+  // FOODTECH / AGRITECH
+  // Sources : AgFunder 2024, Atomico Foodtech 2024
+  // ============================================================
+  'foodtech': {
+    seed: {
+      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium',
+      notes: 'Tres heterogene : multiples differents pour vertical farming (capex intensive, plus bas) vs digital nutrition (multiples SaaS). Selon le modele, retomber sur SaaS B2B ou marketplace si pertinent.',
+    },
+    'series-a': {
+      min: 3, central: 7, max: 13, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-b': {
+      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-c-plus': {
+      min: 1.5, central: 3.5, max: 7, multipleType: 'revenue', confidence: 'medium',
+    },
+  },
+
+  // ============================================================
+  // PROPTECH / REAL ESTATE TECH
+  // Sources : RECNet 2024, Atomico 2024
+  // ============================================================
+  'proptech': {
+    seed: {
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+      notes: 'Distinguer SaaS proptech (multiples plus eleves, 8-15x ARR si recurrent) des plateformes transactionnelles (multiples revenue plus bas). Verifier si modele transactional ou recurrent dans le pitch.',
+    },
+    'series-a': {
+      min: 4, central: 8, max: 14, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-b': {
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-c-plus': {
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'high',
+    },
+  },
+
+  // ============================================================
+  // EDTECH / EDUCATION
+  // Sources : HolonIQ Edtech 2024, Atomico 2024
+  // ============================================================
+  'edtech': {
+    seed: {
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium',
+      notes: 'B2C edtech sous pression depuis 2022. B2B (corporate learning, K-12 SaaS) plus stable. Si modele SaaS B2B clair, retomber sur saas-b2b.',
+    },
+    'series-a': {
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-b': {
+      min: 2, central: 4.5, max: 8, multipleType: 'revenue', confidence: 'high',
+    },
+    'series-c-plus': {
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'high',
+    },
+  },
+
+  // ============================================================
+  // LOGISTICS / SUPPLY CHAIN
+  // Sources : Pitchbook Logistics 2024, Atomico 2024
+  // ============================================================
+  'logistics': {
+    seed: {
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium',
+      notes: 'Multiples bas refletent l intensite capitalistique et la commoditisation. Si SaaS supply chain pur, retomber sur saas-b2b. Si freight forwarding ou last mile asset-heavy, multiples encore plus bas.',
+    },
+    'series-a': {
+      min: 2, central: 4, max: 7, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-b': {
+      min: 1.5, central: 3, max: 5.5, multipleType: 'revenue', confidence: 'high',
+    },
+    'series-c-plus': {
+      min: 1, central: 2, max: 4, multipleType: 'revenue', confidence: 'high',
+    },
+  },
+
+  // ============================================================
+  // SERVICES B2B (consulting, agencies, professional services)
+  // Sources : SaaS Capital 2024, Equiteq 2024
+  // ============================================================
+  'services-b2b': {
+    seed: {
+      min: 0.8, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high',
+      notes: 'Services non recurrents valorises a 1-2x revenue ou 4-8x EBITDA. Si la part recurrente / managed services depasse 40%, le multiple monte vers 2-4x revenue.',
+    },
+    'series-a': {
+      min: 1, central: 2, max: 3.5, multipleType: 'revenue', confidence: 'high',
+    },
+    'series-b': {
+      min: 0.8, central: 1.5, max: 2.8, multipleType: 'revenue', confidence: 'high',
+    },
+    'series-c-plus': {
+      min: 0.6, central: 1.2, max: 2.2, multipleType: 'revenue', confidence: 'high',
+      notes: 'Sur les Series B+ profitable, basculer sur EBITDA multiples (6-12x EBITDA) qui sont plus pertinents que revenue multiples.',
+    },
+  },
+
+  // ============================================================
+  // INDUSTRIES TRADITIONNELLES / HARDWARE NON-TECHNO
+  // Sources : KfW Capital 2024, BPI France 2024
+  // Multiples calcules en EBITDA pour les profitable, revenue pour
+  // les pre-profitable.
+  // ============================================================
+  'industrial-hardware': {
+    seed: {
+      min: 0, central: 0, max: 0, multipleType: 'revenue', confidence: 'low',
+      notes: 'A ce stade pre-revenue ou faiblement revenue, basculer sur Berkus + valorisation IP / TRL. Plage typique observee : pre-money 2-8M EUR selon TRL.',
+    },
+    'series-a': {
+      min: 1, central: 2.5, max: 5, multipleType: 'revenue', confidence: 'medium',
+      notes: 'Multiples revenue plus bas que pure tech. Si profitable, basculer sur EBITDA multiples (5-10x).',
+    },
+    'series-b': {
+      min: 0.8, central: 2, max: 4, multipleType: 'revenue', confidence: 'high',
+    },
+    'series-c-plus': {
+      min: 0.6, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high',
+      notes: 'Sur les profitable mature : EBITDA multiples 5-10x deviennent la reference. La methode revenue est conservee pour comparaison.',
+    },
+  },
+
+  // ============================================================
+  // PROFITABLE MATURE (PME profitable, EBITDA-based valuation)
+  // Sources : Argos Index 2024, S&P Global SME 2024
+  // Pour les boites Series B+ qui sont profitable et dont l EBITDA
+  // est la metrique pertinente plutot que ARR / revenue.
+  // ============================================================
+  'profitable-mature': {
+    seed: {
+      min: 0, central: 0, max: 0, multipleType: 'ebitda', confidence: 'low',
+      notes: 'Categorie non applicable au seed. Une boite seed n a pas d EBITDA stable.',
+    },
+    'series-a': {
+      min: 0, central: 0, max: 0, multipleType: 'ebitda', confidence: 'low',
+      notes: 'Rare au stade Series A d avoir un EBITDA stable et representatif. Privilegier multiples revenue.',
+    },
+    'series-b': {
+      min: 6, central: 10, max: 15, multipleType: 'ebitda', confidence: 'high',
+      notes: 'EBITDA multiples standard PME profitable Europe : Argos Index mediane 9-11x sur PME 2024. Premium si croissance > 20%.',
+    },
+    'series-c-plus': {
+      min: 7, central: 11, max: 17, multipleType: 'ebitda', confidence: 'high',
+      notes: 'Approche du marche public : multiples EBITDA convergent vers 10-12x sur PME mature europeenne. Sources : Argos Index Q4 2024 (mediane 9,8x), S&P Global SME 2024.',
+    },
+  },
+
+  // ============================================================
+  // CONTENT / MEDIATECH (streaming, publishing, gaming)
+  // Sources : Atomico Content 2024, Drake Star Gaming 2024
+  // ============================================================
+  'mediatech': {
+    seed: {
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium',
+      notes: 'Distinguer subscription content (multiples SaaS-like, 4-8x ARR) du gaming hit-driven (multiples revenue volatils selon catalogue).',
+    },
+    'series-a': {
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-b': {
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium',
+    },
+    'series-c-plus': {
+      min: 1, central: 2, max: 4, multipleType: 'revenue', confidence: 'high',
+    },
+  },
+
+  // ============================================================
+  // SPORTSTECH
+  // Sources : Drake Star Sportstech 2024
+  // ============================================================
+  'sportstech': {
+    seed: {
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'low',
+      notes: 'Categorie etroite, peu de comparables stables. Selon vertical (athlete tech, fan engagement, betting tech, performance analytics) les multiples varient fortement. Souvent retomber sur saas-b2b ou marketplace-b2c selon modele.',
+    },
+    'series-a': {
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'low',
+    },
+    'series-b': {
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'low',
+    },
+    'series-c-plus': {
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'low',
+    },
+  },
 };
 
 /**
@@ -341,25 +551,50 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   if (!raw) return 'saas-b2b'; // default safe
   const s = raw.toLowerCase();
 
+  // ----- Premium / categorie speciale
   if (s.includes('ai') || s.includes('genai') || s.includes('llm') || s.includes('generative')
     || s.includes('foundation model') || s.includes('intelligence artificielle')) return 'ai-generative';
-  if (s.includes('saas') || s.includes('b2b') || s.includes('software')) return 'saas-b2b';
+
+  // ----- Asset-classes principales
+  if (s.includes('cyber') || s.includes('security') || s.includes('siem') || s.includes('zero trust')) return 'cybersecurity';
   if (s.includes('fintech') || s.includes('finance') || s.includes('banking') || s.includes('payment')
-    || s.includes('insurtech') || s.includes('lending')) return 'fintech';
+    || s.includes('insurtech') || s.includes('lending') || s.includes('regtech')) return 'fintech';
   if (s.includes('marketplace') || s.includes('platform b2c') || s.includes('consumer marketplace')) return 'marketplace-b2c';
-  if (s.includes('ecommerce') || s.includes('dtc') || s.includes('direct to consumer')
+  if (s.includes('ecommerce') || s.includes('e-commerce') || s.includes('dtc') || s.includes('direct to consumer')
     || s.includes('retail')) return 'ecommerce-dtc';
-  if (s.includes('deeptech') || s.includes('deep tech') || s.includes('hardware')
-    || s.includes('biotech') || s.includes('quantum') || s.includes('materials')) return 'deeptech';
-  if (s.includes('cyber') || s.includes('security')) return 'cybersecurity';
+  if (s.includes('deeptech') || s.includes('deep tech') || s.includes('biotech')
+    || s.includes('quantum') || s.includes('materials') || s.includes('semiconductor')) return 'deeptech';
   if (s.includes('health') || s.includes('medical') || s.includes('digital health')
-    || s.includes('medtech')) return 'healthtech';
-  if (s.includes('climate') || s.includes('energy') || s.includes('cleantech') || s.includes('greentech')
-    || s.includes('decarbonisation')) return 'climate-tech';
+    || s.includes('medtech') || s.includes('healthtech')) return 'healthtech';
+  if (s.includes('climate') || s.includes('cleantech') || s.includes('greentech')
+    || s.includes('energy') || s.includes('decarbonisation') || s.includes('carbon')) return 'climate-tech';
   if (s.includes('defense') || s.includes('defence') || s.includes('military')
     || s.includes('dual-use') || s.includes('aerospace')) return 'defense';
   if (s.includes('hospitality') || s.includes('travel') || s.includes('tourism')
     || s.includes('hotel') || s.includes('vacation')) return 'hospitality';
+
+  // ----- Asset-classes ajoutees pour couverture etendue
+  if (s.includes('adtech') || s.includes('ad tech') || s.includes('advertising')
+    || s.includes('martech') || s.includes('marketing tech')) return 'adtech';
+  if (s.includes('foodtech') || s.includes('agritech') || s.includes('agriculture')
+    || s.includes('food tech') || s.includes('vertical farming') || s.includes('alt protein')) return 'foodtech';
+  if (s.includes('proptech') || s.includes('real estate') || s.includes('immobilier')
+    || s.includes('construction tech') || s.includes('contech')) return 'proptech';
+  if (s.includes('edtech') || s.includes('education') || s.includes('e-learning')
+    || s.includes('learning')) return 'edtech';
+  if (s.includes('logistics') || s.includes('supply chain') || s.includes('freight')
+    || s.includes('shipping') || s.includes('last mile')) return 'logistics';
+  if (s.includes('media') || s.includes('streaming') || s.includes('publishing')
+    || s.includes('gaming') || s.includes('content') || s.includes('entertainment')) return 'mediatech';
+  if (s.includes('sport') || s.includes('athletetech') || s.includes('fan engagement')) return 'sportstech';
+  if (s.includes('services') || s.includes('consulting') || s.includes('agency')
+    || s.includes('agencies') || s.includes('professional services')) return 'services-b2b';
+  if (s.includes('hardware') || s.includes('manufacturing') || s.includes('industrial')
+    || s.includes('industrie') || s.includes('robotics')) return 'industrial-hardware';
+
+  // ----- SaaS / B2B logiciel : par defaut quand on est dans la nuance
+  if (s.includes('saas') || s.includes('b2b') || s.includes('software')
+    || s.includes('hrtech') || s.includes('legaltech') || s.includes('govtech')) return 'saas-b2b';
 
   return 'saas-b2b'; // fallback safe
 }

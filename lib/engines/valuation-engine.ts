@@ -117,8 +117,24 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     ? `${ext.sector || ''} ${ext.subSector || ''}`.trim() || ext.sector
     : null;
   const stageRaw = ext?.fundraise?.stage || null;
-  const assetClass = normalizeAssetClass(assetClassRaw);
+  let assetClass = normalizeAssetClass(assetClassRaw);
   const stage = normalizeStage(stageRaw);
+
+  // Detection automatique du cas 'profitable-mature' : si on est en
+  // Series B+ et qu un EBITDA positif est extrait dans le pitch ou le
+  // BP, c est la categorie pertinente. Les multiples EBITDA donnent
+  // une fourchette plus precise que les multiples revenue sur ces
+  // dossiers. La detection ne s active pas pour les cas SaaS pur ou
+  // l EBITDA peut etre negatif tout en ayant des multiples ARR eleves.
+  const fin: any = input.financial;
+  const ebitda = parseFinancialNumber(fin?.metrics?.ebitdaEur || fin?.metrics?.ebitda);
+  const isLateStage = stage === 'series-b' || stage === 'series-c-plus';
+  const isNonPureSaas = assetClass !== 'saas-b2b'
+    && assetClass !== 'cybersecurity'
+    && assetClass !== 'ai-generative';
+  if (ebitda && ebitda > 0 && isLateStage && isNonPureSaas) {
+    assetClass = 'profitable-mature';
+  }
 
   // ---------- Methode 1 : multiples sectoriels
   const multiplesResult = computeBySectorMultiples(input, assetClass, stage);
@@ -423,6 +439,17 @@ function getExitScenarios(assetClass: string, stage: ValuationStage): { bear: nu
     'defense': 250_000_000,
     'hospitality': 70_000_000,
     'ai-generative': 250_000_000,
+    // Asset-classes ajoutees
+    'adtech': 80_000_000,
+    'foodtech': 70_000_000,
+    'proptech': 80_000_000,
+    'edtech': 60_000_000,
+    'logistics': 90_000_000,
+    'services-b2b': 50_000_000,
+    'industrial-hardware': 70_000_000,
+    'profitable-mature': 120_000_000,
+    'mediatech': 80_000_000,
+    'sportstech': 60_000_000,
   };
   const base = baseExits[assetClass];
   if (!base) return null;
@@ -751,6 +778,17 @@ function getBenchmarkSources(assetClass: string): string[] {
     'defense': ['SVB Defense Tech 2024', 'NATO Innovation Fund'],
     'hospitality': ['Skift 2024', 'Atomico Travel 2024'],
     'ai-generative': ['CB Insights 2024', 'Crunchbase AI 2024'],
+    // Asset-classes ajoutees
+    'adtech': ['LUMA Partners 2024', 'eMarketer 2024'],
+    'foodtech': ['AgFunder 2024', 'Atomico Foodtech 2024'],
+    'proptech': ['RECNet 2024', 'Atomico 2024'],
+    'edtech': ['HolonIQ Edtech 2024', 'Atomico 2024'],
+    'logistics': ['Pitchbook Logistics 2024', 'Atomico 2024'],
+    'services-b2b': ['SaaS Capital 2024', 'Equiteq 2024'],
+    'industrial-hardware': ['KfW Capital 2024', 'BPI France 2024'],
+    'profitable-mature': ['Argos Index Q4 2024', 'S&P Global SME 2024'],
+    'mediatech': ['Atomico Content 2024', 'Drake Star Gaming 2024'],
+    'sportstech': ['Drake Star Sportstech 2024'],
   };
   return sources[assetClass] || ['Sources sectorielles publiques 2024-2025'];
 }
