@@ -2122,6 +2122,11 @@ ul, ol { list-style: none; }
   background: var(--rouge-anglais-soft);
   border-left: 3px solid var(--rouge-anglais);
 }
+.prescan-gate-top {
+  margin-top: 0;
+  margin-bottom: 28px;
+  border-left-width: 4px;
+}
 .prescan-gate-eyebrow {
   font-family: var(--sans);
   font-size: 10.5px;

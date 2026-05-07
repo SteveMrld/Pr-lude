@@ -1720,6 +1720,47 @@ export default function HomeClient({
                 Pour le Bloc 1 (note d&apos;instruction), déposer le pitch deck PDF avec le business plan optionnel. Pour le Bloc 2 (data room), ajouter le grand livre comptable, le pacte d&apos;actionnaires, les statuts, les contrats clients principaux, le cap table et le dossier technique transmis par la startup. Les moteurs Bloc 2 ne tournent que si les documents correspondants sont fournis. Voir ci-dessous la convention de nommage attendue pour la classification automatique.
               </p>
 
+              {/* PRESCAN KNOCKOUT - Affiche en HAUT de la zone d action,
+                  avant l upload box, pour etre la premiere chose vue par
+                  l utilisateur quand il revient sur la page apres un
+                  pre-scan defavorable. Avant la refonte, ce bloc etait
+                  affiche en bas de la zone CTA, ce qui obligeait a
+                  scroller pour voir le verdict. */}
+              {prescanKnockout && !analyzing && (
+                <div className="prescan-gate prescan-gate-top">
+                  <div className="prescan-gate-eyebrow">Triage Bloc 0 · Pré-scan défavorable</div>
+                  <div className="prescan-gate-title">Le pré-scan a levé un drapeau éliminatoire</div>
+                  <div className="prescan-gate-summary">{prescanKnockout.summary}</div>
+                  {prescanKnockout.failedTests.length > 0 && (
+                    <div className="prescan-gate-tests">
+                      <div className="prescan-gate-tests-label">Tests échoués</div>
+                      <ul className="prescan-gate-tests-list">
+                        {prescanKnockout.failedTests.map((t, i) => (
+                          <li key={i}>{t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="prescan-gate-meta">
+                    Score {prescanKnockout.score}/{prescanKnockout.totalTests}. Le pipeline complet, qui mobilise quatorze moteurs analytiques pour environ 2,80 USD de crédits, n&apos;a pas été déclenché.
+                  </div>
+                  <div className="prescan-gate-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => analyze({ forcePrescan: true })}
+                    >
+                      Lancer l&apos;analyse complète malgré tout
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => { setPrescanKnockout(null); reset(); }}
+                    >
+                      Ranger le dossier
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {files.length === 0 ? (
                 <>
                   <div className={`upload-box ${dragging ? 'dragging' : ''}`}
@@ -1812,48 +1853,6 @@ export default function HomeClient({
               )}
 
               {error && <div className="error-box"><div className="error-title">Erreur</div><div>{error}</div></div>}
-
-              {/* GATING DOUX DU PRE-SCAN
-                  Visible uniquement quand le pre-scan a leve un knockout
-                  et que le pipeline complet ne s est pas declenche pour
-                  economiser les credits. Le partner peut soit ranger le
-                  dossier, soit forcer l analyse complete malgre tout.
-                  Voix Le Grand Continent : ton chirurgical, pas de ton
-                  alarmiste, on expose les faits et on rend le choix. */}
-              {prescanKnockout && !analyzing && (
-                <div className="prescan-gate">
-                  <div className="prescan-gate-eyebrow">Triage Bloc 0 · Pré-scan défavorable</div>
-                  <div className="prescan-gate-title">Le pré-scan a levé un drapeau éliminatoire</div>
-                  <div className="prescan-gate-summary">{prescanKnockout.summary}</div>
-                  {prescanKnockout.failedTests.length > 0 && (
-                    <div className="prescan-gate-tests">
-                      <div className="prescan-gate-tests-label">Tests échoués</div>
-                      <ul className="prescan-gate-tests-list">
-                        {prescanKnockout.failedTests.map((t, i) => (
-                          <li key={i}>{t}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <div className="prescan-gate-meta">
-                    Score {prescanKnockout.score}/{prescanKnockout.totalTests}. Le pipeline complet, qui mobilise quatorze moteurs analytiques pour environ 2,80 USD de crédits, n&apos;a pas été déclenché.
-                  </div>
-                  <div className="prescan-gate-actions">
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => analyze({ forcePrescan: true })}
-                    >
-                      Lancer l&apos;analyse complète malgré tout
-                    </button>
-                    <button
-                      className="btn"
-                      onClick={() => { setPrescanKnockout(null); reset(); }}
-                    >
-                      Ranger le dossier
-                    </button>
-                  </div>
-                </div>
-              )}
             </section>
 
             {/* COLOPHON FOOTER */}
@@ -1871,8 +1870,8 @@ export default function HomeClient({
               <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances. Suivi en temps réel dans le bandeau ci-dessus.</div>
             </div>
             <div style={{ padding: '12px 18px', background: 'var(--ocre-brule-soft)', border: '1px solid var(--ocre-brule)', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
-              <strong>Sur mobile :</strong> ne verrouille pas l'écran et ne change pas d'application pendant les 3-4 minutes du pipeline.
-              La connexion au serveur se coupe si le téléphone passe en veille. Pose le téléphone à plat avec l'écran allumé.
+              <strong>Sur mobile :</strong> idéalement laisse l&apos;écran allumé pendant les 3-4 minutes du pipeline.
+              Si la connexion est interrompue, l&apos;analyse continue de tourner côté serveur et apparaît dans Historique au prochain refresh. Aucune perte possible.
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
               <button
