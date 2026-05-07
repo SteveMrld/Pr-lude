@@ -448,33 +448,64 @@ function computeMagicNumber(
 }
 
 /**
- * Payback CAC = CAC / (ARPU mensuel × marge brute).
- * Lit unitEconomics du BP : CAC, ACV, marge brute par unite.
+ * Payback CAC = CAC effectif par customer / (ARPU mensuel × marge brute).
+ *
+ * Source 1 (prioritaire) : moteur saas-metrics-engine, qui extrait le
+ * CAC declare ET sa base reelle (per-customer / per-lead / per-mql)
+ * et calcule un CAC effectif par customer signe en corrigeant par le
+ * taux de conversion. C est la voie qui evite les verdicts trompeurs
+ * sur les dossiers ou le fondateur appelle CAC un Cost Per Lead.
+ *
+ * Source 2 (fallback) : unitEconomics.estimatedCAC du moteur
+ * financial-extraction-engine, sans correction de basis. Voie
+ * historique, conservee pour les BP qui declarent un CAC bien defini
+ * dans leurs onglets metriques.
  */
 function computePaybackCac(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet,
+  saasMetrics?: SaasMetricsExtraction | null,
 ): IndicatorResult {
   const label = 'Payback CAC';
   const benchmark = benchmarks.paybackCac;
-  if (!fd || !benchmark) {
+  if (!benchmark) {
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
-      rationale: 'Indicateur non applicable ou donnees BP absentes.',
+      rationale: 'Payback CAC non applicable a cet asset class. La metrique mesure la duree d amortissement du cout d acquisition d un client, pertinente uniquement pour les modeles a vente recurrente ou repetable. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
   }
 
-  const cac = parseCurrencyToEur(fd.unitEconomics?.estimatedCAC);
-  const acv = parseCurrencyToEur(fd.unitEconomics?.averageContractValue);
-  const grossMarginPct = parsePercent(fd.unitEconomics?.grossMarginPerUnit);
+  // Source 1 : moteur saas-metrics-engine. Le LLM a extrait CAC
+  // declare, basis (per-customer / per-lead / per-mql / unclear),
+  // CVR si present, ACV et marge brute si declares dans le pitch.
+  // Le CAC effectif par customer est deja calcule cote moteur.
+  const ue = saasMetrics?.unitEconomics;
+  const llmEffectiveCac = ue?.effectiveCacPerCustomer ?? null;
+  const llmAcv = ue?.declaredAcv ?? null;
+  const llmGrossMarginPct = ue?.declaredGrossMarginPct ?? null;
+  const cacBasis = ue?.declaredCacBasis ?? 'absent';
+  const llmCorrectionApplied = (cacBasis === 'per-lead' && (ue?.leadToCustomerRate ?? 0) > 0)
+    || (cacBasis === 'per-mql' && (ue?.mqlToCustomerRate ?? 0) > 0);
+
+  // Source 2 : fallback financial-extraction. Si le LLM n a rien
+  // trouve, on retombe sur les valeurs du BP.
+  const fdCac = fd ? parseCurrencyToEur(fd.unitEconomics?.estimatedCAC) : null;
+  const fdAcv = fd ? parseCurrencyToEur(fd.unitEconomics?.averageContractValue) : null;
+  const fdGrossMarginPct = fd ? parsePercent(fd.unitEconomics?.grossMarginPerUnit) : null;
+
+  // On combine en preferant le LLM. Pour ACV et marge, on prend la
+  // premiere source non nulle entre LLM et BP.
+  const cac = llmEffectiveCac ?? fdCac;
+  const acv = llmAcv ?? fdAcv;
+  const grossMarginPct = llmGrossMarginPct ?? fdGrossMarginPct;
 
   if (cac == null || acv == null || acv <= 0) {
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
-      rationale: 'CAC ou ACV non communiques dans le BP. Doivent etre demandes en DD pour calculer le payback.',
+      rationale: 'CAC ou ACV non communiques dans le pitch ni le BP. Doivent etre demandes en DD pour calculer le payback. Demander aussi le funnel de conversion (visites / leads / customers) pour qualifier la base reelle du CAC.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
     };
@@ -495,11 +526,46 @@ function computePaybackCac(
     };
   }
   const value = cac / monthlyContribution;
+
+  // Construction du rationale selon la voie utilisee. On signale
+  // explicitement quand une correction CVR a ete appliquee (cas le
+  // plus structurant pour la lecture VC) ou quand la basis est
+  // restee unclear malgre l extraction (warning).
+  let cacExplanation: string;
+  if (llmEffectiveCac != null && llmCorrectionApplied) {
+    const rate = cacBasis === 'per-lead' ? ue?.leadToCustomerRate : ue?.mqlToCustomerRate;
+    cacExplanation = `CAC effectif ${formatEur(cac)} (CAC declare ${formatEur(ue?.declaredCac || 0)} corrige par taux de conversion ${cacBasis === 'per-lead' ? 'lead-to-customer' : 'MQL-to-customer'} ${rate}%)`;
+  } else if (llmEffectiveCac != null && cacBasis === 'per-customer') {
+    cacExplanation = `CAC ${formatEur(cac)} (declare par customer signe, pas de correction CVR necessaire)`;
+  } else if (llmEffectiveCac != null && (cacBasis === 'per-lead' || cacBasis === 'per-mql')) {
+    cacExplanation = `CAC ${formatEur(cac)} (declare ${cacBasis}, taux de conversion absent du dossier : valeur non corrigee, a verifier en DD)`;
+  } else if (llmEffectiveCac != null && cacBasis === 'unclear') {
+    cacExplanation = `CAC ${formatEur(cac)} (base de calcul ambigue : a clarifier en DD pour distinguer CAC reel et CPL)`;
+  } else {
+    cacExplanation = `CAC ${formatEur(cac)} (issu du BP)`;
+  }
+
+  // dataConfidence : high si LLM a extrait basis per-customer ou
+  // correction effectivement appliquee. Medium si basis ambigue
+  // ou marge brute non declaree. Sinon high par defaut sur le BP.
+  let dataConfidence: 'high' | 'medium' | 'low';
+  if (llmEffectiveCac != null) {
+    if (cacBasis === 'per-customer' || llmCorrectionApplied) {
+      dataConfidence = grossMarginPct != null ? 'high' : 'medium';
+    } else if (cacBasis === 'unclear' || (cacBasis === 'per-lead' || cacBasis === 'per-mql')) {
+      dataConfidence = 'medium';
+    } else {
+      dataConfidence = grossMarginPct != null ? 'high' : 'medium';
+    }
+  } else {
+    dataConfidence = grossMarginPct != null ? 'high' : 'medium';
+  }
+
   return {
     key: 'paybackCac', label, value: roundTo(value, 1), unit: 'mois',
     verdict: classifyValue(value, benchmark),
-    rationale: `CAC ${formatEur(cac)} / (ACV ${formatEur(acv)} / 12 × marge brute ${grossMarginPct != null ? `${roundTo(grossMarginPct, 0)}%` : '50% proxy'}) = ${roundTo(value, 1)} mois.`,
-    dataConfidence: grossMarginPct != null ? 'high' : 'medium',
+    rationale: `${cacExplanation} / (ACV ${formatEur(acv)} / 12 × marge brute ${grossMarginPct != null ? `${roundTo(grossMarginPct, 0)}%` : '50% proxy'}) = ${roundTo(value, 1)} mois.`,
+    dataConfidence,
     benchmark: thresholdsToBenchmark(benchmark),
   };
 }
@@ -670,7 +736,7 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
     computeRuleOf40(fd, benchmarks),
     computeNdr(fd, benchmarks, sm),
     computeMagicNumber(fd, benchmarks, sm),
-    computePaybackCac(fd, benchmarks),
+    computePaybackCac(fd, benchmarks, sm),
     computeGrossMargin(fd, benchmarks),
     computeRevenuePerEmployee(fd, benchmarks),
   ];
