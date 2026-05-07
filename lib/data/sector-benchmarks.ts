@@ -552,8 +552,20 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   const s = raw.toLowerCase();
 
   // ----- Premium / categorie speciale
-  if (s.includes('ai') || s.includes('genai') || s.includes('llm') || s.includes('generative')
-    || s.includes('foundation model') || s.includes('intelligence artificielle')) return 'ai-generative';
+  if (s.includes('genai') || s.includes('llm') || s.includes('generative')
+    || s.includes('foundation model') || s.includes('intelligence artificielle')
+    || /\bai\b/.test(s)) return 'ai-generative';
+
+  // ----- Energies marines / infrastructures marines : prioritaire
+  // sur climate-tech generique car le profil economique (CAPEX par
+  // projet, cycle long, infrastructure physique) releve de l asset
+  // class hardware industriel et non du climate-tech logiciel.
+  if (s.includes('energie marine') || s.includes('énergie marine')
+    || s.includes('energies marines') || s.includes('énergies marines')
+    || s.includes('marine energy') || s.includes('ocean energy')
+    || s.includes('offshore') || s.includes('genie maritime') || s.includes('génie maritime')
+    || s.includes('swac') || s.includes('otec') || s.includes('etm')
+    || /\bemr\b/.test(s)) return 'industrial-hardware';
 
   // ----- Asset-classes principales
   if (s.includes('cyber') || s.includes('security') || s.includes('siem') || s.includes('zero trust')) return 'cybersecurity';
@@ -567,7 +579,12 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   if (s.includes('health') || s.includes('medical') || s.includes('digital health')
     || s.includes('medtech') || s.includes('healthtech')) return 'healthtech';
   if (s.includes('climate') || s.includes('cleantech') || s.includes('greentech')
-    || s.includes('energy') || s.includes('decarbonisation') || s.includes('carbon')) return 'climate-tech';
+    || s.includes('energy') || s.includes('decarbonisation') || s.includes('carbon')
+    || s.includes('energie') || s.includes('énergie') || s.includes('energies') || s.includes('énergies')
+    || s.includes('energetique') || s.includes('énergétique')
+    || s.includes('renouvelable') || s.includes('renouvelables')
+    || s.includes('transition energetique') || s.includes('transition énergétique')
+    || /\benr\b/.test(s)) return 'climate-tech';
   if (s.includes('defense') || s.includes('defence') || s.includes('military')
     || s.includes('dual-use') || s.includes('aerospace')) return 'defense';
   if (s.includes('hospitality') || s.includes('travel') || s.includes('tourism')
@@ -590,7 +607,8 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   if (s.includes('services') || s.includes('consulting') || s.includes('agency')
     || s.includes('agencies') || s.includes('professional services')) return 'services-b2b';
   if (s.includes('hardware') || s.includes('manufacturing') || s.includes('industrial')
-    || s.includes('industrie') || s.includes('robotics')) return 'industrial-hardware';
+    || s.includes('industrie') || s.includes('industriel') || s.includes('robotics')
+    || s.includes('infrastructure') || s.includes('genie civil') || s.includes('génie civil')) return 'industrial-hardware';
 
   // ----- SaaS / B2B logiciel : par defaut quand on est dans la nuance
   if (s.includes('saas') || s.includes('b2b') || s.includes('software')
