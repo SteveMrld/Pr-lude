@@ -264,6 +264,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         financial: r.financialCoherence,
         financialData: r.financialData,
         saasMetrics: r.saasMetrics,
+        relevanceMatrix: r.relevanceMatrix,
       });
     } catch (err) {
       console.warn('[InvestmentNoteView] recompute indicators failed:', err);

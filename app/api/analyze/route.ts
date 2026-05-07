@@ -509,6 +509,7 @@ export async function POST(req: NextRequest) {
             financial: financialCoherence,
             financialData,
             saasMetrics,
+            relevanceMatrix,
           });
 
           const orchestratePromise = (async () => {

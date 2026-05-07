@@ -39,6 +39,7 @@ import {
 import { normalizeAssetClass, normalizeStage, type ValuationStage } from '@/lib/data/sector-benchmarks';
 import type { ExtractionOutput, FinancialDataExtraction, FinancialCoherenceOutput } from '@/lib/engines/types';
 import type { SaasMetricsExtraction } from '@/lib/engines/saas-metrics-engine';
+import type { RelevanceMatrix } from '@/lib/engines/relevance-matrix';
 
 // ============================================================
 // TYPES
@@ -51,7 +52,9 @@ import type { SaasMetricsExtraction } from '@/lib/engines/saas-metrics-engine';
  */
 export interface IndicatorResult {
   /** Identifiant technique de l indicateur. */
-  key: 'burnMultiple' | 'ruleOf40' | 'ndr' | 'magicNumber' | 'paybackCac' | 'grossMargin' | 'revenuePerEmployee';
+  key: 'burnMultiple' | 'ruleOf40' | 'ndr' | 'magicNumber' | 'paybackCac' | 'grossMargin' | 'revenuePerEmployee'
+    | 'unitMargin' | 'commercialCycle' | 'orderBacklog' | 'workingCapitalRatio' | 'projectCapex' | 'industrialCapacity'
+    | 'tenderWinRate';
   /** Nom lisible pour la note. */
   label: string;
   /** Valeur calculee, en l unite de l indicateur. Null si non calculable. */
@@ -465,6 +468,7 @@ function computePaybackCac(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet,
   saasMetrics?: SaasMetricsExtraction | null,
+  acquisitionFunnel?: 'present' | 'b2b-sales-led' | 'absent' | 'unknown' | null,
 ): IndicatorResult {
   const label = 'Payback CAC';
   const benchmark = benchmarks.paybackCac;
@@ -474,6 +478,20 @@ function computePaybackCac(
       verdict: 'non-applicable',
       rationale: 'Payback CAC non applicable a cet asset class. La metrique mesure la duree d amortissement du cout d acquisition d un client, pertinente uniquement pour les modeles a vente recurrente ou repetable. Modele du dossier non concerne.',
       dataConfidence: 'absent',
+    };
+  }
+
+  // Si la matrice de pertinence dit que le funnel d acquisition est
+  // absent (B2G appels d offres, projets uniques sans demarche
+  // marketing), Payback CAC n est pas une metrique applicable meme si
+  // un CAC apparent est present dans le BP. On ferme la porte.
+  if (acquisitionFunnel === 'absent') {
+    return {
+      key: 'paybackCac', label, value: null, unit: 'mois',
+      verdict: 'non-applicable',
+      rationale: 'Payback CAC non applicable : le modele economique n implique pas d acquisition par funnel marketing mesurable (vente B2G par appels d offres, projets uniques negocies). La metrique pertinente pour ce modele est le cycle commercial moyen et le taux de gain sur appels d offre soumis.',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
     };
   }
 
@@ -681,6 +699,169 @@ function computeRevenuePerEmployee(
 }
 
 // ============================================================
+// INDICATEURS INDUSTRIELS / PROJECT-BASED
+// ------------------------------------------------------------
+// Set de remplacement pour les modeles de fabrication-vente,
+// projets par operations, ou contrats B2G. Les sept KPI SaaS
+// canoniques (NDR, Magic Number, Payback CAC, Burn multiple
+// SaaS, Rule of 40, Marge brute SaaS, Revenue per employe)
+// ne s appliquent pas structurellement a ces dossiers.
+//
+// Indicateurs cibles :
+//   - unitMargin            : marge brute par unite vendue
+//   - commercialCycle       : duree moyenne du cycle commercial
+//   - orderBacklog          : carnet de commandes vs revenue annuel
+//   - workingCapitalRatio   : working capital / revenue
+//   - projectCapex          : capex par projet en % du revenue projet
+//   - industrialCapacity    : capacite industrielle annuelle
+//   - tenderWinRate         : taux de gain sur appels d offres soumis
+//
+// V1 : la plupart de ces indicateurs ne sont pas extractibles
+// automatiquement depuis le BP standard. On les retourne en
+// non-applicable avec un rationnel "a demander en DD" qui guide
+// le partner. Une iteration ulterieure pourra ajouter une
+// extraction LLM dediee (industrial-metrics-engine) sur le pitch
+// et le BP, comme on l a fait pour saas-metrics.
+// ============================================================
+
+const INDUSTRIAL_BENCHMARKS = {
+  unitMargin: { best: 35, sain: 25, surveille: 15, direction: 'higher-is-better', unit: '%' } as IndicatorThresholds,
+  // Cycle commercial moyen en mois. Lower-is-better : un cycle court
+  // signe une demande structuree et un go-to-market predictible.
+  commercialCycle: { best: 6, sain: 12, surveille: 24, direction: 'lower-is-better', unit: 'mois' } as IndicatorThresholds,
+  // Carnet de commandes en multiple de revenue annualise. Plus de
+  // visibilite = meilleur signal pour les modeles a cycle long.
+  orderBacklog: { best: 2, sain: 1, surveille: 0.5, direction: 'higher-is-better', unit: 'x' } as IndicatorThresholds,
+  // Working capital / revenue. Lower-is-better : moins de capital
+  // immobilise = meilleur retour sur cash.
+  workingCapitalRatio: { best: 0.15, sain: 0.30, surveille: 0.50, direction: 'lower-is-better', unit: 'ratio' } as IndicatorThresholds,
+  // Capex par projet en pourcentage du revenue projet. Plus le ratio
+  // est bas, mieux c est : on degage de la marge avant capex.
+  projectCapex: { best: 30, sain: 50, surveille: 70, direction: 'lower-is-better', unit: '%' } as IndicatorThresholds,
+  // Industrial capacity en unites par an. Pas de seuil unique : a
+  // contextualiser au stade et a la complexite. On retourne le chiffre
+  // brut sans verdict pour cette V1.
+  // tenderWinRate : taux de gain sur appels d offres. Sain >25% sur
+  // appels d offre publics (hors mission gagnee comme leader unique).
+  tenderWinRate: { best: 40, sain: 25, surveille: 10, direction: 'higher-is-better', unit: '%' } as IndicatorThresholds,
+};
+
+/**
+ * Marge brute par unite vendue. Tente d extraire depuis
+ * unitEconomics.grossMarginPerUnit du BP. Si absent, retourne
+ * non-applicable avec un rationnel qui demande la donnee en DD.
+ */
+function computeUnitMargin(fd: FinancialDataExtraction | null | undefined): IndicatorResult {
+  const label = 'Marge brute par unite';
+  const benchmark = INDUSTRIAL_BENCHMARKS.unitMargin;
+  const marginPct = fd ? parsePercent(fd.unitEconomics?.grossMarginPerUnit) : null;
+
+  if (marginPct == null) {
+    return {
+      key: 'unitMargin', label, value: null, unit: '%',
+      verdict: 'non-applicable',
+      rationale: 'Marge brute par unite non communiquee dans le BP. Critique pour les modeles a fabrication-vente : a extraire en DD (prix unitaire + cout direct par unite, hors overheads).',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
+  return {
+    key: 'unitMargin', label, value: roundTo(marginPct, 1), unit: '%',
+    verdict: classifyValue(marginPct, benchmark),
+    rationale: `Marge brute par unite ${roundTo(marginPct, 1)}% (declaree dans le BP).`,
+    dataConfidence: 'high',
+    benchmark: thresholdsToBenchmark(benchmark),
+  };
+}
+
+/**
+ * Cycle commercial moyen en mois. Pas extractible automatiquement
+ * du BP standard. Retourne non-applicable avec rationnel a
+ * demander en DD.
+ */
+function computeCommercialCycle(): IndicatorResult {
+  const label = 'Cycle commercial';
+  return {
+    key: 'commercialCycle', label, value: null, unit: 'mois',
+    verdict: 'non-applicable',
+    rationale: 'Cycle commercial moyen non extractible automatiquement du BP. Determinant pour les modeles a fabrication-vente et a projets : a demander en DD (du premier contact a la signature, hors phase de production).',
+    dataConfidence: 'absent',
+    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.commercialCycle),
+  };
+}
+
+/**
+ * Carnet de commandes en multiple de revenue annualise. Pas
+ * extractible automatiquement du BP standard.
+ */
+function computeOrderBacklog(): IndicatorResult {
+  const label = 'Carnet de commandes';
+  return {
+    key: 'orderBacklog', label, value: null, unit: 'x',
+    verdict: 'non-applicable',
+    rationale: 'Carnet de commandes non extractible automatiquement du BP. Indicateur structurant de visibilite pour les modeles industriels : a demander en DD (somme des contrats signes ou commandes fermes / revenue annuel projete).',
+    dataConfidence: 'absent',
+    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.orderBacklog),
+  };
+}
+
+/**
+ * Working capital ratio. Pas extractible automatiquement.
+ */
+function computeWorkingCapitalRatio(): IndicatorResult {
+  const label = 'Working capital ratio';
+  return {
+    key: 'workingCapitalRatio', label, value: null, unit: 'ratio',
+    verdict: 'non-applicable',
+    rationale: 'Working capital ratio non extractible automatiquement du BP. Critique pour les modeles industriels a cycle long : a demander en DD (besoin en fonds de roulement / revenue annuel).',
+    dataConfidence: 'absent',
+    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.workingCapitalRatio),
+  };
+}
+
+/**
+ * Capex par projet en pourcentage du revenue projet.
+ */
+function computeProjectCapex(): IndicatorResult {
+  const label = 'Capex par projet';
+  return {
+    key: 'projectCapex', label, value: null, unit: '%',
+    verdict: 'non-applicable',
+    rationale: 'Capex par projet non extractible automatiquement du BP. Indicateur d intensite capitalistique pour les modeles a SPV : a demander en DD (capex moyen par projet / revenue moyen par projet).',
+    dataConfidence: 'absent',
+    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.projectCapex),
+  };
+}
+
+/**
+ * Capacite industrielle annuelle (unites par an).
+ */
+function computeIndustrialCapacity(): IndicatorResult {
+  const label = 'Capacite industrielle';
+  return {
+    key: 'industrialCapacity', label, value: null, unit: 'unites/an',
+    verdict: 'non-applicable',
+    rationale: 'Capacite industrielle non extractible automatiquement du BP. Determinante pour les modeles a fabrication unitaire : a demander en DD (production maximale annuelle au stade actuel et trajectoire de scale-up).',
+    dataConfidence: 'absent',
+  };
+}
+
+/**
+ * Taux de gain sur appels d offres soumis (B2G principalement).
+ */
+function computeTenderWinRate(): IndicatorResult {
+  const label = 'Taux de gain appels d offres';
+  return {
+    key: 'tenderWinRate', label, value: null, unit: '%',
+    verdict: 'non-applicable',
+    rationale: 'Taux de gain sur appels d offres non extractible automatiquement du BP. Critique pour les modeles B2G et project-based : a demander en DD (nombre d appels d offre gagnes / nombre soumis sur les 24 derniers mois).',
+    dataConfidence: 'absent',
+    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.tenderWinRate),
+  };
+}
+
+// ============================================================
 // HELPERS
 // ============================================================
 
@@ -716,6 +897,11 @@ interface IndicatorsInput {
    * Number sur les dossiers SaaS B2B. Optionnel : si absent, le
    * moteur retombe sur les fallbacks regex / non-applicable. */
   saasMetrics?: SaasMetricsExtraction | null | undefined;
+  /** Matrice de pertinence calculee en amont. Determine quel set
+   * d indicateurs est pertinent (SaaS, industriel, hybride) selon
+   * le modele economique du dossier. Si absente : comportement
+   * legacy avec set SaaS canonique sur tous les dossiers. */
+  relevanceMatrix?: RelevanceMatrix | null | undefined;
 }
 
 export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
@@ -730,16 +916,55 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   const benchmarks = getIndicatorBenchmarks(assetClass, stage);
   const fd = input.financialData;
   const sm = input.saasMetrics;
+  const rm = input.relevanceMatrix;
 
-  const indicators: IndicatorResult[] = [
-    computeBurnMultiple(fd, benchmarks),
-    computeRuleOf40(fd, benchmarks),
-    computeNdr(fd, benchmarks, sm),
-    computeMagicNumber(fd, benchmarks, sm),
-    computePaybackCac(fd, benchmarks, sm),
-    computeGrossMargin(fd, benchmarks),
-    computeRevenuePerEmployee(fd, benchmarks),
-  ];
+  // Selection du set d indicateurs selon la matrice de pertinence.
+  // Trois cas :
+  //   1. Si la matrice indique un modele industriel (unitary-sale,
+  //      project-based, contract-b2g) avec indicatorsIndustrial=full,
+  //      on bascule sur le set industriel + revenue per employee
+  //      qui reste pertinent.
+  //   2. Si la matrice indique un modele recurrent (SaaS, consumer
+  //      subscription) ou marketplace, on garde le set SaaS canonique
+  //      avec eventuellement Payback CAC conditionne par le funnel.
+  //   3. Si pas de matrice (compat retro) ou modele unknown, on
+  //      garde le set SaaS canonique.
+  const useIndustrialSet = rm?.verdicts.indicatorsIndustrial.applicable === 'full';
+  const acquisitionFunnel = rm?.acquisitionFunnel ?? null;
+
+  let indicators: IndicatorResult[];
+  if (useIndustrialSet) {
+    // Set industriel : marge unite, cycle commercial, carnet de
+    // commandes, working capital, capex par projet, capacite
+    // industrielle, taux de gain appels d offres + revenue per
+    // employee qui reste pertinent partout. La marge brute SaaS
+    // (calculee depuis grossMarginProjection) reste affichee si
+    // disponible : sur un industriel elle peut etre une borne de
+    // verification de la marge unite.
+    indicators = [
+      computeUnitMargin(fd),
+      computeCommercialCycle(),
+      computeOrderBacklog(),
+      computeWorkingCapitalRatio(),
+      computeProjectCapex(),
+      computeIndustrialCapacity(),
+      computeTenderWinRate(),
+      computeRevenuePerEmployee(fd, benchmarks),
+    ];
+  } else {
+    // Set SaaS canonique. Payback CAC est conditionne par le funnel
+    // d acquisition de la matrice : si funnel absent (B2G, projets
+    // uniques), Payback est marque non-applicable explicitement.
+    indicators = [
+      computeBurnMultiple(fd, benchmarks),
+      computeRuleOf40(fd, benchmarks),
+      computeNdr(fd, benchmarks, sm),
+      computeMagicNumber(fd, benchmarks, sm),
+      computePaybackCac(fd, benchmarks, sm, acquisitionFunnel),
+      computeGrossMargin(fd, benchmarks),
+      computeRevenuePerEmployee(fd, benchmarks),
+    ];
+  }
 
   // Score global d execution operationnelle. Ancre a 50 (neutre).
   // Best-in-class +20, sain +10, surveille -5, rouge -15. NA neutre.
@@ -769,17 +994,19 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   // Synthese editoriale
-  const synthesis = buildSynthesis(indicators, applicableCount, score);
+  const synthesis = buildSynthesis(indicators, applicableCount, score, useIndustrialSet);
 
   // Warnings
   const warnings: string[] = [];
   if (applicableCount === 0) {
-    warnings.push('Aucun indicateur calculable : le BP fourni ne contient pas les donnees structurees necessaires (revenue, marge brute, headcount, EBITDA, unit economics).');
+    warnings.push(useIndustrialSet
+      ? 'Aucun indicateur industriel calculable : la plupart des indicateurs (carnet de commandes, cycle commercial, working capital, capex projet) requierent une extraction LLM dediee ou des donnees DD non presentes dans le BP standard.'
+      : 'Aucun indicateur calculable : le BP fourni ne contient pas les donnees structurees necessaires (revenue, marge brute, headcount, EBITDA, unit economics).');
   } else if (applicableCount <= 2) {
     warnings.push(`Seuls ${applicableCount} indicateurs applicables. Le score d execution est moins robuste qu une evaluation complete.`);
   }
   const naCount = indicators.filter((i) => i.verdict === 'non-applicable').length;
-  if (naCount >= 5) {
+  if (naCount >= 5 && !useIndustrialSet) {
     warnings.push('La plupart des indicateurs sont non applicables faute de donnees structurees. Demander au fondateur un BP plus complet (revenue, marge brute, EBITDA, headcount, unit economics par segment).');
   }
 
@@ -793,9 +1020,11 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   };
 }
 
-function buildSynthesis(indicators: IndicatorResult[], applicableCount: number, score: number): string {
+function buildSynthesis(indicators: IndicatorResult[], applicableCount: number, score: number, useIndustrialSet: boolean = false): string {
   if (applicableCount === 0) {
-    return 'Aucun indicateur applicable : le BP est trop incomplet pour evaluer la sante economique du dossier. Les sept indicateurs canoniques (Burn multiple, Rule of 40, NDR, Magic Number, Payback CAC, Marge brute, Revenue par employe) requierent des donnees structurees absentes ici. Etape obligatoire en DD : recuperer un BP detaille du fondateur.';
+    return useIndustrialSet
+      ? 'Aucun indicateur industriel calculable a partir du BP standard. Les indicateurs cibles pour ce modele economique (marge unite, cycle commercial, carnet de commandes, working capital, capex par projet, capacite industrielle, taux de gain appels d offres) sont a extraire en DD ou via une iteration ulterieure du moteur. Le BP SaaS classique n est pas le bon cadre d analyse pour ce dossier.'
+      : 'Aucun indicateur applicable : le BP est trop incomplet pour evaluer la sante economique du dossier. Les sept indicateurs canoniques (Burn multiple, Rule of 40, NDR, Magic Number, Payback CAC, Marge brute, Revenue par employe) requierent des donnees structurees absentes ici. Etape obligatoire en DD : recuperer un BP detaille du fondateur.';
   }
 
   const best = indicators.filter((i) => i.verdict === 'best-in-class').length;
@@ -806,7 +1035,9 @@ function buildSynthesis(indicators: IndicatorResult[], applicableCount: number, 
   const summary = `${best} best-in-class, ${sain} sain, ${surveille} a-surveiller, ${rouge} rouge sur ${applicableCount} indicateur${applicableCount > 1 ? 's' : ''} applicable${applicableCount > 1 ? 's' : ''}.`;
 
   if (applicableCount < 3) {
-    return `${summary} Score d execution non calculable faute de donnees structurees suffisantes (${applicableCount}/7 indicateurs applicables). Le moteur n affiche pas de jugement global sur cette base. Demander au fondateur un BP plus complet (revenue YoY, marge brute, EBITDA, headcount, unit economics par segment) avant de conclure.`;
+    const totalCount = indicators.length;
+    const setLabel = useIndustrialSet ? 'industriels' : 'SaaS';
+    return `${summary} Score d execution non calculable faute de donnees structurees suffisantes (${applicableCount}/${totalCount} indicateurs ${setLabel} applicables). Le moteur n affiche pas de jugement global sur cette base. ${useIndustrialSet ? 'Demander en DD : marge unite, cycle commercial, carnet de commandes, working capital, capex par projet.' : 'Demander au fondateur un BP plus complet (revenue YoY, marge brute, EBITDA, headcount, unit economics par segment) avant de conclure.'}`;
   }
 
   let lecture = '';
