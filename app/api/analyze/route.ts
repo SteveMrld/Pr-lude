@@ -18,6 +18,7 @@ import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { extractSaasMetrics } from '@/lib/engines/saas-metrics-engine';
+import { extractIndustrialMetrics } from '@/lib/engines/industrial-metrics-engine';
 import { computeRelevanceMatrix } from '@/lib/engines/relevance-matrix';
 import { normalizeAssetClass } from '@/lib/data/sector-benchmarks';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
@@ -337,7 +338,7 @@ export async function POST(req: NextRequest) {
           sendStart('macro', 'Lecture macro et geopolitique');
           sendStart('financial-extraction', businessPlan ? 'Extraction des donnees financieres (deck + BP)' : 'Extraction des donnees financieres (deck)');
 
-          const [team, market, macro, financialData, saasMetrics] = await Promise.all([
+          const [team, market, macro, financialData, saasMetrics, industrialMetrics] = await Promise.all([
             analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
             analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix).then(r => { sendDone('market', r); return r; }),
             analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix).then(r => { sendDone('macro', r); return r; }),
@@ -351,6 +352,16 @@ export async function POST(req: NextRequest) {
             // progression Bloc 1, ce qui restera a brancher une fois la
             // valeur du moteur validee sur plusieurs dossiers.
             extractSaasMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction),
+            // industrial-metrics-engine : extraction LLM dediee aux
+            // metriques industrielles (cycle commercial, carnet de
+            // commandes, working capital, capex projet, capacite,
+            // win rate). Conditionne par la matrice : on ne brule l
+            // appel LLM que si le verdict indicatorsIndustrial=full.
+            // Sur un dossier SaaS classique, on retourne null sans
+            // appel reseau. En cas d echec, fallback non-applicable.
+            relevanceMatrix.verdicts.indicatorsIndustrial.applicable === 'full'
+              ? extractIndustrialMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction)
+              : Promise.resolve(null),
           ]);
 
           // ============================================================
@@ -509,6 +520,7 @@ export async function POST(req: NextRequest) {
             financial: financialCoherence,
             financialData,
             saasMetrics,
+            industrialMetrics,
             relevanceMatrix,
           });
 
@@ -697,6 +709,10 @@ export async function POST(req: NextRequest) {
             // resultJson pour que le useMemo client-side puisse rejouer
             // computeIndicators sans appel LLM si besoin.
             saasMetrics,
+            // Extraction LLM dediee aux metriques industrielles (cycle
+            // commercial, carnet de commandes, capex projet, capacite,
+            // win rate). null sur les dossiers non industriels.
+            industrialMetrics,
             // Matrice de pertinence : criteres structurels du dossier
             // (asset class, modele business, expositions) et verdicts
             // de pertinence par moteur. Consomme par les moteurs en

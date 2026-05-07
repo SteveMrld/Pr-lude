@@ -264,6 +264,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         financial: r.financialCoherence,
         financialData: r.financialData,
         saasMetrics: r.saasMetrics,
+        industrialMetrics: r.industrialMetrics,
         relevanceMatrix: r.relevanceMatrix,
       });
     } catch (err) {

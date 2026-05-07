@@ -39,6 +39,7 @@ import {
 import { normalizeAssetClass, normalizeStage, type ValuationStage } from '@/lib/data/sector-benchmarks';
 import type { ExtractionOutput, FinancialDataExtraction, FinancialCoherenceOutput } from '@/lib/engines/types';
 import type { SaasMetricsExtraction } from '@/lib/engines/saas-metrics-engine';
+import type { IndustrialMetricsExtraction } from '@/lib/engines/industrial-metrics-engine';
 import type { RelevanceMatrix } from '@/lib/engines/relevance-matrix';
 
 // ============================================================
@@ -748,116 +749,235 @@ const INDUSTRIAL_BENCHMARKS = {
 
 /**
  * Marge brute par unite vendue. Tente d extraire depuis
- * unitEconomics.grossMarginPerUnit du BP. Si absent, retourne
+ * unitEconomics.grossMarginPerUnit du BP, puis depuis l extraction
+ * dediee industrial-metrics-engine. Si absent partout, retourne
  * non-applicable avec un rationnel qui demande la donnee en DD.
  */
-function computeUnitMargin(fd: FinancialDataExtraction | null | undefined): IndicatorResult {
+function computeUnitMargin(
+  fd: FinancialDataExtraction | null | undefined,
+  im?: IndustrialMetricsExtraction | null,
+): IndicatorResult {
   const label = 'Marge brute par unite';
   const benchmark = INDUSTRIAL_BENCHMARKS.unitMargin;
-  const marginPct = fd ? parsePercent(fd.unitEconomics?.grossMarginPerUnit) : null;
+
+  // Priorite : extraction LLM dediee si presente, sinon fallback BP.
+  let marginPct: number | null = null;
+  let provenance: 'industrial-engine' | 'bp' | null = null;
+  if (im?.unitGrossMarginPct != null && im.unitGrossMarginProvenance !== 'absent') {
+    marginPct = im.unitGrossMarginPct;
+    provenance = 'industrial-engine';
+  } else {
+    const fromBp = fd ? parsePercent(fd.unitEconomics?.grossMarginPerUnit) : null;
+    if (fromBp != null) {
+      marginPct = fromBp;
+      provenance = 'bp';
+    }
+  }
 
   if (marginPct == null) {
     return {
       key: 'unitMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      rationale: 'Marge brute par unite non communiquee dans le BP. Critique pour les modeles a fabrication-vente : a extraire en DD (prix unitaire + cout direct par unite, hors overheads).',
+      rationale: 'Marge brute par unite non communiquee dans le BP ni inferable du pitch. Critique pour les modeles a fabrication-vente : a extraire en DD (prix unitaire + cout direct par unite, hors overheads).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
     };
   }
 
+  const sourceLabel = provenance === 'industrial-engine' ? 'pitch + BP' : 'BP';
   return {
     key: 'unitMargin', label, value: roundTo(marginPct, 1), unit: '%',
     verdict: classifyValue(marginPct, benchmark),
-    rationale: `Marge brute par unite ${roundTo(marginPct, 1)}% (declaree dans le BP).`,
+    rationale: `Marge brute par unite ${roundTo(marginPct, 1)}% (extraite du ${sourceLabel}).`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
   };
 }
 
 /**
- * Cycle commercial moyen en mois. Pas extractible automatiquement
- * du BP standard. Retourne non-applicable avec rationnel a
- * demander en DD.
+ * Cycle commercial moyen en mois. Extrait par industrial-metrics-engine
+ * si disponible, sinon non-applicable avec rationnel DD.
  */
-function computeCommercialCycle(): IndicatorResult {
+function computeCommercialCycle(im?: IndustrialMetricsExtraction | null): IndicatorResult {
   const label = 'Cycle commercial';
+  const benchmark = INDUSTRIAL_BENCHMARKS.commercialCycle;
+
+  if (im?.commercialCycleMonths == null || im.commercialCycleProvenance === 'absent') {
+    return {
+      key: 'commercialCycle', label, value: null, unit: 'mois',
+      verdict: 'non-applicable',
+      rationale: 'Cycle commercial moyen non extractible du pitch ni du BP. Determinant pour les modeles a fabrication-vente et a projets : a demander en DD (du premier contact a la signature, hors phase de production).',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
   return {
-    key: 'commercialCycle', label, value: null, unit: 'mois',
-    verdict: 'non-applicable',
-    rationale: 'Cycle commercial moyen non extractible automatiquement du BP. Determinant pour les modeles a fabrication-vente et a projets : a demander en DD (du premier contact a la signature, hors phase de production).',
-    dataConfidence: 'absent',
-    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.commercialCycle),
+    key: 'commercialCycle', label, value: im.commercialCycleMonths, unit: 'mois',
+    verdict: classifyValue(im.commercialCycleMonths, benchmark),
+    rationale: `Cycle commercial moyen ${im.commercialCycleMonths} mois (provenance ${im.commercialCycleProvenance}).`,
+    dataConfidence: im.commercialCycleProvenance === 'declared' ? 'high' : 'medium',
+    benchmark: thresholdsToBenchmark(benchmark),
   };
 }
 
 /**
- * Carnet de commandes en multiple de revenue annualise. Pas
- * extractible automatiquement du BP standard.
+ * Carnet de commandes en multiple de revenue annualise.
  */
-function computeOrderBacklog(): IndicatorResult {
+function computeOrderBacklog(
+  fd: FinancialDataExtraction | null | undefined,
+  im?: IndustrialMetricsExtraction | null,
+): IndicatorResult {
   const label = 'Carnet de commandes';
+  const benchmark = INDUSTRIAL_BENCHMARKS.orderBacklog;
+
+  if (im?.orderBacklogEur == null || im.orderBacklogProvenance === 'absent') {
+    return {
+      key: 'orderBacklog', label, value: null, unit: 'x',
+      verdict: 'non-applicable',
+      rationale: 'Carnet de commandes non communique dans les documents fournis. Indicateur structurant de visibilite pour les modeles industriels : a demander en DD (somme des contrats signes ou commandes fermes / revenue annuel projete).',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
+  // Calcul du multiple : carnet / revenue annee courante
+  const currentYear = new Date().getFullYear();
+  const revenue = fd ? pickProjectionValueAtYear(fd.revenueProjection, currentYear) : null;
+  if (revenue == null || revenue <= 0) {
+    return {
+      key: 'orderBacklog', label, value: null, unit: 'x',
+      verdict: 'non-applicable',
+      rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} extrait, mais revenue annee courante absent du BP. Calcul du multiple impossible.`,
+      dataConfidence: 'medium',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
+  const multiple = im.orderBacklogEur / revenue;
   return {
-    key: 'orderBacklog', label, value: null, unit: 'x',
-    verdict: 'non-applicable',
-    rationale: 'Carnet de commandes non extractible automatiquement du BP. Indicateur structurant de visibilite pour les modeles industriels : a demander en DD (somme des contrats signes ou commandes fermes / revenue annuel projete).',
-    dataConfidence: 'absent',
-    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.orderBacklog),
+    key: 'orderBacklog', label, value: roundTo(multiple, 2), unit: 'x',
+    verdict: classifyValue(multiple, benchmark),
+    rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} / revenue ${formatEur(revenue)} = ${roundTo(multiple, 2)}x annualise (provenance ${im.orderBacklogProvenance}).`,
+    dataConfidence: im.orderBacklogProvenance === 'declared' ? 'high' : 'medium',
+    benchmark: thresholdsToBenchmark(benchmark),
   };
 }
 
 /**
- * Working capital ratio. Pas extractible automatiquement.
+ * Working capital ratio. Working capital / revenue annuel.
  */
-function computeWorkingCapitalRatio(): IndicatorResult {
+function computeWorkingCapitalRatio(
+  fd: FinancialDataExtraction | null | undefined,
+  im?: IndustrialMetricsExtraction | null,
+): IndicatorResult {
   const label = 'Working capital ratio';
+  const benchmark = INDUSTRIAL_BENCHMARKS.workingCapitalRatio;
+
+  if (im?.workingCapitalEur == null || im.workingCapitalProvenance === 'absent') {
+    return {
+      key: 'workingCapitalRatio', label, value: null, unit: 'ratio',
+      verdict: 'non-applicable',
+      rationale: 'Working capital non extractible des documents. Critique pour les modeles industriels a cycle long : a demander en DD (besoin en fonds de roulement / revenue annuel).',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
+  const currentYear = new Date().getFullYear();
+  const revenue = fd ? pickProjectionValueAtYear(fd.revenueProjection, currentYear) : null;
+  if (revenue == null || revenue <= 0) {
+    return {
+      key: 'workingCapitalRatio', label, value: null, unit: 'ratio',
+      verdict: 'non-applicable',
+      rationale: `Working capital ${formatEur(im.workingCapitalEur)} extrait, mais revenue annee courante absent du BP.`,
+      dataConfidence: 'medium',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
+  const ratio = im.workingCapitalEur / revenue;
   return {
-    key: 'workingCapitalRatio', label, value: null, unit: 'ratio',
-    verdict: 'non-applicable',
-    rationale: 'Working capital ratio non extractible automatiquement du BP. Critique pour les modeles industriels a cycle long : a demander en DD (besoin en fonds de roulement / revenue annuel).',
-    dataConfidence: 'absent',
-    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.workingCapitalRatio),
+    key: 'workingCapitalRatio', label, value: roundTo(ratio, 2), unit: 'ratio',
+    verdict: classifyValue(ratio, benchmark),
+    rationale: `Working capital ${formatEur(im.workingCapitalEur)} / revenue ${formatEur(revenue)} = ${roundTo(ratio, 2)}.`,
+    dataConfidence: im.workingCapitalProvenance === 'declared' ? 'high' : 'medium',
+    benchmark: thresholdsToBenchmark(benchmark),
   };
 }
 
 /**
- * Capex par projet en pourcentage du revenue projet.
+ * Capex par projet en pourcentage du revenue moyen par projet.
  */
-function computeProjectCapex(): IndicatorResult {
+function computeProjectCapex(im?: IndustrialMetricsExtraction | null): IndicatorResult {
   const label = 'Capex par projet';
+  const benchmark = INDUSTRIAL_BENCHMARKS.projectCapex;
+
+  if (im?.capexPerProjectEur == null || im.capexPerProjectProvenance === 'absent'
+      || im.averageContractValueEur == null || im.averageContractValueProvenance === 'absent') {
+    return {
+      key: 'projectCapex', label, value: null, unit: '%',
+      verdict: 'non-applicable',
+      rationale: 'Capex par projet et / ou taille moyenne contrat non extraits. Indicateur d intensite capitalistique pour les modeles a SPV : a demander en DD (capex moyen par projet / revenue moyen par projet).',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
+  const ratioPct = (im.capexPerProjectEur / im.averageContractValueEur) * 100;
   return {
-    key: 'projectCapex', label, value: null, unit: '%',
-    verdict: 'non-applicable',
-    rationale: 'Capex par projet non extractible automatiquement du BP. Indicateur d intensite capitalistique pour les modeles a SPV : a demander en DD (capex moyen par projet / revenue moyen par projet).',
-    dataConfidence: 'absent',
-    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.projectCapex),
+    key: 'projectCapex', label, value: roundTo(ratioPct, 1), unit: '%',
+    verdict: classifyValue(ratioPct, benchmark),
+    rationale: `Capex projet ${formatEur(im.capexPerProjectEur)} / contrat moyen ${formatEur(im.averageContractValueEur)} = ${roundTo(ratioPct, 1)}%.`,
+    dataConfidence: 'medium',
+    benchmark: thresholdsToBenchmark(benchmark),
   };
 }
 
 /**
  * Capacite industrielle annuelle (unites par an).
  */
-function computeIndustrialCapacity(): IndicatorResult {
+function computeIndustrialCapacity(im?: IndustrialMetricsExtraction | null): IndicatorResult {
   const label = 'Capacite industrielle';
+  if (im?.annualProductionCapacityUnits == null || im.annualProductionCapacityProvenance === 'absent') {
+    return {
+      key: 'industrialCapacity', label, value: null, unit: 'unites/an',
+      verdict: 'non-applicable',
+      rationale: 'Capacite industrielle non communiquee. Determinante pour les modeles a fabrication unitaire : a demander en DD (production maximale annuelle au stade actuel et trajectoire de scale-up).',
+      dataConfidence: 'absent',
+    };
+  }
   return {
-    key: 'industrialCapacity', label, value: null, unit: 'unites/an',
-    verdict: 'non-applicable',
-    rationale: 'Capacite industrielle non extractible automatiquement du BP. Determinante pour les modeles a fabrication unitaire : a demander en DD (production maximale annuelle au stade actuel et trajectoire de scale-up).',
-    dataConfidence: 'absent',
+    key: 'industrialCapacity', label, value: im.annualProductionCapacityUnits, unit: 'unites/an',
+    verdict: 'sain', // Pas de seuil par benchmark, on affiche la valeur sans verdict comparatif
+    rationale: `Capacite ${im.annualProductionCapacityUnits} unites par an au stade actuel (provenance ${im.annualProductionCapacityProvenance}).`,
+    dataConfidence: im.annualProductionCapacityProvenance === 'declared' ? 'high' : 'medium',
   };
 }
 
 /**
  * Taux de gain sur appels d offres soumis (B2G principalement).
  */
-function computeTenderWinRate(): IndicatorResult {
+function computeTenderWinRate(im?: IndustrialMetricsExtraction | null): IndicatorResult {
   const label = 'Taux de gain appels d offres';
+  const benchmark = INDUSTRIAL_BENCHMARKS.tenderWinRate;
+
+  if (im?.tenderWinRatePct == null || im.tenderWinRateProvenance === 'absent') {
+    return {
+      key: 'tenderWinRate', label, value: null, unit: '%',
+      verdict: 'non-applicable',
+      rationale: 'Taux de gain sur appels d offres non communique. Critique pour les modeles B2G et project-based : a demander en DD (nombre d appels d offre gagnes / nombre soumis sur les 24 derniers mois).',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
   return {
-    key: 'tenderWinRate', label, value: null, unit: '%',
-    verdict: 'non-applicable',
-    rationale: 'Taux de gain sur appels d offres non extractible automatiquement du BP. Critique pour les modeles B2G et project-based : a demander en DD (nombre d appels d offre gagnes / nombre soumis sur les 24 derniers mois).',
-    dataConfidence: 'absent',
-    benchmark: thresholdsToBenchmark(INDUSTRIAL_BENCHMARKS.tenderWinRate),
+    key: 'tenderWinRate', label, value: roundTo(im.tenderWinRatePct, 1), unit: '%',
+    verdict: classifyValue(im.tenderWinRatePct, benchmark),
+    rationale: `Taux de gain ${roundTo(im.tenderWinRatePct, 1)}% sur appels d offres soumis (provenance ${im.tenderWinRateProvenance}).`,
+    dataConfidence: im.tenderWinRateProvenance === 'declared' ? 'high' : 'medium',
+    benchmark: thresholdsToBenchmark(benchmark),
   };
 }
 
@@ -897,6 +1017,12 @@ interface IndicatorsInput {
    * Number sur les dossiers SaaS B2B. Optionnel : si absent, le
    * moteur retombe sur les fallbacks regex / non-applicable. */
   saasMetrics?: SaasMetricsExtraction | null | undefined;
+  /** Output du moteur industrial-metrics-engine, qui debloque les
+   * indicateurs industriels (cycle commercial, carnet de commandes,
+   * working capital, capex projet, capacite industrielle, taux de
+   * gain appels d offres). Optionnel : si absent, les indicateurs
+   * industriels retombent sur leurs non-applicable rationalisees. */
+  industrialMetrics?: IndustrialMetricsExtraction | null | undefined;
   /** Matrice de pertinence calculee en amont. Determine quel set
    * d indicateurs est pertinent (SaaS, industriel, hybride) selon
    * le modele economique du dossier. Si absente : comportement
@@ -916,6 +1042,7 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   const benchmarks = getIndicatorBenchmarks(assetClass, stage);
   const fd = input.financialData;
   const sm = input.saasMetrics;
+  const im = input.industrialMetrics;
   const rm = input.relevanceMatrix;
 
   // Selection du set d indicateurs selon la matrice de pertinence.
@@ -937,18 +1064,17 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
     // Set industriel : marge unite, cycle commercial, carnet de
     // commandes, working capital, capex par projet, capacite
     // industrielle, taux de gain appels d offres + revenue per
-    // employee qui reste pertinent partout. La marge brute SaaS
-    // (calculee depuis grossMarginProjection) reste affichee si
-    // disponible : sur un industriel elle peut etre une borne de
-    // verification de la marge unite.
+    // employee qui reste pertinent partout. Les six premiers
+    // indicateurs sont desormais reellement calculables si le moteur
+    // industrial-metrics-engine a tourne (depuis le pitch + BP).
     indicators = [
-      computeUnitMargin(fd),
-      computeCommercialCycle(),
-      computeOrderBacklog(),
-      computeWorkingCapitalRatio(),
-      computeProjectCapex(),
-      computeIndustrialCapacity(),
-      computeTenderWinRate(),
+      computeUnitMargin(fd, im),
+      computeCommercialCycle(im),
+      computeOrderBacklog(fd, im),
+      computeWorkingCapitalRatio(fd, im),
+      computeProjectCapex(im),
+      computeIndustrialCapacity(im),
+      computeTenderWinRate(im),
       computeRevenuePerEmployee(fd, benchmarks),
     ];
   } else {
