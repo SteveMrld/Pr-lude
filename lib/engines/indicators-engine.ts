@@ -318,7 +318,7 @@ function computeNdr(
     return {
       key: 'ndr', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      rationale: 'NDR non pertinent pour ce type de modele (ecommerce-dtc, marketplace-b2c, mediatech sans recurrence).',
+      rationale: 'NDR non applicable a cet asset class. La metrique mesure la retention nette de revenus recurrents sur la base installee, pertinente uniquement pour les modeles SaaS, fintech recurrent, ou consumer subscriptions. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
   }
@@ -400,7 +400,7 @@ function computeMagicNumber(
     return {
       key: 'magicNumber', label, value: null, unit: 'x',
       verdict: 'non-applicable',
-      rationale: 'Magic Number non pertinent au stade ou a l asset-class (necessite S&M trimestriel et ARR new annualise).',
+      rationale: 'Magic Number non applicable a cet asset class. La metrique mesure l efficacite du capital S&M dans la generation d ARR new, pertinente uniquement pour les modeles SaaS et software a vente recurrente. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
   }
