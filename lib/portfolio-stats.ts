@@ -30,8 +30,25 @@ export interface PortfolioStats {
   velocity: Array<{ month: string; count: number }>;
   byStage: Record<string, number>;
   byVerdict: Record<string, number>;
-  bySector: Array<{ sector: string; count: number }>;
-  byCountry: Array<{ country: string; count: number }>;
+  /**
+   * Liste des entreprises pour chaque verdict. Permet au dashboard
+   * portfolio de montrer les noms des dossiers, pas seulement le count.
+   * Cle = verdict (investir, investir-conditions, approfondir, refuser),
+   * value = liste des entreprises de ce verdict, triees par date desc.
+   */
+  byVerdictCompanies: Record<string, Array<{ id: string; name: string }>>;
+  bySector: Array<{
+    sector: string;
+    count: number;
+    /** Entreprises de ce secteur, triees par date desc. */
+    companies: Array<{ id: string; name: string }>;
+  }>;
+  byCountry: Array<{
+    country: string;
+    count: number;
+    /** Entreprises de ce pays, triees par date desc. */
+    companies: Array<{ id: string; name: string }>;
+  }>;
   stageDurations: Record<string, { avgDays: number | null; samples: number }>;
   conversion: Array<{ from: string; to: string; rate: number; total: number }>;
   lastAnalysisAt: string | null;
@@ -113,6 +130,7 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
 
   // ---------------------- BY VERDICT
   const byVerdict: Record<string, number> = {};
+  const byVerdictCompanies: Record<string, Array<{ id: string; name: string }>> = {};
   analyses.forEach((a) => {
     const v = (a.verdict || '').toLowerCase();
     let key = 'autre';
@@ -121,6 +139,8 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     else if (v.includes('approfondir') || v.includes('hold') || v.includes('reporter')) key = 'approfondir';
     else if (v.includes('refuser') || v.includes('reject') || v.includes('no-go') || v.includes('refuse')) key = 'refuser';
     byVerdict[key] = (byVerdict[key] || 0) + 1;
+    if (!byVerdictCompanies[key]) byVerdictCompanies[key] = [];
+    byVerdictCompanies[key].push({ id: a.id, name: a.companyName || 'Sans nom' });
   });
 
   // ---------------------- BY SECTOR
@@ -131,21 +151,35 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
   // incoherence des stats. Cas observe sur les anciens dossiers ou le
   // moteur d extraction n a pas reussi a typer le secteur.
   const sectorMap: Record<string, number> = {};
+  const sectorCompanies: Record<string, Array<{ id: string; name: string }>> = {};
   let unclassifiedCount = 0;
+  const unclassifiedCompanies: Array<{ id: string; name: string }> = [];
   analyses.forEach((a) => {
     const s = (a.sector || '').trim();
+    const company = { id: a.id, name: a.companyName || 'Sans nom' };
     if (!s) {
       unclassifiedCount++;
+      unclassifiedCompanies.push(company);
       return;
     }
     sectorMap[s] = (sectorMap[s] || 0) + 1;
+    if (!sectorCompanies[s]) sectorCompanies[s] = [];
+    sectorCompanies[s].push(company);
   });
   const bySector = Object.entries(sectorMap)
-    .map(([sector, count]) => ({ sector, count }))
+    .map(([sector, count]) => ({
+      sector,
+      count,
+      companies: sectorCompanies[sector] || [],
+    }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
   if (unclassifiedCount > 0) {
-    bySector.push({ sector: 'Non classe', count: unclassifiedCount });
+    bySector.push({
+      sector: 'Non classe',
+      count: unclassifiedCount,
+      companies: unclassifiedCompanies,
+    });
   }
 
   // ---------------------- ALL SCORES
@@ -158,13 +192,20 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
 
   // ---------------------- BY COUNTRY
   const countryMap: Record<string, number> = {};
+  const countryCompanies: Record<string, Array<{ id: string; name: string }>> = {};
   analyses.forEach((a) => {
     const c = (a.country || '').trim();
     if (!c) return;
     countryMap[c] = (countryMap[c] || 0) + 1;
+    if (!countryCompanies[c]) countryCompanies[c] = [];
+    countryCompanies[c].push({ id: a.id, name: a.companyName || 'Sans nom' });
   });
   const byCountry = Object.entries(countryMap)
-    .map(([country, count]) => ({ country, count }))
+    .map(([country, count]) => ({
+      country,
+      count,
+      companies: countryCompanies[country] || [],
+    }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
@@ -267,6 +308,7 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     velocity,
     byStage,
     byVerdict,
+    byVerdictCompanies,
     bySector,
     byCountry,
     stageDurations,
@@ -284,6 +326,7 @@ function emptyStats(): PortfolioStats {
     velocity: [],
     byStage: {},
     byVerdict: {},
+    byVerdictCompanies: {},
     bySector: [],
     byCountry: [],
     stageDurations: {},

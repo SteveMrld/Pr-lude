@@ -348,6 +348,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           {verdicts.map((v) => {
             const count = stats!.byVerdict[v] || 0;
             const pct = stats!.total > 0 ? Math.round((count / stats!.total) * 100) : 0;
+            const companies = stats!.byVerdictCompanies?.[v] || [];
             return (
               <div className="pf-verdict" key={v} style={{ borderTopColor: VERDICT_COLORS[v] }}>
                 <div className="pf-verdict-num" style={{ color: VERDICT_COLORS[v] }}>
@@ -355,6 +356,40 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
                 </div>
                 <div className="pf-verdict-pct">{pct}%</div>
                 <div className="pf-verdict-label">{VERDICT_LABELS[v]}</div>
+                {/* Liste des entreprises de ce verdict, en sous-couche.
+                    Permet au partner de voir d un coup d oeil quels
+                    dossiers composent chaque categorie, sans avoir a
+                    aller dans /history. Click ouvre le dossier. */}
+                {companies.length > 0 && (
+                  <div style={{
+                    marginTop: 12,
+                    paddingTop: 10,
+                    borderTop: '1px dotted var(--hairline)',
+                    fontSize: 11,
+                    lineHeight: 1.6,
+                    textAlign: 'left',
+                  }}>
+                    {companies.slice(0, 5).map((c, i) => (
+                      <div key={c.id} style={{ marginBottom: 2 }}>
+                        <a
+                          href={`/?analysis=${c.id}`}
+                          style={{
+                            color: 'var(--ink-soft)',
+                            textDecoration: 'none',
+                            borderBottom: '1px dotted var(--muted-soft)',
+                          }}
+                        >
+                          {c.name}
+                        </a>
+                      </div>
+                    ))}
+                    {companies.length > 5 && (
+                      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, fontStyle: 'italic' }}>
+                        et {companies.length - 5} autre{companies.length - 5 > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -376,7 +411,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           ) : (
             <ul className="pf-list">
               {stats!.bySector.slice(0, 8).map((s) => (
-                <li key={s.sector} className="pf-list-row">
+                <li key={s.sector} className="pf-list-row" style={{ flexWrap: 'wrap' }}>
                   <span className="pf-list-label">{s.sector}</span>
                   <div className="pf-list-bar">
                     <div className="pf-list-bar-fill" style={{
@@ -384,6 +419,35 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
                     }} />
                   </div>
                   <span className="pf-list-count">{s.count}</span>
+                  {/* Noms des entreprises de ce secteur, en sous-ligne.
+                      Permet de scanner d un coup d oeil quels dossiers
+                      composent chaque secteur. Click ouvre le dossier. */}
+                  {s.companies && s.companies.length > 0 && (
+                    <div style={{
+                      flex: '1 0 100%',
+                      marginTop: 4,
+                      paddingLeft: 0,
+                      fontSize: 11,
+                      color: 'var(--muted)',
+                      lineHeight: 1.5,
+                    }}>
+                      {s.companies.map((c, i) => (
+                        <span key={c.id}>
+                          {i > 0 && <span style={{ opacity: 0.4 }}> · </span>}
+                          <a
+                            href={`/?analysis=${c.id}`}
+                            style={{
+                              color: 'var(--ink-soft)',
+                              textDecoration: 'none',
+                              borderBottom: '1px dotted var(--muted-soft)',
+                            }}
+                          >
+                            {c.name}
+                          </a>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -402,7 +466,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           ) : (
             <ul className="pf-list">
               {stats!.byCountry.slice(0, 8).map((c) => (
-                <li key={c.country} className="pf-list-row">
+                <li key={c.country} className="pf-list-row" style={{ flexWrap: 'wrap' }}>
                   <span className="pf-list-label">{c.country}</span>
                   <div className="pf-list-bar">
                     <div className="pf-list-bar-fill pf-list-bar-fill-amber" style={{
@@ -410,6 +474,31 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
                     }} />
                   </div>
                   <span className="pf-list-count">{c.count}</span>
+                  {c.companies && c.companies.length > 0 && (
+                    <div style={{
+                      flex: '1 0 100%',
+                      marginTop: 4,
+                      fontSize: 11,
+                      color: 'var(--muted)',
+                      lineHeight: 1.5,
+                    }}>
+                      {c.companies.map((co, i) => (
+                        <span key={co.id}>
+                          {i > 0 && <span style={{ opacity: 0.4 }}> · </span>}
+                          <a
+                            href={`/?analysis=${co.id}`}
+                            style={{
+                              color: 'var(--ink-soft)',
+                              textDecoration: 'none',
+                              borderBottom: '1px dotted var(--muted-soft)',
+                            }}
+                          >
+                            {co.name}
+                          </a>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
