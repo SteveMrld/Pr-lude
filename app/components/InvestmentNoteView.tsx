@@ -770,14 +770,180 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               </div>
             )}
             <div className="verdict-block-legend">
-              Note ponderee sur six dimensions (equipe 0,20 ; marche 0,22 ; macro 0,15 ; modele economique 0,13 ; singularites contrariennes 0,15 ; vigilance critique inversee 0,15). Determine le verdict via les seuils 45 / 60 / 75.
-              {reco.computedScoreBreakdown && Math.abs(reco.computedScoreBreakdown.delta || 0) > 5 && (
-                <span className="verdict-block-audit">
-                  {' '}Ecart {reco.computedScoreBreakdown.delta > 0 ? '+' : ''}{reco.computedScoreBreakdown.delta} points entre le jugement LLM ({reco.computedScoreBreakdown.llmScore}) et le calcul mecanique ponderé ({reco.computedScoreBreakdown.finalComputedScore}).
-                </span>
-              )}
+              Note ponderee sur six dimensions (equipe 0,20 ; marche 0,22 ; macro 0,15 ; modele economique 0,13 ; singularites contrariennes 0,15 ; vigilance critique inversee 0,15). Verdict derive deterministe : moins de 45 = refuser, 45 a 59 = approfondir, 60 a 74 = investir avec conditions, 75 et plus = investir. Score calcule par le code a partir des moteurs Bloc 1, independamment du jugement narratif.
             </div>
           </div>
+
+          {/* DECOMPOSITION DETAILLEE DU SCORE
+              Expose la formule mecanique : pour chaque dimension, le score
+              brut produit par le moteur Bloc 1, le poids applique, et la
+              contribution au score global. Les sous-scores composites
+              Equipe (couverture systemique, anti-fragilite, transposition,
+              obsession produit) et Marche (intensite besoin, defensibilite,
+              signaux organiques) sont detailles. Garantie d auditabilite :
+              le partner peut tracer chaque point du score a sa source. */}
+          {reco.computedScoreBreakdown?.mechanicalDimensions && (() => {
+            const md = reco.computedScoreBreakdown.mechanicalDimensions as any;
+            const rows: Array<{ key: string; label: string; dim: any }> = [
+              { key: 'team', label: 'Equipe', dim: md.team },
+              { key: 'market', label: 'Marche', dim: md.market },
+              { key: 'macro', label: 'Macro', dim: md.macro },
+              { key: 'financial', label: 'Modele economique', dim: md.financial },
+              { key: 'contrarian', label: 'Singularites contrariennes', dim: md.contrarian },
+              { key: 'vigilance', label: 'Vigilance critique', dim: md.vigilance },
+            ];
+            return (
+              <div className="score-decomposition" style={{
+                marginTop: 18,
+                padding: '18px 20px',
+                background: 'var(--surface, rgba(0,0,0,0.025))',
+                border: '1px solid var(--hairline)',
+                borderRadius: 4,
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)', marginBottom: 4 }}>
+                  Decomposition du score
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 12px 0', lineHeight: 1.55 }}>
+                  Le score global est la somme ponderee des six dimensions Bloc 1, calculees independamment par chaque moteur sur les faits du dossier. Aucun ajustement narratif au moment de la synthese.
+                </p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--hairline)' }}>
+                      <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Dimension</th>
+                      <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Score</th>
+                      <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Poids</th>
+                      <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Contribution</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => (
+                      <React.Fragment key={r.key}>
+                        <tr style={{ borderBottom: '1px solid var(--hairline-soft, rgba(0,0,0,0.06))' }}>
+                          <td style={{ padding: '8px 0', fontWeight: 500 }}>{r.label}</td>
+                          <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--serif)', fontVariantNumeric: 'tabular-nums' }}>
+                            {r.dim?.score ?? '?'}<span style={{ color: 'var(--ink-soft)' }}>/100</span>
+                          </td>
+                          <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
+                            {((r.dim?.weight ?? 0) * 100).toFixed(0)}%
+                          </td>
+                          <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--serif)', fontVariantNumeric: 'tabular-nums' }}>
+                            +{(r.dim?.contribution ?? 0).toFixed(1)}
+                          </td>
+                        </tr>
+                        {Array.isArray(r.dim?.subScores) && r.dim.subScores.length > 0 && (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '0 0 10px 14px', fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.55, fontStyle: 'italic' }}>
+                              {r.dim.subScores.map((s: any, idx: number) => (
+                                <span key={idx}>
+                                  {s.name} {s.score}/100 (poids {(s.weight * 100).toFixed(0)}%){idx < r.dim.subScores.length - 1 ? ' · ' : ''}
+                                </span>
+                              ))}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                    <tr style={{ borderTop: '2px solid var(--ink)' }}>
+                      <td style={{ padding: '10px 0 4px 0', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 11 }}>Score global</td>
+                      <td colSpan={2} />
+                      <td style={{ padding: '10px 0 4px 0', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--serif)', fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>
+                        {reco.globalScore}<span style={{ fontSize: 12, color: 'var(--ink-soft)', fontWeight: 400 }}>/100</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--surface-soft, rgba(0,0,0,0.04))', borderRadius: 3, fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.55 }}>
+                  <strong style={{ color: 'var(--ink)' }}>Verdict derive.</strong> Refuser sous 45. Approfondir entre 45 et 59. Investir avec conditions entre 60 et 74. Investir au-dela de 75. Le verdict <strong style={{ color: 'var(--ink)' }}>{(reco.verdict || '').toUpperCase()}</strong> decoule strictement de ces seuils, sans intervention narrative possible.
+                </div>
+              </div>
+          );
+          })()}
+
+          {/* DESACCORD MOTIVE DE L ANALYSTE
+              Affiche en alerte editoriale quand le moteur d orchestration
+              (LLM narrateur) a estime que son jugement structurel diverge
+              fortement du calcul mecanique. Le partner peut alors lire le
+              rationale du desaccord avant de conclure : c est le canal
+              qui permet a la qualite subjective (founder-market fit
+              exceptionnel, fenetre macro extreme non chiffrable) de
+              remonter au-dessus des chiffres deterministes, sans pour
+              autant les ecraser. Le score affiche reste le score
+              mecanique. */}
+          {reco.assessorDisagreement?.present && (
+            <div className="verdict-block" style={{ borderLeft: '3px solid var(--ocre-brule)', paddingLeft: 14, marginTop: 12 }}>
+              <div className="verdict-block-head">
+                <span className="verdict-block-title" style={{ color: 'var(--ocre-brule)' }}>
+                  Desaccord motive de l&apos;analyste
+                </span>
+              </div>
+              <div style={{ fontSize: 13, lineHeight: 1.55, opacity: 0.92 }}>
+                <p style={{ margin: '0 0 8px 0' }}>
+                  Le calcul mecanique des dimensions donne <strong>{reco.assessorDisagreement.mechanicalVerdict}</strong> a {reco.assessorDisagreement.mechanicalScore}/100. Le moteur d orchestration aurait calibre le dossier a <strong>{reco.assessorDisagreement.llmVerdict}</strong> a {reco.assessorDisagreement.llmScoreSuggestion}/100 si on lui avait laisse le choix, soit un ecart de {reco.assessorDisagreement.scoreDelta > 0 ? '+' : ''}{reco.assessorDisagreement.scoreDelta} points.
+                </p>
+                <p style={{ margin: 0, fontStyle: 'italic' }}>
+                  {reco.assessorDisagreement.rationale}
+                </p>
+                <div style={{ fontSize: 11, opacity: 0.7, marginTop: 8, fontStyle: 'normal' }}>
+                  Le score affiche reste le calcul mecanique deterministe. Cette alerte est un signal qualitatif a integrer a la decision, pas un override.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* BLOC 1.5 : DECOMPOSITION DU SCORE PAR DIMENSION
+              Auditabilite totale demandee par les partners : qui veut
+              comprendre d ou vient le 47/100 doit pouvoir tracer chaque
+              point a sa source moteur. Cette section affiche les six
+              dimensions, leur score brut, leur poids dans la formule, et
+              leur contribution finale au score global. Les sous-scores
+              Equipe et Marche sont detailles parce que ce sont les seules
+              dimensions composites (les autres viennent d un seul moteur). */}
+          {reco.computedScoreBreakdown?.mechanicalDimensions && (
+            <div className="verdict-block" style={{ marginTop: 14 }}>
+              <div className="verdict-block-head">
+                <span className="verdict-block-num" aria-hidden="true">1.5</span>
+                <span className="verdict-block-title">Decomposition du score par dimension</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8 }}>
+                {(['team', 'market', 'macro', 'financial', 'contrarian', 'vigilance'] as const).map((key) => {
+                  const dim: any = (reco.computedScoreBreakdown as any).mechanicalDimensions[key];
+                  const labels: Record<string, string> = {
+                    team: 'Equipe',
+                    market: 'Marche',
+                    macro: 'Macro / timing',
+                    financial: 'Modele economique',
+                    contrarian: 'Singularites contrariennes',
+                    vigilance: 'Vigilance critique (inversee)',
+                  };
+                  return (
+                    <div key={key} style={{ borderLeft: '2px solid var(--hairline)', paddingLeft: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500 }}>{labels[key]}</span>
+                        <span style={{ fontSize: 11, opacity: 0.55 }}>poids {Math.round(dim.weight * 100)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 2 }}>
+                        <span style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500 }}>{dim.score}<span style={{ fontSize: 11, opacity: 0.5 }}>/100</span></span>
+                        <span style={{ fontSize: 11, opacity: 0.65 }}>contribution {dim.contribution.toFixed(1)} pts</span>
+                      </div>
+                      {Array.isArray(dim.subScores) && dim.subScores.length > 0 && (
+                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, lineHeight: 1.5 }}>
+                          {dim.subScores.map((s: any, i: number) => (
+                            <span key={i}>
+                              {i > 0 && ' · '}
+                              {s.name} {s.score}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="verdict-block-legend" style={{ marginTop: 10 }}>
+                Formule : score = somme des (score_dimension x poids). Les six dimensions et leurs poids sont stables dans le temps. Les seuils de verdict sont 45 / 60 / 75. Un partner qui souhaite recalibrer la formule peut le faire en modifiant les poids dans le code, sans changer la nature des scores produits par les moteurs Bloc 1.
+              </div>
+            </div>
+          )}
 
           {/* BLOC 2 : PROBABILITE DE SUCCES
               Distincte du score : reflète la confiance dans la these face

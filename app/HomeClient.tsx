@@ -2907,6 +2907,39 @@ export default function HomeClient({
                     {/* Tab content */}
               {(activeTab === 'synthesis' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
+                  {/* Alerte de desaccord motive : affiche en haut de la
+                      synthese quand le moteur d orchestration a estime que
+                      son jugement structurel diverge du calcul mecanique
+                      deterministe. Le score affiche reste mecanique mais le
+                      partner voit l alerte editoriale et peut en tenir compte. */}
+                  {result.finalRecommendation?.assessorDisagreement?.present && (
+                    <div style={{
+                      padding: '14px 18px',
+                      marginBottom: 20,
+                      background: 'var(--ocre-brule-soft)',
+                      borderLeft: '3px solid var(--ocre-brule)',
+                    }}>
+                      <div style={{
+                        fontSize: 11,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        color: 'var(--ocre-brule)',
+                        marginBottom: 6,
+                        fontWeight: 600,
+                      }}>
+                        Desaccord motive de l&apos;analyste
+                      </div>
+                      <p style={{ fontSize: 13, margin: '0 0 6px 0', lineHeight: 1.55 }}>
+                        Calcul mecanique : <strong>{result.finalRecommendation.assessorDisagreement.mechanicalVerdict}</strong> a {result.finalRecommendation.assessorDisagreement.mechanicalScore}/100. Jugement structurel : <strong>{result.finalRecommendation.assessorDisagreement.llmVerdict}</strong> a {result.finalRecommendation.assessorDisagreement.llmScoreSuggestion}/100. Ecart de {result.finalRecommendation.assessorDisagreement.scoreDelta > 0 ? '+' : ''}{result.finalRecommendation.assessorDisagreement.scoreDelta} points.
+                      </p>
+                      <p style={{ fontSize: 13, margin: 0, fontStyle: 'italic', lineHeight: 1.55 }}>
+                        {result.finalRecommendation.assessorDisagreement.rationale}
+                      </p>
+                      <div style={{ fontSize: 11, opacity: 0.7, marginTop: 8 }}>
+                        Le score affiche reste le calcul mecanique deterministe. Cette alerte est un signal qualitatif a integrer a la decision.
+                      </div>
+                    </div>
+                  )}
                   {/* Bloc visuel : jauge probabilite + radar 6 dimensions */}
                   {(result.finalRecommendation?.successProbability != null || (result.finalRecommendation?.dimensionProbabilities || []).length > 0) && (
                     <div style={{
@@ -4598,18 +4631,6 @@ export default function HomeClient({
 
             <div className="reset-row" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn" onClick={reset}>Analyser un nouveau dossier</button>
-              <button
-                className="btn"
-                onClick={() => {
-                  setPrintMode(true);
-                  setTimeout(() => {
-                    window.print();
-                    setTimeout(() => setPrintMode(false), 500);
-                  }, 400);
-                }}
-                title="Exporter le dashboard analytique complet et la note d&apos;investissement en PDF">
-                ⤓ Exporter en PDF
-              </button>
             </div>
           </>
         )}
