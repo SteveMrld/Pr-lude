@@ -616,10 +616,28 @@ function nonApplicableScorecard(): ValuationMethodResult {
 
 /**
  * Consolide les ranges des methodes applicables en une fourchette
- * unique. Utilise une moyenne ponderee : la methode des multiples
- * a plus de poids quand elle est applicable (la donnee de revenue
- * est l ancrage le plus solide), Berkus / Scorecard ont plus de
- * poids au seed pre-revenue ou les multiples sont indisponibles.
+ * unique exploitable pour pricer. Trois principes :
+ *
+ * 1. Ponderation par stade ET disponibilite du revenue. Au seed pre-
+ *    revenue, on exclut VC inverse (sans projection de revenue ancree
+ *    dans un BP, elle pond des bornes a 40M+ sans aucune assise
+ *    empirique sur un dossier sans traction). Au Series A+ avec
+ *    revenue, multiples sectoriels et VC inverse dominent ; Berkus et
+ *    Scorecard ne sont plus pertinents (calibres pour le seed).
+ *
+ * 2. Bornes consolidees sur la dispersion entre centraux des methodes,
+ *    pas sur l enveloppe des bornes propres de chaque methode. L
+ *    incertitude reelle est l ecart entre les ancres respectives, par
+ *    exemple Berkus dit 1,4M et Scorecard dit 4M donc l incertitude
+ *    est entre 1,4 et 4, et pas entre la borne basse de Berkus (0,8) et
+ *    la borne haute de Scorecard (5,2). Cette logique evite que
+ *    chaque methode tire la fourchette consolidee a son extreme.
+ *
+ * 3. Garde-fous : plage minimale de +/- 20% autour du central pour
+ *    signaler l incertitude qualitative incompressible (signaux non
+ *    chiffrables : founder-market fit, momentum, contexte du tour).
+ *    Plafond a central x [0.55, 1.80] pour interdire les fourchettes
+ *    inutilisables pour pricer.
  */
 function consolidateRanges(
   methods: ValuationMethodResult[],
@@ -628,30 +646,100 @@ function consolidateRanges(
   const valid = methods.filter((m) => m.applicable && m.range);
   if (valid.length === 0) return null;
 
-  const weights: Record<string, number> = stage === 'seed'
-    ? { 'sector-multiples': 1.0, 'vc-method': 0.5, 'berkus': 1.0, 'scorecard': 1.0 }
-    : { 'sector-multiples': 2.0, 'vc-method': 1.0, 'berkus': 0, 'scorecard': 0 };
+  // Disponibilite du revenue : on detecte via l applicabilite de
+  // sector-multiples qui requiert un ARR ou revenue exploitable.
+  const hasRevenue = valid.some((m) => m.method === 'sector-multiples');
+
+  const weights: Record<string, number> = (() => {
+    if (stage === 'seed') {
+      // Seed pre-revenue : Scorecard et Berkus, VC inverse exclu.
+      // Seed avec revenue : multiples sectoriels prennent l ancrage
+      // empirique, Berkus et Scorecard restent en complement.
+      if (hasRevenue) {
+        return {
+          'sector-multiples': 0.50,
+          'scorecard': 0.30,
+          'berkus': 0.20,
+          'vc-method': 0,
+        };
+      }
+      return {
+        'scorecard': 0.60,
+        'berkus': 0.40,
+        'sector-multiples': 0,
+        'vc-method': 0,
+      };
+    }
+    // Series A et au-dela : multiples sectoriels dominent, VC inverse
+    // complemente, Berkus et Scorecard sortent du jeu.
+    if (stage === 'series-a') {
+      return {
+        'sector-multiples': 0.65,
+        'vc-method': 0.35,
+        'berkus': 0,
+        'scorecard': 0,
+      };
+    }
+    // Series B+
+    return {
+      'sector-multiples': 0.75,
+      'vc-method': 0.25,
+      'berkus': 0,
+      'scorecard': 0,
+    };
+  })();
+
+  const eligible = valid.filter((m) => (weights[m.method] || 0) > 0);
+  if (eligible.length === 0) return null;
 
   let totalWeight = 0;
-  let weightedMin = 0;
   let weightedCentral = 0;
-  let weightedMax = 0;
+  const centrals: number[] = [];
 
-  valid.forEach((m) => {
+  for (const m of eligible) {
     const w = weights[m.method] || 0;
-    if (w === 0 || !m.range) return;
     totalWeight += w;
-    weightedMin += m.range.min * w;
-    weightedCentral += m.range.central * w;
-    weightedMax += m.range.max * w;
-  });
+    weightedCentral += m.range!.central * w;
+    centrals.push(m.range!.central);
+  }
 
-  if (totalWeight === 0) return null;
+  const central = weightedCentral / totalWeight;
+
+  // Garde-fous d incertitude. ENVELOPPE_MAX : les bornes ne sortent
+  // jamais de central x [0.55, 1.80] meme si les methodes divergent
+  // beaucoup. ENVELOPPE_MIN : les bornes garantissent au minimum +/-
+  // 20% autour du central, meme si les methodes convergent tres etroit.
+  const ENVELOPPE_MAX_DOWN = 0.55;
+  const ENVELOPPE_MAX_UP = 1.80;
+  const ENVELOPPE_MIN_DOWN = 0.80;
+  const ENVELOPPE_MIN_UP = 1.20;
+
+  let min: number, max: number;
+  if (eligible.length === 1) {
+    // Methode unique : on resserre ses bornes propres dans le plafond
+    // de plausibilite, sinon une seule methode au range tres large
+    // (typiquement VC inverse seul) sortirait une fourchette inutile.
+    const m = eligible[0];
+    min = Math.max(m.range!.min, central * ENVELOPPE_MAX_DOWN);
+    max = Math.min(m.range!.max, central * ENVELOPPE_MAX_UP);
+  } else {
+    // Plusieurs methodes : la dispersion entre leurs centraux est l
+    // ancrage de l incertitude.
+    const minCentral = Math.min(...centrals);
+    const maxCentral = Math.max(...centrals);
+    min = Math.max(minCentral, central * ENVELOPPE_MAX_DOWN);
+    max = Math.min(maxCentral, central * ENVELOPPE_MAX_UP);
+  }
+
+  // Plage minimale d incertitude : on garantit toujours +/- 20% autour
+  // du central, sauf si les bornes plafond sont deja plus serrees.
+  if (min > central * ENVELOPPE_MIN_DOWN) min = central * ENVELOPPE_MIN_DOWN;
+  if (max < central * ENVELOPPE_MIN_UP) max = central * ENVELOPPE_MIN_UP;
 
   return {
-    min: Math.round(weightedMin / totalWeight),
-    central: Math.round(weightedCentral / totalWeight),
-    max: Math.round(weightedMax / totalWeight),
+    min: Math.round(min),
+    central: Math.round(central),
+    max: Math.round(max),
   };
 }
 
