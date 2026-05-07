@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 // ============================================================
 // PORTFOLIO CLIENT
 // ------------------------------------------------------------
@@ -267,30 +269,36 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         </div>
         <div className="pf-funnel">
           {stats!.conversion.map((c, i) => {
-            const widthPct = c.total > 0
-              ? Math.max(20, (stats!.conversion[i + 1]?.total ?? c.total * c.rate / 100) / stats!.conversion[0].total * 100)
-              : 100;
-            const fromColor = STAGE_COLORS[c.from] || '#94a3b8';
-            const toColor = STAGE_COLORS[c.to] || '#94a3b8';
+            const stageColor = STAGE_COLORS[c.from] || '#94a3b8';
+            const isLast = i === stats!.conversion.length - 1;
+            const finalColor = STAGE_COLORS[c.to] || '#94a3b8';
+            const finalCount = Math.round(c.total * c.rate / 100);
             return (
-              <div className="pf-funnel-row" key={`${c.from}-${c.to}`}>
-                <div className="pf-funnel-stage" style={{ background: fromColor }}>
-                  <div className="pf-funnel-stage-label">{STAGE_LABELS[c.from]}</div>
-                  <div className="pf-funnel-stage-num">{c.total}</div>
-                </div>
-                <div className="pf-funnel-arrow">
-                  <div className="pf-funnel-rate">
-                    <span>{c.rate}%</span>
-                    <span className="pf-funnel-rate-label">conversion</span>
+              <React.Fragment key={`${c.from}-${c.to}`}>
+                <div className="pf-funnel-step" style={{ borderLeftColor: stageColor }}>
+                  <div className="pf-funnel-step-meta">
+                    <span className="pf-funnel-step-dot" style={{ backgroundColor: stageColor }} aria-hidden="true" />
+                    <span className="pf-funnel-step-label">{STAGE_LABELS[c.from]}</span>
                   </div>
+                  <div className="pf-funnel-step-count">{c.total}</div>
                 </div>
-                {i === stats!.conversion.length - 1 && (
-                  <div className="pf-funnel-stage" style={{ background: toColor, opacity: 0.85 }}>
-                    <div className="pf-funnel-stage-label">{STAGE_LABELS[c.to]}</div>
-                    <div className="pf-funnel-stage-num">{Math.round(c.total * c.rate / 100)}</div>
+                <div className="pf-funnel-link">
+                  <span className="pf-funnel-link-line" aria-hidden="true" />
+                  <span className="pf-funnel-link-rate">
+                    <em>{c.rate}%</em> de conversion
+                  </span>
+                  <span className="pf-funnel-link-line" aria-hidden="true" />
+                </div>
+                {isLast && (
+                  <div className="pf-funnel-step pf-funnel-step-final" style={{ borderLeftColor: finalColor }}>
+                    <div className="pf-funnel-step-meta">
+                      <span className="pf-funnel-step-dot" style={{ backgroundColor: finalColor }} aria-hidden="true" />
+                      <span className="pf-funnel-step-label">{STAGE_LABELS[c.to]}</span>
+                    </div>
+                    <div className="pf-funnel-step-count">{finalCount}</div>
                   </div>
                 )}
-              </div>
+              </React.Fragment>
             );
           })}
         </div>
@@ -775,85 +783,79 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           display: flex;
           flex-direction: column;
           gap: 0;
-          padding: 8px 0;
+          padding: 0;
+          max-width: 720px;
         }
-        .pf-funnel-row {
+        .pf-funnel-step {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 24px;
+          padding: 20px 24px 20px 22px;
+          background: var(--paper-accent);
+          border: 1px solid var(--hairline);
+          border-left-width: 3px;
+          border-radius: 4px;
+        }
+        .pf-funnel-step-final {
+          background: var(--paper);
+          border-style: solid;
+        }
+        .pf-funnel-step-meta {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .pf-funnel-step-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          opacity: 0.85;
+        }
+        .pf-funnel-step-label {
+          font-family: var(--sans);
+          font-size: 11px;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          font-weight: 500;
+          color: var(--muted);
+        }
+        .pf-funnel-step-count {
+          font-family: var(--serif);
+          font-size: 28px;
+          font-weight: 600;
+          line-height: 1;
+          color: var(--ink);
+          font-variant-numeric: tabular-nums;
+        }
+        .pf-funnel-link {
           display: flex;
           align-items: center;
           gap: 14px;
-          flex-wrap: wrap;
+          padding: 6px 0 6px 32px;
+          height: 36px;
         }
-        .pf-funnel-stage {
-          padding: 16px 22px;
-          border-radius: 10px;
-          color: white;
-          font-family: var(--sans);
-          min-width: 160px;
-          flex: 0 0 auto;
+        .pf-funnel-link-line {
+          flex: 0 0 18px;
+          height: 1px;
+          background: var(--hairline);
         }
-        .pf-funnel-stage-label {
-          font-size: 11px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          font-weight: 600;
-          opacity: 0.95;
-          margin-bottom: 4px;
-        }
-        .pf-funnel-stage-num {
-          font-family: var(--serif);
-          font-size: 26px;
-          font-weight: 700;
-          line-height: 1;
-        }
-        .pf-funnel-arrow {
+        .pf-funnel-link-line:last-child {
           flex: 1 1 auto;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 0;
         }
-        .pf-funnel-rate {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 12px 16px;
-          background: var(--accent-soft);
-          border-radius: 8px;
-          color: var(--accent);
-          min-width: 100px;
-          position: relative;
-        }
-        .pf-funnel-rate::before {
-          content: '→';
-          position: absolute;
-          left: -16px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--muted-soft);
-          font-size: 18px;
-        }
-        .pf-funnel-rate::after {
-          content: '→';
-          position: absolute;
-          right: -16px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--muted-soft);
-          font-size: 18px;
-        }
-        .pf-funnel-rate span:first-child {
+        .pf-funnel-link-rate {
           font-family: var(--serif);
-          font-size: 22px;
-          font-weight: 700;
-          line-height: 1;
+          font-size: 13px;
+          color: var(--muted);
+          letter-spacing: 0.01em;
+          white-space: nowrap;
         }
-        .pf-funnel-rate-label {
-          font-family: var(--sans);
-          font-size: 9.5px;
-          letter-spacing: 0.10em;
-          text-transform: uppercase;
-          margin-top: 4px;
-          opacity: 0.7;
+        .pf-funnel-link-rate em {
+          font-style: italic;
+          font-weight: 600;
+          color: var(--ink-soft);
+          margin-right: 4px;
         }
 
         .pf-stages {
@@ -1068,18 +1070,16 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           .pf-section { padding: 0 24px; margin-bottom: 48px; }
           .pf-section-grid { grid-template-columns: 1fr; gap: 36px; }
           .pf-verdicts { grid-template-columns: 1fr 1fr; }
-          .pf-funnel-row {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
+          .pf-funnel-step {
+            padding: 16px 18px 16px 16px;
+            gap: 16px;
           }
-          .pf-funnel-stage { min-width: 0; }
-          .pf-funnel-rate {
-            min-width: 0;
-            width: fit-content;
-            margin: 0 auto;
+          .pf-funnel-step-count {
+            font-size: 24px;
           }
-          .pf-funnel-rate::before, .pf-funnel-rate::after { display: none; }
+          .pf-funnel-link {
+            padding-left: 20px;
+          }
           .pf-stage-row {
             grid-template-columns: 110px 1fr 32px;
             gap: 10px;
