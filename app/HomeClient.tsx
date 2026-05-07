@@ -912,7 +912,7 @@ export default function HomeClient({
       const enrichedMsg = baseMsg.includes('network')
         || baseMsg.includes('Network')
         || baseMsg.toLowerCase().includes('failed to fetch')
-        ? `Connexion interrompue avec le serveur Prelude. Causes possibles : timeout reseau (mobile en arriere-plan), surcharge LLM Anthropic (529), proxy intermediaire. Solution : recharger la page et relancer. Le pipeline reprendra a zero.${contextSuffix}`
+        ? `Connexion interrompue avec le serveur Prelude. Cause typique sur mobile : ecran qui s eteint ou app en arriere-plan, le navigateur coupe le flux SSE. Le serveur peut avoir continue a tourner et persister l analyse meme apres la coupure cote client.\n\nA verifier en premier : ouvrir l onglet Historique pour voir si le dossier est apparu (le moteur orchestrate est l avant-dernier de la chaine, donc l analyse a souvent ete sauvee). Si le dossier est present, ne pas relancer. Si absent au bout de 2 minutes, recharger la page et relancer le pipeline a zero.${contextSuffix}`
         : baseMsg + contextSuffix;
       setError(enrichedMsg);
     } finally {
