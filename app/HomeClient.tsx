@@ -492,6 +492,24 @@ export default function HomeClient({
             }
           });
           setEngineStates(restored);
+
+          // Auto-ouverture de la zone Data Room si l URL contient action=dd.
+          // Permet d arriver depuis /history -> bouton "Lancer DD" et
+          // tomber directement sur la zone d upload, sans avoir a scroller
+          // pour trouver le bandeau "Passer en DD approfondie". Conditions :
+          //   - le query param est present
+          //   - le verdict ne justifie pas un refus
+          //   - la DD n a pas deja tourne (sinon les sections sont visibles)
+          const action = url.searchParams.get('action');
+          if (action === 'dd') {
+            const verdict = rj?.finalRecommendation?.verdict;
+            const hasBloc2 = !!(rj.ledgerExtraction || rj.ddFinancial
+              || rj.capTableExtraction || rj.ddContractual || rj.ddTechnical);
+            if (verdict && verdict !== 'refuser' && !hasBloc2) {
+              setDdDeepenOpen(true);
+              setDdDeepenError(null);
+            }
+          }
         }
       })
       .catch(() => {
@@ -2787,7 +2805,15 @@ export default function HomeClient({
                     marginBottom: 18,
                     maxWidth: 720,
                   }}>
-                    L&apos;instruction Bloc 1 conclut a un verdict <strong>{verdict}</strong>. Le passage en DD approfondie active les moteurs Data Room sur les documents transmis par la startup : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira sans recalculer le Bloc 1 deja produit.
+                    {verdict === 'approfondir' && (
+                      <>L&apos;instruction Bloc 1 ne tranche pas. Le score positionne le dossier en zone d&apos;instruction approfondie, la DD doit cristalliser l&apos;arbitrage. Demander a la startup les documents data room : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira des cinq audits Bloc 2 sans recalculer le Bloc 1.</>
+                    )}
+                    {verdict === 'investir avec conditions' && (
+                      <>L&apos;instruction Bloc 1 conclut a un go conditionne. La DD doit valider les conditions identifiees plus loin dans la note, en particulier sur la coherence financiere et la structure capitalistique. Demander a la startup les documents data room (grand livre, pacte, statuts, cap table, contrats, dossier technique) avant de formaliser la term sheet.</>
+                    )}
+                    {verdict === 'investir' && (
+                      <>L&apos;instruction Bloc 1 conclut a un go franc. La DD est confirmatoire : valider que les chiffres declares dans le pitch se retrouvent dans le grand livre, que le pacte ne contient pas de clauses bloquantes, que la cap table est propre, et que le dossier technique tient ses promesses. Apres ces verifications, la term sheet peut etre formalisee.</>
+                    )}
                   </div>
                   <button
                     className="btn btn-primary"

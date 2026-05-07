@@ -131,6 +131,14 @@ export interface AnalysisSummary {
   workflowStageUpdatedAt: string | null;
   versionsCount: number;
   openCommentsCount: number;
+  /**
+   * True si au moins un moteur Bloc 2 (DD approfondie) a tourne et
+   * produit un output. Permet a la liste d historique de differencier
+   * les dossiers en attente de DD (Bloc 1 seul) des dossiers complets.
+   * Maintenu en colonne dediee dans la table analyses pour eviter de
+   * charger result_json a chaque list.
+   */
+  hasBloc2: boolean;
 }
 
 /**
@@ -311,6 +319,30 @@ export async function findExistingByCompany(
 }
 
 /**
+ * Calcule a partir du resultJson si la DD approfondie (Bloc 2) a deja
+ * tourne sur ce dossier. Vrai si au moins un des cinq outputs Bloc 2
+ * est present (objet non null/undefined) :
+ *   - ledgerExtraction (grand livre)
+ *   - ddFinancial (audit financier)
+ *   - capTableExtraction (cap table)
+ *   - ddContractual (audit contractuel)
+ *   - ddTechnical (audit technique)
+ *
+ * Le flag est persiste dans la colonne has_bloc2 pour eviter de charger
+ * tout result_json a chaque list. Voir migration supabase-has-bloc2-schema.sql.
+ */
+function computeHasBloc2(resultJson: any): boolean {
+  if (!resultJson || typeof resultJson !== 'object') return false;
+  return !!(
+    resultJson.ledgerExtraction
+    || resultJson.ddFinancial
+    || resultJson.capTableExtraction
+    || resultJson.ddContractual
+    || resultJson.ddTechnical
+  );
+}
+
+/**
  * Met a jour le result_json d une analyse existante, sans creer une
  * nouvelle ligne. Utilise quand on cree une nouvelle version : le snapshot
  * historique est insere dans analyses_versions, et le live de la table
@@ -344,6 +376,7 @@ export async function updateAnalysisLive(
         contrarian_score: input.contrarianScore,
         coherence_score: input.coherenceScore,
         result_json: input.resultJson,
+        has_bloc2: computeHasBloc2(input.resultJson),
         source_text: input.sourceText,
         source_filename: input.sourceFilename,
         source_pages: input.sourcePages,
@@ -404,6 +437,7 @@ export async function saveAnalysis(
         contrarian_score: input.contrarianScore,
         coherence_score: input.coherenceScore,
         result_json: input.resultJson,
+        has_bloc2: computeHasBloc2(input.resultJson),
         source_text: input.sourceText,
         source_filename: input.sourceFilename,
         source_pages: input.sourcePages,
@@ -449,7 +483,7 @@ export async function listAnalyses(
         id, company_name, sector, sub_sector, country, geographic_hub,
         year_founded, round_type, round_amount_eur,
         verdict, verdict_confidence, global_score, blindspot_score,
-        contrarian_score, coherence_score, user_notes,
+        contrarian_score, coherence_score, user_notes, has_bloc2,
         created_at, updated_at
       `)
       .eq('user_id', userId)
@@ -744,6 +778,7 @@ function rowToSummary(row: any): AnalysisSummary {
     workflowStageUpdatedAt: null,
     versionsCount: 0,
     openCommentsCount: 0,
+    hasBloc2: row.has_bloc2 === true,
   };
 }
 

@@ -37,6 +37,7 @@ interface AnalysisSummary {
   workflowStageUpdatedAt: string | null;
   versionsCount: number;
   openCommentsCount: number;
+  hasBloc2: boolean;
 }
 
 interface Stats {
@@ -599,6 +600,32 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
             Vigilance : <strong style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>{Math.round(analysis.blindspotScore)}</strong>
           </div>
         )}
+        {/* Indicateur d etat d instruction. Pour les dossiers refuses,
+            pas d indicateur (la DD n a pas de sens). Pour les autres,
+            on differencie ce qui est en attente d action (Bloc 1 seul)
+            de ce qui est complet (DD faite). Permet au partner de scanner
+            sa liste en un coup d oeil. */}
+        {analysis.verdict !== 'refuser' && (
+          <div style={{
+            display: 'inline-block',
+            marginTop: 6,
+            padding: '2px 7px',
+            fontSize: 9,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            borderRadius: 3,
+            background: analysis.hasBloc2
+              ? 'var(--vert-foret-soft, rgba(80, 130, 90, 0.10))'
+              : 'var(--ocre-brule-soft)',
+            color: analysis.hasBloc2
+              ? 'var(--vert-foret, #5a7a4a)'
+              : 'var(--ocre-brule)',
+            border: `1px solid ${analysis.hasBloc2 ? 'var(--vert-foret, #5a7a4a)' : 'var(--ocre-brule)'}`,
+          }}>
+            {analysis.hasBloc2 ? 'DD complete' : 'Bloc 1 seul'}
+          </div>
+        )}
         <div style={{
           fontSize: 10.5,
           color: 'var(--muted-soft)',
@@ -608,6 +635,42 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
         }}>{dateStr}</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
+        {/* CTA direct pour lancer la DD. Visible uniquement si verdict ne
+            justifie pas un refus ET si la DD n a pas deja tourne. Le query
+            param ?action=dd ouvre automatiquement la zone d upload Data
+            Room sur la page d analyse, ce qui evite au partner de scroller
+            pour trouver le bandeau. C est le parcours le plus court entre
+            'je viens de recevoir les documents par email' et 'je peux les
+            uploader'. */}
+        {analysis.verdict !== 'refuser' && !analysis.hasBloc2 && (
+          <Link
+            href={`/?analysis=${analysis.id}&action=dd`}
+            style={{
+              padding: '7px 14px',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              color: 'var(--ocre-brule)',
+              border: '1px solid var(--ocre-brule)',
+              background: 'var(--ocre-brule-soft)',
+              textDecoration: 'none',
+              borderRadius: 8,
+              fontFamily: 'var(--sans)',
+              transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--ocre-brule)';
+              e.currentTarget.style.color = 'var(--paper)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--ocre-brule-soft)';
+              e.currentTarget.style.color = 'var(--ocre-brule)';
+            }}
+          >
+            Lancer DD
+          </Link>
+        )}
         <Link
           href={`/?analysis=${analysis.id}`}
           style={{
