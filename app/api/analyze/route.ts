@@ -16,6 +16,7 @@ import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engin
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { computeValuation } from '@/lib/engines/valuation-engine';
+import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
 import { processFiles } from '@/lib/file-processor';
@@ -468,6 +469,19 @@ export async function POST(req: NextRequest) {
             marketScore: mechanicalScore.dimensions.market.score,
           });
 
+          // Calcul des sept indicateurs deal type (Burn multiple, Rule of
+          // 40, NDR, Magic Number, Payback CAC, Marge brute, Revenue par
+          // employe). Deterministe egalement, lit financialData et
+          // produit un verdict par indicateur confronte aux benchmarks
+          // sectoriels par stade. Voir lib/engines/indicators-engine.ts
+          // pour la logique et lib/data/indicator-benchmarks.ts pour les
+          // seuils calibres OpenView / Bessemer / Pavilion 2024.
+          const indicators = computeIndicators({
+            extraction,
+            financial: financialCoherence,
+            financialData,
+          });
+
           const orchestratePromise = (async () => {
             const maxRetries = 2;
             let lastError: any = null;
@@ -644,6 +658,10 @@ export async function POST(req: NextRequest) {
             // detail des methodes utilisees (multiples sectoriels, VC
             // method, Berkus, Scorecard) avec leur rationale.
             valuation,
+            // Sept indicateurs deal type (Burn multiple, Rule of 40, NDR,
+            // Magic Number, Payback CAC, Marge brute, Revenue par
+            // employe) confrontes aux benchmarks sectoriels par stade.
+            indicators,
           };
 
           send('complete', result);

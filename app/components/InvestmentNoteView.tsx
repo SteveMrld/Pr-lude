@@ -6,6 +6,7 @@ import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
 import PortfolioPositionChart from './PortfolioPositionChart';
 import { computeValuation } from '@/lib/engines/valuation-engine';
+import { computeIndicators } from '@/lib/engines/indicators-engine';
 
 /**
  * Formate un montant en EUR de maniere courte et lisible :
@@ -244,6 +245,25 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       });
     } catch (err) {
       console.warn('[InvestmentNoteView] recompute valuation failed:', err);
+      return null;
+    }
+  }, [r]);
+
+  // Meme logique pour le moteur indicators (section 1.8). Calcul
+  // deterministe, peut etre rejoue cote client si le resultJson
+  // persiste ne contient pas d indicators (analyses anterieures au
+  // deploiement). Lit financialData et extraction.
+  const indicators = React.useMemo(() => {
+    if (r.indicators) return r.indicators;
+    if (!r.extraction) return null;
+    try {
+      return computeIndicators({
+        extraction: r.extraction,
+        financial: r.financialCoherence,
+        financialData: r.financialData,
+      });
+    } catch (err) {
+      console.warn('[InvestmentNoteView] recompute indicators failed:', err);
       return null;
     }
   }, [r]);
@@ -1203,6 +1223,149 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               <div className="verdict-block-legend" style={{ marginTop: 12 }}>
                 Sources de benchmarks utilisees : {valuation.benchmarkSources.join(', ')}. Les fourchettes sont indicatives, calibrees sur les transactions europeennes 2023-2025. Le pricing reel depend de signaux qualitatifs non chiffrables (founder-market fit, momentum competitif, contexte du tour).
+              </div>
+            </div>
+          )}
+
+          {/* BLOC 1.8 : INDICATEURS DEAL TYPE
+              Sept indicateurs canoniques (Burn multiple, Rule of 40, NDR,
+              Magic Number, Payback CAC, Marge brute, Revenue par employe)
+              calcules deterministiquement a partir de financialData et
+              confrontes aux benchmarks sectoriels par stade. Chaque
+              indicateur a un verdict (best-in-class, sain, a-surveiller,
+              rouge, non-applicable) et un score global d execution
+              operationnelle 0-100. */}
+          {indicators && (
+            <div className="verdict-block" style={{ marginTop: 14 }}>
+              <div className="verdict-block-head">
+                <span className="verdict-block-num" aria-hidden="true">1.8</span>
+                <span className="verdict-block-title">Indicateurs deal type</span>
+                {indicators.indicators.filter((i: any) => i.verdict !== 'non-applicable').length >= 3 ? (
+                  <span className="verdict-block-figure" style={{ fontSize: 22 }}>
+                    {indicators.globalIndicatorScore}
+                    <span style={{ fontSize: 13, opacity: 0.6 }}>/100</span>
+                  </span>
+                ) : (
+                  <span className="verdict-block-figure" style={{ fontSize: 14, opacity: 0.6, fontFamily: 'var(--sans)' }}>
+                    {indicators.indicators.filter((i: any) => i.verdict !== 'non-applicable').length}/7 calculables
+                  </span>
+                )}
+              </div>
+
+              {/* Synthese editoriale */}
+              <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14, color: 'var(--ink-soft)' }}>
+                {indicators.synthesis}
+              </div>
+
+              {/* Tableau des indicateurs applicables */}
+              {indicators.indicators.filter((i: any) => i.verdict !== 'non-applicable').length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    color: 'var(--muted)',
+                    marginBottom: 8,
+                  }}>
+                    Indicateurs calcules
+                  </div>
+                  {indicators.indicators
+                    .filter((i: any) => i.verdict !== 'non-applicable')
+                    .map((ind: any) => {
+                      const verdictColor =
+                        ind.verdict === 'best-in-class' ? '#1e7a3d' :
+                        ind.verdict === 'sain' ? '#3a7a4a' :
+                        ind.verdict === 'a-surveiller' ? 'var(--ocre-brule)' :
+                        ind.verdict === 'rouge' ? '#a73d2c' : 'var(--muted)';
+                      const verdictLabel =
+                        ind.verdict === 'best-in-class' ? 'best-in-class' :
+                        ind.verdict === 'sain' ? 'sain' :
+                        ind.verdict === 'a-surveiller' ? 'a surveiller' :
+                        ind.verdict === 'rouge' ? 'rouge' : '';
+                      return (
+                        <div key={ind.key} style={{
+                          paddingLeft: 12,
+                          borderLeft: `3px solid ${verdictColor}`,
+                          marginBottom: 8,
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500 }}>{ind.label}</span>
+                            <span style={{ fontSize: 12, fontFamily: 'var(--sans)' }}>
+                              <strong style={{ color: verdictColor, fontSize: 14 }}>
+                                {ind.value != null ? `${ind.value}` : 'n/a'}
+                              </strong>
+                              <span style={{ opacity: 0.7, marginLeft: 4 }}>{ind.unit}</span>
+                              <span style={{
+                                marginLeft: 12,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.06em',
+                                fontSize: 10,
+                                color: verdictColor,
+                                fontWeight: 600,
+                              }}>{verdictLabel}</span>
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-soft)', marginTop: 2 }}>
+                            {ind.rationale}
+                          </div>
+                          {ind.benchmark && (
+                            <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2, fontFamily: 'var(--sans)' }}>
+                              Benchmark : best {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.best}{ind.unit} · sain {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.sain}{ind.unit} · surveille {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.surveille}{ind.unit}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+
+              {/* Indicateurs non applicables, regroupes en bas */}
+              {indicators.indicators.filter((i: any) => i.verdict === 'non-applicable').length > 0 && (
+                <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px solid var(--hairline)' }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    color: 'var(--muted)',
+                    marginBottom: 6,
+                  }}>
+                    Non applicables ou non extractibles
+                  </div>
+                  {indicators.indicators
+                    .filter((i: any) => i.verdict === 'non-applicable')
+                    .map((ind: any) => (
+                      <div key={ind.key} style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--muted)', marginBottom: 4 }}>
+                        <strong style={{ fontFamily: 'var(--serif)', color: 'var(--ink-soft)' }}>{ind.label} :</strong> {ind.rationale}
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              {/* Warnings */}
+              {indicators.warnings && indicators.warnings.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    color: 'var(--ocre-brule)',
+                    marginBottom: 4,
+                  }}>
+                    Avertissements
+                  </div>
+                  <ul style={{ paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>
+                    {indicators.warnings.map((w: string, i: number) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="verdict-block-legend" style={{ marginTop: 12 }}>
+                Sources des benchmarks : OpenView SaaS Benchmarks 2024, Bessemer State of the Cloud 2024, Pavilion B2B SaaS Benchmarks 2024, ChartMogul Churn Benchmarks 2024, David Sacks Burn Multiple 2020. Calibration europeenne 2024-2025. Indicateurs deterministes calcules a partir du BP, sans appel LLM.
               </div>
             </div>
           )}
