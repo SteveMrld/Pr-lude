@@ -3104,6 +3104,38 @@ export default function HomeClient({
                             </ul>
                           </div>
                         )}
+                        {/* Sous-scores composites : seules les dimensions Equipe et
+                            Marche sont des composites de plusieurs scores moteur.
+                            On les affiche en bas de la carte pour permettre au
+                            partner d auditer la formation du score : le 62/100
+                            de la carte Equipe est compose de couverture systemique
+                            55, anti-fragilite 75, transposition 70, obsession 45. */}
+                        {(() => {
+                          const breakdown = result.finalRecommendation?.computedScoreBreakdown as any;
+                          const mech = breakdown?.mechanicalDimensions;
+                          if (!mech) return null;
+                          const dimKey = dim?.dimensionName?.toLowerCase().includes('equipe') || dim?.dimensionName?.toLowerCase().includes('équipe')
+                            ? 'team'
+                            : dim?.dimensionName?.toLowerCase().includes('marche') || dim?.dimensionName?.toLowerCase().includes('marché')
+                            ? 'market'
+                            : null;
+                          if (!dimKey) return null;
+                          const sub = mech[dimKey]?.subScores;
+                          if (!Array.isArray(sub) || sub.length === 0) return null;
+                          return (
+                            <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px dotted var(--hairline)' }}>
+                              <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.5, marginBottom: 4 }}>Composition du score</div>
+                              <div style={{ fontSize: 11, lineHeight: 1.6, opacity: 0.8 }}>
+                                {sub.map((s: any, k: number) => (
+                                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>{s.name} <span style={{ opacity: 0.5 }}>(poids {Math.round(s.weight * 100)}%)</span></span>
+                                    <span style={{ fontFamily: 'var(--serif)' }}>{s.score}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
