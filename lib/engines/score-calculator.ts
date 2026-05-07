@@ -98,6 +98,14 @@ export interface DimensionBreakdown {
   rationale: string;
   /** Sous-scores individuels qui ont nourri le composite (Equipe / Marche). */
   subScores?: Array<{ name: string; score: number; weight: number }>;
+  /**
+   * True si la dimension n a pas pu etre evaluee faute de donnees
+   * (ex : modele economique sans business plan fourni). Le score affiche
+   * est alors la valeur neutre 50 utilisee pour le calcul mais l UI doit
+   * afficher un message explicite plutot que le chiffre nu, sinon le
+   * partner croit que la dimension a ete vraiment notee.
+   */
+  notEvaluable?: boolean;
 }
 
 export interface MechanicalScoreResult {
@@ -227,7 +235,32 @@ export function computeMechanicalScore(input: {
   const marketComposite = computeMarketScore(input.market);
 
   const macroScore = input.macro?.contraryclicalOpportunity?.score ?? 50;
-  const financialScore = input.financial?.globalCoherenceScore ?? 50;
+
+  // CAS PARTICULIER : modele economique non evaluable.
+  // Le moteur Coherence financiere retourne globalCoherenceScore=0 quand
+  // aucun business plan exploitable n a ete fourni (hasFinancialData=false
+  // ou dataSource='none'). Si on traitait ce 0 comme un score reel, on
+  // penaliserait injustement de 6.5 points le score global (poids 0.13 x
+  // ecart de 50 par rapport a la valeur neutre), ce qui peut faire basculer
+  // un APPROFONDIR (47) en REFUSER (44) a un point pres du seuil. Bug
+  // observe sur le dossier Platypus Craft post-refonte.
+  //
+  // Solution : si la dimension n est pas evaluable, on utilise la valeur
+  // neutre 50 (ni penalise, ni bonifie) et on flagge la dimension comme
+  // non evaluable pour que l UI affiche un encart explicite plutot qu un
+  // chiffre trompeur. Le partner voit que le score global est calcule
+  // sans cette dimension et peut demander le BP au fondateur avant
+  // decision finale.
+  const financialEvaluable = !!(
+    input.financial
+    && input.financial.hasFinancialData !== false
+    && input.financial.dataSource !== 'none'
+    && (input.financial.globalCoherenceScore ?? 0) > 0
+  );
+  const financialScore = financialEvaluable
+    ? input.financial!.globalCoherenceScore!
+    : 50;
+
   const contrarianScore = input.contrarian?.globalContrarianScore ?? 50;
   // Vigilance est inversee : un fort score blindspot = beaucoup de patterns
   // critiques detectes = score de risque maitrise faible. On inverse pour
@@ -260,7 +293,10 @@ export function computeMechanicalScore(input: {
       score: financialScore,
       weight: DIMENSION_WEIGHTS.financial,
       contribution: Math.round(financialScore * DIMENSION_WEIGHTS.financial * 100) / 100,
-      rationale: `Score de coherence financiere ${financialScore} aggrege sur les sept tests structures (T1-T7) du moteur Cohérence financière.`,
+      rationale: financialEvaluable
+        ? `Score de coherence financiere ${financialScore} aggrege sur les sept tests structures (T1-T7) du moteur Cohérence financière.`
+        : `Modele economique non evaluable : aucun business plan exploitable fourni avec ce dossier (dataSource='${input.financial?.dataSource ?? 'none'}'). Valeur neutre 50 utilisee dans le calcul global pour ne pas penaliser ni bonifier injustement la dimension. Demander le BP au fondateur avant decision finale.`,
+      notEvaluable: !financialEvaluable,
     },
     contrarian: {
       score: contrarianScore,

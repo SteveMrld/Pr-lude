@@ -916,24 +916,38 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     vigilance: 'Vigilance critique (inversee)',
                   };
                   return (
-                    <div key={key} style={{ borderLeft: '2px solid var(--hairline)', paddingLeft: 10 }}>
+                    <div key={key} style={{ borderLeft: `2px solid ${dim.notEvaluable ? 'var(--ocre-brule)' : 'var(--hairline)'}`, paddingLeft: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                         <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500 }}>{labels[key]}</span>
                         <span style={{ fontSize: 11, opacity: 0.55 }}>poids {Math.round(dim.weight * 100)}%</span>
                       </div>
-                      <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 2 }}>
-                        <span style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500 }}>{dim.score}<span style={{ fontSize: 11, opacity: 0.5 }}>/100</span></span>
-                        <span style={{ fontSize: 11, opacity: 0.65 }}>contribution {dim.contribution.toFixed(1)} pts</span>
-                      </div>
-                      {Array.isArray(dim.subScores) && dim.subScores.length > 0 && (
-                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, lineHeight: 1.5 }}>
-                          {dim.subScores.map((s: any, i: number) => (
-                            <span key={i}>
-                              {i > 0 && ' · '}
-                              {s.name} {s.score}
-                            </span>
-                          ))}
-                        </div>
+                      {dim.notEvaluable ? (
+                        <>
+                          <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 2 }}>
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, color: 'var(--ocre-brule)', fontStyle: 'italic' }}>Non evaluable</span>
+                            <span style={{ fontSize: 11, opacity: 0.65 }}>valeur neutre 50 utilisee</span>
+                          </div>
+                          <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, lineHeight: 1.5, fontStyle: 'italic' }}>
+                            Donnees insuffisantes pour evaluer cette dimension. Le calcul global utilise une valeur neutre de 50 pour ne pas penaliser le dossier.
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 2 }}>
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500 }}>{dim.score}<span style={{ fontSize: 11, opacity: 0.5 }}>/100</span></span>
+                            <span style={{ fontSize: 11, opacity: 0.65 }}>contribution {dim.contribution.toFixed(1)} pts</span>
+                          </div>
+                          {Array.isArray(dim.subScores) && dim.subScores.length > 0 && (
+                            <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, lineHeight: 1.5 }}>
+                              {dim.subScores.map((s: any, i: number) => (
+                                <span key={i}>
+                                  {i > 0 && ' · '}
+                                  {s.name} {s.score}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   );
