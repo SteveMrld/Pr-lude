@@ -25,6 +25,9 @@ import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
 import { processFiles } from '@/lib/file-processor';
 import { logException } from '@/lib/error-logger';
+import { persistAnalysisAutomatically } from '@/lib/persist-analysis';
+import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
+import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
 
 // Vercel Pro permet jusqu a 800s par function (13 min). Avec 12+ moteurs
 // Claude dont certains prennent 60s+ chacun, on a besoin de cette marge
@@ -721,7 +724,93 @@ export async function POST(req: NextRequest) {
             relevanceMatrix,
           };
 
-          send('complete', result);
+          // ============================================================
+          // PERSISTENCE COTE SERVEUR (avant send complete)
+          // ------------------------------------------------------------
+          // Avant cette refonte, la persistence dependait du client : le
+          // serveur emettait le complete event via SSE, le client
+          // l interceptait et appelait POST /api/analyses. Si le client
+          // se deconnectait avant la fin du pipeline (mobile en arriere-
+          // plan, ecran qui s eteint, hand-off 4G/wifi), le serveur
+          // poussait dans le vide et l analyse etait perdue alors que
+          // tout le travail LLM avait deja ete fait.
+          //
+          // Maintenant, on persiste cote serveur dans la meme fonction
+          // Vercel. Si le client est connecte, il recoit l id deja
+          // persiste et peut afficher l analyse direct. Si le client
+          // est deconnecte, l analyse est en base et apparait dans
+          // Historique au prochain refresh. Aucune perte possible.
+          //
+          // Non-bloquant : si la persistence echoue (Supabase down,
+          // env de dev sans persistence), on continue et on envoie
+          // quand meme le complete au client avec saved:false. Le
+          // client aura toujours le resultat en main et peut
+          // re-tenter la persistence cote client si besoin.
+          // ============================================================
+          let persistResult: Awaited<ReturnType<typeof persistAnalysisAutomatically>> = {
+            saved: false,
+            id: null,
+            mode: 'unsaved',
+          };
+          try {
+            persistResult = await persistAnalysisAutomatically({
+              result,
+              sourceFilename: pitchDeck.name,
+              pipelineDurationMs: result.meta.durationMs,
+              pipelineEnginesStatus: null,
+            });
+            if (persistResult.saved && persistResult.id) {
+              console.log(
+                `[api/analyze] analyse persistee cote serveur : id=${persistResult.id} mode=${persistResult.mode}`,
+              );
+            } else {
+              console.warn(
+                `[api/analyze] persistence cote serveur echouee : ${persistResult.reason || 'unknown'}`,
+              );
+            }
+          } catch (persistErr: any) {
+            console.error('[api/analyze] persistence exception :', persistErr);
+            await logException('api.analyze.persist', persistErr, {
+              severity: 'warning',
+              context: { phase: 'server-side-persist' },
+            });
+          }
+
+          // Notifications Slack non bloquantes apres persistence reussie
+          // (si auth active et persistence OK). Auparavant gere par
+          // /api/analyses cote client : maintenant cote serveur pour
+          // que la notif parte meme si le SSE coupe.
+          if (persistResult.saved && persistResult.id && isAuthEnabled()) {
+            try {
+              const ctx = await getAuthenticatedContext();
+              if (ctx) {
+                // Fire-and-forget : on ne attend pas pour ne pas
+                // retarder le send complete au client.
+                dispatchSlackNotifications({
+                  organizationId: ctx.org.id,
+                  analysisId: persistResult.id,
+                  result,
+                  baseUrl: req.nextUrl.origin,
+                }).catch(() => {});
+              }
+            } catch (notifErr) {
+              // Ignore : notif Slack ne doit jamais bloquer le client.
+              console.warn('[api/analyze] dispatch Slack failed silently:', notifErr);
+            }
+          }
+
+          // Inclut l id de persistence dans le complete event pour
+          // que le client puisse afficher l analyse direct sans
+          // re-appel /api/analyses.
+          send('complete', {
+            ...result,
+            _persisted: {
+              saved: persistResult.saved,
+              id: persistResult.id,
+              mode: persistResult.mode,
+              versionNum: persistResult.versionNum,
+            },
+          });
         } catch (error: any) {
           // Persistence du log structure : permet de retrouver
           // l erreur dans le dashboard admin meme si la connexion

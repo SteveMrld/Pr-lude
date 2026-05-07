@@ -847,23 +847,30 @@ export default function HomeClient({
               setResult(data);
               receivedTerminal = true;
 
-              // Sauvegarde automatique en arriere-plan si la persistence est
-              // activee. Non-bloquant : si la sauvegarde echoue (persistence
-              // off, user non auth, base down), l analyse reste affichee
-              // normalement a l ecran. La persistence est une fonctionnalite
-              // additive, jamais un point critique du pipeline.
+              // Persistance : depuis la refonte, le serveur persiste
+              // l analyse cote serveur juste avant d emettre ce
+              // complete event. Si la persistence cote serveur a
+              // reussi, data._persisted contient l id deja persiste
+              // et on l adopte directement sans rappeler /api/analyses.
+              // Cela rend la persistence robuste a la deconnexion
+              // SSE : meme si le client coupe avant ce point, l
+              // analyse est en base et apparait dans Historique.
               //
-              // Si un dossier du meme nom existe deja, le serveur retourne
-              // une collision et submitSave ouvre un dialogue qui demande a
-              // l utilisateur s il veut creer un nouveau dossier ou une
-              // nouvelle version du dossier existant.
-              const sourceFilename = files[0]?.name || null;
-              const pipelineDurationMs = pipelineStartTime ? Date.now() - pipelineStartTime : null;
-              submitSave('detect', {
-                result: data,
-                sourceFilename,
-                pipelineDurationMs,
-              });
+              // Fallback : si _persisted est absent ou saved=false
+              // (env de dev sans persistence, ou erreur cote serveur),
+              // on retombe sur l ancien comportement client-side qui
+              // appelle /api/analyses pour persister.
+              if (data?._persisted?.saved && data._persisted.id) {
+                setSavedAnalysisId(data._persisted.id);
+              } else {
+                const sourceFilename = files[0]?.name || null;
+                const pipelineDurationMs = pipelineStartTime ? Date.now() - pipelineStartTime : null;
+                submitSave('detect', {
+                  result: data,
+                  sourceFilename,
+                  pipelineDurationMs,
+                });
+              }
             } else if (eventType === 'prescan-knockout') {
               // Gating doux du pre-scan : le verdict Bloc 0 est knockout
               // et le pipeline complet n a pas tourne pour economiser les
