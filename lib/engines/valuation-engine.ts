@@ -145,7 +145,19 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   const multiplesResult = computeBySectorMultiples(input, assetClass, stage);
 
   // ---------- Methode 2 : VC method inverse
-  const vcMethodResult = computeByVcMethod(input, assetClass, stage);
+  // Au seed pre-revenue, la VC inverse n est de toutes facons exclue
+  // de la consolidation (poids 0). On la marque applicable=false des
+  // l entree pour ne pas imprimer un rationnel saas-b2b decalibre
+  // alors que la methode ne pese rien dans la fourchette finale.
+  const isSeedPreRevenue = stage === 'seed' && !multiplesResult.applicable;
+  const vcMethodResult = isSeedPreRevenue
+    ? {
+        method: 'vc-method' as const,
+        label: 'Methode VC inverse',
+        applicable: false,
+        notApplicableReason: 'Methode reservee aux dossiers avec revenue exploitable. Au seed pre-revenue, la fourchette est ancree sur Berkus et Scorecard, qui valorisent l equipe et l opportunite avant traction commerciale, plutot que sur des exits sectoriels que la jeune entreprise n a pas encore les moyens de viser.',
+      }
+    : computeByVcMethod(input, assetClass, stage);
 
   // ---------- Methode 3 : Berkus / Scorecard (seed only)
   const berkusResult = stage === 'seed' ? computeByBerkus(input) : nonApplicableBerkus();
