@@ -5,6 +5,7 @@ import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
 import PortfolioPositionChart from './PortfolioPositionChart';
+import { computeValuation } from '@/lib/engines/valuation-engine';
 
 /**
  * Formate un montant en EUR de maniere courte et lisible :
@@ -18,6 +19,19 @@ function formatEurShort(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace('.', ',')}M€`;
   if (value >= 1_000) return `${Math.round(value / 1_000)}k€`;
   return `${Math.round(value)}€`;
+}
+
+/**
+ * Joint plusieurs morceaux par un separateur en filtrant les vides.
+ * Evite les artefacts visuels du genre ', France' ou 'seed ·' quand
+ * un des deux cotes du separateur est null/undefined/string vide.
+ */
+function joinNonEmpty(parts: (string | number | null | undefined)[], sep: string, fallback = '—'): string {
+  const filtered = parts
+    .filter(p => p !== null && p !== undefined && String(p).trim() !== '')
+    .map(p => String(p).trim());
+  if (filtered.length === 0) return fallback;
+  return filtered.join(sep);
 }
 
 interface Props {
@@ -201,6 +215,38 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
     day: 'numeric', month: 'long', year: 'numeric'
   });
 
+  // Fallback de re-calcul du moteur valuation pour les analyses anterieures
+  // au deploiement de la section 1.7. Le moteur est deterministe et ne fait
+  // aucun appel LLM, on peut donc le rejouer cote client a la volee a partir
+  // des outputs Bloc 1 deja persistes en base. Resultat identique a un
+  // recalcul serveur, instantane, et la section 1.7 apparait correctement
+  // dans toutes les anciennes notes sans avoir a regenerer le pipeline.
+  const valuation = React.useMemo(() => {
+    if (r.valuation) return r.valuation;
+    if (!r.extraction) return null;
+    try {
+      const teamScore = reco?.dimensionProbabilities?.team
+        ?? reco?.mechanicalScore?.dimensions?.team?.score
+        ?? r.mechanicalScore?.dimensions?.team?.score
+        ?? 50;
+      const marketScore = reco?.dimensionProbabilities?.market
+        ?? reco?.mechanicalScore?.dimensions?.market?.score
+        ?? r.mechanicalScore?.dimensions?.market?.score
+        ?? 50;
+      return computeValuation({
+        extraction: r.extraction,
+        financial: r.financialCoherence,
+        team: r.team,
+        market: r.market,
+        teamScore,
+        marketScore,
+      });
+    } catch (err) {
+      console.warn('[InvestmentNoteView] recompute valuation failed:', err);
+      return null;
+    }
+  }, [r]);
+
   // Helper pour extraire la première phrase d'un paragraphe long. Utilisé pour
   // les pull quotes : on veut une phrase impactante, pas un paragraphe entier.
   const firstSentence = (s: string | undefined, maxLen: number = 220): string => {
@@ -266,7 +312,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </tr>
             <tr>
               <td className="note-label">Sector</td>
-              <td className="note-value">{e.sector || '—'} {e.subSector ? `· ${e.subSector}` : ''}</td>
+              <td className="note-value">{joinNonEmpty([e.sector, e.subSector], ' · ')}</td>
             </tr>
             <tr>
               <td className="note-label">Activity</td>
@@ -274,11 +320,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </tr>
             <tr>
               <td className="note-label">Geography</td>
-              <td className="note-value">{e.geographicHub || '—'}{e.country ? `, ${e.country}` : ''}</td>
+              <td className="note-value">{joinNonEmpty([e.geographicHub, e.country], ', ')}</td>
             </tr>
             <tr>
               <td className="note-label">Deal type</td>
-              <td className="note-value">{e.fundraise?.stage || '—'} · {e.fundraise?.amount || 'montant non précisé'}</td>
+              <td className="note-value">{joinNonEmpty([e.fundraise?.stage, e.fundraise?.amount || (e.fundraise?.stage ? 'montant non précisé' : null)], ' · ')}</td>
             </tr>
             <tr>
               <td className="note-label">Deal context</td>
@@ -1000,25 +1046,25 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               les warnings methodologiques. Si aucune methode n est
               applicable (cas extreme : dossier sans BP, sans secteur
               identifie, sans ticket), la section explique pourquoi. */}
-          {result.valuation && (
+          {valuation && (
             <div className="verdict-block" style={{ marginTop: 14 }}>
               <div className="verdict-block-head">
                 <span className="verdict-block-num" aria-hidden="true">1.7</span>
                 <span className="verdict-block-title">Fourchette de valorisation</span>
-                {result.valuation.recommendedRange && (
+                {valuation.recommendedRange && (
                   <span className="verdict-block-figure" style={{ fontSize: 22 }}>
-                    {formatEurShort(result.valuation.recommendedRange.central)}
+                    {formatEurShort(valuation.recommendedRange.central)}
                   </span>
                 )}
               </div>
 
               {/* Synthese editoriale */}
               <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14, color: 'var(--ink-soft)' }}>
-                {result.valuation.synthesis}
+                {valuation.synthesis}
               </div>
 
               {/* Barre visuelle de la fourchette */}
-              {result.valuation.recommendedRange && (
+              {valuation.recommendedRange && (
                 <div style={{ marginBottom: 16 }}>
                   <div style={{
                     display: 'flex',
@@ -1057,15 +1103,15 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     fontWeight: 500,
                     marginTop: 4,
                   }}>
-                    <span>{formatEurShort(result.valuation.recommendedRange.min)}</span>
-                    <span style={{ color: 'var(--ocre-brule)' }}>{formatEurShort(result.valuation.recommendedRange.central)}</span>
-                    <span>{formatEurShort(result.valuation.recommendedRange.max)}</span>
+                    <span>{formatEurShort(valuation.recommendedRange.min)}</span>
+                    <span style={{ color: 'var(--ocre-brule)' }}>{formatEurShort(valuation.recommendedRange.central)}</span>
+                    <span>{formatEurShort(valuation.recommendedRange.max)}</span>
                   </div>
                 </div>
               )}
 
               {/* Analyse de dilution */}
-              {result.valuation.dilutionAnalysis && (
+              {valuation.dilutionAnalysis && (
                 <div style={{
                   padding: '10px 14px',
                   background: 'var(--surface-soft)',
@@ -1082,12 +1128,12 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     color: 'var(--accent)',
                     marginBottom: 4,
                   }}>
-                    Analyse de dilution sur ticket {formatEurShort(result.valuation.dilutionAnalysis.proposedTicket)}
+                    Analyse de dilution sur ticket {formatEurShort(valuation.dilutionAnalysis.proposedTicket)}
                   </div>
                   <div>
-                    Sur valo basse {formatEurShort(result.valuation.recommendedRange?.min || 0)} : <strong>{result.valuation.dilutionAnalysis.dilutionAtMin}%</strong>.{' '}
-                    Sur valo centrale {formatEurShort(result.valuation.recommendedRange?.central || 0)} : <strong>{result.valuation.dilutionAnalysis.dilutionAtCentral}%</strong>.{' '}
-                    Sur valo haute {formatEurShort(result.valuation.recommendedRange?.max || 0)} : <strong>{result.valuation.dilutionAnalysis.dilutionAtMax}%</strong>.
+                    Sur valo basse {formatEurShort(valuation.recommendedRange?.min || 0)} : <strong>{valuation.dilutionAnalysis.dilutionAtMin}%</strong>.{' '}
+                    Sur valo centrale {formatEurShort(valuation.recommendedRange?.central || 0)} : <strong>{valuation.dilutionAnalysis.dilutionAtCentral}%</strong>.{' '}
+                    Sur valo haute {formatEurShort(valuation.recommendedRange?.max || 0)} : <strong>{valuation.dilutionAnalysis.dilutionAtMax}%</strong>.
                   </div>
                 </div>
               )}
@@ -1104,7 +1150,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 }}>
                   Methodes appliquees
                 </div>
-                {result.valuation.methods.map((m: any, i: number) => (
+                {valuation.methods.map((m: any, i: number) => (
                   <div key={m.method} style={{
                     paddingLeft: 12,
                     borderLeft: m.applicable ? '2px solid var(--ocre-brule)' : '2px dashed var(--hairline)',
@@ -1134,7 +1180,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               </div>
 
               {/* Warnings methodologiques */}
-              {result.valuation.warnings && result.valuation.warnings.length > 0 && (
+              {valuation.warnings && valuation.warnings.length > 0 && (
                 <div style={{ marginTop: 10 }}>
                   <div style={{
                     fontSize: 10,
@@ -1147,7 +1193,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     Avertissements
                   </div>
                   <ul style={{ paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>
-                    {result.valuation.warnings.map((w: string, i: number) => (
+                    {valuation.warnings.map((w: string, i: number) => (
                       <li key={i}>{w}</li>
                     ))}
                   </ul>
@@ -1155,7 +1201,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               )}
 
               <div className="verdict-block-legend" style={{ marginTop: 12 }}>
-                Sources de benchmarks utilisees : {result.valuation.benchmarkSources.join(', ')}. Les fourchettes sont indicatives, calibrees sur les transactions europeennes 2023-2025. Le pricing reel depend de signaux qualitatifs non chiffrables (founder-market fit, momentum competitif, contexte du tour).
+                Sources de benchmarks utilisees : {valuation.benchmarkSources.join(', ')}. Les fourchettes sont indicatives, calibrees sur les transactions europeennes 2023-2025. Le pricing reel depend de signaux qualitatifs non chiffrables (founder-market fit, momentum competitif, contexte du tour).
               </div>
             </div>
           )}
