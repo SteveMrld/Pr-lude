@@ -191,3 +191,25 @@ La matrice de pertinence est imprimée dans le resultJson de l'analyse, et la no
 ### Livrable de chaque étape
 
 Chaque étape produit un commit autonome qui passe les tests unitaires et le tsc. Les commits sont taggés `feat(relevance)` pour la matrice, `refactor(macro|market|indicators|saas-metrics)` pour les branchements, `feat(macro)` pour le module FMI WEO, `feat(indicators)` pour les métriques industrielles, `feat(note)` pour l'encart périmètre d'analyse.
+
+## Conclusion du chantier (post-mortem)
+
+Le chantier de polymorphisme a été mené à terme sur ses six étapes. Les commits portant le travail vont de `28046d7` (matrice de pertinence) à `7fd57df` (industrial-metrics-engine). Le bilan détaillé est le suivant.
+
+### Moteurs effectivement conditionnés
+
+`macro-engine`, `market-engine`, `indicators-engine` et `saas-metrics-engine` sont les quatre moteurs qui imposaient un cadre d'analyse implicitement SaaS sur tous les dossiers et qui ont été refondés pour consommer la matrice. La géopolitique et la lecture cyclique ne tournent plus à blanc sur les dossiers ultra-locaux. La reproductibilité par IA et le modèle AI-native n'imposent plus d'évaluation spéculative sur les dossiers hardware physique. Le set d'indicateurs bascule entre SaaS canonique et industriel selon le modèle économique.
+
+### Moteurs audités et confirmés universels
+
+L'audit complet de `pattern-engine`, `contrarian-engine`, `blindspot-engine`, `causal-engine`, `team-engine` et `tech-claim-coherence-engine` confirme qu'ils n'imposent pas de cadre implicite SaaS. Les patterns d'effondrement, les signaux de singularité contrariens, les angles morts causaux, l'analyse d'équipe sont des grilles génériques applicables à tous les modèles économiques. Le moteur `tech-claim-coherence` dispose déjà de son propre conditionnement par auto-détection de triggers (revendication de moat tech ou flèchage de budget). Aucun de ces moteurs n'a besoin de consommer la matrice.
+
+### Extension industrielle réelle
+
+`industrial-metrics-engine` ajouté à l'image de `saas-metrics-engine` permet désormais d'extraire en vraie via LLM les sept métriques cibles d'un dossier industriel : cycle commercial, taille moyenne contrat, carnet de commandes, taux de gain appels d'offres, capacité industrielle, capex par projet, working capital. Le moteur tourne uniquement quand la matrice indique `indicatorsIndustrial=full`, donc typiquement 10-20% des dossiers, ce qui maîtrise le coût LLM. Sur les dossiers concernés, plusieurs indicateurs industriels passent du non-applicable rationalisé au calcul chiffré confronté aux benchmarks.
+
+### Évolutions futures naturelles
+
+Trois pistes d'évolution restent ouvertes pour des sessions ultérieures. Premièrement, calibrer plus finement les benchmarks industriels en injectant des sources sectorielles (Argos Index pour les multiples EBITDA PME, BCG ou McKinsey pour les ratios industriels, observatoires sectoriels). Deuxièmement, ajouter un cache persistant trimestriel sur le fetcher FMI WEO pour économiser des appels réseau (actuellement cache process-local seulement). Troisièmement, envisager d'enrichir `pattern-engine` et `contrarian-engine` avec les critères structurels de la matrice (pas pour les désactiver, mais pour informer plus précisément la sélection de comparables).
+
+Aucune de ces évolutions n'est critique. Le chantier de polymorphisme tel que défini est désormais opérationnel et lisible pour le partner via l'encart "Périmètre d'analyse".
