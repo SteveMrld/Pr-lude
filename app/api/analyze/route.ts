@@ -15,6 +15,7 @@ import { analyzeTechClaimCoherence } from '@/lib/engines/tech-claim-coherence-en
 import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore } from '@/lib/engines/score-calculator';
+import { computeValuation } from '@/lib/engines/valuation-engine';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
 import { processFiles } from '@/lib/file-processor';
@@ -452,6 +453,20 @@ export async function POST(req: NextRequest) {
             blindspot: blindspotAnalysis,
           });
 
+          // Calcul de fourchette de valorisation (deterministe, pas d appel
+          // LLM). Croise multiples sectoriels, methode VC inverse, Berkus
+          // et Scorecard selon les inputs disponibles. Voir
+          // lib/engines/valuation-engine.ts pour les methodes et
+          // lib/data/sector-benchmarks.ts pour les plages publiques.
+          const valuation = computeValuation({
+            extraction,
+            financial: financialCoherence,
+            team,
+            market,
+            teamScore: mechanicalScore.dimensions.team.score,
+            marketScore: mechanicalScore.dimensions.market.score,
+          });
+
           const orchestratePromise = (async () => {
             const maxRetries = 2;
             let lastError: any = null;
@@ -623,6 +638,11 @@ export async function POST(req: NextRequest) {
             finalRecommendation,
             referenceChecks,
             assertionAudit,
+            // Fourchette de valorisation : calcul deterministe a partir
+            // des moteurs Bloc 1 et des scores mecaniques. Inclut le
+            // detail des methodes utilisees (multiples sectoriels, VC
+            // method, Berkus, Scorecard) avec leur rationale.
+            valuation,
           };
 
           send('complete', result);

@@ -6,6 +6,20 @@ import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
 import PortfolioPositionChart from './PortfolioPositionChart';
 
+/**
+ * Formate un montant en EUR de maniere courte et lisible :
+ *   1 234 -> "1k€", 1 234 000 -> "1,2M€", 1 234 567 890 -> "1,2Md€".
+ * Utilise dans la section Fourchette de valorisation pour afficher
+ * les bornes de la plage et les exits scenarios.
+ */
+function formatEurShort(value: number): string {
+  if (!value || value <= 0) return 'n/a';
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace('.', ',')}Md€`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace('.', ',')}M€`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k€`;
+  return `${Math.round(value)}€`;
+}
+
 interface Props {
   result: any;
   /**
@@ -975,6 +989,174 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <span className="verdict-block-title">Positionnement dans le portfolio</span>
               </div>
               <PortfolioPositionChart currentScore={reco.globalScore} printMode={false} />
+            </div>
+          )}
+
+          {/* BLOC 1.7 : FOURCHETTE DE VALORISATION
+              Resultat du moteur valuation-engine (calcul deterministe).
+              Affiche la fourchette pre-money plausible, le detail des
+              methodes utilisees (multiples sectoriels, VC method, Berkus,
+              Scorecard), l analyse de dilution sur le ticket propose, et
+              les warnings methodologiques. Si aucune methode n est
+              applicable (cas extreme : dossier sans BP, sans secteur
+              identifie, sans ticket), la section explique pourquoi. */}
+          {result.valuation && (
+            <div className="verdict-block" style={{ marginTop: 14 }}>
+              <div className="verdict-block-head">
+                <span className="verdict-block-num" aria-hidden="true">1.7</span>
+                <span className="verdict-block-title">Fourchette de valorisation</span>
+                {result.valuation.recommendedRange && (
+                  <span className="verdict-block-figure" style={{ fontSize: 22 }}>
+                    {formatEurShort(result.valuation.recommendedRange.central)}
+                  </span>
+                )}
+              </div>
+
+              {/* Synthese editoriale */}
+              <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14, color: 'var(--ink-soft)' }}>
+                {result.valuation.synthesis}
+              </div>
+
+              {/* Barre visuelle de la fourchette */}
+              {result.valuation.recommendedRange && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 11,
+                    color: 'var(--muted)',
+                    marginBottom: 4,
+                    fontFamily: 'var(--sans)',
+                  }}>
+                    <span>Plancher</span>
+                    <span>Central</span>
+                    <span>Plafond</span>
+                  </div>
+                  <div style={{
+                    position: 'relative',
+                    height: 36,
+                    background: 'var(--ocre-brule-soft)',
+                    borderLeft: '2px solid var(--ocre-brule)',
+                    borderRight: '2px solid var(--ocre-brule)',
+                  }}>
+                    <div style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: 0,
+                      bottom: 0,
+                      width: 2,
+                      background: 'var(--ocre-brule)',
+                      transform: 'translateX(-50%)',
+                    }} />
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 14,
+                    fontFamily: 'var(--serif)',
+                    fontWeight: 500,
+                    marginTop: 4,
+                  }}>
+                    <span>{formatEurShort(result.valuation.recommendedRange.min)}</span>
+                    <span style={{ color: 'var(--ocre-brule)' }}>{formatEurShort(result.valuation.recommendedRange.central)}</span>
+                    <span>{formatEurShort(result.valuation.recommendedRange.max)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Analyse de dilution */}
+              {result.valuation.dilutionAnalysis && (
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'var(--surface-soft)',
+                  borderLeft: '2px solid var(--accent)',
+                  marginBottom: 14,
+                  fontSize: 12.5,
+                  lineHeight: 1.55,
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    color: 'var(--accent)',
+                    marginBottom: 4,
+                  }}>
+                    Analyse de dilution sur ticket {formatEurShort(result.valuation.dilutionAnalysis.proposedTicket)}
+                  </div>
+                  <div>
+                    Sur valo basse {formatEurShort(result.valuation.recommendedRange?.min || 0)} : <strong>{result.valuation.dilutionAnalysis.dilutionAtMin}%</strong>.{' '}
+                    Sur valo centrale {formatEurShort(result.valuation.recommendedRange?.central || 0)} : <strong>{result.valuation.dilutionAnalysis.dilutionAtCentral}%</strong>.{' '}
+                    Sur valo haute {formatEurShort(result.valuation.recommendedRange?.max || 0)} : <strong>{result.valuation.dilutionAnalysis.dilutionAtMax}%</strong>.
+                  </div>
+                </div>
+              )}
+
+              {/* Detail des methodes appliquees */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{
+                  fontSize: 10,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  fontWeight: 600,
+                  color: 'var(--muted)',
+                  marginBottom: 6,
+                }}>
+                  Methodes appliquees
+                </div>
+                {result.valuation.methods.map((m: any, i: number) => (
+                  <div key={m.method} style={{
+                    paddingLeft: 12,
+                    borderLeft: m.applicable ? '2px solid var(--ocre-brule)' : '2px dashed var(--hairline)',
+                    marginBottom: 8,
+                    opacity: m.applicable ? 1 : 0.55,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500 }}>{m.label}</span>
+                      {m.applicable && m.range && (
+                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                          {formatEurShort(m.range.min)} <span style={{ opacity: 0.5 }}>·</span> <strong style={{ color: 'var(--ocre-brule)' }}>{formatEurShort(m.range.central)}</strong> <span style={{ opacity: 0.5 }}>·</span> {formatEurShort(m.range.max)}
+                        </span>
+                      )}
+                    </div>
+                    {m.applicable && m.rationale && (
+                      <div style={{ fontSize: 11.5, lineHeight: 1.55, color: 'var(--ink-soft)', marginTop: 2 }}>
+                        {m.rationale}
+                      </div>
+                    )}
+                    {!m.applicable && m.notApplicableReason && (
+                      <div style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--muted)', marginTop: 2, fontStyle: 'italic' }}>
+                        {m.notApplicableReason}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Warnings methodologiques */}
+              {result.valuation.warnings && result.valuation.warnings.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    color: 'var(--ocre-brule)',
+                    marginBottom: 4,
+                  }}>
+                    Avertissements
+                  </div>
+                  <ul style={{ paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>
+                    {result.valuation.warnings.map((w: string, i: number) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="verdict-block-legend" style={{ marginTop: 12 }}>
+                Sources de benchmarks utilisees : {result.valuation.benchmarkSources.join(', ')}. Les fourchettes sont indicatives, calibrees sur les transactions europeennes 2023-2025. Le pricing reel depend de signaux qualitatifs non chiffrables (founder-market fit, momentum competitif, contexte du tour).
+              </div>
             </div>
           )}
 
