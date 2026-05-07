@@ -361,6 +361,17 @@ export default function HomeClient({
     pendingPipelineDurationMs: number | null;
   } | null>(null);
 
+  // Notification toast simple pour signaler les actions de sauvegarde
+  // automatiques (par exemple quand le dialog de collision est dismisse
+  // sans choix explicite et qu on sauvegarde par defaut comme nouvelle
+  // version pour ne pas perdre l analyse). Auto-disparition apres 5s.
+  const [saveNotification, setSaveNotification] = useState<string | null>(null);
+  useEffect(() => {
+    if (!saveNotification) return;
+    const timer = setTimeout(() => setSaveNotification(null), 5000);
+    return () => clearTimeout(timer);
+  }, [saveNotification]);
+
   const handleVersionChange = (snapshotJson: any | null, versionNum: number | null) => {
     if (snapshotJson === null) {
       // Retour a la version live
@@ -4712,7 +4723,32 @@ export default function HomeClient({
       {pendingCollision && (
         <>
           <div
-            onClick={() => setPendingCollision(null)}
+            onClick={async () => {
+              // Dismiss du dialog : pour ne pas perdre l analyse fraichement
+              // generee, on sauvegarde par defaut comme nouvelle version du
+              // dossier existant. C est le comportement le moins destructeur
+              // (on peut toujours supprimer une version, on ne peut pas
+              // recuperer une analyse perdue). Une notification toast confirme
+              // l action a l utilisateur.
+              const c = pendingCollision;
+              if (!c) return;
+              setPendingCollision(null);
+              try {
+                await submitSave('new-version', {
+                  result: c.pendingResult,
+                  sourceFilename: c.pendingSourceFilename,
+                  pipelineDurationMs: c.pendingPipelineDurationMs,
+                  existingId: c.existingId,
+                });
+                setSaveNotification(
+                  `Sauvegarde comme nouvelle version de ${c.existingCompanyName} (version ${c.nextVersionNum}).`,
+                );
+              } catch {
+                setSaveNotification(
+                  `Erreur de sauvegarde. L analyse n a pas ete persistee, veuillez relancer.`,
+                );
+              }
+            }}
             style={{
               position: 'fixed',
               inset: 0,
@@ -4848,6 +4884,48 @@ export default function HomeClient({
             </div>
           </div>
         </>
+      )}
+
+      {/* Toast de notification de sauvegarde
+          S affiche en bas a droite quand une action de sauvegarde
+          automatique est effectuee (typiquement : dismiss du dialog
+          de collision sans choix explicite, qui sauvegarde par defaut
+          comme nouvelle version pour ne pas perdre l analyse).
+          Auto-disparition apres 5 secondes (cf useEffect plus haut). */}
+      {saveNotification && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            maxWidth: 380,
+            padding: '14px 18px',
+            background: 'var(--paper)',
+            border: '1px solid var(--ocre-brule)',
+            borderLeft: '3px solid var(--ocre-brule)',
+            borderRadius: 4,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: 'var(--ink)',
+            zIndex: 250,
+            fontFamily: 'var(--sans)',
+          }}
+        >
+          <div style={{
+            fontSize: 10,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            color: 'var(--ocre-brule)',
+            marginBottom: 4,
+          }}>
+            Sauvegarde
+          </div>
+          {saveNotification}
+        </div>
       )}
     </>
   );
