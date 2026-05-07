@@ -252,7 +252,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   // Meme logique pour le moteur indicators (section 1.8). Calcul
   // deterministe, peut etre rejoue cote client si le resultJson
   // persiste ne contient pas d indicators (analyses anterieures au
-  // deploiement). Lit financialData et extraction.
+  // deploiement). Lit financialData, extraction, et saasMetrics pour
+  // que NDR et Magic Number soient calcules quand les donnees
+  // d extraction LLM dediee sont disponibles.
   const indicators = React.useMemo(() => {
     if (r.indicators) return r.indicators;
     if (!r.extraction) return null;
@@ -261,6 +263,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         extraction: r.extraction,
         financial: r.financialCoherence,
         financialData: r.financialData,
+        saasMetrics: r.saasMetrics,
       });
     } catch (err) {
       console.warn('[InvestmentNoteView] recompute indicators failed:', err);

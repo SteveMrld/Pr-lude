@@ -38,6 +38,7 @@ import {
 } from '@/lib/data/indicator-benchmarks';
 import { normalizeAssetClass, normalizeStage, type ValuationStage } from '@/lib/data/sector-benchmarks';
 import type { ExtractionOutput, FinancialDataExtraction, FinancialCoherenceOutput } from '@/lib/engines/types';
+import type { SaasMetricsExtraction } from '@/lib/engines/saas-metrics-engine';
 
 // ============================================================
 // TYPES
@@ -300,13 +301,16 @@ function computeRuleOf40(
 }
 
 /**
- * NDR : non calculable depuis le BP standard. On essaie d extraire
- * une mention explicite dans le pitch (champ rawNotes ou
- * unitEconomics), sinon non-applicable.
+ * NDR : prioritise l output du moteur saas-metrics-engine (extraction
+ * LLM dediee qui sait deduire NDR a partir de declarations
+ * explicites, de cohortes, ou d une combinaison GRR plus expansion).
+ * Fallback vers regex sur rawNotes si le moteur n a rien trouve, et
+ * non-applicable si vraiment aucun signal.
  */
 function computeNdr(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet,
+  saasMetrics?: SaasMetricsExtraction | null,
 ): IndicatorResult {
   const label = 'NDR (Net Dollar Retention)';
   const benchmark = benchmarks.ndr;
@@ -319,10 +323,45 @@ function computeNdr(
     };
   }
 
-  // Recherche de mention NDR explicite dans rawNotes
+  // Source 1 : moteur saas-metrics-engine (extraction LLM dediee).
+  // C est la voie la plus fiable : le LLM a contextualise la donnee
+  // et qualifie sa provenance (declared / cohorts / grr-expansion).
+  const ret = saasMetrics?.retention;
+  if (ret?.ndr != null) {
+    let provenanceLabel: string;
+    let confidence: 'high' | 'medium' | 'low';
+    switch (ret.ndrProvenance) {
+      case 'declared':
+        provenanceLabel = 'declare explicitement dans le pitch ou le BP';
+        confidence = 'high';
+        break;
+      case 'computed-from-cohorts':
+        provenanceLabel = 'reconstruit a partir d un tableau de cohortes';
+        confidence = 'high';
+        break;
+      case 'computed-from-grr-and-expansion':
+        provenanceLabel = `calcule a partir de GRR ${ret.grr ?? '?'}% plus expansion ${ret.netExpansionRate ?? '?'}%`;
+        confidence = 'medium';
+        break;
+      default:
+        provenanceLabel = 'origine inconnue';
+        confidence = 'low';
+    }
+    return {
+      key: 'ndr', label, value: roundTo(ret.ndr, 1), unit: '%',
+      verdict: classifyValue(ret.ndr, benchmark),
+      rationale: `NDR ${roundTo(ret.ndr, 1)}% (${provenanceLabel}). ${ret.notes || ''}`.trim(),
+      dataConfidence: confidence,
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
+  // Source 2 : fallback regex sur rawNotes du financial-extraction.
+  // Voie historique, gardee pour resilience si le moteur LLM a echoue.
   const rawText = (fd?.rawNotes || '').toLowerCase();
   const ndrMatch = rawText.match(/ndr[^\d]*(\d+(?:[.,]\d+)?)\s*%/i)
-    || rawText.match(/net\s*dollar\s*retention[^\d]*(\d+(?:[.,]\d+)?)\s*%/i);
+    || rawText.match(/net\s*dollar\s*retention[^\d]*(\d+(?:[.,]\d+)?)\s*%/i)
+    || rawText.match(/net\s*revenue\s*retention[^\d]*(\d+(?:[.,]\d+)?)\s*%/i);
 
   if (!ndrMatch) {
     return {
@@ -344,10 +383,16 @@ function computeNdr(
   };
 }
 
-/** Magic Number : non calculable sans S&M trimestriel. Non-applicable par defaut. */
+/**
+ * Magic Number : prioritise l output du moteur saas-metrics-engine
+ * (extraction LLM dediee qui sait reperer une declaration explicite
+ * ou reconstituer la metrique a partir de S&M annuel et new ARR).
+ * Sans donnees structurees, retourne non-applicable.
+ */
 function computeMagicNumber(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet,
+  saasMetrics?: SaasMetricsExtraction | null,
 ): IndicatorResult {
   const label = 'Magic Number';
   const benchmark = benchmarks.magicNumber;
@@ -359,10 +404,44 @@ function computeMagicNumber(
       dataConfidence: 'absent',
     };
   }
+
+  // Source unique : moteur saas-metrics-engine. Le calcul du Magic
+  // Number depuis le BP standard sans cohort ni S&M trimestriel est
+  // trop fragile pour etre fait par regex. On delegue entierement.
+  const se = saasMetrics?.salesEfficiency;
+  if (se?.magicNumber != null) {
+    let provenanceLabel: string;
+    let confidence: 'high' | 'medium' | 'low';
+    switch (se.magicNumberProvenance) {
+      case 'declared':
+        provenanceLabel = 'declare explicitement';
+        confidence = 'high';
+        break;
+      case 'computed-from-quarterly-sm':
+        provenanceLabel = 'calcule sur donnees trimestrielles';
+        confidence = 'high';
+        break;
+      case 'computed-from-annual-sm':
+        provenanceLabel = `calcule sur donnees annuelles (S&M ${se.annualSmYear || '?'} = ${se.annualSmSpend ?? '?'} M EUR, New ARR ${se.annualNewArrYear || '?'} = ${se.annualNewArr ?? '?'} M EUR)`;
+        confidence = 'medium';
+        break;
+      default:
+        provenanceLabel = 'origine inconnue';
+        confidence = 'low';
+    }
+    return {
+      key: 'magicNumber', label, value: roundTo(se.magicNumber, 2), unit: 'x',
+      verdict: classifyValue(se.magicNumber, benchmark),
+      rationale: `Magic Number ${roundTo(se.magicNumber, 2)}x (${provenanceLabel}). ${se.notes || ''}`.trim(),
+      dataConfidence: confidence,
+      benchmark: thresholdsToBenchmark(benchmark),
+    };
+  }
+
   return {
     key: 'magicNumber', label, value: null, unit: 'x',
     verdict: 'non-applicable',
-    rationale: 'Magic Number non calculable depuis le BP standard. Necessite S&M dépensé Q-1 et ARR new annualise du Q. Doit etre extrait du pitch ou demande au fondateur en DD.',
+    rationale: 'Magic Number non calculable depuis le BP standard. Necessite S&M depense Q-1 et ARR new annualise du Q. Doit etre extrait du pitch ou demande au fondateur en DD.',
     dataConfidence: 'absent',
     benchmark: thresholdsToBenchmark(benchmark),
   };
@@ -567,6 +646,10 @@ interface IndicatorsInput {
   extraction: ExtractionOutput | null | undefined;
   financial: FinancialCoherenceOutput | null | undefined;
   financialData?: FinancialDataExtraction | null | undefined;
+  /** Output du moteur saas-metrics-engine, qui debloque NDR et Magic
+   * Number sur les dossiers SaaS B2B. Optionnel : si absent, le
+   * moteur retombe sur les fallbacks regex / non-applicable. */
+  saasMetrics?: SaasMetricsExtraction | null | undefined;
 }
 
 export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
@@ -580,12 +663,13 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
 
   const benchmarks = getIndicatorBenchmarks(assetClass, stage);
   const fd = input.financialData;
+  const sm = input.saasMetrics;
 
   const indicators: IndicatorResult[] = [
     computeBurnMultiple(fd, benchmarks),
     computeRuleOf40(fd, benchmarks),
-    computeNdr(fd, benchmarks),
-    computeMagicNumber(fd, benchmarks),
+    computeNdr(fd, benchmarks, sm),
+    computeMagicNumber(fd, benchmarks, sm),
     computePaybackCac(fd, benchmarks),
     computeGrossMargin(fd, benchmarks),
     computeRevenuePerEmployee(fd, benchmarks),

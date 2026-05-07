@@ -17,6 +17,7 @@ import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
+import { extractSaasMetrics } from '@/lib/engines/saas-metrics-engine';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
 import { processFiles } from '@/lib/file-processor';
@@ -312,18 +313,27 @@ export async function POST(req: NextRequest) {
 
           // ============================================================
           // VAGUE 2 : DIAGNOSTICS FONDAMENTAUX EN PARALLELE
-          // (team, market, macro, financial-extraction)
+          // (team, market, macro, financial-extraction, saas-metrics)
           // ============================================================
           sendStart('team', 'Analyse de l\'equipe fondatrice');
           sendStart('market', 'Analyse du marche');
           sendStart('macro', 'Lecture macro et geopolitique');
           sendStart('financial-extraction', businessPlan ? 'Extraction des donnees financieres (deck + BP)' : 'Extraction des donnees financieres (deck)');
 
-          const [team, market, macro, financialData] = await Promise.all([
+          const [team, market, macro, financialData, saasMetrics] = await Promise.all([
             analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
             analyzeMarket(extraction, fundDimensionalNotes?.market).then(r => { sendDone('market', r); return r; }),
             analyzeMacro(extraction, fundDimensionalNotes?.macro).then(r => { sendDone('macro', r); return r; }),
             extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { sendDone('financial-extraction', r); return r; }),
+            // saas-metrics-engine : extraction LLM dediee NDR et Magic
+            // Number. Tourne en parallele de financial-extraction parce
+            // qu il a besoin du meme pitch+BP mais cible differemment.
+            // En cas d echec, retourne un objet vide qui laisse
+            // indicators-engine retomber sur les fallbacks regex.
+            // Pas de sendStart pour l instant : pas trace dans l UI de
+            // progression Bloc 1, ce qui restera a brancher une fois la
+            // valeur du moteur validee sur plusieurs dossiers.
+            extractSaasMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction),
           ]);
 
           // ============================================================
@@ -472,14 +482,16 @@ export async function POST(req: NextRequest) {
           // Calcul des sept indicateurs deal type (Burn multiple, Rule of
           // 40, NDR, Magic Number, Payback CAC, Marge brute, Revenue par
           // employe). Deterministe egalement, lit financialData et
-          // produit un verdict par indicateur confronte aux benchmarks
-          // sectoriels par stade. Voir lib/engines/indicators-engine.ts
-          // pour la logique et lib/data/indicator-benchmarks.ts pour les
-          // seuils calibres OpenView / Bessemer / Pavilion 2024.
+          // saasMetrics et produit un verdict par indicateur confronte
+          // aux benchmarks sectoriels par stade. Voir
+          // lib/engines/indicators-engine.ts pour la logique et
+          // lib/data/indicator-benchmarks.ts pour les seuils calibres
+          // OpenView / Bessemer / Pavilion 2024.
           const indicators = computeIndicators({
             extraction,
             financial: financialCoherence,
             financialData,
+            saasMetrics,
           });
 
           const orchestratePromise = (async () => {
@@ -662,6 +674,11 @@ export async function POST(req: NextRequest) {
             // Magic Number, Payback CAC, Marge brute, Revenue par
             // employe) confrontes aux benchmarks sectoriels par stade.
             indicators,
+            // Extraction LLM dediee aux metriques SaaS recurrentes (NDR,
+            // Magic Number, retention metrics). Persiste dans le
+            // resultJson pour que le useMemo client-side puisse rejouer
+            // computeIndicators sans appel LLM si besoin.
+            saasMetrics,
           };
 
           send('complete', result);
