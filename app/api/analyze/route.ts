@@ -339,7 +339,7 @@ export async function POST(req: NextRequest) {
 
           const [team, market, macro, financialData, saasMetrics] = await Promise.all([
             analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
-            analyzeMarket(extraction, fundDimensionalNotes?.market).then(r => { sendDone('market', r); return r; }),
+            analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix).then(r => { sendDone('market', r); return r; }),
             analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix).then(r => { sendDone('macro', r); return r; }),
             extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { sendDone('financial-extraction', r); return r; }),
             // saas-metrics-engine : extraction LLM dediee NDR et Magic

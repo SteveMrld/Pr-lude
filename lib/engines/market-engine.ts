@@ -4,6 +4,7 @@ import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock } from './fund-context';
 import type { ExtractionOutput, MarketAnalysisOutput } from './types';
+import type { RelevanceMatrix } from './relevance-matrix';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Prélude. Tu reçois deux types de données :
 
@@ -78,6 +79,22 @@ Tu produis une matrice concurrentielle de référence (modèle factsheet conseil
 
 ## Cohérence déclaré vs vérifié
 NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitch (signaux organiques mesurables, écosystème actif), les zones non vérifiables (taille TAM annoncée invérifiable), et les écarts (concurrents cités versus concurrents réels du marché).
+
+# RESPECT DU VERDICT DE PERTINENCE
+
+Tu reçois dans le user prompt un bloc "VERDICT DE PERTINENCE" calcule en amont par la matrice de pertinence Prelude. Le verdict te dit, sur la base de criteres structurels du dossier (chaine de production, presence de dependance LLM), si les sous-blocs aiReplicability et aiBusinessModel sont applicables full / partial / none. Tu dois respecter strictement ce verdict :
+
+- Si aiReplicability = none : le bloc defensibility.aiReplicability doit refleter une non-applicabilite. verdict = 'protected', timeToReplicate = 'non applicable', reasoning court qui acte que le produit est hors software (hardware physique, infrastructure, biotech humide, service regule a barriere humaine). Pas de speculation sur "un solo founder avec Cursor pourrait reproduire" : ce n est pas le cas pour ce type de produit. Les protectingFactors listent les barrieres physiques ou reglementaires concretes du dossier.
+
+- Si aiReplicability = partial : tu evalues la reproductibilite uniquement sur la couche software identifiee dans le scope (interface, dashboard, portail client, modules SaaS). reasoning explicite que cette evaluation porte sur cette couche-la et pas sur le coeur physique. replicableComponents liste les composants software, protectingFactors liste ce qui n est pas exposable a l IA.
+
+- Si aiReplicability = full : evaluation complete habituelle.
+
+- Si aiBusinessModel = none : le champ aiBusinessModel doit avoir isAiNative=false, classification='not_applicable', et les autres champs en valeurs neutres ('non applicable'). Pas d evaluation de marges AI-native, pas de risque de commoditisation, pas de redFlags ou sustainableSignals : la boite n utilise pas de LLM tiers comme infrastructure.
+
+- Si aiBusinessModel = full : evaluation complete sur les marges erodees, dependance LLM, commoditization risk.
+
+Ce verdict prevaut sur la grille generique : le partner ne veut pas un commentaire AI-replicability force sur un dossier deeptech infrastructure marine, ni un commentaire AI-business-model sur un cabinet d avocats.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -224,7 +241,11 @@ INTEGRATION : tout chiffre cite (TAM, market size, croissance) doit
 provenir SOIT du dossier, SOIT d une source web verifiable. JAMAIS
 d hallucination de chiffre. Cite la source quand pertinent.`;
 
-export async function analyzeMarket(extraction: ExtractionOutput, fundNote?: string | null): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
+export async function analyzeMarket(
+  extraction: ExtractionOutput,
+  fundNote?: string | null,
+  relevanceMatrix?: RelevanceMatrix | null,
+): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
   // ÉTAPE 1 : Récupération de data réelle
   // Mots-clés à utiliser pour interroger les sources
   const sectorKeyword = extraction.subSector || extraction.sector || 'technology';
@@ -356,6 +377,31 @@ export async function analyzeMarket(extraction: ExtractionOutput, fundNote?: str
     return block.trim();
   })();
 
+  // Bloc verdict de pertinence : indique au LLM si aiReplicability et
+  // aiBusinessModel sont applicables au dossier. Le moteur s adapte
+  // en consequence. Si pas de matrice fournie, comportement legacy.
+  const relevanceBlock = relevanceMatrix
+    ? `
+--- VERDICT DE PERTINENCE (matrice Prelude) ---
+
+Sous-bloc aiReplicability : ${relevanceMatrix.verdicts.marketAiReplicability.applicable.toUpperCase()}
+${relevanceMatrix.verdicts.marketAiReplicability.scope.length > 0 ? `Scope : ${relevanceMatrix.verdicts.marketAiReplicability.scope.join(', ')}` : ''}
+Rationale : ${relevanceMatrix.verdicts.marketAiReplicability.rationale}
+
+Sous-bloc aiBusinessModel : ${relevanceMatrix.verdicts.marketAiBusinessModel.applicable.toUpperCase()}
+${relevanceMatrix.verdicts.marketAiBusinessModel.scope.length > 0 ? `Scope : ${relevanceMatrix.verdicts.marketAiBusinessModel.scope.join(', ')}` : ''}
+Rationale : ${relevanceMatrix.verdicts.marketAiBusinessModel.rationale}
+
+Criteres structurels detectes :
+- Asset class : ${relevanceMatrix.assetClass}
+- Modele business : ${relevanceMatrix.businessModel}
+- Chaine de production : ${relevanceMatrix.productionChain}
+- Reproductibilite numerique : ${relevanceMatrix.digitalReproducibility}${relevanceMatrix.digitalReproducibilityFactors.length > 0 ? ` (${relevanceMatrix.digitalReproducibilityFactors.join(', ')})` : ''}
+
+Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc, tu remplis le champ JSON avec les valeurs neutres specifiees dans la section RESPECT DU VERDICT, sans inventer une evaluation generique.
+`
+    : '';
+
   const userPrompt = `# DONNÉES DÉCLARÉES (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
@@ -386,6 +432,7 @@ REGLE STRICTE D INTERPRETATION DU PIPELINE :
   organicSignals.gaps que cette extrapolation est non auditee.
 
 ${realDataSummary}
+${relevanceBlock}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.${buildFundNoteBlock(fundNote, 'marché')}`;
 
@@ -430,6 +477,43 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
   // Preserver les autres champs du analysis original qui ne sont pas
   // explicitement listes ci-dessus (futurs ajouts, champs optionnels).
   const merged = { ...analysis, ...normalized };
+
+  // Post-processing deterministe selon la matrice de pertinence. Le LLM
+  // est invite a respecter le verdict, mais on ferme la porte des
+  // derives par un override final. Pour les dossiers hardware physique,
+  // infrastructure, biotech humide ou service regule a barriere humaine,
+  // on garantit que le bloc aiReplicability reflete une non-applicabilite
+  // structurelle au lieu d une speculation generique sur la duplication
+  // par IA.
+  if (relevanceMatrix) {
+    if (relevanceMatrix.verdicts.marketAiReplicability.applicable === 'none' && merged.defensibility) {
+      const factors = relevanceMatrix.digitalReproducibilityFactors;
+      (merged.defensibility as any).aiReplicability = {
+        verdict: 'protected',
+        timeToReplicate: 'non applicable',
+        reasoning: `Produit hors software pur : la reproduction par IA n est pas une menace pertinente pour ce dossier. ${factors.join('. ')}.`,
+        protectingFactors: factors.length > 0 ? factors : ['chaine de production physique ou regulee non duplicable par logiciel'],
+        replicableComponents: [],
+      };
+    }
+
+    if (relevanceMatrix.verdicts.marketAiBusinessModel.applicable === 'none') {
+      merged.aiBusinessModel = {
+        isAiNative: false,
+        isLlmWrapper: false,
+        classification: 'not_applicable',
+        grossMarginEstimate: 'non applicable',
+        grossMarginRationale: 'Modele economique sans dependance structurelle a un LLM tiers : la grille AI-native ne s applique pas.',
+        llmProviderConcentration: 'non applicable',
+        aiTaxSensitivity: 'non applicable',
+        commoditizationRisk: 'low',
+        commoditizationReasoning: 'Pas d exposition au compute LLM puisque pas de dependance LLM tiers detectee.',
+        multipleAdjustment: 'non applicable',
+        redFlags: [],
+        sustainableSignals: [],
+      };
+    }
+  }
 
   // Log si on a du normaliser, pour suivre la frequence du probleme
   // sans casser la pipeline.
