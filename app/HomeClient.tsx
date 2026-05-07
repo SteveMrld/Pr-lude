@@ -4185,8 +4185,8 @@ export default function HomeClient({
                     return null;
                   })()}
 
-                  {(result.macro?.cyclePosition || result.macro?.vcCapitalOnSegment || result.macro?.interestRateRegime || result.macro?.geopolitics) && (
-                    <div className="kv-grid" style={{ marginBottom: 22 }}>
+                  {(result.macro?.cyclePosition || result.macro?.vcCapitalOnSegment) && (
+                    <div className="kv-grid" style={{ marginBottom: 16 }}>
                       {result.macro?.cyclePosition && (
                         <div className="kv-item">
                           <div className="kv-key">Position cycle</div>
@@ -4199,18 +4199,38 @@ export default function HomeClient({
                           <div className="kv-val">{result.macro.vcCapitalOnSegment}</div>
                         </div>
                       )}
-                      {result.macro?.interestRateRegime && (
-                        <div className="kv-item">
-                          <div className="kv-key">Régime de taux</div>
-                          <div className="kv-val">{result.macro.interestRateRegime}</div>
-                        </div>
-                      )}
-                      {result.macro?.geopolitics && (
-                        <div className="kv-item">
-                          <div className="kv-key">Géopolitique</div>
-                          <div className="kv-val">{result.macro.geopolitics}</div>
-                        </div>
-                      )}
+                    </div>
+                  )}
+
+                  {/* interestRateRegime et geopolitics sont des phrases longues
+                      generees par le LLM (cf macro-engine prompt). Les rendre
+                      en kv-grid produit un layout casse en PDF : le label
+                      apparait sur une page et la valeur sur la suivante,
+                      donnant l impression d un orphelin. On les sort donc en
+                      sous-rubriques avec h4 + paragraphe, qui paginent
+                      proprement. */}
+                  {result.macro?.interestRateRegime && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{
+                        fontSize: 10.5,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        color: 'var(--muted)',
+                        marginBottom: 4,
+                      }}>Régime de taux</div>
+                      <p style={{ margin: 0 }}>{result.macro.interestRateRegime}</p>
+                    </div>
+                  )}
+                  {result.macro?.geopolitics && (
+                    <div style={{ marginBottom: 22 }}>
+                      <div style={{
+                        fontSize: 10.5,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        color: 'var(--muted)',
+                        marginBottom: 4,
+                      }}>Géopolitique</div>
+                      <p style={{ margin: 0 }}>{result.macro.geopolitics}</p>
                     </div>
                   )}
 
