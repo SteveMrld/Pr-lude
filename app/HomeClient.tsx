@@ -448,8 +448,29 @@ export default function HomeClient({
   };
   // Pipeline timing : pour mesurer la duree d execution et la stocker en metadonnees
   const [pipelineStartTime, setPipelineStartTime] = useState<number | null>(null);
+  // Compteur de duree ecoulee, mis a jour toutes les secondes pendant
+  // que le pipeline tourne. Permet d afficher un timer total reel
+  // dans la vue pipeline plutot que de laisser l utilisateur faire la
+  // somme des durees par moteur (qui est trompeuse car les moteurs
+  // tournent largement en parallele : 6 a 7 moteurs simultanes par
+  // batch, donc somme cumulee largement superieure a la duree reelle).
+  const [pipelineElapsedMs, setPipelineElapsedMs] = useState<number>(0);
   // Etat de chargement d une analyse passee depuis ?analysis=ID
   const [loadingPastAnalysis, setLoadingPastAnalysis] = useState(false);
+
+  // Tick toutes les secondes pendant que le pipeline tourne pour
+  // mettre a jour pipelineElapsedMs. Cleanup quand analyzing repasse
+  // a false ou quand le composant se demonte.
+  useEffect(() => {
+    if (!analyzing || !pipelineStartTime) {
+      setPipelineElapsedMs(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setPipelineElapsedMs(Date.now() - pipelineStartTime);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [analyzing, pipelineStartTime]);
 
   // Charge automatiquement une analyse passee si l URL contient ?analysis=ID.
   // Permet d arriver depuis /history -> bouton "Ouvrir" et restaurer la note.
@@ -1866,8 +1887,19 @@ export default function HomeClient({
         {analyzing && (
           <div className="pipeline">
             <div className="pipeline-head">
-              <div className="pipeline-title">Pipeline en cours d'exécution</div>
-              <div className="pipeline-sub">Onze moteurs travaillent en parallèle ou en cascade selon les dépendances. Suivi en temps réel dans le bandeau ci-dessus.</div>
+              <div className="pipeline-title">Pipeline en cours d&apos;exécution</div>
+              <div className="pipeline-sub">
+                Onze moteurs travaillent en parallèle ou en cascade selon les dépendances. Suivi en temps réel dans le bandeau ci-dessus.
+              </div>
+              <div className="pipeline-timer">
+                <span className="pipeline-timer-label">Durée écoulée</span>
+                <span className="pipeline-timer-value">
+                  {Math.floor(pipelineElapsedMs / 60000)} min {Math.floor((pipelineElapsedMs % 60000) / 1000).toString().padStart(2, '0')} s
+                </span>
+                <span className="pipeline-timer-hint">
+                  Estimation 3 à 4 minutes selon le dossier. Les durées affichées par moteur ci-dessous ne s&apos;additionnent pas : six moteurs tournent en parallèle dans le même batch, leur durée totale est celle du plus lent.
+                </span>
+              </div>
             </div>
             <div style={{ padding: '12px 18px', background: 'var(--ocre-brule-soft)', border: '1px solid var(--ocre-brule)', marginBottom: 16, fontSize: 12, lineHeight: 1.5 }}>
               <strong>Sur mobile :</strong> idéalement laisse l&apos;écran allumé pendant les 3-4 minutes du pipeline.

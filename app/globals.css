@@ -1694,6 +1694,39 @@ ul, ol { list-style: none; }
 .pipeline-head { margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid var(--hairline); }
 .pipeline-title { font-family: var(--serif); font-size: 22px; font-weight: 500; margin-bottom: 4px; }
 .pipeline-sub { color: var(--muted); font-size: 13.5px; }
+.pipeline-timer {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--paper-accent);
+  border-left: 3px solid var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pipeline-timer-label {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+.pipeline-timer-value {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.pipeline-timer-hint {
+  font-family: var(--serif);
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: 6px;
+}
 
 /* ENGINE BLOCK HEADERS - Separateurs visuels Bloc 1 / Bloc 2 dans
    la liste des moteurs pendant l execution. Permettent au partner
