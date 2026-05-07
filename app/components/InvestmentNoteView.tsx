@@ -236,6 +236,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       return computeValuation({
         extraction: r.extraction,
         financial: r.financialCoherence,
+        financialData: r.financialData,
         team: r.team,
         market: r.market,
         teamScore,

@@ -34,7 +34,7 @@ import {
   type ValuationStage,
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
-import type { ExtractionOutput, FinancialCoherenceOutput, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
+import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 
 /**
  * Resultat d une methode de valorisation individuelle. Plusieurs
@@ -95,7 +95,13 @@ export interface ValuationOutput {
 
 interface ValuationInput {
   extraction: ExtractionOutput | null | undefined;
+  /** Output du moteur cohérence financière (tests T1-T7). */
   financial: FinancialCoherenceOutput | null | undefined;
+  /** Output du moteur d'extraction financière : c'est ICI que vivent les
+   * projections revenue/EBITDA/marge brute en millions d'euros, dérivées
+   * du BP. Le moteur valuation lit prioritairement ces données pour
+   * peupler les multiples sectoriels. */
+  financialData?: FinancialDataExtraction | null | undefined;
   team: TeamAnalysisOutput | null | undefined;
   market: MarketAnalysisOutput | null | undefined;
   /** Score equipe mecanique (0-100) calcule par score-calculator. */
@@ -126,8 +132,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // une fourchette plus precise que les multiples revenue sur ces
   // dossiers. La detection ne s active pas pour les cas SaaS pur ou
   // l EBITDA peut etre negatif tout en ayant des multiples ARR eleves.
-  const fin: any = input.financial;
-  const ebitda = parseFinancialNumber(fin?.metrics?.ebitdaEur || fin?.metrics?.ebitda);
+  const ebitda = pickProjectionValue(input.financialData?.ebitdaProjection);
   const isLateStage = stage === 'series-b' || stage === 'series-c-plus';
   const isNonPureSaas = assetClass !== 'saas-b2b'
     && assetClass !== 'cybersecurity'
@@ -261,48 +266,82 @@ function computeBySectorMultiples(
 }
 
 /**
- * Cherche dans les outputs financial / extraction la metrique de
- * base correspondant au multipleType requis. Retourne null si la
- * metrique n est pas disponible ou pas exploitable.
+ * Extrait une valeur usable d une projection financiere en millions
+ * d EUR et la retourne en EUR bruts. Strategie : on prefere l annee
+ * courante (revenue probablement realise ou pres de l etre), sinon la
+ * derniere annee passee disponible, sinon la premiere annee future.
+ *
+ * Les projections financialData.{revenue,ebitda,grossMargin,fcf}
+ * Projection viennent du moteur financial-extraction-engine, qui
+ * stocke les valeurs en MILLIONS d EUR. On reconvertit en EUR pour
+ * que le moteur valuation puisse appliquer les multiples sectoriels
+ * (qui s appliquent sur des montants en EUR bruts).
+ */
+function pickProjectionValue(
+  projection: Array<{ year: string; value: number; source: string }> | undefined,
+  unitMultiplier = 1_000_000,
+): number | null {
+  if (!projection || projection.length === 0) return null;
+  const currentYear = new Date().getFullYear();
+  const parsed = projection
+    .map((p) => ({ year: parseInt(String(p.year), 10), value: Number(p.value) }))
+    .filter((p) => !isNaN(p.year) && !isNaN(p.value));
+  if (parsed.length === 0) return null;
+
+  const exact = parsed.find((p) => p.year === currentYear);
+  if (exact) return exact.value * unitMultiplier;
+
+  const past = parsed.filter((p) => p.year < currentYear).sort((a, b) => b.year - a.year)[0];
+  if (past) return past.value * unitMultiplier;
+
+  const future = parsed.filter((p) => p.year > currentYear).sort((a, b) => a.year - b.year)[0];
+  if (future) return future.value * unitMultiplier;
+
+  return null;
+}
+
+/**
+ * Extrait la base metric appropriee pour le multiple type donne. Lit
+ * en priorite financialData (projections issues du BP), avec fallback
+ * sur extraction.traction si le BP est absent.
  */
 function extractBaseMetric(
   input: ValuationInput,
   multipleType: 'arr' | 'revenue' | 'gmv' | 'ebitda',
 ): number | null {
-  const fin: any = input.financial;
   const ext: any = input.extraction;
+  const fd = input.financialData;
 
-  // Le moteur extraction range les chiffres dans extraction.traction
-  // (revenue, growth, customers) sous forme de strings libres. Le
-  // moteur financial-coherence parse ces strings dans
-  // financial.metrics si possible.
-
-  // ARR : cherche dans financial puis traction
+  // ARR : on prend le revenue projete comme proxy d ARR pour les
+  // modeles SaaS, sauf si une mention explicite d ARR est dans la
+  // traction extraite du deck.
   if (multipleType === 'arr') {
-    const fromFin = fin?.metrics?.arrEur || fin?.metrics?.arr;
-    const fromExt = ext?.traction?.revenue || ext?.traction?.metrics?.find?.((m: string) => /arr|recurring/i.test(m));
-    return parseFinancialNumber(fromFin) || parseFinancialNumber(fromExt);
+    const fromBp = pickProjectionValue(fd?.revenueProjection);
+    if (fromBp) return fromBp;
+    const fromExt = ext?.traction?.revenue
+      || ext?.traction?.metrics?.find?.((m: string) => /arr|recurring/i.test(m));
+    return parseFinancialNumber(fromExt);
   }
 
-  // REVENUE : prend toute mention de revenue / CA
+  // REVENUE : projection du BP en priorite, sinon extraction
   if (multipleType === 'revenue') {
-    const fromFin = fin?.metrics?.revenueEur || fin?.metrics?.revenue || fin?.metrics?.caEur || fin?.metrics?.ca;
+    const fromBp = pickProjectionValue(fd?.revenueProjection);
+    if (fromBp) return fromBp;
     const fromExt = ext?.traction?.revenue;
-    return parseFinancialNumber(fromFin) || parseFinancialNumber(fromExt);
+    return parseFinancialNumber(fromExt);
   }
 
-  // GMV : marketplace. Cherche dans traction.metrics les strings GMV
+  // GMV : marketplace. Cherche dans traction.metrics les strings GMV.
+  // Le BP n a pas de champ dedie GMV, donc fallback sur extraction.
   if (multipleType === 'gmv') {
-    const fromFin = fin?.metrics?.gmvEur || fin?.metrics?.gmv;
     const tractionMetrics: string[] = ext?.traction?.metrics || [];
     const gmvLine = tractionMetrics.find((m) => /gmv|volume.*affaires/i.test(m));
-    return parseFinancialNumber(fromFin) || parseFinancialNumber(gmvLine);
+    return parseFinancialNumber(gmvLine);
   }
 
-  // EBITDA
+  // EBITDA : projection du BP en priorite
   if (multipleType === 'ebitda') {
-    const fromFin = fin?.metrics?.ebitdaEur || fin?.metrics?.ebitda;
-    return parseFinancialNumber(fromFin);
+    return pickProjectionValue(fd?.ebitdaProjection);
   }
 
   return null;
@@ -497,9 +536,9 @@ function computeByBerkus(input: ValuationInput): ValuationMethodResult {
   const factor2 = (marketScore / 100) * FACTOR_MAX;
   const factor3 = (teamScore / 100) * FACTOR_MAX;
   const factor4 = ((teamScore + marketScore) / 200) * FACTOR_MAX;
-  const fin: any = input.financial;
   const ext: any = input.extraction;
-  const hasRevenue = (fin?.hasFinancialData && (fin?.metrics?.arrEur || fin?.metrics?.revenueEur))
+  const revenueFromBp = pickProjectionValue(input.financialData?.revenueProjection);
+  const hasRevenue = (revenueFromBp != null && revenueFromBp > 0)
     || !!parseFinancialNumber(ext?.traction?.revenue);
   const factor5 = hasRevenue ? FACTOR_MAX * 0.7 : FACTOR_MAX * 0.2;
 
@@ -845,8 +884,13 @@ function collectWarnings(
     warnings.push(`La fourchette est tres large (rapport max/min ${Math.round(range.max / range.min * 10) / 10}). Le pricing depend fortement de signaux qualitatifs non chiffrables.`);
   }
 
-  const fin: any = input.financial;
-  if (!fin?.hasFinancialData) {
+  // Le warning "aucun BP" se base maintenant sur la presence reelle
+  // d une projection revenue dans financialData (issue du moteur
+  // financial-extraction-engine), pas sur le flag hasFinancialData
+  // de financialCoherence qui ne capture pas la meme realite.
+  const hasUsableBp = !!input.financialData?.hasBP
+    && (input.financialData.revenueProjection || []).length > 0;
+  if (!hasUsableBp) {
     warnings.push('Aucun BP ou pas de donnees financieres exploitables. Les multiples sectoriels n ont pas pu etre appliques. La fourchette est basee uniquement sur les methodes qualitatives (Berkus / Scorecard ou VC inverse).');
   }
 

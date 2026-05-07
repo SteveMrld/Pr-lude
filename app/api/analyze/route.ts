@@ -461,6 +461,7 @@ export async function POST(req: NextRequest) {
           const valuation = computeValuation({
             extraction,
             financial: financialCoherence,
+            financialData,
             team,
             market,
             teamScore: mechanicalScore.dimensions.team.score,
