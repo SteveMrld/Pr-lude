@@ -430,9 +430,34 @@ function computeByVcMethod(
   const postCentral = exitScenarios.base / targetMultiple;
   const postMax = exitScenarios.bull / targetMultiple;
 
-  const preMin = Math.max(0, postMin - ticket);
-  const preCentral = Math.max(0, postCentral - ticket);
-  const preMax = Math.max(0, postMax - ticket);
+  const preCentralRaw = postCentral - ticket;
+  const preCentral = Math.max(0, preCentralRaw);
+
+  // Detection : si le ticket excede trop largement la post-money cible,
+  // la VC method calibree a IRR ${targetIRR*100}% sur ${horizonYears}
+  // ans ne peut pas generer de pre-money plausible. Cas typique : late
+  // stage avec gros ticket sur des exits modeles trop conservateurs.
+  // Plutot que de pondre un central absurde et de polluer la
+  // consolidation, on marque la methode non-applicable et on laisse
+  // les multiples sectoriels prendre l ancrage.
+  const isAbsurd = preCentral < 500_000
+    || (ticket > 0 && preCentral < ticket * 0.30);
+  if (isAbsurd) {
+    return {
+      method: 'vc-method',
+      label: 'Methode VC inverse',
+      applicable: false,
+      notApplicableReason: `Le ticket propose (${formatEur(ticket)}) excede la post-money implicite (${formatEur(postCentral)}) necessaire pour atteindre IRR ${Math.round(targetIRR * 100)}% sur ${horizonYears} ans avec les exits calibres ${assetClass}. Soit le ticket est trop ambitieux, soit la these sous-jacente vise des exits superieurs aux medianes du segment.`,
+    };
+  }
+
+  // Plancher structurel a 40% du central : si le bear scenario donne
+  // une borne inferieure negative apres soustraction du ticket, on
+  // retient un plancher prudent plutot que zero, qui n est pas
+  // utilisable pour pricer.
+  const preFloor = preCentral * 0.40;
+  const preMin = Math.max(preFloor, postMin - ticket);
+  const preMax = Math.max(preFloor, postMax - ticket);
 
   return {
     method: 'vc-method',
