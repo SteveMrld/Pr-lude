@@ -82,6 +82,7 @@ export type SourceName =
   | 'openalex'
   | 'arxiv'
   | 'worldbank'
+  | 'imf'        // Fonds Monetaire International WEO Database
   | 'epo'        // Espacenet OPS : brevets europeens (OAuth2)
   | 'pappers';   // Pappers : registre RCS francais (api-key)
 
@@ -1231,6 +1232,198 @@ export async function getECBIndicator(seriesKey: string): Promise<MacroIndicator
   } catch {
     return [];
   }
+}
+
+// IMF DataMapper WEO Database (gratuit, sans cle)
+// https://www.imf.org/external/datamapper/api/v1
+//
+// Avantage cle sur la World Bank : le FMI publie des projections
+// forward (jusqu a 5 ans) qui sont actualisees deux fois par an
+// (avril et octobre, World Economic Outlook). Pertinent pour les
+// dossiers a sensibilite macro elevee (DTC consumer milieu de gamme,
+// retail, hospitality, marketplace B2C) ou la trajectoire de
+// croissance et d inflation a 24-36 mois est un signal critique.
+//
+// Indicateurs cles :
+//   NGDP_RPCH : Real GDP growth (%)
+//   PCPIPCH   : Inflation rate average consumer prices (%)
+//   LUR       : Unemployment rate (%)
+//   BCA_NGDPD : Current account balance (% of GDP)
+//
+// Le format de l API renvoie un objet imbrique :
+//   { values: { NGDP_RPCH: { FRA: { "2020": -7.6, "2025": 1.4, ... } } } }
+// On extrait la serie temporelle et on la formate en MacroIndicator[].
+export async function getImfWeoIndicator(
+  country: string,
+  indicator: string,
+): Promise<MacroIndicator[]> {
+  const url = `https://www.imf.org/external/datamapper/api/v1/${indicator}/${country}`;
+  const r = await fetchWithTimeout(url, { headers: HEADERS });
+  if (!r || !r.ok) return [];
+  try {
+    const data = await r.json();
+    const series = data?.values?.[indicator]?.[country];
+    if (!series || typeof series !== 'object') return [];
+    return Object.entries(series)
+      .filter(([, v]) => typeof v === 'number' || typeof v === 'string')
+      .map(([year, value]) => ({
+        source: 'IMF',
+        indicator,
+        value: value as number | string,
+        date: year,
+      }))
+      .sort((a, b) => Number(b.date) - Number(a.date));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Snapshot conjoncturel FMI WEO pour un pays. Retourne les indicateurs
+ * cles plus la separation entre annees historiques et annees de
+ * projection. Le current year sert de pivot : tout ce qui est >= year
+ * courant est une projection FMI.
+ */
+export interface ImfWeoSnapshot {
+  country: string;
+  sourcesQueried: string[];
+  sourcesFound: string[];
+  indicators: {
+    gdpGrowthHistorical?: MacroIndicator[];
+    gdpGrowthProjected?: MacroIndicator[];
+    inflationHistorical?: MacroIndicator[];
+    inflationProjected?: MacroIndicator[];
+    unemploymentHistorical?: MacroIndicator[];
+    unemploymentProjected?: MacroIndicator[];
+  };
+  derivedMetrics: {
+    /** Tendance projetee sur les 3 prochaines annees pour le PIB. */
+    gdp_outlook?: 'expansion' | 'slowdown' | 'recession';
+    /** Tendance projetee de l inflation : returning_to_target / sticky / accelerating. */
+    inflation_outlook?: 'returning_to_target' | 'sticky' | 'accelerating';
+  };
+}
+
+export async function gatherImfWeoSnapshot(
+  country: string,
+  opts?: FetcherOpts,
+): Promise<ImfWeoSnapshot> {
+  // Reutilisation du mapping ISO3 deja utilise par World Bank.
+  const countryCodeMap: Record<string, string> = {
+    'france': 'FRA', 'fr': 'FRA',
+    'allemagne': 'DEU', 'germany': 'DEU', 'de': 'DEU',
+    'royaume-uni': 'GBR', 'uk': 'GBR', 'united kingdom': 'GBR',
+    'états-unis': 'USA', 'usa': 'USA', 'united states': 'USA',
+    'italie': 'ITA', 'italy': 'ITA',
+    'espagne': 'ESP', 'spain': 'ESP',
+    'pays-bas': 'NLD', 'netherlands': 'NLD',
+    'portugal': 'PRT',
+    'lituanie': 'LTU', 'lithuania': 'LTU',
+    'roumanie': 'ROU', 'romania': 'ROU',
+    'suède': 'SWE', 'sweden': 'SWE',
+    'canada': 'CAN',
+    'irlande': 'IRL', 'ireland': 'IRL',
+  };
+  const code = countryCodeMap[country.toLowerCase()] || country.toUpperCase().slice(0, 3);
+
+  const enabled = isSourceEnabled('imf');
+  const result: ImfWeoSnapshot = {
+    country: code,
+    sourcesQueried: enabled ? ['imf-weo-gdp', 'imf-weo-inflation', 'imf-weo-unemployment'] : [],
+    sourcesFound: [],
+    indicators: {},
+    derivedMetrics: {},
+  };
+
+  if (!enabled) return result;
+
+  const currentYear = new Date().getFullYear();
+
+  const split = (series: MacroIndicator[]): { historical: MacroIndicator[]; projected: MacroIndicator[] } => {
+    const historical: MacroIndicator[] = [];
+    const projected: MacroIndicator[] = [];
+    for (const obs of series) {
+      const y = Number(obs.date);
+      if (Number.isNaN(y)) continue;
+      if (y < currentYear) historical.push(obs);
+      else projected.push(obs);
+    }
+    return {
+      historical: historical.sort((a, b) => Number(b.date) - Number(a.date)).slice(0, 5),
+      projected: projected.sort((a, b) => Number(a.date) - Number(b.date)).slice(0, 5),
+    };
+  };
+
+  const fetched = await Promise.all([
+    trackedSource<MacroIndicator[]>(
+      'macro', 'imf',
+      () => cached(`imf:${code}:NGDP_RPCH`,
+        () => getImfWeoIndicator(code, 'NGDP_RPCH').catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+    trackedSource<MacroIndicator[]>(
+      'macro', 'imf',
+      () => cached(`imf:${code}:PCPIPCH`,
+        () => getImfWeoIndicator(code, 'PCPIPCH').catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+    trackedSource<MacroIndicator[]>(
+      'macro', 'imf',
+      () => cached(`imf:${code}:LUR`,
+        () => getImfWeoIndicator(code, 'LUR').catch(() => [])),
+      (r) => r.length === 0,
+      [],
+      opts,
+    ),
+  ]);
+
+  const [gdpRaw, inflationRaw, unemploymentRaw] = fetched;
+
+  if (gdpRaw.length > 0) {
+    const { historical, projected } = split(gdpRaw);
+    result.indicators.gdpGrowthHistorical = historical;
+    result.indicators.gdpGrowthProjected = projected;
+    result.sourcesFound.push('imf-weo-gdp');
+
+    // Outlook derive : moyenne des 3 prochaines annees projetees
+    if (projected.length >= 2) {
+      const avg = projected.slice(0, 3).reduce((s, p) => s + Number(p.value), 0) / Math.min(3, projected.length);
+      if (avg > 2.5) result.derivedMetrics.gdp_outlook = 'expansion';
+      else if (avg > 0.5) result.derivedMetrics.gdp_outlook = 'slowdown';
+      else result.derivedMetrics.gdp_outlook = 'recession';
+    }
+  }
+
+  if (inflationRaw.length > 0) {
+    const { historical, projected } = split(inflationRaw);
+    result.indicators.inflationHistorical = historical;
+    result.indicators.inflationProjected = projected;
+    result.sourcesFound.push('imf-weo-inflation');
+
+    // Outlook : convergence vers 2% (cible BCE/Fed) ou non
+    if (projected.length >= 2) {
+      const lastProjected = Number(projected[projected.length - 1].value);
+      const firstProjected = Number(projected[0].value);
+      const trend = lastProjected - firstProjected;
+      if (lastProjected <= 2.5) result.derivedMetrics.inflation_outlook = 'returning_to_target';
+      else if (trend < -0.3) result.derivedMetrics.inflation_outlook = 'returning_to_target';
+      else if (trend > 0.3) result.derivedMetrics.inflation_outlook = 'accelerating';
+      else result.derivedMetrics.inflation_outlook = 'sticky';
+    }
+  }
+
+  if (unemploymentRaw.length > 0) {
+    const { historical, projected } = split(unemploymentRaw);
+    result.indicators.unemploymentHistorical = historical;
+    result.indicators.unemploymentProjected = projected;
+    result.sourcesFound.push('imf-weo-unemployment');
+  }
+
+  return result;
 }
 
 // Récupération simplifiée des principaux indicateurs macro pour une géographie

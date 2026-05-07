@@ -1,5 +1,5 @@
 import { callClaude, parseJSON } from './anthropic-client';
-import { gatherMacroRealData, type MacroSnapshot } from '../data-fetchers/sources';
+import { gatherMacroRealData, gatherImfWeoSnapshot, type MacroSnapshot, type ImfWeoSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock } from './fund-context';
@@ -70,7 +70,7 @@ Tu reçois dans le user prompt un bloc "VERDICT DE PERTINENCE" calcule en amont 
 
 - Si cyclical = partial : lecture cyclique ciblee sur les facteurs du scope.
 
-- Si cyclical = full : lecture cyclique complete avec projections et signaux forward.
+- Si cyclical = full : lecture cyclique complete avec projections et signaux forward. Si les projections FMI WEO sont presentes dans le summary (PIB projete, inflation projetee, chomage projete), tu les integres explicitement dans demandCycle et structuralTrends en citant FMI WEO comme source.
 
 Ce verdict prevaut sur le cadrage 2026 generique : le partner ne veut pas d un commentaire macro qui s applique a tous les dossiers, il veut un commentaire qui s applique a celui-ci.
 
@@ -140,7 +140,7 @@ export async function analyzeMacro(
   extraction: ExtractionOutput,
   fundNote?: string | null,
   relevanceMatrix?: RelevanceMatrix | null,
-): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot }> {
+): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot; weoData?: ImfWeoSnapshot }> {
   // ÉTAPE 1 : Récupération des indicateurs macro réels du pays (timeout 8s pour éviter de bloquer le pipeline)
   const realData = await Promise.race([
     gatherMacroRealData(extraction.country || 'France'),
@@ -151,6 +151,29 @@ export async function analyzeMacro(
       indicators: {},
     } as any), 8000)),
   ]);
+
+  // ÉTAPE 1b : Récupération des projections FMI WEO conditionnée par
+  // la sensibilite macro du dossier. Sur les dossiers ou macroSensitivity
+  // est medium ou high (DTC consumer milieu de gamme, retail, hospitality,
+  // marketplace B2C, fintech taux-sensitive), la trajectoire de croissance
+  // et d inflation a 24-36 mois est un signal critique. Sur les autres
+  // dossiers (B2B SaaS verticalise, infra publique, services regules),
+  // on saute le fetch pour epargner un appel reseau et garder la note
+  // focalisee.
+  const macroSensitivity = relevanceMatrix?.macroSensitivity ?? 'low';
+  const fetchWeo = macroSensitivity === 'medium' || macroSensitivity === 'high';
+  const weoData = fetchWeo
+    ? await Promise.race([
+        gatherImfWeoSnapshot(extraction.country || 'France'),
+        new Promise<ImfWeoSnapshot>((resolve) => setTimeout(() => resolve({
+          country: extraction.country || 'France',
+          sourcesQueried: ['timeout'],
+          sourcesFound: [],
+          indicators: {},
+          derivedMetrics: {},
+        } as ImfWeoSnapshot), 8000)),
+      ])
+    : null;
 
   // ÉTAPE 2 : Construire le résumé pour Claude
   let summary = `\n--- DONNÉES MACRO RÉELLES (World Bank API) ---\n`;
@@ -199,6 +222,48 @@ export async function analyzeMacro(
   if (indicators.fdiInflows && indicators.fdiInflows.length > 0) {
     summary += `\nFlux IDE entrants (% du PIB, dernière donnée) :\n`;
     summary += `  ${indicators.fdiInflows[0].date} : ${Number(indicators.fdiInflows[0].value).toFixed(2)}%\n`;
+  }
+
+  // Projections FMI WEO conditionnees par la sensibilite macro du
+  // dossier. Pertinentes uniquement quand la matrice indique medium
+  // ou high : l API renvoie historique + projections forward (jusqu a
+  // 5 ans), publiees dans le World Economic Outlook (avril, octobre).
+  if (weoData && weoData.sourcesFound.length > 0) {
+    summary += `\n--- PROJECTIONS FMI WEO (World Economic Outlook) ---\n`;
+    summary += `Pays : ${weoData.country}\n`;
+    summary += `Activation : sensibilite macro detectee comme ${macroSensitivity} sur ce dossier.\n\n`;
+
+    if (weoData.indicators.gdpGrowthHistorical && weoData.indicators.gdpGrowthHistorical.length > 0) {
+      summary += `Croissance PIB historique :\n`;
+      weoData.indicators.gdpGrowthHistorical.slice(0, 3).forEach((d) => {
+        summary += `  ${d.date} : ${Number(d.value).toFixed(2)}%\n`;
+      });
+    }
+    if (weoData.indicators.gdpGrowthProjected && weoData.indicators.gdpGrowthProjected.length > 0) {
+      summary += `Croissance PIB projetee (FMI WEO) :\n`;
+      weoData.indicators.gdpGrowthProjected.forEach((d) => {
+        summary += `  ${d.date} : ${Number(d.value).toFixed(2)}%\n`;
+      });
+      if (weoData.derivedMetrics.gdp_outlook) {
+        summary += `  Outlook derive : ${weoData.derivedMetrics.gdp_outlook}\n`;
+      }
+    }
+    if (weoData.indicators.inflationProjected && weoData.indicators.inflationProjected.length > 0) {
+      summary += `\nInflation projetee (FMI WEO) :\n`;
+      weoData.indicators.inflationProjected.forEach((d) => {
+        summary += `  ${d.date} : ${Number(d.value).toFixed(2)}%\n`;
+      });
+      if (weoData.derivedMetrics.inflation_outlook) {
+        summary += `  Outlook derive : ${weoData.derivedMetrics.inflation_outlook}\n`;
+      }
+    }
+    if (weoData.indicators.unemploymentProjected && weoData.indicators.unemploymentProjected.length > 0) {
+      summary += `\nChomage projete (FMI WEO) :\n`;
+      weoData.indicators.unemploymentProjected.slice(0, 3).forEach((d) => {
+        summary += `  ${d.date} : ${Number(d.value).toFixed(2)}%\n`;
+      });
+    }
+    summary += `\n`;
   }
 
   // Detection rapide de la region a partir du pays (logique simplifiee, le moteur
@@ -364,5 +429,5 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
     }
   }
 
-  return { ...analysis, realData };
+  return { ...analysis, realData, weoData: weoData ?? undefined };
 }
