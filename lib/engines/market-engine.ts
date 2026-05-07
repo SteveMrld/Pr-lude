@@ -81,6 +81,8 @@ NOUVEAU PILIER. Identifie les zones où les sources publiques confirment le pitc
 
 # FORMAT JSON OBLIGATOIRE
 
+Les trois premiers champs (perceivedSize, realIntensity, saturation) sont REQUIS et tu choisis toujours une option meme si le dossier est ambigu ou hybride. Tu ne laisses JAMAIS ces champs vides ou absents. Si tu hesites, tu choisis l option mediane (large, medium, fragmented) et tu motives ton choix dans organicSignals.rationale. C est mieux d avoir un signal calibre meme imparfait qu une note d investissement avec des sections vides.
+
 {
   "perceivedSize": "massive" ou "large" ou "niche",
   "realIntensity": "extreme" ou "high" ou "medium",
@@ -404,5 +406,45 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
     console.warn('[market-engine] tagging audit:', audit.message);
   }
 
-  return { ...analysis, realData };
+  // Normalisation defensive : le LLM peut omettre certains champs
+  // typees strict (perceivedSize, realIntensity, saturation) quand le
+  // dossier est ambigu (cas Hello Planet : secteur ESG/RSE formation
+  // hybride, le LLM n a pas tranche entre niche/large/massive et a
+  // omis le champ). On assigne des defauts neutres pour eviter que la
+  // note d investissement tombe sur des sections vides, et on log un
+  // warning pour que le probleme remonte au monitoring.
+  const normalized: MarketAnalysisOutput = {
+    perceivedSize: (analysis.perceivedSize || 'large') as 'massive' | 'large' | 'niche',
+    realIntensity: (analysis.realIntensity || 'medium') as 'extreme' | 'high' | 'medium',
+    saturation: (analysis.saturation || 'fragmented') as 'saturated' | 'fragmented' | 'emerging',
+    marketSizing: analysis.marketSizing,
+    organicSignals: analysis.organicSignals || { score: 50, rationale: 'Signaux organiques non instruits.', evidence: [] },
+    needIntensity: analysis.needIntensity || { score: 50, rationale: 'Intensite du besoin non instruite.', gap: '' },
+    defensibility: analysis.defensibility || { score: 50, moats: [], vulnerabilities: [] } as any,
+    internationalBenchmarks: analysis.internationalBenchmarks || [],
+    aiBusinessModel: analysis.aiBusinessModel,
+    competitiveMatrix: analysis.competitiveMatrix,
+    competitiveDynamic: analysis.competitiveDynamic || '',
+  } as MarketAnalysisOutput;
+
+  // Preserver les autres champs du analysis original qui ne sont pas
+  // explicitement listes ci-dessus (futurs ajouts, champs optionnels).
+  const merged = { ...analysis, ...normalized };
+
+  // Log si on a du normaliser, pour suivre la frequence du probleme
+  // sans casser la pipeline.
+  const wasIncomplete = !analysis.perceivedSize || !analysis.realIntensity || !analysis.saturation
+    || !analysis.organicSignals || !analysis.needIntensity || !analysis.defensibility;
+  if (wasIncomplete) {
+    console.warn('[market-engine] output partiel detecte, normalisation appliquee. Champs manquants:', {
+      perceivedSize: !analysis.perceivedSize,
+      realIntensity: !analysis.realIntensity,
+      saturation: !analysis.saturation,
+      organicSignals: !analysis.organicSignals,
+      needIntensity: !analysis.needIntensity,
+      defensibility: !analysis.defensibility,
+    });
+  }
+
+  return { ...merged, realData };
 }
