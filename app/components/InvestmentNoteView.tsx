@@ -4,6 +4,7 @@ import React from 'react';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
+import PortfolioPositionChart from './PortfolioPositionChart';
 
 interface Props {
   result: any;
@@ -956,6 +957,24 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <div className="verdict-block-legend" style={{ marginTop: 10 }}>
                 Formule : score = somme des (score_dimension x poids). Les six dimensions et leurs poids sont stables dans le temps. Les seuils de verdict sont 45 / 60 / 75. Un partner qui souhaite recalibrer la formule peut le faire en modifiant les poids dans le code, sans changer la nature des scores produits par les moteurs Bloc 1.
               </div>
+            </div>
+          )}
+
+          {/* BLOC 1.6 : POSITIONNEMENT DANS LE PORTFOLIO
+              Courbe de densite des scores du portfolio avec marker sur le
+              score du dossier en cours. Le score absolu (47/100) est utile
+              mais le score relatif au portfolio (65e percentile) est ce qui
+              aide a arbitrer en IC. Le partner voit immediatement si le
+              dossier est dans le top, le median, ou le bottom de ses
+              instructions. La courbe ne s affiche que si l analyse est en
+              base et a un score global numerique. */}
+          {typeof reco.globalScore === 'number' && (
+            <div className="verdict-block" style={{ marginTop: 14 }}>
+              <div className="verdict-block-head">
+                <span className="verdict-block-num" aria-hidden="true">1.6</span>
+                <span className="verdict-block-title">Positionnement dans le portfolio</span>
+              </div>
+              <PortfolioPositionChart currentScore={reco.globalScore} printMode={false} />
             </div>
           )}
 

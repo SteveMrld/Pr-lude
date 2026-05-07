@@ -37,6 +37,12 @@ export interface PortfolioStats {
   lastAnalysisAt: string | null;
   avgGlobalScore: number | null;
   avgBlindspotScore: number | null;
+  /**
+   * Liste des scores globaux de tous les dossiers du portfolio. Permet
+   * a la note d analyse d afficher la courbe de positionnement (densite
+   * KDE des scores avec marker sur le score du dossier en cours).
+   */
+  allScores: number[];
 }
 
 const STAGE_ORDER = ['deposited', 'in_review', 'dd_field', 'ic_review', 'signed', 'declined'];
@@ -118,16 +124,37 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
   });
 
   // ---------------------- BY SECTOR
+  // Les dossiers avec un champ secteur vide sont aggreges dans une
+  // categorie 'Non classe' plutot que silencieusement exclus du graphique.
+  // Sans cette agregation, la somme des barres du Top secteurs ne
+  // correspond pas au total des verdicts et le partner peut croire a une
+  // incoherence des stats. Cas observe sur les anciens dossiers ou le
+  // moteur d extraction n a pas reussi a typer le secteur.
   const sectorMap: Record<string, number> = {};
+  let unclassifiedCount = 0;
   analyses.forEach((a) => {
     const s = (a.sector || '').trim();
-    if (!s) return;
+    if (!s) {
+      unclassifiedCount++;
+      return;
+    }
     sectorMap[s] = (sectorMap[s] || 0) + 1;
   });
   const bySector = Object.entries(sectorMap)
     .map(([sector, count]) => ({ sector, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
+  if (unclassifiedCount > 0) {
+    bySector.push({ sector: 'Non classe', count: unclassifiedCount });
+  }
+
+  // ---------------------- ALL SCORES
+  // Liste des scores globaux des dossiers du portfolio. Permet a la note
+  // d analyse d afficher la courbe de positionnement (densite KDE des
+  // scores du portfolio + marker sur le score du dossier en cours).
+  const allScores: number[] = analyses
+    .map((a) => (typeof a.globalScore === 'number' ? a.globalScore : null))
+    .filter((s): s is number => s !== null);
 
   // ---------------------- BY COUNTRY
   const countryMap: Record<string, number> = {};
@@ -247,6 +274,7 @@ export async function getPortfolioStats(): Promise<PortfolioStats | null> {
     lastAnalysisAt,
     avgGlobalScore,
     avgBlindspotScore,
+    allScores,
   };
 }
 
@@ -263,6 +291,7 @@ function emptyStats(): PortfolioStats {
     lastAnalysisAt: null,
     avgGlobalScore: null,
     avgBlindspotScore: null,
+    allScores: [],
   };
   STAGE_ORDER.forEach((s) => {
     empty.byStage[s] = 0;
