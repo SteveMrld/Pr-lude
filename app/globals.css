@@ -746,6 +746,88 @@ ul, ol { list-style: none; }
   }
 }
 
+/* NAVIGATION PAR ONGLETS - Bandeau editorial qui remplace l empilement
+   vertical des cinq sections. Quatre onglets compacts en serif italique
+   pour rester en cohérence avec la voix Le Grand Continent. Sticky en
+   haut au scroll pour rester accessible. */
+.landing-tabs {
+  display: flex;
+  gap: 0;
+  margin: 56px 0 64px;
+  border-top: 1px solid rgba(20, 30, 60, 0.10);
+  border-bottom: 1px solid rgba(20, 30, 60, 0.10);
+  background: linear-gradient(180deg, rgba(252, 250, 246, 0) 0%, rgba(252, 250, 246, 0.6) 100%);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.landing-tab {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: var(--serif, Georgia, 'Times New Roman', serif);
+  color: rgba(20, 30, 60, 0.55);
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  position: relative;
+}
+.landing-tab:hover {
+  color: rgba(20, 30, 60, 0.85);
+  background: rgba(20, 30, 60, 0.02);
+}
+.landing-tab.is-active {
+  color: rgb(20, 30, 60);
+  border-bottom-color: rgb(180, 95, 30);
+}
+.landing-tab + .landing-tab {
+  border-left: 1px solid rgba(20, 30, 60, 0.06);
+}
+.landing-tab-num {
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 400;
+  color: rgb(180, 95, 30);
+  opacity: 0.7;
+  letter-spacing: 0.02em;
+}
+.landing-tab.is-active .landing-tab-num {
+  opacity: 1;
+}
+.landing-tab-label {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 768px) {
+  .landing-tabs {
+    margin: 32px 0 40px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .landing-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .landing-tab {
+    flex: 0 0 auto;
+    padding: 16px 18px;
+  }
+  .landing-tab-num {
+    font-size: 13px;
+  }
+  .landing-tab-label {
+    font-size: 15px;
+  }
+}
+
 /* SECTION GENERIQUE */
 .landing-section {
   margin-bottom: 80px;

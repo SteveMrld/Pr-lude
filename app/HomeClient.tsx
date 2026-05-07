@@ -292,6 +292,12 @@ export default function HomeClient({
   } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState('synthesis');
+  // Onglet actif sur la landing page : permet de presenter le
+  // contenu en sections separees plutot qu en un long scroll. Quatre
+  // onglets : vision (pourquoi + pour qui), method (les 4 temps et
+  // 18 moteurs), deliverables (note + data room), sources
+  // (calibration externe et standards juridiques).
+  const [landingTab, setLandingTab] = useState<'vision' | 'method' | 'deliverables' | 'sources'>('vision');
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
   const [printMode, setPrintMode] = useState(false); // quand true, toutes les sections rendues simultanement pour export PDF complet
   // Note d investissement : mode compact (lecture rapide) vs mode complet
@@ -1294,6 +1300,66 @@ export default function HomeClient({
               )}
             </section>
 
+            {/* NAVIGATION PAR ONGLETS
+                Remplace l empilement vertical de cinq sections (I a V) qui
+                obligeait a scroller longuement. Quatre onglets compacts qui
+                organisent la lecture par registre :
+                - vision      : pourquoi Prelude existe et a qui il s adresse
+                - method      : les quatre temps d instruction et 18 moteurs
+                - deliverables: structure de la note et de la data room
+                - sources     : calibration externe et standards juridiques
+                Le hero reste toujours visible au-dessus. La zone de depot
+                #commencer reste accessible plus bas pour le CTA final. */}
+            <nav className="landing-tabs" role="tablist" aria-label="Sections de la presentation">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={landingTab === 'vision'}
+                className={`landing-tab ${landingTab === 'vision' ? 'is-active' : ''}`}
+                onClick={() => setLandingTab('vision')}
+              >
+                <span className="landing-tab-num">I</span>
+                <span className="landing-tab-label">Vision</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={landingTab === 'method'}
+                className={`landing-tab ${landingTab === 'method' ? 'is-active' : ''}`}
+                onClick={() => setLandingTab('method')}
+              >
+                <span className="landing-tab-num">II</span>
+                <span className="landing-tab-label">Méthode</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={landingTab === 'deliverables'}
+                className={`landing-tab ${landingTab === 'deliverables' ? 'is-active' : ''}`}
+                onClick={() => setLandingTab('deliverables')}
+              >
+                <span className="landing-tab-num">III</span>
+                <span className="landing-tab-label">Livrables</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={landingTab === 'sources'}
+                className={`landing-tab ${landingTab === 'sources' ? 'is-active' : ''}`}
+                onClick={() => setLandingTab('sources')}
+              >
+                <span className="landing-tab-num">IV</span>
+                <span className="landing-tab-label">Calibration</span>
+              </button>
+            </nav>
+
+            {/* CONTENU DES ONGLETS
+                Chaque onglet rend une ou plusieurs sections existantes selon
+                landingTab. La section III (Pour qui) rejoint la section I
+                (Pourquoi) dans l onglet Vision pour rester coherent : c est
+                la lecture du probleme et du destinataire. */}
+            {landingTab === 'vision' && (
+              <>
             {/* SECTION 2 - Le problème */}
             <section className="landing-section">
               <div className="landing-h2-block">
@@ -1318,7 +1384,11 @@ export default function HomeClient({
                 </p>
               </div>
             </section>
+              </>
+            )}
 
+            {landingTab === 'method' && (
+              <>
             {/* SECTION 3 - Méthode : 12 moteurs en accordéon par catégorie.
                 Au repos : 4 cartes compactes (une par catégorie semantique).
                 Au clic : la catégorie se déplie et révèle ses moteurs en
@@ -1475,8 +1545,12 @@ export default function HomeClient({
                 </details>
               </div>
             </section>
+              </>
+            )}
 
-            {/* SECTION 4 - Pour qui */}
+            {landingTab === 'vision' && (
+              <>
+            {/* SECTION 4 - Pour qui (rejoint l onglet Vision) */}
             <section className="landing-section">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">III.</div>
@@ -1494,7 +1568,11 @@ export default function HomeClient({
                 </p>
               </div>
             </section>
+              </>
+            )}
 
+            {landingTab === 'deliverables' && (
+              <>
             {/* SECTION 5 - Le livrable */}
             <section className="landing-section">
               <div className="landing-h2-block">
@@ -1567,7 +1645,11 @@ export default function HomeClient({
                 </div>
               </div>
             </section>
+              </>
+            )}
 
+            {landingTab === 'sources' && (
+              <>
             {/* SECTION 6 - Méthode et sources */}
             <section className="landing-section">
               <div className="landing-h2-block">
@@ -1616,8 +1698,12 @@ export default function HomeClient({
                 </li>
               </ol>
             </section>
+              </>
+            )}
 
-            {/* SECTION 7 - CTA upload */}
+            {/* SECTION 7 - CTA upload (toujours visible, hors onglets)
+                La zone de depot reste accessible quel que soit l onglet
+                actif : c est le call-to-action principal de la page. */}
             <section className="landing-section landing-cta-section" id="commencer">
               <div className="landing-h2-block">
                 <div className="landing-h2-num">VI.</div>
