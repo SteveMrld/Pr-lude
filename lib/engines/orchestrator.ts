@@ -65,6 +65,24 @@ Tu produis une probabilité de succès et un risk score pour chacune des 6 dimen
 5. Singularités contrariennes (poids 0.15)
 6. Vigilance critique / risques (poids 0.15) - inversé : haut score blindspots = bas score risque maîtrisé
 
+# RÈGLES ANTI-CONVERGENCE - À LIRE AVANT DE SCORER
+
+Une erreur classique est de calibrer tous tes scores autour de la valeur centrale du verdict (50 pour APPROFONDIR, 30 pour REFUSER, 70 pour INVESTIR AVEC CONDITIONS). C est de la paresse cognitive qui produit des scores indistinguables d un dossier à l autre.
+
+**RÈGLE 1 - Différenciation des dimensions.** Tes 6 dimensionProbabilities DOIVENT refléter des nuances réelles. Si trois dimensions ou plus ont la même valeur ou des valeurs proches (écart <5 points), c est un signal que tu as sur-calibré et que tu n as pas vraiment évalué chaque axe. Attendu : amplitude minimum 25 points entre la dimension la plus faible et la plus forte. Exemple correct pour APPROFONDIR : Équipe 62, Marché 38, Macro 70, Modèle éco 28, Contrariens 55, Vigilance 35. Exemple incorrect : Équipe 50, Marché 52, Macro 48, Modèle éco 50, Contrariens 50, Vigilance 50.
+
+**RÈGLE 2 - Plages par verdict, pas valeurs centrales.** Le verdict détermine une PLAGE de globalScore, pas une valeur unique :
+  - REFUSER : 5 à 35 (pas systématiquement 22)
+  - APPROFONDIR : 36 à 64 (pas systématiquement 50 ou 52)
+  - INVESTIR AVEC CONDITIONS : 60 à 78 (pas systématiquement 72)
+  - INVESTIR : 75 à 95 (pas systématiquement 85)
+
+À l intérieur d une plage, le score doit refléter où le dossier se situe RÉELLEMENT, en se basant sur les nuances. Un APPROFONDIR penchant vers refuser est à 38-42. Un APPROFONDIR penchant vers investir est à 56-62. Un dossier au cœur de la zone d hésitation est à 45-55.
+
+**RÈGLE 3 - Évitement des nombres ronds.** Les valeurs 50, 55, 60, 65, 70, 75 sont des heuristiques de paresse. Tes dimensionProbabilities et ton globalScore doivent utiliser des nombres qui reflètent un vrai calcul (37, 43, 51, 58, 64, etc. plutôt que 35, 40, 50, 55, 60, 65). Une exception : si la valeur ronde est intentionnelle et calibrée précisément (par exemple un score d équipe à exactement 50 parce que l évaluation est strictement neutre).
+
+**RÈGLE 4 - Vérification finale.** Avant de finaliser ton output, relis tes dimensionProbabilities. Si tu vois plusieurs valeurs identiques ou un cluster autour de 50, RÉVISE-les pour qu elles reflètent le contraste réel entre dimensions. Le partner qui lit ta note doit voir au premier coup d œil quelles dimensions tirent le verdict vers le haut et lesquelles le tirent vers le bas.
+
 # RÉSOLUTION DE LA TENSION DIALECTIQUE
 
 Trois résolutions possibles :
@@ -391,6 +409,44 @@ Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'général
     auditNote,
     formula: 'finalComputedScore = clamp(Σ(successProbability_i × weight_i) + blindspotsContrarianAdjustment, 0, 100). blindspots-dominate : -15 a -25 selon globalBlindspotScore. contrarian-justifies : +5 a +15 selon globalContrarianScore. balanced-investigate : 0.',
   };
+
+  // ============================================================
+  // AUDIT ANTI-CONVERGENCE
+  // ------------------------------------------------------------
+  // Detecte les cas ou le LLM produit des dimensionProbabilities
+  // trop homogenes (toutes proches de la meme valeur) ou des scores
+  // ronds suspectes (50, 52, 55, 70, 72). Ces patterns trahissent
+  // une calibration paresseuse plutot qu un jugement reel et
+  // produisent l effet 'tous les dossiers APPROFONDIR ont 52/100'
+  // qui decredibilise la note. On logge un warning dans error_logs
+  // pour pouvoir suivre la frequence de ces cas en production.
+  // ============================================================
+  if (dims.length >= 4) {
+    const probs = dims.map(d => d.successProbability || 0);
+    const minProb = Math.min(...probs);
+    const maxProb = Math.max(...probs);
+    const amplitude = maxProb - minProb;
+    if (amplitude < 15) {
+      const dimList = dims.map(d => `${d.dimensionName}=${d.successProbability}`).join(', ');
+      console.warn(`[orchestrator] dimensions sur-convergentes (amplitude ${amplitude}<15) : ${dimList}, globalScore=${llmScore}, finalComputedScore=${finalComputedScore}`);
+      // Logge dans error_logs si disponible (fail-open si pas configure)
+      try {
+        const { logError } = await import('@/lib/error-logger').catch(() => ({ logError: null as any }));
+        if (logError) {
+          await logError('pipeline.orchestrator.score-convergence', `Dimensions sur-convergentes (amplitude ${amplitude} points) : ${dimList}`, {
+            severity: 'warning',
+            context: {
+              amplitude,
+              dimensions: dims.map(d => ({ name: d.dimensionName, prob: d.successProbability, weight: d.weight })),
+              llmScore,
+              finalComputedScore,
+              verdict: recommendation.verdict,
+            },
+          });
+        }
+      } catch {}
+    }
+  }
 
   return recommendation;
 }
