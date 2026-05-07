@@ -18,6 +18,8 @@ import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { extractSaasMetrics } from '@/lib/engines/saas-metrics-engine';
+import { computeRelevanceMatrix } from '@/lib/engines/relevance-matrix';
+import { normalizeAssetClass } from '@/lib/data/sector-benchmarks';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
 import { processFiles } from '@/lib/file-processor';
@@ -312,6 +314,21 @@ export async function POST(req: NextRequest) {
           sendDone('extraction', extraction);
 
           // ============================================================
+          // MATRICE DE PERTINENCE
+          // ------------------------------------------------------------
+          // Calcul deterministe instantane des huit criteres
+          // structurels du dossier (asset class, modele business, chaine
+          // de production, expositions, reproductibilite numerique,
+          // funnel d acquisition) et des verdicts de pertinence par
+          // moteur. Consomme par les moteurs Bloc 1 pour scoper leur
+          // output sur les sous-blocs applicables au dossier.
+          // ============================================================
+          const matrixAssetClass = normalizeAssetClass(
+            `${extraction.sector || ''} ${extraction.subSector || ''}`.trim() || extraction.sector,
+          );
+          const relevanceMatrix = computeRelevanceMatrix(extraction, matrixAssetClass);
+
+          // ============================================================
           // VAGUE 2 : DIAGNOSTICS FONDAMENTAUX EN PARALLELE
           // (team, market, macro, financial-extraction, saas-metrics)
           // ============================================================
@@ -323,7 +340,7 @@ export async function POST(req: NextRequest) {
           const [team, market, macro, financialData, saasMetrics] = await Promise.all([
             analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
             analyzeMarket(extraction, fundDimensionalNotes?.market).then(r => { sendDone('market', r); return r; }),
-            analyzeMacro(extraction, fundDimensionalNotes?.macro).then(r => { sendDone('macro', r); return r; }),
+            analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix).then(r => { sendDone('macro', r); return r; }),
             extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { sendDone('financial-extraction', r); return r; }),
             // saas-metrics-engine : extraction LLM dediee NDR et Magic
             // Number. Tourne en parallele de financial-extraction parce
@@ -679,6 +696,12 @@ export async function POST(req: NextRequest) {
             // resultJson pour que le useMemo client-side puisse rejouer
             // computeIndicators sans appel LLM si besoin.
             saasMetrics,
+            // Matrice de pertinence : criteres structurels du dossier
+            // (asset class, modele business, expositions) et verdicts
+            // de pertinence par moteur. Consomme par les moteurs en
+            // amont, persiste pour alimenter l encart "perimetre d
+            // analyse" de la note d investissement.
+            relevanceMatrix,
           };
 
           send('complete', result);

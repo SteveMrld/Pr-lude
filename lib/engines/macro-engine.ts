@@ -4,6 +4,7 @@ import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock } from './fund-context';
 import type { ExtractionOutput, MacroAnalysisOutput } from './types';
+import type { RelevanceMatrix } from './relevance-matrix';
 import {
   LP_LIQUIDITY_PRESSURE,
   MARKET_CONCENTRATION_2026_Q1,
@@ -52,8 +53,26 @@ Identifie si une fenêtre temporelle critique existe pour ce segment. Cas Mistra
 ## Tendances structurelles
 Identifie 3-5 tendances structurelles macro pertinentes pour le segment, en t'appuyant notamment sur les données R&D et FDI quand elles sont disponibles.
 
-## Environnement réglementaire
+## Régulation
 Décris l'environnement réglementaire pertinent. Régulation peut être barrière protectrice ou contrainte qui affaiblit.
+
+# RESPECT DU VERDICT DE PERTINENCE
+
+Tu reçois dans le user prompt un bloc "VERDICT DE PERTINENCE" calcule en amont par la matrice de pertinence Prelude. Ce verdict te dit, sur la base de criteres structurels du dossier, si le sous-bloc geopolitique et la lecture cyclique sont applicables full / partial / none. Tu dois respecter strictement ce verdict :
+
+- Si geopolitical = none : le champ "geopolitics" doit dire que l exposition geopolitique n est pas significative pour ce dossier (pas de chaine de composants critiques, pas de presence en zone a risque, pas d intensite energetique). Une phrase courte qui acte la non-applicabilite. Ne fabrique pas un commentaire post-Ukraine ou tensions Moyen-Orient generique. Le partner verra un message clair.
+
+- Si geopolitical = partial : le champ "geopolitics" se concentre uniquement sur les facteurs listes dans le scope du verdict. Tu n elargis pas a un cadre geopolitique global.
+
+- Si geopolitical = full : lecture geopolitique complete sur les facteurs identifies, en differenciant les bascules pertinentes pour le secteur.
+
+- Si cyclical = none : la lecture cyclique se fait avec prudence (cyclePosition = mature par defaut), demandCycle = phrase courte qui acte que la conjoncture n est pas un signal pour ce dossier. structuralTrends evite les references conjoncturelles.
+
+- Si cyclical = partial : lecture cyclique ciblee sur les facteurs du scope.
+
+- Si cyclical = full : lecture cyclique complete avec projections et signaux forward.
+
+Ce verdict prevaut sur le cadrage 2026 generique : le partner ne veut pas d un commentaire macro qui s applique a tous les dossiers, il veut un commentaire qui s applique a celui-ci.
 
 # CADRAGE STRUCTUREL 2026 (à intégrer dans toutes tes analyses)
 
@@ -117,7 +136,11 @@ Tu reçois dans le user prompt un bloc "CADRAGE PRELUDE 2026" qui consolide les 
 
 Note : tu disposes de connaissance jusqu'à début 2026. Sois explicite sur les bascules récentes.`;
 
-export async function analyzeMacro(extraction: ExtractionOutput, fundNote?: string | null): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot }> {
+export async function analyzeMacro(
+  extraction: ExtractionOutput,
+  fundNote?: string | null,
+  relevanceMatrix?: RelevanceMatrix | null,
+): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot }> {
   // ÉTAPE 1 : Récupération des indicateurs macro réels du pays (timeout 8s pour éviter de bloquer le pipeline)
   const realData = await Promise.race([
     gatherMacroRealData(extraction.country || 'France'),
@@ -245,6 +268,34 @@ Attention: ${EUROPEAN_REGULATORY_PIPELINE_2026.founderSurveyRestrictivePercent}%
 ` : ''}
 `;
 
+  // Bloc verdict de pertinence : indique au LLM si geopolitique et
+  // conjoncture sont applicables au dossier. Le moteur s adapte en
+  // consequence. Si pas de matrice fournie, comportement legacy
+  // (always-on sur tous les sous-blocs).
+  const relevanceBlock = relevanceMatrix
+    ? `
+--- VERDICT DE PERTINENCE (matrice Prelude) ---
+
+Sous-bloc GEOPOLITIQUE : ${relevanceMatrix.verdicts.macroGeopolitical.applicable.toUpperCase()}
+${relevanceMatrix.verdicts.macroGeopolitical.scope.length > 0 ? `Facteurs identifies : ${relevanceMatrix.verdicts.macroGeopolitical.scope.join(', ')}` : ''}
+Rationale : ${relevanceMatrix.verdicts.macroGeopolitical.rationale}
+
+Sous-bloc CYCLIQUE et CONJONCTURE : ${relevanceMatrix.verdicts.macroCyclical.applicable.toUpperCase()}
+${relevanceMatrix.verdicts.macroCyclical.scope.length > 0 ? `Facteurs identifies : ${relevanceMatrix.verdicts.macroCyclical.scope.join(', ')}` : ''}
+Rationale : ${relevanceMatrix.verdicts.macroCyclical.rationale}
+
+Criteres structurels detectes :
+- Asset class : ${relevanceMatrix.assetClass}
+- Modele business : ${relevanceMatrix.businessModel}
+- Chaine de production : ${relevanceMatrix.productionChain}
+- Exposition supply chain : ${relevanceMatrix.supplyChainExposure}${relevanceMatrix.supplyChainExposureFactors.length > 0 ? ` (${relevanceMatrix.supplyChainExposureFactors.join(', ')})` : ''}
+- Exposition geopolitique : ${relevanceMatrix.geopoliticalExposure}${relevanceMatrix.geopoliticalExposureFactors.length > 0 ? ` (${relevanceMatrix.geopoliticalExposureFactors.join(', ')})` : ''}
+- Sensibilite macro : ${relevanceMatrix.macroSensitivity}${relevanceMatrix.macroSensitivityFactors.length > 0 ? ` (${relevanceMatrix.macroSensitivityFactors.join(', ')})` : ''}
+
+Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc, tu remplis le champ JSON avec une phrase courte qui acte la non-applicabilite, sans inventer un commentaire generique.
+`
+    : '';
+
   const userPrompt = `# DOSSIER À ANALYSER (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
@@ -258,11 +309,13 @@ Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 ${summary}
 
 ${cadrageBlock}
+${relevanceBlock}
 
 Produis la lecture macro complète au format JSON structuré demandé. Croise :
 1. Les données réelles World Bank récupérées
 2. Le cadrage Prélude 2026 ci-dessus (concentration, liquidité LP, voies de sortie, spécificités régionales)
 3. Ta connaissance des bascules sectorielles récentes
+${relevanceMatrix ? '4. Le VERDICT DE PERTINENCE qui scope ta reponse sur les sous-blocs applicables au dossier.' : ''}
 
 Region detectee du dossier: ${region}.
 Le cadrage doit etre differencie selon cette region. Pour un dossier europeen, mentionne explicitement les benchmarks Atomico et le pipeline reglementaire EU 2026. Pour un dossier US, mentionne la concentration extreme et le sentiment public.
@@ -291,6 +344,24 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
   const audit = auditTagging(analysis, 'macro-engine');
   if (audit.level !== 'ok') {
     console.warn('[macro-engine] tagging audit:', audit.message);
+  }
+
+  // Post-processing deterministe : si la matrice dit que le sous-bloc
+  // geopolitique n est pas applicable, on garantit que le rendu final
+  // n imprime pas un commentaire generique. Le LLM est invite a
+  // respecter le verdict, mais on ferme la porte des derives.
+  if (relevanceMatrix) {
+    if (relevanceMatrix.verdicts.macroGeopolitical.applicable === 'none') {
+      analysis.geopolitics = 'Exposition geopolitique non significative pour ce dossier : aucune chaine de composants critiques, aucune presence en zone a risque pays, aucune intensite energetique fossile detectee. La dimension geopolitique n est pas un signal d instruction pour ce dossier.';
+    }
+    if (relevanceMatrix.verdicts.macroCyclical.applicable === 'none') {
+      // On ne force pas cyclePosition a "mature" : le LLM peut
+      // legitimement avoir lu un signal de cycle technologique
+      // independant de la conjoncture macro consumer. Mais on
+      // remplace demandCycle pour eviter le commentaire conjoncturel
+      // generique. structuralTrends reste a la main du LLM.
+      analysis.demandCycle = 'Modele economique peu sensible a la conjoncture consumer : la dynamique de demande depend d autres facteurs structurels (cycle technologique, regulation, structuration de marche) traites dans structuralTrends.';
+    }
   }
 
   return { ...analysis, realData };
