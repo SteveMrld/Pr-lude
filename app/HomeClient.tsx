@@ -84,6 +84,18 @@ const BLINDSPOT_LABELS: Record<string, string> = {
   timingContracyclique: 'Timing contracyclique',
 };
 
+// Joint plusieurs morceaux par un separateur en filtrant les vides.
+// Evite les artefacts visuels du genre ', France' ou 'seed ·' quand
+// un des deux cotes du separateur est null/undefined/string vide.
+// Si tous les morceaux sont vides, renvoie un fallback (defaut '—').
+function joinNonEmpty(parts: (string | number | null | undefined)[], sep: string, fallback = '—'): string {
+  const filtered = parts
+    .filter(p => p !== null && p !== undefined && String(p).trim() !== '')
+    .map(p => String(p).trim());
+  if (filtered.length === 0) return fallback;
+  return filtered.join(sep);
+}
+
 type EngineState = {
   status: 'idle' | 'running' | 'done' | 'error';
   startedAt?: number;
@@ -3045,15 +3057,15 @@ export default function HomeClient({
                     <div className="kv-grid">
                       <div className="kv-item">
                         <div className="kv-key">Secteur</div>
-                        <div className="kv-val">{result.extraction?.sector} / {result.extraction?.subSector}</div>
+                        <div className="kv-val">{joinNonEmpty([result.extraction?.sector, result.extraction?.subSector], ' / ')}</div>
                       </div>
                       <div className="kv-item">
                         <div className="kv-key">Géographie</div>
-                        <div className="kv-val">{result.extraction?.geographicHub}, {result.extraction?.country}</div>
+                        <div className="kv-val">{joinNonEmpty([result.extraction?.geographicHub, result.extraction?.country], ', ')}</div>
                       </div>
                       <div className="kv-item">
                         <div className="kv-key">Tour</div>
-                        <div className="kv-val">{result.extraction?.fundraise?.stage} · {result.extraction?.fundraise?.amount}</div>
+                        <div className="kv-val">{joinNonEmpty([result.extraction?.fundraise?.stage, result.extraction?.fundraise?.amount], ' · ')}</div>
                       </div>
                       <div className="kv-item">
                         <div className="kv-key">Année fondation</div>
@@ -4035,54 +4047,76 @@ export default function HomeClient({
                   <div className="kv-grid" style={{ marginBottom: 22 }}>
                     <div className="kv-item">
                       <div className="kv-key">Taille perçue</div>
-                      <div className="kv-val serif" style={{ textTransform: 'capitalize' }}>{result.market?.perceivedSize}</div>
+                      <div className="kv-val serif" style={{ textTransform: 'capitalize' }}>{result.market?.perceivedSize || '—'}</div>
                     </div>
                     <div className="kv-item">
                       <div className="kv-key">Intensité réelle</div>
-                      <div className="kv-val serif" style={{ textTransform: 'capitalize' }}>{result.market?.realIntensity}</div>
+                      <div className="kv-val serif" style={{ textTransform: 'capitalize' }}>{result.market?.realIntensity || '—'}</div>
                     </div>
                     <div className="kv-item">
                       <div className="kv-key">Saturation</div>
-                      <div className="kv-val serif" style={{ textTransform: 'capitalize' }}>{result.market?.saturation}</div>
+                      <div className="kv-val serif" style={{ textTransform: 'capitalize' }}>{result.market?.saturation || '—'}</div>
                     </div>
                     <div className="kv-item">
                       <div className="kv-key">Défensibilité</div>
-                      <div className="kv-val serif">{result.market?.defensibility?.score}/100</div>
+                      <div className="kv-val serif">{typeof result.market?.defensibility?.score === 'number' ? `${result.market.defensibility.score}/100` : '—'}</div>
                     </div>
                   </div>
 
-                  <h3>Intensité du besoin</h3>
-                  <p>{result.market?.needIntensity?.rationale}</p>
-                  {result.market?.needIntensity?.gap && (
-                    <p style={{ marginTop: 6 }}><strong>Gap :</strong> {result.market.needIntensity.gap}</p>
+                  {result.market?.needIntensity?.rationale && (
+                    <>
+                      <h3>Intensité du besoin</h3>
+                      <p>{result.market.needIntensity.rationale}</p>
+                      {result.market.needIntensity.gap && (
+                        <p style={{ marginTop: 6 }}><strong>Gap :</strong> {result.market.needIntensity.gap}</p>
+                      )}
+                    </>
                   )}
 
-                  <h3>Signaux organiques</h3>
-                  <p>{result.market?.organicSignals?.rationale}</p>
-                  <p><strong>Score :</strong> {result.market?.organicSignals?.score}/100</p>
+                  {(result.market?.organicSignals?.rationale || typeof result.market?.organicSignals?.score === 'number') && (
+                    <>
+                      <h3>Signaux organiques</h3>
+                      {result.market.organicSignals.rationale && <p>{result.market.organicSignals.rationale}</p>}
+                      {typeof result.market.organicSignals.score === 'number' && (
+                        <p><strong>Score :</strong> {result.market.organicSignals.score}/100</p>
+                      )}
+                    </>
+                  )}
 
-                  <h3>Défensibilité</h3>
-                  <div className="flags-row">
-                    <div className="flag-col green">
-                      <div className="flag-title green">Moats</div>
-                      <ul className="flag-list">
-                        {(result.market?.defensibility?.moats || []).map((m: string, i: number) => <li key={i}>{m}</li>)}
-                      </ul>
-                    </div>
-                    <div className="flag-col red">
-                      <div className="flag-title red">Vulnérabilités</div>
-                      <ul className="flag-list">
-                        {(result.market?.defensibility?.vulnerabilities || []).map((v: string, i: number) => <li key={i}>{v}</li>)}
-                      </ul>
-                    </div>
-                  </div>
+                  {((result.market?.defensibility?.moats || []).length > 0 || (result.market?.defensibility?.vulnerabilities || []).length > 0) && (
+                    <>
+                      <h3>Défensibilité</h3>
+                      <div className="flags-row">
+                        {(result.market?.defensibility?.moats || []).length > 0 && (
+                          <div className="flag-col green">
+                            <div className="flag-title green">Moats</div>
+                            <ul className="flag-list">
+                              {(result.market?.defensibility?.moats || []).map((m: string, i: number) => <li key={i}>{m}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {(result.market?.defensibility?.vulnerabilities || []).length > 0 && (
+                          <div className="flag-col red">
+                            <div className="flag-title red">Vulnérabilités</div>
+                            <ul className="flag-list">
+                              {(result.market?.defensibility?.vulnerabilities || []).map((v: string, i: number) => <li key={i}>{v}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
 
-                  <h3>Comparables internationaux</h3>
-                  {(result.market?.internationalBenchmarks || []).map((b: any, i: number) => (
-                    <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid var(--hairline)' }}>
-                      <strong>{b.name}</strong> · {b.geography} · {b.relevance}
-                    </div>
-                  ))}
+                  {(result.market?.internationalBenchmarks || []).length > 0 && (
+                    <>
+                      <h3>Comparables internationaux</h3>
+                      {(result.market?.internationalBenchmarks || []).map((b: any, i: number) => (
+                        <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid var(--hairline)' }}>
+                          <strong>{b.name}</strong> · {b.geography} · {b.relevance}
+                        </div>
+                      ))}
+                    </>
+                  )}
 
                   {result.market?.competitiveMatrix?.dimensions?.length > 0 && (
                     <>
@@ -4103,8 +4137,12 @@ export default function HomeClient({
                     </>
                   )}
 
-                  <h3 style={{ marginTop: 32 }}>Dynamique compétitive</h3>
-                  <p>{result.market?.competitiveDynamic}</p>
+                  {result.market?.competitiveDynamic && (
+                    <>
+                      <h3 style={{ marginTop: 32 }}>Dynamique compétitive</h3>
+                      <p>{result.market.competitiveDynamic}</p>
+                    </>
+                  )}
                 </div>
               )}
 
