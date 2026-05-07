@@ -164,6 +164,49 @@ export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string
 }
 import { jsonrepair } from 'jsonrepair';
 
+/**
+ * Decompose les ligatures Unicode en leurs caracteres ASCII de base.
+ * Les modeles Claude produisent parfois en sortie les caracteres composes
+ * U+FB00 a U+FB04 (ﬀ ﬁ ﬂ ﬃ ﬄ) au lieu des decompositions ASCII (ff fi fl
+ * ffi ffl). Ces caracteres composes ne sont pas rendus par toutes les
+ * polices de fallback que Puppeteer utilise en environnement serverless
+ * Vercel, ce qui produit des trous visibles dans le PDF (ex : 'difficulte'
+ * rendu 'diculte' parce que le glyphe ﬃ U+FB03 n est pas trouve dans la
+ * fallback). On decompose systematiquement avant rendu pour garantir un
+ * affichage correct quel que soit le contexte de rendu.
+ *
+ * Egalement : on remplace les espaces insecables (U+00A0) qui produisent
+ * parfois des faux positifs de wrapping en serif justifie, et les guillemets
+ * typographiques courbes (U+2018-201D) par leur equivalent ASCII pour eviter
+ * les rendus inconsistants.
+ */
+function decomposeLigatures(s: string): string {
+  return s
+    .replace(/\uFB00/g, 'ff')
+    .replace(/\uFB01/g, 'fi')
+    .replace(/\uFB02/g, 'fl')
+    .replace(/\uFB03/g, 'ffi')
+    .replace(/\uFB04/g, 'ffl');
+}
+
+/**
+ * Walker recursif qui applique decomposeLigatures a toutes les strings d un
+ * objet parse. Utilise apres JSON.parse pour normaliser systematiquement
+ * toutes les valeurs textuelles produites par les moteurs.
+ */
+function sanitizeStringsRecursive(value: any): any {
+  if (typeof value === 'string') return decomposeLigatures(value);
+  if (Array.isArray(value)) return value.map(sanitizeStringsRecursive);
+  if (value && typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const key of Object.keys(value)) {
+      out[key] = sanitizeStringsRecursive(value[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
 export function parseJSON<T = any>(rawText: string): T {
   let cleaned = rawText.trim();
 
@@ -175,7 +218,8 @@ export function parseJSON<T = any>(rawText: string): T {
 
   // Tentative directe
   try {
-    return JSON.parse(cleaned) as T;
+    const parsed = JSON.parse(cleaned) as T;
+    return sanitizeStringsRecursive(parsed);
   } catch (e) {
     // Si le JSON direct echoue, on cherche le premier objet/tableau JSON
     // valide dans le texte. On itere sur tous les candidats { et [ : un
@@ -191,14 +235,15 @@ export function parseJSON<T = any>(rawText: string): T {
     let lastError: any = null;
     for (const candidate of candidates) {
       const attempt = tryParseCandidate<T>(cleaned, candidate.start, candidate.openChar);
-      if (attempt.ok) return attempt.value as T;
+      if (attempt.ok) return sanitizeStringsRecursive(attempt.value as T);
       lastError = attempt.error;
     }
 
     // Aucun candidat n a marche : on tente jsonrepair sur tout le brut
     // en dernier recours.
     try {
-      return JSON.parse(jsonrepair(cleaned)) as T;
+      const repaired = JSON.parse(jsonrepair(cleaned)) as T;
+      return sanitizeStringsRecursive(repaired);
     } catch {
       const firstCandidate = candidates[0];
       const sample = cleaned.slice(firstCandidate.start, firstCandidate.start + 200);

@@ -2250,17 +2250,15 @@ ul, ol { list-style: none; }
     color: #1a1a1a !important;
   }
 
-  /* Desactivation des ligatures pour le rendu PDF Puppeteer.
-     Source Serif 4 chargee via next/font supporte les ligatures
-     ffi/ffl, mais Puppeteer en environnement serverless Vercel
-     ne charge pas systematiquement les sous-tables OpenType
-     necessaires, ce qui produit des caracteres manquants
-     (ex : 'difficulte' rendu 'diculte', 'final' rendu 'inal').
-     On force la decomposition pour garantir l affichage. */
-  body, html, * {
-    font-variant-ligatures: none !important;
-    font-feature-settings: "kern", "onum" !important;
-  }
+  /* Note : un bloc precedent (commit 25) tentait de desactiver les
+     ligatures via 'font-variant-ligatures: none' applique a body, html, *
+     pour resoudre le bug 'difficulte' rendu 'diculte' en PDF Puppeteer.
+     Cette approche cassait le wrapping des longs paragraphes serif sur
+     certaines sections (regression observee sur la note PEN GROUP, sections
+     Vigilance critique P1-P10 ou les espaces entre mots disparaissaient).
+     Le fix correct est de decomposer les ligatures Unicode (U+FB00-FB04)
+     dans la sortie LLM cote serveur via parseJSON, pas de toucher au CSS.
+     Voir lib/engines/anthropic-client.ts. */
 
   /* Cacher tout le chrome de l'application en print */
   .header,

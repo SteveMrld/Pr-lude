@@ -3417,9 +3417,11 @@ export default function HomeClient({
                       </div>
                     </div>
                     <p style={{ fontSize: 14, margin: '0 0 10px 0' }}>{result.contrarianAnalysis.syntheseSingularite}</p>
-                    <p style={{ fontSize: 13, margin: 0, fontStyle: 'italic', opacity: 0.85 }}>
-                      <strong style={{ fontStyle: 'normal' }}>Recommandation contrarienne :</strong> {result.contrarianAnalysis.recommandationContrarienne}
-                    </p>
+                    {result.contrarianAnalysis.recommandationContrarienne && (
+                      <p style={{ fontSize: 13, margin: 0, fontStyle: 'italic', opacity: 0.85 }}>
+                        <strong style={{ fontStyle: 'normal' }}>Recommandation contrarienne :</strong> {result.contrarianAnalysis.recommandationContrarienne}
+                      </p>
+                    )}
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
