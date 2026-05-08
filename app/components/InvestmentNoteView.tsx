@@ -7,6 +7,7 @@ import OutcomeTracking from './OutcomeTracking';
 import PortfolioPositionChart from './PortfolioPositionChart';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
+import { computeTopRisks } from '@/lib/compute-top-risks';
 
 /**
  * Formate un montant en EUR de maniere courte et lisible :
@@ -325,6 +326,167 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <div className="note-classification">CONFIDENTIEL · COMITÉ D&apos;INVESTISSEMENT</div>
         </div>
       </div>
+
+      {/* ============================================================
+          PAGE DE COUVERTURE EDITORIALE
+          ------------------------------------------------------------
+          Equivalent de la page 1 d un memo de fonds VC : tout ce qui
+          permet a un partner de prendre une decision provisoire en 30
+          secondes avant d ouvrir l analyse detaillee. Trois zones :
+          1. Bandeau verdict (verdict, score, probabilites, deal type)
+          2. Identite condensee (entreprise, secteur, geographie, tour)
+          3. Trois colonnes : drivers decisifs, risques majeurs, action
+
+          La note detaillee qui suit reste inchangee : la couverture
+          est un ajout, pas une refonte. L utilisateur qui veut creuser
+          a tout le materiel apres la couverture, comme avant.
+          ============================================================ */}
+      {(() => {
+        const verdict = (reco.verdict || '').toLowerCase();
+        const verdictLabels: Record<string, string> = {
+          investir: 'Investir',
+          'investir-conditions': 'Investir avec conditions',
+          approfondir: 'Approfondir',
+          refuser: 'Refuser',
+        };
+        const verdictTone: Record<string, string> = {
+          investir: 'cover-verdict-tone-go',
+          'investir-conditions': 'cover-verdict-tone-conditional',
+          approfondir: 'cover-verdict-tone-watch',
+          refuser: 'cover-verdict-tone-decline',
+        };
+        const globalScore = reco.computedScoreBreakdown?.finalComputedScore
+          ?? reco.globalScore
+          ?? null;
+        const successProb = typeof reco.successProbability === 'number'
+          ? reco.successProbability
+          : null;
+        const failureProb = typeof reco.failureProbability === 'number'
+          ? reco.failureProbability
+          : null;
+        const drivers = Array.isArray(reco.decisionDrivers) ? reco.decisionDrivers.slice(0, 3) : [];
+        const topRisks = computeTopRisks(r, 3);
+        const conditions = Array.isArray(reco.conditionsCles)
+          ? reco.conditionsCles.slice(0, 3)
+          : (Array.isArray(reco.conditions) ? reco.conditions.slice(0, 3) : []);
+        const actionText = verdict === 'refuser'
+          ? 'Communiquer le refus à la startup, archiver le dossier dans le pipeline avec la motivation principale.'
+          : verdict === 'investir' || verdict === 'investir-conditions'
+            ? 'Préparer le passage en data room et le Bloc 2 (DD approfondie). Ouvrir les références terrain en parallèle.'
+            : 'Cadrer les questions ouvertes avec la startup avant de réinstruire. Approfondir les zones grises identifiées dans la cartographie des risques.';
+
+        return (
+          <section className="note-cover">
+            {/* Bandeau verdict */}
+            <div className={`note-cover-verdict ${verdictTone[verdict] || ''}`}>
+              <div className="note-cover-verdict-eyebrow">Verdict d&apos;instruction</div>
+              <div className="note-cover-verdict-label">
+                {verdictLabels[verdict] || (reco.verdict || 'Sans verdict').toUpperCase()}
+              </div>
+              <div className="note-cover-verdict-stats">
+                {globalScore !== null && (
+                  <div className="note-cover-stat">
+                    <div className="note-cover-stat-num">{globalScore}<span>/100</span></div>
+                    <div className="note-cover-stat-label">Score global</div>
+                  </div>
+                )}
+                {successProb !== null && (
+                  <div className="note-cover-stat">
+                    <div className="note-cover-stat-num">{successProb}<span>%</span></div>
+                    <div className="note-cover-stat-label">Probabilité succès</div>
+                  </div>
+                )}
+                {failureProb !== null && (
+                  <div className="note-cover-stat">
+                    <div className="note-cover-stat-num">{failureProb}<span>%</span></div>
+                    <div className="note-cover-stat-label">Probabilité échec</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Identite condensee : six lignes denses */}
+            <div className="note-cover-identity">
+              <dl className="note-cover-identity-grid">
+                <div className="note-cover-identity-item">
+                  <dt>Entité</dt>
+                  <dd>{e.companyName || 'Non renseigné'}</dd>
+                </div>
+                <div className="note-cover-identity-item">
+                  <dt>Secteur</dt>
+                  <dd>{joinNonEmpty([e.sector, e.subSector], ' · ')}</dd>
+                </div>
+                <div className="note-cover-identity-item">
+                  <dt>Géographie</dt>
+                  <dd>{joinNonEmpty([e.geographicHub, e.country], ', ')}</dd>
+                </div>
+                <div className="note-cover-identity-item">
+                  <dt>Tour</dt>
+                  <dd>{e.fundraise?.stage || 'Non renseigné'}</dd>
+                </div>
+                <div className="note-cover-identity-item">
+                  <dt>Montant</dt>
+                  <dd>{e.fundraise?.amount || 'Non renseigné'}</dd>
+                </div>
+                <div className="note-cover-identity-item">
+                  <dt>Activité</dt>
+                  <dd>{e.productDescription || 'Non renseigné'}</dd>
+                </div>
+              </dl>
+            </div>
+
+            {/* Trois colonnes : drivers, risques, action */}
+            <div className="note-cover-trio">
+              <div className="note-cover-trio-col">
+                <div className="note-cover-trio-label">Drivers décisifs</div>
+                {drivers.length > 0 ? (
+                  <ol className="note-cover-trio-list">
+                    {drivers.map((d: string, i: number) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="note-cover-trio-empty">À documenter dans la thèse d&apos;investissement.</div>
+                )}
+              </div>
+              <div className="note-cover-trio-col">
+                <div className="note-cover-trio-label">Risques majeurs</div>
+                {topRisks.length > 0 ? (
+                  <ol className="note-cover-trio-list">
+                    {topRisks.map((risk, i) => (
+                      <li key={i}>
+                        <span className="note-cover-trio-risk-name">{risk.label}</span>
+                        <span className="note-cover-trio-risk-intensity"> · intensité {risk.intensity}/100</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="note-cover-trio-empty">Pas de pattern à risque détecté à intensité critique.</div>
+                )}
+              </div>
+              <div className="note-cover-trio-col">
+                <div className="note-cover-trio-label">Action proposée</div>
+                <p className="note-cover-trio-action">{actionText}</p>
+                {conditions.length > 0 && (
+                  <>
+                    <div className="note-cover-trio-action-sub">Conditions clés avant signature</div>
+                    <ul className="note-cover-trio-conditions">
+                      {conditions.slice(0, 2).map((c: any, i: number) => (
+                        <li key={i}>{typeof c === 'string' ? c : (c?.condition || c?.label || '')}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="note-cover-footer">
+              <span>Lecture détaillée ci-dessous · {34} sections · 5 min</span>
+              <a href="#section-3" className="note-cover-jump">Aller à la thèse d&apos;investissement →</a>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Bloc 1 - Société */}
       <section className="note-section">
@@ -794,7 +956,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       </NoteSectionWrapper>
 
       {/* Bloc 3 - Due diligence */}
-      <section className="note-section">
+      <section className="note-section" id="section-3">
         <h2 className="note-section-title"><span className="note-section-num">3.</span> Thèse d&apos;investissement</h2>
 
         <div className="dd-meta">
@@ -2618,6 +2780,231 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-top: 4px;
           text-transform: uppercase;
           font-weight: 500;
+        }
+
+        /* PAGE DE COUVERTURE EDITORIALE
+           Page 1 du memo : verdict, score, identite, drivers, risques,
+           action. Le partner doit pouvoir prendre une decision provisoire
+           en 30 secondes avant de scroller dans le detail. */
+        .note-cover {
+          margin: 0 0 80px 0;
+          padding: 0;
+        }
+
+        /* Bandeau verdict : la zone qui domine la page */
+        .note-cover-verdict {
+          padding: 36px 40px 32px;
+          margin-bottom: 28px;
+          border: 1px solid var(--hairline);
+          border-left: 5px solid var(--ink);
+          background: var(--paper);
+          position: relative;
+        }
+        .note-cover-verdict-tone-go { border-left-color: rgb(21, 128, 61); }
+        .note-cover-verdict-tone-conditional { border-left-color: rgb(180, 95, 30); }
+        .note-cover-verdict-tone-watch { border-left-color: rgb(94, 75, 41); }
+        .note-cover-verdict-tone-decline { border-left-color: rgb(155, 28, 28); }
+
+        .note-cover-verdict-eyebrow {
+          font-family: var(--sans);
+          font-size: 11px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--muted);
+          font-weight: 500;
+          margin-bottom: 14px;
+        }
+        .note-cover-verdict-label {
+          font-family: var(--serif);
+          font-size: 44px;
+          font-weight: 600;
+          line-height: 1.05;
+          color: var(--ink);
+          letter-spacing: -0.02em;
+          margin-bottom: 26px;
+        }
+        .note-cover-verdict-stats {
+          display: flex;
+          gap: 56px;
+          flex-wrap: wrap;
+        }
+        .note-cover-stat-num {
+          font-family: var(--serif);
+          font-size: 36px;
+          font-weight: 600;
+          line-height: 1;
+          color: var(--ink);
+          font-variant-numeric: tabular-nums;
+        }
+        .note-cover-stat-num span {
+          font-size: 17px;
+          font-weight: 400;
+          color: var(--muted);
+          margin-left: 2px;
+        }
+        .note-cover-stat-label {
+          font-family: var(--sans);
+          font-size: 10.5px;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          color: var(--muted);
+          margin-top: 6px;
+          font-weight: 500;
+        }
+
+        /* Identite condensee : grille de six lignes */
+        .note-cover-identity {
+          margin-bottom: 28px;
+          padding: 24px 30px;
+          background: var(--paper-accent);
+          border: 1px solid var(--hairline);
+        }
+        .note-cover-identity-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 18px 40px;
+          margin: 0;
+        }
+        .note-cover-identity-item dt {
+          font-family: var(--sans);
+          font-size: 10px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--muted);
+          margin-bottom: 4px;
+          font-weight: 500;
+        }
+        .note-cover-identity-item dd {
+          font-family: var(--serif);
+          font-size: 16px;
+          color: var(--ink);
+          margin: 0;
+          line-height: 1.4;
+        }
+
+        /* Trois colonnes : drivers, risques, action */
+        .note-cover-trio {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 28px;
+          margin-bottom: 24px;
+        }
+        .note-cover-trio-col {
+          padding: 22px 24px;
+          background: var(--paper);
+          border-top: 2px solid var(--ink);
+        }
+        .note-cover-trio-label {
+          font-family: var(--sans);
+          font-size: 10.5px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--muted);
+          margin-bottom: 14px;
+          font-weight: 600;
+        }
+        .note-cover-trio-list {
+          margin: 0;
+          padding-left: 18px;
+          list-style: decimal;
+          font-family: var(--serif);
+          font-size: 13.5px;
+          line-height: 1.55;
+          color: var(--ink-soft);
+        }
+        .note-cover-trio-list li {
+          margin-bottom: 9px;
+        }
+        .note-cover-trio-list li:last-child {
+          margin-bottom: 0;
+        }
+        .note-cover-trio-risk-name {
+          color: var(--ink);
+        }
+        .note-cover-trio-risk-intensity {
+          color: var(--muted);
+          font-style: italic;
+          font-size: 12.5px;
+        }
+        .note-cover-trio-empty {
+          font-family: var(--serif);
+          font-style: italic;
+          color: var(--muted);
+          font-size: 13px;
+          line-height: 1.5;
+        }
+        .note-cover-trio-action {
+          font-family: var(--serif);
+          font-size: 13.5px;
+          line-height: 1.55;
+          color: var(--ink);
+          margin: 0 0 14px 0;
+        }
+        .note-cover-trio-action-sub {
+          font-family: var(--sans);
+          font-size: 9.5px;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          color: var(--muted);
+          font-weight: 500;
+          margin-bottom: 6px;
+        }
+        .note-cover-trio-conditions {
+          margin: 0;
+          padding-left: 16px;
+          font-family: var(--serif);
+          font-size: 12.5px;
+          line-height: 1.5;
+          color: var(--ink-soft);
+          list-style: square;
+        }
+
+        /* Footer : ancre vers la suite */
+        .note-cover-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 0 0;
+          border-top: 1px solid var(--hairline);
+          font-family: var(--serif);
+          font-size: 12.5px;
+          color: var(--muted);
+          font-style: italic;
+        }
+        .note-cover-jump {
+          color: var(--accent);
+          text-decoration: none;
+          font-style: normal;
+          font-weight: 500;
+        }
+        .note-cover-jump:hover {
+          text-decoration: underline;
+        }
+
+        @media (max-width: 900px) {
+          .note-cover-verdict {
+            padding: 26px 24px 22px;
+          }
+          .note-cover-verdict-label {
+            font-size: 32px;
+          }
+          .note-cover-verdict-stats {
+            gap: 28px;
+          }
+          .note-cover-stat-num {
+            font-size: 28px;
+          }
+          .note-cover-identity {
+            padding: 20px 22px;
+          }
+          .note-cover-identity-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
+          }
+          .note-cover-trio {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
         }
 
         /* SECTIONS - Numérotation grand format en serif italique, titre en
