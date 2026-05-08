@@ -80,10 +80,13 @@ pour eviter les diagnostics par analogie hative.
 - **Regulatory Time Bomb** : voir `regulatory-time-bomb.md`
 - **Commoditization Drift** : voir `commoditization-drift.md`
 - **Capital Structure Fragility** : voir `capital-structure-fragility.md`
+- **Scale Mirage Risk** : voir `scale-mirage-risk.md`
 
 ### Patterns a rediger
 
-- Scale Mirage Risk
+Aucun pattern restant a rediger pour le moteur Fragilite Structurelle.
+Les sept fiches couvrent les sept axes de fragilite identifies dans
+le mapping ci-dessus.
 
 ### Modules trans-stade non encore demarres
 
