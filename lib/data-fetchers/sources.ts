@@ -86,7 +86,21 @@ export type SourceName =
   | 'epo'        // Espacenet OPS : brevets europeens (OAuth2)
   | 'pappers';   // Pappers : registre RCS francais (api-key)
 
-const DEFAULT_ENABLED_SOURCES: SourceName[] = ['wikipedia'];
+// Par defaut on active les sources gratuites et sans clef API requise :
+// wikipedia (biographies), openalex (publications academiques), github
+// (presence open source), arxiv (preprints), worldbank (macro pays),
+// imf (projections FMI WEO). EPO et Pappers restent OFF par defaut car
+// ils demandent des credentials OAuth/api-key qui ne sont pas dans le
+// code. Pour activer EPO/Pappers, il faut surcharger via la variable
+// d env PRELUDE_ENABLED_SOURCES en plus de configurer les credentials.
+const DEFAULT_ENABLED_SOURCES: SourceName[] = [
+  'wikipedia',
+  'openalex',
+  'github',
+  'arxiv',
+  'worldbank',
+  'imf',
+];
 
 function readEnabledSources(): SourceName[] | 'all' | 'none' {
   const raw = process.env.PRELUDE_ENABLED_SOURCES?.trim();
