@@ -3054,6 +3054,23 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           }
         }
 
+        /* En mode print (export PDF), on cache la TOC flottante :
+           position fixed produit un overlay sur chaque page imprimee,
+           illisible sur PDF. Le PDF a sa propre table des matieres
+           generee par Puppeteer via les headings de la note. */
+        @media print {
+          .note-toc {
+            display: none !important;
+          }
+          /* Page de couverture commence sur sa propre page pour un
+             rendu memo classique : verdict en page 1, analyse en
+             page 2 et suivantes. */
+          .note-cover {
+            page-break-after: always;
+            break-after: page;
+          }
+        }
+
         /* PAGE DE COUVERTURE EDITORIALE
            Page 1 du memo : verdict, score, identite, drivers, risques,
            action. Le partner doit pouvoir prendre une decision provisoire
