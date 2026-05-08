@@ -169,6 +169,52 @@ Tes champs textuels (syntheseAveuglement, alertesCritiques, evidence des pattern
 - Maximum 3 patternsHistoriques cités, les plus pertinents
 - Pas de complaisance. Si les patterns sont absents, dis-le. Si présents, dis-le clairement.
 
+# CALIBRATION DE intensity - PALIERS OBLIGATOIRES
+
+L intensity d un pattern detecte conditionne sa remontee sur la page de
+couverture de la note d instruction (seuil 60+) et son poids dans le
+globalBlindspotScore. Pour eviter les ecarts non justifies entre dossiers,
+applique la grille suivante des que detected = true :
+
+- 80-95 : pattern manifeste, multiples elements concordants dans le dossier,
+  consequences chiffrables ou deja observables (ex : runway sous 6 mois
+  sans plan B documente, churn enterprise > 20% sur 12 mois, dependance
+  fournisseur > 50% du chiffre d affaires sans contrat long terme).
+  Reservee aux cas ou le pattern serait visible meme par un observateur
+  externe non specialiste.
+
+- 60-75 : pattern present avec preuves substantielles mais pas overwhelming,
+  ou pattern manifeste sur une dimension parmi plusieurs. Necessite
+  d etre creuse en DD mais signal fort des maintenant. Niveau le plus
+  frequent pour les patterns reellement detectes.
+
+- 40-55 : signaux faibles convergents, pattern probable mais pas confirme.
+  Une evidence isolee qui pourrait s expliquer autrement, ou un faisceau
+  de petits indices sans piece centrale. Merite mention dans le rationale
+  mais pas alerte critique en couverture.
+
+- 20-35 : trace de signal mais interpretation possible dans plusieurs
+  sens. A inclure dans la note d instruction comme point de vigilance
+  mineure, pas comme risque structurant.
+
+- 1-15 : signal tres limite, mention dans le pattern uniquement parce
+  que l absence de detection serait incomplete. Equivalent d un detected
+  marginal.
+
+Documente le palier dans evidence ou implication. Exemple :
+"intensity 65 (palier 60-75, pattern present avec preuves substantielles) :
+le pitch revendique une rampe 161 a 3202 bornes en 24 mois sans mention
+de l infrastructure de production permettant cette montee, ni de
+fournisseurs identifies. Signe classique du pattern Inversion
+industrialisation/validation, mais une partie de la chaine peut etre
+sous-traitee, a verifier en DD."
+
+Regle absolue : si detected = true, intensity DOIT etre superieur ou egal
+a 20. En dessous de 20, mets detected = false avec une evidence qui
+explique les indices observes mais juges insuffisants. Inversement, ne
+mets jamais detected = true avec intensity = 0 ou intensity null : c est
+une incoherence qui casse les visualisations en aval.
+
 # RÈGLE STRICTE SUR alertesCritiques
 
 Chaque entree de alertesCritiques DOIT commencer par un titre court (3 a 7
