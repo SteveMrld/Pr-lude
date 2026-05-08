@@ -291,6 +291,35 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
   return (
     <div className="investment-note">
+      {/* TABLE DES MATIERES FLOTTANTE
+          Sticky a droite sur desktop, donne une vue d ensemble des
+          sections de la note et permet le saut direct via ancres. Cachee
+          sur mobile (largeur insuffisante). Les ancres correspondent aux
+          ids engine-section-X poses sur les h3 ou sections principales,
+          partages avec le bandeau pipeline pour que clic du bandeau et
+          clic de la TOC scrollent vers le meme endroit. */}
+      <nav className="note-toc" aria-label="Table des matières de la note">
+        <div className="note-toc-label">Sommaire</div>
+        <ol className="note-toc-list">
+          <li><a href="#engine-section-prescan" className="note-toc-link note-toc-link-cover">Couverture</a></li>
+          <li><a href="#engine-section-extraction" className="note-toc-link">1. Société</a></li>
+          <li><a href="#engine-section-team" className="note-toc-link note-toc-sub">Équipe dirigeante</a></li>
+          <li><a href="#engine-section-financial-extraction" className="note-toc-link note-toc-sub">Profil financier</a></li>
+          <li><a href="#engine-section-market" className="note-toc-link note-toc-sub">Opportunité de marché</a></li>
+          <li><a href="#section-3" className="note-toc-link">3. Thèse d&apos;investissement</a></li>
+          <li><a href="#engine-section-orchestrate" className="note-toc-link note-toc-sub">Recommandation</a></li>
+          <li><a href="#engine-section-contrarian" className="note-toc-link note-toc-sub">Plaidoyer en faveur</a></li>
+          <li><a href="#engine-section-blindspot" className="note-toc-link note-toc-sub">Plaidoyer contre</a></li>
+          <li><a href="#engine-section-orchestrate-resolution" className="note-toc-link note-toc-sub">Résolution dialectique</a></li>
+          <li><a href="#engine-section-macro" className="note-toc-link note-toc-sub">Contexte macro</a></li>
+          <li><a href="#engine-section-blindspot-risks" className="note-toc-link note-toc-sub">Cartographie des risques</a></li>
+          <li><a href="#engine-section-financial-coherence" className="note-toc-link note-toc-sub">Examen financier</a></li>
+          <li><a href="#engine-section-tech-claim" className="note-toc-link note-toc-sub">Cohérence tech</a></li>
+          <li><a href="#engine-section-execution-friction" className="note-toc-link note-toc-sub">Friction d&apos;exécution</a></li>
+          <li><a href="#engine-section-pattern" className="note-toc-link note-toc-sub">Comparables</a></li>
+        </ol>
+      </nav>
+
       {/* Bandeau Lecture rapide : indique sans ambiguite que des sections
           sont repliees. Cliquable pour basculer immediatement, ou simple
           marqueur statique si pas de handler fourni. */}
@@ -2780,6 +2809,77 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-top: 4px;
           text-transform: uppercase;
           font-weight: 500;
+        }
+
+        /* TABLE DES MATIERES FLOTTANTE
+           Sticky a droite sur desktop, position fixed pour rester
+           accessible quel que soit le scroll. Cachee sous 1280px de
+           large : pas assez de place sur tablette/mobile. */
+        .note-toc {
+          position: fixed;
+          top: 96px;
+          right: 24px;
+          width: 220px;
+          max-height: calc(100vh - 140px);
+          overflow-y: auto;
+          padding: 18px 16px;
+          background: var(--paper);
+          border: 1px solid var(--hairline);
+          font-family: var(--sans);
+          z-index: 30;
+        }
+        .note-toc-label {
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--muted);
+          font-weight: 600;
+          margin-bottom: 12px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--hairline);
+        }
+        .note-toc-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        .note-toc-list li {
+          margin: 0;
+        }
+        .note-toc-link {
+          display: block;
+          padding: 4px 0;
+          font-family: var(--serif);
+          font-size: 13px;
+          color: var(--ink-soft);
+          text-decoration: none;
+          line-height: 1.35;
+          transition: color 0.15s ease;
+          border-left: 2px solid transparent;
+          padding-left: 10px;
+          margin-left: -10px;
+        }
+        .note-toc-link:hover {
+          color: var(--accent);
+          border-left-color: var(--accent);
+        }
+        .note-toc-link-cover {
+          font-style: italic;
+          color: var(--accent);
+          font-weight: 500;
+          margin-bottom: 4px;
+        }
+        .note-toc-sub {
+          font-size: 12px;
+          color: var(--muted);
+          padding-left: 22px;
+          margin-left: -10px;
+        }
+
+        @media (max-width: 1280px) {
+          .note-toc {
+            display: none;
+          }
         }
 
         /* PAGE DE COUVERTURE EDITORIALE
