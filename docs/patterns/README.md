@@ -78,10 +78,10 @@ pour eviter les diagnostics par analogie hative.
 - **Infrastructure Hostage** : voir `infrastructure-hostage.md`
 - **Fixed Cost Trap** : voir `fixed-cost-trap.md`
 - **Regulatory Time Bomb** : voir `regulatory-time-bomb.md`
+- **Commoditization Drift** : voir `commoditization-drift.md`
 
 ### Patterns a rediger
 
-- Commoditization Drift
 - Capital Structure Fragility
 - Scale Mirage Risk
 
