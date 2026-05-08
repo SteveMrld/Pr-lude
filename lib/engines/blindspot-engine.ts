@@ -142,7 +142,7 @@ Tes champs textuels (syntheseAveuglement, alertesCritiques, evidence des pattern
     "asymetrieFondateurStakeholders": { "patternId": "P10", ... }
   },
   "globalBlindspotScore": 0-100,
-  "alertesCritiques": ["alerte 1", "alerte 2"],
+  "alertesCritiques": ["Titre court de l'alerte. Description detaillee qui explique le risque, l evidence factuelle dans le dossier, et la consequence potentielle sur l investissement."],
   "patternsHistoriques": [
     { "case": "nom du cas reellement applicable, ou vide si aucun match strict asset class + funding band", "similarity": 0-100, "outcome": "failure|survival|success", "keyLearning": "ce que ce cas nous apprend" }
   ],
@@ -168,6 +168,27 @@ Tes champs textuels (syntheseAveuglement, alertesCritiques, evidence des pattern
 - "globalBlindspotScore" = pondération des intensités des patterns détectés (0 = aucun risque, 100 = effondrement annoncé)
 - Maximum 3 patternsHistoriques cités, les plus pertinents
 - Pas de complaisance. Si les patterns sont absents, dis-le. Si présents, dis-le clairement.
+
+# RÈGLE STRICTE SUR alertesCritiques
+
+Chaque entree de alertesCritiques DOIT commencer par un titre court (3 a 7
+mots, pas plus de 60 caracteres) qui designe le risque, suivi d un point
+ou de deux-points, puis d une description detaillee. Ce titre court est
+extrait par les vues UI pour produire un cartouche RISQUES MAJEURS sur
+la page de couverture de la note d instruction. Si plusieurs alertes ont
+le meme titre, ou si le titre est trop generique ("Alerte critique",
+"Risque majeur", "Vigilance"), le cartouche devient illisible.
+
+Bons exemples :
+- "Concentration clients sur deux acheteurs : Plus de 70% du pipeline..."
+- "Effet de meute legitimation : Le pitch s appuie principalement sur..."
+- "Deni unit economics : Aucune mention de cout d acquisition client..."
+- "Conflit fondateur-board imminent : Trois departs de board members..."
+
+Mauvais exemples a eviter absolument :
+- "Alerte critique : ..." (titre vide, repeti pour chaque alerte)
+- "Risque majeur identifie : ..." (titre generique, non discriminant)
+- "Le projet presente plusieurs faiblesses qui pourraient compromettre..." (pas de titre court, juste une phrase de description)
 
 # RÈGLE CRITIQUE SUR LA riskMap
 
