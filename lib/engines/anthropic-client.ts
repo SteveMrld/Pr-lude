@@ -142,6 +142,31 @@ function stripCiteTags(text: string): string {
 
 // Helper appel avec PDF natif (vision multimodale). Defaut MODEL (Sonnet)
 // pour la qualite d'extraction. Aligne avec callClaude ci-dessus.
+//
+// PROMPT CACHING ANTHROPIC
+// ----------------------------------------------------------
+// Le PDF du pitch deck est le plus gros contributeur au cout en
+// tokens d entree d un dossier : un deck de 2 MB en base64 represente
+// environ 1 a 3 millions de tokens. Le pipeline appelle ce helper
+// jusqu a 5 fois pour le meme PDF (extraction, financial-extraction,
+// saas-metrics, industrial-metrics, prescan), ce qui multiplie la
+// facturation input par 5 pour le meme contenu.
+//
+// Le prompt caching d Anthropic permet de marquer le bloc PDF avec
+// cache_control ephemeral. Anthropic stocke alors le PDF cote serveur
+// pour 5 minutes apres le premier appel. Les appels suivants dans
+// cette fenetre paient seulement 10% du cout normal pour relire le
+// meme PDF (lecture cache) au lieu de 100% (premiere ecriture).
+//
+// Economies estimees pour un PDF de 1,5M tokens lu 5 fois :
+// - Sans cache : 5 x 1,5M x 3 USD/M = 22,50 USD
+// - Avec cache : 1,5M x 3,75 USD/M (write) + 4 x 1,5M x 0,30 USD/M (read) = 7,42 USD
+// - Gain : 67% de reduction sur le cout input PDF, environ 15 USD par dossier
+//
+// Pas de risque de regression de qualite : le contenu envoye au modele
+// est strictement identique, c est juste la facturation qui change.
+// Si le pipeline depasse 5 minutes, le cache expire et la lecture
+// repart en plein tarif sans erreur fonctionnelle.
 export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string, pdfBase64: string, maxTokens = 3000, model: string = MODEL): Promise<string> {
   const client = getClient();
   const response = await client.messages.create({
@@ -151,7 +176,11 @@ export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string
     messages: [{
       role: 'user',
       content: [
-        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } } as any,
+        {
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
+          cache_control: { type: 'ephemeral' },
+        } as any,
         { type: 'text', text: userPrompt },
       ],
     }],
@@ -160,6 +189,19 @@ export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string
   if (!textBlock || textBlock.type !== 'text') {
     throw new Error('Réponse Claude vide ou invalide');
   }
+
+  // Logging des metriques de cache pour suivre l efficacite du
+  // prompt caching en prod. Ces compteurs permettent de verifier
+  // que le caching s active bien sur les appels PDF subsequents
+  // d un meme pipeline. Visible dans les logs Vercel ou en
+  // observability.
+  const usage = (response as any).usage || {};
+  if (usage.cache_creation_input_tokens || usage.cache_read_input_tokens) {
+    console.log(
+      `[anthropic-pdf] cache write=${usage.cache_creation_input_tokens || 0} read=${usage.cache_read_input_tokens || 0} regular=${usage.input_tokens || 0} model=${model}`,
+    );
+  }
+
   return textBlock.text;
 }
 import { jsonrepair } from 'jsonrepair';
