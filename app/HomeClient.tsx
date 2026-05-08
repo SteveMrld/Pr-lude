@@ -47,6 +47,7 @@ const ENGINES: Array<{ id: string; name: string; label: string; block: EngineBlo
   { id: 'tech-claim', name: 'Cohérence revendication tech', label: 'Audit du moat technologique revendiqué : budget, traçabilité, contre-factuel', block: 'instruction' },
   { id: 'execution-friction', name: 'Friction d\'exécution', label: 'Huit axes : go-to-market, financement transactionnel, industrialisation, supply chain, écosystème, régulation, référencement, talent rare', block: 'instruction' },
   { id: 'narrative-drift', name: 'Lecture du langage', label: 'Mesure du glissement concret/abstrait du discours et de la cohérence narrative dans le temps', block: 'instruction' },
+  { id: 'fragility-structurelle', name: 'Fragilité structurelle', label: 'Sept patterns Phase 4 : croissance subventionnée, captivité infrastructure, coûts fixes, régulation à venir, érosion défensibilité, cap table, industrialisation prématurée', block: 'instruction' },
   { id: 'orchestrate', name: 'Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique', block: 'instruction' },
   { id: 'reference-checks', name: 'Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance', block: 'instruction' },
 

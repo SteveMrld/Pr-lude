@@ -14,6 +14,12 @@ import { analyzeBenchmarks } from '@/lib/engines/benchmark-engine';
 import { analyzeTechClaimCoherence } from '@/lib/engines/tech-claim-coherence-engine';
 import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engine';
 import { analyzeNarrativeDrift } from '@/lib/engines/narrative-drift-engine';
+// Import du moteur Phase 4 : analyzeFragiliteStructurelle est l entry point.
+// Les patterns individuels sont importes en side-effect pour s auto-enregistrer
+// dans le registry via registerPattern. Ajouter ici tout nouveau pattern
+// implemente.
+import { analyzeFragiliteStructurelle } from '@/lib/engines/fragility-structurelle';
+import '@/lib/engines/fragility-structurelle/growth-subsidized-pattern';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { computeValuation } from '@/lib/engines/valuation-engine';
@@ -500,15 +506,56 @@ export async function POST(req: NextRequest) {
           ]);
 
           // ============================================================
-          // VAGUE 4 : RETOURNEMENT CAUSAL
+          // VAGUE 4 : RETOURNEMENT CAUSAL + FRAGILITE STRUCTURELLE
           // ------------------------------------------------------------
-          // Sequentiel apres pattern. Le seul moteur Bloc 1 qui necessite
-          // patternMatching dans ses inputs (les autres ont ete deplaces
-          // en vague 3 parallele).
+          // causal et fragility-structurelle ont des dependances
+          // distinctes : causal consomme patternMatching (sortie vague 3),
+          // fragility-structurelle consomme uniquement extraction et
+          // financialData (sortie vague 1 et vague 2). Les deux sont donc
+          // parallelisables.
+          //
+          // fragility-structurelle est conditionnee par la matrice : si
+          // tous les patterns Phase 4 sont marques non applicables par
+          // la matrice, l orchestrateur retourne immediatement un output
+          // minimal sans appeler de LLM.
+          //
+          // Le moteur Fragilite Structurelle s active typiquement a partir
+          // de Series B mais certains patterns (regulatory-time-bomb,
+          // commoditization-drift sur knowledge work, growth-subsidized
+          // sur Series A) peuvent se declencher plus tot selon le profil
+          // du dossier.
           // ============================================================
           sendStart('causal', 'Retournement causal');
-          const causalReversal = await performCausalReversal(extraction, team, market, macro, patternMatching);
-          sendDone('causal', causalReversal);
+
+          // Detection si le moteur Fragilite Structurelle doit tourner.
+          // Si au moins un verdict pattern Phase 4 est applicable, on emet
+          // la tuile pipeline. Sinon on skip silencieusement (pas de tuile
+          // pour eviter un faux skip dans l UI).
+          const fsVerdicts = relevanceMatrix.verdicts.fragiliteStructurelle;
+          const fragiliteRequested = Object.values(fsVerdicts).some(
+            (v) => v.applicable !== 'none',
+          );
+          if (fragiliteRequested) {
+            sendStart('fragility-structurelle', 'Fragilité structurelle');
+          }
+
+          const [causalReversal, fragiliteStructurelle] = await Promise.all([
+            performCausalReversal(extraction, team, market, macro, patternMatching)
+              .then(r => { sendDone('causal', r); return r; }),
+            fragiliteRequested
+              ? analyzeFragiliteStructurelle(
+                  {
+                    extraction,
+                    financialData: financialData ?? null,
+                    marketAnalysis: market,
+                    rawPitchText: (extraction as any)?.rawSummary ?? null,
+                  },
+                  relevanceMatrix,
+                )
+                  .then(r => { sendDone('fragility-structurelle', r); return r; })
+                  .catch(err => { logException('pipeline.fragility-structurelle', err, { severity: 'warning' }); sendDone('fragility-structurelle', null); return null; })
+              : Promise.resolve(null),
+          ]);
 
           // ============================================================
           // VAGUE 5 : ORCHESTRATION FINALE ET REFERENCE CHECKS EN PARALLELE
@@ -774,6 +821,14 @@ export async function POST(req: NextRequest) {
             // null si la matrice declare le moteur non applicable
             // ou si l appel LLM a echoue (non-bloquant).
             narrativeDrift,
+            // Fragilite structurelle (Bloc Phase 4) : sept patterns
+            // de fragilite cumulee (croissance subventionnee, captivite
+            // infrastructure, couts fixes incompressibles, regulation a
+            // venir, erosion de defensibilite, fragilite cap table,
+            // industrialisation prematuree). Active conditionnellement
+            // selon le stade et le profil sectoriel du dossier.
+            // null si aucun pattern applicable ou en cas d echec global.
+            fragiliteStructurelle,
           };
 
           // ============================================================
