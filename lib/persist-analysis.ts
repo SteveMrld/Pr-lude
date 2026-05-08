@@ -61,6 +61,38 @@ export interface PersistInput {
 }
 
 /**
+ * Dependances injectables. Permet de mocker les acces base en test
+ * sans toucher au comportement de production. Le wrapper public
+ * persistAnalysisAutomatically utilise les implementations reelles ;
+ * la fonction sous-jacente persistAnalysisWithDeps prend ces deps en
+ * parametre et est testable de maniere deterministe.
+ */
+export interface PersistDeps {
+  isPersistenceEnabled: () => boolean;
+  extractAnalysisMetadata: (result: any) => any;
+  findExistingByCompany: (name: string) => Promise<{ id: string; companyName: string } | null>;
+  saveAnalysis: (input: SaveAnalysisInput) => Promise<string | null>;
+  updateAnalysisLive: (id: string, input: SaveAnalysisInput) => Promise<boolean>;
+  createVersion: (args: {
+    analysisId: string;
+    snapshotJson: any;
+    sourceFilename: string | null;
+    pipelineDurationMs: number | null;
+    note: string;
+  }) => Promise<{ versionNum: number } | null>;
+}
+
+const DEFAULT_DEPS: PersistDeps = {
+  isPersistenceEnabled,
+  extractAnalysisMetadata,
+  findExistingByCompany: findExistingByCompany as any,
+  saveAnalysis,
+  updateAnalysisLive: updateAnalysisLive as any,
+  createVersion: createVersion as any,
+};
+
+
+/**
  * Persiste une analyse de maniere automatique, sans dialogue
  * utilisateur. Detecte les collisions et cree une nouvelle version
  * si necessaire.
@@ -77,12 +109,24 @@ export interface PersistInput {
 export async function persistAnalysisAutomatically(
   input: PersistInput,
 ): Promise<PersistResult> {
-  if (!isPersistenceEnabled()) {
+  return persistAnalysisWithDeps(input, DEFAULT_DEPS);
+}
+
+/**
+ * Variante testable : prend les dependances en parametre. Utilisee
+ * par les tests deterministes pour mocker les acces base. La logique
+ * metier est identique a la fonction publique.
+ */
+export async function persistAnalysisWithDeps(
+  input: PersistInput,
+  deps: PersistDeps,
+): Promise<PersistResult> {
+  if (!deps.isPersistenceEnabled()) {
     return { saved: false, id: null, mode: 'unsaved', reason: 'persistence-disabled' };
   }
 
   try {
-    const metadata = extractAnalysisMetadata(input.result);
+    const metadata = deps.extractAnalysisMetadata(input.result);
     const companyName = metadata.companyName || 'Sans nom';
 
     const saveInput: SaveAnalysisInput = {
@@ -100,14 +144,14 @@ export async function persistAnalysisAutomatically(
     // Detection de collision : un dossier du meme nom existe deja
     // dans la base de l org. Cas typique : re-run d un dossier
     // apres mise a jour des donnees par la startup.
-    const existing = await findExistingByCompany(companyName);
+    const existing = await deps.findExistingByCompany(companyName);
 
     if (existing) {
       // Collision detectee. On cree automatiquement une nouvelle
       // version du dossier existant plutot que de bloquer avec un
       // dialogue. L UI versions du client permet ensuite de
       // basculer entre les versions historiques si besoin.
-      const version = await createVersion({
+      const version = await deps.createVersion({
         analysisId: existing.id,
         snapshotJson: input.result,
         sourceFilename: input.sourceFilename || null,
@@ -128,7 +172,7 @@ export async function persistAnalysisAutomatically(
 
       // Mise a jour du live (table analyses) : la lecture par
       // defaut reflete toujours la derniere version.
-      const updated = await updateAnalysisLive(existing.id, saveInput);
+      const updated = await deps.updateAnalysisLive(existing.id, saveInput);
       if (!updated) {
         console.warn(
           '[persist-analysis] new-version : version creee mais live update echoue pour',
@@ -147,7 +191,7 @@ export async function persistAnalysisAutomatically(
     }
 
     // Pas de collision : creation classique d un nouveau dossier.
-    const id = await saveAnalysis(saveInput);
+    const id = await deps.saveAnalysis(saveInput);
     if (!id) {
       return { saved: false, id: null, mode: 'unsaved', reason: 'save-failed' };
     }
