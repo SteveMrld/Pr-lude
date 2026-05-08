@@ -119,8 +119,15 @@ export interface RelevanceMatrix {
     saasMetricsUnitEconomics: RelevanceVerdict;
     valuationVcMethod: RelevanceVerdict;
     executionFriction: RelevanceVerdict;
+    narrativeDrift: RelevanceVerdict;
   };
 }
+
+// Niveau de maturite narrative deductible du stade declare. Sert
+// uniquement pour le verdict narrativeDrift : plus le stade est
+// avance, plus la matiere narrative accumulee est consistante et
+// plus le moteur a de quoi mordre.
+export type NarrativeMaturity = 'pre-seed' | 'seed' | 'series-a' | 'series-b-plus' | 'unknown';
 
 // ============================================================
 // HELPERS
@@ -913,6 +920,102 @@ function buildExecutionFrictionVerdict(productionChain: ProductionChain, supplyC
 }
 
 // ============================================================
+// NARRATIVE DRIFT : DETECTION DE LA MATURITE NARRATIVE
+// ------------------------------------------------------------
+// La derive narrative est mesurable des qu il y a du discours
+// accumule. Plus le stade est avance, plus la trace narrative
+// est dense (interviews, communiques, posts fondateurs, decks
+// successifs) et plus le signal est exploitable. Au pre-seed,
+// le moteur tourne mais en lecture partielle : il n y a souvent
+// que le pitch courant comme corpus, pas de baseline temporel.
+// ============================================================
+
+/**
+ * Normalise le champ libre fundraise.stage en cinq paliers
+ * exploitables. Tolere les variantes francaises et anglaises.
+ */
+function detectNarrativeMaturity(stageRaw: string | undefined | null): NarrativeMaturity {
+  if (!stageRaw) return 'unknown';
+  const s = stageRaw.toLowerCase().trim();
+
+  // Series B et au-dela : narration accumulee, dense, exploitable
+  if (/\bseries?[\s-]+[b-z]\b/.test(s)) return 'series-b-plus';
+  if (/growth|late\s*stage|tour de croissance|capital de croissance/.test(s)) return 'series-b-plus';
+
+  // Series A : narration suffisante pour mesurer un glissement
+  if (/\bseries?[\s-]+a\b/.test(s) || /\btour\s*a\b/.test(s) || /\bround\s*a\b/.test(s)) return 'series-a';
+
+  // Seed et derives
+  if (/seed|amorcage|amorçage|amorcement/.test(s)) {
+    if (/pre[-\s]?seed|preseed/.test(s)) return 'pre-seed';
+    return 'seed';
+  }
+
+  // Pre-seed explicite
+  if (/pre[-\s]?seed|preseed|fondation|first money/.test(s)) return 'pre-seed';
+
+  return 'unknown';
+}
+
+function buildNarrativeDriftVerdict(maturity: NarrativeMaturity, hasMinimalCorpus: boolean): RelevanceVerdict {
+  // Le moteur fait son propre check fin d applicabilite a partir
+  // du nombre de mots reellement disponibles. Le verdict ici
+  // sert juste a decider si on l invoque, et avec quel poids
+  // dans la note d investissement.
+  if (!hasMinimalCorpus) {
+    return {
+      applicable: 'none',
+      weight: 0,
+      scope: [],
+      rationale: 'Pas de corpus textuel exploitable dans l extraction. Le moteur de derive narrative a besoin d un minimum de prose pour produire des metriques lexicales.',
+    };
+  }
+
+  if (maturity === 'series-b-plus') {
+    return {
+      applicable: 'full',
+      weight: 1,
+      scope: [],
+      rationale: 'Stade Series B ou ulterieur : narration accumulee sur plusieurs annees, baseline historique probable, signal de derive maximalement exploitable.',
+    };
+  }
+
+  if (maturity === 'series-a') {
+    return {
+      applicable: 'full',
+      weight: 0.85,
+      scope: [],
+      rationale: 'Stade Series A : matiere narrative suffisante pour mesurer un glissement abstrait/concret et identifier les premiers ecarts entre recit et fondamentaux.',
+    };
+  }
+
+  if (maturity === 'seed') {
+    return {
+      applicable: 'partial',
+      weight: 0.55,
+      scope: ['lecture instantanee du langage'],
+      rationale: 'Stade seed : narration trop jeune pour mesurer une derive temporelle. Le moteur produit une lecture instantanee de la densite concrete du discours, sans interpretation trajectoire.',
+    };
+  }
+
+  if (maturity === 'pre-seed') {
+    return {
+      applicable: 'partial',
+      weight: 0.35,
+      scope: ['signal lexical brut'],
+      rationale: 'Stade pre-seed : pas de baseline narratif, le moteur se contente d un signal lexical brut sur le pitch courant. A confirmer par re-evaluation au prochain tour.',
+    };
+  }
+
+  return {
+    applicable: 'partial',
+    weight: 0.5,
+    scope: ['lecture instantanee du langage'],
+    rationale: 'Stade non identifiable : moteur lance en mode lecture instantanee, pertinence a ajuster manuellement par le partner.',
+  };
+}
+
+// ============================================================
 // POINT D ENTREE
 // ============================================================
 
@@ -933,6 +1036,21 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
   const reproducibility = detectDigitalReproducibility(text, productionChain);
   const acquisitionFunnel = detectAcquisitionFunnel(text, businessModel);
 
+  // Maturite narrative pour le verdict narrativeDrift. Le test de
+  // corpus minimal regarde si l extraction contient au moins du
+  // texte exploitable (pas seulement des champs vides).
+  const narrativeMaturity = detectNarrativeMaturity(extraction.fundraise?.stage);
+  const corpusBuffer = [
+    extraction.marketPitch,
+    extraction.productDescription,
+    extraction.businessModel,
+    extraction.rawSummary,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const hasMinimalCorpus = corpusBuffer.length >= 40;
+
   // Construction des verdicts par moteur
   const verdicts = {
     macroGeopolitical: buildMacroGeopoliticalVerdict(geopolitical.level, geopolitical.factors),
@@ -945,6 +1063,7 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
     saasMetricsUnitEconomics: buildSaasMetricsUnitEconomicsVerdict(acquisitionFunnel),
     valuationVcMethod: buildValuationVcMethodVerdict(businessModel),
     executionFriction: buildExecutionFrictionVerdict(productionChain, supplyChain.level),
+    narrativeDrift: buildNarrativeDriftVerdict(narrativeMaturity, hasMinimalCorpus),
   };
 
   return {
@@ -963,3 +1082,10 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
     verdicts,
   };
 }
+
+/**
+ * Expose la detection de maturite narrative pour les tests et pour
+ * d eventuels usages downstream qui voudraient lire la categorie sans
+ * recalculer la matrice complete.
+ */
+export { detectNarrativeMaturity };

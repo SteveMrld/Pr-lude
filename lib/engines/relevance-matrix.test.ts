@@ -45,6 +45,7 @@ const cases = [
       'verdicts.marketAiReplicability.applicable': 'full', // pure software sans gros moat = high reproducibility = applicable full
       'verdicts.macroGeopolitical.applicable': 'none',
       'verdicts.macroCyclical.applicable': 'none',
+      'verdicts.narrativeDrift.applicable': 'partial', // stade seed = lecture instantanee uniquement
     },
     expectedReproducibility: 'high',
     expectedFunnel: 'present',
@@ -78,6 +79,7 @@ const cases = [
       'verdicts.macroCyclical.applicable': 'full', // exposition consumer + DTC
       'verdicts.macroGeopolitical.applicable': 'full', // 2 facteurs (logistique + Pakistan) = high → full
       'verdicts.saasMetricsUnitEconomics.applicable': 'full', // CAC funnel marketing
+      'verdicts.narrativeDrift.applicable': 'full', // series-a = matiere narrative suffisante
     },
     expectedFunnel: 'present',
   },
@@ -298,6 +300,7 @@ const cases = [
       'verdicts.macroCyclical.applicable': 'partial', // sensibilite taux only
       'verdicts.indicatorsSaas.applicable': 'full', // detecte recurrent-saas
       'verdicts.marketAiReplicability.applicable': 'partial', // protections data + reglementation
+      'verdicts.narrativeDrift.applicable': 'full', // series-b = derive narrative maximale
     },
     expectedReproducibility: 'medium',
   },
@@ -329,6 +332,7 @@ const cases = [
       'verdicts.macroGeopolitical.applicable': 'full',
       'verdicts.marketAiReplicability.applicable': 'none',
       'verdicts.executionFriction.applicable': 'full',
+      'verdicts.narrativeDrift.applicable': 'full', // series-c-plus = derive narrative pleinement exploitable
     },
   },
 ];
