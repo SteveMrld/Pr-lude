@@ -317,6 +317,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <li><a href="#engine-section-tech-claim" className="note-toc-link note-toc-sub">Cohérence tech</a></li>
           <li><a href="#engine-section-execution-friction" className="note-toc-link note-toc-sub">Friction d&apos;exécution</a></li>
           <li><a href="#engine-section-pattern" className="note-toc-link note-toc-sub">Comparables</a></li>
+          <li><a href="#engine-section-reference-checks" className="note-toc-link note-toc-sub">Plan d&apos;appels DD</a></li>
         </ol>
       </nav>
 
@@ -2295,6 +2296,158 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             )}
           </>
         )}
+
+        {/* ============================================================
+            REFERENCE CHECKS STRUCTURES
+            ------------------------------------------------------------
+            Section issue du moteur reference-checks-engine (Bloc 1).
+            Avant cette refonte, ces donnees etaient consultables seulement
+            dans le Pack IC mais absentes de la note d instruction. Or le
+            partner qui lit la note a besoin de savoir quels appels DD
+            terrain mener avant le comite : qui appeler, quoi demander,
+            dans quel ordre. C est l action concrete qui suit la lecture.
+            S affiche uniquement si le moteur a produit des donnees
+            (skip silencieux sinon).
+            ============================================================ */}
+        {(() => {
+          const refchecks = (r as any).referenceChecks;
+          if (!refchecks) return null;
+          const founderCount = (refchecks.founderChecks || []).length;
+          const customerCount = (refchecks.customerChecks || []).length;
+          const boardCount = (refchecks.boardChecks || []).length;
+          const weakSignalsCount = (refchecks.weakSignalsChecks || []).length;
+          const totalCalls = founderCount + customerCount + boardCount;
+          if (totalCalls === 0 && weakSignalsCount === 0) return null;
+          const priorityOrder = (refchecks.priorityOrder || []).slice(0, 3);
+          const redFlags = (refchecks.redFlagsToProbe || []).slice(0, 5);
+          return (
+            <>
+              <h3 className="note-h3" id="engine-section-reference-checks">Plan d&apos;appels DD terrain</h3>
+              <p className="note-paragraph muted">
+                Plan d&apos;instruction terrain genere a partir des outputs Bloc 1. {totalCalls > 0 && `${totalCalls} interlocuteur${totalCalls > 1 ? 's' : ''} a contacter`}{totalCalls > 0 && weakSignalsCount > 0 ? ', ' : ''}{weakSignalsCount > 0 && `${weakSignalsCount} signal${weakSignalsCount > 1 ? 'aux' : ''} faible${weakSignalsCount > 1 ? 's' : ''} a verifier en data`}. Couvre fondateurs, clients, gouvernance et traction independante.
+              </p>
+
+              {priorityOrder.length > 0 && (
+                <div className="refcheck-priority">
+                  <div className="refcheck-priority-label">Ordre prioritaire</div>
+                  <ol className="refcheck-priority-list">
+                    {priorityOrder.map((p: string, i: number) => (
+                      <li key={i}>{p}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
+              {founderCount > 0 && (
+                <div className="refcheck-block">
+                  <div className="refcheck-block-head">
+                    <span className="refcheck-block-tag">Fondateurs</span>
+                    <span className="refcheck-block-count">{founderCount} profil{founderCount > 1 ? 's' : ''}</span>
+                  </div>
+                  {(refchecks.founderChecks || []).map((f: any, i: number) => (
+                    <div key={i} className="refcheck-item">
+                      <div className="refcheck-item-name">{f.founderName}</div>
+                      {(f.contactsToFind || []).length > 0 && (
+                        <div className="refcheck-item-detail">
+                          <span className="refcheck-item-detail-label">Contacts a trouver : </span>
+                          {(f.contactsToFind || []).map((c: any, j: number) => (
+                            <span key={j}>{c.profile}{j < (f.contactsToFind || []).length - 1 ? ', ' : ''}</span>
+                          ))}
+                        </div>
+                      )}
+                      {(f.keyQuestions || []).length > 0 && (
+                        <ul className="refcheck-questions">
+                          {(f.keyQuestions || []).slice(0, 3).map((q: string, j: number) => (
+                            <li key={j}>{q}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {customerCount > 0 && (
+                <div className="refcheck-block">
+                  <div className="refcheck-block-head">
+                    <span className="refcheck-block-tag">Clients</span>
+                    <span className="refcheck-block-count">{customerCount} a appeler</span>
+                  </div>
+                  {(refchecks.customerChecks || []).map((c: any, i: number) => (
+                    <div key={i} className="refcheck-item">
+                      <div className="refcheck-item-name">
+                        {c.clientName}
+                        {c.company && <span className="refcheck-item-name-company"> · {c.company}</span>}
+                        <span className={`refcheck-status refcheck-status-${c.contractStatus || 'unknown'}`}>{c.contractStatus || 'unknown'}</span>
+                      </div>
+                      {(c.keyQuestions || []).length > 0 && (
+                        <ul className="refcheck-questions">
+                          {(c.keyQuestions || []).slice(0, 3).map((q: string, j: number) => (
+                            <li key={j}>{q}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {boardCount > 0 && (
+                <div className="refcheck-block">
+                  <div className="refcheck-block-head">
+                    <span className="refcheck-block-tag">Gouvernance</span>
+                    <span className="refcheck-block-count">{boardCount} membre{boardCount > 1 ? 's' : ''}</span>
+                  </div>
+                  {(refchecks.boardChecks || []).map((b: any, i: number) => (
+                    <div key={i} className="refcheck-item">
+                      <div className="refcheck-item-name">
+                        {b.memberName}
+                        <span className="refcheck-item-name-company"> · {b.role}</span>
+                        {b.affiliation && <span className="refcheck-item-name-company"> · {b.affiliation}</span>}
+                      </div>
+                      {(b.keyQuestions || []).length > 0 && (
+                        <ul className="refcheck-questions">
+                          {(b.keyQuestions || []).slice(0, 2).map((q: string, j: number) => (
+                            <li key={j}>{q}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {weakSignalsCount > 0 && (
+                <div className="refcheck-block">
+                  <div className="refcheck-block-head">
+                    <span className="refcheck-block-tag">Signaux faibles</span>
+                    <span className="refcheck-block-count">{weakSignalsCount} a verifier en data</span>
+                  </div>
+                  {(refchecks.weakSignalsChecks || []).map((w: any, i: number) => (
+                    <div key={i} className="refcheck-item">
+                      <div className="refcheck-item-name">
+                        <span className="refcheck-item-name-company">{w.signalType}</span> · {w.target}
+                      </div>
+                      <div className="refcheck-item-detail">{w.rationale}</div>
+                      <div className="refcheck-item-detail muted">Marqueur attendu : {w.expectedFinding}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {redFlags.length > 0 && (
+                <div className="refcheck-redflags">
+                  <div className="refcheck-redflags-label">Drapeaux rouges a creuser</div>
+                  <ul className="refcheck-redflags-list">
+                    {redFlags.map((f: string, i: number) => (
+                      <li key={i}>{f}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* ============================================================
             BLOC 2 - DATA ROOM (DD approfondie)
@@ -5092,6 +5245,150 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           padding: 3px 10px;
           margin-right: 12px;
           font-weight: 700;
+        }
+
+        /* REFERENCE CHECKS - Plan d appels DD terrain
+           Section dense en bas de la note pour donner au partner
+           le plan de DD direct exploitable, classe par categorie. */
+        .refcheck-priority {
+          margin: 16px 0 24px;
+          padding: 14px 18px;
+          background: var(--paper-accent);
+          border-left: 3px solid var(--accent);
+        }
+        .refcheck-priority-label {
+          font-family: var(--sans);
+          font-size: 10px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--muted);
+          font-weight: 600;
+          margin-bottom: 8px;
+        }
+        .refcheck-priority-list {
+          margin: 0;
+          padding-left: 18px;
+          font-family: var(--serif);
+          font-size: 13.5px;
+          line-height: 1.55;
+          color: var(--ink);
+        }
+        .refcheck-priority-list li {
+          margin-bottom: 4px;
+        }
+        .refcheck-block {
+          margin: 20px 0 24px;
+        }
+        .refcheck-block-head {
+          display: flex;
+          align-items: baseline;
+          gap: 14px;
+          padding-bottom: 8px;
+          margin-bottom: 12px;
+          border-bottom: 1px solid var(--hairline);
+        }
+        .refcheck-block-tag {
+          font-family: var(--sans);
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--accent);
+          font-weight: 600;
+        }
+        .refcheck-block-count {
+          font-family: var(--serif);
+          font-size: 12.5px;
+          font-style: italic;
+          color: var(--muted);
+        }
+        .refcheck-item {
+          padding: 12px 0 14px;
+          border-bottom: 1px solid var(--hairline);
+        }
+        .refcheck-item:last-child {
+          border-bottom: none;
+        }
+        .refcheck-item-name {
+          font-family: var(--serif);
+          font-size: 14.5px;
+          font-weight: 600;
+          color: var(--ink);
+          margin-bottom: 6px;
+        }
+        .refcheck-item-name-company {
+          font-weight: 400;
+          font-style: italic;
+          color: var(--muted);
+        }
+        .refcheck-item-detail {
+          font-family: var(--serif);
+          font-size: 13px;
+          color: var(--ink-soft);
+          line-height: 1.5;
+          margin-bottom: 6px;
+        }
+        .refcheck-item-detail.muted {
+          color: var(--muted);
+          font-style: italic;
+        }
+        .refcheck-item-detail-label {
+          font-family: var(--sans);
+          font-size: 10.5px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--muted);
+          font-weight: 500;
+        }
+        .refcheck-questions {
+          margin: 6px 0 0;
+          padding-left: 18px;
+          font-family: var(--serif);
+          font-size: 13px;
+          line-height: 1.55;
+          color: var(--ink-soft);
+        }
+        .refcheck-questions li {
+          margin-bottom: 3px;
+        }
+        .refcheck-status {
+          margin-left: 10px;
+          font-family: var(--sans);
+          font-size: 9.5px;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          font-weight: 500;
+          padding: 2px 8px;
+          border-radius: 2px;
+        }
+        .refcheck-status-unknown { background: var(--hairline); color: var(--muted); }
+        .refcheck-status-pilot { background: rgba(180, 95, 30, 0.15); color: rgb(180, 95, 30); }
+        .refcheck-status-contract { background: rgba(21, 128, 61, 0.15); color: rgb(21, 128, 61); }
+        .refcheck-status-announced { background: rgba(94, 75, 41, 0.15); color: rgb(94, 75, 41); }
+        .refcheck-redflags {
+          margin: 24px 0;
+          padding: 18px 22px;
+          background: var(--rouge-anglais-soft);
+          border-left: 3px solid var(--rouge-anglais);
+        }
+        .refcheck-redflags-label {
+          font-family: var(--sans);
+          font-size: 10.5px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--rouge-anglais);
+          font-weight: 600;
+          margin-bottom: 10px;
+        }
+        .refcheck-redflags-list {
+          margin: 0;
+          padding-left: 18px;
+          font-family: var(--serif);
+          font-size: 13.5px;
+          line-height: 1.55;
+          color: var(--ink);
+        }
+        .refcheck-redflags-list li {
+          margin-bottom: 5px;
         }
 
         /* DATELINE - Date d'analyse stylée comme une dateline d'article presse.
