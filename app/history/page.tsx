@@ -112,6 +112,69 @@ export default function HistoryPage() {
     }
   }, [verdictFilter, stageFilter, searchQuery]);
 
+  /**
+   * Export CSV de la liste de dossiers actuellement filtree. Utile pour
+   * un partner qui veut partager son pipeline en comite, ou un analyste
+   * qui veut faire des stats croisees dans Excel. Genere le fichier cote
+   * client (pas de round-trip serveur), nomme avec la date du jour.
+   *
+   * Colonnes : nom societe, secteur, sous-secteur, pays, annee fondation,
+   * tour, montant EUR, verdict, score global, score vigilance, score
+   * coherence, stade workflow, derniere transition, versions, commentaires
+   * ouverts, presence Bloc 2, date de creation.
+   *
+   * Encode les champs avec virgule, guillemet ou retour ligne en double-
+   * guillemet pour la conformite CSV. UTF-8 BOM en tete pour qu Excel
+   * ouvre correctement les accents en francais.
+   */
+  const exportCsv = useCallback(() => {
+    if (analyses.length === 0) return;
+    const header = [
+      'Societe', 'Secteur', 'Sous-secteur', 'Pays', 'Annee fondation',
+      'Tour', 'Montant EUR', 'Verdict', 'Score global', 'Score vigilance',
+      'Score coherence', 'Stade', 'Derniere transition', 'Versions',
+      'Commentaires ouverts', 'Bloc 2', 'Date analyse',
+    ];
+    const escape = (value: any): string => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+    const rows = analyses.map(a => [
+      a.companyName,
+      a.sector || '',
+      a.subSector || '',
+      a.country || '',
+      a.yearFounded || '',
+      a.roundType || '',
+      a.roundAmountEur || '',
+      a.verdict || '',
+      a.globalScore ?? '',
+      a.blindspotScore ?? '',
+      a.coherenceScore ?? '',
+      STAGE_LABELS[a.workflowStage || 'deposited'] || a.workflowStage || '',
+      a.workflowStageUpdatedAt ? new Date(a.workflowStageUpdatedAt).toLocaleDateString('fr-FR') : '',
+      a.versionsCount,
+      a.openCommentsCount,
+      a.hasBloc2 ? 'oui' : 'non',
+      a.createdAt ? new Date(a.createdAt).toLocaleDateString('fr-FR') : '',
+    ].map(escape).join(','));
+    const csv = '\uFEFF' + [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    link.download = `prelude-portefeuille-${today}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [analyses]);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -374,6 +437,27 @@ export default function HistoryPage() {
           <option value="approfondir">Approfondir</option>
           <option value="refuser">Refuser</option>
         </select>
+        <button
+          onClick={exportCsv}
+          disabled={analyses.length === 0}
+          title="Exporter la liste filtree en CSV (compatible Excel et Google Sheets)"
+          style={{
+            padding: '10px 16px',
+            fontSize: 12.5,
+            border: '1px solid var(--ink)',
+            background: 'transparent',
+            color: 'var(--ink)',
+            fontFamily: 'var(--serif)',
+            borderRadius: 8,
+            cursor: analyses.length === 0 ? 'not-allowed' : 'pointer',
+            opacity: analyses.length === 0 ? 0.4 : 1,
+            outline: 'none',
+            letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Export CSV ({analyses.length})
+        </button>
       </div>
 
       {loading ? (
