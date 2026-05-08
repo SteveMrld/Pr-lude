@@ -77,10 +77,10 @@ pour eviter les diagnostics par analogie hative.
 - **Growth Subsidized Model** : voir `growth-subsidized-model.md`
 - **Infrastructure Hostage** : voir `infrastructure-hostage.md`
 - **Fixed Cost Trap** : voir `fixed-cost-trap.md`
+- **Regulatory Time Bomb** : voir `regulatory-time-bomb.md`
 
 ### Patterns a rediger
 
-- Regulatory Time Bomb
 - Commoditization Drift
 - Capital Structure Fragility
 - Scale Mirage Risk
