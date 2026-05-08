@@ -1869,7 +1869,43 @@ export default function HomeClient({
           </>
         )}
 
-        {analyzing && (
+        {analyzing && (() => {
+          // ECRAN DEDIE PRE-SCAN
+          // Tant que le pre-scan tourne et qu aucun moteur Bloc 1 n a
+          // commence, on affiche un ecran simple "Pre-scan en cours"
+          // au lieu de la liste de 22 moteurs tous en idle. Cela rend
+          // l attente plus lisible et cohere avec la doctrine Bloc 0
+          // separe : le pre-scan est un triage qui peut s arreter le
+          // pipeline, il merite un ecran dedie. Une fois le pre-scan
+          // valide, on bascule automatiquement sur la vue pipeline
+          // standard avec tous les moteurs.
+          const prescanState = engineStates['prescan']?.status;
+          const extractionState = engineStates['extraction']?.status;
+          const inPrescanPhase = prescanState === 'running' && extractionState === 'idle';
+          if (inPrescanPhase) {
+            return (
+              <div className="prescan-fullscreen">
+                <div className="prescan-fullscreen-eyebrow">Bloc 0 · Triage</div>
+                <div className="prescan-fullscreen-title">Pré-scan en cours</div>
+                <div className="prescan-fullscreen-pulse" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <p className="prescan-fullscreen-text">
+                  Six à dix tests éliminatoires sont appliqués au dossier selon la thèse du fonds. Si l&apos;un d&apos;eux échoue, le pipeline complet n&apos;est pas déclenché et le verdict apparaît directement en tête de page. Sinon l&apos;analyse continue automatiquement avec les quatorze moteurs Bloc 1.
+                </p>
+                <div className="prescan-fullscreen-meta">
+                  Durée typique 15 à 30 secondes · Coût marginal moins de 0,10 USD
+                </div>
+                <div className="prescan-fullscreen-timer">
+                  {Math.floor(pipelineElapsedMs / 1000)} s écoulées
+                </div>
+              </div>
+            );
+          }
+          // Sinon, vue pipeline standard
+          return (
           <div className="pipeline">
             <div className="pipeline-head">
               <div className="pipeline-title">Pipeline en cours d&apos;exécution</div>
@@ -1964,7 +2000,8 @@ export default function HomeClient({
               );
             })}
           </div>
-        )}
+          );
+        })()}
 
         {result && (
           <>

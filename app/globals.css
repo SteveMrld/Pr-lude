@@ -2160,6 +2160,88 @@ ul, ol { list-style: none; }
   margin-bottom: 28px;
   border-left-width: 4px;
 }
+
+/* ECRAN DEDIE PRE-SCAN
+   Affiche pendant que le pre-scan tourne et qu aucun moteur Bloc 1
+   n a commence. Au lieu d afficher la liste des 22 moteurs tous en
+   idle, on offre une vue dediee qui rend l attente lisible. */
+.prescan-fullscreen {
+  max-width: 640px;
+  margin: 64px auto;
+  padding: 56px 40px;
+  text-align: center;
+  font-family: var(--serif);
+}
+.prescan-fullscreen-eyebrow {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.prescan-fullscreen-title {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+}
+.prescan-fullscreen-pulse {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 32px 0;
+}
+.prescan-fullscreen-pulse span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+  animation: prescanPulse 1.4s ease-in-out infinite;
+}
+.prescan-fullscreen-pulse span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.prescan-fullscreen-pulse span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes prescanPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+.prescan-fullscreen-text {
+  font-family: var(--serif);
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  margin: 24px 0 24px;
+  text-align: left;
+}
+.prescan-fullscreen-meta {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.prescan-fullscreen-timer {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
 .prescan-gate-eyebrow {
   font-family: var(--sans);
   font-size: 10.5px;
