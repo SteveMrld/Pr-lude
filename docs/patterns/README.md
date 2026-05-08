@@ -79,10 +79,10 @@ pour eviter les diagnostics par analogie hative.
 - **Fixed Cost Trap** : voir `fixed-cost-trap.md`
 - **Regulatory Time Bomb** : voir `regulatory-time-bomb.md`
 - **Commoditization Drift** : voir `commoditization-drift.md`
+- **Capital Structure Fragility** : voir `capital-structure-fragility.md`
 
 ### Patterns a rediger
 
-- Capital Structure Fragility
 - Scale Mirage Risk
 
 ### Modules trans-stade non encore demarres
