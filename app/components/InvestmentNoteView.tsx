@@ -394,6 +394,16 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         const globalScore = reco.computedScoreBreakdown?.finalComputedScore
           ?? reco.globalScore
           ?? null;
+        // Guard contre les analyses tres anciennes ou corrompues qui n ont
+        // ni verdict ni score : dans ce cas on n affiche pas la couverture
+        // pour eviter d offrir un cartouche vide. Le partner verra
+        // directement la section 1 Societe sans page de couverture, ce
+        // qui est preferable a une couverture degenerée. La condition
+        // est large : il suffit d avoir soit un verdict soit un score
+        // pour que la couverture s affiche.
+        if (!reco.verdict && globalScore === null) {
+          return null;
+        }
         const successProb = typeof reco.successProbability === 'number'
           ? reco.successProbability
           : null;
