@@ -120,6 +120,17 @@ export interface RelevanceMatrix {
     valuationVcMethod: RelevanceVerdict;
     executionFriction: RelevanceVerdict;
     narrativeDrift: RelevanceVerdict;
+    /** Bloc Phase 4 : sept patterns du moteur Fragilite Structurelle.
+     *  Active conditionnellement selon stade et nature du dossier. */
+    fragiliteStructurelle: {
+      'growth-subsidized-model': RelevanceVerdict;
+      'infrastructure-hostage': RelevanceVerdict;
+      'fixed-cost-trap': RelevanceVerdict;
+      'regulatory-time-bomb': RelevanceVerdict;
+      'commoditization-drift': RelevanceVerdict;
+      'capital-structure-fragility': RelevanceVerdict;
+      'scale-mirage-risk': RelevanceVerdict;
+    };
   };
 }
 
@@ -1016,6 +1027,227 @@ function buildNarrativeDriftVerdict(maturity: NarrativeMaturity, hasMinimalCorpu
 }
 
 // ============================================================
+// FRAGILITE STRUCTURELLE : SEPT VERDICTS PATTERNS PHASE 4
+// ------------------------------------------------------------
+// Chaque pattern a sa propre logique d activation, calibree sur
+// la doctrine ecrite dans docs/patterns/. La matrice declenche
+// le pattern (full / partial / none) selon stade et secteur, le
+// pattern lui-meme fait son check fin d applicabilite a partir
+// du contenu du dossier.
+//
+// Les patterns Phase 4 ne remplacent pas les douze moteurs Bloc 1.
+// Ils s y ajoutent pour les dossiers Series B et au-dela
+// principalement, avec des activations precoces pour certains
+// patterns specifiques (regulatory-time-bomb tous stades si
+// secteur regule, commoditization-drift Series A si knowledge
+// work).
+// ============================================================
+
+/**
+ * Active a partir de Series A en partial, Series B+ en full.
+ * Hors-scope sur les modeles ou la marge unitaire n est pas
+ * mesurable (project-based, contract-b2g).
+ */
+function buildGrowthSubsidizedVerdict(maturity: NarrativeMaturity, businessModel: BusinessModel): RelevanceVerdict {
+  if (businessModel === 'project-based' || businessModel === 'contract-b2g') {
+    return {
+      applicable: 'none',
+      weight: 0,
+      scope: [],
+      rationale: 'Hors-scope : modele projet ou contrat-public, la marge unitaire n est pas la metrique pertinente.',
+    };
+  }
+  if (maturity === 'series-b-plus') {
+    return { applicable: 'full', weight: 1, scope: [], rationale: 'Series B et au-dela : moment ou Growth Subsidized devient diagnostique. Le pattern WeWork s exprime typiquement a partir de ce stade.' };
+  }
+  if (maturity === 'series-a') {
+    return { applicable: 'full', weight: 0.85, scope: [], rationale: 'Series A : matiere unit economics suffisante pour mesurer la subvention de croissance.' };
+  }
+  if (maturity === 'seed') {
+    return { applicable: 'partial', weight: 0.5, scope: ['lecture indicative unit economics'], rationale: 'Stade seed : unit economics encore en construction, lecture indicative sur la trajectoire.' };
+  }
+  return { applicable: 'partial', weight: 0.4, scope: ['lecture indicative'], rationale: 'Stade non identifiable : pattern lance en mode lecture indicative.' };
+}
+
+/**
+ * Active des Series A pour SaaS/IA, full des Series B+. Hors-scope
+ * hardware-physical et infrastructure-physical (geopolitique deja
+ * couverte par macroGeopolitical).
+ */
+function buildInfrastructureHostageVerdict(maturity: NarrativeMaturity, productionChain: ProductionChain): RelevanceVerdict {
+  if (productionChain === 'hardware-physical' || productionChain === 'infrastructure-physical' || productionChain === 'wet-biotech') {
+    return {
+      applicable: 'partial',
+      weight: 0.3,
+      scope: ['couche logicielle ou cloud uniquement'],
+      rationale: 'Modele hardware ou biotech : exposition fournisseur deja couverte par macroGeopolitical pour les composants strategiques. Le pattern reste actif sur la couche logicielle ou cloud non triviale si elle existe.',
+    };
+  }
+  if (maturity === 'series-b-plus') {
+    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth : la dependance s est generalement verrouillee dans le code et les contrats, le pattern est pleinement diagnostique.' };
+  }
+  if (maturity === 'series-a') {
+    return { applicable: 'full', weight: 0.85, scope: [], rationale: 'Series A : la stack technique est suffisamment formee pour evaluer la concentration des fournisseurs.' };
+  }
+  if (maturity === 'seed') {
+    return { applicable: 'partial', weight: 0.45, scope: ['lecture stack actuelle'], rationale: 'Stade seed : pattern utile principalement pour les wrappers d API LLM pure-play sans differenciation.' };
+  }
+  return { applicable: 'partial', weight: 0.35, scope: ['lecture stack actuelle'], rationale: 'Stade non identifiable : pattern lance en mode lecture stack actuelle.' };
+}
+
+/**
+ * Critique en Series B+ pour asset-heavy. Hors-scope SaaS pure
+ * cloud (variabilisation rapide possible) et project-based.
+ */
+function buildFixedCostTrapVerdict(maturity: NarrativeMaturity, productionChain: ProductionChain, businessModel: BusinessModel): RelevanceVerdict {
+  // SaaS pure cloud sans composante hardware lourde : fixed costs
+  // dominees par payroll, generalement variabilisable. Hors scope
+  // sauf cas specifique.
+  if (productionChain === 'pure-software' && businessModel === 'recurrent-saas') {
+    return {
+      applicable: 'partial',
+      weight: 0.3,
+      scope: ['payroll et engagements long-terme uniquement'],
+      rationale: 'SaaS pure cloud : fixed costs typiquement variabilisables (cloud downscaling, layoff). Pattern en lecture limitee sur les engagements long-terme contractuels eventuels.',
+    };
+  }
+  if (businessModel === 'project-based' || businessModel === 'contract-b2g') {
+    return {
+      applicable: 'none',
+      weight: 0,
+      scope: [],
+      rationale: 'Hors-scope : modele projet ou contrat-public, structure de couts intrinsequement consubstantielle au business.',
+    };
+  }
+  if (maturity === 'series-b-plus') {
+    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth pour modele asset-heavy : moment ou Fixed Cost Trap est typiquement diagnostique. Pattern WeWork canonique.' };
+  }
+  if (maturity === 'series-a') {
+    return { applicable: 'partial', weight: 0.55, scope: ['premiers engagements long-terme'], rationale: 'Series A : les engagements long-terme commencent a se materialiser, lecture utile.' };
+  }
+  return {
+    applicable: 'partial',
+    weight: 0.3,
+    scope: ['lecture indicative'],
+    rationale: 'Stade precoce : peu d engagements long-terme typiquement, pattern en lecture indicative.',
+  };
+}
+
+/**
+ * Tous stades si secteur regule ou en zone grise. Hors-scope SaaS
+ * B2B pur non regule, content marketplaces sans flux financier.
+ *
+ * La detection sectorielle est partielle : la matrice n a pas
+ * acces a une categorisation reglementaire fine, le pattern fait
+ * sa propre detection avec web search en aval.
+ */
+function buildRegulatoryTimeBombVerdict(text: string, businessModel: BusinessModel): RelevanceVerdict {
+  // Mots-cles indicatifs de secteur regule. Pas exhaustif, le
+  // pattern lui-meme verifie en aval. Word boundaries pour eviter
+  // les faux positifs (ai dans paie ou plain).
+  const reguleKeywords = /\b(finance|fintech|banque|bank|credit|paiement|payment|assurance|insurance|sante|health|biotech|pharma|defense|defence|telecom|crypto|blockchain|drone|autonomous|gig|livreur|chauffeur|driver|ai|artificial intelligence|machine learning|llm|foundation model)\b|ride[ -]?hailing|food delivery|airbnb|location courte duree|short[ -]?term rental/i;
+  const isRegule = reguleKeywords.test(text);
+
+  // Marketplaces et contract-b2g sont par nature regules ou en
+  // contact direct avec le regulateur.
+  const marketplaceOrPublic = businessModel === 'marketplace' || businessModel === 'contract-b2g';
+
+  if (!isRegule && !marketplaceOrPublic) {
+    return {
+      applicable: 'none',
+      weight: 0,
+      scope: [],
+      rationale: 'Secteur sans exposition reglementaire significative detectable au pre-screen. Le pattern reste activable manuellement par le partner si necessaire.',
+    };
+  }
+  // Secteur regule : pattern actif a tous stades, full
+  return {
+    applicable: 'full',
+    weight: 0.85,
+    scope: [],
+    rationale: `Secteur regule ou en zone grise detecte (${marketplaceOrPublic ? 'marketplace ou contrat public' : 'mots-cles reglementaires presents'}). Pattern actif independamment du stade : une regulation a venir frappe la jeune boite avec la meme force que la mature.`,
+  };
+}
+
+/**
+ * Active des Series A pour knowledge work et SaaS. Full Series B+
+ * avec poids special pour les SaaS verticaux ergonomiques.
+ * Hors-scope hardware-physical et services a forte composante
+ * physique.
+ */
+function buildCommoditizationDriftVerdict(maturity: NarrativeMaturity, productionChain: ProductionChain, businessModel: BusinessModel): RelevanceVerdict {
+  if (productionChain === 'hardware-physical' || productionChain === 'infrastructure-physical' || productionChain === 'wet-biotech') {
+    return {
+      applicable: 'none',
+      weight: 0,
+      scope: [],
+      rationale: 'Hors-scope : modele physique, valeur produite necessite presence operationnelle terrain non automatisable a court terme.',
+    };
+  }
+  if (businessModel === 'project-based' || businessModel === 'contract-b2g') {
+    return {
+      applicable: 'partial',
+      weight: 0.4,
+      scope: ['couche cognitive du contrat uniquement'],
+      rationale: 'Modele projet ou contrat-public : la commoditisation IA peut attaquer la couche conseil ou production cognitive, mais pas la relation contractuelle elle-meme.',
+    };
+  }
+  if (maturity === 'series-b-plus') {
+    return { applicable: 'full', weight: 1, scope: [], rationale: 'Growth pour knowledge work : moment ou les moats sont censes tenir et ou la valorisation suppose leur robustesse face aux outils IA.' };
+  }
+  if (maturity === 'series-a') {
+    return { applicable: 'full', weight: 0.85, scope: [], rationale: 'Series A pour knowledge work : la position concurrentielle commence a se cristalliser, l erosion est mesurable.' };
+  }
+  return { applicable: 'partial', weight: 0.5, scope: ['lecture moats actuels'], rationale: 'Stade seed/precoce : pattern utile pour identifier les wrappers IA pure-play sans differenciation des le pre-seed.' };
+}
+
+/**
+ * Critique en Series B+. Pertinent en Series A si premieres
+ * preferences creatives accumulees. Independant du business model
+ * parce que la cap table est un sujet equity, pas operationnel.
+ */
+function buildCapitalStructureFragilityVerdict(maturity: NarrativeMaturity): RelevanceVerdict {
+  if (maturity === 'series-b-plus') {
+    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth : la complexite cap table s accumule de maniere combinatoire de tour en tour. Pattern critique en pre-IPO et lors d un down round potentiel.' };
+  }
+  if (maturity === 'series-a') {
+    return { applicable: 'partial', weight: 0.55, scope: ['premieres preferences accumulees'], rationale: 'Series A : pattern actif si premieres preferences creatives au seed, sinon en lecture preventive sur la term sheet courante.' };
+  }
+  return {
+    applicable: 'partial',
+    weight: 0.3,
+    scope: ['lecture preventive term sheet courante'],
+    rationale: 'Stade precoce : peu de complexite typiquement, pattern actif en lecture preventive sur la term sheet en cours de negociation.',
+  };
+}
+
+/**
+ * Active des Series A pour deeptech/hardware/industriel. Critique
+ * Series B+ ou s engage typiquement l industrialisation. Hors-scope
+ * SaaS pure cloud, services pure, content marketplaces.
+ */
+function buildScaleMirageRiskVerdict(maturity: NarrativeMaturity, productionChain: ProductionChain): RelevanceVerdict {
+  if (productionChain === 'pure-software') {
+    return {
+      applicable: 'none',
+      weight: 0,
+      scope: [],
+      rationale: 'Hors-scope : pure software sans capex industriel. Le pattern reste activable manuellement si data centers proprietaires significatifs.',
+    };
+  }
+  if (maturity === 'series-b-plus') {
+    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth pour modele industriel : moment ou s engage typiquement l industrialisation. Pattern Ynsect canonique.' };
+  }
+  if (maturity === 'series-a') {
+    return { applicable: 'full', weight: 0.8, scope: [], rationale: 'Series A pour deeptech ou hardware : la these de mise a l echelle industrielle est souvent au coeur de la levee, le pattern detecte le mirage de calibration.' };
+  }
+  if (maturity === 'seed') {
+    return { applicable: 'partial', weight: 0.4, scope: ['lecture plan industrialisation'], rationale: 'Stade seed : capex pas encore engages mais le plan d industrialisation est lisible et evaluable.' };
+  }
+  return { applicable: 'partial', weight: 0.3, scope: ['lecture plan industrialisation'], rationale: 'Stade non identifiable : lecture du plan industrialisation declare.' };
+}
+
+// ============================================================
 // POINT D ENTREE
 // ============================================================
 
@@ -1064,6 +1296,15 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
     valuationVcMethod: buildValuationVcMethodVerdict(businessModel),
     executionFriction: buildExecutionFrictionVerdict(productionChain, supplyChain.level),
     narrativeDrift: buildNarrativeDriftVerdict(narrativeMaturity, hasMinimalCorpus),
+    fragiliteStructurelle: {
+      'growth-subsidized-model': buildGrowthSubsidizedVerdict(narrativeMaturity, businessModel),
+      'infrastructure-hostage': buildInfrastructureHostageVerdict(narrativeMaturity, productionChain),
+      'fixed-cost-trap': buildFixedCostTrapVerdict(narrativeMaturity, productionChain, businessModel),
+      'regulatory-time-bomb': buildRegulatoryTimeBombVerdict(text, businessModel),
+      'commoditization-drift': buildCommoditizationDriftVerdict(narrativeMaturity, productionChain, businessModel),
+      'capital-structure-fragility': buildCapitalStructureFragilityVerdict(narrativeMaturity),
+      'scale-mirage-risk': buildScaleMirageRiskVerdict(narrativeMaturity, productionChain),
+    },
   };
 
   return {
