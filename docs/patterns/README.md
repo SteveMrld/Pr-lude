@@ -75,10 +75,10 @@ pour eviter les diagnostics par analogie hative.
 ### Patterns redigees a integrer
 
 - **Growth Subsidized Model** : voir `growth-subsidized-model.md`
+- **Infrastructure Hostage** : voir `infrastructure-hostage.md`
 
 ### Patterns a rediger
 
-- Infrastructure Hostage
 - Fixed Cost Trap
 - Regulatory Time Bomb
 - Commoditization Drift
