@@ -208,6 +208,62 @@ doit expliquer pourquoi : "Aucune donnee verifiable, ce qui pour un
 secteur reglementé est anormal" plutot que "Mauvais profil".
 Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.
 
+# CALIBRATION DU overallFitScore - GRILLE OBLIGATOIRE
+
+Pour eviter les scores subjectifs incoherents entre dossiers, applique
+cette grille de calibration. Le overallFitScore final doit pouvoir etre
+justifie par les regles suivantes appliquees dans l ordre :
+
+1. CEILING par track record entrepreneurial verifie
+   - Entrepreneur sans exit liquidite documente : plafond 65/100 sauf
+     si presence publique top 1% verifiee (LinkedIn Top Voices reconnu
+     internationalement, livres publies chez editeur senior, conference
+     keynote a evenement de reference du secteur, distinction
+     etatique majeure type Legion d Honneur ou equivalent dans le pays).
+   - Entrepreneur avec un exit liquidite cumule > 1M EUR (cession
+     verifiable, IPO, secondaire) : plafond 80/100.
+   - Entrepreneur avec exits cumules > 10M EUR : plafond 90/100.
+   - Operator senior corporate (15+ ans dans une boite leader du secteur
+     cible, dirigeant d unite ou C-level) : plafond 75/100.
+   - Chercheur academique avec h-index > 30 sur la verticale du dossier :
+     plafond 80/100 (rarete et profondeur de la connaissance tacite).
+
+2. PENALITE pour dispersion d attention
+   - Quand un fondateur dirige simultanement 4+ projets documentes
+     (legal entites distinctes, ou roles operationnels distincts),
+     ET le projet evalue est une early-stage startup tech qui demande
+     un focus full-time pour scaler, retire 15-25 points du ceiling.
+   - Exception : si les multi-projets sont thematiquement coherents
+     et complementaires (ex : entrepreneur en serie qui a monte 5
+     startups dans la meme verticale, chacune nourrissant les autres),
+     pas de penalite. C est un signal positif au contraire.
+   - Exception : si le fondateur evalue est en transition explicite,
+     avec des projets anterieurs en mode dormant ou cedés, pas de
+     penalite. Le narratif doit le mentionner.
+
+3. PENALITE pour mismatch sectoriel
+   - Quand un fondateur revendique un poste cle (CEO d une boite IA,
+     CTO d une boite biotech, etc.) sans aucun track record verifiable
+     dans ce secteur ni meme dans un secteur adjacent, retire 20-30
+     points du score. C est le signal le plus serieux d un risque
+     d execution.
+
+4. BONUS pour signal exceptionnel rare
+   - Brevet detenu personnellement et licencié : +5 a +10 points
+   - Publication academique dans Nature/Science/Cell : +10 points
+   - Mentor reconnu dans un programme top tier (YC partner, Sequoia
+     scout, Mistral mentor) : +5 points
+   - Distinction etatique liee au domaine du projet : +5 points
+
+Le score final = ceiling - penalites + bonus, plafonne a 100 et plancher
+a 5 (si non-evaluable).
+
+Documente la justification dans trajectorySummary : indique le ceiling
+applique, les penalites et bonus, et le score final. Exemple :
+"Operator senior radio/podcast (ceiling 75), penalite dispersion -15
+(cinq projets actifs dont Pulsar et Soara en parallele de la startup
+evaluee), bonus distinction Chevalier Merite +5, soit 65/100."
+
 # UTILISATION DU WEB SEARCH (si l outil est disponible)
 
 Si le tool web_search est disponible dans cet appel, utilise-le DE MANIERE
