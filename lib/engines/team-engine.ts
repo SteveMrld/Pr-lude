@@ -208,6 +208,79 @@ doit expliquer pourquoi : "Aucune donnee verifiable, ce qui pour un
 secteur reglementé est anormal" plutot que "Mauvais profil".
 Sois rigoureux. Quand les sources publiques confirment fortement le déclaré, c'est un green flag. Quand le déclaré n'est pas vérifiable, c'est à instruire mais pas un red flag automatique.
 
+# CALIBRATION DES QUATRE AXES TEAM - SCORES CHIFFRES OBLIGATOIRES
+
+Les quatre axes systemicCoverage, collectiveAntiFragility, experienceTransposition,
+founderObsession composent le score Equipe global du dossier. Ces quatre scores
+DOIVENT etre chiffres entre 0 et 100 dans CHAQUE analyse, sans exception. Le
+silence des sources web (OpenAlex, GitHub, Wikipedia) ne justifie JAMAIS un
+score null, undefined ou omis : il appelle un score chiffre base sur le pitch
+deck, accompagne d un rationale qui documente sur quelles informations le score
+repose et ce qui reste a verifier en DD.
+
+Une omission de score sur un de ces axes est traitee en aval comme valeur
+neutre 50 ET affichee a l UI comme "Donnees insuffisantes", ce qui prive le
+partner d un signal exploitable. Si tu n as vraiment aucun signal exploitable
+(equipe non identifiee, pitch sans nom de fondateur), produis un score 5-15
+explicite et documente la raison dans rationale.
+
+GRILLE SYSTEMIC COVERAGE (couverture des axes critiques de l execution)
+- 80-90 : equipe couvrant Tech + Biz + Sales + Industrial avec seniorities
+  adequates pour le stade et le secteur. Dans hardware industriel, ajouter
+  un axe ops/manufacturing.
+- 60-75 : trois axes couverts, un axe gappe documente. Exemple : duo
+  technique + business solide mais absence de signal sales senior.
+- 40-55 : deux axes couverts, deux gaps majeurs. Frequent en seed early
+  ou les fondateurs portent toutes les casquettes.
+- 20-35 : un axe couvert, trois gaps critiques. Signal d alerte sur la
+  capacite a recruter et structurer.
+- 5-15 : equipe non identifiable, aucun fondateur nomme dans le pitch.
+
+GRILLE ANTI-FRAGILITY (capacite a operer sous contrainte)
+- 80-90 : track record d echecs traverses ou de pivots reussis, exits
+  cumules, ou parcours sous contrainte verifiable (immigration, deuil,
+  crise majeure surmontee dans un job precedent).
+- 60-75 : au moins un fondateur avec experience adverse documentee
+  (poste senior dans une boite en restructuration, premiere startup
+  fermee proprement, etc.).
+- 40-55 : credentials standards (top ecoles, conseil/banque, corporate
+  classique) sans stress documente. Cas le plus frequent.
+- 20-35 : equipe premiere startup, parcours lineaire sans signal
+  d adversite traversee, jeunes diplomes.
+- 5-15 : fondateurs introuvables, biographies absentes, impossible de
+  poser un jugement meme prudent.
+
+GRILLE TRANSPOSITION (experience transposable au probleme du dossier)
+- 80-90 : deux fondateurs ou plus ayant opere dans la verticale exacte
+  du dossier (ex : ex-cadre operateur de bornes pour un dossier charging,
+  ex-clinicien pour un dossier medtech).
+- 60-75 : un fondateur sur la verticale, autres sur des secteurs
+  adjacents ou complementaires.
+- 40-55 : adjacencies thematiques sans match direct (ex : conseil
+  strategie + ingenieur generaliste pour un dossier hardware industriel).
+- 20-35 : pivot complet vs experiences passees, peu de signaux
+  d adequation au probleme.
+- 5-15 : aucune experience transposable identifiable.
+
+GRILLE FOUNDER OBSESSION (engagement long terme et profondeur du sujet)
+- 80-90 : 5+ ans dans le probleme, brevets personnels, publications
+  academiques sur le sujet, history de pivots dans la meme verticale.
+- 60-75 : 2-5 ans d engagement documente, signaux de connaissance
+  accumulee (interviews techniques, contributions a la communaute).
+- 40-55 : engagement recent mais coherent avec parcours, motivation
+  articulee dans le pitch.
+- 20-35 : projet jeune sans deep history sur le sujet, narratif
+  d obsession non documente par les faits.
+- 5-15 : opportuniste, projet aligne sur un theme "hot" sans liens
+  avec le passe des fondateurs.
+
+Documente dans chaque rationale le niveau de la grille applique ET sur
+quoi tu te bases (pitch ou source web specifique). Exemple :
+"Couverture systemique 55/100 (niveau 40-55, deux axes couverts) : duo
+Centralien (CEO/COO) sur business + ops, plus CTO inventeur trottinettes
+electriques sur tech. Pas de signal sales senior ni de directeur
+industriel, gaps majeurs pour rampe 161 a 3202 bornes 2025."
+
 # CALIBRATION DU overallFitScore - GRILLE OBLIGATOIRE
 
 Pour eviter les scores subjectifs incoherents entre dossiers, applique
