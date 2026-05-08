@@ -69,10 +69,27 @@ export async function callClaude(
   const useWebSearch = options.enableWebSearch ?? isWebSearchEnabled();
   const maxWebSearches = options.maxWebSearches ?? 3;
 
+  // Caching automatique du system prompt si suffisamment long.
+  // Anthropic exige 1024 tokens minimum pour activer le caching sur
+  // Sonnet, 2048 pour Haiku. On approxime tokens = chars / 4 pour
+  // decider d activer le caching. Seuil 4000 chars (1000 tokens) qui
+  // garantit que les prompts cibles passent. Les prompts plus courts
+  // (rare, certains moteurs deterministes ont des prompts compacts)
+  // restent en mode legacy pour eviter des frais sans benefice.
+  //
+  // Le caching system prompt s active surtout entre dossiers consecutifs
+  // dans une fenetre de 5 minutes : si Steve enchaine 2 dossiers, le
+  // 2e paie 10% du tarif input pour les system prompts caches du 1er.
+  // Sur 14 moteurs Bloc 1 dont la majorite ont un system prompt > 4000
+  // chars, l economie cumulee atteint ~0,15 USD par dossier consecutif.
+  const enableSystemCaching = systemPrompt.length >= 4000;
+
   const requestParams: any = {
     model,
     max_tokens: maxTokens,
-    system: systemPrompt,
+    system: enableSystemCaching
+      ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
+      : systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   };
 
@@ -122,6 +139,16 @@ export async function callClaude(
   // ============================================================
   if (useWebSearch) {
     combined = stripCiteTags(combined);
+  }
+
+  // Logging metriques de cache : si caching actif, note la repartition.
+  // Permet de monitorer l efficacite du caching system prompt en prod
+  // via les logs Vercel. Cumulable avec les logs cache du callClaudeWithPDF.
+  const usage = (response as any).usage || {};
+  if (usage.cache_creation_input_tokens || usage.cache_read_input_tokens) {
+    console.log(
+      `[anthropic] cache write=${usage.cache_creation_input_tokens || 0} read=${usage.cache_read_input_tokens || 0} regular=${usage.input_tokens || 0} model=${model}`,
+    );
   }
 
   return combined;
