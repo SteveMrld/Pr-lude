@@ -282,7 +282,23 @@ export default function HomeClient({
   // onglets : vision (pourquoi + pour qui), method (les 4 temps et
   // 18 moteurs), deliverables (note + data room), sources
   // (calibration externe et standards juridiques).
-  const [landingTab, setLandingTab] = useState<'vision' | 'method' | 'deliverables' | 'sources'>('vision');
+  // Persiste en localStorage pour que la preference de lecture
+  // (un partner qui aime entrer par Methode) survive aux refresh.
+  const [landingTab, setLandingTab] = useState<'vision' | 'method' | 'deliverables' | 'sources'>(() => {
+    if (typeof window === 'undefined') return 'vision';
+    try {
+      const stored = localStorage.getItem('prelude_landing_tab');
+      if (stored === 'vision' || stored === 'method' || stored === 'deliverables' || stored === 'sources') {
+        return stored;
+      }
+    } catch {}
+    return 'vision';
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('prelude_landing_tab', landingTab);
+    } catch {}
+  }, [landingTab]);
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
   const [printMode, setPrintMode] = useState(false); // quand true, toutes les sections rendues simultanement pour export PDF complet
   // Note d investissement : mode compact (lecture rapide) vs mode complet
