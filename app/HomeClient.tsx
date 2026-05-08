@@ -3244,6 +3244,7 @@ export default function HomeClient({
                     { id: 'singularite', label: 'Singularités', picto: 'sparkle' },
                     { id: 'blindspots',  label: 'Angles morts', picto: 'blindspot' },
                     { id: 'narrative',   label: 'Lecture du langage', picto: 'argumentation' },
+                    { id: 'fragility',   label: 'Fragilité structurelle', picto: 'risques' },
                   ],
                 },
                 {
@@ -4172,6 +4173,174 @@ export default function HomeClient({
                       <div style={{ padding: 14, borderLeft: '3px solid var(--ocre, #a8743a)', background: 'rgba(168, 116, 58, 0.06)' }}>
                         <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>A investiguer</div>
                         <p style={{ fontSize: 13, margin: 0, lineHeight: 1.55 }}>{ndr.recommandationDD}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {(activeTab === 'fragility' || printMode) && (() => {
+                const fsr = result.fragiliteStructurelle;
+                const fsv = result.relevanceMatrix?.verdicts?.fragiliteStructurelle;
+                if (!fsr && !fsv) return null;
+
+                // Cas matrice tous patterns non applicables
+                if (!fsr && fsv && Object.values(fsv).every((v: any) => v.applicable === 'none')) {
+                  return (
+                    <div style={{ padding: '28px 32px' }}>
+                      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                        Fragilite structurelle
+                      </h3>
+                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', fontSize: 13, opacity: 0.85 }}>
+                        <div style={{ fontWeight: 500, marginBottom: 4 }}>Non applicable sur ce dossier</div>
+                        <div>Aucun des sept patterns Phase 4 ne s applique a ce dossier selon la matrice de pertinence (stade et profil sectoriel hors-scope).</div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Cas moteur lance mais payload null
+                if (!fsr) {
+                  return (
+                    <div style={{ padding: '28px 32px' }}>
+                      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                        Fragilite structurelle
+                      </h3>
+                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ocre-brule, #a04040)', fontSize: 13, opacity: 0.85 }}>
+                        Lecture indisponible (incident transitoire). Au moins un pattern etait pourtant retenu par la matrice. Relancer l analyse pour reproduire.
+                      </div>
+                    </div>
+                  );
+                }
+
+                const verdictBg: Record<string, { bg: string; ink: string; label: string }> = {
+                  'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                  'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
+                  'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
+                  'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
+                  'non-applicable': { bg: '#f5f0e3', ink: '#666', label: 'Non applicable' },
+                };
+                const v = verdictBg[fsr.verdict] || verdictBg['attention'];
+
+                const patternIds = ['growth-subsidized-model', 'infrastructure-hostage', 'fixed-cost-trap', 'regulatory-time-bomb', 'commoditization-drift', 'capital-structure-fragility', 'scale-mirage-risk'] as const;
+                const patternLabels: Record<string, string> = {
+                  'growth-subsidized-model': 'Croissance subventionnee',
+                  'infrastructure-hostage': 'Captivite infrastructure',
+                  'fixed-cost-trap': 'Couts fixes incompressibles',
+                  'regulatory-time-bomb': 'Risque reglementaire date',
+                  'commoditization-drift': 'Erosion de defensibilite',
+                  'capital-structure-fragility': 'Fragilite cap table',
+                  'scale-mirage-risk': 'Industrialisation prematuree',
+                };
+
+                return (
+                  <div style={{ padding: '28px 32px' }}>
+                    <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                      Fragilite structurelle
+                    </h3>
+
+                    {/* Bandeau verdict global */}
+                    <div style={{ marginBottom: 20, padding: '14px 18px', background: v.bg, borderLeft: `3px solid ${v.ink}` }}>
+                      <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
+                        <div>
+                          <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: v.ink }}>Verdict global </span>
+                          <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: v.ink }}>{v.label}</span>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: v.ink }}>Score de fragilite </span>
+                          <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: v.ink }}>{fsr.globalFragilityScore}/100</span>
+                        </div>
+                        <div style={{ fontSize: 12, opacity: 0.75, color: v.ink }}>
+                          {Object.values(fsr.patterns).filter((p: any) => p && p.applicabilite !== 'not-applicable').length} patterns sur 7 actifs
+                        </div>
+                      </div>
+                      <p style={{ fontSize: 13, margin: 0, fontStyle: 'italic', color: v.ink, opacity: 0.9 }}>
+                        {fsr.resumeEditorial}
+                      </p>
+                    </div>
+
+                    {/* Combinaisons diagnostiques */}
+                    {fsr.combinaisons && fsr.combinaisons.length > 0 && (
+                      <div style={{ marginBottom: 20, padding: 14, borderLeft: '3px solid var(--ocre-brule, #8a4a17)', background: 'rgba(138, 74, 23, 0.06)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 10, color: 'var(--ocre-brule, #8a4a17)', fontWeight: 600 }}>
+                          Combinaisons diagnostiques detectees
+                        </div>
+                        {fsr.combinaisons.map((comb: any, i: number) => (
+                          <div key={i} style={{ marginBottom: i < fsr.combinaisons.length - 1 ? 12 : 0 }}>
+                            <div style={{ fontFamily: 'var(--serif)', fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+                              {comb.nom}
+                              <span style={{ fontSize: 11, marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                {comb.severite.replace('-', ' ')}
+                              </span>
+                            </div>
+                            <p style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.9 }}>{comb.rationale}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Cartes des sept patterns en grille */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, marginBottom: 24 }}>
+                      {patternIds.map((patternId) => {
+                        const p = fsr.patterns?.[patternId];
+                        const label = patternLabels[patternId] ?? patternId;
+
+                        if (!p || p.applicabilite === 'not-applicable') {
+                          return (
+                            <div key={patternId} style={{ padding: 14, border: '1px dashed var(--hairline)', opacity: 0.55 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, marginBottom: 6 }}>{label}</div>
+                              <div style={{ fontSize: 12, fontStyle: 'italic' }}>{p?.applicabiliteRationale || 'Non applicable sur ce dossier.'}</div>
+                            </div>
+                          );
+                        }
+
+                        const tone: Record<string, string> = {
+                          'sain': '#3f4a2b',
+                          'attention': '#7a5a1d',
+                          'alerte': '#8a4a17',
+                          'drapeau-rouge': '#7a2916',
+                        };
+                        const c = tone[p.verdict] || '#3f4a2b';
+
+                        return (
+                          <div key={patternId} style={{ padding: 16, border: '1px solid var(--hairline)', borderLeft: `3px solid ${c}` }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>{label}</div>
+                              <div style={{ fontSize: 11, color: c, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{p.verdict.replace('-', ' ')}</div>
+                            </div>
+                            <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>
+                              Score {p.globalScore}/100
+                            </div>
+                            {p.resumeEditorial && (
+                              <p style={{ fontSize: 13, lineHeight: 1.55, marginTop: 0, marginBottom: 8 }}>{p.resumeEditorial}</p>
+                            )}
+                            {p.counterArchetype?.closest && p.counterArchetype.closest !== 'non determine' && (
+                              <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>
+                                <strong style={{ fontWeight: 500 }}>Archetype proche :</strong> {p.counterArchetype.closest}
+                                <span style={{ opacity: 0.7, marginLeft: 4 }}>
+                                  ({p.counterArchetype.direction === 'derive-confirmee' ? 'derive confirmee' : 'trajectoire saine'})
+                                </span>
+                              </div>
+                            )}
+                            {p.recommandationDD && (
+                              <div style={{ fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hairline)', opacity: 0.85 }}>
+                                <strong style={{ fontWeight: 500 }}>DD :</strong> {p.recommandationDD}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Recommandations DD consolidees */}
+                    {fsr.recommandationsDD && fsr.recommandationsDD.length > 0 && (
+                      <div style={{ padding: 14, borderLeft: '3px solid var(--ocre, #a8743a)', background: 'rgba(168, 116, 58, 0.06)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 10, fontWeight: 600 }}>A investiguer en DD</div>
+                        <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.7 }}>
+                          {fsr.recommandationsDD.map((reco: string, i: number) => (
+                            <li key={i} style={{ marginBottom: 4 }}>{reco}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                   </div>
