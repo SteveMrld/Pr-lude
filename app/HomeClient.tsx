@@ -3242,6 +3242,7 @@ export default function HomeClient({
                     { id: 'aveuglement', label: 'Vigilance critique',  picto: 'blindspot' },
                     { id: 'singularite', label: 'Singularités', picto: 'sparkle' },
                     { id: 'blindspots',  label: 'Angles morts', picto: 'blindspot' },
+                    { id: 'narrative',   label: 'Lecture du langage', picto: 'argumentation' },
                   ],
                 },
                 {
@@ -3960,6 +3961,221 @@ export default function HomeClient({
                   )}
                 </div>
               )}
+
+              {(activeTab === 'narrative' || printMode) && (() => {
+                const ndr = result.narrativeDrift;
+                const ndv = result.relevanceMatrix?.verdicts?.narrativeDrift;
+                if (!ndr && !ndv) return null;
+
+                // Cas matrice declare none : on rend un encart court
+                // pour la transparence du perimetre, sans faux signal.
+                if (!ndr && ndv && ndv.applicable === 'none') {
+                  return (
+                    <div style={{ padding: '28px 32px' }}>
+                      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                        Lecture du langage
+                      </h3>
+                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', fontSize: 13, opacity: 0.85 }}>
+                        <div style={{ fontWeight: 500, marginBottom: 4 }}>Non applicable sur ce dossier</div>
+                        <div>{ndv.rationale}</div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Cas moteur lance mais payload null : incident transitoire.
+                if (!ndr) {
+                  return (
+                    <div style={{ padding: '28px 32px' }}>
+                      <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                        Lecture du langage
+                      </h3>
+                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ocre-brule, #a04040)', fontSize: 13, opacity: 0.85 }}>
+                        Lecture indisponible (incident transitoire). Le moteur etait pourtant retenu par la matrice ({ndv?.rationale?.toLowerCase() || 'verdict applicable'}). Relancer l analyse pour reproduire.
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Cas nominal : moteur a produit son analyse.
+                const verdictBg: Record<string, { bg: string; ink: string; label: string }> = {
+                  'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                  'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
+                  'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
+                  'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
+                };
+                const v = verdictBg[ndr.verdict] || verdictBg['attention'];
+                const axes: Array<{ key: string; label: string; data: any }> = [
+                  { key: 'glissementIndicateurs', label: 'Glissement des indicateurs', data: ndr.glissementIndicateurs },
+                  { key: 'opaciteProgressive', label: 'Opacite progressive', data: ndr.opaciteProgressive },
+                  { key: 'narrativePremiumCollapse', label: 'Decalage recit / fondamentaux', data: ndr.narrativePremiumCollapse },
+                ];
+
+                return (
+                  <div style={{ padding: '28px 32px' }}>
+                    <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
+                      Lecture du langage
+                    </h3>
+
+                    {/* Bandeau verdict + score, dans la palette ocre. */}
+                    <div style={{ marginBottom: 20, padding: '14px 18px', background: v.bg, borderLeft: `3px solid ${v.ink}` }}>
+                      <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
+                        <div>
+                          <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: v.ink }}>Verdict global </span>
+                          <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: v.ink }}>{v.label}</span>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: v.ink }}>Score de derive </span>
+                          <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: v.ink }}>{ndr.globalDriftScore}/100</span>
+                        </div>
+                        <div style={{ fontSize: 12, opacity: 0.75, color: v.ink }}>
+                          Champ d&apos;application : {ndr.applicabilite === 'full' ? 'complet' : ndr.applicabilite === 'partial' ? 'partiel' : ndr.applicabilite === 'weak-signal' ? 'signal faible' : 'non applicable'}
+                        </div>
+                      </div>
+                      <p style={{ fontSize: 13, margin: 0, fontStyle: 'italic', color: v.ink, opacity: 0.9 }}>
+                        {ndr.applicabiliteRationale}
+                      </p>
+                    </div>
+
+                    {/* Bloc des metriques lexicales, en grand pour lecture editoriale. */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
+                      <div style={{ padding: 16, border: '1px solid var(--hairline)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Densite concrete</div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500 }}>{ndr.metriquesLexicales.densiteConcrete.toFixed(1)}</div>
+                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>mots concrets / 1000 (sain ≥ 30)</div>
+                      </div>
+                      <div style={{ padding: 16, border: '1px solid var(--hairline)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Ratio abstrait/concret</div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500 }}>{ndr.metriquesLexicales.ratioAbstraitConcret.toFixed(2)}</div>
+                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>sain &lt; 0,3, drapeau rouge &gt; 2</div>
+                      </div>
+                      <div style={{ padding: 16, border: '1px solid var(--hairline)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Score d&apos;opacite</div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500 }}>{ndr.metriquesLexicales.opaciteScore.toFixed(1)}%</div>
+                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>jargon non chiffre</div>
+                      </div>
+                      <div style={{ padding: 16, border: '1px solid var(--hairline)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Corpus analyse</div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500 }}>{ndr.metriquesLexicales.totalWordsAnalyses}</div>
+                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>mots</div>
+                      </div>
+                    </div>
+
+                    {/* Top abstraits / concrets : observation directe du
+                        vocabulaire dominant. Aide le partner a calibrer
+                        sa propre lecture du pitch. */}
+                    {(ndr.metriquesLexicales.topAbstractWords?.length > 0 || ndr.metriquesLexicales.topConcreteWords?.length > 0) && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
+                        {ndr.metriquesLexicales.topAbstractWords?.length > 0 && (
+                          <div style={{ padding: 14, border: '1px solid var(--hairline)' }}>
+                            <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 8 }}>Vocabulaire abstrait dominant</div>
+                            <div style={{ fontSize: 13, lineHeight: 1.7 }}>
+                              {ndr.metriquesLexicales.topAbstractWords.slice(0, 8).map((w: any, i: number) => (
+                                <span key={i} style={{ marginRight: 12, opacity: 0.85 }}>
+                                  <strong style={{ fontWeight: 500 }}>{w.word}</strong>
+                                  <span style={{ opacity: 0.55 }}> ×{w.count}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {ndr.metriquesLexicales.topConcreteWords?.length > 0 && (
+                          <div style={{ padding: 14, border: '1px solid var(--hairline)' }}>
+                            <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 8 }}>Vocabulaire concret dominant</div>
+                            <div style={{ fontSize: 13, lineHeight: 1.7 }}>
+                              {ndr.metriquesLexicales.topConcreteWords.slice(0, 8).map((w: any, i: number) => (
+                                <span key={i} style={{ marginRight: 12, opacity: 0.85 }}>
+                                  <strong style={{ fontWeight: 500 }}>{w.word}</strong>
+                                  <span style={{ opacity: 0.55 }}> ×{w.count}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Trois axes en grille, chacun avec son verdict propre. */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, marginBottom: 24 }}>
+                      {axes.map((axis) => {
+                        const a = axis.data;
+                        if (!a) return null;
+                        const tone: Record<string, string> = {
+                          'sain': '#3f4a2b',
+                          'attention': '#7a5a1d',
+                          'alerte': '#8a4a17',
+                          'drapeau-rouge': '#7a2916',
+                          'non-applicable': '#888',
+                        };
+                        const c = tone[a.verdict] || tone['attention'];
+                        return (
+                          <div key={axis.key} style={{ padding: 16, border: '1px solid var(--hairline)', borderLeft: `3px solid ${c}` }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>{axis.label}</div>
+                              <div style={{ fontSize: 11, color: c, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{a.verdict.replace('-', ' ')}</div>
+                            </div>
+                            {a.verdict !== 'non-applicable' ? (
+                              <>
+                                <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>
+                                  Score {a.score}/100 · confiance {a.confidence}/100
+                                </div>
+                                <p style={{ fontSize: 13, lineHeight: 1.55, marginTop: 0, marginBottom: 10 }}>{a.rationale}</p>
+                                {a.evidencePro?.length > 0 && (
+                                  <div style={{ fontSize: 12, marginBottom: 6 }}>
+                                    <strong style={{ fontWeight: 500, color: c }}>Au charge :</strong> {a.evidencePro.join(' ')}
+                                  </div>
+                                )}
+                                {a.evidenceContra?.length > 0 && (
+                                  <div style={{ fontSize: 12, opacity: 0.85 }}>
+                                    <strong style={{ fontWeight: 500 }}>Au contraire :</strong> {a.evidenceContra.join(' ')}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div style={{ fontSize: 12, opacity: 0.55, fontStyle: 'italic' }}>{a.rationale || 'Non applicable sur ce dossier.'}</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Counter-archetype : situe le dossier dans une trajectoire historique. */}
+                    {ndr.counterArchetype?.closest && ndr.counterArchetype.closest !== 'non determine' && (
+                      <div style={{ marginBottom: 18, padding: 14, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Archetype le plus proche</div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500, marginBottom: 6 }}>
+                          {ndr.counterArchetype.closest}
+                          <span style={{ fontSize: 12, opacity: 0.7, marginLeft: 8, fontWeight: 400 }}>
+                            {ndr.counterArchetype.direction === 'derive-confirmee' ? 'trajectoire de derive confirmee' : 'trajectoire saine'}
+                          </span>
+                        </div>
+                        {ndr.counterArchetype.rationale && (
+                          <p style={{ fontSize: 13, margin: 0, opacity: 0.85 }}>{ndr.counterArchetype.rationale}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Trajectoire si baseline anterieur disponible. */}
+                    {ndr.trajectory && (
+                      <div style={{ marginBottom: 18, padding: 14, border: '1px solid var(--hairline)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Trajectoire</div>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, marginBottom: 6 }}>
+                          {ndr.trajectory.interpretation === 'aggravation' ? 'Aggravation' : ndr.trajectory.interpretation === 'amelioration' ? 'Amelioration' : 'Stabilisation'}
+                        </div>
+                        <p style={{ fontSize: 13, margin: 0, opacity: 0.85 }}>{ndr.trajectory.rationale}</p>
+                      </div>
+                    )}
+
+                    {/* Recommandation DD encadree. */}
+                    {ndr.recommandationDD && (
+                      <div style={{ padding: 14, borderLeft: '3px solid var(--ocre, #a8743a)', background: 'rgba(168, 116, 58, 0.06)' }}>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>A investiguer</div>
+                        <p style={{ fontSize: 13, margin: 0, lineHeight: 1.55 }}>{ndr.recommandationDD}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {(activeTab === 'team' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
