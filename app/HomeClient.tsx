@@ -14,22 +14,7 @@ import ThemeToggle from './components/ThemeToggle';
 import CommentsPanel from './components/CommentsPanel';
 import VersionSelector from './components/VersionSelector';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
-import {
-  PictoSeal,
-  PictoFlag,
-  PictoCompass,
-  PictoEye,
-  PictoNet,
-  PictoScale,
-  PictoGlobe,
-  PictoHourglass,
-  PictoDocument,
-  PictoTeam,
-  PictoPyramid,
-  PictoPhone,
-  PictoSpiral,
-  ENGINE_PICTOS,
-} from './components/Pictos';
+import { ENGINE_PICTOS } from './components/Pictos';
 import { Picto } from './components/Picto';
 
 // Liste des moteurs affiches pendant l execution. Organisee selon
