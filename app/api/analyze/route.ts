@@ -823,8 +823,26 @@ export async function POST(req: NextRequest) {
               forcePrescan,
             },
           });
+
+          // Traduction des erreurs Anthropic en messages actionnables
+          // pour l utilisateur final. Sans ce traitement, le partner
+          // voit un JSON brut illisible dans le bandeau erreur, alors
+          // que la cause est souvent une limite cote console Anthropic
+          // qu il peut lever lui-meme en deux clics.
+          let userMessage = error.message || 'Erreur pipeline';
+          const rawMessage = String(error.message || '');
+          if (rawMessage.includes('specified API usage limits')) {
+            userMessage = 'Limite de consommation Anthropic atteinte. La cle API a un plafond mensuel configure dans la console Anthropic. Pour relancer immediatement les analyses, va sur https://console.anthropic.com/settings/limits et augmente ou supprime le Spend limit. Tu peux aussi consulter ta consommation reelle sur https://console.anthropic.com/settings/usage. La limite se reset automatiquement le 1er du mois suivant.';
+          } else if (rawMessage.includes('rate_limit_error') || rawMessage.includes('rate_limit_exceeded')) {
+            userMessage = 'Limite de requetes par minute Anthropic temporairement saturee (rafale d analyses simultanees). Patiente une minute et relance. Si le probleme persiste, augmente ton tier dans https://console.anthropic.com/settings/limits.';
+          } else if (rawMessage.includes('overloaded_error') || rawMessage.includes('529')) {
+            userMessage = 'Surcharge transitoire des serveurs Anthropic. Patiente une minute et relance. C est rare et passager.';
+          } else if (rawMessage.includes('credit_balance_too_low') || rawMessage.includes('insufficient_quota')) {
+            userMessage = 'Solde de credits Anthropic epuise. Recharge sur https://console.anthropic.com/settings/billing puis relance.';
+          }
+
           send('error', {
-            message: error.message || 'Erreur pipeline',
+            message: userMessage,
             stack: error.stack ? String(error.stack).slice(0, 500) : undefined,
           });
         } finally {

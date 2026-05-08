@@ -749,13 +749,71 @@ export default function HomeClient({
   }
 
 
-  async function analyze(opts: { forcePrescan?: boolean } = {}) {
+  async function analyze(opts: { forcePrescan?: boolean; skipDuplicateCheck?: boolean } = {}) {
     if (files.length === 0) return;
     const hasPdf = files.some(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
     if (!hasPdf) {
       setError('Au moins un fichier PDF (pitch deck) est requis');
       return;
     }
+
+    // GARDE-FOU CONTRE LES RE-RUNS ACCIDENTELS
+    // ----------------------------------------------------------
+    // Une analyse Bloc 1 complete coute environ 2,50 USD de credits
+    // Anthropic. Tester un meme dossier 5 fois dans la nuit (cas
+    // typique en developpement ou QA) brule 12,50 USD pour rien
+    // si le code ne change pas significativement. Le garde-fou
+    // calcule un hash SHA-256 du PDF principal et le compare aux
+    // hashs des analyses lancees dans les 7 derniers jours stockes
+    // en localStorage. En cas de match, popup de confirmation qui
+    // propose au choix de voir l analyse existante (gratuit) ou
+    // de relancer quand meme (paye 2,50 USD).
+    if (!opts.skipDuplicateCheck && typeof window !== 'undefined') {
+      try {
+        const pitchPdf = files.find(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
+        if (pitchPdf) {
+          const buffer = await pitchPdf.arrayBuffer();
+          const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+          const hashHex = Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+          const recentRunsRaw = localStorage.getItem('prelude_recent_runs') || '[]';
+          const recentRuns: Array<{ hash: string; analysisId: string | null; companyName: string; ts: number }> = JSON.parse(recentRunsRaw);
+          const now = Date.now();
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          const fresh = recentRuns.filter(r => now - r.ts < sevenDaysMs);
+          const match = fresh.find(r => r.hash === hashHex);
+          if (match) {
+            const ageHours = Math.floor((now - match.ts) / (60 * 60 * 1000));
+            const ageStr = ageHours < 1 ? 'moins d une heure' : ageHours < 24 ? `${ageHours} heures` : `${Math.floor(ageHours / 24)} jours`;
+            const userChoice = window.confirm(
+              `Ce dossier a deja ete analyse il y a ${ageStr} (${match.companyName || 'sans nom'}).\n\nLe pipeline complet coute environ 2,50 USD de credits Anthropic. Tu peux :\n\n- OK : voir l analyse existante (gratuit, instantane)\n- Annuler : relancer le pipeline complet (paye 2,50 USD)`
+            );
+            if (userChoice && match.analysisId) {
+              // L utilisateur veut voir l analyse existante : on redirige
+              window.location.href = `/?analysis=${match.analysisId}`;
+              return;
+            }
+            if (userChoice && !match.analysisId) {
+              // Hash connu mais pas d id d analyse persistee (cas degenere) :
+              // on continue le pipeline normalement.
+            }
+            // Si l utilisateur a cliqué Annuler, il veut relancer : on continue.
+          }
+          // Memoire du hash pour la prochaine fois : on stocke avant
+          // meme la fin du pipeline pour couvrir les cas d echec en
+          // cours (re-tentative immediate sera detectee comme doublon).
+          // L analysisId sera mis a jour quand le pipeline finira.
+          fresh.unshift({ hash: hashHex, analysisId: null, companyName: pitchPdf.name.replace(/\.pdf$/i, ''), ts: now });
+          localStorage.setItem('prelude_recent_runs', JSON.stringify(fresh.slice(0, 50)));
+        }
+      } catch (hashErr) {
+        // Ignore : crypto.subtle ou JSON.parse a echoue, on continue
+        // sans le garde-fou. Pas critique.
+        console.warn('[analyze] hash verification skipped:', hashErr);
+      }
+    }
+
     setAnalyzing(true);
     setError(null);
     setResult(null);
@@ -868,6 +926,25 @@ export default function HomeClient({
               // appelle /api/analyses pour persister.
               if (data?._persisted?.saved && data._persisted.id) {
                 setSavedAnalysisId(data._persisted.id);
+                // Mise a jour du garde-fou de re-run : on associe l id
+                // d analyse persistee au hash stocke en localStorage juste
+                // avant le pipeline. Ainsi, si l utilisateur relance le
+                // meme dossier, on pourra le rediriger vers l analyse
+                // existante au lieu de tout recalculer.
+                try {
+                  const recentRunsRaw = localStorage.getItem('prelude_recent_runs') || '[]';
+                  const recentRuns: Array<{ hash: string; analysisId: string | null; companyName: string; ts: number }> = JSON.parse(recentRunsRaw);
+                  if (recentRuns.length > 0 && !recentRuns[0].analysisId) {
+                    // L entree la plus recente sans analysisId est celle qu on vient de creer
+                    recentRuns[0].analysisId = data._persisted.id;
+                    if (data?.extraction?.companyName) {
+                      recentRuns[0].companyName = data.extraction.companyName;
+                    }
+                    localStorage.setItem('prelude_recent_runs', JSON.stringify(recentRuns));
+                  }
+                } catch (storageErr) {
+                  // Ignore : pas critique
+                }
               } else {
                 const sourceFilename = files[0]?.name || null;
                 const pipelineDurationMs = pipelineStartTime ? Date.now() - pipelineStartTime : null;
