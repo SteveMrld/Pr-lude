@@ -13,6 +13,7 @@ import { analyzeFinancialCoherence } from '@/lib/engines/financial-coherence-eng
 import { analyzeBenchmarks } from '@/lib/engines/benchmark-engine';
 import { analyzeTechClaimCoherence } from '@/lib/engines/tech-claim-coherence-engine';
 import { analyzeExecutionFriction } from '@/lib/engines/execution-friction-engine';
+import { analyzeNarrativeDrift } from '@/lib/engines/narrative-drift-engine';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { computeValuation } from '@/lib/engines/valuation-engine';
@@ -401,7 +402,7 @@ export async function POST(req: NextRequest) {
           // ============================================================
 
           // ============================================================
-          // VAGUE 3 : SIX MOTEURS EN PARALLELE
+          // VAGUE 3 : SIX MOTEURS EN PARALLELE + NARRATIVE DRIFT
           // ------------------------------------------------------------
           // Audit fonctionnel a constate que pattern, blindspot, contrarian,
           // financial-coherence, tech-claim et execution-friction sont
@@ -415,9 +416,16 @@ export async function POST(req: NextRequest) {
           // lent (typiquement blindspot 60-90s). Gain ~140s sur le temps
           // total du pipeline.
           //
-          // Risque maitrise : six appels Anthropic en pic. Sur Tier 2
+          // Septieme moteur : narrative-drift. Mesure le glissement
+          // lexical concret/abstrait sur le corpus du dossier (rawSummary
+          // + marketPitch + productDescription + businessModel). Conditionne
+          // par la matrice de pertinence : applicable=none signifie que
+          // le moteur est skippe. Le moteur fait son propre check fin
+          // d applicabilite si lance.
+          //
+          // Risque maitrise : sept appels Anthropic en pic. Sur Tier 2
           // (80k TPM Sonnet input), un dossier deeptech complexe peut
-          // pousser ~200k tokens en pic. La fenetre rate limit etant par
+          // pousser ~220k tokens en pic. La fenetre rate limit etant par
           // minute glissante, le pic est etale sur 60-90s donc tient.
           // Surveiller les 429 Anthropic dans les logs si symptomes.
           // ============================================================
@@ -428,7 +436,30 @@ export async function POST(req: NextRequest) {
           sendStart('tech-claim', 'Cohérence revendication technologique');
           sendStart('execution-friction', 'Friction d\'exécution');
 
+          // narrative-drift est conditionne par la matrice. Si la matrice
+          // declare le moteur non applicable (none), on n emet pas la
+          // tuile pipeline pour ne pas afficher un faux skip dans l UI.
+          // Le client, lui, voit le verdict de la matrice dans la note.
+          const narrativeDriftRequested = relevanceMatrix.verdicts.narrativeDrift.applicable !== 'none'
+            || (formData.get('forceNarrativeDrift') === '1');
+          if (narrativeDriftRequested) {
+            sendStart('narrative-drift', 'Lecture du langage');
+          }
+
           const rawSummary = (extraction as any)?.rawSummary || '';
+
+          // Composition du corpus pitch pour narrative-drift. On agrege
+          // les champs textuels denses de l extraction. Pas d ingestion
+          // d interviews ou de posts a ce stade : ces sources externes
+          // arriveront en V2 du moteur. Avec ce seul corpus, l applicabilite
+          // calculee par le moteur sera typiquement 'partial' (pas de
+          // baseline temporel).
+          const narrativeDriftPitchText = [
+            (extraction as any)?.rawSummary,
+            (extraction as any)?.marketPitch,
+            (extraction as any)?.productDescription,
+            (extraction as any)?.businessModel,
+          ].filter(Boolean).join('\n\n').trim();
 
           const [
             patternMatching,
@@ -437,6 +468,7 @@ export async function POST(req: NextRequest) {
             financialCoherence,
             techClaimCoherence,
             executionFriction,
+            narrativeDrift,
           ] = await Promise.all([
             matchPatterns(extraction, team, market, macro)
               .then(r => { sendDone('pattern', r); return r; }),
@@ -452,6 +484,19 @@ export async function POST(req: NextRequest) {
             analyzeExecutionFriction(extraction, financialData ?? null, rawSummary)
               .then(r => { sendDone('execution-friction', r); return r; })
               .catch(err => { logException('pipeline.execution-friction', err, { severity: 'warning' }); sendDone('execution-friction', null); return null; }),
+            // narrative-drift : conditionne par la matrice OU forcable
+            // par flag dev. En non-applicable, on resoud immediatement
+            // sur null (la note saura dire pourquoi a partir du verdict
+            // de matrice). En cas d echec LLM, non-bloquant.
+            narrativeDriftRequested
+              ? analyzeNarrativeDrift({
+                  extraction,
+                  pitchText: narrativeDriftPitchText,
+                  fundNote: fundDimensionalNotes?.market || null,
+                })
+                  .then(r => { sendDone('narrative-drift', r); return r; })
+                  .catch(err => { logException('pipeline.narrative-drift', err, { severity: 'warning' }); sendDone('narrative-drift', null); return null; })
+              : Promise.resolve(null),
           ]);
 
           // ============================================================
@@ -722,6 +767,13 @@ export async function POST(req: NextRequest) {
             // amont, persiste pour alimenter l encart "perimetre d
             // analyse" de la note d investissement.
             relevanceMatrix,
+            // Lecture du langage : moteur transversal de derive
+            // narrative. Mesure le glissement concret/abstrait du
+            // discours sur le corpus du dossier (rawSummary +
+            // marketPitch + productDescription + businessModel).
+            // null si la matrice declare le moteur non applicable
+            // ou si l appel LLM a echoue (non-bloquant).
+            narrativeDrift,
           };
 
           // ============================================================

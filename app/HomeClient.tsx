@@ -46,6 +46,7 @@ const ENGINES: Array<{ id: string; name: string; label: string; block: EngineBlo
   { id: 'financial-coherence', name: 'Cohérence financière', label: 'Sept tests de cohérence des projections et unit economics', block: 'instruction' },
   { id: 'tech-claim', name: 'Cohérence revendication tech', label: 'Audit du moat technologique revendiqué : budget, traçabilité, contre-factuel', block: 'instruction' },
   { id: 'execution-friction', name: 'Friction d\'exécution', label: 'Huit axes : go-to-market, financement transactionnel, industrialisation, supply chain, écosystème, régulation, référencement, talent rare', block: 'instruction' },
+  { id: 'narrative-drift', name: 'Lecture du langage', label: 'Mesure du glissement concret/abstrait du discours et de la cohérence narrative dans le temps', block: 'instruction' },
   { id: 'orchestrate', name: 'Orchestration', label: 'Synthèse, probabilités chiffrées, résolution dialectique', block: 'instruction' },
   { id: 'reference-checks', name: 'Reference checks', label: 'Plan d\'appels DD terrain : fondateurs, clients, gouvernance', block: 'instruction' },
 
@@ -282,6 +283,30 @@ export default function HomeClient({
     totalTests: number;
   } | null>(null);
   const [dragging, setDragging] = useState(false);
+  // Mode dev : permet de forcer l execution du moteur narrative-drift
+  // (Lecture du langage) meme quand la matrice de pertinence le
+  // declare non applicable. Toggle exposé dans la zone d options
+  // d analyse, persiste en localStorage entre sessions pour le QA.
+  const [forceNarrativeDrift, setForceNarrativeDriftRaw] = useState<boolean>(false);
+  const setForceNarrativeDrift = (v: boolean) => {
+    setForceNarrativeDriftRaw(v);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('prelude_force_narrative_drift', v ? '1' : '0');
+      }
+    } catch {
+      // localStorage indisponible, on continue
+    }
+  };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const v = localStorage.getItem('prelude_force_narrative_drift');
+      if (v === '1') setForceNarrativeDriftRaw(true);
+    } catch {
+      // ignore
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState('synthesis');
   // Onglet actif sur la landing page : permet de presenter le
   // contenu en sections separees plutot qu en un long scroll. Quatre
@@ -778,7 +803,7 @@ export default function HomeClient({
   }
 
 
-  async function analyze(opts: { forcePrescan?: boolean; skipDuplicateCheck?: boolean } = {}) {
+  async function analyze(opts: { forcePrescan?: boolean; skipDuplicateCheck?: boolean; forceNarrativeDrift?: boolean } = {}) {
     if (files.length === 0) return;
     const hasPdf = files.some(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
     if (!hasPdf) {
@@ -882,6 +907,13 @@ export default function HomeClient({
       // serveur pour qu il bypasse le gating.
       if (opts.forcePrescan) {
         formData.append('forcePrescan', 'true');
+      }
+      // Mode dev : force l execution du moteur narrative-drift meme si
+      // la matrice de pertinence le declare non applicable. Sert au
+      // QA sur dossiers seed avec corpus court pour valider la
+      // robustesse du moteur en bord de plage.
+      if (opts.forceNarrativeDrift || forceNarrativeDrift) {
+        formData.append('forceNarrativeDrift', '1');
       }
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
@@ -2009,7 +2041,16 @@ export default function HomeClient({
                       style={{ display: 'none' }}
                       onChange={(e) => { handleFilesSelect(e.target.files); if (inputRef.current) inputRef.current.value = ''; }} />
                   </div>
-                  <div className="cta-row">
+                  <div className="cta-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-muted, #6b6657)', fontFamily: 'inherit', cursor: 'pointer', userSelect: 'none' }}>
+                      <input
+                        type="checkbox"
+                        checked={forceNarrativeDrift}
+                        onChange={(e) => setForceNarrativeDrift(e.target.checked)}
+                        style={{ accentColor: 'var(--ocre, #a8743a)' }}
+                      />
+                      <span>Forcer la lecture du langage <span style={{ opacity: 0.55 }}>(mode QA, dossiers seed)</span></span>
+                    </label>
                     <button className="btn btn-primary" onClick={() => analyze()}>Lancer le pipeline →</button>
                   </div>
                 </>
