@@ -214,6 +214,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   const ba = r.blindspotAnalysis;
   const ca = r.contrarianAnalysis;
   const pm = r.patternMatching;
+  const nd = r.narrativeDrift;
+  const ndVerdict = r.relevanceMatrix?.verdicts?.narrativeDrift;
   const reco = r.finalRecommendation || {};
   const dateAnalyzed = new Date(r.meta?.analyzedAt || Date.now()).toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric'
@@ -314,6 +316,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <li><a href="#engine-section-contrarian" className="note-toc-link note-toc-sub">Plaidoyer en faveur</a></li>
           <li><a href="#engine-section-blindspot" className="note-toc-link note-toc-sub">Plaidoyer contre</a></li>
           <li><a href="#engine-section-orchestrate-resolution" className="note-toc-link note-toc-sub">Résolution dialectique</a></li>
+          <li><a href="#engine-section-narrative-drift" className="note-toc-link note-toc-sub">Lecture du langage</a></li>
           <li><a href="#engine-section-macro" className="note-toc-link note-toc-sub">Contexte macro</a></li>
           <li><a href="#engine-section-blindspot-risks" className="note-toc-link note-toc-sub">Cartographie des risques</a></li>
           <li><a href="#engine-section-financial-coherence" className="note-toc-link note-toc-sub">Examen financier</a></li>
@@ -1943,6 +1946,192 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             {splitIntoParagraphs(reco.blindspotsVsContrarian.resolution, 3).map((p, i) => (
               <p key={i} className="note-paragraph">{enrichProse(p)}</p>
             ))}
+          </>
+        )}
+
+        {/* Sous-section Lecture du langage : moteur transversal de derive
+            narrative. Mesure le glissement concret/abstrait du discours.
+            Le bloc s affiche systematiquement des qu un verdict de matrice
+            existe (meme non-applicable, pour la transparence du
+            perimetre d analyse). En sain, le ton est rassurant ; en
+            drapeau-rouge, l encart sert d alerte avant la cartographie
+            des risques. */}
+        {(nd || ndVerdict) && (
+          <>
+            <h3 className="note-h3" id="engine-section-narrative-drift">Lecture du langage</h3>
+
+            {/* Cas 1 : matrice declare none (pas de corpus exploitable
+                ou stade trop precoce sans corpus minimal). On affiche
+                un encart court qui explique pourquoi. */}
+            {!nd && ndVerdict && ndVerdict.applicable === 'none' && (
+              <p className="note-paragraph" style={{ opacity: 0.75 }}>
+                <em>Non applicable.</em> {ndVerdict.rationale}
+              </p>
+            )}
+
+            {/* Cas 2 : moteur lance mais pas de payload (echec LLM
+                non-bloquant cote pipeline). Transparence pour le
+                partner : on dit que la lecture n a pas pu etre produite. */}
+            {!nd && ndVerdict && ndVerdict.applicable !== 'none' && (
+              <p className="note-paragraph" style={{ opacity: 0.75 }}>
+                Lecture du langage indisponible pour ce dossier (incident transitoire). La matrice de pertinence avait pourtant retenu le moteur : {ndVerdict.rationale.toLowerCase()}
+              </p>
+            )}
+
+            {/* Cas 3 : le moteur a produit son analyse. On la rend dans
+                l ordre de lecture editoriale : verdict global, puis les
+                trois axes argumentes, puis le counter-archetype, puis la
+                recommandation DD. */}
+            {nd && (
+              <>
+                {/* Bandeau verdict global. Tonalites alignees sur l encre
+                    ocre Prelude, pas de SaaS, pas d emoji. */}
+                {(() => {
+                  const verdictColor: Record<string, { bg: string; ink: string; label: string }> = {
+                    'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                    'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
+                    'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
+                    'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
+                  };
+                  const v = verdictColor[nd.verdict] || verdictColor['attention'];
+                  return (
+                    <div className="verdict-box" style={{ marginBottom: 12, background: v.bg, borderColor: v.ink + '33' }}>
+                      <div className="verdict-line">
+                        <span className="verdict-label">Verdict global</span>
+                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{v.label}</span>
+                      </div>
+                      <div className="verdict-line">
+                        <span className="verdict-label">Score de derive</span>
+                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{nd.globalDriftScore}/100</span>
+                      </div>
+                      <div className="verdict-line">
+                        <span className="verdict-label">Champ d&apos;application</span>
+                        <span className="verdict-value">{nd.applicabilite === 'full' ? 'Complet' : nd.applicabilite === 'partial' ? 'Partiel' : nd.applicabilite === 'weak-signal' ? 'Signal faible' : '—'}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Phrase de cadrage : rationale de l applicabilite, dit
+                    au partner d ou le moteur tire ses conclusions. */}
+                <p className="note-paragraph" style={{ fontStyle: 'italic', opacity: 0.85 }}>
+                  {nd.applicabiliteRationale}
+                </p>
+
+                {/* Tableau des metriques lexicales objectives : ces
+                    chiffres sont calcules mecaniquement par la taxonomie,
+                    pas par le LLM. Ils servent d ancrage anti-hallucination. */}
+                <table className="note-table" style={{ marginTop: 8, marginBottom: 12 }}>
+                  <tbody>
+                    <tr>
+                      <td className="note-label">Densité concrète</td>
+                      <td className="note-value">{nd.metriquesLexicales.densiteConcrete.toFixed(1)} mots/1000 <span style={{ opacity: 0.55, fontSize: 11 }}>(sain ≥ 30, alerte &lt; 15)</span></td>
+                    </tr>
+                    <tr>
+                      <td className="note-label">Ratio abstrait/concret</td>
+                      <td className="note-value">{nd.metriquesLexicales.ratioAbstraitConcret.toFixed(2)} <span style={{ opacity: 0.55, fontSize: 11 }}>(sain &lt; 0,3, drapeau rouge &gt; 2)</span></td>
+                    </tr>
+                    <tr>
+                      <td className="note-label">Score d&apos;opacité</td>
+                      <td className="note-value">{nd.metriquesLexicales.opaciteScore.toFixed(1)}%</td>
+                    </tr>
+                    <tr>
+                      <td className="note-label">Corpus analysé</td>
+                      <td className="note-value">{nd.metriquesLexicales.totalWordsAnalyses} mots</td>
+                    </tr>
+                    {nd.metriquesLexicales.topAbstractWords?.length > 0 && (
+                      <tr>
+                        <td className="note-label">Top abstraits</td>
+                        <td className="note-value">{nd.metriquesLexicales.topAbstractWords.slice(0, 5).map((w: any) => `${w.word} (${w.count}x)`).join(', ')}</td>
+                      </tr>
+                    )}
+                    {nd.metriquesLexicales.topConcreteWords?.length > 0 && (
+                      <tr>
+                        <td className="note-label">Top concrets</td>
+                        <td className="note-value">{nd.metriquesLexicales.topConcreteWords.slice(0, 5).map((w: any) => `${w.word} (${w.count}x)`).join(', ')}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+
+                {/* Trois axes : glissement indicateurs, opacite progressive,
+                    narrative premium collapse. Chacun avec son verdict
+                    propre, son rationale et la symetrie evidence pro/contra. */}
+                {([
+                  { key: 'glissementIndicateurs', label: 'Glissement des indicateurs', data: nd.glissementIndicateurs },
+                  { key: 'opaciteProgressive', label: 'Opacité progressive', data: nd.opaciteProgressive },
+                  { key: 'narrativePremiumCollapse', label: 'Décalage récit / fondamentaux', data: nd.narrativePremiumCollapse },
+                ] as const).map((axis) => {
+                  const a = axis.data;
+                  if (!a || a.verdict === 'non-applicable') {
+                    return (
+                      <div key={axis.key} style={{ marginBottom: 14, paddingLeft: 12, borderLeft: '2px solid rgba(168, 116, 58, 0.2)' }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{axis.label}</div>
+                        <div style={{ opacity: 0.6, fontSize: 13, marginTop: 4 }}>Non applicable sur ce dossier (corpus ou baseline insuffisant).</div>
+                      </div>
+                    );
+                  }
+                  const verdictTone: Record<string, string> = {
+                    'sain': '#3f4a2b',
+                    'attention': '#7a5a1d',
+                    'alerte': '#8a4a17',
+                    'drapeau-rouge': '#7a2916',
+                  };
+                  const tone = verdictTone[a.verdict] || '#3f4a2b';
+                  return (
+                    <div key={axis.key} style={{ marginBottom: 14, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{axis.label}</div>
+                        <div style={{ fontSize: 12, color: tone, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{a.verdict.replace('-', ' ')}</div>
+                        <div style={{ fontSize: 12, opacity: 0.6 }}>{a.score}/100 · confiance {a.confidence}/100</div>
+                      </div>
+                      <p className="note-paragraph" style={{ marginTop: 6, marginBottom: 6 }}>{enrichProse(a.rationale)}</p>
+                      {a.evidencePro?.length > 0 && (
+                        <div style={{ fontSize: 13, marginBottom: 4 }}>
+                          <span style={{ fontWeight: 500, color: tone }}>Au charge : </span>
+                          <span>{a.evidencePro.join(' ')}</span>
+                        </div>
+                      )}
+                      {a.evidenceContra?.length > 0 && (
+                        <div style={{ fontSize: 13, marginBottom: 4 }}>
+                          <span style={{ fontWeight: 500, opacity: 0.75 }}>Au contraire : </span>
+                          <span style={{ opacity: 0.85 }}>{a.evidenceContra.join(' ')}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Counter-archetype : nom de la boite la plus proche
+                    par profil narratif. Sert au partner pour situer le
+                    dossier dans une trajectoire historique. */}
+                {nd.counterArchetype?.closest && nd.counterArchetype.closest !== 'non determine' && (
+                  <p className="note-paragraph" style={{ marginTop: 8 }}>
+                    <strong>Archétype le plus proche :</strong> {nd.counterArchetype.closest}
+                    {nd.counterArchetype.direction === 'derive-confirmee' ? ' (trajectoire de dérive confirmée)' : ' (trajectoire saine)'}
+                    {nd.counterArchetype.rationale ? '. ' + nd.counterArchetype.rationale : '.'}
+                  </p>
+                )}
+
+                {/* Trajectoire si baseline anterieur : delta entre la
+                    derniere analyse et celle-ci. Utile pour la
+                    re-evaluation periodique. */}
+                {nd.trajectory && (
+                  <p className="note-paragraph">
+                    <strong>Trajectoire :</strong> {nd.trajectory.interpretation}. {nd.trajectory.rationale}
+                  </p>
+                )}
+
+                {/* Recommandation DD : ce que le partner doit aller
+                    chercher en priorite pour confirmer ou infirmer la
+                    lecture du langage. */}
+                {nd.recommandationDD && (
+                  <p className="note-paragraph" style={{ marginTop: 8, padding: 10, background: 'rgba(168, 116, 58, 0.06)', borderLeft: '2px solid rgba(168, 116, 58, 0.4)' }}>
+                    <strong>À investiguer :</strong> {nd.recommandationDD}
+                  </p>
+                )}
+              </>
+            )}
           </>
         )}
 
