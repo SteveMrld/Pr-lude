@@ -527,7 +527,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </div>
 
             <div className="note-cover-footer">
-              <span>Lecture détaillée ci-dessous · {34} sections · 5 min</span>
+              <span>
+                Lecture détaillée ci-dessous · 6 sections principales
+                {r.meta?.durationMs && ` · analysée en ${Math.round(r.meta.durationMs / 1000)}s`}
+              </span>
               <a href="#section-3" className="note-cover-jump">Aller à la thèse d&apos;investissement →</a>
             </div>
           </section>
