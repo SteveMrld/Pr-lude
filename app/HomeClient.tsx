@@ -1223,6 +1223,21 @@ export default function HomeClient({
     return (ms / 1000).toFixed(1) + 's';
   }
 
+  // Distinguer les moteurs qui ont court-circuite (sortie en quelques
+  // millisecondes via leur logique interne de pertinence : pas de moat
+  // tech revendique, pas de friction d execution detectee, pas de
+  // donnees financieres exploitables) des moteurs qui ont reellement
+  // tourne. Un appel LLM prend toujours au moins 1-2 secondes ; sous
+  // 200ms c est forcement un court-circuit deterministe ou un cache
+  // hit. On affiche alors "non applicable" qui est la verite : le
+  // moteur a juge que le dossier ne necessitait pas son analyse, et
+  // il est sorti sans bruler de tokens. C est une feature, pas un bug.
+  function formatEngineDuration(ms: number | null): string {
+    if (ms === null) return '';
+    if (ms < 200) return 'non applicable';
+    return formatDuration(ms);
+  }
+
   return (
     <>
       <header className="header">
@@ -2051,8 +2066,9 @@ export default function HomeClient({
                 tournent que si les documents data room ont ete uploades. */}
             {ENGINES.map((engine, idx) => {
               const state = engineStates[engine.id];
-              const duration = state.completedAt && state.startedAt
-                ? formatDuration(state.completedAt - state.startedAt) : null;
+              const durationMs = state.completedAt && state.startedAt
+                ? state.completedAt - state.startedAt : null;
+              const duration = formatEngineDuration(durationMs);
 
               // Insertion du separateur Bloc 1 avant le premier moteur
               const showInstructionHeader = idx === 0;
@@ -2087,7 +2103,14 @@ export default function HomeClient({
                       <div className="engine-name">{engine.name}</div>
                       <div className="engine-label">{engine.label}</div>
                     </div>
-                    <div className="engine-time">{duration || ''}</div>
+                    <div
+                      className="engine-time"
+                      style={duration === 'non applicable'
+                        ? { fontStyle: 'italic', opacity: 0.55, fontSize: '0.92em' }
+                        : undefined}
+                    >
+                      {duration || ''}
+                    </div>
                   </div>
                 </React.Fragment>
               );
