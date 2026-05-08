@@ -154,18 +154,20 @@ function NoteSectionWrapper({
   title,
   compactMode,
   collapseInCompact,
+  sectionId,
   children,
 }: {
   number: string;
   title: string;
   compactMode: boolean;
   collapseInCompact: boolean;
+  sectionId?: string;
   children: React.ReactNode;
 }) {
   // En mode compact ET section listee comme collapsible, on rend en details
   if (compactMode && collapseInCompact) {
     return (
-      <section className="note-section" style={{ marginBottom: 24 }}>
+      <section className="note-section" id={sectionId} style={{ marginBottom: 24 }}>
         <details>
           <summary style={{
             cursor: 'pointer',
@@ -188,7 +190,7 @@ function NoteSectionWrapper({
   }
   // Mode complet ou non collapsible : rendu identique a l existant
   return (
-    <section className="note-section">
+    <section className="note-section" id={sectionId}>
       <h2 className="note-section-title">
         <span className="note-section-num">{number}</span> {title}
       </h2>
@@ -306,6 +308,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <li><a href="#engine-section-team" className="note-toc-link note-toc-sub">Équipe dirigeante</a></li>
           <li><a href="#engine-section-financial-extraction" className="note-toc-link note-toc-sub">Profil financier</a></li>
           <li><a href="#engine-section-market" className="note-toc-link note-toc-sub">Opportunité de marché</a></li>
+          <li><a href="#section-2" className="note-toc-link">2. Projet proposé</a></li>
           <li><a href="#section-3" className="note-toc-link">3. Thèse d&apos;investissement</a></li>
           <li><a href="#engine-section-orchestrate" className="note-toc-link note-toc-sub">Recommandation</a></li>
           <li><a href="#engine-section-contrarian" className="note-toc-link note-toc-sub">Plaidoyer en faveur</a></li>
@@ -318,6 +321,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <li><a href="#engine-section-execution-friction" className="note-toc-link note-toc-sub">Friction d&apos;exécution</a></li>
           <li><a href="#engine-section-pattern" className="note-toc-link note-toc-sub">Comparables</a></li>
           <li><a href="#engine-section-reference-checks" className="note-toc-link note-toc-sub">Plan d&apos;appels DD</a></li>
+          <li><a href="#section-4" className="note-toc-link">4. Modalités</a></li>
+          <li><a href="#section-5" className="note-toc-link">5. Comparables historiques</a></li>
+          <li><a href="#section-6" className="note-toc-link">6. Suivi &amp; réconciliation</a></li>
         </ol>
       </nav>
 
@@ -749,7 +755,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       </section>
 
       {/* Bloc 2 - Project description (collapsible en mode compact) */}
-      <NoteSectionWrapper number="2." title="Projet proposé" compactMode={compactMode} collapseInCompact={true}>
+      <NoteSectionWrapper number="2." title="Projet proposé" compactMode={compactMode} collapseInCompact={true} sectionId="section-2">
         <h3 className="note-h3">Produit</h3>
         <p className="note-paragraph">{enrichProse(e.productDescription) || '—'}</p>
 
@@ -2230,7 +2236,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       </section>
 
       {/* Bloc 4 - Transaction features (collapsible en mode compact) */}
-      <NoteSectionWrapper number="4." title="Modalités de la transaction" compactMode={compactMode} collapseInCompact={true}>
+      <NoteSectionWrapper number="4." title="Modalités de la transaction" compactMode={compactMode} collapseInCompact={true} sectionId="section-4">
         <table className="note-table">
           <tbody>
             <tr>
@@ -2795,7 +2801,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           Ne s'affiche que si analysisId est fourni (la note doit etre
           sauvegardee en base pour pouvoir etre rapprochee). */}
       {analysisId && (
-        <NoteSectionWrapper number="5." title="Comparables historiques" compactMode={compactMode} collapseInCompact={true}>
+        <NoteSectionWrapper number="5." title="Comparables historiques" compactMode={compactMode} collapseInCompact={true} sectionId="section-5">
           <p className="note-section-intro">
             Rapprochement avec un corpus de startups documentées au moment de leur tour qualifiant.
             Le matching s&apos;appuie sur six dimensions (founder, market, traction, deal,
@@ -2813,7 +2819,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           accumulee sur 30+ dossiers, permettra a Prelude de cartographier
           ses biais structurels et d apprendre. */}
       {analysisId && (
-        <NoteSectionWrapper number="6." title="Suivi & réconciliation" compactMode={compactMode} collapseInCompact={true}>
+        <NoteSectionWrapper number="6." title="Suivi & réconciliation" compactMode={compactMode} collapseInCompact={true} sectionId="section-6">
           <p className="note-section-intro">
             Trace de ce qui s&apos;est réellement passé après la décision. Une mémoire
             institutionnelle d&apos;apprentissage qui, accumulée dossier après dossier,
