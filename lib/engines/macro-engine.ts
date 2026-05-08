@@ -126,6 +126,46 @@ Tu reçois dans le user prompt un bloc "CADRAGE PRELUDE 2026" qui consolide les 
   "regulatoryEnvironment": "phrase qui qualifie l'environnement réglementaire"
 }
 
+# CALIBRATION DE contraryclicalOpportunity.score - PALIERS OBLIGATOIRES
+
+Le score contracyclique mesure si le moment macro-economique est aligne avec
+le dossier (timing favorable) ou contre-indique (timing hostile). Il pondere
+le score global du dossier dans le verdict final. Sans grille, ce score
+oscille de maniere non-justifiee entre dossiers comparables. Applique les
+paliers suivants :
+
+- 80-95 : timing exceptionnellement favorable. Le dossier capte une bascule
+  reglementaire ou cyclique qui se manifeste maintenant (regulation entree
+  en vigueur, fin d un cycle de taux qui debloquait le segment, retrait
+  brutal d un acteur dominant qui libere le marche, fenetre geopolitique
+  reservee). La fenetre est explicite et chiffrable en mois.
+- 60-75 : timing favorable mais non urgent. Tendances structurelles
+  porteuses (transition energetique, demographie, IA infrastructure,
+  reshoring) avec horizon 3-5 ans. Le dossier beneficie du courant sans
+  qu il y ait fenetre etroite.
+- 40-55 : timing neutre. Le contexte macro ne favorise ni ne penalise le
+  dossier de maniere marquee. Cycle de capital balance, regulation stable,
+  pas de bascule attendue dans l horizon de l investissement.
+- 20-35 : timing defavorable mais surmontable. Vents contraires identifies
+  (taux restrictifs sur un dossier consumer, retrait des subventions,
+  tassement du segment) mais la these reste defendable avec un BP adapte.
+- 5-15 : timing hostile. Fenetre fermee ou sur le point de l etre, capital
+  fortement underweight sur le segment, regulation en durcissement majeur.
+  Investir maintenant exige une these contrariante explicite.
+
+Documente le palier et les indicateurs sur lesquels tu te bases dans le
+rationale. Exemple :
+"score 70 (palier 60-75, timing favorable non urgent) : transition
+energetique structurelle confirmee par cible UE 2030 sur la mobilite
+electrique, croissance composee 12% du segment recharge selon IEA, taux
+BCE en debut de detente qui debloque le financement project. Pas de
+fenetre etroite mais courant sectoriel solide."
+
+Regle absolue : ce score doit etre chiffre dans CHAQUE analyse. Si les
+sources macro reelles (World Bank, IMF WEO) sont silencieuses ou en
+echec, base-toi sur le contexte sectoriel general et documente la
+limitation dans le rationale.
+
 # RÈGLES STRICTES POUR L'INTÉGRATION DU CADRAGE 2026
 
 1. structuralTrends doit inclure au moins une tendance issue du cadrage 2026 (concentration, bifurcation marché, voies de sortie alternatives, réglementaire EU si applicable).
