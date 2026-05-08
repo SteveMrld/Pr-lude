@@ -8,6 +8,12 @@ import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
 import PipelinePreview from './components/PipelinePreview';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
+import {
+  requestNotificationPermissionSilent,
+  notifyPipelineComplete,
+  setTabTitleAttention,
+  bindTabTitleRestore,
+} from '@/lib/pipeline-notifier';
 import IcPackView from './components/IcPackView';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
 import ThemeToggle from './components/ThemeToggle';
@@ -299,6 +305,13 @@ export default function HomeClient({
       localStorage.setItem('prelude_landing_tab', landingTab);
     } catch {}
   }, [landingTab]);
+
+  // Bind du restore de titre d onglet quand le partner revient
+  // sur l onglet apres une notification systeme. Idempotent et
+  // sans effet si le navigateur ne supporte pas visibilitychange.
+  useEffect(() => {
+    return bindTabTitleRestore();
+  }, []);
   const [viewMode, setViewMode] = useState<'dashboard' | 'note'>('dashboard');
   const [printMode, setPrintMode] = useState(false); // quand true, toutes les sections rendues simultanement pour export PDF complet
   // Note d investissement : mode compact (lecture rapide) vs mode complet
@@ -838,6 +851,17 @@ export default function HomeClient({
     setPipelineStartTime(Date.now());
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
 
+    // Demande silencieuse de la permission de notification au navigateur.
+    // Si l utilisateur a deja accepte, no-op. Si il a refuse, on ne re-demande
+    // pas. Si premier lancement, le navigateur affiche le dialog. Pas
+    // bloquant : on continue le pipeline meme si la permission n est
+    // pas accordee, juste sans notification systeme a la fin.
+    requestNotificationPermissionSilent();
+
+    // Marqueur visuel sur l onglet pour que le partner reperere l onglet
+    // Prelude dans sa barre d onglets si il bascule sur un autre tab.
+    setTabTitleAttention('running');
+
     // Wake Lock : empeche l'ecran de dormir pendant le pipeline.
     // Non bloquant : si le navigateur ne supporte pas ou refuse, on continue.
     let wakeLock: any = null;
@@ -927,6 +951,19 @@ export default function HomeClient({
               setResult(data);
               receivedTerminal = true;
 
+              // Notification systeme et titre d onglet "termine" pour
+              // alerter le partner qui a quitte l onglet pendant les
+              // 10 minutes du pipeline. La notif systeme ne se
+              // declenche que si l onglet est en background.
+              try {
+                const co = data?.extraction?.companyName || 'Dossier';
+                const verdict = data?.recommendation?.verdict || null;
+                notifyPipelineComplete({ companyName: co, verdict });
+                setTabTitleAttention('done', co);
+              } catch {
+                // Silencieux : pas de notif n est pas un blocant
+              }
+
               // Persistance : depuis la refonte, le serveur persiste
               // l analyse cote serveur juste avant d emettre ce
               // complete event. Si la persistence cote serveur a
@@ -984,6 +1021,18 @@ export default function HomeClient({
                 totalTests: data.totalTests,
               });
               receivedTerminal = true;
+
+              // Notification : meme apres knockout, le partner doit savoir
+              // que le triage est termine et qu il y a une decision a
+              // prendre (lire la synthese du knockout, decider de forcer
+              // ou pas).
+              try {
+                const co = files[0]?.name?.replace(/\.[^.]+$/, '') || 'Dossier';
+                notifyPipelineComplete({ companyName: co, isPrescanKnockout: true });
+                setTabTitleAttention('knockout', co);
+              } catch {
+                // Silencieux
+              }
             } else if (eventType === 'error') {
               setError(data.message);
               receivedTerminal = true;
