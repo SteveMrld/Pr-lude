@@ -16,6 +16,7 @@ import {
 } from '@/lib/pipeline-notifier';
 import IcPackView from './components/IcPackView';
 import { TrajectoryView } from './components/TrajectoryView';
+import { TrackSelector, type AnalysisTrack } from './components/TrackSelector';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
 import ThemeToggle from './components/ThemeToggle';
 import CommentsPanel from './components/CommentsPanel';
@@ -259,6 +260,16 @@ export default function HomeClient({
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  /**
+   * Parcours d analyse choisi par le partner. Determine quels
+   * moteurs sont mobilises et la structure de la note finale.
+   * - null : sélecteur affiché, aucun choix encore fait
+   * - 'early' : pipeline historique seed et série A
+   * - 'growth' : pipeline Phase 4 série B et au-dela, lance les
+   *              moteurs de fragilité structurelle et skip les
+   *              moteurs early stage non pertinents
+   */
+  const [track, setTrack] = useState<AnalysisTrack | null>(null);
   // DD APPROFONDIE (Bloc 2) : workflow en deux temps. Le partner
   // declenche cette phase apres avoir lu la note Bloc 1 et decide
   // que le dossier merite une instruction approfondie (verdict
@@ -1321,6 +1332,55 @@ export default function HomeClient({
     return formatDuration(ms);
   }
 
+  // ============================================================
+  // SELECTEUR DE PARCOURS
+  // ------------------------------------------------------------
+  // Avant tout, le partner doit choisir entre le parcours early
+  // stage (pipeline historique) et le parcours growth (Phase 4
+  // Fragilite Structurelle, Lecture du langage, plus moteurs
+  // marche / macro / contrarien / financier seulement). Tant que
+  // le track n est pas choisi et qu aucune analyse n est en cours
+  // ou chargee, on rend uniquement le selecteur. Une fois choisi,
+  // le track est conserve dans le state et le rendu normal de
+  // l app reprend.
+  // ============================================================
+  if (track === null && !result && files.length === 0 && !analyzing && !savedAnalysisId) {
+    return (
+      <>
+        <header className="header">
+          <div>
+            <div className="brand">Prélude</div>
+            <div className="brand-meta">Plateforme d'instruction VC</div>
+          </div>
+          {authEnabled && orgName ? (
+            <div className="header-identity">
+              <div className="header-org">{orgName}</div>
+              {userEmail && <div className="header-user">{userEmail}</div>}
+              <div className="header-actions">
+                <a className="header-action" href="/portfolio">Portefeuille</a>
+                <a className="header-action" href="/history">Historique</a>
+                <a className="header-action" href="/settings">Réglages</a>
+                <button
+                  className="header-action"
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/login';
+                  }}
+                  aria-label="Se déconnecter"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </header>
+        <main className="container">
+          <TrackSelector onSelect={setTrack} />
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
       <header className="header">
@@ -1960,6 +2020,39 @@ export default function HomeClient({
 
               {files.length === 0 ? (
                 <>
+                  {track && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 16,
+                      padding: '10px 16px',
+                      marginBottom: 16,
+                      background: track === 'growth' ? '#ede2c8' : '#e8f1de',
+                      borderLeft: `3px solid ${track === 'growth' ? '#7a5a1d' : '#3f4a2b'}`,
+                      fontSize: 12,
+                    }}>
+                      <span>
+                        <strong style={{ fontWeight: 600 }}>Parcours&nbsp;:&nbsp;</strong>
+                        {track === 'growth' ? 'Dossier growth (série B et au-delà)' : 'Dossier early stage (seed, série A)'}
+                      </span>
+                      <button
+                        onClick={() => setTrack(null)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          padding: 0,
+                          fontSize: 12,
+                          color: track === 'growth' ? '#7a5a1d' : '#3f4a2b',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        Changer de parcours
+                      </button>
+                    </div>
+                  )}
                   <div className={`upload-box ${dragging ? 'dragging' : ''}`}
                     onClick={() => inputRef.current?.click()}
                     onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
