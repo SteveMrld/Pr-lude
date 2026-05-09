@@ -26,3 +26,5 @@ export {
   computePatternVerdictTransition,
   computeDaysBetween,
 } from './comparator';
+
+export { extractSnapshot, type AnalysisPayloadForSnapshot } from './snapshot-extractor';
