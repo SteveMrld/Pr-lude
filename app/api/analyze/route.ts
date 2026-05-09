@@ -28,6 +28,12 @@ import '@/lib/engines/fragility-structurelle/capital-structure-fragility-pattern
 import '@/lib/engines/fragility-structurelle/scale-mirage-risk-pattern';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore } from '@/lib/engines/score-calculator';
+import {
+  buildSkippedTeamOutput,
+  buildSkippedPatternMatchingOutput,
+  buildSkippedBlindspotOutput,
+  buildSkippedCausalOutput,
+} from '@/lib/engines/skipped-outputs';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { extractSaasMetrics } from '@/lib/engines/saas-metrics-engine';
@@ -82,6 +88,23 @@ export async function POST(req: NextRequest) {
     // sans retirer le pouvoir de decision au partner.
     const forcePrescanRaw = formData.get('forcePrescan');
     const forcePrescan = forcePrescanRaw === 'true' || forcePrescanRaw === '1';
+
+    /**
+     * Parcours d analyse choisi par le partner sur la page d entree.
+     * - 'early' (defaut) : pipeline historique seed et serie A,
+     *   tous les moteurs Bloc 1 plus pattern matching plus aveuglement
+     *   plus causal plus contrarien.
+     * - 'growth' : pipeline serie B et au-dela. Skip equipe early,
+     *   pattern matching, aveuglement et causal early. Garde marche,
+     *   macro, financier, contrarien. Ajoute fragilite structurelle
+     *   au coeur du verdict.
+     *
+     * Le track determine quels moteurs sont mobilises et structure
+     * le verdict final. Voir la suite du pipeline pour les conditions
+     * d activation par moteur.
+     */
+    const trackRaw = formData.get('track');
+    const track: 'early' | 'growth' = (trackRaw === 'growth') ? 'growth' : 'early';
 
     const {
       pitchDeck, businessPlan, generalLedger,
@@ -355,7 +378,12 @@ export async function POST(req: NextRequest) {
           sendStart('financial-extraction', businessPlan ? 'Extraction des donnees financieres (deck + BP)' : 'Extraction des donnees financieres (deck)');
 
           const [team, market, macro, financialData, saasMetrics, industrialMetrics] = await Promise.all([
-            analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
+            // Moteur Equipe : skip en parcours growth, calibre early stage.
+            // En growth on retourne immediatement un output neutre marque
+            // skipped, sans appel LLM. Voir lib/engines/skipped-outputs.ts.
+            track === 'growth'
+              ? Promise.resolve(buildSkippedTeamOutput()).then(r => { sendDone('team', r); return r; })
+              : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
             analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix).then(r => { sendDone('market', r); return r; }),
             analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix).then(r => { sendDone('macro', r); return r; }),
             extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { sendDone('financial-extraction', r); return r; }),
@@ -482,10 +510,16 @@ export async function POST(req: NextRequest) {
             executionFriction,
             narrativeDrift,
           ] = await Promise.all([
-            matchPatterns(extraction, team, market, macro)
-              .then(r => { sendDone('pattern', r); return r; }),
-            analyzeBlindspots(extraction, team, market, macro)
-              .then(r => { sendDone('blindspot', r); return r; }),
+            // Pattern Matching : skip en growth, calibre archetypes early.
+            track === 'growth'
+              ? Promise.resolve(buildSkippedPatternMatchingOutput()).then(r => { sendDone('pattern', r); return r; })
+              : matchPatterns(extraction, team, market, macro)
+                  .then(r => { sendDone('pattern', r); return r; }),
+            // Aveuglement : skip en growth, calibre lecture du discours fondateur early.
+            track === 'growth'
+              ? Promise.resolve(buildSkippedBlindspotOutput()).then(r => { sendDone('blindspot', r); return r; })
+              : analyzeBlindspots(extraction, team, market, macro)
+                  .then(r => { sendDone('blindspot', r); return r; }),
             analyzeContrarian(extraction, team, market, macro)
               .then(r => { sendDone('contrarian', r); return r; }),
             analyzeFinancialCoherence(extraction, financialData, market, benchmarks, fundDimensionalNotes?.financial)
@@ -546,8 +580,15 @@ export async function POST(req: NextRequest) {
           }
 
           const [causalReversal, fragiliteStructurelle] = await Promise.all([
-            performCausalReversal(extraction, team, market, macro, patternMatching)
-              .then(r => { sendDone('causal', r); return r; }),
+            // Retournement Causal : skip en growth, calibre hypotheses
+            // fondatrices early. Fragilite Structurelle remplace structurellement
+            // ce moteur en growth (patterns de scale-up qui menacent la
+            // trajectoire commerciale au lieu de retourner les hypotheses
+            // fondatrices).
+            track === 'growth'
+              ? Promise.resolve(buildSkippedCausalOutput()).then(r => { sendDone('causal', r); return r; })
+              : performCausalReversal(extraction, team, market, macro, patternMatching)
+                  .then(r => { sendDone('causal', r); return r; }),
             fragiliteRequested
               ? analyzeFragiliteStructurelle(
                   {

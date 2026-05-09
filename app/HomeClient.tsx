@@ -928,6 +928,10 @@ export default function HomeClient({
       if (opts.forceNarrativeDrift || forceNarrativeDrift) {
         formData.append('forceNarrativeDrift', '1');
       }
+      // Parcours d analyse choisi par le partner sur la page d entree.
+      // 'early' (defaut) ou 'growth'. Determine quels moteurs sont
+      // mobilises cote backend et la structure de la note finale.
+      formData.append('track', track ?? 'early');
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
 
