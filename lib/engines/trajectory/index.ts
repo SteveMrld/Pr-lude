@@ -28,3 +28,5 @@ export {
 } from './comparator';
 
 export { extractSnapshot, type AnalysisPayloadForSnapshot } from './snapshot-extractor';
+
+export { buildTrajectoryFromAnalyses, type TrajectorySummary } from './chain-builder';
