@@ -246,6 +246,57 @@ verdict global ne peut pas être INVESTIR sans condition. Au minimum
 INVESTIR AVEC CONDITIONS, voire APPROFONDIR si plusieurs combinaisons 
 se cumulent.`;
 
+// ============================================================
+// HELPERS DE CONSTRUCTION DES BLOCS PHASE 4
+// ------------------------------------------------------------
+// Exportes pour testabilite. Construisent les blocs userPrompt
+// pour Lecture du langage et Fragilite Structurelle. Si le
+// payload est null ou non applicable, retournent une chaine vide
+// (le bloc est completement omis du prompt).
+// ============================================================
+
+export function buildNarrativeDriftBlock(
+  narrativeDrift: import('./narrative-drift-engine').NarrativeDriftAnalysisOutput | null | undefined,
+  truncate: (s: string | undefined, max?: number) => string,
+): string {
+  if (!narrativeDrift) return '';
+  return `
+
+# MOTEUR LECTURE DU LANGAGE (Narrative Drift)
+- Score global de dérive : ${narrativeDrift.globalDriftScore ?? '?'}/100
+- Verdict : ${(narrativeDrift.verdict ?? '?').toUpperCase()}
+- Densité concrète : ${narrativeDrift.metriquesLexicales?.densiteConcrete ?? '?'} · Ratio abstrait/concret : ${narrativeDrift.metriquesLexicales?.ratioAbstraitConcret ?? '?'} · Opacité : ${narrativeDrift.metriquesLexicales?.opaciteScore ?? '?'}
+- Counter-archétype : ${narrativeDrift.counterArchetype?.closest ?? '?'} (${narrativeDrift.counterArchetype?.direction ?? '?'})
+- Glissement indicateurs : ${narrativeDrift.glissementIndicateurs?.score ?? '?'}/100 · Opacité progressive : ${narrativeDrift.opaciteProgressive?.score ?? '?'}/100 · Premium narratif : ${narrativeDrift.narrativePremiumCollapse?.score ?? '?'}/100
+${narrativeDrift.recommandationDD ? '- Recommandation DD : ' + truncate(narrativeDrift.recommandationDD, 200) : ''}
+`;
+}
+
+export function buildFragiliteStructurelleBlock(
+  fragiliteStructurelle: import('./fragility-structurelle/types').FragiliteStructurelleAnalysisOutput | null | undefined,
+  truncate: (s: string | undefined, max?: number) => string,
+): string {
+  if (!fragiliteStructurelle) return '';
+  const patterns = fragiliteStructurelle.patterns ?? {};
+  const patternsActifs = Object.values(patterns).filter((p: any) => p && p.applicabilite !== 'not-applicable');
+  const patternsRemontes = patternsActifs.filter((p: any) => p.globalScore >= 55);
+  const combinaisons = fragiliteStructurelle.combinaisons ?? [];
+  const recommandations = fragiliteStructurelle.recommandationsDD ?? [];
+
+  return `
+
+# MOTEUR FRAGILITÉ STRUCTURELLE (Bloc Phase 4 : sept patterns)
+- Score global de fragilité : ${fragiliteStructurelle.globalFragilityScore ?? '?'}/100
+- Verdict : ${(fragiliteStructurelle.verdict ?? '?').toUpperCase()}
+- Patterns actifs : ${patternsActifs.length}/7
+- Patterns remontés (score >= 55) : ${patternsRemontes.map((p: any) => `${p.patternId} (${p.globalScore}/100, ${p.verdict})`).join(' · ') || 'aucun'}
+- Combinaisons diagnostiques détectées : ${combinaisons.map(c => `${c.nom} (${c.severite})`).join(' · ') || 'aucune'}
+${combinaisons.length > 0 ? '- Rationales combinaisons : ' + combinaisons.map(c => `[${c.nom}] ${truncate(c.rationale, 200)}`).join(' || ') : ''}
+- Synthèse : ${truncate(fragiliteStructurelle.resumeEditorial, 400)}
+${recommandations.length > 0 ? '- Recommandations DD prioritaires : ' + recommandations.slice(0, 3).join(' || ') : ''}
+`;
+}
+
 export async function orchestrateFinalRecommendation(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
@@ -399,27 +450,7 @@ ${Object.values(contrarianAnalysis.signals || {})
   .slice(0, 5)
   .map((s: any) => `- ${s.signalName} (${s.strength}/100) : ${truncate(s.evidence, 200)}`)
   .join('\n') || 'Aucun signal contrarien fort détecté'}
-${narrativeDrift ? `
-
-# MOTEUR LECTURE DU LANGAGE (Narrative Drift)
-- Score global de dérive : ${narrativeDrift.globalDriftScore ?? '?'}/100
-- Verdict : ${(narrativeDrift.verdict ?? '?').toUpperCase()}
-- Densité concrète : ${narrativeDrift.metriquesLexicales?.densiteConcrete ?? '?'} · Ratio abstrait/concret : ${narrativeDrift.metriquesLexicales?.ratioAbstraitConcret ?? '?'} · Opacité : ${narrativeDrift.metriquesLexicales?.opaciteScore ?? '?'}
-- Counter-archétype : ${narrativeDrift.counterArchetype?.closest ?? '?'} (${narrativeDrift.counterArchetype?.direction ?? '?'})
-- Glissement indicateurs : ${narrativeDrift.glissementIndicateurs?.score ?? '?'}/100 · Opacité progressive : ${narrativeDrift.opaciteProgressive?.score ?? '?'}/100 · Premium narratif : ${narrativeDrift.narrativePremiumCollapse?.score ?? '?'}/100
-${narrativeDrift.recommandationDD ? '- Recommandation DD : ' + truncate(narrativeDrift.recommandationDD, 200) : ''}
-` : ''}${fragiliteStructurelle ? `
-
-# MOTEUR FRAGILITÉ STRUCTURELLE (Bloc Phase 4 : sept patterns)
-- Score global de fragilité : ${fragiliteStructurelle.globalFragilityScore ?? '?'}/100
-- Verdict : ${(fragiliteStructurelle.verdict ?? '?').toUpperCase()}
-- Patterns actifs : ${Object.values(fragiliteStructurelle.patterns ?? {}).filter((p: any) => p && p.applicabilite !== 'not-applicable').length}/7
-- Patterns remontés (score >= 55) : ${Object.values(fragiliteStructurelle.patterns ?? {}).filter((p: any) => p && p.applicabilite !== 'not-applicable' && p.globalScore >= 55).map((p: any) => `${p.patternId} (${p.globalScore}/100, ${p.verdict})`).join(' · ') || 'aucun'}
-- Combinaisons diagnostiques détectées : ${(fragiliteStructurelle.combinaisons ?? []).map(c => `${c.nom} (${c.severite})`).join(' · ') || 'aucune'}
-${(fragiliteStructurelle.combinaisons ?? []).length > 0 ? '- Rationales combinaisons : ' + (fragiliteStructurelle.combinaisons ?? []).map(c => `[${c.nom}] ${truncate(c.rationale, 200)}`).join(' || ') : ''}
-- Synthèse : ${truncate(fragiliteStructurelle.resumeEditorial, 400)}
-${(fragiliteStructurelle.recommandationsDD ?? []).length > 0 ? '- Recommandations DD prioritaires : ' + (fragiliteStructurelle.recommandationsDD ?? []).slice(0, 3).join(' || ') : ''}
-` : ''}
+${narrativeDrift ? buildNarrativeDriftBlock(narrativeDrift, truncate) : ''}${fragiliteStructurelle ? buildFragiliteStructurelleBlock(fragiliteStructurelle, truncate) : ''}
 ${mechanicalScore ? `
 
 # SCORE MECANIQUE PRE-CALCULE (source de verite)
