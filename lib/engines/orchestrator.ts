@@ -205,7 +205,46 @@ Tes textes de synthèse (argumentation, decision drivers, dialecticalResolution.
 
 Sois rigoureux. Pas de complaisance. Pas de surévaluation par enthousiasme. La plateforme tire sa valeur de la rigueur de ses verdicts ET de la précision de ses probabilités chiffrées.
 
-successProbability + failureProbability doit faire 100.`;
+successProbability + failureProbability doit faire 100.
+
+# INTÉGRATION DES MOTEURS PHASE 4 (Lecture du langage et Fragilité Structurelle)
+
+Quand les blocs MOTEUR LECTURE DU LANGAGE et MOTEUR FRAGILITÉ STRUCTURELLE 
+sont présents dans l'input, tu dois les intégrer dans la résolution 
+dialectique selon les principes suivants :
+
+LECTURE DU LANGAGE (Narrative Drift). Score global de dérive narrative 
+sur trois axes (glissement des indicateurs, opacité progressive, 
+narrative premium collapse). Un verdict alerte ou drapeau-rouge sur ce 
+moteur signale que le discours se déconnecte de la réalité opérationnelle, 
+pattern Theranos en version commerciale. À traiter comme un signal de 
+vigilance critique de poids comparable au moteur Aveuglement Bloc 1, et 
+à intégrer explicitement dans blindspotsVsContrarian et dans l'argumentation 
+si le verdict est alerte ou pire.
+
+FRAGILITÉ STRUCTURELLE (sept patterns Phase 4 : croissance subventionnée, 
+captivité infrastructure, coûts fixes incompressibles, risque 
+réglementaire daté, érosion de défensibilité, fragilité cap table, 
+industrialisation prématurée). Chaque pattern produit un score et un 
+verdict propres. Plusieurs patterns à 60+ déclenchent des combinaisons 
+diagnostiques cross-patterns documentées (Trajectoire WeWork, Pattern 
+Britishvolt, Pattern Northvolt, Wrapper sans différenciation, Fin de 
+cycle quasi-mécanique, etc.). Une combinaison drapeau-rouge déclenchée 
+est un signal extrêmement fort qui DOIT remonter dans :
+- decisionDrivers (un des facteurs décisifs)
+- argumentation (mention explicite avec rationale)
+- keyConditions (transformer en condition actionnable de DD)
+- structuringPlan (au moins une action shortTerm pour adresser)
+
+Tu n'es pas autorisé à minorer une combinaison diagnostique drapeau-rouge 
+en l'omettant ou en la diluant. Si la combinaison est détectée, elle 
+remonte. Le partner attend ce niveau de rigueur dans la synthèse.
+
+Si Fragilité Structurelle remonte avec score >= 65 ET au moins une 
+combinaison diagnostique de sévérité alerte ou drapeau-rouge, le 
+verdict global ne peut pas être INVESTIR sans condition. Au minimum 
+INVESTIR AVEC CONDITIONS, voire APPROFONDIR si plusieurs combinaisons 
+se cumulent.`;
 
 export async function orchestrateFinalRecommendation(
   extraction: ExtractionOutput,
@@ -229,6 +268,19 @@ export async function orchestrateFinalRecommendation(
    * fonctionne comme avant : LLM produit verdict + score + dimensions.
    */
   mechanicalScore?: import('./score-calculator').MechanicalScoreResult | null,
+  /**
+   * Sortie du moteur Lecture du langage (Narrative Drift V1). Optionnel,
+   * passe en parametre pour que l orchestrator puisse integrer la lecture
+   * du discours dans la resolution dialectique. null si moteur non
+   * applicable ou en echec.
+   */
+  narrativeDrift?: import('./narrative-drift-engine').NarrativeDriftAnalysisOutput | null,
+  /**
+   * Sortie agregee du moteur Fragilite Structurelle (Bloc Phase 4 :
+   * sept patterns). Optionnel. null si tous les patterns Phase 4 sont
+   * non applicables ou en cas d echec global du moteur.
+   */
+  fragiliteStructurelle?: import('./fragility-structurelle/types').FragiliteStructurelleAnalysisOutput | null,
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
   // ============================================================
@@ -347,6 +399,27 @@ ${Object.values(contrarianAnalysis.signals || {})
   .slice(0, 5)
   .map((s: any) => `- ${s.signalName} (${s.strength}/100) : ${truncate(s.evidence, 200)}`)
   .join('\n') || 'Aucun signal contrarien fort détecté'}
+${narrativeDrift ? `
+
+# MOTEUR LECTURE DU LANGAGE (Narrative Drift)
+- Score global de dérive : ${narrativeDrift.globalDriftScore ?? '?'}/100
+- Verdict : ${(narrativeDrift.verdict ?? '?').toUpperCase()}
+- Densité concrète : ${narrativeDrift.metriquesLexicales?.densiteConcrete ?? '?'} · Ratio abstrait/concret : ${narrativeDrift.metriquesLexicales?.ratioAbstraitConcret ?? '?'} · Opacité : ${narrativeDrift.metriquesLexicales?.opaciteScore ?? '?'}
+- Counter-archétype : ${narrativeDrift.counterArchetype?.closest ?? '?'} (${narrativeDrift.counterArchetype?.direction ?? '?'})
+- Glissement indicateurs : ${narrativeDrift.glissementIndicateurs?.score ?? '?'}/100 · Opacité progressive : ${narrativeDrift.opaciteProgressive?.score ?? '?'}/100 · Premium narratif : ${narrativeDrift.narrativePremiumCollapse?.score ?? '?'}/100
+${narrativeDrift.recommandationDD ? '- Recommandation DD : ' + truncate(narrativeDrift.recommandationDD, 200) : ''}
+` : ''}${fragiliteStructurelle ? `
+
+# MOTEUR FRAGILITÉ STRUCTURELLE (Bloc Phase 4 : sept patterns)
+- Score global de fragilité : ${fragiliteStructurelle.globalFragilityScore ?? '?'}/100
+- Verdict : ${(fragiliteStructurelle.verdict ?? '?').toUpperCase()}
+- Patterns actifs : ${Object.values(fragiliteStructurelle.patterns ?? {}).filter((p: any) => p && p.applicabilite !== 'not-applicable').length}/7
+- Patterns remontés (score >= 55) : ${Object.values(fragiliteStructurelle.patterns ?? {}).filter((p: any) => p && p.applicabilite !== 'not-applicable' && p.globalScore >= 55).map((p: any) => `${p.patternId} (${p.globalScore}/100, ${p.verdict})`).join(' · ') || 'aucun'}
+- Combinaisons diagnostiques détectées : ${(fragiliteStructurelle.combinaisons ?? []).map(c => `${c.nom} (${c.severite})`).join(' · ') || 'aucune'}
+${(fragiliteStructurelle.combinaisons ?? []).length > 0 ? '- Rationales combinaisons : ' + (fragiliteStructurelle.combinaisons ?? []).map(c => `[${c.nom}] ${truncate(c.rationale, 200)}`).join(' || ') : ''}
+- Synthèse : ${truncate(fragiliteStructurelle.resumeEditorial, 400)}
+${(fragiliteStructurelle.recommandationsDD ?? []).length > 0 ? '- Recommandations DD prioritaires : ' + (fragiliteStructurelle.recommandationsDD ?? []).slice(0, 3).join(' || ') : ''}
+` : ''}
 ${mechanicalScore ? `
 
 # SCORE MECANIQUE PRE-CALCULE (source de verite)

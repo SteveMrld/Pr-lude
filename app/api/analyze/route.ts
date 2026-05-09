@@ -634,6 +634,8 @@ export async function POST(req: NextRequest) {
                   extraction, team, market, macro, patternMatching, causalReversal,
                   blindspotAnalysis, contrarianAnalysis, fundDimensionalNotes?.general,
                   mechanicalScore,
+                  narrativeDrift,
+                  fragiliteStructurelle,
                 );
                 return result;
               } catch (err: any) {
