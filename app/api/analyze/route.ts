@@ -21,6 +21,7 @@ import { analyzeNarrativeDrift } from '@/lib/engines/narrative-drift-engine';
 import { analyzeFragiliteStructurelle } from '@/lib/engines/fragility-structurelle';
 import '@/lib/engines/fragility-structurelle/growth-subsidized-pattern';
 import '@/lib/engines/fragility-structurelle/infrastructure-hostage-pattern';
+import '@/lib/engines/fragility-structurelle/fixed-cost-trap-pattern';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore } from '@/lib/engines/score-calculator';
 import { computeValuation } from '@/lib/engines/valuation-engine';
