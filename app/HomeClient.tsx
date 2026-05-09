@@ -15,6 +15,7 @@ import {
   bindTabTitleRestore,
 } from '@/lib/pipeline-notifier';
 import IcPackView from './components/IcPackView';
+import { TrajectoryView } from './components/TrajectoryView';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
 import ThemeToggle from './components/ThemeToggle';
 import CommentsPanel from './components/CommentsPanel';
@@ -3252,6 +3253,7 @@ export default function HomeClient({
                   tabs: [
                     { id: 'risksplan',   label: 'Risques & Plan',    picto: 'risques' },
                     { id: 'refchecks',   label: 'Reference checks',  picto: 'argumentation' },
+                    { id: 'trajectory',  label: 'Trajectoire',       picto: 'sparkle' },
                     { id: 'instruction', label: 'À instruire',       picto: 'instruction' },
                     { id: 'ic-pack',     label: 'Pack IC',           picto: 'pack-ic' },
                   ],
@@ -4346,6 +4348,10 @@ export default function HomeClient({
                   </div>
                 );
               })()}
+
+              {(activeTab === 'trajectory' || printMode) && savedAnalysisId && (
+                <TrajectoryView analysisId={savedAnalysisId} />
+              )}
 
               {(activeTab === 'team' || printMode) && (
                 <div style={{ padding: '28px 32px' }}>
