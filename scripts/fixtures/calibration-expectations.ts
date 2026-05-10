@@ -121,9 +121,9 @@ export const EXPECTATIONS: ExpectationGrid = {
       doctrineRationale: 'Distribution Amazon/Target plus fournisseurs matelas en sous-traitance, mais pas de captivite extreme. Pattern present a niveau modere.',
     },
     'moviepass-2017': {
-      expectedVerdict: 'alerte',
-      expectedScoreRange: [50, 80],
-      doctrineRationale: 'Captif des chaines de cinema (paie le ticket plein tarif faute d accord commercial). AMC refuse explicitement de partager le revenu. Pattern net.',
+      expectedVerdict: 'drapeau-rouge',
+      expectedScoreRange: [80, 100],
+      doctrineRationale: '100 percent COGS captif chaines exhibitor, asymetrie taille AMC vs HMNY 7:1, zero plan deverrouillage chiffre = patron pur de captivite fournisseur. Le fournisseur (AMC, Regal, Cinemark) est aussi le produit vendu et refuse explicitement la negociation commerciale, configuration extreme du pattern.',
     },
     'atlassian-preipo-2015': {
       expectedVerdict: 'sain',
@@ -206,9 +206,9 @@ export const EXPECTATIONS: ExpectationGrid = {
       doctrineRationale: 'Capex gigafactory 8 Md USD engage plus 30 Md USD additionnel planifie, payroll 800 M USD annuel, gigafactory tournant ou non. Pattern Britishvolt nomme dans la doctrine.',
     },
     'ynsect-seriesD-2022': {
-      expectedVerdict: 'alerte',
-      expectedScoreRange: [55, 80],
-      doctrineRationale: 'Ynfarm Amiens 250M EUR capex engage, payroll industriel fixe, marche petfood ralentit. Variation francaise du pattern Britishvolt.',
+      expectedVerdict: 'drapeau-rouge',
+      expectedScoreRange: [80, 95],
+      doctrineRationale: 'Ratio engagements/revenu 80:1 vs WeWork 26:1, depasse de 3x le canonique, scoring rule FCT force drapeau-rouge a partir de 5x. Capex Ynfarm Amiens 250M EUR irreversible, payroll industriel fixe, marche petfood ralentit. Variation francaise du pattern Britishvolt en sevérité maximale.',
     },
     'klarna-2022': {
       expectedVerdict: 'sain',
