@@ -214,28 +214,56 @@ entre cap table et toute trajectoire d exit alignee.
 L axe 1 (empilement des preferences de liquidation) est l axe
 identitaire de Capital Structure Fragility.
 
-DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
-qui a au moins un tour de financement exterieur avec des preferred
-shares (Series Seed avec preferences negociees, Series A et au-dela,
-extensions de tour). Une cap table avec une seule classe preferred 1x
-non participating est dans le perimetre du pattern, simplement avec
-peu de signal de fragilite. Si l axe est applicable tu DOIS produire
-un verdict parmi sain, attention, alerte ou drapeau-rouge. En absence
-de signaux de fragilite (preferences uniformement 1x non participating,
-pari passu sans seniority defavorable, pas de full ratchet, pas de
-super voting excessif, ESOP refresh mature), le verdict correct est
-SAIN avec score 0-25, pas not-applicable. Une entreprise avec cap
-table simple (Stripe structure preferred lisible une page sans
-participation multiple ni ratchet agressif, Adyen IPO 2018 structure
-tres propre, Atlassian un seul tour Accel secondaire 2010, Datadog
-peu de complexite cap table) est SAIN sur cet axe, pas not-applicable.
+REGLE IMPERATIVE A LIRE EN PREMIER. Une boite saine profitable avec
+moats etablis (Atlassian S-1 octobre 2015, Stripe Series E 2016,
+Datadog NRR 130%+, Snowflake net retention 165%) doit etre cotee SAIN
+sur cet axe, JAMAIS not-applicable, des qu il y a une operation
+equity exterieure documentee (tour primary, secondary, ESOP refresh,
+entree strategique). La doctrine veut que ces references canoniques
+sortent SAIN avec score 0-25, parce qu une cap table SIMPLE et LISIBLE
+est precisement le signal positif que le pattern doit reconnaitre. Le
+caractere "bootstrappe" n est pas un argument pour basculer en
+not-applicable des qu un tour secondary minoritaire ou un ESOP refresh
+significatif est documente : c est au contraire la marque d une cap
+table doctrinalement saine.
 
-NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
-POUR LE BUSINESS MODEL : entreprise bootstrappee sans aucun capital
-exterieur jamais leve, single founder sans dilution avec common shares
-uniquement, post-IPO avec structure simple sans residuel preferred
-significatif, pre-fundraise pre-product seed sans tour conduit. Hors
-ces cas, l axe est applicable et le verdict doit etre cote.
+DEFINITION DE L APPLICABILITE (large par construction). L axe 1 est
+applicable a tout dossier en phase pre-IPO, post-fundraising ou en
+levee active des qu il existe un actionnariat exterieur structurant,
+quel que soit l instrument utilise. Cela inclut : tour preferred
+classique (Series Seed, A, B, C, D et au-dela), secondary minoritaire
+ou majoritaire (cas Atlassian Accel 2010), ESOP refresh significatif
+(>5% diluted), entree de strategique au capital, conversion convertible
+ou SAFE, cap table de pre-IPO avec class structure documentee meme
+simple, IPO secondary offering. Une entreprise qui a LEVE ou STRUCTURE
+son capital exterieurement, meme une seule fois, meme via secondary
+minoritaire, meme sans emission primary preferred, est dans le perimetre
+du pattern.
+
+Si l axe est applicable tu DOIS produire un verdict parmi sain,
+attention, alerte ou drapeau-rouge. En absence de signaux de fragilite
+(preferences uniformement 1x non participating, pari passu sans
+seniority defavorable, pas de full ratchet, pas de super voting
+excessif, ESOP refresh mature, OU cap table simple bootstrappee avec
+au plus un tour secondary minoritaire et IPO directe), le verdict
+correct est SAIN avec score 0-25, pas not-applicable. Une entreprise
+avec cap table simple (Stripe structure preferred lisible une page
+sans participation multiple ni ratchet agressif, Adyen IPO 2018
+structure tres propre, Atlassian un seul tour Accel secondaire 2010
+plus IPO secondary 2015 sans levee primary intermediaire, Datadog peu
+de complexite cap table) est SAIN sur cet axe, pas not-applicable. Le
+caractere SECONDARY MINORITAIRE NE FAIT PAS basculer en not-applicable :
+il signe au contraire une cap table doctrinalement saine et lisible
+qu il faut coter SAIN avec score bas.
+
+NOT_APPLICABLE EST RESERVE AUX CAS RARES OU L AXE N A AUCUN SENS
+STRUCTUREL POUR LE BUSINESS MODEL : pre-product seed sans aucun tour
+conduit ni ESOP structure ni convertible signe, single founder a 100%
+sans aucune partie tierce au capital ni vehicule d incitation
+collaborateur, holding pure de participations sans operation propre.
+Hors ces trois cas, l axe est applicable et le verdict DOIT etre
+cote sur l echelle sain a drapeau-rouge. Si tu hesites entre
+not-applicable et sain, choisis SAIN.
 
 Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
 coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
