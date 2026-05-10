@@ -431,9 +431,9 @@ export const EXPECTATIONS: ExpectationGrid = {
       doctrineRationale: 'Scale par layer logiciel sans capex industriel. Counter-archetype.',
     },
     'stripe-seriesE-2016': {
-      expectedVerdict: 'sain',
+      expectedVerdict: 'non-applicable',
       expectedScoreRange: [0, 25],
-      doctrineRationale: 'Scale par API sans capex industriel. Counter-archetype canonique.',
+      doctrineRationale: 'Stripe est un pure software sans capex industriel ni infrastructure proprietaire significative (compute loue chez AWS puis multi-cloud, aucune ligne de production, aucun amenagement physique scale-dependent). Le pattern Scale Mirage Risk n a aucun sens structurel pour ce business model. Counter-archetype canonique not-applicable, a distinguer du counter-archetype sain qui suppose un capex maitrisé.',
     },
     'mistral-seriesB-2024': {
       expectedVerdict: 'attention',
