@@ -248,29 +248,50 @@ score modere parce que la trajectoire est empiriquement connue.
 L axe 1 (exposition reglementaire structurelle) est l axe identitaire
 de Regulatory Time Bomb.
 
-DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
-qui opere dans une ou plusieurs juridictions avec des utilisateurs
-reels, ce qui couvre la quasi-totalite des entreprises commerciales.
-Une SaaS B2B internationale opere dans le perimetre RGPD plus DPDPA
-plus CCPA donc l axe est applicable meme si l exposition est faible.
+REGLE IMPERATIVE A LIRE EN PREMIER. Une boite saine profitable avec
+moats etablis (Atlassian S-1 octobre 2015, Stripe Series E 2016,
+Datadog NRR 130%+, Snowflake net retention 165%) doit etre cotee SAIN
+sur cet axe, JAMAIS not-applicable, des qu il existe une operation
+commerciale dans au moins une juridiction. Toute entreprise B2B SaaS
+internationale opere a minima sous RGPD, DPDPA et CCPA, donc l axe
+est applicable et le verdict doit etre cote sur l echelle sain a
+drapeau-rouge. Une exposition reglementaire faible se traduit par un
+verdict SAIN avec score 0-25, jamais par not-applicable. Le caractere
+"hors secteur regule" n est pas un argument pour basculer en
+not-applicable : il signifie que le verdict est SAIN avec score bas.
+
+DEFINITION DE L APPLICABILITE (large par construction). L axe 1 est
+applicable a tout dossier qui opere dans une ou plusieurs juridictions
+avec des utilisateurs reels, ce qui couvre la quasi-totalite des
+entreprises commerciales modernes (logiciel, SaaS, IA, plateforme,
+fintech, hardware grand public, DTC, marketplace, services pros). Une
+SaaS B2B internationale opere dans le perimetre RGPD + DPDPA + CCPA
+donc l axe est applicable meme si l exposition est faible. Une
+entreprise mono-juridiction opere dans le perimetre reglementaire de
+sa juridiction (RGPD si EU, FTC si US, etc.) donc l axe est applicable.
+
 Si l axe est applicable tu DOIS produire un verdict parmi sain,
 attention, alerte ou drapeau-rouge. En absence de signaux de
 fragilite (perimetre reglementaire stable, agrements obtenus en
 amont, fonction compliance documentee, lobbying actif aligne avec
-trajectoire reglementaire previsible), le verdict correct est SAIN
-avec score 0-25, pas not-applicable. Une entreprise dans un secteur
-peu regule ou avec compliance mature (Atlassian SaaS B2B sans
-exposition particuliere au S-1 2015, Datadog observabilite B2B,
-Stripe avec agrement etablissement paiement obtenu des 2017 avant
-PSD2, Klarna apres 2022 avec licence credit institution europeenne
-en place) est SAIN sur cet axe, pas not-applicable.
+trajectoire reglementaire previsible, OU absence pure de zone grise
+identifiable parce que le secteur n est pas regule au moment du
+dossier), le verdict correct est SAIN avec score 0-25, pas
+not-applicable. Une entreprise dans un secteur peu regule ou avec
+compliance mature (Atlassian SaaS B2B sans exposition particuliere
+au S-1 2015, Datadog observabilite B2B, Stripe avec agrement
+etablissement paiement obtenu des 2017 avant PSD2, Klarna apres 2022
+avec licence credit institution europeenne en place) est SAIN sur
+cet axe, pas not-applicable. Si tu hesites entre not-applicable et
+sain, choisis SAIN.
 
-NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
-POUR LE BUSINESS MODEL : pre-revenu sans utilisateurs ni perimetre
-juridictionnel articule (lab deeptech sans deploiement commercial),
-R&D pure pre-commerciale avec produit non encore expose au public,
-holding pure de participations sans operation propre. Hors ces cas,
-l axe est applicable et le verdict doit etre cote.
+NOT_APPLICABLE EST RESERVE AUX CAS RARES OU L AXE N A AUCUN SENS
+STRUCTUREL POUR LE BUSINESS MODEL : pre-revenu sans utilisateurs ni
+perimetre juridictionnel articule (lab deeptech sans deploiement
+commercial), R&D pure pre-commerciale avec produit non encore expose
+au public ni clients pilote, holding pure de participations sans
+operation propre. Hors ces trois cas, l axe est applicable et le
+verdict DOIT etre cote sur l echelle sain a drapeau-rouge.
 
 Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
 coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
