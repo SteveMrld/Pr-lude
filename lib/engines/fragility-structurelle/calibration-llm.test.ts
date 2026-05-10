@@ -248,14 +248,28 @@ function logRun(r: RunResult): void {
   console.log(`  Verdict       : ${out.verdict} (attendu ${exp.expectedVerdict})`);
   console.log(`  Score global  : ${score} (range attendue ${expectedRange})`);
   console.log(`  Applicabilite : ${out.applicabilite}`);
-  console.log(`  Counter-arch  : ${out.counterArchetype.closest} (${out.counterArchetype.direction})`);
-  console.log(`  Axe 1 ${out.axis1.verdict} ${out.axis1.score}/100 : ${truncate(out.axis1.rationale, 200)}`);
-  console.log(`  Axe 2 ${out.axis2.verdict} ${out.axis2.score}/100 : ${truncate(out.axis2.rationale, 200)}`);
-  console.log(`  Axe 3 ${out.axis3.verdict} ${out.axis3.score}/100 : ${truncate(out.axis3.rationale, 200)}`);
+  // Outputs partiels : un pattern peut omettre counterArchetype ou un axis
+  // si le LLM a retourne un JSON incomplet. On log '(absent)' plutot que de
+  // crasher tout le harnais (regression vue lors du run baseline du
+  // 2026-05-10 sur un job CSF/SMR).
+  const ca = out.counterArchetype;
+  const counterStr = ca ? `${ca.closest} (${ca.direction})` : '(absent)';
+  console.log(`  Counter-arch  : ${counterStr}`);
+  logAxis(out.axis1, 'Axe 1');
+  logAxis(out.axis2, 'Axe 2');
+  logAxis(out.axis3, 'Axe 3');
   console.log(`  Reco DD       : ${truncate(out.recommandationDD, 200)}`);
   if (status === 'mismatch' || status === 'close') {
     console.log(`  ATTENDU       : ${exp.doctrineRationale}`);
   }
+}
+
+function logAxis(axis: PatternAnalysisOutput['axis1'] | undefined, label: string): void {
+  if (!axis) {
+    console.log(`  ${label} (absent)`);
+    return;
+  }
+  console.log(`  ${label} ${axis.verdict} ${axis.score}/100 : ${truncate(axis.rationale, 200)}`);
 }
 
 function truncate(s: string | null | undefined, max: number): string {
@@ -403,7 +417,14 @@ async function main(): Promise<void> {
   const tStart = Date.now();
   const results = await mapWithConcurrency(jobs, async (j) => {
     const r = await runOne(j.patternId, j.role);
-    logRun(r);
+    // logRun est best-effort : un crash de logging ne doit pas remonter
+    // une erreur au mapWithConcurrency, qui annulerait toute la calibration
+    // et perdrait le dump final.
+    try {
+      logRun(r);
+    } catch (logErr: any) {
+      console.error(`[harness] logRun crash sur ${j.patternId}/${j.role} : ${logErr?.message ?? logErr}`);
+    }
     return r;
   }, parallel);
   const tEnd = Date.now();
