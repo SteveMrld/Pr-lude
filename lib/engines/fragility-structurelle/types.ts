@@ -161,8 +161,10 @@ export interface PatternAnalysisOutput {
    *  l execution complete. Sert au partner pour comprendre le perimetre. */
   applicabiliteRationale: string;
 
-  /** Score global du pattern, agrege des trois axes. 0-100. */
-  globalScore: number;
+  /** Score global du pattern, agrege des trois axes. 0-100.
+   *  null si le gating axe central a force le pattern en non-applicable
+   *  (axe identitaire neutralise, pas d agregation possible). */
+  globalScore: number | null;
 
   /** Verdict global du pattern, derive du score global et des
    *  combinaisons d axes (un axe a 90 force globalement vers
@@ -215,7 +217,8 @@ export interface PatternAnalysisOutput {
 export interface FragiliteStructurelleAnalysisOutput {
   /** Sortie brute des sept patterns, indexee par PatternId.
    *  Un pattern non-applicable a un objet avec applicabilite =
-   *  not-applicable et globalScore = 0. */
+   *  not-applicable et globalScore = null (gating axe central
+   *  ou pre-check financialData manquant). */
   patterns: Record<PatternId, PatternAnalysisOutput | null>;
 
   /** Score global Fragilite Structurelle, 0-100. Agrege pondere

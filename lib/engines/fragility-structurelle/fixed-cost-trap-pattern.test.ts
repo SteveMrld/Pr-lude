@@ -6,8 +6,13 @@
 
 import { fixedCostTrapPattern, _internal } from './fixed-cost-trap-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
+import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
-import type { PatternInput } from './types';
+import type { PatternAnalysisOutput, PatternInput } from './types';
+
+// Donnees financieres minimales pour passer le pre-check universel
+// (revenue ou burn requis depuis la doctrine de gating axe central).
+const MINIMAL_FIN = { revenue: 5000000, monthlyBurn: 200000 } as any;
 
 let pass = 0, fail = 0;
 
@@ -57,7 +62,7 @@ function mockExtraction(opts: Partial<ExtractionOutput> = {}): ExtractionOutput 
 
 console.log('\n=== Test 2 : isApplicable SaaS pure cloud ===');
 {
-  const result = _internal.isApplicable(mockExtraction(), null);
+  const result = _internal.isApplicable(mockExtraction(), MINIMAL_FIN);
   check('SaaS pure cloud -> partial', result.level, 'partial');
   checkTrue('shouldRun true', result.shouldRun);
 }
@@ -71,7 +76,7 @@ console.log('\n=== Test 3 : isApplicable real estate operationnel ===');
     businessModel: 'Location espaces bureaux',
     rawSummary: 'Operateur immobilier coworking France.',
   });
-  const result = _internal.isApplicable(realEstate, null);
+  const result = _internal.isApplicable(realEstate, MINIMAL_FIN);
   check('real estate -> full', result.level, 'full');
 }
 
@@ -84,7 +89,7 @@ console.log('\n=== Test 4 : isApplicable hardware industriel ===');
     businessModel: 'Vente unitaire hardware',
     rawSummary: 'Production hardware industrielle drones.',
   });
-  const result = _internal.isApplicable(hardware, null);
+  const result = _internal.isApplicable(hardware, MINIMAL_FIN);
   check('hardware industriel -> full', result.level, 'full');
 }
 
@@ -93,15 +98,22 @@ console.log('\n=== Test 5 : isApplicable seed sans signal asset-heavy ===');
   const seedSaas = mockExtraction({
     fundraise: { stage: 'Seed', amount: '1M' },
   });
-  const result = _internal.isApplicable(seedSaas, null);
+  const result = _internal.isApplicable(seedSaas, MINIMAL_FIN);
   // SaaS pure cloud meme en seed = partial
   check('seed SaaS pure cloud -> partial', result.level, 'partial');
 }
 
 console.log('\n=== Test 6 : isApplicable sans business model ===');
 {
-  const result = _internal.isApplicable(mockExtraction({ businessModel: '' }), null);
+  const result = _internal.isApplicable(mockExtraction({ businessModel: '' }), MINIMAL_FIN);
   check('sans BM -> not-applicable', result.level, 'not-applicable');
+  check('shouldRun false', result.shouldRun, false);
+}
+
+console.log('\n=== Test 6b : pre-check sans financialData -> not-applicable ===');
+{
+  const result = _internal.isApplicable(mockExtraction(), null);
+  check('sans financialData -> not-applicable', result.level, 'not-applicable');
   check('shouldRun false', result.shouldRun, false);
 }
 
@@ -193,6 +205,49 @@ console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
   checkTrue('mentionne Airbnb asset-light', sp.includes('Airbnb'));
   checkTrue('format JSON specifie', sp.includes('FORMAT JSON OBLIGATOIRE'));
   checkTrue('contrainte coherence presente', sp.includes('CONTRAINTE DE COHERENCE'));
+}
+
+console.log('\n=== Test 11 : trois regles SYSTEM_PROMPT FCT ===');
+{
+  const sp = _internal.SYSTEM_PROMPT;
+  checkTrue('regle gating axe central presente', sp.includes('GATING AXE CENTRAL'));
+  checkTrue('regle plafond axe 2 presente', sp.includes('REGLE DE PLAFOND'));
+  checkTrue('regle anti-contamination presente', sp.includes('ANTI-CONTAMINATION'));
+  checkTrue('regle detection inversion presente', sp.includes("DETECTION D INVERSION"));
+  checkTrue('mentionne MoviePass dans inversion', sp.includes('MoviePass'));
+  checkTrue('mentionne seuil 1x ratio', sp.includes('1x'));
+}
+
+console.log('\n=== Test 12 : gating axe 2 (axe central FCT) ===');
+{
+  const naAxis = {
+    score: 0,
+    verdict: 'non-applicable' as const,
+    rationale: 'Pas d engagements long terme contractuels identifiables.',
+    evidencePro: [],
+    evidenceContra: [],
+    confidence: 0,
+  };
+  const inflatedOutput: PatternAnalysisOutput = {
+    patternId: 'fixed-cost-trap',
+    applicabilite: 'full',
+    applicabiliteRationale: 'Donnees disponibles.',
+    globalScore: 90,
+    verdict: 'drapeau-rouge',
+    resumeEditorial: 'Score gonfle par contamination GSM.',
+    axis1: { score: 95, verdict: 'drapeau-rouge', rationale: 'Cout direct > revenu.', evidencePro: [], evidenceContra: [], confidence: 80 },
+    axis2: naAxis,
+    axis3: { score: 90, verdict: 'drapeau-rouge', rationale: 'Pas de downside plan.', evidencePro: [], evidenceContra: [], confidence: 80 },
+    counterArchetype: { closest: 'MoviePass', direction: 'derive-confirmee', rationale: '' },
+    recommandationDD: '',
+    auditTrail: { sourceTags: [], claimsChiffres: [] },
+  };
+
+  const gated = applyCentralAxisGating(inflatedOutput, 'axis2', 'Pattern non applicable : axe 2 neutralise (pas d engagements long terme).');
+  check('axis2 non-applicable -> globalVerdict non-applicable', gated.verdict, 'non-applicable');
+  check('axis2 non-applicable -> globalScore null', gated.globalScore, null);
+  check('applicabilite forcee a not-applicable', gated.applicabilite, 'not-applicable');
+  checkTrue('axes peripheriques conserves dans output', gated.axis1.score === 95 && gated.axis3.score === 90);
 }
 
 console.log(`\n${pass}/${pass + fail} tests passes`);

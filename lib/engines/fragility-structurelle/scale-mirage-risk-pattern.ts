@@ -37,6 +37,8 @@ import {
   type PatternModule,
   type PatternApplicabilityCheck,
   buildNotApplicableOutput,
+  hasMinimalFinancialSignal,
+  applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -358,8 +360,19 @@ function llmOutputToPatternOutput(raw: RawLLMOutput): PatternAnalysisOutput {
 
 function isApplicable(
   extraction: ExtractionOutput,
-  _financialData?: FinancialDataExtraction | null,
+  financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
+  // Pre-check universel : sans revenu ni burn, on ne peut pas mesurer
+  // la disproportion entre capex engage et demande validee. Court-
+  // circuit avant LLM call.
+  if (!hasMinimalFinancialSignal(financialData)) {
+    return {
+      level: 'not-applicable',
+      rationale: 'Pattern Scale Mirage Risk non evaluable : aucun revenu ni burn chiffre. La doctrine necessite la matiere economique pour mesurer le mirage de scale.',
+      shouldRun: false,
+    };
+  }
+
   const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
   if (!hasBusinessModel) {
     return {
@@ -445,7 +458,16 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
 
-  return llmOutputToPatternOutput(raw);
+  const output = llmOutputToPatternOutput(raw);
+
+  // Gating axe central : axe 1 (disproportion entre capex engage et
+  // demande validee) est l axe identitaire de Scale Mirage Risk.
+  // Sans capex industriel et sans demande mesurable, pas de mirage.
+  return applyCentralAxisGating(
+    output,
+    'axis1',
+    'Pattern Scale Mirage Risk non applicable : l axe identitaire (disproportion capex / demande validee) est neutralise. Sans capex industriel chiffre ou sans demande commerciale evaluable, pas de mirage mesurable.',
+  );
 }
 
 // ============================================================

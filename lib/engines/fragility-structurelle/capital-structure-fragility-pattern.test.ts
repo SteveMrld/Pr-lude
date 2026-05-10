@@ -1,7 +1,10 @@
 import { capitalStructureFragilityPattern, _internal } from './capital-structure-fragility-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
+import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
-import type { PatternInput } from './types';
+import type { PatternAnalysisOutput, PatternInput } from './types';
+
+const MINIMAL_FIN = { revenue: 5000000, monthlyBurn: 200000 } as any;
 
 let pass = 0, fail = 0;
 function check<T>(label: string, actual: T, expected: T) {
@@ -35,27 +38,34 @@ function mockExtraction(opts: Partial<ExtractionOutput> = {}): ExtractionOutput 
 
 console.log('\n=== Test 2 : isApplicable Series C ===');
 {
-  const r = _internal.isApplicable(mockExtraction(), null);
+  const r = _internal.isApplicable(mockExtraction(), MINIMAL_FIN);
   check('Series C -> full', r.level, 'full');
   checkTrue('shouldRun true', r.shouldRun);
 }
 
 console.log('\n=== Test 3 : isApplicable Series A ===');
 {
-  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Series A', amount: '8M' } }), null);
+  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Series A', amount: '8M' } }), MINIMAL_FIN);
   check('Series A -> partial', r.level, 'partial');
 }
 
 console.log('\n=== Test 4 : isApplicable Seed ===');
 {
-  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Seed', amount: '1M' } }), null);
+  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Seed', amount: '1M' } }), MINIMAL_FIN);
   check('Seed -> weak-signal', r.level, 'weak-signal');
 }
 
 console.log('\n=== Test 5 : sans BM ===');
 {
-  const r = _internal.isApplicable(mockExtraction({ businessModel: '' }), null);
+  const r = _internal.isApplicable(mockExtraction({ businessModel: '' }), MINIMAL_FIN);
   check('sans BM -> not-applicable', r.level, 'not-applicable');
+}
+
+console.log('\n=== Test 5b : pre-check sans financialData -> not-applicable ===');
+{
+  const r = _internal.isApplicable(mockExtraction(), null);
+  check('sans financialData -> not-applicable', r.level, 'not-applicable');
+  check('shouldRun false', r.shouldRun, false);
 }
 
 console.log('\n=== Test 6 : extractCapTableSnapshot detection ===');
@@ -142,6 +152,33 @@ console.log('\n=== Test 11 : KEYWORDS calibres ===');
   checkTrue('drag-along dans CAPTABLE_KEYWORDS', _internal.CAPTABLE_KEYWORDS.includes('drag-along'));
   checkTrue('participating dans PREFERENCE_SIGNALS', _internal.PREFERENCE_SIGNALS.includes('participating'));
   checkTrue('down round dans PREFERENCE_SIGNALS', _internal.PREFERENCE_SIGNALS.includes('down round'));
+}
+
+console.log('\n=== Test 12 : gating axe 1 (axe central Capital Structure Fragility) ===');
+{
+  const naAxis = {
+    score: 0, verdict: 'non-applicable' as const,
+    rationale: 'Pacte d actionnaires non accessible.',
+    evidencePro: [], evidenceContra: [], confidence: 0,
+  };
+  const inflated: PatternAnalysisOutput = {
+    patternId: 'capital-structure-fragility',
+    applicabilite: 'full',
+    applicabiliteRationale: '',
+    globalScore: 75,
+    verdict: 'drapeau-rouge',
+    resumeEditorial: '',
+    axis1: naAxis,
+    axis2: { score: 80, verdict: 'drapeau-rouge', rationale: '', evidencePro: [], evidenceContra: [], confidence: 80 },
+    axis3: { score: 70, verdict: 'alerte', rationale: '', evidencePro: [], evidenceContra: [], confidence: 75 },
+    counterArchetype: { closest: 'n/a', direction: 'non determine', rationale: '' },
+    recommandationDD: '',
+    auditTrail: { sourceTags: [], claimsChiffres: [] },
+  };
+  const gated = applyCentralAxisGating(inflated, 'axis1', 'Pattern non applicable.');
+  check('verdict non-applicable', gated.verdict, 'non-applicable');
+  check('globalScore null', gated.globalScore, null);
+  check('applicabilite forcee', gated.applicabilite, 'not-applicable');
 }
 
 console.log(`\n${pass}/${pass + fail} tests passes`);

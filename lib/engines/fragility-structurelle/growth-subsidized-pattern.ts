@@ -41,6 +41,8 @@ import {
   type PatternModule,
   type PatternApplicabilityCheck,
   buildNotApplicableOutput,
+  hasMinimalFinancialSignal,
+  applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -201,7 +203,24 @@ alors globalScore >= 70 force.
 
 Si gross margin documentee superieure a 60% ET CAC payback < 18 mois ET plan
 vers breakeven articule avec milestones, alors globalScore <= 30 sauf
-evidence contraire majeure.`;
+evidence contraire majeure.
+
+# REGLE DE GATING AXE CENTRAL (AXE 1)
+
+L axe 1 (unit economics) est l axe identitaire de Growth Subsidized Model.
+Sans transactions mesurables, le pattern n a pas d objet par doctrine. Si
+tu ne peux pas calculer la marge unitaire faute de revenu, COGS, CAC ou
+LTV documentes, tu DOIS coter axis1.verdict = 'non-applicable' et
+axis1.score = 0. Dans ce cas, applicabilite = 'not-applicable' au niveau
+pattern et globalScore = 0 (le moteur le forcera a null en aval).
+
+Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
+axe 1 non-applicable. Les signaux de capital massif sans validation, de
+deni structurel ou de gouvernance non alignee relevent d autres patterns
+(Capital Structure Fragility, Aveuglement aux Couts Caches du moteur 8,
+Tech Claim Verification du moteur 9). Mentionne-les en evidenceContra ou
+dans le rationale d applicabilite, mais ne les agrege pas dans
+globalScore Growth Subsidized.`;
 
 // ============================================================
 // CONSTRUCTION DU PROMPT UTILISATEUR
@@ -346,14 +365,21 @@ function isApplicable(
   extraction: ExtractionOutput,
   financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
-  // Sans donnees financieres et sans business model lisible, le pattern ne
-  // peut pas s exprimer correctement. On ne lance pas l appel LLM, on
-  // retourne un not-applicable transparent.
-  const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
-  const hasMinimalFinancialContext = !!financialData
-    || !!(extraction as any).rawSummary
-    || (!!extraction.marketPitch && extraction.marketPitch.length > 100);
+  // Pre-check universel : sans revenu ni burn dans financialData, on ne
+  // peut pas raisonner sur l unit economics. La doctrine GSM exige
+  // explicitement un BP triennal ou des projections financieres
+  // chiffrees. Court-circuit avant LLM call.
+  if (!hasMinimalFinancialSignal(financialData)) {
+    return {
+      level: 'not-applicable',
+      rationale: 'Pattern Growth Subsidized non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine reserve ce pattern aux dossiers avec transactions mesurables (Series A+ avec BP).',
+      shouldRun: false,
+    };
+  }
 
+  // Sans business model lisible, le pattern ne peut pas s exprimer
+  // correctement.
+  const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
   if (!hasBusinessModel) {
     return {
       level: 'not-applicable',
@@ -362,27 +388,10 @@ function isApplicable(
     };
   }
 
-  if (!hasMinimalFinancialContext) {
-    return {
-      level: 'weak-signal',
-      rationale: 'Modele economique present mais aucune donnee financiere ni contexte qualitatif suffisant. Pattern lance en lecture qualitative limitee.',
-      shouldRun: true,
-    };
-  }
-
-  // Avec donnees financieres, full
-  if (financialData) {
-    return {
-      level: 'full',
-      rationale: 'Modele economique et donnees financieres disponibles, analyse complete possible.',
-      shouldRun: true,
-    };
-  }
-
-  // Sans donnees financieres mais avec contexte qualitatif riche, partial
+  // Avec donnees financieres et business model, full.
   return {
-    level: 'partial',
-    rationale: 'Modele economique present, donnees financieres absentes, lecture qualitative partielle sur la base du pitch et du resume.',
+    level: 'full',
+    rationale: 'Modele economique et donnees financieres disponibles, analyse complete possible.',
     shouldRun: true,
   };
 }
@@ -413,7 +422,18 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
 
-  return llmOutputToPatternOutput(raw);
+  const output = llmOutputToPatternOutput(raw);
+
+  // Gating axe central : axe 1 (unit economics) est l axe identitaire
+  // de Growth Subsidized Model. S il est neutralise par le LLM,
+  // verdict global force a non-applicable, score null. Empeche les
+  // axes peripheriques (subvention, denial) de tirer un score sur
+  // un pattern doctrinalement hors-scope.
+  return applyCentralAxisGating(
+    output,
+    'axis1',
+    'Pattern Growth Subsidized non applicable : l axe identitaire (unit economics) est neutralise par absence de transactions mesurables. Les signaux peripheriques observables sur ce dossier (capital, denial, gouvernance) relevent d autres patterns.',
+  );
 }
 
 // ============================================================

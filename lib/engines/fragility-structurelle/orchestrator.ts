@@ -207,6 +207,7 @@ export async function analyzeFragiliteStructurelle(
   for (const patternId of PATTERN_IDS) {
     const p = patterns[patternId];
     if (!p || p.applicabilite === 'not-applicable') continue;
+    if (p.globalScore === null) continue;
     const weight = matriceVerdicts?.[patternId]?.weight ?? 0.5;
     scoreSommePondere += p.globalScore * weight;
     weightTotal += weight;
@@ -250,7 +251,10 @@ function detectCombinaisons(
     const seuil = config.seuilMin ?? 60;
     const tousAuSeuil = config.patterns.every((pid) => {
       const p = patterns[pid];
-      return p && p.applicabilite !== 'not-applicable' && p.globalScore >= seuil;
+      return p
+        && p.applicabilite !== 'not-applicable'
+        && p.globalScore !== null
+        && p.globalScore >= seuil;
     });
 
     if (tousAuSeuil) {
@@ -329,7 +333,7 @@ function buildResumeEditorial(
     return 'Le moteur Fragilite Structurelle n a trouve aucun pattern applicable sur ce dossier. Les axes Phase 4 sont soit hors-scope (modele economique non concerne), soit en attente d implementation. La lecture early-stage du Bloc 1 reste l analyse principale.';
   }
 
-  const patternsRemontes = patternsActifs.filter((p) => p.globalScore >= 55);
+  const patternsRemontes = patternsActifs.filter((p) => p.globalScore !== null && p.globalScore >= 55);
   if (patternsRemontes.length === 0) {
     return `Aucun pattern de fragilite structurelle ne remonte significativement sur ce dossier. Les ${patternsActifs.length} patterns actifs produisent des scores moderes (en dessous de 55), ce qui est aligne avec un dossier sain sur l axe Phase 4. Score global Fragilite : ${globalScore}/100.`;
   }

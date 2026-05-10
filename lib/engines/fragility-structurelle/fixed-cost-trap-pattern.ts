@@ -43,6 +43,8 @@ import {
   type PatternModule,
   type PatternApplicabilityCheck,
   buildNotApplicableOutput,
+  hasMinimalFinancialSignal,
+  applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -218,7 +220,52 @@ recent du modele.
 Le seuil score >= 60 est plus exigeant que sur les autres patterns parce
 que le diagnostic se confond facilement avec les structures de couts
 normales des modeles asset-heavy. Tu dois etre rigoureux sur la symetrie
-evidence pro contra.`;
+evidence pro contra.
+
+# REGLE DE GATING AXE CENTRAL (AXE 2)
+
+L axe 2 (engagements long terme non resiliables) est l axe identitaire de
+Fixed Cost Trap. La signature pathologique du pattern (WeWork canonique)
+est le ratio engagements off-balance contre revenu, pas la rigidite courante
+de la structure de couts qui peut etre sectoriellement normale dans tout
+asset-heavy. Si tu ne peux pas identifier d engagements long-terme
+contractuels chiffres (baux, contrats fournisseurs avec minimum, capex
+non transferable, purchase commitments), tu DOIS coter axis2.verdict =
+'non-applicable' et axis2.score = 0. Dans ce cas, applicabilite =
+'not-applicable' au niveau pattern.
+
+# REGLE DE PLAFOND AXE 2
+
+Si le ratio engagements off-balance / revenu annuel courant est inferieur
+a 1x, tu DOIS coter axis2.score <= 40 et globalScore <= 50 (verdict
+attention max), quels que soient les autres axes. La doctrine considere 5x
+comme seuil menacant. En dessous de 1x, le pattern n est pas dans son
+perimetre. Cite explicitement le ratio dans le rationale.
+
+# REGLE ANTI-CONTAMINATION GROWTH SUBSIDIZED MODEL
+
+Le score Fixed Cost Trap mesure exclusivement la rigidite contractuelle
+long-terme face a un choc demande. La marge unitaire negative, l absence
+de path to profitability, le ratio LTV/CAC defavorable, le repeat rate
+insuffisant relevent du pattern Growth Subsidized Model et NE DOIVENT EN
+AUCUN CAS gonfler le score Fixed Cost Trap. Si tu identifies ces signaux,
+mentionne-les en evidenceContra ou dans le rationale, mais ne les agrege
+pas dans le scoring des trois axes FCT. Le moteur orchestrateur lance
+GSM en parallele, le signal y sera capte.
+
+# REGLE DE DETECTION D INVERSION
+
+Si tu identifies que le mecanisme structurel observe est une *inversion*
+ou une *transposition* du pattern (par exemple cout variable rigide par
+transaction au lieu de cout fixe contractuel long-terme, ou engagement
+client unilateral au lieu d engagement vendor), tu DOIS retourner
+applicabilite='not-applicable' avec axis2.verdict='non-applicable' et
+documenter dans applicabiliteRationale le pattern alternatif qui
+correspond reellement (typiquement Growth Subsidized si UE negative,
+ou Capital Structure Fragility si dependance financement). Cas canonique :
+MoviePass, dont le mecanisme (engagement client unlimited contre cout
+ticket variable) est l inversion du Fixed Cost Trap WeWork (engagement
+vendor bail rigide contre revenu variable).`;
 
 // ============================================================
 // CONSTRUCTION DU PROMPT UTILISATEUR
@@ -355,8 +402,20 @@ function isApplicable(
   extraction: ExtractionOutput,
   financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
+  // Pre-check universel : sans revenu ni burn dans financialData, on ne
+  // peut pas raisonner sur le ratio couts fixes / revenu ni sur le
+  // run-rate au point d arret commercial. La doctrine FCT exige un BP
+  // detaille avec breakdown couts fixes vs variables. Court-circuit
+  // avant LLM call.
+  if (!hasMinimalFinancialSignal(financialData)) {
+    return {
+      level: 'not-applicable',
+      rationale: 'Pattern Fixed Cost Trap non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine exige un BP detaille avec breakdown couts fixes contre variables.',
+      shouldRun: false,
+    };
+  }
+
   const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
-  const sector = (extraction.sector ?? '').toLowerCase();
   const text = [extraction.marketPitch, extraction.productDescription, extraction.businessModel, (extraction as any).rawSummary]
     .filter(Boolean).join(' ').toLowerCase();
 
@@ -432,7 +491,19 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
 
-  return llmOutputToPatternOutput(raw);
+  const output = llmOutputToPatternOutput(raw);
+
+  // Gating axe central : axe 2 (engagements long terme non resiliables)
+  // est l axe identitaire de Fixed Cost Trap. Sans engagements
+  // contractuels long-terme identifiables, le pattern n a pas d objet.
+  // La rigidite courante des couts (axe 1) seule ne suffit pas a
+  // declencher le pattern, qui se confond sinon avec tout asset-heavy
+  // sectoriellement normal.
+  return applyCentralAxisGating(
+    output,
+    'axis2',
+    'Pattern Fixed Cost Trap non applicable : l axe identitaire (engagements long terme contractuels) est neutralise. Le mecanisme observe ne correspond pas a la signature WeWork (off-balance > 5x revenu, duree > 5 ans). Si rigidite economique observee, voir Growth Subsidized Model ou Capital Structure Fragility.',
+  );
 }
 
 // ============================================================

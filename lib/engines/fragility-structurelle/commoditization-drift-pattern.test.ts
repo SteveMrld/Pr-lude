@@ -2,8 +2,11 @@
 
 import { commoditizationDriftPattern, _internal } from './commoditization-drift-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
+import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
-import type { PatternInput } from './types';
+import type { PatternAnalysisOutput, PatternInput } from './types';
+
+const MINIMAL_FIN = { revenue: 5000000, monthlyBurn: 200000 } as any;
 
 let pass = 0, fail = 0;
 
@@ -38,7 +41,7 @@ function mockExtraction(opts: Partial<ExtractionOutput> = {}): ExtractionOutput 
 
 console.log('\n=== Test 2 : isApplicable SaaS ===');
 {
-  const r = _internal.isApplicable(mockExtraction(), null);
+  const r = _internal.isApplicable(mockExtraction(), MINIMAL_FIN);
   check('SaaS -> full', r.level, 'full');
   checkTrue('shouldRun true', r.shouldRun);
 }
@@ -52,7 +55,7 @@ console.log('\n=== Test 3 : isApplicable hardware physique pur ===');
     businessModel: 'Vente unitaire hardware',
     rawSummary: 'Production hardware drones agricoles.',
   });
-  const r = _internal.isApplicable(hw, null);
+  const r = _internal.isApplicable(hw, MINIMAL_FIN);
   check('hardware pur -> not-applicable', r.level, 'not-applicable');
   check('shouldRun false', r.shouldRun, false);
 }
@@ -64,14 +67,21 @@ console.log('\n=== Test 4 : isApplicable hardware avec couche cloud ===');
     marketPitch: 'Drones agricoles avec plateforme SaaS cloud de gestion.',
     productDescription: 'Hardware plus API cloud SaaS proprietaire.',
   });
-  const r = _internal.isApplicable(hw, null);
+  const r = _internal.isApplicable(hw, MINIMAL_FIN);
   check('hardware avec cloud -> full', r.level, 'full');
 }
 
 console.log('\n=== Test 5 : sans BM ===');
 {
-  const r = _internal.isApplicable(mockExtraction({ businessModel: '' }), null);
+  const r = _internal.isApplicable(mockExtraction({ businessModel: '' }), MINIMAL_FIN);
   check('sans BM -> not-applicable', r.level, 'not-applicable');
+  check('shouldRun false', r.shouldRun, false);
+}
+
+console.log('\n=== Test 5b : pre-check sans financialData -> not-applicable ===');
+{
+  const r = _internal.isApplicable(mockExtraction(), null);
+  check('sans financialData -> not-applicable', r.level, 'not-applicable');
   check('shouldRun false', r.shouldRun, false);
 }
 
@@ -150,6 +160,33 @@ console.log('\n=== Test 11 : KEYWORDS calibres ===');
   checkTrue('Cursor dans AI_ATTACK_KEYWORDS', _internal.AI_ATTACK_KEYWORDS.includes('Cursor'));
   checkTrue('network effect dans MOAT_KEYWORDS', _internal.MOAT_KEYWORDS.includes('network effect'));
   checkTrue('donnees proprietaires dans MOAT_KEYWORDS', _internal.MOAT_KEYWORDS.includes('donnees proprietaires'));
+}
+
+console.log('\n=== Test 12 : gating axe 1 (axe central Commoditization Drift) ===');
+{
+  const naAxis = {
+    score: 0, verdict: 'non-applicable' as const,
+    rationale: 'Aucun moat actuel identifiable.',
+    evidencePro: [], evidenceContra: [], confidence: 0,
+  };
+  const inflated: PatternAnalysisOutput = {
+    patternId: 'commoditization-drift',
+    applicabilite: 'full',
+    applicabiliteRationale: '',
+    globalScore: 75,
+    verdict: 'drapeau-rouge',
+    resumeEditorial: '',
+    axis1: naAxis,
+    axis2: { score: 80, verdict: 'drapeau-rouge', rationale: '', evidencePro: [], evidenceContra: [], confidence: 80 },
+    axis3: { score: 70, verdict: 'alerte', rationale: '', evidencePro: [], evidenceContra: [], confidence: 75 },
+    counterArchetype: { closest: 'n/a', direction: 'non determine', rationale: '' },
+    recommandationDD: '',
+    auditTrail: { sourceTags: [], claimsChiffres: [] },
+  };
+  const gated = applyCentralAxisGating(inflated, 'axis1', 'Pattern non applicable.');
+  check('verdict non-applicable', gated.verdict, 'non-applicable');
+  check('globalScore null', gated.globalScore, null);
+  check('applicabilite forcee', gated.applicabilite, 'not-applicable');
 }
 
 console.log(`\n${pass}/${pass + fail} tests passes`);

@@ -42,6 +42,8 @@ import {
   type PatternModule,
   type PatternApplicabilityCheck,
   buildNotApplicableOutput,
+  hasMinimalFinancialSignal,
+  applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -366,8 +368,19 @@ function llmOutputToPatternOutput(raw: RawLLMOutput): PatternAnalysisOutput {
 
 function isApplicable(
   extraction: ExtractionOutput,
-  _financialData?: FinancialDataExtraction | null,
+  financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
+  // Pre-check universel : sans revenu ni burn, on ne peut pas mesurer
+  // l intensite economique de la dependance infrastructure ni la
+  // capacite financiere a deverouiller. Court-circuit avant LLM call.
+  if (!hasMinimalFinancialSignal(financialData)) {
+    return {
+      level: 'not-applicable',
+      rationale: 'Pattern Infrastructure Hostage non evaluable : aucun revenu ni burn chiffre dans le dossier. La captivite infrastructure ne peut pas etre mesuree sans matiere economique.',
+      shouldRun: false,
+    };
+  }
+
   const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
   const hasProductDescription = !!extraction.productDescription && extraction.productDescription.length > 30;
   const sector = (extraction.sector ?? '').toLowerCase();
@@ -426,7 +439,16 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
 
-  return llmOutputToPatternOutput(raw);
+  const output = llmOutputToPatternOutput(raw);
+
+  // Gating axe central : axe 1 (intensite de la dependance critique)
+  // est l axe identitaire d Infrastructure Hostage. Sans dependance
+  // critique identifiee, le pattern n a pas de matiere.
+  return applyCentralAxisGating(
+    output,
+    'axis1',
+    'Pattern Infrastructure Hostage non applicable : l axe identitaire (intensite de la dependance critique) est neutralise par absence de stack technique identifiable ou de fournisseur critique mesurable.',
+  );
 }
 
 // ============================================================

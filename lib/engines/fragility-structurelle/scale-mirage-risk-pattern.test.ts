@@ -1,7 +1,10 @@
 import { scaleMirageRiskPattern, _internal } from './scale-mirage-risk-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
+import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
-import type { PatternInput } from './types';
+import type { PatternAnalysisOutput, PatternInput } from './types';
+
+const MINIMAL_FIN = { revenue: 5000000, monthlyBurn: 200000 } as any;
 
 let pass = 0, fail = 0;
 function check<T>(label: string, actual: T, expected: T) {
@@ -51,34 +54,41 @@ function mockSaas(opts: Partial<ExtractionOutput> = {}): ExtractionOutput {
 
 console.log('\n=== Test 2 : isApplicable hardware deeptech Series B ===');
 {
-  const r = _internal.isApplicable(mockHardware(), null);
+  const r = _internal.isApplicable(mockHardware(), MINIMAL_FIN);
   check('hardware Series B -> full', r.level, 'full');
   checkTrue('shouldRun true', r.shouldRun);
 }
 
 console.log('\n=== Test 3 : isApplicable hardware Series A ===');
 {
-  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Series A', amount: '8M' } }), null);
+  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Series A', amount: '8M' } }), MINIMAL_FIN);
   check('hardware Series A -> full', r.level, 'full');
 }
 
 console.log('\n=== Test 4 : isApplicable hardware Seed ===');
 {
-  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Seed', amount: '2M' } }), null);
+  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Seed', amount: '2M' } }), MINIMAL_FIN);
   check('hardware seed -> partial', r.level, 'partial');
 }
 
 console.log('\n=== Test 5 : isApplicable SaaS pure cloud ===');
 {
-  const r = _internal.isApplicable(mockSaas(), null);
+  const r = _internal.isApplicable(mockSaas(), MINIMAL_FIN);
   check('SaaS pure -> not-applicable', r.level, 'not-applicable');
   check('shouldRun false', r.shouldRun, false);
 }
 
 console.log('\n=== Test 6 : isApplicable sans BM ===');
 {
-  const r = _internal.isApplicable(mockHardware({ businessModel: '' }), null);
+  const r = _internal.isApplicable(mockHardware({ businessModel: '' }), MINIMAL_FIN);
   check('sans BM -> not-applicable', r.level, 'not-applicable');
+  check('shouldRun false', r.shouldRun, false);
+}
+
+console.log('\n=== Test 6b : pre-check sans financialData -> not-applicable ===');
+{
+  const r = _internal.isApplicable(mockHardware(), null);
+  check('sans financialData -> not-applicable', r.level, 'not-applicable');
   check('shouldRun false', r.shouldRun, false);
 }
 
@@ -165,6 +175,33 @@ console.log('\n=== Test 12 : KEYWORDS calibres ===');
   checkTrue('industrialisation dans CAPEX_KEYWORDS', _internal.CAPEX_KEYWORDS.includes('industrialisation'));
   checkTrue('offtake dans DEMAND_VALIDATION', _internal.DEMAND_VALIDATION_KEYWORDS.includes('offtake'));
   checkTrue('LOI dans DEMAND_VALIDATION', _internal.DEMAND_VALIDATION_KEYWORDS.includes('LOI'));
+}
+
+console.log('\n=== Test 13 : gating axe 1 (axe central Scale Mirage Risk) ===');
+{
+  const naAxis = {
+    score: 0, verdict: 'non-applicable' as const,
+    rationale: 'Pas de capex industriel chiffre.',
+    evidencePro: [], evidenceContra: [], confidence: 0,
+  };
+  const inflated: PatternAnalysisOutput = {
+    patternId: 'scale-mirage-risk',
+    applicabilite: 'full',
+    applicabiliteRationale: '',
+    globalScore: 75,
+    verdict: 'drapeau-rouge',
+    resumeEditorial: '',
+    axis1: naAxis,
+    axis2: { score: 80, verdict: 'drapeau-rouge', rationale: '', evidencePro: [], evidenceContra: [], confidence: 80 },
+    axis3: { score: 70, verdict: 'alerte', rationale: '', evidencePro: [], evidenceContra: [], confidence: 75 },
+    counterArchetype: { closest: 'n/a', direction: 'non determine', rationale: '' },
+    recommandationDD: '',
+    auditTrail: { sourceTags: [], claimsChiffres: [] },
+  };
+  const gated = applyCentralAxisGating(inflated, 'axis1', 'Pattern non applicable.');
+  check('verdict non-applicable', gated.verdict, 'non-applicable');
+  check('globalScore null', gated.globalScore, null);
+  check('applicabilite forcee', gated.applicabilite, 'not-applicable');
 }
 
 console.log(`\n${pass}/${pass + fail} tests passes`);

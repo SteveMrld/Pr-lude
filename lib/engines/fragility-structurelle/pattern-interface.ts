@@ -21,6 +21,8 @@ import type {
   PatternInput,
   PatternAnalysisOutput,
   PatternApplicability,
+  PatternAxisAnalysis,
+  PatternVerdict,
 } from './types';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 
@@ -74,9 +76,9 @@ export function buildNotApplicableOutput(
   patternId: PatternId,
   rationale: string,
 ): PatternAnalysisOutput {
-  const naAxis = {
+  const naAxis: PatternAxisAnalysis = {
     score: 0,
-    verdict: 'non-applicable' as const,
+    verdict: 'non-applicable',
     rationale: 'Non applicable sur ce dossier (corpus ou matiere insuffisante).',
     evidencePro: [],
     evidenceContra: [],
@@ -87,7 +89,7 @@ export function buildNotApplicableOutput(
     patternId,
     applicabilite: 'not-applicable',
     applicabiliteRationale: rationale,
-    globalScore: 0,
+    globalScore: null,
     verdict: 'non-applicable',
     resumeEditorial: rationale,
     axis1: naAxis,
@@ -103,5 +105,87 @@ export function buildNotApplicableOutput(
       sourceTags: [],
       claimsChiffres: [],
     },
+  };
+}
+
+// ============================================================
+// PRE-CHECK FINANCIALDATA UNIVERSEL
+// ------------------------------------------------------------
+// Court-circuit avant l appel LLM si aucune donnee chiffree de
+// base n est disponible. Aligne sur la doctrine commune aux sept
+// fiches patterns : sans revenu mesurable et sans burn observe,
+// le moteur ne peut pas raisonner sur la fragilite economique.
+//
+// Cette regle s applique aux sept patterns. Chaque pattern peut
+// avoir des conditions supplementaires propres (capex pour Scale
+// Mirage, pacte pour Cap Structure, etc.) qui sont verifiees dans
+// son propre isApplicable.
+// ============================================================
+
+/**
+ * Retourne true si financialData contient au moins une metrique
+ * chiffree de base (revenu ou burn). Sert de garde universelle
+ * avant appel LLM. Si false, le pattern doit retourner
+ * not-applicable avec rationale explicite.
+ */
+export function hasMinimalFinancialSignal(
+  financialData?: FinancialDataExtraction | null,
+): boolean {
+  if (!financialData) return false;
+  const f: any = financialData;
+  const revenue = f?.revenue ?? f?.arr ?? f?.annualRevenue;
+  const burn = f?.monthlyBurn ?? f?.burnRate ?? f?.monthly_burn ?? f?.burn;
+  return (revenue !== null && revenue !== undefined)
+    || (burn !== null && burn !== undefined);
+}
+
+// ============================================================
+// GATING AXE CENTRAL
+// ------------------------------------------------------------
+// Si l axe identitaire du pattern (axe central defini par la
+// fiche doctrinale) est neutralise par le LLM (verdict
+// non-applicable ou score null), alors le verdict global du
+// pattern doit etre force a non-applicable, sans agregation des
+// axes peripheriques. La doctrine est explicite : un pattern
+// n a pas d objet sans son axe identitaire.
+//
+// Cette regle resout le bug observe sur Theranos / Growth
+// Subsidized (axe 1 not-applicable mais score global 90 par
+// agregation des axes 2 et 3) et sur les cas de contamination
+// inter-patterns sur Fixed Cost Trap.
+// ============================================================
+
+export type CentralAxisKey = 'axis1' | 'axis2' | 'axis3';
+
+/**
+ * Applique le gating axe central. Si l axe identitaire est
+ * neutralise, force globalVerdict='non-applicable' et
+ * globalScore=null. Les axes peripheriques sont conserves dans
+ * l output pour audit, mais ne portent pas de verdict global.
+ *
+ * @param patternOutput sortie du LLM convertie en
+ *   PatternAnalysisOutput (apres parse, avant retour final)
+ * @param centralAxis cle de l axe central pour ce pattern
+ *   (axis1 pour 6 patterns, axis2 pour fixed-cost-trap)
+ * @param gatingRationale explication doctrinale a injecter
+ *   dans applicabiliteRationale et resumeEditorial
+ */
+export function applyCentralAxisGating(
+  patternOutput: PatternAnalysisOutput,
+  centralAxis: CentralAxisKey,
+  gatingRationale: string,
+): PatternAnalysisOutput {
+  const axis = patternOutput[centralAxis];
+  const axisNeutralized = axis.verdict === 'non-applicable';
+
+  if (!axisNeutralized) return patternOutput;
+
+  return {
+    ...patternOutput,
+    applicabilite: 'not-applicable',
+    applicabiliteRationale: gatingRationale,
+    globalScore: null,
+    verdict: 'non-applicable',
+    resumeEditorial: gatingRationale,
   };
 }

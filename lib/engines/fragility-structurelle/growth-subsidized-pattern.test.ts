@@ -11,8 +11,9 @@
 
 import { growthSubsidizedModelPattern, _internal } from './growth-subsidized-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
+import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
-import type { PatternInput } from './types';
+import type { PatternAnalysisOutput, PatternInput } from './types';
 
 let pass = 0, fail = 0;
 
@@ -94,12 +95,13 @@ console.log('\n=== Test 2 : isApplicable input complet ===');
 // Test 3 : isApplicable sans donnees financieres mais qualitatif riche
 // ============================================================
 
-console.log('\n=== Test 3 : isApplicable sans financialData mais pitch riche ===');
+console.log('\n=== Test 3 : isApplicable sans financialData -> not-applicable (pre-check) ===');
 {
   const richPitch = 'Plateforme SaaS B2B avec abonnement mensuel ARR croissant et NRR superieur a 110% sur les 18 derniers mois, avec un CAC payback de 14 mois en moyenne sur les cohortes recentes.';
   const result = _internal.isApplicable(mockExtraction({ marketPitch: richPitch }), null);
-  check('sans financialData -> level partial', result.level, 'partial');
-  checkTrue('sans financialData -> shouldRun true', result.shouldRun);
+  check('sans financialData -> level not-applicable', result.level, 'not-applicable');
+  check('sans financialData -> shouldRun false', result.shouldRun, false);
+  checkTrue('rationale evoque l absence de revenu/burn', result.rationale.toLowerCase().includes('revenu') || result.rationale.toLowerCase().includes('burn'));
 }
 
 // ============================================================
@@ -222,6 +224,42 @@ console.log('\n=== Test 8 : SYSTEM_PROMPT doctrine ===');
   checkTrue('mentionne counter-archetype sain Atlassian', sp.includes('Atlassian'));
   checkTrue('format JSON specifie', sp.includes('FORMAT JSON OBLIGATOIRE'));
   checkTrue('contrainte de coherence presente', sp.includes('CONTRAINTE DE COHERENCE'));
+}
+
+// ============================================================
+// Test 9 : gating axe 1 (axe central GSM)
+// ============================================================
+
+console.log('\n=== Test 9 : gating axe 1 GSM ===');
+{
+  const naAxis = {
+    score: 0,
+    verdict: 'non-applicable' as const,
+    rationale: 'Unit economics non calculable.',
+    evidencePro: [],
+    evidenceContra: [],
+    confidence: 0,
+  };
+  const inflatedOutput: PatternAnalysisOutput = {
+    patternId: 'growth-subsidized-model',
+    applicabilite: 'full',
+    applicabiliteRationale: 'Donnees disponibles.',
+    globalScore: 90,
+    verdict: 'drapeau-rouge',
+    resumeEditorial: 'Score gonfle par axes peripheriques.',
+    axis1: naAxis,
+    axis2: { score: 90, verdict: 'drapeau-rouge', rationale: 'Capital massif.', evidencePro: [], evidenceContra: [], confidence: 80 },
+    axis3: { score: 95, verdict: 'drapeau-rouge', rationale: 'Denial.', evidencePro: [], evidenceContra: [], confidence: 80 },
+    counterArchetype: { closest: 'Theranos', direction: 'derive-confirmee', rationale: '' },
+    recommandationDD: '',
+    auditTrail: { sourceTags: [], claimsChiffres: [] },
+  };
+
+  const gated = applyCentralAxisGating(inflatedOutput, 'axis1', 'Pattern non applicable : axe 1 neutralise.');
+  check('axis1 non-applicable -> globalVerdict non-applicable', gated.verdict, 'non-applicable');
+  check('axis1 non-applicable -> globalScore null', gated.globalScore, null);
+  check('applicabilite forcee a not-applicable', gated.applicabilite, 'not-applicable');
+  checkTrue('axes peripheriques conserves dans output', gated.axis2.score === 90 && gated.axis3.score === 95);
 }
 
 // ============================================================

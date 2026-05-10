@@ -42,6 +42,8 @@ import {
   type PatternModule,
   type PatternApplicabilityCheck,
   buildNotApplicableOutput,
+  hasMinimalFinancialSignal,
+  applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -397,8 +399,19 @@ function llmOutputToPatternOutput(raw: RawLLMOutput): PatternAnalysisOutput {
 
 function isApplicable(
   extraction: ExtractionOutput,
-  _financialData?: FinancialDataExtraction | null,
+  financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
+  // Pre-check universel : sans revenu ni burn, on ne peut pas raisonner
+  // sur l exposition reglementaire structurelle ni sur la preparation
+  // documentee. Court-circuit avant LLM call.
+  if (!hasMinimalFinancialSignal(financialData)) {
+    return {
+      level: 'not-applicable',
+      rationale: 'Pattern Regulatory Time Bomb non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine necessite une matiere economique pour mesurer l exposition reglementaire.',
+      shouldRun: false,
+    };
+  }
+
   const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
   if (!hasBusinessModel) {
     return {
@@ -453,7 +466,16 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
 
-  return llmOutputToPatternOutput(raw);
+  const output = llmOutputToPatternOutput(raw);
+
+  // Gating axe central : axe 1 (exposition reglementaire structurelle)
+  // est l axe identitaire de Regulatory Time Bomb. Sans exposition
+  // reglementaire mesurable, le pattern n a pas d objet.
+  return applyCentralAxisGating(
+    output,
+    'axis1',
+    'Pattern Regulatory Time Bomb non applicable : l axe identitaire (exposition reglementaire structurelle) est neutralise. Le secteur n est pas en bascule reglementaire identifiable.',
+  );
 }
 
 // ============================================================

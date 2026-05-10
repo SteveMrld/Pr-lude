@@ -4,8 +4,11 @@
 
 import { regulatoryTimeBombPattern, _internal } from './regulatory-time-bomb-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
+import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
-import type { PatternInput } from './types';
+import type { PatternAnalysisOutput, PatternInput } from './types';
+
+const MINIMAL_FIN = { revenue: 5000000, monthlyBurn: 200000 } as any;
 
 let pass = 0, fail = 0;
 
@@ -55,7 +58,7 @@ function mockExtraction(opts: Partial<ExtractionOutput> = {}): ExtractionOutput 
 
 console.log('\n=== Test 2 : isApplicable SaaS B2B non regule ===');
 {
-  const result = _internal.isApplicable(mockExtraction(), null);
+  const result = _internal.isApplicable(mockExtraction(), MINIMAL_FIN);
   check('SaaS B2B RH -> not-applicable', result.level, 'not-applicable');
   check('shouldRun false', result.shouldRun, false);
 }
@@ -69,7 +72,7 @@ console.log('\n=== Test 3 : isApplicable Fintech BNPL ===');
     businessModel: 'Commission sur transactions BNPL',
     rawSummary: 'Fintech BNPL e-commerce avec exposition CCD2.',
   });
-  const result = _internal.isApplicable(fintech, null);
+  const result = _internal.isApplicable(fintech, MINIMAL_FIN);
   check('fintech BNPL -> full', result.level, 'full');
   checkTrue('rationale mentionne secteur regule', result.rationale.toLowerCase().includes('regule') || result.rationale.toLowerCase().includes('reglementaire'));
 }
@@ -83,14 +86,24 @@ console.log('\n=== Test 4 : isApplicable IA generative ===');
     businessModel: 'Subscription API AI generative B2B',
     rawSummary: 'Solution IA generative en preparation AI Act europeen.',
   });
-  const result = _internal.isApplicable(ai, null);
+  const result = _internal.isApplicable(ai, MINIMAL_FIN);
   check('IA AI Act -> full', result.level, 'full');
 }
 
 console.log('\n=== Test 5 : isApplicable sans BM ===');
 {
-  const result = _internal.isApplicable(mockExtraction({ businessModel: '' }), null);
+  const result = _internal.isApplicable(mockExtraction({ businessModel: '' }), MINIMAL_FIN);
   check('sans BM -> not-applicable', result.level, 'not-applicable');
+  check('shouldRun false', result.shouldRun, false);
+}
+
+console.log('\n=== Test 5b : pre-check sans financialData -> not-applicable ===');
+{
+  const result = _internal.isApplicable(mockExtraction({
+    sector: 'Fintech',
+    marketPitch: 'BNPL paiement credit consumer.',
+  }), null);
+  check('sans financialData -> not-applicable', result.level, 'not-applicable');
   check('shouldRun false', result.shouldRun, false);
 }
 
@@ -201,6 +214,34 @@ console.log('\n=== Test 11 : KEYWORDS calibres ===');
   checkTrue('MiCA dans REGULE_KEYWORDS', _internal.REGULE_KEYWORDS.includes('MiCA'));
   checkTrue('GDPR dans REGULE_KEYWORDS', _internal.REGULE_KEYWORDS.includes('GDPR'));
   checkTrue('compliance officer dans COMPLIANCE_SIGNALS', _internal.COMPLIANCE_SIGNALS.includes('compliance officer'));
+}
+
+console.log('\n=== Test 12 : gating axe 1 (axe central Regulatory Time Bomb) ===');
+{
+  const naAxis = {
+    score: 0,
+    verdict: 'non-applicable' as const,
+    rationale: 'Secteur sans exposition reglementaire structurelle.',
+    evidencePro: [], evidenceContra: [], confidence: 0,
+  };
+  const inflated: PatternAnalysisOutput = {
+    patternId: 'regulatory-time-bomb',
+    applicabilite: 'full',
+    applicabiliteRationale: '',
+    globalScore: 70,
+    verdict: 'alerte',
+    resumeEditorial: '',
+    axis1: naAxis,
+    axis2: { score: 80, verdict: 'drapeau-rouge', rationale: '', evidencePro: [], evidenceContra: [], confidence: 80 },
+    axis3: { score: 60, verdict: 'alerte', rationale: '', evidencePro: [], evidenceContra: [], confidence: 70 },
+    counterArchetype: { closest: 'n/a', direction: 'non determine', rationale: '' },
+    recommandationDD: '',
+    auditTrail: { sourceTags: [], claimsChiffres: [] },
+  };
+  const gated = applyCentralAxisGating(inflated, 'axis1', 'Pattern non applicable.');
+  check('verdict non-applicable', gated.verdict, 'non-applicable');
+  check('globalScore null', gated.globalScore, null);
+  check('applicabilite forcee', gated.applicabilite, 'not-applicable');
 }
 
 console.log(`\n${pass}/${pass + fail} tests passes`);

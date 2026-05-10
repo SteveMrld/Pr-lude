@@ -33,6 +33,8 @@ import {
   type PatternModule,
   type PatternApplicabilityCheck,
   buildNotApplicableOutput,
+  hasMinimalFinancialSignal,
+  applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -368,8 +370,20 @@ function llmOutputToPatternOutput(raw: RawLLMOutput): PatternAnalysisOutput {
 
 function isApplicable(
   extraction: ExtractionOutput,
-  _financialData?: FinancialDataExtraction | null,
+  financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
+  // Pre-check universel : sans revenu ni burn, on n a pas la matiere
+  // financiere pour mesurer l empilement des preferences ni la
+  // compatibilite avec les exits possibles. Court-circuit avant LLM
+  // call.
+  if (!hasMinimalFinancialSignal(financialData)) {
+    return {
+      level: 'not-applicable',
+      rationale: 'Pattern Capital Structure Fragility non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine necessite la matiere economique pour mesurer la fragilite cap table.',
+      shouldRun: false,
+    };
+  }
+
   const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
   if (!hasBusinessModel) {
     return {
@@ -428,7 +442,17 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
 
-  return llmOutputToPatternOutput(raw);
+  const output = llmOutputToPatternOutput(raw);
+
+  // Gating axe central : axe 1 (empilement des preferences de
+  // liquidation) est l axe identitaire de Capital Structure Fragility.
+  // Sans pacte d actionnaires ni cap table accessibles, la lecture
+  // juridique pure n est pas possible.
+  return applyCentralAxisGating(
+    output,
+    'axis1',
+    'Pattern Capital Structure Fragility non applicable : l axe identitaire (empilement des preferences de liquidation) est neutralise par absence de documents legaux structurants accessibles.',
+  );
 }
 
 // ============================================================

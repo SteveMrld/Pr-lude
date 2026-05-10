@@ -37,6 +37,8 @@ import {
   type PatternModule,
   type PatternApplicabilityCheck,
   buildNotApplicableOutput,
+  hasMinimalFinancialSignal,
+  applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -334,8 +336,19 @@ function llmOutputToPatternOutput(raw: RawLLMOutput): PatternAnalysisOutput {
 
 function isApplicable(
   extraction: ExtractionOutput,
-  _financialData?: FinancialDataExtraction | null,
+  financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
+  // Pre-check universel : sans revenu ni burn, on ne peut pas raisonner
+  // sur l erosion d une defensibilite economique. Court-circuit avant
+  // LLM call.
+  if (!hasMinimalFinancialSignal(financialData)) {
+    return {
+      level: 'not-applicable',
+      rationale: 'Pattern Commoditization Drift non evaluable : aucun revenu ni burn chiffre. La defensibilite economique ne peut pas etre mesuree sans matiere financiere.',
+      shouldRun: false,
+    };
+  }
+
   const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
   if (!hasBusinessModel) {
     return {
@@ -392,7 +405,16 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
 
-  return llmOutputToPatternOutput(raw);
+  const output = llmOutputToPatternOutput(raw);
+
+  // Gating axe central : axe 1 (nature et profondeur des moats actuels)
+  // est l axe identitaire de Commoditization Drift. Sans moats actuels
+  // identifiables, il n y a rien a eroder.
+  return applyCentralAxisGating(
+    output,
+    'axis1',
+    'Pattern Commoditization Drift non applicable : l axe identitaire (moats actuels) est neutralise. Sans defensibilite identifiable, aucune erosion mesurable.',
+  );
 }
 
 // ============================================================
