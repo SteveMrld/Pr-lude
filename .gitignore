@@ -3,7 +3,12 @@ node_modules/
 .env
 .env.local
 .env*.local
+.env.local.save*
 .DS_Store
 *.log
 .vercel
 tsconfig.tsbuildinfo
+
+# Artefacts horodates des runs de calibration LLM. Les fixtures et
+# le harnais sont commites, les sorties JSON ne le sont pas.
+scripts/calibration-output/
