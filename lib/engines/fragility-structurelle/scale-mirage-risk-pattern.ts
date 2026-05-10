@@ -216,7 +216,49 @@ retard operationnel deja materialise.
 Le seuil score >= 65 est legerement plus eleve que sur les autres
 patterns parce que les modeles deeptech declenchent regulierement des
 scores intermediaires legitimes correspondant a une avance industrielle
-calibree non disqualifiante.`;
+calibree non disqualifiante.
+
+# REGLE DE GATING AXE CENTRAL (AXE 1)
+
+L axe 1 (disproportion capex / demande validee) est l axe identitaire
+de Scale Mirage Risk.
+
+DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
+avec capex industriel ou infrastructure significatifs (usine,
+gigafactory, data center proprietaire, fleet de vehicules, capex
+amenagement retail dependant de la demande locale, lignes de
+production specialisees). Le pattern n est pas restreint au pure
+deeptech : un DTC avec 60 stores retail proprietaires (Casper) ou un
+operateur cloud avec data centers proprietaires (CoreWeave avant
+les contrats clients) est dans le perimetre du pattern, parce que
+le capex amenagement est engage avant validation de la demande
+unitaire. Si l axe est applicable tu DOIS produire un verdict parmi
+sain, attention, alerte ou drapeau-rouge. En absence de signaux de
+fragilite (capex calibre sur demande validee par contrats fermes,
+TRL eleve au commitment, reversibilite documentee), le verdict
+correct est SAIN avec score 0-25, pas not-applicable. Une entreprise
+industrielle saine (Tesla 2008-2012 capex Roadster mesure puis NUMMI
+plutot que ex nihilo, ASML capex lie a contrats long terme TSMC
+Samsung Intel, BYD extension progressive validee par cash flow,
+Innovafeed offtake ADM securise) est SAIN sur cet axe, pas
+not-applicable.
+
+NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : pure software API sans aucun capex industriel
+ni amenagement physique (Stripe modele asset-light, Atlassian SaaS
+distribuee sans infra proprietaire, Datadog observabilite sans data
+center proprietaire significatif), services consulting ou freelancing
+sans actifs physiques propres, marketplace asset-light pure ou les
+actifs sont chez les hosts ou marchands (Airbnb, Booking, Uber post-
+2019). Hors ces cas, l axe est applicable et le verdict doit etre
+cote.
+
+Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
+applicabilite = 'not-applicable' au niveau pattern.
+
+Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
+axe 1 non-applicable.`;
 
 // ============================================================
 // CONSTRUCTION DU PROMPT UTILISATEUR

@@ -193,7 +193,47 @@ basculement imminent.
 Pour les categories deja effondrees ou en effondrement actif (knowledge
 Q&A, copywriting basique, traduction generaliste, helpdesk niveau 1),
 remontee directe en drapeau-rouge meme a score modere parce que la
-trajectoire est connue.`;
+trajectoire est connue.
+
+# REGLE DE GATING AXE CENTRAL (AXE 1)
+
+L axe 1 (nature et profondeur des moats actuels) est l axe identitaire
+de Commoditization Drift.
+
+DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
+qui a une proposition de valeur sur un marche concurrentiel, peu
+importe le secteur (logiciel, IA, knowledge work, DTC consumer,
+marketplace, hardware grand public, plateforme). Le pattern n est pas
+restreint au knowledge work ou au SaaS pur. Un produit physique
+commoditise (Casper matelas DTC face a Purple, Tuft, Saatva, Leesa
+et dizaines d acteurs interchangeables) est dans le perimetre du
+pattern : l erosion de defensibilite y est doctrinalement la meme
+que sur un wrapper LLM. Si l axe est applicable tu DOIS produire un
+verdict parmi sain, attention, alerte ou drapeau-rouge. En absence
+de signaux de fragilite (cumul de moats independants verifies,
+switching cost demontre, network effect mesure, donnees proprietaires
+non repliquables), le verdict correct est SAIN avec score 0-25, pas
+not-applicable. Une entreprise avec moats multi-couches (Stripe
+reseau banques plus donnees fraude plus integrations developpeurs
+plus agrements bancaires plus brand, Salesforce donnees clients
+plus ecosysteme plus switching costs plus distribution, Bloomberg
+quatre moats independants, Adyen licences bancaires propres) est
+SAIN sur cet axe, pas not-applicable.
+
+NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : phase R&D pre-product sans proposition de
+valeur commerciale articulee (lab deeptech seed sans pilote client),
+recherche academique pre-commerciale, monopole legal absolu rare
+(concession publique exclusive de tres long terme). Hors ces cas,
+l axe est applicable et le verdict doit etre cote sur l echelle sain
+a drapeau-rouge.
+
+Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
+applicabilite = 'not-applicable' au niveau pattern.
+
+Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
+axe 1 non-applicable.`;
 
 // ============================================================
 // CONSTRUCTION DU PROMPT UTILISATEUR

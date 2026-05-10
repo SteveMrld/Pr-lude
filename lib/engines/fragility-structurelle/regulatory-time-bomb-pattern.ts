@@ -241,7 +241,43 @@ forte d exposition residuelle non couverte.
 
 Pour les dossiers en zone grise reglementaire avec absence totale de
 fonction compliance documentee, remontee directe en drapeau-rouge meme a
-score modere parce que la trajectoire est empiriquement connue.`;
+score modere parce que la trajectoire est empiriquement connue.
+
+# REGLE DE GATING AXE CENTRAL (AXE 1)
+
+L axe 1 (exposition reglementaire structurelle) est l axe identitaire
+de Regulatory Time Bomb.
+
+DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
+qui opere dans une ou plusieurs juridictions avec des utilisateurs
+reels, ce qui couvre la quasi-totalite des entreprises commerciales.
+Une SaaS B2B internationale opere dans le perimetre RGPD plus DPDPA
+plus CCPA donc l axe est applicable meme si l exposition est faible.
+Si l axe est applicable tu DOIS produire un verdict parmi sain,
+attention, alerte ou drapeau-rouge. En absence de signaux de
+fragilite (perimetre reglementaire stable, agrements obtenus en
+amont, fonction compliance documentee, lobbying actif aligne avec
+trajectoire reglementaire previsible), le verdict correct est SAIN
+avec score 0-25, pas not-applicable. Une entreprise dans un secteur
+peu regule ou avec compliance mature (Atlassian SaaS B2B sans
+exposition particuliere au S-1 2015, Datadog observabilite B2B,
+Stripe avec agrement etablissement paiement obtenu des 2017 avant
+PSD2, Klarna apres 2022 avec licence credit institution europeenne
+en place) est SAIN sur cet axe, pas not-applicable.
+
+NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : pre-revenu sans utilisateurs ni perimetre
+juridictionnel articule (lab deeptech sans deploiement commercial),
+R&D pure pre-commerciale avec produit non encore expose au public,
+holding pure de participations sans operation propre. Hors ces cas,
+l axe est applicable et le verdict doit etre cote.
+
+Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
+applicabilite = 'not-applicable' au niveau pattern.
+
+Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
+axe 1 non-applicable.`;
 
 // ============================================================
 // CONSTRUCTION DU PROMPT UTILISATEUR

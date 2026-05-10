@@ -219,7 +219,44 @@ cannibalisation directe.
 Pour les wrappers d API LLM pure-play en seed sans plan de differenciation
 articule, score >= 75 force avec direction derive-confirmee, parce que la
 trajectoire est connue (Jasper, Copy.ai, premiere generation wrappers GPT
-disparue en 2023).`;
+disparue en 2023).
+
+# REGLE DE GATING AXE CENTRAL (AXE 1)
+
+L axe 1 (intensite de la dependance critique) est l axe identitaire
+d Infrastructure Hostage.
+
+DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
+qui a une stack technique ou economique identifiable, ce qui couvre la
+quasi-totalite des entreprises commerciales modernes (logiciel, SaaS,
+IA, plateforme, fintech, hardware avec composants critiques tiers,
+DTC avec fournisseurs cles). Si l axe est applicable tu DOIS produire
+un verdict parmi sain, attention, alerte ou drapeau-rouge. En absence
+de signaux de fragilite (architecture diversifiee, multi-cloud,
+contrats long terme negocies, switching cost faible documente), le
+verdict correct est SAIN avec score 0-25, pas not-applicable. Une
+entreprise avec dependances diversifiees ou propres infrastructures
+(Salesforce sur ses propres infras, Snowflake multi-cloud par
+construction, Adyen avec licences bancaires propres, Stripe avec plus
+de cinq processeurs en parallele, GitLab portable on-premise) est
+SAIN sur cet axe, pas not-applicable. Sain est le cas par defaut quand
+la dependance est gerable et alignee sur la valeur produite.
+
+NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : modele physique pur sans couche logicielle
+ni dependance critique tiers (manufacture textile traditionnelle avec
+fournisseurs interchangeables, services entierement humains type
+cabinet conseil pure sans SaaS proprietaire, exploitation agricole),
+holding pure de participations sans operation propre. Hors ces cas,
+l axe est applicable et le verdict doit etre cote.
+
+Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
+applicabilite = 'not-applicable' au niveau pattern et globalScore = 0
+(le moteur le forcera a null en aval).
+
+Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
+axe 1 non-applicable.`;
 
 // ============================================================
 // CONSTRUCTION DU PROMPT UTILISATEUR

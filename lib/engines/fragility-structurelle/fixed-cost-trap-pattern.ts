@@ -228,11 +228,35 @@ L axe 2 (engagements long terme non resiliables) est l axe identitaire de
 Fixed Cost Trap. La signature pathologique du pattern (WeWork canonique)
 est le ratio engagements off-balance contre revenu, pas la rigidite courante
 de la structure de couts qui peut etre sectoriellement normale dans tout
-asset-heavy. Si tu ne peux pas identifier d engagements long-terme
-contractuels chiffres (baux, contrats fournisseurs avec minimum, capex
-non transferable, purchase commitments), tu DOIS coter axis2.verdict =
-'non-applicable' et axis2.score = 0. Dans ce cas, applicabilite =
-'not-applicable' au niveau pattern.
+asset-heavy.
+
+DEFINITION DE L APPLICABILITE : l axe 2 est applicable a tout dossier
+qui a une structure de couts identifiable, qu elle soit asset-light ou
+asset-heavy. Une SaaS sans bail commercial significatif a quand meme
+des engagements salariaux et infra cloud qu il faut lire. Si l axe est
+applicable tu DOIS produire un verdict parmi sain, attention, alerte ou
+drapeau-rouge. En absence de signaux de fragilite (peu d engagements
+long terme, ratio off-balance / revenu inferieur a 1x, capacite
+documentee de variabilisation, track record layoffs ou breakage
+contractuel), le verdict correct est SAIN avec score 0-25, pas
+not-applicable. Une entreprise asset-light avec engagements alignes
+sur revenu (Atlassian SaaS sans capex industriel, Airbnb sans
+propriete immobiliere, Booking sans stock hotelier, Salesforce data
+centers alignes sur contrats client long terme) est SAIN sur cet axe,
+pas not-applicable. Sain est le cas par defaut quand il n y a pas de
+trap structural a signaler.
+
+NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : pre-revenu seed sans aucun engagement
+contractuel structure (incubation pre-product), modele revenue-share
+ou marketplace pur sans couts propres au-dela de la tech (les couts
+sont chez les hosts ou marchands), holding pure de participations
+sans operation propre. Hors ces cas, l axe est applicable et le
+verdict doit etre cote sur l echelle sain a drapeau-rouge.
+
+Si l axe 2 est legitimement non-applicable au sens ci-dessus, tu DOIS
+coter axis2.verdict = 'non-applicable' et axis2.score = 0. Dans ce cas,
+applicabilite = 'not-applicable' au niveau pattern.
 
 # REGLE DE PLAFOND AXE 2
 

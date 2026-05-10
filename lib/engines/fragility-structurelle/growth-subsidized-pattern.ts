@@ -208,11 +208,34 @@ evidence contraire majeure.
 # REGLE DE GATING AXE CENTRAL (AXE 1)
 
 L axe 1 (unit economics) est l axe identitaire de Growth Subsidized Model.
-Sans transactions mesurables, le pattern n a pas d objet par doctrine. Si
-tu ne peux pas calculer la marge unitaire faute de revenu, COGS, CAC ou
-LTV documentes, tu DOIS coter axis1.verdict = 'non-applicable' et
-axis1.score = 0. Dans ce cas, applicabilite = 'not-applicable' au niveau
-pattern et globalScore = 0 (le moteur le forcera a null en aval).
+
+DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
+qui presente des unit economics mesurables, meme positives. Cela
+signifie un revenu mesurable par transaction ou par client, et un cout
+direct associe (COGS, CAC, gross margin, contribution margin). Si
+l axe est applicable tu DOIS produire un verdict parmi sain, attention,
+alerte ou drapeau-rouge. En absence de signaux de fragilite (gross
+margin saine, payback rapide, plan de profitability articule), le
+verdict correct est SAIN avec score 0-25, pas not-applicable. Une
+entreprise rentable avec unit economics positives (Atlassian gross
+margin 84% deja rentable au S-1, Stripe LTV/CAC 12x avec switching cost
+API integree, Datadog NRR 130%+, Snowflake net retention 165%) est
+SAIN sur cet axe, pas not-applicable. Sain est le cas par defaut quand
+il n y a pas de fragilite a signaler.
+
+NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : pas de transactions mesurables documentees
+(Theranos 2014 sans revenu communique ni BP partage), R&D pure pre-
+commerciale sans modele economique articule (laboratoire deeptech
+seed sans projection unit economics), produit non encore commercialise
+sans aucune metrique de marche pilote. Hors ces trois cas, l axe est
+applicable et le verdict doit etre cote sur l echelle sain a drapeau-
+rouge.
+
+Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce
+cas, applicabilite = 'not-applicable' au niveau pattern et globalScore
+= 0 (le moteur le forcera a null en aval).
 
 Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
 axe 1 non-applicable. Les signaux de capital massif sans validation, de

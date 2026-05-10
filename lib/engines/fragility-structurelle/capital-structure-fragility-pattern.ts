@@ -207,7 +207,42 @@ asymetries non-preference.
 Pour les dossiers ou plage exit favorable common est inexistante a la
 valorisation actuelle (axe 3 score > 80), remontee directe en
 drapeau-rouge meme si autres axes moderes : incompatibilite mecanique
-entre cap table et toute trajectoire d exit alignee.`;
+entre cap table et toute trajectoire d exit alignee.
+
+# REGLE DE GATING AXE CENTRAL (AXE 1)
+
+L axe 1 (empilement des preferences de liquidation) est l axe
+identitaire de Capital Structure Fragility.
+
+DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
+qui a au moins un tour de financement exterieur avec des preferred
+shares (Series Seed avec preferences negociees, Series A et au-dela,
+extensions de tour). Une cap table avec une seule classe preferred 1x
+non participating est dans le perimetre du pattern, simplement avec
+peu de signal de fragilite. Si l axe est applicable tu DOIS produire
+un verdict parmi sain, attention, alerte ou drapeau-rouge. En absence
+de signaux de fragilite (preferences uniformement 1x non participating,
+pari passu sans seniority defavorable, pas de full ratchet, pas de
+super voting excessif, ESOP refresh mature), le verdict correct est
+SAIN avec score 0-25, pas not-applicable. Une entreprise avec cap
+table simple (Stripe structure preferred lisible une page sans
+participation multiple ni ratchet agressif, Adyen IPO 2018 structure
+tres propre, Atlassian un seul tour Accel secondaire 2010, Datadog
+peu de complexite cap table) est SAIN sur cet axe, pas not-applicable.
+
+NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : entreprise bootstrappee sans aucun capital
+exterieur jamais leve, single founder sans dilution avec common shares
+uniquement, post-IPO avec structure simple sans residuel preferred
+significatif, pre-fundraise pre-product seed sans tour conduit. Hors
+ces cas, l axe est applicable et le verdict doit etre cote.
+
+Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
+applicabilite = 'not-applicable' au niveau pattern.
+
+Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
+axe 1 non-applicable.`;
 
 // ============================================================
 // CONSTRUCTION DU PROMPT UTILISATEUR
