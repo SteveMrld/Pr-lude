@@ -576,6 +576,19 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
     || s.includes('retail')) return 'ecommerce-dtc';
   if (s.includes('deeptech') || s.includes('deep tech') || s.includes('biotech')
     || s.includes('quantum') || s.includes('materials') || s.includes('semiconductor')) return 'deeptech';
+  // Transport medical / sanitaire FR : route explicitement vers
+  // healthtech. La chaine de valeur (remboursement assurance
+  // maladie, agrement ARS, conventionnement CPAM) est doctrinalement
+  // adjacente au healthtech, pas a la mobilite generaliste. Bloc
+  // place avant le bloc health generique pour rester defensif sur
+  // les accents et l ordre des mots.
+  if (s.includes('transport sanitaire') || s.includes('transport médical')
+    || s.includes('transport medical') || s.includes('transports sanitaires')
+    || s.includes('transports médicaux') || s.includes('transports medicaux')
+    || s.includes('ambulance') || s.includes('ambulancier') || s.includes('ambulancière')
+    || s.includes('mobilité médicale') || s.includes('mobilite medicale')
+    || s.includes('mobilité medicale') || s.includes('mobilite médicale')
+    || s.includes('taxi cpam') || s.includes('vsl ')) return 'healthtech';
   if (s.includes('health') || s.includes('medical') || s.includes('digital health')
     || s.includes('medtech') || s.includes('healthtech')) return 'healthtech';
   if (s.includes('climate') || s.includes('cleantech') || s.includes('greentech')
@@ -603,7 +616,13 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
     || s.includes('shipping') || s.includes('last mile')) return 'logistics';
   if (s.includes('media') || s.includes('streaming') || s.includes('publishing')
     || s.includes('gaming') || s.includes('content') || s.includes('entertainment')) return 'mediatech';
-  if (s.includes('sport') || s.includes('athletetech') || s.includes('fan engagement')) return 'sportstech';
+  // Detection sport via word-boundary pour eviter la capture par
+  // substring de "transport", "transports", "transport sanitaire",
+  // qui sortaient avant en sportstech alors qu ils n ont aucune
+  // proximite economique avec le sport. esports traite separement
+  // pour conserver le routage historique des dossiers gaming-sport.
+  if (/\bsport(s|stech|s-tech|tech)?\b/.test(s) || /\besports?\b/.test(s)
+    || s.includes('athletetech') || s.includes('fan engagement')) return 'sportstech';
   if (s.includes('services') || s.includes('consulting') || s.includes('agency')
     || s.includes('agencies') || s.includes('professional services')) return 'services-b2b';
   if (s.includes('hardware') || s.includes('manufacturing') || s.includes('industrial')
