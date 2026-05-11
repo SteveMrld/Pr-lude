@@ -29,7 +29,7 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
     "customers": "nombre de clients si présenté"
   },
   "fundraise": {
-    "stage": "stade du tour (seed, Series A, B, C, etc.)",
+    "stage": "stade du tour avec granularité fine : utilise EXACTEMENT l'une des valeurs suivantes selon les indices du deck : 'pre-seed' (avant tout produit, friends and family), 'seed' (POC ou pré-PMF, ARR < 500K€), 'series-A-early' (PMF naissant, ARR 500K à 2M€ ou pré-revenue avec traction significative), 'series-A-late' (post-PMF confirmé, ARR 2 à 10M€, expansion commerciale en cours), 'series-B' (ARR 10 à 30M€, internationalisation), 'series-C' (ARR 30 à 100M€), 'series-D' (ARR > 100M€), 'growth' (capital de croissance, late-stage avant exit), 'pre-IPO' (préparation cotation). Si le deck dit juste 'Series A' sans précision, utilise 'series-A-early' par défaut. Si le deck dit 'pre-B' ou 'A+' ou 'post-PMF', utilise 'series-A-late'.",
     "amount": "montant levé ou recherché",
     "valuation": "valorisation pré-money ou post-money si présenté",
     "leadInvestor": "investisseur lead si annoncé",

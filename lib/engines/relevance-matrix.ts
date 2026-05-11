@@ -135,11 +135,64 @@ export interface RelevanceMatrix {
   };
 }
 
-// Niveau de maturite narrative deductible du stade declare. Sert
-// uniquement pour le verdict narrativeDrift : plus le stade est
-// avance, plus la matiere narrative accumulee est consistante et
-// plus le moteur a de quoi mordre.
-export type NarrativeMaturity = 'pre-seed' | 'seed' | 'series-a' | 'series-b-plus' | 'unknown';
+// Niveau de maturite narrative deductible du stade declare. Le
+// pipeline raisonne sur une granularite fine parce que les patterns
+// Fragilite Structurelle s activent typiquement a partir de Series A
+// late, pas avant : un Series A early avec POC en deploiement n a
+// pas la meme exposition qu un Series A late avec deux ans de scale
+// derriere lui. Idem au-dela : Series B, C, D et growth produisent
+// chacun un signal de profondeur narrative et de risque structurel
+// distinct.
+export type NarrativeMaturity =
+  | 'pre-seed'
+  | 'seed'
+  | 'series-a-early'
+  | 'series-a-late'
+  | 'series-b'
+  | 'series-c'
+  | 'series-d'
+  | 'growth'
+  | 'pre-ipo'
+  | 'unknown';
+
+/**
+ * Verite doctrinale : la masse principale du moteur Fragilite
+ * Structurelle s active a partir de Series A late. Avant ce stade,
+ * seuls les patterns transversaux (regulatory-time-bomb sectoriel,
+ * commoditization-drift sur knowledge work, growth-subsidized sur
+ * Series A early, infrastructure-hostage sur wrappers LLM) peuvent
+ * remonter un signal. Le helper sert aux verdicts qui doivent
+ * decider en cascade. Voir docs/patterns/ pour la calibration
+ * doctrinale par pattern.
+ */
+function isLateSeriesAOrAbove(maturity: NarrativeMaturity): boolean {
+  return maturity === 'series-a-late'
+    || maturity === 'series-b'
+    || maturity === 'series-c'
+    || maturity === 'series-d'
+    || maturity === 'growth'
+    || maturity === 'pre-ipo';
+}
+
+/**
+ * Renvoie le poids de profondeur narrative associe au stade.
+ * Sert au verdict narrativeDrift et aux ponderation Fragilite.
+ */
+function narrativeDepthWeight(maturity: NarrativeMaturity): number {
+  switch (maturity) {
+    case 'pre-seed': return 0.35;
+    case 'seed': return 0.55;
+    case 'series-a-early': return 0.7;
+    case 'series-a-late': return 0.85;
+    case 'series-b': return 0.95;
+    case 'series-c':
+    case 'series-d':
+    case 'growth':
+    case 'pre-ipo':
+      return 1;
+    default: return 0.5;
+  }
+}
 
 // ============================================================
 // HELPERS
@@ -1184,61 +1237,110 @@ function buildExecutionFrictionVerdict(productionChain: ProductionChain, supplyC
 // ============================================================
 
 /**
- * Normalise le champ libre fundraise.stage en cinq paliers
- * exploitables. Tolere les variantes francaises et anglaises.
+ * Normalise le champ libre fundraise.stage en paliers exploitables.
+ * Tolere les variantes francaises et anglaises.
+ *
+ * La granularite reconnait pre-seed, seed, series-a-early,
+ * series-a-late, series-b, series-c, series-d, growth, pre-ipo.
+ * Le palier series-a sans precision early/late retourne
+ * series-a-early par defaut (palier conservateur : le moteur
+ * Fragilite Structurelle ne se declenche pas en masse). Les
+ * variantes "late series A", "post-product-market-fit", "pre-B"
+ * basculent en series-a-late.
  */
 function detectNarrativeMaturity(stageRaw: string | undefined | null): NarrativeMaturity {
   if (!stageRaw) return 'unknown';
   const s = stageRaw.toLowerCase().trim();
 
-  // Series B et au-dela : narration accumulee, dense, exploitable
-  if (/\bseries?[\s-]+[b-z]\b/.test(s)) return 'series-b-plus';
-  if (/growth|late\s*stage|tour de croissance|capital de croissance/.test(s)) return 'series-b-plus';
+  // Pre-IPO et stages tardifs explicites
+  if (/pre[-\s]?ipo|preipo|ipo\s*ready|tour pre-ipo/.test(s)) return 'pre-ipo';
 
-  // Series A : narration suffisante pour mesurer un glissement
-  if (/\bseries?[\s-]+a\b/.test(s) || /\btour\s*a\b/.test(s) || /\bround\s*a\b/.test(s)) return 'series-a';
+  // Growth, late stage, capital de croissance
+  if (/\bgrowth\b|late\s*stage|tour de croissance|capital de croissance|capital growth/.test(s)) return 'growth';
+
+  // Series D
+  if (/\bseries?[\s-]+d\b|\btour\s*d\b|\bround\s*d\b/.test(s)) return 'series-d';
+
+  // Series C
+  if (/\bseries?[\s-]+c\b|\btour\s*c\b|\bround\s*c\b/.test(s)) return 'series-c';
+
+  // Series B
+  if (/\bseries?[\s-]+b\b|\btour\s*b\b|\bround\s*b\b|pre[-\s]?c\b/.test(s)) return 'series-b';
+
+  // Series A late : variantes signalant la phase post-PMF
+  if (/late\s*series?\s*a|series?\s*a\s*late|post[-\s]?pmf|pre[-\s]?b\b|series?\s*a\s*plus|series?\s*a\s*\+|series?\s*a2|series?\s*a\.5/.test(s)) {
+    return 'series-a-late';
+  }
+
+  // Series A : la base sans precision tombe en series-a-early
+  if (/\bseries?[\s-]+a\b|\btour\s*a\b|\bround\s*a\b/.test(s)) {
+    if (/early\s*series?\s*a|series?\s*a\s*early|series?\s*a1/.test(s)) return 'series-a-early';
+    return 'series-a-early';
+  }
+
+  // Pre-seed explicite avant le pattern seed generique
+  if (/pre[-\s]?seed|preseed|fondation|first money|friends\s*&\s*family|love\s*money/.test(s)) return 'pre-seed';
 
   // Seed et derives
   if (/seed|amorcage|amorçage|amorcement/.test(s)) {
-    if (/pre[-\s]?seed|preseed/.test(s)) return 'pre-seed';
     return 'seed';
   }
-
-  // Pre-seed explicite
-  if (/pre[-\s]?seed|preseed|fondation|first money/.test(s)) return 'pre-seed';
 
   return 'unknown';
 }
 
 function buildNarrativeDriftVerdict(maturity: NarrativeMaturity, hasMinimalCorpus: boolean): RelevanceVerdict {
   // Le moteur fait son propre check fin d applicabilite a partir
-  // du nombre de mots reellement disponibles. Le verdict ici
-  // sert juste a decider si on l invoque, et avec quel poids
-  // dans la note d investissement.
+  // du nombre de mots reellement disponibles. Le verdict ici sert
+  // juste a decider si on l invoque, et avec quel poids dans la
+  // note d investissement. La regle transversale du Pipeline
+  // Narrative Drift : des que l extraction expose au moins 200
+  // mots de prose, le moteur tourne quel que soit le stade. Le
+  // poids progresse avec la maturite narrative pour refleter la
+  // valeur de la lecture (lecture instantanee a seed, glissement
+  // mesurable a partir de series-a-late).
   if (!hasMinimalCorpus) {
     return {
       applicable: 'none',
       weight: 0,
       scope: [],
-      rationale: 'Pas de corpus textuel exploitable dans l extraction. Le moteur de derive narrative a besoin d un minimum de prose pour produire des metriques lexicales.',
+      rationale: 'Pas de corpus textuel exploitable dans l extraction (moins de 200 mots de prose). Le moteur de derive narrative a besoin d un minimum de matiere pour produire des metriques lexicales.',
     };
   }
 
-  if (maturity === 'series-b-plus') {
+  if (maturity === 'pre-ipo' || maturity === 'growth' || maturity === 'series-d' || maturity === 'series-c') {
     return {
       applicable: 'full',
       weight: 1,
       scope: [],
-      rationale: 'Stade Series B ou ulterieur : narration accumulee sur plusieurs annees, baseline historique probable, signal de derive maximalement exploitable.',
+      rationale: 'Stade Series C ou ulterieur : narration accumulee sur plusieurs annees, baseline historique dense, signal de derive maximalement exploitable.',
     };
   }
 
-  if (maturity === 'series-a') {
+  if (maturity === 'series-b') {
+    return {
+      applicable: 'full',
+      weight: 0.95,
+      scope: [],
+      rationale: 'Stade Series B : narration accumulee sur deux ou trois ans, signal de glissement entre recit et fondamentaux exploitable avec confiance.',
+    };
+  }
+
+  if (maturity === 'series-a-late') {
     return {
       applicable: 'full',
       weight: 0.85,
       scope: [],
-      rationale: 'Stade Series A : matiere narrative suffisante pour mesurer un glissement abstrait/concret et identifier les premiers ecarts entre recit et fondamentaux.',
+      rationale: 'Stade Series A late : la matiere narrative s est consolidee post-PMF, les premiers ecarts entre recit fondateurs et fondamentaux sont mesurables.',
+    };
+  }
+
+  if (maturity === 'series-a-early') {
+    return {
+      applicable: 'full',
+      weight: 0.7,
+      scope: [],
+      rationale: 'Stade Series A early : narration suffisante pour produire une lecture transversale, glissement temporel encore court mais signal lexical interpretable.',
     };
   }
 
@@ -1286,8 +1388,8 @@ function buildNarrativeDriftVerdict(maturity: NarrativeMaturity, hasMinimalCorpu
 // ============================================================
 
 /**
- * Active a partir de Series A en partial, Series B+ en full.
- * Hors-scope sur les modeles ou la marge unitaire n est pas
+ * Active a partir de Series A early en partial, full des Series A
+ * late. Hors-scope sur les modeles ou la marge unitaire n est pas
  * mesurable (project-based, contract-b2g).
  */
 function buildGrowthSubsidizedVerdict(maturity: NarrativeMaturity, businessModel: BusinessModel): RelevanceVerdict {
@@ -1299,22 +1401,34 @@ function buildGrowthSubsidizedVerdict(maturity: NarrativeMaturity, businessModel
       rationale: 'Hors-scope : modele projet ou contrat-public, la marge unitaire n est pas la metrique pertinente.',
     };
   }
-  if (maturity === 'series-b-plus') {
-    return { applicable: 'full', weight: 1, scope: [], rationale: 'Series B et au-dela : moment ou Growth Subsidized devient diagnostique. Le pattern WeWork s exprime typiquement a partir de ce stade.' };
+  if (isLateSeriesAOrAbove(maturity)) {
+    const weight = maturity === 'series-a-late' ? 0.85 : narrativeDepthWeight(maturity);
+    return {
+      applicable: 'full',
+      weight,
+      scope: [],
+      rationale: maturity === 'series-a-late'
+        ? 'Series A late : matiere unit economics suffisante pour mesurer la subvention de croissance, pattern WeWork canonique active.'
+        : 'Series B ou au-dela : moment ou Growth Subsidized devient pleinement diagnostique. Le pattern WeWork s exprime typiquement a partir de ce stade.',
+    };
   }
-  if (maturity === 'series-a') {
-    return { applicable: 'full', weight: 0.85, scope: [], rationale: 'Series A : matiere unit economics suffisante pour mesurer la subvention de croissance.' };
+  if (maturity === 'series-a-early') {
+    return { applicable: 'partial', weight: 0.65, scope: ['lecture indicative unit economics'], rationale: 'Series A early : unit economics commencent a se materialiser mais souvent pas encore stabilisees, lecture indicative.' };
   }
   if (maturity === 'seed') {
     return { applicable: 'partial', weight: 0.5, scope: ['lecture indicative unit economics'], rationale: 'Stade seed : unit economics encore en construction, lecture indicative sur la trajectoire.' };
+  }
+  if (maturity === 'pre-seed') {
+    return { applicable: 'partial', weight: 0.35, scope: ['lecture preventive'], rationale: 'Stade pre-seed : unit economics largement theoriques, pattern en lecture preventive.' };
   }
   return { applicable: 'partial', weight: 0.4, scope: ['lecture indicative'], rationale: 'Stade non identifiable : pattern lance en mode lecture indicative.' };
 }
 
 /**
- * Active des Series A pour SaaS/IA, full des Series B+. Hors-scope
- * hardware-physical et infrastructure-physical (geopolitique deja
- * couverte par macroGeopolitical).
+ * Active des Series A early pour SaaS/IA (lecture wrappers LLM),
+ * full des Series A late. Hors-scope hardware-physical et
+ * infrastructure-physical (geopolitique deja couverte par
+ * macroGeopolitical).
  */
 function buildInfrastructureHostageVerdict(maturity: NarrativeMaturity, productionChain: ProductionChain): RelevanceVerdict {
   if (productionChain === 'hardware-physical' || productionChain === 'infrastructure-physical' || productionChain === 'wet-biotech') {
@@ -1325,14 +1439,24 @@ function buildInfrastructureHostageVerdict(maturity: NarrativeMaturity, producti
       rationale: 'Modele hardware ou biotech : exposition fournisseur deja couverte par macroGeopolitical pour les composants strategiques. Le pattern reste actif sur la couche logicielle ou cloud non triviale si elle existe.',
     };
   }
-  if (maturity === 'series-b-plus') {
-    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth : la dependance s est generalement verrouillee dans le code et les contrats, le pattern est pleinement diagnostique.' };
+  if (isLateSeriesAOrAbove(maturity)) {
+    return {
+      applicable: 'full',
+      weight: maturity === 'series-a-late' ? 0.85 : narrativeDepthWeight(maturity),
+      scope: [],
+      rationale: maturity === 'series-a-late'
+        ? 'Series A late : la stack technique est consolidee, l evaluation de la concentration fournisseur est diagnostique.'
+        : 'Stade growth : la dependance s est generalement verrouillee dans le code et les contrats, le pattern est pleinement diagnostique.',
+    };
   }
-  if (maturity === 'series-a') {
-    return { applicable: 'full', weight: 0.85, scope: [], rationale: 'Series A : la stack technique est suffisamment formee pour evaluer la concentration des fournisseurs.' };
+  if (maturity === 'series-a-early') {
+    return { applicable: 'partial', weight: 0.65, scope: ['lecture stack en construction'], rationale: 'Series A early : la stack technique se forme, lecture utile sur les choix d infrastructure recents et la dependance LLM eventuelle.' };
   }
   if (maturity === 'seed') {
     return { applicable: 'partial', weight: 0.45, scope: ['lecture stack actuelle'], rationale: 'Stade seed : pattern utile principalement pour les wrappers d API LLM pure-play sans differenciation.' };
+  }
+  if (maturity === 'pre-seed') {
+    return { applicable: 'partial', weight: 0.3, scope: ['lecture stack actuelle'], rationale: 'Stade pre-seed : stack pas encore formee, pattern actif uniquement pour les wrappers LLM purs.' };
   }
   return { applicable: 'partial', weight: 0.35, scope: ['lecture stack actuelle'], rationale: 'Stade non identifiable : pattern lance en mode lecture stack actuelle.' };
 }
@@ -1361,11 +1485,14 @@ function buildFixedCostTrapVerdict(maturity: NarrativeMaturity, productionChain:
       rationale: 'Hors-scope : modele projet ou contrat-public, structure de couts intrinsequement consubstantielle au business.',
     };
   }
-  if (maturity === 'series-b-plus') {
-    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth pour modele asset-heavy : moment ou Fixed Cost Trap est typiquement diagnostique. Pattern WeWork canonique.' };
+  if (maturity === 'series-b' || maturity === 'series-c' || maturity === 'series-d' || maturity === 'growth' || maturity === 'pre-ipo') {
+    return { applicable: 'full', weight: maturity === 'series-b' ? 0.95 : 1, scope: [], rationale: 'Stade growth pour modele asset-heavy : moment ou Fixed Cost Trap est typiquement diagnostique. Pattern WeWork canonique.' };
   }
-  if (maturity === 'series-a') {
-    return { applicable: 'partial', weight: 0.55, scope: ['premiers engagements long-terme'], rationale: 'Series A : les engagements long-terme commencent a se materialiser, lecture utile.' };
+  if (maturity === 'series-a-late') {
+    return { applicable: 'partial', weight: 0.7, scope: ['premiers engagements long-terme materialises'], rationale: 'Series A late : les premiers engagements long-terme sont contractes, le pattern devient mesurable.' };
+  }
+  if (maturity === 'series-a-early') {
+    return { applicable: 'partial', weight: 0.45, scope: ['lecture des engagements emergents'], rationale: 'Series A early : les engagements long-terme commencent a se materialiser, lecture utile.' };
   }
   return {
     applicable: 'partial',
@@ -1434,11 +1561,18 @@ function buildCommoditizationDriftVerdict(maturity: NarrativeMaturity, productio
       rationale: 'Modele projet ou contrat-public : la commoditisation IA peut attaquer la couche conseil ou production cognitive, mais pas la relation contractuelle elle-meme.',
     };
   }
-  if (maturity === 'series-b-plus') {
-    return { applicable: 'full', weight: 1, scope: [], rationale: 'Growth pour knowledge work : moment ou les moats sont censes tenir et ou la valorisation suppose leur robustesse face aux outils IA.' };
+  if (isLateSeriesAOrAbove(maturity)) {
+    return {
+      applicable: 'full',
+      weight: maturity === 'series-a-late' ? 0.85 : narrativeDepthWeight(maturity),
+      scope: [],
+      rationale: maturity === 'series-a-late'
+        ? 'Series A late pour knowledge work : la position concurrentielle est consolidee, l erosion par les outils IA generalistes est mesurable.'
+        : 'Growth pour knowledge work : moment ou les moats sont censes tenir et ou la valorisation suppose leur robustesse face aux outils IA.',
+    };
   }
-  if (maturity === 'series-a') {
-    return { applicable: 'full', weight: 0.85, scope: [], rationale: 'Series A pour knowledge work : la position concurrentielle commence a se cristalliser, l erosion est mesurable.' };
+  if (maturity === 'series-a-early') {
+    return { applicable: 'full', weight: 0.7, scope: [], rationale: 'Series A early pour knowledge work : la position concurrentielle commence a se cristalliser, l erosion devient observable.' };
   }
   return { applicable: 'partial', weight: 0.5, scope: ['lecture moats actuels'], rationale: 'Stade seed/precoce : pattern utile pour identifier les wrappers IA pure-play sans differenciation des le pre-seed.' };
 }
@@ -1449,11 +1583,17 @@ function buildCommoditizationDriftVerdict(maturity: NarrativeMaturity, productio
  * parce que la cap table est un sujet equity, pas operationnel.
  */
 function buildCapitalStructureFragilityVerdict(maturity: NarrativeMaturity): RelevanceVerdict {
-  if (maturity === 'series-b-plus') {
-    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth : la complexite cap table s accumule de maniere combinatoire de tour en tour. Pattern critique en pre-IPO et lors d un down round potentiel.' };
+  if (maturity === 'pre-ipo' || maturity === 'growth' || maturity === 'series-d' || maturity === 'series-c') {
+    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth ou pre-IPO : la complexite cap table s est accumulee de maniere combinatoire de tour en tour. Pattern critique a l approche d un exit et lors d un down round potentiel.' };
   }
-  if (maturity === 'series-a') {
-    return { applicable: 'partial', weight: 0.55, scope: ['premieres preferences accumulees'], rationale: 'Series A : pattern actif si premieres preferences creatives au seed, sinon en lecture preventive sur la term sheet courante.' };
+  if (maturity === 'series-b') {
+    return { applicable: 'full', weight: 0.9, scope: [], rationale: 'Series B : les preferences contractuelles se sont stratifiees sur trois tours, le risque structurel cap table devient diagnostique.' };
+  }
+  if (maturity === 'series-a-late') {
+    return { applicable: 'full', weight: 0.75, scope: [], rationale: 'Series A late : trois rounds de preferences accumulees, le pattern devient mesurable en propre.' };
+  }
+  if (maturity === 'series-a-early') {
+    return { applicable: 'partial', weight: 0.45, scope: ['premieres preferences accumulees'], rationale: 'Series A early : pattern actif si premieres preferences creatives au seed, sinon en lecture preventive sur la term sheet courante.' };
   }
   return {
     applicable: 'partial',
@@ -1477,14 +1617,24 @@ function buildScaleMirageRiskVerdict(maturity: NarrativeMaturity, productionChai
       rationale: 'Hors-scope : pure software sans capex industriel. Le pattern reste activable manuellement si data centers proprietaires significatifs.',
     };
   }
-  if (maturity === 'series-b-plus') {
-    return { applicable: 'full', weight: 1, scope: [], rationale: 'Stade growth pour modele industriel : moment ou s engage typiquement l industrialisation. Pattern Ynsect canonique.' };
+  if (isLateSeriesAOrAbove(maturity)) {
+    return {
+      applicable: 'full',
+      weight: maturity === 'series-a-late' ? 0.8 : narrativeDepthWeight(maturity),
+      scope: [],
+      rationale: maturity === 'series-a-late'
+        ? 'Series A late pour deeptech ou hardware : la these de mise a l echelle industrielle se materialise, le pattern detecte le mirage de calibration.'
+        : 'Stade growth pour modele industriel : moment ou s engage typiquement l industrialisation. Pattern Ynsect canonique.',
+    };
   }
-  if (maturity === 'series-a') {
-    return { applicable: 'full', weight: 0.8, scope: [], rationale: 'Series A pour deeptech ou hardware : la these de mise a l echelle industrielle est souvent au coeur de la levee, le pattern detecte le mirage de calibration.' };
+  if (maturity === 'series-a-early') {
+    return { applicable: 'partial', weight: 0.6, scope: ['lecture plan industrialisation'], rationale: 'Series A early pour deeptech ou hardware : le plan d industrialisation est generalement detaille dans la levee, lecture pre-industrialisation.' };
   }
   if (maturity === 'seed') {
     return { applicable: 'partial', weight: 0.4, scope: ['lecture plan industrialisation'], rationale: 'Stade seed : capex pas encore engages mais le plan d industrialisation est lisible et evaluable.' };
+  }
+  if (maturity === 'pre-seed') {
+    return { applicable: 'partial', weight: 0.3, scope: ['lecture plan industrialisation'], rationale: 'Stade pre-seed : plan d industrialisation encore theorique, lecture preventive sur la calibration declaree.' };
   }
   return { applicable: 'partial', weight: 0.3, scope: ['lecture plan industrialisation'], rationale: 'Stade non identifiable : lecture du plan industrialisation declare.' };
 }
@@ -1510,9 +1660,11 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
   const reproducibility = detectDigitalReproducibility(text, productionChain);
   const acquisitionFunnel = detectAcquisitionFunnel(text, businessModel);
 
-  // Maturite narrative pour le verdict narrativeDrift. Le test de
-  // corpus minimal regarde si l extraction contient au moins du
-  // texte exploitable (pas seulement des champs vides).
+  // Maturite narrative pour le verdict narrativeDrift. Le seuil
+  // d activation est doctrinal : le moteur tourne transversalement
+  // des que l extraction expose au moins 200 mots de prose, peu
+  // importe le stade. Avant ce seuil, la matiere lexicale est trop
+  // courte pour produire un signal interpretable.
   const narrativeMaturity = detectNarrativeMaturity(extraction.fundraise?.stage);
   const corpusBuffer = [
     extraction.marketPitch,
@@ -1523,7 +1675,8 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
     .filter(Boolean)
     .join(' ')
     .trim();
-  const hasMinimalCorpus = corpusBuffer.length >= 40;
+  const corpusWordCount = corpusBuffer ? corpusBuffer.split(/\s+/).filter(w => w.length > 0).length : 0;
+  const hasMinimalCorpus = corpusWordCount >= 200;
 
   // Construction des verdicts par moteur
   const verdicts = {

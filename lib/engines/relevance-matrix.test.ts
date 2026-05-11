@@ -33,7 +33,7 @@ const cases = [
       traction: { metrics: [], revenue: '500K ARR' },
       fundraise: { stage: 'seed', amount: '2M EUR' },
       competitorsCited: [],
-      rawSummary: 'Levee seed 2M EUR pour conquete commerciale. Acquisition par leadgen et inbound marketing. CAC 800 EUR par customer signe, taux de conversion mql 25%.',
+      rawSummary: 'Levee seed 2M EUR pour conquete commerciale. Acquisition par leadgen et inbound marketing. CAC 800 EUR par customer signe, taux de conversion mql 25%. La societe travaille sur le marche des cabinets d avocats independants en France, avec une promesse claire de gain de temps sur les taches recurrentes administratives et facturables. Les fondateurs viennent du droit, ont exerce comme avocats avant de pivoter vers la tech, et la roadmap produit reflete les frustrations identifiees pendant leurs annees en cabinet. Le pipeline commercial documente trente clients en discussion avancee. Marge brute logicielle structurelle proche de quatre-vingts pourcent. Concurrence directe limitee a deux acteurs francais, dont un seul avec une vraie traction commerciale recente. La proposition de valeur tient en trois points : reduction du temps administratif, conformite reglementaire automatisee, traçabilite client integree. Le marche adressable francais represente trente mille cabinets independants, avec une montee europeenne envisagee a horizon dix-huit mois. Le plan d embauche prevoit cinq commerciaux et trois ingenieurs sur l annee, structure autour d un sales-led classique adapte aux cycles courts du droit.',
     },
     expects: {
       businessModel: 'recurrent-saas',
@@ -70,7 +70,7 @@ const cases = [
       traction: { metrics: [], revenue: '2M' },
       fundraise: { stage: 'series-a', amount: '8M EUR' },
       competitorsCited: [],
-      rawSummary: 'Acquisition payante via Meta ads et Google ads. CAC 45 EUR, taux de conversion 3%. Marge brute 55%. Strong dependance pouvoir d achat consumer.',
+      rawSummary: 'Acquisition payante via Meta ads et Google ads. CAC 45 EUR, taux de conversion 3%. Marge brute 55%. Strong dependance pouvoir d achat consumer. La marque a etabli sa promesse autour du sourcing responsable et de la traceabilite complete de la chaine de production, du coton bio recolte en Inde a la confection finale au Portugal. Les operations logistiques empruntent la voie maritime classique avec un partenaire armateur europeen, ce qui expose le compte d exploitation aux variations du fret international. Le retour client est mesure via NPS trimestriel et taux de retour produit. Le portefeuille produits compte cinquante references actives, renouvelees deux fois par an, avec des collections capsules pour les fetes. La cible commerciale est l urbain de vingt-cinq a quarante ans avec un pouvoir d achat moyen-superieur, sensible aux questions environnementales et a l origine ethique des materiaux. Les canaux d acquisition combinent paid social, contenu editorial et partenariats avec des micro-influenceurs lifestyle. La distribution est multicanal avec un site direct, deux pop-up stores parisiens et trois distributeurs select. Strategie de marque cohesive sur le ton et l esthetique.',
     },
     expects: {
       // Retail DTC vente unitaire dominante avec abonnement option
@@ -203,7 +203,7 @@ const cases = [
       traction: { metrics: [], revenue: '300K ARR' },
       fundraise: { stage: 'seed', amount: '2M EUR' },
       competitorsCited: [],
-      rawSummary: 'Acquisition par leadgen et content marketing. CAC 600 EUR, taux conversion mql 20%.',
+      rawSummary: 'Acquisition par leadgen et content marketing. CAC 600 EUR, taux conversion mql 20%. La proposition de valeur s appuie integralement sur les foundation models tiers, principalement OpenAI et Anthropic, branches via API standard. Le produit est un wrapper documente sur le marche generative AI, avec une couche metier minimale orientee productivite quotidienne en entreprise. Les fondateurs viennent du conseil en transformation digitale, ont monte la societe apres une experience commune chez un grand cabinet international. La cible commerciale est claire : ETI francaises, scale-ups, en deploiement de leur stack IA. Le pipeline contient cinquante prospects engages. La differenciation revendiquee porte sur la qualite des prompts metier integres, la securisation des donnees entreprise et l accompagnement humain du deploiement. La roadmap technique prevoit le branchement sur les modeles europeens souverains des qu ils seront commercialement disponibles avec un niveau de performance comparable. Le plan financier vise un break-even mois trente-six avec un million d ARR a ce moment. Les concurrents identifies sont europeens et americains, sans dominance encore etablie.',
     },
     expects: {
       productionChain: 'pure-software',
@@ -294,7 +294,7 @@ const cases = [
       traction: { metrics: [], revenue: '8M' },
       fundraise: { stage: 'series-b', amount: '30M EUR' },
       competitorsCited: ['October', 'Younited'],
-      rawSummary: 'Sensibilite aux taux d interet directeurs. Acquisition par partenariats experts-comptables et leadgen B2B.',
+      rawSummary: 'Sensibilite aux taux d interet directeurs. Acquisition par partenariats experts-comptables et leadgen B2B. La societe operationne depuis quatre ans avec une montee progressive du carnet de financements distribues aux entreprises, atteignant cent millions d euros cumules a fin 2025. Le coeur produit est un algorithme proprietaire de credit scoring entraine sur les donnees de paiement publiques et privees des PME francaises, avec un risque de defaut historique mesure trois pourcent en dessous de la moyenne sectorielle de reference. Les fondateurs viennent du capital-investissement et de la fintech britannique, et ont structure une equipe de douze personnes entre Paris et Londres. La license bancaire est en cours d instruction aupres de l ACPR, avec un calendrier prevu pour 2026 qui transformera l economie unitaire en captant la marge nette d interet plutot que seulement la commission d intermediation. Le pipeline contient deux cents PME en demande active de financement, avec une demande structurellement portee par les besoins de fonds de roulement et par la transition energetique des outils industriels detenus par les entreprises clientes.',
     },
     expects: {
       'verdicts.macroCyclical.applicable': 'partial', // sensibilite taux only
@@ -382,7 +382,7 @@ const cases = [
       traction: { metrics: [] },
       fundraise: { stage: 'series-c-plus', amount: '80M EUR' },
       competitorsCited: [],
-      rawSummary: 'Exposition supply chain semi-conducteurs Taiwan critique. Sensibilite prix energie. Lithium-ion batterie. Logistique maritime depuis Asie.',
+      rawSummary: 'Exposition supply chain semi-conducteurs Taiwan critique. Sensibilite prix energie. Lithium-ion batterie. Logistique maritime depuis Asie. La gamme cible les flottes B2B operees par des gestionnaires de mobilite professionnelle, en location longue duree comme en propriete directe. Trois modeles industriels sont alignes sur la roadmap : compact urbain, utilitaire intermediaire, plateforme logistique. La fabrication se fait en France sur le site historique, avec un sous-assemblage realise dans une usine partenaire en Espagne pour les volumes de pre-serie. Le dashboard cloud associe propose telemetrie temps reel, maintenance predictive et reporting reglementaire pour les responsables flottes. Trois millions d euros de carnet de commandes signe. Le marche europeen represente quinze millions de vehicules en flottes professionnelles, en transition forcee vers l electrique sous l effet des reglementations zones a faibles emissions. La concurrence directe inclut deux constructeurs francais et un acteur allemand recent, ainsi qu une serie de startups americaines pre-commerciales. Le positionnement prix vise un cran sous les volumes europeens classiques avec un focus sur l adaptation aux usages reels. Les financements publics francais et europeens couvrent quarante pourcent du capex industriel cumule.',
     },
     expects: {
       productionChain: 'hardware-physical',

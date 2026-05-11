@@ -91,27 +91,47 @@ function mockFintech(stage: string): ExtractionOutput {
 }
 
 // ============================================================
-// Test 1 : SaaS B2B Series A
+// Test 1 : SaaS B2B Series A early (palier defaut sans precision)
+// ------------------------------------------------------------
+// Doctrine : la masse Fragilite s active a partir de Series A late.
+// En Series A early, seuls les patterns transversaux (CD knowledge
+// work) sortent en full. Les autres restent en partial.
 // ============================================================
 
-console.log('\n=== Test 1 : SaaS B2B Series A ===');
+console.log('\n=== Test 1 : SaaS B2B Series A early ===');
 {
   const m = computeRelevanceMatrix(mockSaasB2B('Series A'), 'SaaS B2B');
   const fs = m.verdicts.fragiliteStructurelle;
-  // Growth subsidized actif des Series A
-  check('growth-subsidized full en Series A', fs['growth-subsidized-model'].applicable, 'full');
-  // Infrastructure hostage actif full pour SaaS
-  check('infrastructure-hostage full pour SaaS Series A', fs['infrastructure-hostage'].applicable, 'full');
+  // Growth subsidized : partial en series-a-early
+  check('growth-subsidized partial en Series A early', fs['growth-subsidized-model'].applicable, 'partial');
+  // Infrastructure hostage : partial en series-a-early
+  check('infrastructure-hostage partial pour SaaS Series A early', fs['infrastructure-hostage'].applicable, 'partial');
   // Fixed cost trap : SaaS pure cloud = partial avec scope limite
   check('fixed-cost-trap partial pour SaaS pure cloud', fs['fixed-cost-trap'].applicable, 'partial');
   // Regulatory time bomb : pas de mots-cles regules dans ce mock
   check('regulatory-time-bomb none pour SaaS RH non-regule', fs['regulatory-time-bomb'].applicable, 'none');
-  // Commoditization drift actif full pour knowledge work Series A
-  check('commoditization-drift full pour SaaS Series A', fs['commoditization-drift'].applicable, 'full');
-  // Capital structure fragility partial en Series A
-  check('capital-structure-fragility partial en Series A', fs['capital-structure-fragility'].applicable, 'partial');
+  // Commoditization drift : full transversal pour knowledge work
+  check('commoditization-drift full pour SaaS Series A early', fs['commoditization-drift'].applicable, 'full');
+  // Capital structure fragility partial en Series A early
+  check('capital-structure-fragility partial en Series A early', fs['capital-structure-fragility'].applicable, 'partial');
   // Scale mirage : SaaS pure software = none
   check('scale-mirage none pour SaaS pure software', fs['scale-mirage-risk'].applicable, 'none');
+}
+
+// ============================================================
+// Test 1b : SaaS B2B Series A late (bascule Fragilite)
+// ------------------------------------------------------------
+// Doctrine : la masse Fragilite s active ici. Patterns precedemment
+// partial passent full.
+// ============================================================
+
+console.log('\n=== Test 1b : SaaS B2B Series A late ===');
+{
+  const m = computeRelevanceMatrix(mockSaasB2B('Series A late'), 'SaaS B2B');
+  const fs = m.verdicts.fragiliteStructurelle;
+  check('growth-subsidized full en Series A late', fs['growth-subsidized-model'].applicable, 'full');
+  check('infrastructure-hostage full pour SaaS Series A late', fs['infrastructure-hostage'].applicable, 'full');
+  check('capital-structure-fragility full en Series A late', fs['capital-structure-fragility'].applicable, 'full');
 }
 
 // ============================================================
@@ -123,9 +143,9 @@ console.log('\n=== Test 2 : SaaS B2B Series B ===');
   const m = computeRelevanceMatrix(mockSaasB2B('Series B'), 'SaaS B2B');
   const fs = m.verdicts.fragiliteStructurelle;
   check('growth-subsidized full Series B', fs['growth-subsidized-model'].applicable, 'full');
-  check('growth-subsidized weight 1 Series B', fs['growth-subsidized-model'].weight, 1);
+  check('growth-subsidized weight 0.95 Series B', fs['growth-subsidized-model'].weight, 0.95);
   check('capital-structure-fragility full en Series B', fs['capital-structure-fragility'].applicable, 'full');
-  check('commoditization-drift full Series B weight 1', fs['commoditization-drift'].weight, 1);
+  check('commoditization-drift weight 0.95 Series B', fs['commoditization-drift'].weight, 0.95);
 }
 
 // ============================================================
@@ -140,7 +160,7 @@ console.log('\n=== Test 3 : Hardware deeptech Series B ===');
   check('commoditization-drift none pour hardware', fs['commoditization-drift'].applicable, 'none');
   // Hardware : scale mirage actif full Series B
   check('scale-mirage full pour hardware Series B', fs['scale-mirage-risk'].applicable, 'full');
-  check('scale-mirage weight 1 Series B', fs['scale-mirage-risk'].weight, 1);
+  check('scale-mirage weight 0.95 Series B', fs['scale-mirage-risk'].weight, 0.95);
   // Hardware : infrastructure hostage en partial (couche logicielle uniquement)
   check('infrastructure-hostage partial pour hardware', fs['infrastructure-hostage'].applicable, 'partial');
   // Hardware : fixed cost trap full Series B (asset heavy)
