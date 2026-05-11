@@ -339,21 +339,72 @@ interface RegulatorySnapshot {
   country: string;
 }
 
+// Liste testee via regex \\b{keyword}\\b sur le texte normalise
+// (normalizeFrText : lowercase + diacritiques aplatis). On garde
+// donc des keywords sans accents. Le perimetre FR est tisse fin :
+// secteurs verticaux regules, autorites de regulation (ACPR, AMF,
+// ARS, ANSM, ANJ, CNIL, ARCOM, DGCCRF), codes structurants (code
+// monetaire et financier, code de la sante publique, loi Hoguet),
+// statuts d agrement (PSAN, IOBSP, EAJE, ESMS, ICPE, CFA, qualiopi),
+// et regulations europeennes et US qui frappent en transverse
+// (GDPR, AI Act, DSA, DMA, PSD2, PSD3, MiCA, DORA, NIS2, Securities
+// Act, KYC, AML).
 const REGULE_KEYWORDS = [
+  // Secteurs verticaux regules
   'finance', 'fintech', 'banque', 'bank', 'credit', 'paiement', 'payment',
-  'assurance', 'insurance', 'sante', 'health', 'biotech', 'pharma',
-  'defense', 'defence', 'telecom', 'crypto', 'blockchain', 'gambling',
-  'jeu', 'pari', 'drone', 'autonomous', 'gig', 'livreur', 'chauffeur',
-  'driver', 'food delivery', 'rideshare', 'short-term rental', 'airbnb',
-  'meuble touristique', 'GDPR', 'AI Act', 'DSA', 'DMA', 'PSD2', 'PSD3',
-  'CCD2', 'MiCA', 'Securities Act', 'KYC', 'AML', 'lutte blanchiment',
+  'assurance', 'insurance', 'mutuelle', 'prevoyance',
+  'sante', 'health', 'biotech', 'pharma', 'medicament',
+  'dispositif medical', 'medtech', 'biologie medicale',
+  'defense', 'defence', 'aerospatial', 'aeronautique',
+  'telecom', 'crypto', 'blockchain', 'crypto-actif', 'psan',
+  'gambling', 'jeu', 'pari', 'casino en ligne', 'paris sportifs',
+  'drone', 'autonomous', 'vehicule autonome',
+  'gig', 'livreur', 'chauffeur', 'driver',
+  'food delivery', 'rideshare', 'vtc',
+  'short-term rental', 'airbnb', 'meuble touristique',
+  'energie', 'electricite', 'gaz naturel', 'reseau de chaleur',
+  'transport sanitaire', 'ambulance', 'taxi cpam', 'vsl',
+  // Education et accueil reglementes
+  'eaje', 'creche', 'assistante maternelle',
+  'cfa', 'qualiopi', 'organisme de formation',
+  'etablissement sous contrat',
+  // Etablissements et services medico-sociaux
+  'ehpad', 'esms', 'saad', 'had',
+  // Professions reglementees (proxy fort de presence reglementaire)
+  'avocat', 'notaire', 'huissier', 'commissaire de justice',
+  'expert-comptable', 'commissaire aux comptes',
+  'medecin', 'pharmacien', 'infirmier', 'sage-femme',
+  'kinesitherapeute', 'chirurgien-dentiste', 'veterinaire',
+  'agent immobilier', 'architecte', 'geometre-expert',
+  // Autorites de regulation et codes FR
+  'acpr', 'amf', 'arcom', 'arjel', 'anj',
+  'cnil', 'ars', 'ansm', 'has ', 'dgccrf', 'dreal',
+  'code monetaire et financier', 'code de la sante publique',
+  'loi hoguet', 'loi badinter', 'loi lemoine', 'loi pacte',
+  'icpe', 'iobsp', 'agrement',
+  // Regulations transverses europeennes et US. Conserve la casse
+  // canonique des acronymes : la regex de match utilise le flag
+  // case-insensitive donc le routage marche, mais la liste sert
+  // aussi de contrat lisible (test 11 du fichier de tests).
+  'GDPR', 'RGPD', 'AI Act', 'DSA', 'DMA',
+  'PSD2', 'PSD3', 'CCD2', 'MiCA', 'DORA', 'NIS2',
+  'Securities Act', 'KYC', 'AML', 'LCB-FT', 'lutte blanchiment',
 ];
 
+// Signaux compliance attendus dans un dossier vraiment regule.
+// La detection se fait via includes(k.toLowerCase()) donc on peut
+// melanger les casses ici, mais on garde la forme canonique pour
+// faciliter la lecture et conserver le contrat de tests (DPO,
+// agrement).
 const COMPLIANCE_SIGNALS = [
   'compliance officer', 'DPO', 'data protection officer', 'general counsel',
   'directeur juridique', 'compliance team', 'lobbying', 'transparency register',
-  'agrement', 'license bancaire', 'banking license', 'license credit',
-  'KYC', 'AML',
+  'agrement', 'agrement acpr', 'agrement amf', 'agrement ars', 'agrement anj',
+  'license bancaire', 'banking license', 'license credit',
+  'autorisation d exercer', 'autorisation prefectorale',
+  'marquage ce', 'classe iia', 'classe iib', 'classe iii',
+  'amm', 'autorisation de mise sur le marche',
+  'KYC', 'AML', 'LCB-FT', 'lutte blanchiment',
 ];
 
 function extractRegulatorySnapshot(extraction: ExtractionOutput): RegulatorySnapshot {

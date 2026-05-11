@@ -295,15 +295,78 @@ const WET_BIOTECH_KEYWORDS = [
   'genetique', 'génétique', 'crispr',
 ];
 
-// Services regules a forte barriere humaine reglementaire.
+// Services regules a forte barriere humaine reglementaire. Le
+// perimetre est le tissu FR des professions reglementees (ordres
+// professionnels, agrements, autorisations d exercer) et des
+// activites a barriere reglementaire forte (sante, banque,
+// finance, immobilier, transport sanitaire, accueil ESMS et
+// petite enfance, formation diplomante, securite privee). Le
+// texte d entree est deja passe dans normalizeFrText, donc on
+// liste les keywords sans accents : 'medecin' couvre Médecin,
+// 'sante' couvre Santé, etc.
+//
+// Pas d acronymes courts ambigus (CAC, CIF, MSP, HAD, MAS, SAAD,
+// VSL, CFA, SGP). Substring matching sans word-boundary, ces
+// trois-quatre lettres apparaissent dans Customer Acquisition
+// Cost, Video Sales Letter, Managed Service Provider, etc. On
+// privilegie systematiquement la forme longue qui leve l ambiguite.
 const REGULATED_SERVICE_KEYWORDS = [
+  // Professions juridiques et judiciaires
   'avocat', 'cabinet d avocats', 'barreau',
-  'expert-comptable', 'commissaire aux comptes',
-  'conseil en investissement', 'cif',
-  'banque', 'etablissement de credit',
-  'assurance', 'courtier en assurance',
-  'medecin', 'médecin', 'ordre des medecins',
-  'pharmacien', 'pharmacie',
+  'notaire', 'office notarial', 'scp notariale',
+  'huissier', 'commissaire de justice', 'commissaire priseur',
+  'mandataire judiciaire', 'administrateur judiciaire',
+  // Comptabilite, audit, conseil financier reglemente
+  'expert-comptable', 'expert comptable',
+  'commissaire aux comptes',
+  'conseil en investissement',
+  'conseiller en gestion de patrimoine',
+  'courtier en credit', 'courtier en assurance',
+  'iobsp', 'intermediaire en operations de banque',
+  // Etablissements financiers et assurantiels. On distingue ici
+  // l etablissement reglemente (la societe EST une banque, une
+  // assurance, un etablissement de credit) de la simple presence
+  // d un agrement reglementaire dans le pipeline. Un fintech
+  // logiciel avec agrement ACPR a une production-chain
+  // pure-software portant un wrapper reglementaire, pas une
+  // production-chain regulated-service. Les keywords agrement
+  // ACPR / AMF restent capturees par REGULE_KEYWORDS cote
+  // regulatory-time-bomb-pattern, c est leur place doctrinale.
+  'banque', 'etablissement de credit', 'societe de financement',
+  'etablissement de paiement', 'etablissement de monnaie electronique',
+  'societe de gestion de portefeuille',
+  'assurance', 'mutuelle', 'institution de prevoyance',
+  'plateforme de financement participatif',
+  // Sante : professions et etablissements
+  'medecin', 'ordre des medecins', 'conseil de l ordre',
+  'chirurgien-dentiste', 'dentiste',
+  'pharmacien', 'pharmacie', 'officine',
+  'infirmier', 'infirmiere', 'sage-femme',
+  'kinesitherapeute', 'orthophoniste', 'orthoptiste',
+  'psychologue', 'podologue', 'osteopathe',
+  'veterinaire', 'ordre des veterinaires',
+  'biologie medicale', 'laboratoire d analyses medicales',
+  'imagerie medicale', 'radiologie medicale',
+  'hopital', 'centre de sante',
+  'maison de sante pluriprofessionnelle',
+  'agrement ars', 'hospitalisation a domicile',
+  // Medico-social et accueil
+  'ehpad', 'maison de retraite', 'etablissement medico-social',
+  'aide a domicile reglementee',
+  'creche', 'etablissement d accueil du jeune enfant',
+  'assistante maternelle agreee',
+  // Education et formation reglementee
+  'etablissement sous contrat', 'centre de formation d apprentis',
+  'qualiopi', 'organisme de formation certifie',
+  // Transport et mobilite reglementes
+  'transport sanitaire', 'ambulance', 'ambulancier',
+  'taxi conventionne', 'taxi cpam',
+  // Immobilier et urbanisme reglementes
+  'agent immobilier', 'carte t hoguet', 'loi hoguet',
+  'architecte', 'ordre des architectes', 'geometre-expert',
+  // Securite privee et services funeraires
+  'securite privee', 'ssiap', 'cnaps',
+  'pompes funebres', 'thanatopracteur',
 ];
 
 // Production / distribution de contenu media.
