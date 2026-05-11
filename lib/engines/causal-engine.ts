@@ -1,6 +1,7 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
+import { formatExtractionGeography } from './fund-context';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput
@@ -127,7 +128,7 @@ export async function performCausalReversal(
 
 # Extraction
 Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
-Géographie : ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
+Géographie : ${formatExtractionGeography(extraction)}
 Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 
 # Équipe

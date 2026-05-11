@@ -2,7 +2,7 @@ import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
-import { buildFundNoteBlock } from './fund-context';
+import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, MarketAnalysisOutput } from './types';
 import type { RelevanceMatrix } from './relevance-matrix';
 
@@ -469,7 +469,7 @@ Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc,
   const userPrompt = `# DONNÉES DÉCLARÉES (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
-Géographie : ${extraction.geographicHub}, ${extraction.country}
+Géographie : ${formatExtractionGeography(extraction)}
 
 Pitch marché : ${extraction.marketPitch}
 Produit : ${extraction.productDescription}

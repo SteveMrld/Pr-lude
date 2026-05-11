@@ -12,6 +12,7 @@ import {
 } from '../benchmarks';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
 import { normalizeFrText } from '../data/text-normalize';
+import { formatExtractionGeography } from './fund-context';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type { ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput, MacroAnalysisOutput, PatternMatchingOutput } from './types';
@@ -502,7 +503,7 @@ REGLES D USAGE GENERALES
 
 Société : ${extraction?.companyName ?? '?'}
 Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
-Géographie : ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
+Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 
 Output Moteur Équipe :

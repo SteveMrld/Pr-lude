@@ -19,6 +19,8 @@
 // titre clair pour que le LLM identifie la nuance.
 // ============================================================
 
+import { normalizeFrText } from '../data/text-normalize';
+
 export function buildFundNoteBlock(note: string | null | undefined, dimension: string): string {
   if (!note || !note.trim()) return '';
   return `
@@ -31,4 +33,30 @@ ${note.trim()}
 
 # FIN DES NUANCES THESE
 `;
+}
+
+/**
+ * Formate la geographie d un dossier sans artefact cosmetique
+ * quand des champs sont absents ou redondants. Remplace le motif
+ * "${geographicHub ?? '?'}, ${country ?? '?'}" qui produisait des
+ * "?, France" ou "France, France" dans les user prompts envoyes
+ * au LLM et dans le bloc CONTEXTE de la note d instruction.
+ *
+ * Regles :
+ *   geographicHub seul, country seul, ou les deux egaux (insensible
+ *   a la casse et aux accents) -> on rend une chaine simple. Les
+ *   deux differents -> "hub, country". Les deux absents -> mention
+ *   "non precise" explicite plutot qu une paire de points
+ *   d interrogation.
+ */
+export function formatExtractionGeography(
+  extraction: { geographicHub?: string | null; country?: string | null } | null | undefined,
+): string {
+  const hub = (extraction?.geographicHub ?? '').trim();
+  const country = (extraction?.country ?? '').trim();
+  if (!hub && !country) return 'non precise';
+  if (!hub) return country;
+  if (!country) return hub;
+  if (normalizeFrText(hub) === normalizeFrText(country)) return country;
+  return `${hub}, ${country}`;
 }

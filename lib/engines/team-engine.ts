@@ -2,7 +2,7 @@ import { callClaude, parseJSON } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
-import { buildFundNoteBlock } from './fund-context';
+import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, TeamAnalysisOutput, BenchmarkPositioning } from './types';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
@@ -493,7 +493,7 @@ export async function analyzeTeam(
   const userPrompt = `# DONNÉES DÉCLARÉES (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
-Géographie : ${extraction.geographicHub}, ${extraction.country}
+Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : 'non renseignée dans le pitch (ne pas pénaliser ni interpréter cette absence comme un red flag)'}
 
 Fondateurs déclarés :

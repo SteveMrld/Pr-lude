@@ -44,6 +44,7 @@ import type {
   ExecutionFrictionFlag,
 } from './types';
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
+import { formatExtractionGeography } from './fund-context';
 
 // ============================================================
 // Detection deterministe des 8 flags
@@ -348,7 +349,7 @@ export async function analyzeExecutionFriction(
 
 Societe : ${extraction.companyName ?? '?'}
 Secteur : ${extraction.sector ?? '?'} / ${extraction.subSector ?? '?'}
-Geographie : ${extraction.geographicHub ?? '?'}, ${extraction.country ?? '?'}
+Geographie : ${formatExtractionGeography(extraction)}
 Annee fondation : ${extraction.yearFounded ?? 'non renseignee'}
 Stage / montant : ${extraction.fundraise?.stage ?? '?'} / ${extraction.fundraise?.amount ?? '?'}
 

@@ -2,7 +2,7 @@ import { callClaude, parseJSON } from './anthropic-client';
 import { gatherMacroRealData, gatherImfWeoSnapshot, type MacroSnapshot, type ImfWeoSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
-import { buildFundNoteBlock } from './fund-context';
+import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, MacroAnalysisOutput } from './types';
 import type { RelevanceMatrix } from './relevance-matrix';
 import {
@@ -404,7 +404,7 @@ Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc,
   const userPrompt = `# DOSSIER À ANALYSER (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
-Géographie : ${extraction.geographicHub}, ${extraction.country}
+Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 
 Produit : ${extraction.productDescription}

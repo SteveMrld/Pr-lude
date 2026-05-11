@@ -1,7 +1,7 @@
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
-import { buildFundNoteBlock } from './fund-context';
+import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput,
@@ -390,7 +390,7 @@ export async function orchestrateFinalRecommendation(
   const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction?.companyName ?? '?'} :
 
 ${annotationsBlock}# CONTEXTE
-${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'} · ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
+${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'} · ${formatExtractionGeography(extraction)}
 Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 

@@ -3,6 +3,7 @@ import { findByStrate, type ExtendedCaseRecord } from '../corpus/extended-databa
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
+import { formatExtractionGeography } from './fund-context';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, BlindspotAnalysisOutput
@@ -307,7 +308,7 @@ ${failuresBlock}
 # CONTEXTE DOSSIER
 Société : ${extraction?.companyName ?? '?'}
 Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
-Géographie : ${extraction?.geographicHub ?? '?'}, ${extraction?.country ?? '?'}
+Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 Tour de financement : ${extraction?.fundraise?.stage ?? '?'}
 Montant levé : ${extraction?.fundraise?.amount ?? '?'}
