@@ -165,6 +165,16 @@ export async function POST(req: NextRequest) {
               ticketMaxEur: data.ticket_max_eur,
               stagesFocus: data.stages_focus || [],
               notes: data.notes,
+              // Champs optionnels pour la detection conflict-of-interest.
+              // Tant que la table fund_profiles n a pas les colonnes
+              // fund_name, portfolio_companies, syndicate_partners,
+              // ces lectures rendent undefined et le moteur conflict
+              // sort vide. Ajout sans migration cassante : si les
+              // colonnes apparaissent plus tard, la detection se
+              // declenche automatiquement.
+              fundName: (data as any).fund_name ?? null,
+              portfolioCompanies: (data as any).portfolio_companies || [],
+              syndicatePartners: (data as any).syndicate_partners || [],
             };
             // Notes structurees par dimension. Permet d injecter dans
             // chaque moteur Bloc 1 les nuances de these qui le concer-
@@ -352,6 +362,21 @@ export async function POST(req: NextRequest) {
           sendStart('extraction', 'Extraction du contenu du pitch deck');
           const extraction = await extractFromDeck(pitchDeck.payload);
           sendDone('extraction', extraction);
+
+          // ============================================================
+          // CONFLITS D INTERET : detection deterministe instantanee
+          // ------------------------------------------------------------
+          // Compare l identite du fonds qui instruit, son portfolio et
+          // ses partenaires de syndicat aux leadInvestor / coInvestors
+          // declares dans l extraction. Vide si fundProfile absent ou
+          // si pas d acteur en chevauchement. Injecte ensuite en tete
+          // du userPrompt de l orchestrateur final pour que la note
+          // d instruction soit produite en conscience de la position
+          // d interet du fonds. Persiste dans le resultJson sous la
+          // cle conflictOfInterest.
+          // ============================================================
+          const { detectConflictsOfInterest } = await import('@/lib/engines/conflict-of-interest');
+          const conflictOfInterest = detectConflictsOfInterest(extraction, fundProfileForPreScan);
 
           // ============================================================
           // MATRICE DE PERTINENCE
@@ -677,6 +702,7 @@ export async function POST(req: NextRequest) {
                   mechanicalScore,
                   narrativeDrift,
                   fragiliteStructurelle,
+                  conflictOfInterest,
                 );
                 return result;
               } catch (err: any) {
@@ -794,6 +820,10 @@ export async function POST(req: NextRequest) {
               durationMs: Date.now() - startTime,
               engineDurations,
             },
+            // Flags conflit d interet calcules juste apres extraction
+            // (voir bloc CONFLITS D INTERET). Vide sur les dossiers
+            // sans signal, present avec severites variables sinon.
+            conflictOfInterest,
             preScan,
             extraction,
             financialData,

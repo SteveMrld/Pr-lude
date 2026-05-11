@@ -54,6 +54,28 @@ export interface FundProfile {
   stagesFocus: string[];
   /** Notes libres du gestionnaire pour nuances que l IA ne capte pas */
   notes: string | null;
+  /**
+   * Identite canonique du fonds, telle que le partner se reconnaitrait
+   * dans une cap table publique (ex: "Eurazeo", "Tikehau Capital").
+   * Sert au moteur conflict-of-interest pour detecter un self-deal :
+   * le fonds est lui-meme cite comme leadInvestor ou co-investor du
+   * tour analyse. Optionnel, defaut absence de detection self-deal.
+   */
+  fundName?: string | null;
+  /**
+   * Liste des societes en portfolio du fonds, ecrites comme elles
+   * apparaissent dans les communications publiques. Sert au moteur
+   * conflict-of-interest pour detecter un follow-on portfolio.
+   * Optionnel.
+   */
+  portfolioCompanies?: string[];
+  /**
+   * Liste des co-investisseurs reguliers du fonds, derives soit
+   * manuellement par le gestionnaire soit par analyse historique
+   * de la syndication. Sert au moteur conflict-of-interest pour
+   * detecter une proximite de syndicat. Optionnel.
+   */
+  syndicatePartners?: string[];
 }
 
 export interface PreScanTest {

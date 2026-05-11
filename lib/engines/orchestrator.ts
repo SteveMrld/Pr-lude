@@ -2,6 +2,7 @@ import { callClaude, parseJSON, MODEL } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
+import { buildConflictOfInterestBlock, type ConflictOfInterestFlag } from './conflict-of-interest';
 import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput,
@@ -332,6 +333,15 @@ export async function orchestrateFinalRecommendation(
    * non applicables ou en cas d echec global du moteur.
    */
   fragiliteStructurelle?: import('./fragility-structurelle/types').FragiliteStructurelleAnalysisOutput | null,
+  /**
+   * Flags de conflit d interet calcules en amont par
+   * detectConflictsOfInterest. Si fourni et non vide, l orchestrateur
+   * injecte un bloc ALERTE GOUVERNANCE en tete du userPrompt pour
+   * que le LLM produise sa recommandation finale en pleine
+   * conscience de la position d interet du fonds. Vide ou absent
+   * pour les dossiers sans conflit detecte (cas majoritaire).
+   */
+  conflictOfInterest?: ConflictOfInterestFlag[] | null,
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
   // ============================================================
@@ -387,9 +397,15 @@ export async function orchestrateFinalRecommendation(
   );
   const annotationsBlock = formatPastAnnotationsForPrompt(pastAnnotations);
 
+  // Bloc ALERTE GOUVERNANCE injecte en tete si conflits detectes.
+  // Chaine vide quand pas de signal, donc invisible dans le flow
+  // majoritaire. Place avant les annotations pour que le LLM lise
+  // l alerte avant tout le reste.
+  const conflictBlock = buildConflictOfInterestBlock(conflictOfInterest ?? []);
+
   const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction?.companyName ?? '?'} :
 
-${annotationsBlock}# CONTEXTE
+${conflictBlock}${annotationsBlock}# CONTEXTE
 ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'} · ${formatExtractionGeography(extraction)}
 Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}

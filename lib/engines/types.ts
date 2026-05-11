@@ -772,6 +772,14 @@ export interface OrchestratedResult {
     durationMs: number;
     additionalFiles?: string[]; // BP, comptes, etc.
   };
+  /**
+   * Conflits d interet detectes en amont de la note d instruction.
+   * Calcule deterministe a partir de l identite du fonds et de son
+   * portfolio compare a leadInvestor / coInvestors du tour analyse
+   * (voir lib/engines/conflict-of-interest.ts). Vide ou absent si
+   * pas de signal, present avec severites variables sinon.
+   */
+  conflictOfInterest?: import('./conflict-of-interest').ConflictOfInterestFlag[];
   extraction: ExtractionOutput;
   financialData?: FinancialDataExtraction;
   team: TeamAnalysisOutput;
