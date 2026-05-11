@@ -478,7 +478,7 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   return applyCentralAxisGating(
     output,
     'axis1',
-    'Pattern Growth Subsidized non applicable : l axe identitaire (unit economics) est neutralise par absence de transactions mesurables. Les signaux peripheriques observables sur ce dossier (capital, denial, gouvernance) relevent d autres patterns.',
+    'Pattern Croissance subventionnée non applicable sur ce dossier : aucune transaction mesurable ne permet d évaluer l unit economics. Les signaux capital ou gouvernance qui pourraient apparaître relèvent d autres patterns instruits ci-dessous.',
   );
 }
 

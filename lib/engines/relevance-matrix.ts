@@ -1526,7 +1526,7 @@ function buildRegulatoryTimeBombVerdict(text: string, businessModel: BusinessMod
       applicable: 'none',
       weight: 0,
       scope: [],
-      rationale: 'Secteur sans exposition reglementaire significative detectable au pre-screen. Le pattern reste activable manuellement par le partner si necessaire.',
+      rationale: 'Aucune exposition réglementaire significative détectée au pre-screen sur ce secteur. Le pattern peut être activé manuellement par le partner si une nuance sectorielle le justifie.',
     };
   }
   // Secteur regule : pattern actif a tous stades, full

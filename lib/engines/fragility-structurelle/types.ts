@@ -47,13 +47,13 @@ export type PatternId = typeof PATTERN_IDS[number];
  * langage" qu on a retenu pour Narrative Drift.
  */
 export const PATTERN_LABELS: Record<PatternId, string> = {
-  'growth-subsidized-model': 'Croissance subventionnee',
-  'infrastructure-hostage': 'Captivite infrastructure',
-  'fixed-cost-trap': 'Couts fixes incompressibles',
-  'regulatory-time-bomb': 'Risque reglementaire date',
-  'commoditization-drift': 'Erosion de defensibilite',
-  'capital-structure-fragility': 'Fragilite cap table',
-  'scale-mirage-risk': 'Industrialisation prematuree',
+  'growth-subsidized-model': 'Croissance subventionnée',
+  'infrastructure-hostage': 'Captivité infrastructure',
+  'fixed-cost-trap': 'Coûts fixes incompressibles',
+  'regulatory-time-bomb': 'Risque réglementaire daté',
+  'commoditization-drift': 'Érosion de défensibilité',
+  'capital-structure-fragility': 'Fragilité cap table',
+  'scale-mirage-risk': 'Industrialisation prématurée',
 };
 
 // ============================================================

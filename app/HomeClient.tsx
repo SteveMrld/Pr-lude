@@ -4328,7 +4328,7 @@ export default function HomeClient({
                   return (
                     <div style={{ padding: '28px 32px' }}>
                       <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
-                        Fragilite structurelle
+                        Fragilité structurelle
                       </h3>
                       <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', fontSize: 13, opacity: 0.85 }}>
                         <div style={{ fontWeight: 500, marginBottom: 4 }}>Non applicable sur ce dossier</div>
@@ -4343,7 +4343,7 @@ export default function HomeClient({
                   return (
                     <div style={{ padding: '28px 32px' }}>
                       <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
-                        Fragilite structurelle
+                        Fragilité structurelle
                       </h3>
                       <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ocre-brule, #a04040)', fontSize: 13, opacity: 0.85 }}>
                         Lecture indisponible (incident transitoire). Au moins un pattern etait pourtant retenu par la matrice. Relancer l analyse pour reproduire.
@@ -4363,19 +4363,19 @@ export default function HomeClient({
 
                 const patternIds = ['growth-subsidized-model', 'infrastructure-hostage', 'fixed-cost-trap', 'regulatory-time-bomb', 'commoditization-drift', 'capital-structure-fragility', 'scale-mirage-risk'] as const;
                 const patternLabels: Record<string, string> = {
-                  'growth-subsidized-model': 'Croissance subventionnee',
-                  'infrastructure-hostage': 'Captivite infrastructure',
-                  'fixed-cost-trap': 'Couts fixes incompressibles',
-                  'regulatory-time-bomb': 'Risque reglementaire date',
-                  'commoditization-drift': 'Erosion de defensibilite',
-                  'capital-structure-fragility': 'Fragilite cap table',
-                  'scale-mirage-risk': 'Industrialisation prematuree',
+                  'growth-subsidized-model': 'Croissance subventionnée',
+                  'infrastructure-hostage': 'Captivité infrastructure',
+                  'fixed-cost-trap': 'Coûts fixes incompressibles',
+                  'regulatory-time-bomb': 'Risque réglementaire daté',
+                  'commoditization-drift': 'Érosion de défensibilité',
+                  'capital-structure-fragility': 'Fragilité cap table',
+                  'scale-mirage-risk': 'Industrialisation prématurée',
                 };
 
                 return (
                   <div style={{ padding: '28px 32px' }}>
                     <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
-                      Fragilite structurelle
+                      Fragilité structurelle
                     </h3>
 
                     {/* Bandeau verdict global */}
@@ -4463,7 +4463,7 @@ export default function HomeClient({
                             )}
                             {p.recommandationDD && (
                               <div style={{ fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--hairline)', opacity: 0.85 }}>
-                                <strong style={{ fontWeight: 500 }}>DD :</strong> {p.recommandationDD}
+                                <strong style={{ fontWeight: 500 }}>Approfondissements DD :</strong> {p.recommandationDD}
                               </div>
                             )}
                           </div>
