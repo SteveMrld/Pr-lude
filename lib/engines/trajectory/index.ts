@@ -11,6 +11,10 @@ export type {
   VerdictTransition,
   PatternVerdictTransition,
   TrajectoryComparison,
+  PatternAxisSnapshot,
+  PatternAxesSnapshot,
+  PatternAxisDelta,
+  PatternAxesDelta,
 } from './types';
 
 export {
@@ -30,3 +34,12 @@ export {
 export { extractSnapshot, type AnalysisPayloadForSnapshot } from './snapshot-extractor';
 
 export { buildTrajectoryFromAnalyses, type TrajectorySummary } from './chain-builder';
+
+export {
+  evaluateTrajectoryAlerts,
+  getHighestCran,
+  filterAlertsByCran,
+  isCriticalFragilityDowngrade,
+  type AlertCran,
+  type TrajectoryAlert,
+} from './alerts';
