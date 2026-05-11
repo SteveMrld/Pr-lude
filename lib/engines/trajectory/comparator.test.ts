@@ -422,5 +422,125 @@ console.log('\n=== Test 16 : combinaisons persistantes ===');
   check('1 combinaison resolue', c.combinaisonsResolues.length, 1);
 }
 
+// ============================================================
+// Tests axe par axe (extension Phase 4 v2)
+// ============================================================
+
+console.log('\n=== Test 17 : axesDeltas absent quand les deux snapshots n ont pas d axes ===');
+{
+  const before = mockSnapshot();
+  const after = mockSnapshot({
+    analyzedAt: '2026-04-01T00:00:00Z',
+    patterns: {
+      ...mockSnapshot().patterns,
+      'growth-subsidized-model': { score: 65, verdict: 'alerte', applicabilite: 'full' },
+    },
+  });
+  const c = compareAnalyses(before, after);
+  const gsmDelta = c.patternsDeltas['growth-subsidized-model'];
+  check('scoreDelta toujours present', gsmDelta?.scoreDelta?.delta, 25);
+  check('axesDeltas absent (compat snapshots historiques)', gsmDelta?.axesDeltas, undefined);
+}
+
+console.log('\n=== Test 18 : axesDeltas calcules quand les deux portent les axes ===');
+{
+  const before = mockSnapshot({
+    patterns: {
+      ...mockSnapshot().patterns,
+      'growth-subsidized-model': {
+        score: 40,
+        verdict: 'attention',
+        applicabilite: 'full',
+        axes: {
+          axis1: { score: 50, verdict: 'attention' },
+          axis2: { score: 35, verdict: 'sain' },
+          axis3: { score: 30, verdict: 'sain' },
+        },
+      },
+    },
+  });
+  const after = mockSnapshot({
+    analyzedAt: '2026-04-01T00:00:00Z',
+    patterns: {
+      ...mockSnapshot().patterns,
+      'growth-subsidized-model': {
+        score: 70,
+        verdict: 'alerte',
+        applicabilite: 'full',
+        axes: {
+          axis1: { score: 85, verdict: 'alerte' },
+          axis2: { score: 60, verdict: 'attention' },
+          axis3: { score: 35, verdict: 'sain' },
+        },
+      },
+    },
+  });
+  const c = compareAnalyses(before, after);
+  const gsmDelta = c.patternsDeltas['growth-subsidized-model'];
+  checkTrue('axesDeltas presents', !!gsmDelta?.axesDeltas);
+  check('axis1 delta = 35', gsmDelta?.axesDeltas?.axis1.scoreDelta?.delta, 35);
+  check('axis1 verdict downgraded', gsmDelta?.axesDeltas?.axis1.verdictTransition.type, 'downgraded');
+  check('axis2 delta = 25', gsmDelta?.axesDeltas?.axis2.scoreDelta?.delta, 25);
+  check('axis2 verdict downgraded', gsmDelta?.axesDeltas?.axis2.verdictTransition.type, 'downgraded');
+  check('axis3 delta = 5 (stable au seuil)', gsmDelta?.axesDeltas?.axis3.scoreDelta?.delta, 5);
+  check('axis3 verdict maintenu', gsmDelta?.axesDeltas?.axis3.verdictTransition.type, 'maintained');
+}
+
+console.log('\n=== Test 19 : axesDeltas omis si un seul snapshot porte les axes ===');
+{
+  const before = mockSnapshot({
+    patterns: {
+      ...mockSnapshot().patterns,
+      'growth-subsidized-model': { score: 40, verdict: 'attention', applicabilite: 'full' },
+    },
+  });
+  const after = mockSnapshot({
+    analyzedAt: '2026-04-01T00:00:00Z',
+    patterns: {
+      ...mockSnapshot().patterns,
+      'growth-subsidized-model': {
+        score: 70,
+        verdict: 'alerte',
+        applicabilite: 'full',
+        axes: {
+          axis1: { score: 85, verdict: 'alerte' },
+          axis2: { score: 60, verdict: 'attention' },
+          axis3: { score: 35, verdict: 'sain' },
+        },
+      },
+    },
+  });
+  const c = compareAnalyses(before, after);
+  const gsmDelta = c.patternsDeltas['growth-subsidized-model'];
+  check('axesDeltas absent (assymetrie before/after)', gsmDelta?.axesDeltas, undefined);
+  checkTrue('scoreDelta de surface preserve', gsmDelta?.scoreDelta?.delta === 30);
+}
+
+console.log('\n=== Test 20 : axesDeltas omis pour pattern non applicable d un cote ===');
+{
+  const before = mockSnapshot();
+  const after = mockSnapshot({
+    analyzedAt: '2026-04-01T00:00:00Z',
+    patterns: {
+      ...mockSnapshot().patterns,
+      'commoditization-drift': {
+        score: 60,
+        verdict: 'attention',
+        applicabilite: 'full',
+        axes: {
+          axis1: { score: 60, verdict: 'attention' },
+          axis2: { score: 50, verdict: 'attention' },
+          axis3: { score: 40, verdict: 'sain' },
+        },
+      },
+    },
+  });
+  const c = compareAnalyses(before, after);
+  const driftDelta = c.patternsDeltas['commoditization-drift'];
+  check('newly-applicable verdict transition', driftDelta?.verdictTransition.type, 'newly-applicable');
+  check('axesDeltas absent (newly-applicable)', driftDelta?.axesDeltas, undefined);
+  check('scoreDelta null car non applicable a t-1', driftDelta?.scoreDelta, null);
+}
+
 console.log(`\n${pass}/${pass + fail} tests passes`);
 process.exit(fail > 0 ? 1 : 0);

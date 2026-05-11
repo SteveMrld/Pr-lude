@@ -22,6 +22,7 @@
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import { isPersistenceEnabled } from '@/lib/analysis-store';
 import type { PatternId, PatternVerdict, PatternApplicability } from './engines/fragility-structurelle/types';
+import type { PatternAxesSnapshot } from './engines/trajectory/types';
 import type { Verdict } from './engines/score-calculator';
 
 // ============================================================
@@ -65,6 +66,11 @@ export interface TrajectorySnapshotRow {
     score: number;
     verdict: PatternVerdict;
     applicabilite: PatternApplicability;
+    /** Triplet d axes optionnel. Present quand le snapshot a ete
+     *  produit apres l extension axe-par-axe, absent pour les
+     *  snapshots historiques. Permet le drill-down UI sans casser
+     *  la compatibilite des lectures anciennes. */
+    axes?: PatternAxesSnapshot;
   }>>;
   combinaisons: Array<{ nom: string; severite: 'attention' | 'alerte' | 'drapeau-rouge' }>;
   createdAt: string;
@@ -110,7 +116,10 @@ function rowToSnapshot(raw: any): TrajectorySnapshotRow {
 
 /**
  * Parse le champ jsonb patterns_json en map typee. Defensive :
- * filtre les entrees malformees plutot que d echouer.
+ * filtre les entrees malformees plutot que d echouer. Extrait
+ * aussi le triplet d axes quand le payload le porte, pour servir
+ * le drill-down axe par axe cote UI ; omet le champ `axes` quand
+ * le triplet est partiel ou absent (cas snapshots historiques).
  */
 function parsePatternsJson(raw: any): TrajectorySnapshotRow['patterns'] {
   if (!raw || typeof raw !== 'object') return {};
@@ -127,13 +136,33 @@ function parsePatternsJson(raw: any): TrajectorySnapshotRow['patterns'] {
       continue;
     }
     if (typeof v.globalScore !== 'number') continue;
-    out[key as PatternId] = {
+    const entry: NonNullable<TrajectorySnapshotRow['patterns'][PatternId]> = {
       score: v.globalScore,
       verdict: (v.verdict ?? 'sain') as PatternVerdict,
       applicabilite: (v.applicabilite ?? 'full') as PatternApplicability,
     };
+    const axes = parseAxesFromPayload(v);
+    if (axes) entry.axes = axes;
+    out[key as PatternId] = entry;
   }
   return out;
+}
+
+/**
+ * Extrait le triplet d axes depuis un pattern serialise. Le format
+ * attendu reprend la sortie de PatternAnalysisOutput : axis1,
+ * axis2, axis3 sont des objets riches (score, verdict, rationale,
+ * evidences, confidence). On ne retient que score et verdict pour
+ * le snapshot compact, le reste reste dans analyses_versions.
+ */
+function parseAxesFromPayload(p: any): PatternAxesSnapshot | null {
+  const ok = (a: any): boolean => !!a && typeof a.score === 'number' && !!a.verdict;
+  if (!ok(p.axis1) || !ok(p.axis2) || !ok(p.axis3)) return null;
+  return {
+    axis1: { score: p.axis1.score, verdict: p.axis1.verdict as PatternVerdict },
+    axis2: { score: p.axis2.score, verdict: p.axis2.verdict as PatternVerdict },
+    axis3: { score: p.axis3.score, verdict: p.axis3.verdict as PatternVerdict },
+  };
 }
 
 /**

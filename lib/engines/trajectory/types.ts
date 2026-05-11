@@ -19,6 +19,35 @@ import type { Verdict } from '../score-calculator';
 import type { PatternId, PatternVerdict, PatternApplicability } from '../fragility-structurelle/types';
 
 /**
+ * Snapshot d un axe individuel a l interieur d un pattern Phase 4.
+ * La doctrine prevoit trois axes par pattern (axis1 identitaire,
+ * axis2 et axis3 peripheriques). Le trajectory en garde le score
+ * et le verdict pour servir le drill-down ; le rationale editorial
+ * et les evidences ne sont pas persistes dans le snapshot
+ * compact pour limiter la taille.
+ */
+export interface PatternAxisSnapshot {
+  /** Score 0-100 de l axe, repris de PatternAxisAnalysis.score. */
+  score: number;
+  /** Verdict de l axe, repris de PatternAxisAnalysis.verdict. */
+  verdict: PatternVerdict;
+}
+
+/**
+ * Triplet d axes d un pattern Phase 4. Indexation par axis1,
+ * axis2, axis3 alignee sur la structure de PatternAnalysisOutput.
+ * Les libelles editoriaux des axes (unit economics pour Growth
+ * Subsidized, intensite de la dependance pour Infrastructure
+ * Hostage, etc.) sont resolus cote UI par pattern, pas portes
+ * dans le snapshot.
+ */
+export interface PatternAxesSnapshot {
+  axis1: PatternAxisSnapshot;
+  axis2: PatternAxisSnapshot;
+  axis3: PatternAxisSnapshot;
+}
+
+/**
  * Snapshot d une analyse a un instant T. Forme reduite extraite
  * du payload complet d analyse, gardant uniquement ce qui est
  * necessaire au calcul de trajectoire. Permet de stocker des
@@ -52,11 +81,17 @@ export interface TrajectorySnapshot {
   narrativeDriftScore: number | null;
   /** Verdict Narrative Drift. */
   narrativeDriftVerdict: PatternVerdict | null;
-  /** Scores et verdicts des sept patterns Phase 4. */
+  /** Scores et verdicts des sept patterns Phase 4. Chaque entrée
+   *  porte le pattern en surface (score, verdict, applicabilite)
+   *  et, optionnellement, le triplet axe par axe pour le
+   *  drill-down. Le champ `axes` est optionnel pour preserver la
+   *  compatibilite avec les snapshots historiques produits avant
+   *  l extension axe-par-axe. */
   patterns: Partial<Record<PatternId, {
     score: number;
     verdict: PatternVerdict;
     applicabilite: PatternApplicability;
+    axes?: PatternAxesSnapshot;
   }>>;
   /** Combinaisons diagnostiques detectees a l instant T. */
   combinaisons: Array<{ nom: string; severite: 'attention' | 'alerte' | 'drapeau-rouge' }>;
@@ -103,6 +138,29 @@ export interface PatternVerdictTransition {
 }
 
 /**
+ * Delta d un axe individuel entre deux snapshots. Suit la meme
+ * grammaire que ScoreDelta plus PatternVerdictTransition au
+ * niveau pattern, mais transposee a l axe. Sert le drill-down UI
+ * "pourquoi ce pattern s aggrave : sur quel axe precisement".
+ */
+export interface PatternAxisDelta {
+  scoreDelta: ScoreDelta | null;
+  verdictTransition: PatternVerdictTransition;
+}
+
+/**
+ * Triplet de deltas axe par axe pour un pattern donne. Indexe
+ * comme PatternAxesSnapshot. Un axe peut avoir scoreDelta null
+ * si l un des deux snapshots ne porte pas la donnee de cet axe
+ * (cas degraded compatibilite snapshots historiques).
+ */
+export interface PatternAxesDelta {
+  axis1: PatternAxisDelta;
+  axis2: PatternAxisDelta;
+  axis3: PatternAxisDelta;
+}
+
+/**
  * Resultat de la comparaison entre deux snapshots du meme
  * dossier. Contient tous les deltas calcules et un resume
  * editorial qui qualifie la trajectoire dans l ensemble.
@@ -127,10 +185,16 @@ export interface TrajectoryComparison {
    *  deux snapshots. */
   narrativeDriftDelta: ScoreDelta | null;
   /** Deltas par pattern Phase 4. Patterns non applicables dans
-   *  les deux snapshots sont omis. */
+   *  les deux snapshots sont omis. Le champ `axesDeltas` est
+   *  optionnel : il est present quand les deux snapshots portent
+   *  l information axe-par-axe (snapshots produits apres
+   *  l extension axe-par-axe), absent sinon (snapshots
+   *  historiques). Permet a l UI de degrader sa lecture sans
+   *  casser. */
   patternsDeltas: Partial<Record<PatternId, {
     scoreDelta: ScoreDelta | null;
     verdictTransition: PatternVerdictTransition;
+    axesDeltas?: PatternAxesDelta;
   }>>;
   /** Combinaisons diagnostiques apparues entre before et after. */
   combinaisonsApparues: Array<{ nom: string; severite: 'attention' | 'alerte' | 'drapeau-rouge' }>;

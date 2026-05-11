@@ -210,5 +210,119 @@ console.log('\n=== Test 10 : Phase 4 patterns mixtes ===');
   check('combinaison Trajectoire WeWork', snap.combinaisons[0]?.nom, 'Trajectoire WeWork');
 })();
 
+// ============================================================
+// Tests axe par axe (extension Phase 4 v2)
+// ============================================================
+
+console.log('\n=== Test 11 : extraction du triplet d axes ===');
+(() => {
+  const payload: AnalysisPayloadForSnapshot = {
+    analysisId: 'with-axes',
+    analyzedAt: '2026-05-09T00:00:00Z',
+    mechanicalScore: { globalScore: 60, verdict: 'investir avec conditions' },
+    fragiliteStructurelle: {
+      globalFragilityScore: 55,
+      verdict: 'attention',
+      patterns: {
+        'growth-subsidized-model': {
+          globalScore: 60,
+          verdict: 'attention',
+          applicabilite: 'full',
+          axis1: { score: 75, verdict: 'alerte' },
+          axis2: { score: 50, verdict: 'attention' },
+          axis3: { score: 40, verdict: 'sain' },
+        } as any,
+      },
+    },
+  };
+  const snap = extractSnapshot(payload);
+  checkTrue('snapshot non null', !!snap);
+  if (!snap) return;
+  const p = snap.patterns['growth-subsidized-model'];
+  checkTrue('axes presents', !!p?.axes);
+  check('axis1 score', p?.axes?.axis1.score, 75);
+  check('axis1 verdict', p?.axes?.axis1.verdict, 'alerte');
+  check('axis2 score', p?.axes?.axis2.score, 50);
+  check('axis2 verdict', p?.axes?.axis2.verdict, 'attention');
+  check('axis3 verdict', p?.axes?.axis3.verdict, 'sain');
+})();
+
+console.log('\n=== Test 12 : axes omis si triplet incomplet ===');
+(() => {
+  const payload: AnalysisPayloadForSnapshot = {
+    analysisId: 'partial-axes',
+    analyzedAt: '2026-05-09T00:00:00Z',
+    mechanicalScore: { globalScore: 60, verdict: 'approfondir' },
+    fragiliteStructurelle: {
+      globalFragilityScore: 50,
+      verdict: 'attention',
+      patterns: {
+        'growth-subsidized-model': {
+          globalScore: 60,
+          verdict: 'attention',
+          applicabilite: 'full',
+          axis1: { score: 75, verdict: 'alerte' },
+          // axis2 et axis3 absents
+        } as any,
+      },
+    },
+  };
+  const snap = extractSnapshot(payload);
+  const p = snap?.patterns['growth-subsidized-model'];
+  check('axes omis si triplet incomplet', p?.axes, undefined);
+  check('surface pattern preservee', p?.score, 60);
+})();
+
+console.log('\n=== Test 13 : axes omis pour pattern legacy sans axis ===');
+(() => {
+  const payload: AnalysisPayloadForSnapshot = {
+    analysisId: 'legacy-no-axes',
+    analyzedAt: '2026-05-09T00:00:00Z',
+    mechanicalScore: { globalScore: 60, verdict: 'approfondir' },
+    fragiliteStructurelle: {
+      globalFragilityScore: 50,
+      verdict: 'attention',
+      patterns: {
+        'growth-subsidized-model': {
+          globalScore: 60,
+          verdict: 'attention',
+          applicabilite: 'full',
+        },
+      },
+    },
+  };
+  const snap = extractSnapshot(payload);
+  const p = snap?.patterns['growth-subsidized-model'];
+  check('axes absents pour pattern sans axis fields', p?.axes, undefined);
+  check('surface pattern preservee', p?.score, 60);
+})();
+
+console.log('\n=== Test 14 : axes ignores pour pattern non applicable ===');
+(() => {
+  const payload: AnalysisPayloadForSnapshot = {
+    analysisId: 'not-applicable-with-axes',
+    analyzedAt: '2026-05-09T00:00:00Z',
+    mechanicalScore: { globalScore: 60, verdict: 'approfondir' },
+    fragiliteStructurelle: {
+      globalFragilityScore: 50,
+      verdict: 'attention',
+      patterns: {
+        'commoditization-drift': {
+          globalScore: 0,
+          verdict: 'non-applicable',
+          applicabilite: 'not-applicable',
+          axis1: { score: 0, verdict: 'non-applicable' },
+          axis2: { score: 0, verdict: 'non-applicable' },
+          axis3: { score: 0, verdict: 'non-applicable' },
+        } as any,
+      },
+    },
+  };
+  const snap = extractSnapshot(payload);
+  const p = snap?.patterns['commoditization-drift'];
+  check('pattern non applicable reste tel quel', p?.applicabilite, 'not-applicable');
+  check('axes pas portes pour pattern non applicable', p?.axes, undefined);
+})();
+
 console.log(`\n${pass}/${pass + fail} tests passes`);
 process.exit(fail > 0 ? 1 : 0);

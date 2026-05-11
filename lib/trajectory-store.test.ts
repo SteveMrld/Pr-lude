@@ -232,6 +232,65 @@ console.log('\n=== Test 5 : conversion numeric Postgres ===');
 }
 
 // ============================================================
+// Test 6 : parsePatternsJson extrait les axes
+// ============================================================
+console.log('\n=== Test 6 : parsePatternsJson extrait axes ===');
+{
+  const raw = {
+    'growth-subsidized-model': {
+      globalScore: 60,
+      verdict: 'attention',
+      applicabilite: 'full',
+      axis1: { score: 75, verdict: 'alerte', rationale: 'long text', evidencePro: [], evidenceContra: [], confidence: 0.8 },
+      axis2: { score: 50, verdict: 'attention', rationale: '...', evidencePro: [], evidenceContra: [], confidence: 0.7 },
+      axis3: { score: 35, verdict: 'sain', rationale: '...', evidencePro: [], evidenceContra: [], confidence: 0.9 },
+    },
+  };
+  const p = parsePatternsJson(raw);
+  const gsm = p['growth-subsidized-model'];
+  checkTrue('axes presents apres parse', !!gsm?.axes);
+  check('axis1 score extrait', gsm?.axes?.axis1.score, 75);
+  check('axis1 verdict extrait', gsm?.axes?.axis1.verdict, 'alerte');
+  check('axis2 verdict extrait', gsm?.axes?.axis2.verdict, 'attention');
+  check('axis3 verdict extrait', gsm?.axes?.axis3.verdict, 'sain');
+  checkTrue('surface pattern preservee', gsm?.score === 60);
+}
+
+console.log('\n=== Test 7 : parsePatternsJson omet axes si triplet partiel ===');
+{
+  const raw = {
+    'growth-subsidized-model': {
+      globalScore: 60,
+      verdict: 'attention',
+      applicabilite: 'full',
+      axis1: { score: 75, verdict: 'alerte' },
+      // axis2 et axis3 absents
+    },
+  };
+  const p = parsePatternsJson(raw);
+  const gsm = p['growth-subsidized-model'];
+  check('axes omis car triplet partiel', gsm?.axes, undefined);
+  check('surface pattern preservee', gsm?.score, 60);
+}
+
+console.log('\n=== Test 8 : parsePatternsJson conserve compatibilite snapshots historiques ===');
+{
+  const raw = {
+    'growth-subsidized-model': {
+      globalScore: 60,
+      verdict: 'attention',
+      applicabilite: 'full',
+      // pas d axes du tout, format historique
+    },
+  };
+  const p = parsePatternsJson(raw);
+  const gsm = p['growth-subsidized-model'];
+  check('axes omis pour format historique', gsm?.axes, undefined);
+  check('score preserve', gsm?.score, 60);
+  check('verdict preserve', gsm?.verdict, 'attention');
+}
+
+// ============================================================
 // FIN
 // ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);

@@ -18,6 +18,8 @@ import type {
   ScoreDelta,
   VerdictTransition,
   PatternVerdictTransition,
+  PatternAxesDelta,
+  PatternAxisDelta,
 } from './types';
 import { SCORE_TOLERANCE, VERDICT_HIERARCHY, PATTERN_VERDICT_HIERARCHY } from './types';
 import { PATTERN_IDS, type PatternId, type PatternVerdict } from '../fragility-structurelle/types';
@@ -115,10 +117,51 @@ export function computeDaysBetween(beforeIso: string, afterIso: string): number 
 // ============================================================
 
 /**
+ * Calcule le delta d un axe individuel entre deux snapshots d axe.
+ * Suit la meme grammaire que computeScoreDelta plus
+ * computePatternVerdictTransition mais au niveau axe.
+ */
+function compareAxis(
+  before: { score: number; verdict: PatternVerdict },
+  after: { score: number; verdict: PatternVerdict },
+): PatternAxisDelta {
+  return {
+    scoreDelta: computeScoreDelta(before.score, after.score),
+    verdictTransition: computePatternVerdictTransition(before.verdict, after.verdict),
+  };
+}
+
+/**
+ * Calcule le triplet de deltas axe par axe pour un pattern donne.
+ * Retourne undefined si l un des deux snapshots ne porte pas le
+ * triplet (cas degraded snapshots historiques avant l extension
+ * axe-par-axe). L UI peut alors degrader son drill-down sans
+ * casser.
+ */
+function compareAxes(
+  beforeP: NonNullable<TrajectorySnapshot['patterns'][PatternId]>,
+  afterP: NonNullable<TrajectorySnapshot['patterns'][PatternId]>,
+): PatternAxesDelta | undefined {
+  if (!beforeP.axes || !afterP.axes) return undefined;
+  return {
+    axis1: compareAxis(beforeP.axes.axis1, afterP.axes.axis1),
+    axis2: compareAxis(beforeP.axes.axis2, afterP.axes.axis2),
+    axis3: compareAxis(beforeP.axes.axis3, afterP.axes.axis3),
+  };
+}
+
+/**
  * Calcule pour chaque pattern Phase 4 son delta de score (si
  * applicable dans les deux snapshots) et sa transition de
  * verdict. Patterns non applicables dans les deux snapshots sont
  * omis du resultat (pas de bruit visuel).
+ *
+ * En plus du pattern de surface, si les deux snapshots portent
+ * l information axe par axe (cas snapshots produits apres
+ * l extension Phase 4 v2), on calcule aussi le triplet de deltas
+ * axe par axe. Le drill-down UI consomme ce triplet pour
+ * expliquer "ce pattern s aggrave parce que l axe identitaire a
+ * monte de 15 points".
  */
 function comparePatterns(
   before: TrajectorySnapshot,
@@ -144,12 +187,16 @@ function comparePatterns(
     // Score delta uniquement si les deux snapshots ont un score (donc
     // le pattern etait applicable des deux cotes)
     let scoreDelta: ScoreDelta | null = null;
+    let axesDeltas: PatternAxesDelta | undefined;
     if (beforeP?.applicabilite !== 'not-applicable' && afterP?.applicabilite !== 'not-applicable'
         && beforeP && afterP) {
       scoreDelta = computeScoreDelta(beforeP.score, afterP.score);
+      axesDeltas = compareAxes(beforeP, afterP);
     }
 
-    deltas[patternId] = { scoreDelta, verdictTransition };
+    deltas[patternId] = axesDeltas
+      ? { scoreDelta, verdictTransition, axesDeltas }
+      : { scoreDelta, verdictTransition };
   }
 
   return deltas;

@@ -16,7 +16,7 @@
 // ou des formats legacy sans les champs Phase 4.
 // ============================================================
 
-import type { TrajectorySnapshot } from './types';
+import type { TrajectorySnapshot, PatternAxesSnapshot } from './types';
 import { PATTERN_IDS, type PatternId, type PatternVerdict, type PatternApplicability } from '../fragility-structurelle/types';
 import type { Verdict } from '../score-calculator';
 
@@ -56,7 +56,12 @@ export interface AnalysisPayloadForSnapshot {
       vigilance?: { score?: number };
     };
   };
-  /** Sortie Fragilite Structurelle. */
+  /** Sortie Fragilite Structurelle. Chaque pattern peut porter en
+   *  plus du score global et du verdict ses trois axes (axis1
+   *  identitaire, axis2 et axis3 peripheriques). Si les axes ne
+   *  sont pas presents dans le payload (snapshots historiques ou
+   *  format legacy), l extracteur degrade gracieusement et omet
+   *  le champ `axes` dans le snapshot resultant. */
   fragiliteStructurelle?: {
     globalFragilityScore?: number;
     verdict?: PatternVerdict;
@@ -64,6 +69,9 @@ export interface AnalysisPayloadForSnapshot {
       globalScore?: number;
       verdict?: PatternVerdict;
       applicabilite?: PatternApplicability;
+      axis1?: { score?: number; verdict?: PatternVerdict } | null;
+      axis2?: { score?: number; verdict?: PatternVerdict } | null;
+      axis3?: { score?: number; verdict?: PatternVerdict } | null;
     } | null>>;
     combinaisons?: Array<{ nom?: string; severite?: 'attention' | 'alerte' | 'drapeau-rouge' }>;
   };
@@ -80,6 +88,26 @@ export interface AnalysisPayloadForSnapshot {
  * analyzedAt, globalScore) sont absents. Le code appelant peut
  * decider quoi faire d un payload non-snapshotable.
  */
+/**
+ * Extrait le triplet d axes d un pattern si le payload les porte.
+ * Retourne null si moins de trois axes valides sont presents, ce
+ * qui permet d eviter de stocker un triplet partiel qui induirait
+ * en erreur cote drill-down UI.
+ */
+type PatternPayload = NonNullable<NonNullable<NonNullable<AnalysisPayloadForSnapshot['fragiliteStructurelle']>['patterns']>[PatternId]>;
+
+function extractAxes(p: PatternPayload): PatternAxesSnapshot | null {
+  const a1 = p.axis1, a2 = p.axis2, a3 = p.axis3;
+  const ok = (a: { score?: number; verdict?: PatternVerdict } | null | undefined): boolean =>
+    !!a && typeof a.score === 'number' && !!a.verdict;
+  if (!ok(a1) || !ok(a2) || !ok(a3)) return null;
+  return {
+    axis1: { score: a1!.score!, verdict: a1!.verdict! },
+    axis2: { score: a2!.score!, verdict: a2!.verdict! },
+    axis3: { score: a3!.score!, verdict: a3!.verdict! },
+  };
+}
+
 export function extractSnapshot(analysis: AnalysisPayloadForSnapshot): TrajectorySnapshot | null {
   // Identifiant : on accepte plusieurs noms possibles
   const analysisId = analysis.analysisId ?? analysis.id;
@@ -131,16 +159,21 @@ export function extractSnapshot(analysis: AnalysisPayloadForSnapshot): Trajector
 
   // Patterns Phase 4 : on extrait pour chacun le score, le verdict
   // et l applicabilite. Patterns absents du payload sont marques
-  // not-applicable avec score 0.
+  // not-applicable avec score 0. Si le payload porte les trois
+  // axes (cas patterns Phase 4 modernes), on extrait aussi le
+  // triplet pour le drill-down ; sinon le champ `axes` est omis.
   const patterns: TrajectorySnapshot['patterns'] = {};
   for (const patternId of PATTERN_IDS) {
     const p = fs?.patterns?.[patternId];
     if (p && p.applicabilite && p.applicabilite !== 'not-applicable') {
-      patterns[patternId] = {
+      const entry: NonNullable<TrajectorySnapshot['patterns'][PatternId]> = {
         score: p.globalScore ?? 0,
         verdict: p.verdict ?? 'sain',
         applicabilite: p.applicabilite,
       };
+      const axes = extractAxes(p);
+      if (axes) entry.axes = axes;
+      patterns[patternId] = entry;
     } else if (p) {
       patterns[patternId] = {
         score: 0,
