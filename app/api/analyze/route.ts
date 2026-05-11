@@ -141,6 +141,11 @@ export async function POST(req: NextRequest) {
     // desactivee, auquel cas le rate limiting est skip.
     let activeOrgId: string | null = null;
     let activeUserId: string | null = null;
+    // Identite humaine du partner qui ouvre la note. Utilisee pour
+    // BOARD_INSIDER : comparaison contre boardMembers et founders du
+    // dossier. Vide en mode auth desactivee (le module conflict-of-interest
+    // ne genere alors aucun flag board-insider, comportement attendu).
+    let userIdentityForConflict: string | null = null;
     try {
       const { isAuthEnabled, getAuthenticatedContext } = await import('@/lib/auth');
       if (isAuthEnabled()) {
@@ -148,6 +153,24 @@ export async function POST(req: NextRequest) {
         if (ctx) {
           activeOrgId = ctx.org.id;
           activeUserId = ctx.user.id;
+          // Calcul de l identite humaine pour la detection BOARD_INSIDER.
+          // displayName est la source canonique. Fallback sur la local-part
+          // de l email (avant @) si displayName absent, ce qui couvre la
+          // plupart des comptes Prelude ou le displayName n est pas encore
+          // configure mais l email tel que "steve.moradel@example.com"
+          // expose deja l identite reconnaissable.
+          if (ctx.user.displayName) {
+            userIdentityForConflict = ctx.user.displayName;
+          } else if (ctx.user.email) {
+            const localPart = ctx.user.email.split('@')[0] || '';
+            // Reconstruit un nom lisible : remplace points/tirets/underscores
+            // par espaces, mots capitalises. "steve.moradel" -> "Steve Moradel".
+            userIdentityForConflict = localPart
+              .split(/[._-]+/)
+              .filter(Boolean)
+              .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+              .join(' ');
+          }
           const { getSupabaseAdminClient } = await import('@/lib/supabase/server');
           const admin = getSupabaseAdminClient();
           const { data } = await admin
@@ -376,7 +399,20 @@ export async function POST(req: NextRequest) {
           // cle conflictOfInterest.
           // ============================================================
           const { detectConflictsOfInterest } = await import('@/lib/engines/conflict-of-interest');
-          const conflictOfInterest = detectConflictsOfInterest(extraction, fundProfileForPreScan);
+          // Enrichit fundProfile avec l identite humaine du partner qui
+          // ouvre la note (displayName ou local-part de l email) pour
+          // permettre la detection BOARD_INSIDER : si le user est listed
+          // comme founder, board member ou advisor du dossier analyse.
+          const conflictInputsWithUser = fundProfileForPreScan ? {
+            ...fundProfileForPreScan,
+            userIdentity: userIdentityForConflict,
+          } : (userIdentityForConflict ? {
+            fundName: null,
+            portfolioCompanies: [],
+            syndicatePartners: [],
+            userIdentity: userIdentityForConflict,
+          } : null);
+          const conflictOfInterest = detectConflictsOfInterest(extraction, conflictInputsWithUser);
 
           // ============================================================
           // MATRICE DE PERTINENCE

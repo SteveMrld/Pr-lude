@@ -319,9 +319,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <li><a href="#engine-section-blindspot" className="note-toc-link note-toc-sub">Plaidoyer contre</a></li>
           <li><a href="#engine-section-orchestrate-resolution" className="note-toc-link note-toc-sub">Résolution dialectique</a></li>
           <li><a href="#engine-section-narrative-drift" className="note-toc-link note-toc-sub">Lecture du langage</a></li>
-          <li><a href="#engine-section-fragility-structurelle" className="note-toc-link note-toc-sub">Fragilité structurelle</a></li>
           <li><a href="#engine-section-macro" className="note-toc-link note-toc-sub">Contexte macro</a></li>
           <li><a href="#engine-section-blindspot-risks" className="note-toc-link note-toc-sub">Cartographie des risques</a></li>
+          <li><a href="#engine-section-fragility-structurelle" className="note-toc-link note-toc-sub">Lecture de la fragilité structurelle</a></li>
           <li><a href="#engine-section-financial-coherence" className="note-toc-link note-toc-sub">Examen financier</a></li>
           <li><a href="#engine-section-tech-claim" className="note-toc-link note-toc-sub">Cohérence tech</a></li>
           <li><a href="#engine-section-execution-friction" className="note-toc-link note-toc-sub">Friction d&apos;exécution</a></li>
@@ -368,6 +368,61 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <div className="note-classification">CONFIDENTIEL · COMITÉ D&apos;INVESTISSEMENT</div>
         </div>
       </div>
+
+      {/* ============================================================
+          BANDEAU ALERTE GOUVERNANCE
+          ------------------------------------------------------------
+          S affiche en tete de note des qu un flag conflit d interet
+          de severite haute remonte (SELF_DEAL cap-table ou
+          BOARD_INSIDER). Le partner doit lire ce bandeau AVANT le
+          verdict et la couverture editoriale : il conditionne sa
+          posture de lecture. Les flags de severite moyenne (follow-on
+          portfolio) ou faible (syndicate-regular) ne declenchent pas
+          le bandeau d en-tete pour eviter le bruit, ils restent
+          accessibles dans la section gouvernance plus bas.
+          ============================================================ */}
+      {(() => {
+        const flags = Array.isArray(r.conflictOfInterest) ? r.conflictOfInterest : [];
+        const highSeverity = flags.filter((f: any) => f && (f.kind === 'self-deal' || f.kind === 'board-insider'));
+        if (highSeverity.length === 0) return null;
+        const byKind: Record<string, any[]> = { 'self-deal': [], 'board-insider': [] };
+        for (const f of highSeverity) byKind[f.kind].push(f);
+        return (
+          <section
+            aria-label="Alerte gouvernance"
+            style={{
+              margin: '12px 0 16px',
+              padding: '14px 18px',
+              borderLeft: '3px solid #7a2916',
+              background: 'rgba(122, 41, 22, 0.05)',
+              fontFamily: 'var(--serif)',
+            }}
+          >
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7a2916', fontWeight: 600, marginBottom: 8 }}>
+              Alerte gouvernance · Conflit d&apos;intérêt détecté
+            </div>
+            {byKind['self-deal'].length > 0 && (
+              <div style={{ marginBottom: byKind['board-insider'].length > 0 ? 10 : 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Self-deal cap-table</div>
+                {byKind['self-deal'].map((f: any, i: number) => (
+                  <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>{f.rationale}</p>
+                ))}
+              </div>
+            )}
+            {byKind['board-insider'].length > 0 && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Board insider</div>
+                {byKind['board-insider'].map((f: any, i: number) => (
+                  <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>{f.rationale}</p>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: 12, lineHeight: 1.6, marginTop: 10, marginBottom: 0, fontStyle: 'italic', opacity: 0.75 }}>
+              La lecture qui suit doit être filtrée par la conscience de cette position d&apos;intérêt. Une décision d&apos;investissement engageant le fonds requiert ici une validation indépendante du comité.
+            </p>
+          </section>
+        );
+      })()}
 
       {/* ============================================================
           PAGE DE COUVERTURE EDITORIALE
@@ -2138,180 +2193,6 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </>
         )}
 
-        {/* Sous-section Fragilite structurelle : moteur Bloc Phase 4
-            qui agrege les sept patterns (croissance subventionnee,
-            captivite infrastructure, couts fixes incompressibles,
-            risque reglementaire date, erosion de defensibilite,
-            fragilite cap table, industrialisation prematuree). Les
-            patterns non encore implementes en code remontent en
-            non-applicable avec rationale honnete. */}
-        {(fs || fsVerdicts) && (
-          <>
-            <h3 className="note-h3" id="engine-section-fragility-structurelle">Fragilité structurelle</h3>
-
-            {/* Cas 1 : matrice declare tous patterns non applicables.
-                Affichage sobre pour la transparence du perimetre. */}
-            {!fs && fsVerdicts && Object.values(fsVerdicts).every((v: any) => v.applicable === 'none') && (
-              <p className="note-paragraph" style={{ opacity: 0.75 }}>
-                <em>Non applicable.</em> Aucun des sept patterns Phase 4 ne s applique a ce dossier selon la matrice de pertinence (stade et profil sectoriel hors-scope).
-              </p>
-            )}
-
-            {/* Cas 2 : moteur lance mais payload null (echec global). */}
-            {!fs && fsVerdicts && Object.values(fsVerdicts).some((v: any) => v.applicable !== 'none') && (
-              <p className="note-paragraph" style={{ opacity: 0.75 }}>
-                Lecture de fragilite structurelle indisponible pour ce dossier (incident transitoire). Au moins un pattern etait pourtant retenu par la matrice. Relancer l analyse pour reproduire.
-              </p>
-            )}
-
-            {/* Cas 3 : moteur a produit son agregation. */}
-            {fs && (
-              <>
-                {/* Bandeau verdict global. Palette ocre alignee sur Lecture
-                    du langage pour homogeneite visuelle. */}
-                {(() => {
-                  const verdictColor: Record<string, { bg: string; ink: string; label: string }> = {
-                    'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
-                    'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
-                    'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
-                    'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
-                    'non-applicable': { bg: '#f5f0e3', ink: '#666', label: 'Non applicable' },
-                  };
-                  const v = verdictColor[fs.verdict] || verdictColor['attention'];
-                  return (
-                    <div className="verdict-box" style={{ marginBottom: 12, background: v.bg, borderColor: v.ink + '33' }}>
-                      <div className="verdict-line">
-                        <span className="verdict-label">Verdict global</span>
-                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{v.label}</span>
-                      </div>
-                      <div className="verdict-line">
-                        <span className="verdict-label">Score de fragilite</span>
-                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{fs.globalFragilityScore}/100</span>
-                      </div>
-                      <div className="verdict-line">
-                        <span className="verdict-label">Patterns actifs</span>
-                        <span className="verdict-value">{Object.values(fs.patterns).filter((p: any) => p && p.applicabilite !== 'not-applicable').length} sur 7</span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Resume editorial du moteur. Sert d entree de lecture. */}
-                <p className="note-paragraph">{enrichProse(fs.resumeEditorial)}</p>
-
-                {/* Combinaisons diagnostiques cross-patterns. Encart d alerte
-                    en couleurs si presentes. Documente les trajectoires
-                    historiques (Trajectoire WeWork, Pattern Britishvolt,
-                    Pattern Northvolt, etc.). */}
-                {fs.combinaisons && fs.combinaisons.length > 0 && (
-                  <div style={{ marginTop: 12, marginBottom: 14, padding: 14, borderLeft: '3px solid var(--ocre-brule, #8a4a17)', background: 'rgba(138, 74, 23, 0.06)' }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, color: 'var(--ocre-brule, #8a4a17)', fontWeight: 600 }}>
-                      Combinaisons diagnostiques detectees
-                    </div>
-                    {fs.combinaisons.map((comb: any, i: number) => (
-                      <div key={i} style={{ marginBottom: i < fs.combinaisons.length - 1 ? 10 : 0 }}>
-                        <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                          {comb.nom}
-                          <span style={{ fontSize: 11, marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                            {comb.severite.replace('-', ' ')}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, opacity: 0.9 }}>{comb.rationale}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Liste des sept patterns. Patterns avec score >= 35 en
-                    carte detaillee, patterns sains en ligne courte,
-                    patterns non applicables en mention discrete. */}
-                <div style={{ marginTop: 14, marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 10 }}>Sept patterns Phase 4</div>
-                  {(['growth-subsidized-model', 'infrastructure-hostage', 'fixed-cost-trap', 'regulatory-time-bomb', 'commoditization-drift', 'capital-structure-fragility', 'scale-mirage-risk'] as const).map((patternId) => {
-                    const p = fs.patterns?.[patternId];
-                    const labels: Record<string, string> = {
-                      'growth-subsidized-model': 'Croissance subventionnee',
-                      'infrastructure-hostage': 'Captivite infrastructure',
-                      'fixed-cost-trap': 'Couts fixes incompressibles',
-                      'regulatory-time-bomb': 'Risque reglementaire date',
-                      'commoditization-drift': 'Erosion de defensibilite',
-                      'capital-structure-fragility': 'Fragilite cap table',
-                      'scale-mirage-risk': 'Industrialisation prematuree',
-                    };
-                    const label = labels[patternId] ?? patternId;
-
-                    if (!p || p.applicabilite === 'not-applicable') {
-                      return (
-                        <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13, opacity: 0.55 }}>
-                          <span>{label}</span>
-                          <span style={{ fontStyle: 'italic' }}>{p?.applicabiliteRationale?.slice(0, 80) || 'non applicable'}</span>
-                        </div>
-                      );
-                    }
-
-                    const verdictTone: Record<string, string> = {
-                      'sain': '#3f4a2b',
-                      'attention': '#7a5a1d',
-                      'alerte': '#8a4a17',
-                      'drapeau-rouge': '#7a2916',
-                    };
-                    const tone = verdictTone[p.verdict] || '#3f4a2b';
-
-                    // Patterns avec score modere/eleve : carte detaillee
-                    if (p.globalScore >= 35) {
-                      return (
-                        <div key={patternId} style={{ marginBottom: 12, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                            <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
-                            <div style={{ fontSize: 11, color: tone, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{p.verdict.replace('-', ' ')}</div>
-                            <div style={{ fontSize: 12, opacity: 0.6 }}>{p.globalScore}/100</div>
-                          </div>
-                          {p.resumeEditorial && (
-                            <p className="note-paragraph" style={{ marginTop: 6, marginBottom: 6 }}>{enrichProse(p.resumeEditorial)}</p>
-                          )}
-                          {p.counterArchetype?.closest && p.counterArchetype.closest !== 'non determine' && (
-                            <div style={{ fontSize: 13, marginBottom: 4, opacity: 0.85 }}>
-                              <span style={{ fontWeight: 500 }}>Archetype proche :</span> {p.counterArchetype.closest}
-                              {p.counterArchetype.direction === 'derive-confirmee' ? ' (trajectoire de derive confirmee)' : ' (trajectoire saine)'}
-                            </div>
-                          )}
-                          {p.recommandationDD && (
-                            <div style={{ fontSize: 13, opacity: 0.85, fontStyle: 'italic' }}>
-                              {p.recommandationDD}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    // Patterns sains : ligne courte
-                    return (
-                      <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13 }}>
-                        <span>{label}</span>
-                        <span style={{ color: tone, fontWeight: 500 }}>
-                          {p.verdict.replace('-', ' ')} · {p.globalScore}/100
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Recommandations DD consolidees en encart final. */}
-                {fs.recommandationsDD && fs.recommandationsDD.length > 0 && (
-                  <div style={{ marginTop: 8, padding: 12, background: 'rgba(168, 116, 58, 0.06)', borderLeft: '2px solid rgba(168, 116, 58, 0.4)' }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, fontWeight: 600 }}>A investiguer en DD</div>
-                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
-                      {fs.recommandationsDD.map((reco: string, i: number) => (
-                        <li key={i} style={{ marginBottom: 4 }}>{reco}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            )}
-          </>
-        )}
-
         {/* Sous-section Macro context : cadrage du marche dans lequel le dossier
             s inscrit. */}
         {(macro?.cyclePosition || macro?.structuralTrends?.length > 0 || macro?.regulatoryEnvironment) && (
@@ -2413,6 +2294,182 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   </li>
                 ))}
               </ul>
+            )}
+          </>
+        )}
+
+        {/* Sous-section Lecture de la fragilite structurelle : moteur
+            Bloc Phase 4 qui agrege les sept patterns (croissance
+            subventionnee, captivite infrastructure, couts fixes
+            incompressibles, risque reglementaire date, erosion de
+            defensibilite, fragilite cap table, industrialisation
+            prematuree). Placement doctrinal : juste apres la
+            cartographie des risques operationnels et financiers. La
+            cartographie expose les risques visibles, la lecture
+            Fragilite Structurelle expose les risques structurels
+            latents que la cartographie ne capture pas par construction. */}
+        {(fs || fsVerdicts) && (
+          <>
+            <h3 className="note-h3" id="engine-section-fragility-structurelle">Lecture de la fragilité structurelle</h3>
+
+            {/* Cas 1 : matrice declare tous patterns non applicables.
+                Affichage sobre pour la transparence du perimetre. */}
+            {!fs && fsVerdicts && Object.values(fsVerdicts).every((v: any) => v.applicable === 'none') && (
+              <p className="note-paragraph" style={{ opacity: 0.75 }}>
+                <em>Non applicable.</em> Aucun des sept patterns Phase 4 ne s applique a ce dossier selon la matrice de pertinence (stade et profil sectoriel hors-scope).
+              </p>
+            )}
+
+            {/* Cas 2 : moteur lance mais payload null (echec global). */}
+            {!fs && fsVerdicts && Object.values(fsVerdicts).some((v: any) => v.applicable !== 'none') && (
+              <p className="note-paragraph" style={{ opacity: 0.75 }}>
+                Lecture de fragilite structurelle indisponible pour ce dossier (incident transitoire). Au moins un pattern etait pourtant retenu par la matrice. Relancer l analyse pour reproduire.
+              </p>
+            )}
+
+            {/* Cas 3 : moteur a produit son agregation. */}
+            {fs && (
+              <>
+                {/* Bandeau verdict global. Palette ocre alignee sur Lecture
+                    du langage pour homogeneite visuelle. */}
+                {(() => {
+                  const verdictColor: Record<string, { bg: string; ink: string; label: string }> = {
+                    'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                    'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
+                    'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
+                    'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
+                    'non-applicable': { bg: '#f5f0e3', ink: '#666', label: 'Non applicable' },
+                  };
+                  const v = verdictColor[fs.verdict] || verdictColor['attention'];
+                  return (
+                    <div className="verdict-box" style={{ marginBottom: 12, background: v.bg, borderColor: v.ink + '33' }}>
+                      <div className="verdict-line">
+                        <span className="verdict-label">Verdict global</span>
+                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{v.label}</span>
+                      </div>
+                      <div className="verdict-line">
+                        <span className="verdict-label">Score de fragilite</span>
+                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{fs.globalFragilityScore}/100</span>
+                      </div>
+                      <div className="verdict-line">
+                        <span className="verdict-label">Patterns actifs</span>
+                        <span className="verdict-value">{Object.values(fs.patterns).filter((p: any) => p && p.applicabilite !== 'not-applicable').length} sur 7</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Resume editorial du moteur. Sert d entree de lecture. */}
+                <p className="note-paragraph">{enrichProse(fs.resumeEditorial)}</p>
+
+                {/* Convergences detectees : combinaisons cross-pattern
+                    documentees (Trajectoire WeWork, Pattern Britishvolt,
+                    Pattern Northvolt, Wrapper sans differenciation, etc.). */}
+                {fs.combinaisons && fs.combinaisons.length > 0 && (
+                  <div style={{ marginTop: 12, marginBottom: 14, padding: 14, borderLeft: '3px solid var(--ocre-brule, #8a4a17)', background: 'rgba(138, 74, 23, 0.06)' }}>
+                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, color: 'var(--ocre-brule, #8a4a17)', fontWeight: 600 }}>
+                      Convergences détectées
+                    </div>
+                    {fs.combinaisons.map((comb: any, i: number) => (
+                      <div key={i} style={{ marginBottom: i < fs.combinaisons.length - 1 ? 10 : 0 }}>
+                        <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                          {comb.nom}
+                          <span style={{ fontSize: 11, marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                            {comb.severite.replace('-', ' ')}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, opacity: 0.9 }}>{comb.rationale}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Liste des sept patterns. Patterns avec score >= 35 en
+                    carte detaillee, patterns sains en ligne courte,
+                    patterns non applicables en mention discrete. */}
+                <div style={{ marginTop: 14, marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 10 }}>Sept patterns Phase 4</div>
+                  {(['growth-subsidized-model', 'infrastructure-hostage', 'fixed-cost-trap', 'regulatory-time-bomb', 'commoditization-drift', 'capital-structure-fragility', 'scale-mirage-risk'] as const).map((patternId) => {
+                    const p = fs.patterns?.[patternId];
+                    const labels: Record<string, string> = {
+                      'growth-subsidized-model': 'Croissance subventionnee',
+                      'infrastructure-hostage': 'Captivite infrastructure',
+                      'fixed-cost-trap': 'Couts fixes incompressibles',
+                      'regulatory-time-bomb': 'Risque reglementaire date',
+                      'commoditization-drift': 'Erosion de defensibilite',
+                      'capital-structure-fragility': 'Fragilite cap table',
+                      'scale-mirage-risk': 'Industrialisation prematuree',
+                    };
+                    const label = labels[patternId] ?? patternId;
+
+                    if (!p || p.applicabilite === 'not-applicable') {
+                      return (
+                        <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13, opacity: 0.55 }}>
+                          <span>{label}</span>
+                          <span style={{ fontStyle: 'italic' }}>{p?.applicabiliteRationale?.slice(0, 80) || 'non applicable'}</span>
+                        </div>
+                      );
+                    }
+
+                    const verdictTone: Record<string, string> = {
+                      'sain': '#3f4a2b',
+                      'attention': '#7a5a1d',
+                      'alerte': '#8a4a17',
+                      'drapeau-rouge': '#7a2916',
+                    };
+                    const tone = verdictTone[p.verdict] || '#3f4a2b';
+
+                    // Patterns avec score modere/eleve : carte detaillee
+                    if (p.globalScore >= 35) {
+                      return (
+                        <div key={patternId} style={{ marginBottom: 12, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
+                            <div style={{ fontSize: 11, color: tone, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{p.verdict.replace('-', ' ')}</div>
+                            <div style={{ fontSize: 12, opacity: 0.6 }}>{p.globalScore}/100</div>
+                          </div>
+                          {p.resumeEditorial && (
+                            <p className="note-paragraph" style={{ marginTop: 6, marginBottom: 6 }}>{enrichProse(p.resumeEditorial)}</p>
+                          )}
+                          {p.counterArchetype?.closest && p.counterArchetype.closest !== 'non determine' && (
+                            <div style={{ fontSize: 13, marginBottom: 4, opacity: 0.85 }}>
+                              <span style={{ fontWeight: 500 }}>Archetype proche :</span> {p.counterArchetype.closest}
+                              {p.counterArchetype.direction === 'derive-confirmee' ? ' (trajectoire de derive confirmee)' : ' (trajectoire saine)'}
+                            </div>
+                          )}
+                          {p.recommandationDD && (
+                            <div style={{ fontSize: 13, opacity: 0.85, fontStyle: 'italic' }}>
+                              {p.recommandationDD}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Patterns sains : ligne courte
+                    return (
+                      <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13 }}>
+                        <span>{label}</span>
+                        <span style={{ color: tone, fontWeight: 500 }}>
+                          {p.verdict.replace('-', ' ')} · {p.globalScore}/100
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Recommandations DD consolidees en encart final. */}
+                {fs.recommandationsDD && fs.recommandationsDD.length > 0 && (
+                  <div style={{ marginTop: 8, padding: 12, background: 'rgba(168, 116, 58, 0.06)', borderLeft: '2px solid rgba(168, 116, 58, 0.4)' }}>
+                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, fontWeight: 600 }}>A investiguer en DD</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
+                      {fs.recommandationsDD.map((reco: string, i: number) => (
+                        <li key={i} style={{ marginBottom: 4 }}>{reco}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
