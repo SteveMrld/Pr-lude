@@ -123,18 +123,51 @@ export function buildNotApplicableOutput(
 // ============================================================
 
 /**
- * Retourne true si financialData contient au moins une metrique
- * chiffree de base (revenu ou burn). Sert de garde universelle
- * avant appel LLM. Si false, le pattern doit retourner
- * not-applicable avec rationale explicite.
+ * Retourne true si financialData contient au moins un signal chiffre
+ * ou narratif suffisant pour fonder un raisonnement de fragilite.
+ * Sert de garde universelle avant appel LLM ; si false, le pattern
+ * doit retourner not-applicable avec rationale explicite.
+ *
+ * La verification cible la structure canonique reellement produite
+ * par financial-extraction-engine (revenueProjection, currentRound,
+ * unitEconomics, rawNotes). Un fallback sur des champs flat
+ * (revenue, monthlyBurn) est conserve pour rester compatible avec
+ * les mocks heritage utilises dans les tests unitaires de chaque
+ * pattern.
  */
 export function hasMinimalFinancialSignal(
   financialData?: FinancialDataExtraction | null,
 ): boolean {
   if (!financialData) return false;
   const f: any = financialData;
-  const revenue = f?.revenue ?? f?.arr ?? f?.annualRevenue;
-  const burn = f?.monthlyBurn ?? f?.burnRate ?? f?.monthly_burn ?? f?.burn;
+
+  // Structure canonique : presence de projections de revenu chiffrees
+  if (Array.isArray(f.revenueProjection) && f.revenueProjection.length > 0) {
+    return true;
+  }
+
+  // Structure canonique : tour en cours avec montant ou burn renseigne
+  const cr = f.currentRound;
+  if (cr && typeof cr === 'object') {
+    if (typeof cr.amount === 'string' && cr.amount.trim().length > 0) return true;
+    if (typeof cr.monthlyBurn === 'string' && cr.monthlyBurn.trim().length > 0) return true;
+  }
+
+  // Structure canonique : unit economics avec CAC ou LTV declares
+  const ue = f.unitEconomics;
+  if (ue && typeof ue === 'object') {
+    if (typeof ue.estimatedCAC === 'string' && ue.estimatedCAC.trim().length > 0) return true;
+    if (typeof ue.estimatedLTV === 'string' && ue.estimatedLTV.trim().length > 0) return true;
+  }
+
+  // Structure canonique : notes brutes suffisantes pour un raisonnement
+  if (typeof f.rawNotes === 'string' && f.rawNotes.length > 100) return true;
+
+  // Fallback legacy : champs flat utilises par les mocks de test
+  // (revenue, monthlyBurn, etc.). Ne correspond a aucune production
+  // reelle mais conservation indispensable pour la suite deterministe.
+  const revenue = f.revenue ?? f.arr ?? f.annualRevenue;
+  const burn = f.monthlyBurn ?? f.burnRate ?? f.monthly_burn ?? f.burn;
   return (revenue !== null && revenue !== undefined)
     || (burn !== null && burn !== undefined);
 }
