@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // Le partner qui ouvre une note d instruction doit lire en haut
 // de la note s il existe un conflit d interet structurel entre le
-// fonds qui instruit le dossier et le dossier lui-meme. Trois
+// fonds qui instruit le dossier et le dossier lui-meme. Quatre
 // situations canoniques :
 //
 //   1. SELF_DEAL : le fonds qui instruit est cite comme
@@ -24,6 +24,15 @@
 //      regulierement. Le risque est moins severe mais merite la
 //      mention pour transparence.
 //
+//   4. BOARD_INSIDER : le partner humain qui ouvre la note est
+//      cite comme founder, cofondateur, board member ou advisor
+//      du dossier analyse. Configuration courante quand un GP
+//      siege au board d une societe ou en est cofondateur historique
+//      avant son entree au fonds. Le conflit gouvernance est aussi
+//      severe que le self-deal cap-table : la decision
+//      d investissement ne peut pas etre independante d une fonction
+//      executive ou d advisory dans la societe cible.
+//
 // La detection est purement deterministe : on compare des chaines
 // normalizees (lowercase, accents aplatis, signaux de forme
 // juridique supprimes). Pas d appel LLM, pas de risque
@@ -40,7 +49,8 @@ import type { ExtractionOutput } from './types';
 export type ConflictKind =
   | 'self-deal'
   | 'portfolio-followon'
-  | 'syndicate-regular';
+  | 'syndicate-regular'
+  | 'board-insider';
 
 export interface ConflictOfInterestFlag {
   kind: ConflictKind;
@@ -58,6 +68,14 @@ export interface ConflictOfInterestInputs {
   portfolioCompanies: string[] | null | undefined;
   /** Liste des co-investisseurs frequents du fonds, capturee soit manuellement soit derivee de l historique. */
   syndicatePartners: string[] | null | undefined;
+  /**
+   * Nom canonique du partner humain qui ouvre la note (ex: "Steve Moradel").
+   * Si renseigne, le module verifie qu il n est pas liste comme founder,
+   * cofondateur, board member ou advisor du dossier — sinon BOARD_INSIDER
+   * de severite haute. Champ optionnel pour preserver la compatibilite
+   * avec les appelants qui n exposent pas l identite du partner.
+   */
+  userIdentity?: string | null | undefined;
 }
 
 /**
@@ -163,6 +181,36 @@ export function detectConflictsOfInterest(
     }
   }
 
+  // 4. BOARD_INSIDER : le partner humain qui ouvre la note est founder,
+  //    cofondateur, board member ou advisor du dossier analyse. La
+  //    severite est haute parce que la decision d investissement ne
+  //    peut pas etre independante d une fonction executive ou
+  //    d advisory dans la societe cible. Un seul flag suffit, on
+  //    coupe a la premiere correspondance pour eviter de doublonner
+  //    quand le meme nom apparait a la fois dans founders et boardMembers.
+  const userIdentity = inputs.userIdentity ?? '';
+  if (userIdentity) {
+    const candidates: Array<{ name: string; role: string; source: 'founders' | 'board' }> = [];
+    for (const f of (extraction.founders ?? [])) {
+      if (f?.name) candidates.push({ name: f.name, role: f.role || 'fondateur', source: 'founders' });
+    }
+    for (const b of (extraction.boardMembers ?? [])) {
+      if (b?.name) candidates.push({ name: b.name, role: b.role || 'board member', source: 'board' });
+    }
+    for (const c of candidates) {
+      if (sharesIdentityRoot(c.name, userIdentity)) {
+        const sourceLabel = c.source === 'founders' ? 'liste des fondateurs' : 'liste des boardMembers et advisors';
+        flags.push({
+          kind: 'board-insider',
+          severity: 'high',
+          matchedEntity: `${c.name} - ${c.role}`,
+          rationale: `${userIdentity} figure dans la ${sourceLabel} du dossier (${c.name}, ${c.role}). Le partner qui ouvre cette note est partie prenante directe de la societe analysee. Le conflit de gouvernance est structurel : la decision d investissement ne peut pas etre independante d une fonction executive ou d advisory dans la societe cible.`,
+        });
+        break;
+      }
+    }
+  }
+
   return flags;
 }
 
@@ -178,6 +226,7 @@ export function buildConflictOfInterestBlock(flags: ConflictOfInterestFlag[]): s
     'self-deal': [],
     'portfolio-followon': [],
     'syndicate-regular': [],
+    'board-insider': [],
   };
   for (const f of flags) byKind[f.kind].push(f);
 
@@ -187,6 +236,11 @@ export function buildConflictOfInterestBlock(flags: ConflictOfInterestFlag[]): s
   if (byKind['self-deal'].length > 0) {
     lines.push('## Self-deal (severite haute)');
     for (const f of byKind['self-deal']) lines.push(`- ${f.rationale}`);
+    lines.push('');
+  }
+  if (byKind['board-insider'].length > 0) {
+    lines.push('## Board insider (severite haute)');
+    for (const f of byKind['board-insider']) lines.push(`- ${f.rationale}`);
     lines.push('');
   }
   if (byKind['portfolio-followon'].length > 0) {

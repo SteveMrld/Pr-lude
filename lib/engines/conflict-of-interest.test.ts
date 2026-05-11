@@ -149,6 +149,79 @@ console.log('\n=== Test 10 : combinaison self-deal + follow-on ===');
   checkTrue('1 follow-on', flags.filter((f: ConflictOfInterestFlag) => f.kind === 'portfolio-followon').length === 1);
 }
 
+console.log('\n=== Test 11a : BOARD_INSIDER detecte sur founders ===');
+{
+  const flags = detectConflictsOfInterest(
+    mockExtraction({
+      companyName: 'Ambulife',
+      founders: [{ name: 'Olivier Sofia', role: 'CEO', background: '' }],
+      boardMembers: [
+        { name: 'Olivier Sofia', role: 'CEO', affiliation: 'Ambulife' },
+        { name: 'Steve Moradel', role: 'Directeur de la Strategie - cofondateur', affiliation: 'ESSEC' },
+      ],
+      fundraise: { stage: 'seed', amount: '250K EUR', leadInvestor: '', coInvestors: [] } as any,
+    }),
+    { fundName: 'Prelude Capital', portfolioCompanies: [], syndicatePartners: [], userIdentity: 'Olivier Sofia' },
+  );
+  checkTrue('1 flag board-insider sur founder', flags.length === 1 && flags[0].kind === 'board-insider');
+  checkTrue('severity high', flags[0]?.severity === 'high');
+  checkTrue('rationale mentionne fondateur', !!flags[0]?.rationale?.toLowerCase().includes('fondateur'));
+}
+
+console.log('\n=== Test 11b : BOARD_INSIDER detecte sur boardMembers (Ambulife reel) ===');
+{
+  const flags = detectConflictsOfInterest(
+    mockExtraction({
+      companyName: 'Ambulife',
+      founders: [{ name: 'Olivier Sofia', role: 'CEO', background: '' }],
+      boardMembers: [
+        { name: 'Olivier Sofia', role: 'CEO', affiliation: 'Ambulife' },
+        { name: 'Steve Moradel', role: 'Directeur de la Strategie - cofondateur', affiliation: 'ESSEC' },
+      ],
+      fundraise: { stage: 'seed', amount: '250K EUR', leadInvestor: '', coInvestors: [] } as any,
+    }),
+    { fundName: 'Prelude Capital', portfolioCompanies: [], syndicatePartners: [], userIdentity: 'Steve Moradel' },
+  );
+  checkTrue('1 flag board-insider sur board', flags.length === 1 && flags[0].kind === 'board-insider');
+  checkTrue('severity high', flags[0]?.severity === 'high');
+  checkTrue('matchedEntity contient Steve Moradel', flags[0]?.matchedEntity?.includes('Steve Moradel') === true);
+}
+
+console.log('\n=== Test 11c : pas de BOARD_INSIDER quand userIdentity absent ===');
+{
+  const flags = detectConflictsOfInterest(
+    mockExtraction({
+      boardMembers: [{ name: 'Steve Moradel', role: 'cofondateur' }],
+    }),
+    { fundName: 'Prelude', portfolioCompanies: [], syndicatePartners: [] },
+  );
+  // userIdentity non renseigne : compat ascendante, aucun flag board-insider
+  checkTrue('aucun board-insider quand userIdentity manquant', flags.filter(f => f.kind === 'board-insider').length === 0);
+}
+
+console.log('\n=== Test 11d : BOARD_INSIDER insensible a la casse et aux accents ===');
+{
+  const flags = detectConflictsOfInterest(
+    mockExtraction({
+      boardMembers: [{ name: 'STEVE MORADEL', role: 'cofondateur' }],
+    }),
+    { fundName: 'Prelude', portfolioCompanies: [], syndicatePartners: [], userIdentity: 'steve moradel' },
+  );
+  checkTrue('match casse differente', flags.filter(f => f.kind === 'board-insider').length === 1);
+}
+
+console.log('\n=== Test 11e : pas de faux positif quand le user n est nulle part ===');
+{
+  const flags = detectConflictsOfInterest(
+    mockExtraction({
+      founders: [{ name: 'Olivier Sofia', role: 'CEO', background: '' }],
+      boardMembers: [{ name: 'Olivier Sofia', role: 'CEO' }, { name: 'Edgard Palle', role: 'CMO' }],
+    }),
+    { fundName: 'Prelude', portfolioCompanies: [], syndicatePartners: [], userIdentity: 'Steve Moradel' },
+  );
+  checkTrue('aucun flag si user absent', flags.length === 0);
+}
+
 console.log('\n=== Test 11 : buildBlock vide si pas de flags ===');
 {
   const block = buildConflictOfInterestBlock([]);
