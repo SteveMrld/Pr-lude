@@ -148,11 +148,25 @@ export type NarrativeMaturity = 'pre-seed' | 'seed' | 'series-a' | 'series-b-plu
 /**
  * Concatene les champs textuels exploitables de l extraction en
  * une seule chaine lower-case pour la detection par keywords.
+ *
+ * Le perimetre inclut le bloc traction (metrics, revenue, growth,
+ * customers) parce que les decks FR placent souvent le pricing
+ * canonique (ARPU, ARR, HT/mois, engagement contractuel) dans les
+ * bullet points traction plutot que dans le champ businessModel
+ * extrait. Sans ces champs, le detecteur business-model rate les
+ * signaux quantitatifs et bascule a tort sur unknown.
  */
 function buildSearchableText(ext: ExtractionOutput): string {
   // Normalisation lowercase + suppression diacritiques pour que
   // les keywords non accentues capturent les libelles accentues
   // (santé, énergie, défense). Voir lib/data/text-normalize.ts.
+  const tractionParts: string[] = [];
+  if (ext.traction) {
+    if (Array.isArray(ext.traction.metrics)) tractionParts.push(ext.traction.metrics.join(' '));
+    if (ext.traction.revenue) tractionParts.push(ext.traction.revenue);
+    if (ext.traction.growth) tractionParts.push(ext.traction.growth);
+    if (ext.traction.customers) tractionParts.push(ext.traction.customers);
+  }
   return normalizeFrText([
     ext.sector,
     ext.subSector,
@@ -162,6 +176,7 @@ function buildSearchableText(ext: ExtractionOutput): string {
     ext.rawSummary,
     ext.country,
     ext.geographicHub,
+    ...tractionParts,
   ]
     .filter(Boolean)
     .join(' '));
@@ -250,17 +265,61 @@ const HIGH_RISK_GEOGRAPHIES_KEYWORDS = [
   'venezuela', 'libye', 'libya',
 ];
 
-// Chaines de production hardware physique (fabrication d objets,
-// pas du logiciel ni des services).
-const HARDWARE_PHYSICAL_KEYWORDS = [
-  'hardware', 'manufacturing', 'usine', 'fabrication',
-  'fabrique', 'fabriqu', 'industrialis', 'serie',
-  'prototype', 'composant', 'assemblage', 'capteur',
-  'electronique', 'électronique', 'mecanique', 'mécanique',
-  'machine', 'equipement', 'équipement', 'piece', 'pièce',
-  'drone', 'vehicule', 'véhicule', 'sous-marin',
-  'aeronef', 'aéronef', 'navire', 'bateau', 'foilboard',
-  'sup', 'paddle', 'submersible', 'semi-submersible',
+// Chaines de production hardware physique. La detection separe
+// deux registres :
+//
+//   - PRODUCTION : signaux de fabrication propre, d assemblage,
+//     d industrialisation, de R&D materielle. Un dossier qui matche
+//     ici produit ou assemble lui-meme un objet physique.
+//
+//   - OBJECT : objet metier mentionne dans le pitch (vehicule, drone,
+//     navire). Un objet seul est ambigu : un SaaS de gestion de
+//     flottes adresse des vehicules sans en fabriquer. On ne bascule
+//     en hardware-physical sur OBJECT seul que si aucun signal
+//     SaaS contradictoire n est detecte dans le meme texte.
+//
+// La separation evite le faux positif des plateformes verticales
+// (mobilite, logistique, restauration) qui mentionnent l objet
+// metier dans toutes leurs pages sans en fabriquer un seul. Cas
+// canonique : Ambulife mentionne ambulances et vehicules a chaque
+// paragraphe mais c est une plateforme de reservation SaaS.
+const HARDWARE_PRODUCTION_KEYWORDS = [
+  // 'usine' est volontairement prefixe d un espace pour eviter de
+  // matcher en substring dans 'business' (b-usine-ss), faux positif
+  // declenche systematiquement par les decks SaaS B2B qui parlent
+  // de leur business recurrent.
+  'hardware', 'manufacturing', ' usine', 'fabrication',
+  'fabrique', 'fabriqu', 'industrialis',
+  'production en serie', 'fabrication en serie',
+  'ligne de production', 'ligne d assemblage',
+  'prototype', 'composant', 'assemblage',
+  'electronique', 'mecanique',
+  'r&d hardware', 'r&d materiel',
+  'bom ', 'nomenclature matiere',
+  'capex outillage', 'capex industriel',
+];
+
+const HARDWARE_OBJECT_KEYWORDS = [
+  'capteur', 'machine', 'equipement', 'piece',
+  'drone', 'vehicule', 'sous-marin', 'aeronef',
+  'navire', 'bateau', 'foilboard',
+  'paddle', 'submersible', 'semi-submersible',
+];
+
+// Indicateurs SaaS / plateforme. Servent a distinguer un dossier
+// qui ADRESSE un marche hardware (sans en fabriquer) d un dossier
+// qui fabrique. La presence d au moins un signal SaaS + des objets
+// hardware sans production explicite indique une plateforme
+// verticale, pas un industriel.
+const SAAS_INDICATORS_KEYWORDS = [
+  'saas', 'software', 'logiciel',
+  'application', 'app mobile', 'mobile app',
+  'plateforme numerique', 'plateforme web', 'plateforme transversale',
+  'plateforme de reservation', 'plateforme transactionnelle',
+  'plateforme de gestion', 'plateforme de mise en relation',
+  'cloud', 'api ',
+  'dashboard', 'tableau de bord', 'interface utilisateur',
+  'geolocalisation', 'systeme de gestion',
 ];
 
 // Infrastructures physiques lourdes (genie civil, energie de reseau,
@@ -411,13 +470,35 @@ const PROJECT_BASED_KEYWORDS = [
 // (trop generique, fait penser a tout abonnement consumer ou B2B)
 // et on couvre les deux ordres 'b2b saas' / 'saas b2b' qui
 // apparaissent indifferemment en deck FR.
+//
+// Au-dela du vocabulaire SaaS explicite, on capture les signaux
+// canoniques de pricing B2B FR (HT/mois, engagement contractuel,
+// business recurrent, ARPU) que tout deck B2B utilise meme quand
+// il ne se revendique pas SaaS. Sans ces signaux, les dossiers
+// vertical B2B (santetech, fintech vertical, plateformes verticales)
+// rataient la detection et basculaient en unknown.
 const RECURRENT_SAAS_KEYWORDS = [
   'saas', 'software as a service',
   'arr ', 'mrr ', 'acv ', 'tcv ', 'logo retention',
   'abonnement b2b', 'subscription b2b',
   'b2b saas', 'saas b2b', 'enterprise saas',
   'license recurrente', 'logiciel professionnel recurrent',
-  'plateforme saas b2b',
+  'plateforme saas b2b', 'plateforme saas',
+  // Pricing B2B canonique FR
+  'ht/mois', 'ht / mois', 'ht par mois', 'ht/an', 'ht par an',
+  'eur ht', 'euros ht',
+  // Recurrence affichee
+  'business recurrent', 'revenu recurrent', 'revenus recurrents',
+  'ca recurrent', 'chiffre d affaires recurrent',
+  'modele recurrent', 'modele d abonnement b2b',
+  // Engagement contractuel B2B
+  'engagement annuel', 'engagement contractuel', 'engagement pluriannuel',
+  'engagement sur 2 ans', 'engagement sur 3 ans',
+  'engagement de 2 ans', 'engagement de 3 ans',
+  'contrat annuel',
+  // Pricing par tete / par compte
+  'arpu', 'par utilisateur', 'par siege', 'par seat',
+  'tarif entreprise', 'license entreprise', 'abonnement entreprise',
 ];
 
 // Subscription consumer (B2C abonnement). Le perimetre est strict :
@@ -438,8 +519,14 @@ const CONSUMER_SUBSCRIPTION_KEYWORDS = [
 // entre recurrent-saas et consumer-subscription quand un dossier
 // melange les deux vocabulaires (cas frequent : SaaS B2B avec
 // mention abonnement mensuel et saas et arr melanges).
+//
+// On inclut les variantes orthographiques B2B / BtoB / B to B parce
+// que les decks FR alternent indifferemment entre les deux formes,
+// parfois dans le meme paragraphe. La forme 'btob' couvre aussi
+// 'btobtoc' (BtoBtoC) en substring.
 const B2B_AUDIENCE_KEYWORDS = [
-  'b2b ', ' b2b', 'entreprise cliente', 'enterprise customer',
+  'b2b ', ' b2b', 'btob', 'b to b',
+  'entreprise cliente', 'enterprise customer',
   'pme cible', 'eti cible', 'mid-market', 'enterprise account',
   'sales cycle', 'sales-led', 'account-based', 'pipeline commercial',
   'go-to-market b2b', 'gtm b2b',
@@ -593,25 +680,57 @@ function detectBusinessModel(text: string): BusinessModel {
 /**
  * Detecte la chaine de production. Un dossier peut combiner
  * software et hardware. On retourne la dominante.
+ *
+ * Regle de bascule hardware-physical :
+ *   1. PRODUCTION >= 2  : signaux de fabrication propre robustes,
+ *      bascule meme si SaaS evoque (cas hybride hardware + software
+ *      embarque type AutoTech, Platypus).
+ *   2. PRODUCTION >= 1 ET OBJECT >= 1 : production declaree plus
+ *      objet associe, le dossier fabrique cet objet.
+ *   3. OBJECT >= 2 ET SaaS = 0 : plusieurs objets metier mentionnes
+ *      sans aucun signal de plateforme, le dossier porte directement
+ *      le hardware.
+ *
+ * Les cas restants (OBJECT seul avec signal SaaS, OBJECT = 1 sans
+ * production, etc.) sont traites en aval : la chaine est software
+ * ou plateforme, pas hardware. Le SaaS qui adresse un marche
+ * vertical d objets physiques n est pas un hardware-producer.
  */
 function detectProductionChain(text: string): ProductionChain {
-  const hardware = countMatches(text, HARDWARE_PHYSICAL_KEYWORDS);
+  const hardwareProduction = countMatches(text, HARDWARE_PRODUCTION_KEYWORDS);
+  const hardwareObject = countMatches(text, HARDWARE_OBJECT_KEYWORDS);
   const infra = countMatches(text, INFRASTRUCTURE_PHYSICAL_KEYWORDS);
   const biotech = countMatches(text, WET_BIOTECH_KEYWORDS);
   const regulated = countMatches(text, REGULATED_SERVICE_KEYWORDS);
   const content = countMatches(text, CONTENT_MEDIA_KEYWORDS);
+  const saasSignal = countMatches(text, SAAS_INDICATORS_KEYWORDS);
 
   // Infrastructure prioritaire sur hardware si les deux matchent
   // (genie maritime contient des keywords hardware aussi).
-  if (infra >= 2 && infra >= hardware) return 'infrastructure-physical';
-  if (hardware >= 2) return 'hardware-physical';
+  const hardwareTotal = hardwareProduction + hardwareObject;
+  if (infra >= 2 && infra >= hardwareTotal) return 'infrastructure-physical';
+
+  // Hardware : production propre forte, OU production + objet, OU
+  // objets multiples sans contradiction SaaS.
+  if (hardwareProduction >= 2) return 'hardware-physical';
+  if (hardwareProduction >= 1 && hardwareObject >= 1) return 'hardware-physical';
+  if (hardwareObject >= 2 && saasSignal === 0) return 'hardware-physical';
+
   if (biotech >= 2) return 'wet-biotech';
-  if (regulated >= 2) return 'regulated-service';
+  // Regulated-service : reserve aux dossiers qui SONT le service
+  // regule (cabinet d avocats, ambulancier, medecin, ehpad...). Une
+  // plateforme SaaS qui adresse le marche du service regule sans en
+  // exercer l activite n est pas regulated-service. Memes garde-fous
+  // doctrinaux que pour hardware-physical : la presence d un signal
+  // SaaS bloque la bascule, le dossier reste pure-software.
+  if (regulated >= 2 && saasSignal === 0) return 'regulated-service';
   if (content >= 2) return 'content-media';
 
-  // Cas par defaut : pure-software si rien de physique detecte et
-  // que le texte mentionne les keywords logiciel.
-  if (containsAny(text, ['saas', 'software', 'application', 'plateforme web', 'app mobile', 'mobile app', 'cloud', 'api '])) {
+  // Cas par defaut : pure-software si signal SaaS detecte (plateforme
+  // verticale qui adresse un marche hardware sans fabrication) ou si
+  // les keywords logiciel canoniques sont presents.
+  if (saasSignal >= 1
+    || containsAny(text, ['saas', 'software', 'application', 'plateforme web', 'app mobile', 'mobile app', 'cloud', 'api '])) {
     return 'pure-software';
   }
 

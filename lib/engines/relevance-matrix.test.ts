@@ -306,6 +306,64 @@ const cases = [
   },
 
   // ====================================================
+  // 10bis. SaaS vertical mobilite (Ambulife type) :
+  // plateforme qui adresse le marche transport sanitaire sans en
+  // exercer l activite. Doit sortir recurrent-saas + pure-software.
+  // ====================================================
+  {
+    name: 'SaaS vertical mobilite sante FR (Ambulife type)',
+    extraction: {
+      companyName: 'MobiCare',
+      sector: 'Sante',
+      subSector: 'Transport medical / Mobilite medicale',
+      country: 'France',
+      geographicHub: 'Paris',
+      yearFounded: 2024,
+      founders: [],
+      marketPitch: 'Plateforme numerique transversale qui facilite l acces aux services de transport medical. Reservation 24/7 de vehicules adaptes par patients et professionnels de sante.',
+      productDescription: 'Plateforme de reservation BtoB et BtoBtoC pour transport sanitaire. Geolocalisation temps reel des vehicules. Systeme de gestion des flottes pour societes d ambulances et taxis conventionnes.',
+      businessModel: 'Abonnement mensuel avec engagement sur 2 ans. 450 EUR HT/mois pour 1 a 5 vehicules, 1800 EUR HT/mois au-dela. Business recurrent et croissant.',
+      traction: { metrics: ['ARPU 450 EUR HT/mois', 'engagement contractuel 24 mois'] },
+      fundraise: { stage: 'seed', amount: '500K EUR' },
+      competitorsCited: [],
+      rawSummary: 'Plateforme transversale et nationale. BtoB principal, BtoBtoC pour les patients finaux.',
+    },
+    expects: {
+      businessModel: 'recurrent-saas',
+      productionChain: 'pure-software',
+      'verdicts.indicatorsSaas.applicable': 'full',
+    },
+  },
+
+  // ====================================================
+  // 10ter. SaaS vertical hardware (gestion de flottes drones) :
+  // adresse drones sans en fabriquer. Doit rester software.
+  // ====================================================
+  {
+    name: 'SaaS gestion de flottes drones',
+    extraction: {
+      companyName: 'DroneOps',
+      sector: 'Software B2B',
+      subSector: 'SaaS gestion de flottes drones',
+      country: 'France',
+      geographicHub: 'Toulouse',
+      yearFounded: 2022,
+      founders: [],
+      marketPitch: 'Plateforme SaaS pour operateurs de flottes de drones professionnels. Pilotage, planification, maintenance preventive.',
+      productDescription: 'Application web et mobile, cloud, API. Geolocalisation drones, dashboard temps reel.',
+      businessModel: 'SaaS B2B, abonnement HT/mois par drone connecte. ARPU 80 EUR HT/mois.',
+      traction: { metrics: [] },
+      fundraise: { stage: 'seed', amount: '2M EUR' },
+      competitorsCited: [],
+      rawSummary: 'Cible operateurs de drones professionnels (BTP, agriculture, securite). Modele asset-light, aucune operation matiere propre.',
+    },
+    expects: {
+      businessModel: 'recurrent-saas',
+      productionChain: 'pure-software',
+    },
+  },
+
+  // ====================================================
   // 10. Voiture connectee (semi-conducteurs critique)
   // ====================================================
   {
