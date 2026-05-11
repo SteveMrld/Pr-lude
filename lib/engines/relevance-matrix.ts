@@ -407,20 +407,52 @@ const PROJECT_BASED_KEYWORDS = [
   'contrat de developpement', 'contrat de développement',
 ];
 
-// Modele recurrent SaaS classique.
+// Modele recurrent SaaS classique. On evite 'subscription model'
+// (trop generique, fait penser a tout abonnement consumer ou B2B)
+// et on couvre les deux ordres 'b2b saas' / 'saas b2b' qui
+// apparaissent indifferemment en deck FR.
 const RECURRENT_SAAS_KEYWORDS = [
   'saas', 'software as a service',
-  'arr', 'mrr', 'abonnement b2b', 'subscription b2b',
-  'b2b saas', 'subscription model',
-  'license recurrente', 'licence récurrente',
+  'arr ', 'mrr ', 'acv ', 'tcv ', 'logo retention',
+  'abonnement b2b', 'subscription b2b',
+  'b2b saas', 'saas b2b', 'enterprise saas',
+  'license recurrente', 'logiciel professionnel recurrent',
+  'plateforme saas b2b',
 ];
 
-// Subscription consumer (B2C abonnement).
+// Subscription consumer (B2C abonnement). Le perimetre est strict :
+// ce sont des signaux explicitement consumer-facing, pas le simple
+// mot abonnement mensuel qui apparait dans tout deck B2B SaaS FR.
+// La discrimination fine B2B vs B2C est gerree en aval par les
+// AUDIENCE_KEYWORDS qui servent de tie-breaker.
 const CONSUMER_SUBSCRIPTION_KEYWORDS = [
   'abonnement b2c', 'abonnement consumer',
   'subscription b2c', 'consumer subscription',
-  'abonnement mensuel', 'box mensuelle',
-  'streaming consumer', 'app freemium',
+  'box mensuelle', 'subscription box',
+  'streaming consumer', 'streaming b2c',
+  'app freemium consumer', 'paywall consumer',
+  'abonnement grand public', 'app store revenue',
+];
+
+// Signaux d audience B2B explicites. Servent a casser les egalites
+// entre recurrent-saas et consumer-subscription quand un dossier
+// melange les deux vocabulaires (cas frequent : SaaS B2B avec
+// mention abonnement mensuel et saas et arr melanges).
+const B2B_AUDIENCE_KEYWORDS = [
+  'b2b ', ' b2b', 'entreprise cliente', 'enterprise customer',
+  'pme cible', 'eti cible', 'mid-market', 'enterprise account',
+  'sales cycle', 'sales-led', 'account-based', 'pipeline commercial',
+  'go-to-market b2b', 'gtm b2b',
+  'crm ', ' crm', 'erp ', ' erp', 'hr saas', 'sales saas',
+];
+
+// Signaux d audience B2C explicites. Tie-breaker symetrique.
+const B2C_AUDIENCE_KEYWORDS = [
+  'b2c ', ' b2c', 'consumer ', ' consumer', 'consommateur',
+  'grand public', 'mass market', 'utilisateur final', 'end user',
+  'd2c ', 'dtc ', 'dtc brand', 'd2c brand',
+  'consumer brand', 'marque consumer', 'marque grand public',
+  'app store', 'play store',
 ];
 
 // Marketplace (commissions sur transactions).
@@ -492,11 +524,25 @@ function detectBusinessModel(text: string): BusinessModel {
   const marketplace = countMatches(text, MARKETPLACE_KEYWORDS);
   const service = countMatches(text, SERVICE_ON_DEMAND_KEYWORDS);
   const b2gMarkers = countMatches(text, [
-    'etat', 'état', 'public', 'collectivite', 'collectivité',
-    'ministere', 'ministère', 'defense', 'défense',
-    'gendarmerie', 'police', 'armee', 'armée',
+    'etat', 'public', 'collectivite',
+    'ministere', 'defense',
+    'gendarmerie', 'police', 'armee',
     'agence nationale', 'parapublic',
   ]);
+  // Audience lean B2B vs B2C : sert de tie-breaker quand le
+  // dossier mele indifferemment vocabulaire B2B et B2C. Le mot
+  // generique "abonnement mensuel" sans contexte est presque
+  // toujours du B2B en pitch FR, mais on prefere une discrimination
+  // explicite par signaux d audience plutot qu une heuristique
+  // implicite.
+  const b2bAudience = countMatches(text, B2B_AUDIENCE_KEYWORDS);
+  const b2cAudience = countMatches(text, B2C_AUDIENCE_KEYWORDS);
+  const audienceLean: 'b2b' | 'b2c' | 'unknown' =
+    b2bAudience > b2cAudience + 1 ? 'b2b'
+      : b2cAudience > b2bAudience + 1 ? 'b2c'
+        : b2bAudience > b2cAudience ? 'b2b'
+          : b2cAudience > b2bAudience ? 'b2c'
+            : 'unknown';
 
   // Calcul du score brut par modele
   const scores = {
@@ -514,10 +560,21 @@ function detectBusinessModel(text: string): BusinessModel {
   // Cas B2G : si b2gMarkers fort ET project >= 1, c est contract-b2g
   if (b2gMarkers >= 2 && project >= 1) return 'contract-b2g';
 
-  // Si plusieurs modeles co-existent au meme score top, c est un
-  // hybride (ex: vente unitaire + abonnement dashboard, marque DTC
-  // vente + abonnement box). Si le top est dominant meme par un
-  // seul point, on tranche pour la categorie dominante.
+  // Cas critique : recurrent et consumerSub a egalite. Avant on
+  // sortait hybrid par defaut, ce qui faisait basculer un B2B SaaS
+  // standard mentionnant abonnement mensuel en hybrid. On
+  // discrimine maintenant par l audience explicite.
+  if (recurrent >= 1 && recurrent === consumerSub && topVal === recurrent) {
+    if (audienceLean === 'b2b') return 'recurrent-saas';
+    if (audienceLean === 'b2c') return 'consumer-subscription';
+    return 'hybrid';
+  }
+
+  // Si plusieurs modeles co-existent au meme score top hors couple
+  // SaaS / consumer-sub, c est un hybride (ex: vente unitaire plus
+  // abonnement dashboard, marque DTC vente plus abonnement box).
+  // Si le top est dominant meme par un seul point, on tranche pour
+  // la categorie dominante.
   if (topVal === secondVal && topVal >= 1) {
     return 'hybrid';
   }
