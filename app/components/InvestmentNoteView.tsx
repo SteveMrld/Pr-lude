@@ -8,6 +8,14 @@ import PortfolioPositionChart from './PortfolioPositionChart';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { computeTopRisks } from '@/lib/compute-top-risks';
+import {
+  buildTrajectoryRenderContext,
+  buildPatternDeltaAnnotation,
+  type TrajectoryRenderContext,
+  type PatternAnnotation,
+} from '@/lib/trajectory-render';
+import type { TrajectorySummary } from '@/lib/engines/trajectory';
+import type { PatternId } from '@/lib/engines/fragility-structurelle/types';
 
 /**
  * Formate un montant en EUR de maniere courte et lisible :
@@ -280,6 +288,47 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
     }
   }, [r]);
 
+  // ============================================================
+  // CONTEXTE TRAJECTOIRE
+  // ------------------------------------------------------------
+  // Si l analyse est persistee (analysisId fourni), on charge
+  // /api/analyses/[id]/trajectory pour comparer la version
+  // courante a la version precedente. Le contexte sert a trois
+  // zones d annotation : bandeau de top alerte (cran 1 ou 2),
+  // en-tete de la section Fragilite, deltas en marge des cartes
+  // pattern. Si aucune baseline n existe (premiere analyse, pas
+  // de version anterieure), le contexte reste vide et le
+  // composant degrade silencieusement (aucune annotation).
+  // ============================================================
+  const [trajectoryCtx, setTrajectoryCtx] = React.useState<TrajectoryRenderContext>(() => ({
+    hasBaseline: false,
+    comparison: null,
+    header: null,
+    banner: null,
+    alerts: [],
+  }));
+
+  React.useEffect(() => {
+    if (!analysisId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/analyses/${analysisId}/trajectory`);
+        if (!res.ok) return;
+        const body = await res.json();
+        const summary: TrajectorySummary | undefined = body?.summary;
+        if (cancelled) return;
+        setTrajectoryCtx(buildTrajectoryRenderContext(summary ?? null));
+      } catch (err) {
+        // Degradation silencieuse : pas de baseline si l API echoue.
+        console.warn('[InvestmentNoteView] trajectory fetch failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [analysisId]);
+
   // Helper pour extraire la première phrase d'un paragraphe long. Utilisé pour
   // les pull quotes : on veut une phrase impactante, pas un paragraphe entier.
   const firstSentence = (s: string | undefined, maxLen: number = 220): string => {
@@ -420,6 +469,57 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <p style={{ fontSize: 12, lineHeight: 1.6, marginTop: 10, marginBottom: 0, fontStyle: 'italic', opacity: 0.75 }}>
               La lecture qui suit doit être filtrée par la conscience de cette position d&apos;intérêt. Une décision d&apos;investissement engageant le fonds requiert ici une validation indépendante du comité.
             </p>
+          </section>
+        );
+      })()}
+
+      {/* ============================================================
+          BANDEAU ALERTE TRAJECTOIRE
+          ------------------------------------------------------------
+          S affiche en tete de note quand au moins une alerte de
+          cran 1 ou 2 a ete declenchee sur la transition entre la
+          version precedente et la version courante. Meme grammaire
+          que le bandeau gouvernance ci-dessus : raison editoriale
+          courte, recommandation, citations factuelles pour audit.
+          Les alertes de cran 3 (digest hebdomadaire) et 4 (passif
+          UI) ne remontent pas dans ce bandeau, elles vivent dans
+          les annotations en marge des sections concernees.
+          ============================================================ */}
+      {trajectoryCtx.banner && (() => {
+        const b = trajectoryCtx.banner!;
+        const palette = b.cran === 1
+          ? { ink: '#7a2916', bg: 'rgba(122, 41, 22, 0.05)' }
+          : { ink: '#8a4a17', bg: 'rgba(138, 74, 23, 0.05)' };
+        return (
+          <section
+            aria-label="Alerte trajectoire"
+            style={{
+              margin: '12px 0 16px',
+              padding: '14px 18px',
+              borderLeft: `3px solid ${palette.ink}`,
+              background: palette.bg,
+              fontFamily: 'var(--serif)',
+            }}
+          >
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: palette.ink, fontWeight: 600, marginBottom: 8 }}>
+              Alerte trajectoire · Cran {b.cran}
+              {b.additionalCriticalCount > 0 && (
+                <span style={{ marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  plus {b.additionalCriticalCount} autre{b.additionalCriticalCount > 1 ? 's' : ''} alerte{b.additionalCriticalCount > 1 ? 's' : ''} critique{b.additionalCriticalCount > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.55, margin: 0, marginBottom: 6 }}>
+              {b.raison}
+            </p>
+            <p style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>
+              {b.recommandation}
+            </p>
+            {b.citations.length > 0 && (
+              <p style={{ fontSize: 12, lineHeight: 1.55, marginTop: 8, marginBottom: 0, fontStyle: 'italic', opacity: 0.7 }}>
+                {b.citations.join(' · ')}
+              </p>
+            )}
           </section>
         );
       })()}
@@ -2312,6 +2412,27 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <>
             <h3 className="note-h3" id="engine-section-fragility-structurelle">Lecture de la fragilité structurelle</h3>
 
+            {/* En-tete de trajectoire : si une analyse precedente
+                existe, on affiche une ligne sobre qui resume la
+                transition (verdict actuel vs precedent, ou delta de
+                score si verdict maintenu). Le composant degrade
+                silencieusement sans baseline. */}
+            {trajectoryCtx.header && (
+              <p
+                className="note-paragraph"
+                style={{
+                  fontSize: 13,
+                  fontStyle: 'italic',
+                  opacity: 0.78,
+                  marginTop: -4,
+                  marginBottom: 12,
+                  color: 'var(--ocre-brule, #8a4a17)',
+                }}
+              >
+                {trajectoryCtx.header}
+              </p>
+            )}
+
             {/* Cas 1 : matrice declare tous patterns non applicables.
                 Affichage sobre pour la transparence du perimetre. */}
             {!fs && fsVerdicts && Object.values(fsVerdicts).every((v: any) => v.applicable === 'none') && (
@@ -2402,7 +2523,26 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     };
                     const label = labels[patternId] ?? patternId;
 
+                    // Annotation trajectoire pour ce pattern. Null si pas de
+                    // baseline ou pattern absent de la comparaison.
+                    const annotation: PatternAnnotation | null = buildPatternDeltaAnnotation(
+                      trajectoryCtx.comparison,
+                      patternId as PatternId,
+                    );
+
                     if (!p || p.applicabilite === 'not-applicable') {
+                      // Cas newly-not-applicable : le pattern etait actif
+                      // dans l analyse precedente et sort du perimetre. On
+                      // surcharge la mention par defaut avec un texte
+                      // contextuel.
+                      if (annotation && annotation.kind === 'newly-not-applicable') {
+                        return (
+                          <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13, opacity: 0.7 }}>
+                            <span>{label}</span>
+                            <span style={{ fontStyle: 'italic', color: 'var(--ocre-brule, #8a4a17)', fontSize: 12, maxWidth: '70%', textAlign: 'right' }}>{annotation.text}</span>
+                          </div>
+                        );
+                      }
                       return (
                         <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13, opacity: 0.55 }}>
                           <span>{label}</span>
@@ -2442,6 +2582,22 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                               {p.recommandationDD}
                             </div>
                           )}
+                          {/* Annotation delta trajectoire. Discrete, en
+                              gris ocre, sous la recommandation DD pour ne
+                              pas concurrencer l information principale. */}
+                          {annotation && (
+                            <div style={{
+                              fontSize: 11,
+                              marginTop: 6,
+                              opacity: 0.75,
+                              color: annotation.kind === 'delta'
+                                ? (annotation.direction === 'aggravation' ? '#8a4a17' : '#3f4a2b')
+                                : '#8a4a17',
+                              fontStyle: annotation.kind === 'delta' || annotation.kind === 'maintained' ? 'normal' : 'italic',
+                            }}>
+                              {annotation.text}
+                            </div>
+                          )}
                         </div>
                       );
                     }
@@ -2450,8 +2606,24 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     return (
                       <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13 }}>
                         <span>{label}</span>
-                        <span style={{ color: tone, fontWeight: 500 }}>
-                          {p.verdict.replace('-', ' ')} · {p.globalScore}/100
+                        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
+                          <span style={{ color: tone, fontWeight: 500 }}>
+                            {p.verdict.replace('-', ' ')} · {p.globalScore}/100
+                          </span>
+                          {annotation && (annotation.kind === 'delta' || annotation.kind === 'maintained') && (
+                            <span style={{
+                              fontSize: 11,
+                              opacity: 0.7,
+                              color: annotation.kind === 'delta' && annotation.direction === 'aggravation' ? '#8a4a17' : 'inherit',
+                            }}>
+                              {annotation.text}
+                            </span>
+                          )}
+                          {annotation && annotation.kind === 'newly-applicable' && (
+                            <span style={{ fontSize: 11, opacity: 0.75, color: '#8a4a17', fontStyle: 'italic' }}>
+                              nouvellement actif
+                            </span>
+                          )}
                         </span>
                       </div>
                     );

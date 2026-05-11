@@ -24,6 +24,14 @@ import VersionSelector from './components/VersionSelector';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import { ENGINE_PICTOS } from './components/Pictos';
 import { Picto } from './components/Picto';
+import {
+  buildTrajectoryRenderContext,
+  buildPatternDeltaAnnotation,
+  type TrajectoryRenderContext,
+  type PatternAnnotation,
+} from '@/lib/trajectory-render';
+import type { TrajectorySummary } from '@/lib/engines/trajectory';
+import type { PatternId } from '@/lib/engines/fragility-structurelle/types';
 
 // Liste des moteurs affiches pendant l execution. Organisee selon
 // la structure du repositionnement Bloc 1 (Note d instruction) /
@@ -706,6 +714,53 @@ export default function HomeClient({
   useEffect(() => {
     reloadIcVotes();
   }, [reloadIcVotes]);
+
+  // ============================================================
+  // CONTEXTE TRAJECTOIRE POUR L ONGLET FRAGILITE
+  // ------------------------------------------------------------
+  // Charge la trajectoire pour calculer les deltas a afficher en
+  // marge des cartes pattern dans l onglet Fragilite. Degrade
+  // silencieusement si pas de baseline. Le composant
+  // InvestmentNoteView fait son propre fetch en parallele, les
+  // deux instances sont independantes pour permettre l affichage
+  // partiel (note seule en compactMode, ou onglet fragilite seul).
+  // ============================================================
+  const [trajectoryCtx, setTrajectoryCtx] = useState<TrajectoryRenderContext>({
+    hasBaseline: false,
+    comparison: null,
+    header: null,
+    banner: null,
+    alerts: [],
+  });
+
+  useEffect(() => {
+    if (!savedAnalysisId) {
+      setTrajectoryCtx({
+        hasBaseline: false,
+        comparison: null,
+        header: null,
+        banner: null,
+        alerts: [],
+      });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/analyses/${savedAnalysisId}/trajectory`);
+        if (!res.ok) return;
+        const body = await res.json();
+        const summary: TrajectorySummary | undefined = body?.summary;
+        if (cancelled) return;
+        setTrajectoryCtx(buildTrajectoryRenderContext(summary ?? null));
+      } catch (err) {
+        console.warn('[HomeClient] trajectory fetch failed:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [savedAnalysisId]);
 
   // Callback de vote : envoie le vote du user actuel et recharge la liste
   // pour avoir le compteur a jour. Si le user clique sur l option qu il
@@ -4398,6 +4453,55 @@ export default function HomeClient({
                       </p>
                     </div>
 
+                    {/* En-tete de trajectoire : si une analyse precedente
+                        existe, ligne sobre qui resume la transition. Le
+                        composant degrade silencieusement sans baseline. */}
+                    {trajectoryCtx.header && (
+                      <p style={{
+                        fontSize: 13,
+                        fontStyle: 'italic',
+                        opacity: 0.78,
+                        margin: '0 0 18px',
+                        color: 'var(--ocre-brule, #8a4a17)',
+                      }}>
+                        {trajectoryCtx.header}
+                      </p>
+                    )}
+
+                    {/* Bandeau d alerte trajectoire si une alerte cran
+                        1 ou 2 est presente. Meme grammaire que le bandeau
+                        gouvernance utilise dans la note d instruction. */}
+                    {trajectoryCtx.banner && (() => {
+                      const b = trajectoryCtx.banner!;
+                      const palette = b.cran === 1
+                        ? { ink: '#7a2916', bg: 'rgba(122, 41, 22, 0.05)' }
+                        : { ink: '#8a4a17', bg: 'rgba(138, 74, 23, 0.05)' };
+                      return (
+                        <div style={{
+                          margin: '0 0 20px',
+                          padding: '14px 18px',
+                          borderLeft: `3px solid ${palette.ink}`,
+                          background: palette.bg,
+                        }}>
+                          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: palette.ink, fontWeight: 600, marginBottom: 8 }}>
+                            Alerte trajectoire · Cran {b.cran}
+                            {b.additionalCriticalCount > 0 && (
+                              <span style={{ marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                                plus {b.additionalCriticalCount} autre{b.additionalCriticalCount > 1 ? 's' : ''} alerte{b.additionalCriticalCount > 1 ? 's' : ''} critique{b.additionalCriticalCount > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.55, margin: 0, marginBottom: 6 }}>{b.raison}</p>
+                          <p style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>{b.recommandation}</p>
+                          {b.citations.length > 0 && (
+                            <p style={{ fontSize: 12, lineHeight: 1.55, marginTop: 8, marginBottom: 0, fontStyle: 'italic', opacity: 0.7 }}>
+                              {b.citations.join(' · ')}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {/* Combinaisons diagnostiques */}
                     {fsr.combinaisons && fsr.combinaisons.length > 0 && (
                       <div style={{ marginBottom: 20, padding: 14, borderLeft: '3px solid var(--ocre-brule, #8a4a17)', background: 'rgba(138, 74, 23, 0.06)' }}>
@@ -4424,11 +4528,30 @@ export default function HomeClient({
                         const p = fsr.patterns?.[patternId];
                         const label = patternLabels[patternId] ?? patternId;
 
+                        // Annotation trajectoire pour ce pattern, null si
+                        // pas de baseline ou pattern absent de la comparaison.
+                        const annotation: PatternAnnotation | null = buildPatternDeltaAnnotation(
+                          trajectoryCtx.comparison,
+                          patternId as PatternId,
+                        );
+
                         if (!p || p.applicabilite === 'not-applicable') {
+                          // Cas newly-not-applicable : le pattern etait
+                          // actif precedemment, on remplace la mention
+                          // par defaut par un texte contextuel.
+                          const rationale = annotation && annotation.kind === 'newly-not-applicable'
+                            ? annotation.text
+                            : (p?.applicabiliteRationale || 'Non applicable sur ce dossier.');
                           return (
-                            <div key={patternId} style={{ padding: 14, border: '1px dashed var(--hairline)', opacity: 0.55 }}>
+                            <div key={patternId} style={{ padding: 14, border: '1px dashed var(--hairline)', opacity: annotation?.kind === 'newly-not-applicable' ? 0.75 : 0.55 }}>
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, marginBottom: 6 }}>{label}</div>
-                              <div style={{ fontSize: 12, fontStyle: 'italic' }}>{p?.applicabiliteRationale || 'Non applicable sur ce dossier.'}</div>
+                              <div style={{
+                                fontSize: 12,
+                                fontStyle: 'italic',
+                                color: annotation?.kind === 'newly-not-applicable' ? 'var(--ocre-brule, #8a4a17)' : undefined,
+                              }}>
+                                {rationale}
+                              </div>
                             </div>
                           );
                         }
@@ -4447,8 +4570,27 @@ export default function HomeClient({
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>{label}</div>
                               <div style={{ fontSize: 11, color: c, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{p.verdict.replace('-', ' ')}</div>
                             </div>
-                            <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 8 }}>
-                              Score {p.globalScore}/100
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 11, opacity: 0.7, marginBottom: 8 }}>
+                              <span style={{ opacity: 0.8 }}>Score {p.globalScore}/100</span>
+                              {/* Delta trajectoire en marge du score, en
+                                  typo plus petite et plus claire (gris
+                                  ocre pour les aggravations, gris vert
+                                  pour les ameliorations). */}
+                              {annotation && (annotation.kind === 'delta' || annotation.kind === 'maintained' || annotation.kind === 'newly-applicable') && (
+                                <span style={{
+                                  fontSize: 11,
+                                  fontStyle: annotation.kind === 'newly-applicable' ? 'italic' : 'normal',
+                                  color: annotation.kind === 'delta' && annotation.direction === 'aggravation'
+                                    ? '#8a4a17'
+                                    : annotation.kind === 'delta' && annotation.direction === 'amelioration'
+                                    ? '#3f4a2b'
+                                    : annotation.kind === 'newly-applicable'
+                                    ? '#8a4a17'
+                                    : 'inherit',
+                                }}>
+                                  {annotation.kind === 'newly-applicable' ? 'nouvellement actif' : annotation.text}
+                                </span>
+                              )}
                             </div>
                             {p.resumeEditorial && (
                               <p style={{ fontSize: 13, lineHeight: 1.55, marginTop: 0, marginBottom: 8 }}>{p.resumeEditorial}</p>
