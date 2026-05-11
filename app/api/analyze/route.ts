@@ -632,8 +632,14 @@ export async function POST(req: NextRequest) {
           // Si au moins un verdict pattern Phase 4 est applicable, on emet
           // la tuile pipeline. Sinon on skip silencieusement (pas de tuile
           // pour eviter un faux skip dans l UI).
+          //
+          // Mode dev : le flag forceFragility passe par-dessus la matrice
+          // et force l execution du moteur. Utile pour valider l UX sur
+          // des dossiers seed qui seraient normalement filtres hors-scope
+          // par la matrice. Le client envoie ce flag depuis le coin admin.
           const fsVerdicts = relevanceMatrix.verdicts.fragiliteStructurelle;
-          const fragiliteRequested = Object.values(fsVerdicts).some(
+          const forceFragility = formData.get('forceFragility') === '1';
+          const fragiliteRequested = forceFragility || Object.values(fsVerdicts).some(
             (v) => v.applicable !== 'none',
           );
           if (fragiliteRequested) {

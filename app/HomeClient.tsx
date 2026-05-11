@@ -320,6 +320,32 @@ export default function HomeClient({
       // ignore
     }
   }, []);
+  // Mode dev : pendant symetrique pour le moteur Fragilite Structurelle.
+  // Force l execution des sept patterns meme quand la matrice declare
+  // tous les patterns hors-scope (typiquement les dossiers seed pure
+  // software qui basculent en non-applicable sur plusieurs patterns).
+  // Utile pour valider l UX et la calibration LLM des patterns sur des
+  // profils sectoriels varies.
+  const [forceFragility, setForceFragilityRaw] = useState<boolean>(false);
+  const setForceFragility = (v: boolean) => {
+    setForceFragilityRaw(v);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('prelude_force_fragility', v ? '1' : '0');
+      }
+    } catch {
+      // localStorage indisponible, on continue
+    }
+  };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const v = localStorage.getItem('prelude_force_fragility');
+      if (v === '1') setForceFragilityRaw(true);
+    } catch {
+      // ignore
+    }
+  }, []);
   const [activeTab, setActiveTab] = useState('synthesis');
   // Onglet actif sur la landing page : permet de presenter le
   // contenu en sections separees plutot qu en un long scroll. Quatre
@@ -816,7 +842,7 @@ export default function HomeClient({
   }
 
 
-  async function analyze(opts: { forcePrescan?: boolean; skipDuplicateCheck?: boolean; forceNarrativeDrift?: boolean } = {}) {
+  async function analyze(opts: { forcePrescan?: boolean; skipDuplicateCheck?: boolean; forceNarrativeDrift?: boolean; forceFragility?: boolean } = {}) {
     if (files.length === 0) return;
     const hasPdf = files.some(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
     if (!hasPdf) {
@@ -927,6 +953,11 @@ export default function HomeClient({
       // robustesse du moteur en bord de plage.
       if (opts.forceNarrativeDrift || forceNarrativeDrift) {
         formData.append('forceNarrativeDrift', '1');
+      }
+      // Mode dev symetrique pour Fragilite Structurelle : force les sept
+      // patterns a tourner meme si la matrice les declare tous hors-scope.
+      if (opts.forceFragility || forceFragility) {
+        formData.append('forceFragility', '1');
       }
       // Parcours d analyse choisi par le partner sur la page d entree.
       // 'early' (defaut) ou 'growth'. Determine quels moteurs sont
@@ -2149,6 +2180,15 @@ export default function HomeClient({
                         style={{ accentColor: 'var(--ocre, #a8743a)' }}
                       />
                       <span>Forcer la lecture du langage <span style={{ opacity: 0.55 }}>(mode QA, dossiers seed)</span></span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--ink-muted, #6b6657)', fontFamily: 'inherit', cursor: 'pointer', userSelect: 'none' }}>
+                      <input
+                        type="checkbox"
+                        checked={forceFragility}
+                        onChange={(e) => setForceFragility(e.target.checked)}
+                        style={{ accentColor: 'var(--ocre, #a8743a)' }}
+                      />
+                      <span>Forcer l&apos;analyse Fragilité <span style={{ opacity: 0.55 }}>(mode QA, valide les sept patterns sur tous profils)</span></span>
                     </label>
                     <button className="btn btn-primary" onClick={() => analyze()}>Lancer le pipeline →</button>
                   </div>
