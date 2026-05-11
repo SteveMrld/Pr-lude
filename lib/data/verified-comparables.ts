@@ -33,6 +33,8 @@
 // (seed, IPO pricing day, peak market cap) sont stables.
 // ============================================================
 
+import { normalizeFrText } from './text-normalize';
+
 export interface VerifiedComparable {
   name: string;
   founded: number;
@@ -1197,7 +1199,7 @@ const CLASS_KEYWORDS: Record<Exclude<ComparablesAssetClass, 'all'>, string[]> = 
 };
 
 function matchesAssetClass(sectorAssetClass: string, klass: Exclude<ComparablesAssetClass, 'all'>): boolean {
-  const lower = sectorAssetClass.toLowerCase();
+  const lower = normalizeFrText(sectorAssetClass);
   return CLASS_KEYWORDS[klass].some(kw => lower.includes(kw));
 }
 
@@ -1208,13 +1210,13 @@ function matchesAssetClass(sectorAssetClass: string, klass: Exclude<ComparablesA
  * caracteristiques. Retourne 'all' si rien de net.
  */
 export function detectAssetClass(extraction: any): ComparablesAssetClass {
-  const text = [
+  const text = normalizeFrText([
     extraction?.sector,
     extraction?.subSector,
     extraction?.businessModel,
     extraction?.productDescription,
     extraction?.marketPitch,
-  ].filter(Boolean).join(' ').toLowerCase();
+  ].filter(Boolean).join(' '));
 
   if (!text) return 'all';
 

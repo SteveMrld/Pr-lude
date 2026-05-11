@@ -43,6 +43,7 @@
 // ============================================================
 
 import { callClaudeWithPDF, parseJSON, MODEL } from './anthropic-client';
+import { normalizeFrText } from '../data/text-normalize';
 import type { ExtractionOutput } from './types';
 
 // ============================================================
@@ -350,8 +351,8 @@ export async function extractSaasMetrics(
   // mesure). E-commerce DTC et marketplace B2C sont retires de la
   // liste : meme s ils n ont pas de NDR (vente one-shot ou
   // marketplace), ils ont un CAC critique a fiabiliser via le funnel.
-  const sector = (extraction.sector || '').toLowerCase();
-  const subSector = (extraction.subSector || '').toLowerCase();
+  const sector = normalizeFrText(extraction.sector);
+  const subSector = normalizeFrText(extraction.subSector);
   const combined = `${sector} ${subSector}`;
   const nonRecurrentPatterns = [
     'mediatech', 'media classique',

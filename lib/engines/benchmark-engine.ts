@@ -11,6 +11,7 @@
  * ces chiffres en prose.
  */
 
+import { normalizeFrText } from '../data/text-normalize';
 import type {
   ExtractionOutput,
   FinancialDataExtraction,
@@ -83,15 +84,14 @@ function normalizeStage(rawStage: string | undefined): Stage | 'unknown' {
  * extrait et le sub-sector. Tolerant a plusieurs formulations.
  */
 function detectIsAi(extraction: ExtractionOutput): boolean {
-  const haystack = [
+  const haystack = normalizeFrText([
     extraction.sector,
     extraction.subSector,
     extraction.productDescription,
     extraction.marketPitch,
   ]
     .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
+    .join(' '));
 
   const aiKeywords = [
     'ai',
@@ -302,12 +302,12 @@ function generateDealSizeSummary(
 function pickEuropeanComparables(
   extraction: ExtractionOutput,
 ): BenchmarkPositioning['europeanComparables'] {
-  const sector = (extraction.sector || '').toLowerCase();
-  const subSector = (extraction.subSector || '').toLowerCase();
+  const sector = normalizeFrText(extraction.sector);
+  const subSector = normalizeFrText(extraction.subSector);
   const haystack = `${sector} ${subSector}`;
 
   const matches = MIGHTY_50_SAMPLE.filter((comp) => {
-    const compSector = comp.sector.toLowerCase();
+    const compSector = normalizeFrText(comp.sector);
     return compSector.split(/[/\s]+/).some((token) => token.length > 3 && haystack.includes(token));
   });
 

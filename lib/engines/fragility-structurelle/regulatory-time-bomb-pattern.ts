@@ -30,6 +30,7 @@ import { callClaude, parseJSON } from '../anthropic-client';
 import { auditTagging } from '../source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from '../editorial-voice';
 import { SOURCE_TAGGING_INSTRUCTION } from '../source-tagging';
+import { normalizeFrText } from '../../data/text-normalize';
 import type {
   PatternAnalysisOutput,
   PatternInput,
@@ -364,12 +365,16 @@ function extractRegulatorySnapshot(extraction: ExtractionOutput): RegulatorySnap
     (extraction as any).rawSummary,
   ].filter(Boolean).join(' ');
 
+  // text normalise (lowercase + diacritiques aplatis) avant
+  // match : sante/santé, defense/défense, energie/énergie sont
+  // traites comme equivalents.
+  const normalized = normalizeFrText(text);
   const reguleKeywords = REGULE_KEYWORDS.filter((k) =>
-    new RegExp(`\\b${k.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(text),
+    new RegExp(`\\b${k.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(normalized),
   );
 
   const complianceSignals = COMPLIANCE_SIGNALS.filter((k) =>
-    text.toLowerCase().includes(k.toLowerCase()),
+    normalized.includes(k.toLowerCase()),
   );
 
   return {
@@ -505,7 +510,7 @@ function isApplicable(
 
   // Aucun mot-cle reglementaire detecte ET pas de business model en
   // contact direct avec le regulateur (marketplace, contract-b2g)
-  const businessModelText = (extraction.businessModel ?? '').toLowerCase();
+  const businessModelText = normalizeFrText(extraction.businessModel);
   const isPublicOrMarketplace = /marketplace|contract|b2g|public sector|gouvernement|government/i.test(businessModelText);
 
   if (snap.reguleKeywords.length === 0 && !isPublicOrMarketplace) {

@@ -32,6 +32,7 @@
 
 import type { ExtractionOutput, FinancialDataExtraction, TechClaimCoherenceOutput } from './types';
 import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
+import { normalizeFrText } from '../data/text-normalize';
 
 // ============================================================
 // Detection des triggers (deterministe)
@@ -86,7 +87,7 @@ function detectBudgetAllocation(
   rawText: string,
   totalRoundEur: number | null,
 ): BudgetSignal {
-  const text = rawText.toLowerCase();
+  const text = normalizeFrText(rawText);
 
   // Pattern : un nombre suivi de % puis d un mot-cle tech dans une fenetre proche
   // Exemples : "25% pour la tech", "30% optimisation produit", "45% production",
@@ -137,7 +138,7 @@ function detectBudgetAllocation(
  * Retourne les mots-cles trouves et un extrait contextualise.
  */
 function detectMoatClaim(rawText: string): MoatSignal {
-  const text = rawText.toLowerCase();
+  const text = normalizeFrText(rawText);
   const found: string[] = [];
   let firstEvidence = '';
 

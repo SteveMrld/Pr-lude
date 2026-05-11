@@ -11,6 +11,7 @@ import {
   EUROPEAN_DEEPTECH_2025,
 } from '../benchmarks';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
+import { normalizeFrText } from '../data/text-normalize';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type { ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput, MacroAnalysisOutput, PatternMatchingOutput } from './types';
@@ -293,14 +294,16 @@ function selectRelevantExtendedCases(
   team: TeamAnalysisOutput,
   market: MarketAnalysisOutput,
 ): { failures: ExtendedCaseRecord[]; risky: ExtendedCaseRecord[]; quantum: ExtendedCaseRecord[]; references: ExtendedCaseRecord[] } {
-  const sectorLower = (extraction.sector + ' ' + extraction.subSector).toLowerCase();
+  // Texte normalise (lowercase + diacritiques aplatis) : un libelle
+  // "Énergie" ou "Défense" matche les regex non accentuees ci-dessous.
+  const sectorLower = normalizeFrText(extraction.sector + ' ' + extraction.subSector);
   const isQuantum = sectorLower.includes('quantum') || sectorLower.includes('quantique');
-  const isIndustrial = sectorLower.match(/industri|hardware|deeptech|battery|gigafactory|energy|nuclear|robot/i);
-  const isFintech = sectorLower.match(/fintech|bank|insurance|assurance|paiement|payment|credit/i);
-  const isMarketplace = sectorLower.match(/marketplace|e-?commerce|consumer/i);
-  const isAI = sectorLower.match(/genai|ia g[eé]n[eé]rative|llm|agent|ai\b/i);
-  const isDefense = sectorLower.match(/d[eé]fense|defense|drone|military|uas|surveillance/i);
-  const isSaaS = sectorLower.match(/saas|cloud|software|monitoring|cybersecur/i);
+  const isIndustrial = sectorLower.match(/industri|hardware|deeptech|battery|gigafactory|energy|energie|energetique|nuclear|nucleaire|robot/);
+  const isFintech = sectorLower.match(/fintech|bank|banque|insurance|assurance|paiement|payment|credit/);
+  const isMarketplace = sectorLower.match(/marketplace|e-?commerce|consumer|marche public/);
+  const isAI = sectorLower.match(/genai|ia generative|llm|agent|ai\b/);
+  const isDefense = sectorLower.match(/defense|drone|military|militaire|uas|surveillance|aerospatial|aeronautique/);
+  const isSaaS = sectorLower.match(/saas|cloud|software|logiciel|monitoring|cybersecur/);
 
   // Strate D : echecs pedagogiques - on selectionne ceux qui matchent
   // au moins un signal du dossier

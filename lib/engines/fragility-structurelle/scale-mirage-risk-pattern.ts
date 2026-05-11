@@ -25,6 +25,7 @@ import { callClaude, parseJSON } from '../anthropic-client';
 import { auditTagging } from '../source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from '../editorial-voice';
 import { SOURCE_TAGGING_INSTRUCTION } from '../source-tagging';
+import { normalizeFrText } from '../../data/text-normalize';
 import type {
   PatternAnalysisOutput,
   PatternInput,
@@ -447,9 +448,11 @@ function isApplicable(
     };
   }
 
-  const text = [extraction.marketPitch, extraction.productDescription, extraction.businessModel, (extraction as any).rawSummary]
-    .filter(Boolean).join(' ').toLowerCase();
-  const sector = (extraction.sector ?? '').toLowerCase();
+  const text = normalizeFrText(
+    [extraction.marketPitch, extraction.productDescription, extraction.businessModel, (extraction as any).rawSummary]
+      .filter(Boolean).join(' '),
+  );
+  const sector = normalizeFrText(extraction.sector);
 
   // SaaS pure cloud sans capex industriel : hors-scope
   const isPureSoftware = /\b(saas|software|api|platform|cloud)\b/i.test(text)

@@ -34,6 +34,7 @@
 import type { ExtractionOutput, FinancialDataExtraction } from './types';
 import type { LedgerExtraction } from '../ledger-parser';
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
+import { normalizeFrText } from '../data/text-normalize';
 
 // ============================================================
 // Types
@@ -369,7 +370,7 @@ function testClientConcentration(
   else if (top1Pct >= 15 || top3Pct >= 50) severity = 'attention';
 
   // Heuristique narratif : le pitch mentionne-t-il "diversifie", "non concentre" ?
-  const pitchText = `${extraction.marketPitch || ''} ${extraction.businessModel || ''} ${extraction.rawSummary || ''}`.toLowerCase();
+  const pitchText = normalizeFrText(`${extraction.marketPitch || ''} ${extraction.businessModel || ''} ${extraction.rawSummary || ''}`);
   const claimsDiversification = /(portefeuille diversifi|clients diversifi|non concentr|aucun client|repartition equilibr)/.test(pitchText);
   const masking = claimsDiversification && severity !== 'aligned';
 
@@ -483,7 +484,7 @@ function testOffBalanceVsNarrative(
   else if (ratio !== null && ratio >= 0.5) severity = 'attention';
 
   // Heuristique narratif : le pitch mentionne-t-il les engagements ?
-  const pitchText = `${extraction.businessModel || ''} ${extraction.rawSummary || ''}`.toLowerCase();
+  const pitchText = normalizeFrText(`${extraction.businessModel || ''} ${extraction.rawSummary || ''}`);
   const mentionsCommitments = /(engagement|dette|emprunt|cautionnement|hors bilan|bonding|leasing|credit-bail)/.test(pitchText);
 
   if (severity !== 'aligned' && !mentionsCommitments) {

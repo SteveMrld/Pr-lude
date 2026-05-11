@@ -30,6 +30,7 @@ import { callClaude, parseJSON } from '../anthropic-client';
 import { auditTagging } from '../source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from '../editorial-voice';
 import { SOURCE_TAGGING_INSTRUCTION } from '../source-tagging';
+import { normalizeFrText } from '../../data/text-normalize';
 import type {
   PatternAnalysisOutput,
   PatternInput,
@@ -321,7 +322,7 @@ function extractStackSnapshot(extraction: ExtractionOutput): StackSnapshot {
   );
 
   const portabilitySignals = PORTABILITY_KEYWORDS.filter((k) =>
-    text.toLowerCase().includes(k),
+    normalizeFrText(text).includes(k),
   );
 
   return {
@@ -443,7 +444,7 @@ function isApplicable(
 
   const hasBusinessModel = !!extraction.businessModel && extraction.businessModel.trim().length > 10;
   const hasProductDescription = !!extraction.productDescription && extraction.productDescription.length > 30;
-  const sector = (extraction.sector ?? '').toLowerCase();
+  const sector = normalizeFrText(extraction.sector);
 
   if (!hasBusinessModel && !hasProductDescription) {
     return {

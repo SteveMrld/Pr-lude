@@ -25,6 +25,7 @@
 // ============================================================
 
 import type { ExtractionOutput } from './types';
+import { normalizeFrText } from '../data/text-normalize';
 
 // ============================================================
 // TYPES
@@ -149,7 +150,10 @@ export type NarrativeMaturity = 'pre-seed' | 'seed' | 'series-a' | 'series-b-plu
  * une seule chaine lower-case pour la detection par keywords.
  */
 function buildSearchableText(ext: ExtractionOutput): string {
-  return [
+  // Normalisation lowercase + suppression diacritiques pour que
+  // les keywords non accentues capturent les libelles accentues
+  // (santé, énergie, défense). Voir lib/data/text-normalize.ts.
+  return normalizeFrText([
     ext.sector,
     ext.subSector,
     ext.marketPitch,
@@ -160,8 +164,7 @@ function buildSearchableText(ext: ExtractionOutput): string {
     ext.geographicHub,
   ]
     .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
+    .join(' '));
 }
 
 /** Test si la chaine contient au moins un des keywords (substring). */

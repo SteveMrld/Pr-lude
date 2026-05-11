@@ -1,3 +1,5 @@
+import { normalizeFrText } from './text-normalize';
+
 // ============================================================
 // BENCHMARKS SECTORIELS DE VALORISATION
 // ------------------------------------------------------------
@@ -549,7 +551,10 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
  */
 export function normalizeAssetClass(raw: string | null | undefined): string {
   if (!raw) return 'saas-b2b'; // default safe
-  const s = raw.toLowerCase();
+  // Normalisation lowercase + suppression diacritiques. Permet de
+  // matcher indifferemment "Santé", "santé", "sante", "SANTÉ" avec
+  // un seul keyword non accentue. Voir lib/data/text-normalize.ts.
+  const s = normalizeFrText(raw);
 
   // ----- Premium / categorie speciale
   if (s.includes('genai') || s.includes('llm') || s.includes('generative')
@@ -590,7 +595,9 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
     || s.includes('mobilité medicale') || s.includes('mobilite médicale')
     || s.includes('taxi cpam') || s.includes('vsl ')) return 'healthtech';
   if (s.includes('health') || s.includes('medical') || s.includes('digital health')
-    || s.includes('medtech') || s.includes('healthtech')) return 'healthtech';
+    || s.includes('medtech') || s.includes('healthtech')
+    || s.includes('sante') || s.includes('medecine') || s.includes('hopital')
+    || s.includes('clinique') || s.includes('soin')) return 'healthtech';
   if (s.includes('climate') || s.includes('cleantech') || s.includes('greentech')
     || s.includes('energy') || s.includes('decarbonisation') || s.includes('carbon')
     || s.includes('energie') || s.includes('énergie') || s.includes('energies') || s.includes('énergies')
@@ -631,6 +638,7 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
 
   // ----- SaaS / B2B logiciel : par defaut quand on est dans la nuance
   if (s.includes('saas') || s.includes('b2b') || s.includes('software')
+    || s.includes('logiciel') || s.includes('edition logicielle')
     || s.includes('hrtech') || s.includes('legaltech') || s.includes('govtech')) return 'saas-b2b';
 
   return 'saas-b2b'; // fallback safe
