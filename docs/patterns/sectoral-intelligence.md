@@ -34,7 +34,7 @@ injection contextuelle non pas une vague indication "fintech française
 en 2026" mais la fiche sectorielle fintech fraîche, citée, et lisible.
 
 Le second geste, complémentaire, est visuel. La cartographie
-sectorielle se rend en spider chart sobre, sept axes lisibles d un
+sectorielle se rend en spider chart sobre, huit axes lisibles d un
 coup d œil, palette ocre brûlé sur crème, pas de neon ni de gimmick
 SaaS. Cette spider chart n est pas un objet décoratif : c est le
 premier élément d un langage visuel toile d araignée plus large qui
@@ -94,11 +94,13 @@ ou cinq) et la lecture devient grossière, trop d axes (neuf ou plus) et
 le polygone perd toute lisibilité diagnostique. Les axes doivent être
 homogènes en échelle (chacun noté de zéro à cent), doctrinalement
 chargés (pas des KPI d ambiance), et orthogonaux entre eux dans la
-mesure du possible. Sept est le bon nombre, parce qu un heptagone se
-lit bien et que la doctrine couvre naturellement sept tensions
-structurelles distinctes.
+mesure du possible. Huit est le bon nombre, parce qu un octogone
+régulier se lit bien (graduations cardinales nord, sud, est, ouest
+plus quatre diagonales) et que la doctrine Prélude couvre naturellement
+huit tensions structurelles distinctes une fois admise la dimension
+narrative dont l importance s est imposée à l usage.
 
-**Recommandation : sept dimensions standardisées, identiques pour tous
+**Recommandation : huit dimensions standardisées, identiques pour tous
 les secteurs, chacune notée de zéro à cent avec définition fixe et
 auditable.**
 
@@ -162,7 +164,26 @@ salariale, rétention faible). Top chercheurs IA, ingénieurs batterie,
 chirurgiens robotique tirent vers cent, développeurs SaaS B2B
 classique tirent vers quarante.
 
-Ces sept axes ne sont pas exhaustifs des dimensions imaginables d un
+La huitième dimension est **Vulnérabilité narrative sectorielle**.
+Elle mesure la dépendance du secteur à un narratif dominant
+susceptible de s effondrer, et la fragilité du re-pricing qui suivrait
+cet effondrement. Échelle de zéro (narratif sectoriel diversifié,
+plusieurs récits coexistent, l effondrement d un récit n entraînerait
+pas le secteur) à cent (un seul récit dominant porte l intégralité du
+capital et de l attention médiatique, son effondrement produirait un
+re-pricing massif et indifférencié de tous les acteurs). Foodtech 2021
+sur le récit "future of meat" tirait vers quatre-vingt-dix, crypto 2021
+sur "infrastructure financière du futur" tirait vers quatre-vingt-quinze,
+IA appliquée en 2024 sur "transformation économique massive" tire vers
+quatre-vingt-cinq, SaaS horizontal historique tire vers trente parce
+qu il s articule autour de plusieurs récits coexistants (productivity,
+verticalisation, AI-augmentation) sans qu aucun n écrase les autres.
+Cette dimension est par construction la plus mouvante des huit,
+puisque les narratifs sectoriels évoluent à un rythme propre,
+parfois beaucoup plus rapide que les fondamentaux qu ils prétendent
+décrire.
+
+Ces huit axes ne sont pas exhaustifs des dimensions imaginables d un
 secteur, mais ils ont la propriété décisive d alimenter explicitement
 un ou plusieurs moteurs Prélude existants. Intensité capitalistique
 nourrit Fragilité Structurelle (patterns Fixed Cost Trap et Capital
@@ -172,8 +193,12 @@ Commoditization Drift, Tech Claim Coherence et Contrarian. Concentration
 concurrentielle nourrit Market et Blindspot. Cyclicité macroéconomique
 nourrit Macro. Exposition géopolitique nourrit Macro et Infrastructure
 Hostage. Tension capital-talent nourrit Execution Friction et, en early
-stage, Team Engine. Aucun axe sans destinataire, aucun moteur sectoriel
-sans source documentée.
+stage, Team Engine. Vulnérabilité narrative sectorielle nourrit
+Narrative Drift de façon centrale, puisque ce moteur compare le
+discours du dossier au narratif sectoriel ambiant et tire un signal
+particulièrement diagnostique quand un dossier surfe sur un récit
+sectoriel dont la fiche signale qu il est lui-même surévalué. Aucun
+axe sans destinataire, aucun moteur sectoriel sans source documentée.
 
 ### Décision 3 : fréquence de régénération
 
@@ -263,7 +288,7 @@ des raisons opérationnelles (coût, charge API, possibilité d intervention
 manuelle sur une fiche qui sort anormale avant que la suivante ne
 parte) et la comparaison inter-sectorielle reste pertinente à l échelle
 trimestrielle. Chaque régénération d une fiche est une orchestration
-de sept appels LLM (un par dimension) plus un appel final d agrégation
+de huit appels LLM (un par dimension) plus un appel final d agrégation
 qui produit le résumé éditorial. La granularité dimension par dimension
 permet de re-régénérer surgicalement une dimension qui sort anormale
 sans tout refaire.
@@ -277,7 +302,7 @@ qui est négligeable au regard du tarif cible.
 ### Décision 6 : intégration au pipeline
 
 L injection brute de la fiche sectorielle complète dans chaque prompt
-moteur saturerait le contexte (sept blocs descriptifs détaillés plus
+moteur saturerait le contexte (huit blocs descriptifs détaillés plus
 références plus résumé éditorial représentent typiquement quatre à
 six mille tokens). Trois logiques possibles d injection. L injection
 intégrale, lourde et redondante. L injection sélective par dimension
@@ -305,9 +330,16 @@ capitalistique, Cyclicité, Tension capital-talent, plus une mention
 explicite des patterns Phase 4 que ces dimensions activent prioritairement
 (Fixed Cost Trap si intensité haute, Capital Structure Fragility si
 intensité et cyclicité hautes simultanément). Narrative Drift reçoit
-le résumé éditorial sectoriel seul, parce que ce moteur compare le
-discours dossier au narratif sectoriel ambiant et n a pas besoin des
-scores dimensionnels.
+le résumé éditorial sectoriel (récit dominant du secteur au moment de
+l analyse) plus la dimension Vulnérabilité narrative sectorielle avec
+son score, sa définition appliquée et les exemples saillants de
+récits surévalués identifiés par le LLM régénérateur. Cette injection
+est centrale au fonctionnement du moteur Narrative Drift : un dossier
+qui surfe sur un récit dont la fiche signale qu il est lui-même
+fragile (score Vulnérabilité narrative sectorielle supérieur à
+soixante-dix) est plus diagnostique qu un dossier qui surfe sur un
+récit sectoriel diversifié, et le moteur tire de cette différence un
+signal qu il ne pouvait pas produire jusqu ici sans contexte sectoriel.
 
 L overhead total ajouté par l injection sectorielle est de l ordre de
 mille à deux mille tokens par moteur, ce qui reste très en deçà des
@@ -327,7 +359,7 @@ generated_at).
 
 **Recommandation : table dédiée versionnée, historique intégral
 conservé sans suppression.** Le schéma est `sectoral_briefs` avec les
-colonnes sector_slug, generated_at, dimensions JSONB (sept entrées
+colonnes sector_slug, generated_at, dimensions JSONB (huit entrées
 nominatives avec score, définition appliquée, sources citées, niveau de
 confiance), narrative_summary TEXT, regeneration_trigger ENUM (cron,
 manual, event), supersedes_id (référence à la fiche précédente),
@@ -349,18 +381,19 @@ prioritaires sont identifiés à la livraison, avec un objet visuel
 strict pour chacun.
 
 **Usage A, fiche sectorielle isolée.** Un seul polygone tracé sur un
-heptagone, sept axes étiquetés en serif, graduations à 25, 50, 75, 100,
-palette ocre brûlé sur crème stricte. Le polygone est en ligne pleine
-ocre brûlé un et demi pixel d épaisseur, rempli en aplat ocre brûlé à
-douze pour cent d opacité. Les points de mesure sont des cercles pleins
-de trois pixels de diamètre, ocre brûlé. En tête de la fiche, le nom du
-secteur en serif gros corps, sous-titre avec la date de génération et
+octogone régulier, huit axes étiquetés en serif, graduations à 25, 50,
+75, 100, palette ocre brûlé sur crème stricte. Le polygone est en
+ligne pleine ocre brûlé un et demi pixel d épaisseur, rempli en aplat
+ocre brûlé à douze pour cent d opacité. Les points de mesure sont des
+cercles pleins de trois pixels de diamètre, ocre brûlé. En tête de la
+fiche, le nom du secteur en serif gros corps, sous-titre avec la date
+de génération et
 le déclencheur (cron, manuel, événementiel). Sous le spider chart, les
-sept dimensions sont reprises en prose dense avec le score, la
+huit dimensions sont reprises en prose dense avec le score, la
 définition appliquée, les sources citées.
 
 **Usage B, superposition de deux secteurs.** Deux polygones tracés sur
-le même heptagone, l un en ocre brûlé plein, l autre en ocre éteint
+le même octogone, l un en ocre brûlé plein, l autre en ocre éteint
 (version plus claire de la même teinte). Légende sobre en bas à droite
 avec deux carrés de couleur et les noms de secteurs. Aucune utilisation
 de couleurs primaires distinctes, parce que la comparaison doit se
@@ -426,7 +459,7 @@ format réduit (cent cinquante pixels de côté), même palette et même
 typographie que la version pleine, avec mention "Secteur primaire :
 [nom], fiche du [date]". Il est cliquable dans la version web de la
 note et ouvre la fiche complète. En annexe de fin de note, la liste
-exhaustive des sept dimensions avec scores et définitions appliquées,
+exhaustive des huit dimensions avec scores et définitions appliquées,
 plus la liste des sources citées par le LLM régénérateur pour chaque
 dimension, plus un lien permanent vers la version exacte de la fiche
 qui a été consommée par l analyse (URL versionnée du type
@@ -469,7 +502,7 @@ Pro, Lyon Display, Tiempos Text, ou équivalent licencié déjà présent
 dans le projet) est tranché en implémentation. Les graduations
 chiffrées, les unités, et les éléments tabulaires sont en grotesque
 condensée (Söhne Mono Condensed, Inter Condensed, ou équivalent). Le
-choix sert la lisibilité du heptagone : serif pour les éléments
+choix sert la lisibilité de l octogone : serif pour les éléments
 nommés que l œil lit en bloc, grotesque condensée pour les éléments
 chiffrés que l œil scanne. Aucune utilisation de capitales pour les
 labels d axes (l interpolation avec la prose serif de la note s en
@@ -485,12 +518,15 @@ polygone de mesure : un virgule cinq pixel d épaisseur, ligne pleine
 ocre brûlé, fill ocre brûlé à douze pour cent d opacité. Points de
 mesure aux sommets : cercles pleins de trois pixels de diamètre, ocre
 brûlé sans contour. Labels d axes : serif onze pixels, encre, ancrés
-radialement à dix-huit pixels au-delà du sommet de l heptagone, avec
+radialement à dix-huit pixels au-delà du sommet de l octogone, avec
 ajustement d alignement horizontal selon la position cardinale du
 sommet (left si à droite, right si à gauche, center si haut ou bas).
+La rotation de l octogone est calée sur la verticale (un sommet au
+nord et un sommet au sud), pour que la lecture des axes cardinaux
+serve de repère visuel stable.
 
 **Logique de traçage.** Interpolation strictement linéaire entre les
-sept sommets, pas de courbes Bézier, pas de spline. Une interpolation
+huit sommets, pas de courbes Bézier, pas de spline. Une interpolation
 courbe donnerait un faux signal de continuité entre des dimensions qui
 sont par construction discrètes. Antialiasing standard SVG, pas de
 filtre flou, pas d ombre portée. Le rendu doit être net comme une
@@ -592,155 +628,169 @@ dimension reçoivent un flag `dimension_missing: [nom]` dans le prompt
 et le mentionnent dans leur analyse au lieu de fabriquer un score. La
 visualisation honnête d une absence vaut mieux qu un chiffre inventé.
 
-## Propositions Claude Code
+## Propositions Claude Code, arbitrage humain
 
-Section ouverte à discussion, pas de décisions arrêtées. Trois à cinq
-angles auxquels l humain n a pas explicitement pensé et qui rendraient
-le Sectoral Intelligence Layer plus puissant ou plus différenciant.
-L humain valide, rejette ou ajuste avant toute implémentation. Chaque
-proposition porte un rationale doctrinal en deux phrases et un coût
-d implémentation en heures Claude Code. La hiérarchie en valeur ajoutée
-attendue va de haute à exploratoire.
+Cette section a recueilli cinq propositions Claude Code dans la
+première version de la fiche. L arbitrage humain a tranché et la
+section est désormais un journal de décisions, non plus une liste
+ouverte. Les deux propositions retenues ont été absorbées dans le
+corps de la fiche (décisions et périmètre d implémentation), les deux
+suivantes sont mises en backlog avec un déclencheur explicite, la
+cinquième est écartée.
 
-**Proposition 1 (haute valeur). Moteur de lecture inter-sectorielle.**
-Au-delà des fiches isolées, mécanique trimestrielle qui compare les
-treize secteurs entre eux et identifie les patterns systémiques : deux
-secteurs qui dérivent simultanément sur la même dimension (climate et
-mobilité convergent sur "tension capital-talent" suite à pénurie
-d ingénieurs batterie), deux secteurs dont la divergence inattendue
-révèle un déplacement de capital (logiciel horizontal et IA appliquée
-divergent brutalement sur "vélocité technologique"), une dimension qui
-bouge dans plus de la moitié des secteurs (signal macro structurel
-plutôt que sectoriel). Rationale doctrinal : les fragilités les plus
-diagnostiques sont souvent inter-sectorielles, la crise SVB de 2023 a
-frappé tech et biotech ensemble parce qu elles partageaient le même
-profil de dépôt, et un Prélude qui lit le système et pas seulement les
-secteurs isolés capture ces co-mouvements que les outils existants
-manquent. Coût estimé : douze heures pour la mécanique d agrégation et
-le prompt LLM cross-sector, plus quatre heures de pass LLM par cycle
-trimestriel, plus six heures pour l UI dédiée (une vue "État des
-secteurs" dans le dashboard partner).
+**Proposition 1, retenue et intégrée au périmètre d implémentation.**
+Le moteur de lecture inter-sectorielle, qui agrège les treize fiches
+de chaque cycle trimestriel pour produire un brief "État systémique
+des secteurs Prélude", devient un sous-chantier dédié de la phase
+d implémentation (voir section Périmètre ci-dessous). La table
+`inter_sectoral_briefs` et l onglet dashboard partner associé font
+partie du périmètre de la session suivante.
 
-**Proposition 2 (haute valeur). Huitième dimension : Vulnérabilité
-narrative sectorielle.** Une dimension supplémentaire qui mesure la
-dépendance du secteur à un narratif dominant susceptible de s effondrer
-(foodtech 2021 sur "future of meat", crypto 2021 sur "infrastructure
-financière du futur", IA 2024 sur "transformation économique massive",
-proptech 2018 sur "WeWork-comme-techno"). Échelle de zéro (narratif
-secteur diversifié, plusieurs récits coexistent, robustesse à
-l effondrement d un récit) à cent (un seul récit dominant porte
-l intégralité du capital et de l attention médiatique, effondrement de
-ce récit produirait un re-pricing massif). Rationale doctrinal :
-Prélude lit déjà la narrative drift au niveau dossier, la mesurer au
-niveau sectoriel permet de détecter quand un dossier surfe sur un
-narratif sectoriel surévalué dont l effondrement le frappera
-indépendamment de ses propres mérites. Coût estimé : six heures pour
-l ajout de la huitième dimension (définition, intégration au prompt
-régénérateur, propagation au moteur Narrative Drift) plus l implication
-que le spider chart passe à huit axes (octogone), ce qui reste lisible
-mais oblige à reconsidérer la disposition des labels.
+**Proposition 2, retenue et intégrée à la grille standardisée.** La
+huitième dimension Vulnérabilité narrative sectorielle est désormais
+au cœur du module et figure dans la décision 2 (définition complète,
+échelle calibrée) et dans la décision 6 (mapping vers le moteur
+Narrative Drift). Le spider chart passe par conséquent d heptagone à
+octogone régulier dans toutes les sections concernées.
 
-**Proposition 3 (haute valeur). Cross-pollination amont entre
-dimensions sectorielles et matrice de pertinence des patterns Phase 4.**
-Liaison explicite et calibrée entre les scores des dimensions
-sectorielles et la probabilité a priori d activation des patterns
-Phase 4. Une "Intensité capitalistique" haute biaise positivement la
-pertinence du pattern Fixed Cost Trap. Une "Pression réglementaire"
-haute biaise positivement Regulatory Time Bomb. Une "Concentration
-concurrentielle" basse plus "Vélocité technologique" haute biaisent
-positivement Commoditization Drift. Rationale doctrinal : la matrice
-de pertinence actuelle est binaire (un pattern est applicable ou
-n est pas applicable selon le stade et l archetype), une matrice
-graduée par contexte sectoriel rendrait la lecture plus fine et
-permettrait de détecter des fragilités latentes plus tôt (un dossier
-fintech early stage est statistiquement plus exposé à Regulatory
-Time Bomb même si le pattern n est pas formellement déclenché par les
-seuils binaires actuels). Coût estimé : huit heures pour le refactor
-de `lib/engines/relevance-matrix.ts` qui intègre les scores sectoriels
-en input, plus quatre heures de tests sur la suite déterministe pour
-préserver la calibration existante, plus deux heures de documentation
-des nouveaux seuils dans la doctrine.
+**Proposition 3, mise en backlog.** La cross-pollination amont entre
+dimensions sectorielles et matrice de pertinence des patterns Phase 4
+n est pas implémentée dans cette phase. Mention de backlog : nécessite
+une fiche conceptuelle dédiée et une re-calibration LLM des
+vingt-et-un cas de la matrice de pertinence avant implémentation. La
+proposition n est pas écartée doctrinalement, elle est différée parce
+que sa portée structurelle dépasse le périmètre du Sectoral
+Intelligence Layer et touche au cœur du moteur de Fragilité
+Structurelle.
 
-**Proposition 4 (valeur moyenne). L archive sectorielle comme corpus
-public.** Au bout de trois à cinq ans de fiches trimestrielles
-archivées, Prélude détient un corpus unique sur l évolution sectorielle
-européenne, structuré, daté, sourcé, et lisible. Cette archive peut
-devenir un produit dérivé public : rapport trimestriel "État des
-secteurs Prélude" publié en open access, sans aucun verdict de dossier
-client (confidentialité absolue), juste les évolutions agrégées des
-treize secteurs et les patterns inter-sectoriels notables (cf
-proposition 1). Rationale doctrinal : ce positionnement éditorial
-renforce la singularité Prélude face aux outils transactionnels
-(Affinity, Carta) qui ne produisent pas d intelligence sectorielle
-publique, et alimente un canal d acquisition partner crédible (un fonds
-qui lit le rapport trimestriel Prélude prend connaissance de la qualité
-analytique avant même de prendre un rendez-vous commercial). Coût
-estimé : seize heures pour le layout de publication trimestrielle (un
-gabarit éditorial unique réutilisé trimestre après trimestre), plus
-huit heures pour le pipeline de génération éditoriale (orchestrateur
-LLM qui consomme les fiches du trimestre et produit la prose
-synthétique), plus un coût LLM marginal par cycle.
+**Proposition 4, mise en backlog.** L archive sectorielle comme
+corpus public n est pas implémentée dans cette phase. Mention de
+backlog : à déclencher quand l archive sectorielle atteint au moins
+quatre trimestres consécutifs de fiches régénérées, c est-à-dire
+au plus tôt douze mois après la livraison de cette phase. Avant ce
+seuil l archive serait trop courte pour soutenir une publication
+éditoriale crédible et la promesse d une lecture historique
+sectorielle serait creuse.
 
-**Proposition 5 (valeur exploratoire). Quatrième usage du langage
-visuel : spider chart du dossier sur les patterns Phase 4.** Réutiliser
-le module `lib/visuals/spiderweb.ts` pour produire un quatrième usage
-non listé dans la décision 8 : un spider chart par dossier qui
-visualise les sept patterns du moteur Fragilité Structurelle avec
-leurs scores. Le partner voit en un coup d œil sur quels axes le
-dossier respire et sur quels axes il s étrangle. Rationale doctrinal :
-cohérence visuelle entre niveau sectoriel et niveau dossier dans un
-même langage graphique unifié, le partner navigue dans un univers
-visuel cohérent qui renforce la lisibilité de la doctrine Prélude et
-en fait un produit visuellement reconnaissable. Coût estimé : six
-heures pour le composant React qui consomme les scores Fragilité
-Structurelle déjà calculés par le pipeline, plus l intégration dans la
-note d instruction (deux heures) et dans le dashboard (deux heures).
-Hiérarchisé exploratoire et non haute valeur parce que le bénéfice
-diagnostique de cette visualisation est marginal par rapport aux
-verdicts textuels déjà produits par le moteur, mais la cohérence
-visuelle qu il apporte au produit global est significative.
-
-Ces cinq propositions s ajoutent aux dix décisions sectorielles et au
-langage visuel sans en remplacer aucune. Elles peuvent être adoptées
-intégralement, partiellement, ou pas du tout. La propositions 1 et 2
-sont les plus directement complémentaires de la doctrine Prélude (lire
-ce qui est systémique et ce qui est narratif au-delà du visible). La
-proposition 3 est un refactor structurel qui touche la matrice de
-pertinence et mérite à elle seule une fiche de cadrage dédiée si elle
-est retenue. Les propositions 4 et 5 relèvent d enrichissements de
-surface plutôt que de structure.
+**Proposition 5, écartée.** Le quatrième usage du langage visuel
+(spider chart du dossier sur les sept patterns Phase 4) est écarté.
+Mention d arbitrage : le bénéfice diagnostique est marginal par
+rapport aux verdicts textuels déjà produits par le moteur Fragilité
+Structurelle, et la cohérence visuelle entre niveau sectoriel et
+niveau dossier sera obtenue autrement (mini spider chart sectoriel
+en tête de note, et carte des quatorze moteurs en mode "à propos de
+la méthode"). Le module `lib/visuals/spiderweb.ts` reste prévu pour
+servir les trois usages sectoriels et les deux usages futurs
+(cartographie statique des moteurs, animation pendant l analyse),
+sans extension au niveau dossier.
 
 ## Périmètre d implémentation prévu, session suivante
 
 Une fois cette fiche validée, la deuxième session attaque dans cet
 ordre. Migration Supabase, création de `sectoral_briefs` avec ses
-index et ses contraintes. Module `lib/visuals/spiderweb.ts`, helpers
-géométriques et constantes de palette et typographie, puis
-`renderSpiderChart` pour les trois usages prioritaires. Module
-`lib/engines/sectoral-intelligence/` avec le régénérateur LLM,
-l orchestrateur dimension par dimension, et les fetchers par source
-(IMF, World Bank, EUR-Lex, OpenAlex, Arxiv, GitHub, web search).
-Initialisation des treize fiches sectorielles par un premier passage
-LLM complet (coût estimé vingt à trente dollars, durée deux à trois
-heures sur un cycle décalé manuel). Couche d injection au pipeline,
-modification des prompts de Macro, Blindspot, Contrarian, Market,
-Fragility, Narrative Drift pour consommer la fiche sectorielle.
-Composants React de visualisation pour les trois usages (fiche isolée,
-superposition, comparaison temporelle), intégrés au dashboard et à la
-note d instruction. Page admin `/admin/sectoral` pour le déclenchement
-manuel. Cron trimestriel décalé via le job runner déjà en place
-(Vercel Cron ou Inngest, à confirmer en début d implémentation).
-Tests déterministes sur les helpers de spider chart (géométrie,
-interpolation, alignement labels), tests d intégration sur l injection
-au pipeline (un dossier mocké voit bien sa fiche sectorielle injectée
-dans les prompts), audit E2E sur trois dossiers de référence couvrant
-trois secteurs distincts. Le travail est estimé à deux à trois
-semaines de session Claude Code, plusieurs commits tagués
-`feat(sectoral-intelligence)`, calibration finale par une lecture
-partner de trois fiches sectorielles avant ouverture commerciale.
+index et ses contraintes, plus la table associée `inter_sectoral_briefs`
+décrite dans le sous-chantier ci-dessous. Module `lib/visuals/spiderweb.ts`,
+helpers géométriques et constantes de palette et typographie, puis
+`renderSpiderChart` pour les trois usages prioritaires (octogone
+régulier, huit axes). Module `lib/engines/sectoral-intelligence/`
+avec le régénérateur LLM, l orchestrateur dimension par dimension, et
+les fetchers par source (IMF, World Bank, EUR-Lex, OpenAlex, Arxiv,
+GitHub, web search). Initialisation des treize fiches sectorielles
+par un premier passage LLM complet (coût estimé vingt à trente
+dollars, durée deux à trois heures sur un cycle décalé manuel).
+Couche d injection au pipeline, modification des prompts de Macro,
+Blindspot, Contrarian, Market, Fragility, Narrative Drift pour
+consommer la fiche sectorielle. Composants React de visualisation
+pour les trois usages (fiche isolée, superposition, comparaison
+temporelle), intégrés au dashboard et à la note d instruction. Page
+admin `/admin/sectoral` pour le déclenchement manuel. Cron trimestriel
+décalé via le job runner déjà en place (Vercel Cron ou Inngest, à
+confirmer en début d implémentation). Tests déterministes sur les
+helpers de spider chart (géométrie, interpolation, alignement
+labels), tests d intégration sur l injection au pipeline (un dossier
+mocké voit bien sa fiche sectorielle injectée dans les prompts),
+audit E2E sur trois dossiers de référence couvrant trois secteurs
+distincts. Le travail est estimé à deux à trois semaines de session
+Claude Code, plusieurs commits tagués `feat(sectoral-intelligence)`,
+calibration finale par une lecture partner de trois fiches
+sectorielles avant ouverture commerciale.
 
-Les propositions Claude Code de la section 11 sont volontairement
-laissées hors de ce périmètre tant que l humain ne les a pas validées.
+### Sous-chantier dédié, lecture inter-sectorielle systémique
+
+La proposition 1 ayant été retenue, un sous-chantier dédié est intégré
+au périmètre. Sa portée est plus modeste que celle de la fiche
+sectorielle individuelle, mais sa valeur doctrinale est élevée : il
+transforme la couche sectorielle d agrégat de treize fiches isolées en
+lecture systémique du paysage VC européen.
+
+L agrégateur trimestriel est un orchestrateur LLM qui consomme les
+treize fiches du trimestre venant d être régénérées et produit un
+brief inter-sectoriel structuré autour de trois objets analytiques.
+Premier objet, les **convergences** : deux secteurs (ou plus) dont
+les scores sur une même dimension se rapprochent significativement
+entre le trimestre précédent et le trimestre courant, par exemple
+climate et mobilité qui convergent sur tension capital-talent suite à
+une pénurie d ingénieurs batterie partagée, ou fintech et crypto qui
+convergent sur pression réglementaire après une vague législative
+commune. Deuxième objet, les **divergences** : deux secteurs dont les
+scores sur une même dimension s écartent brutalement, par exemple
+logiciel horizontal et IA appliquée qui divergent sur vélocité
+technologique au moment où la rupture des modèles fondation se
+matérialise, signal d un déplacement de capital et d attention.
+Troisième objet, les **patterns macro structurels** : une dimension
+qui bouge dans plus de la moitié des treize secteurs entre deux
+trimestres consécutifs (sept secteurs ou plus dont le score sur une
+dimension donnée évolue de plus de dix points), signal qu il s agit
+moins d une dynamique sectorielle que d un mouvement macroéconomique
+ou géopolitique qui irrigue l ensemble du paysage.
+
+Le brief lui-même se rend en prose éditoriale Le Grand Continent,
+quatre à six mille caractères, structuré en trois sections (une par
+objet analytique), nommant explicitement les secteurs et les
+dimensions concernés et inscrivant chaque signal dans une lecture
+doctrinale courte. Le brief est généré par un appel LLM unique sur
+le modèle Opus, alimenté par les treize fiches sectorielles
+fraîches du trimestre et par le brief du trimestre précédent (pour
+permettre la lecture de continuité).
+
+La table `inter_sectoral_briefs` stocke un brief par trimestre. Schéma :
+generated_at, period_label (par exemple "2026-Q2"), narrative_brief
+TEXT, convergences JSONB (liste structurée des paires de secteurs et
+de la dimension partagée), divergences JSONB (même structure), macro_patterns
+JSONB (dimensions qui ont bougé sur plus de la moitié des secteurs avec
+liste des secteurs concernés), source_briefs JSONB (références aux
+treize fiches sectorielles consommées par génération), generation_metadata
+JSONB (modèle, coût, durée). L historique est conservé sans suppression,
+ce qui constitue à terme une chronologie systémique de quatre briefs
+par an.
+
+Un onglet dédié dans le dashboard partner, libellé "État systémique
+des secteurs", expose le brief courant en lecture complète plus un
+sélecteur de période qui permet de consulter les briefs antérieurs.
+Visuellement, l onglet juxtapose la prose éditoriale et trois objets
+spider chart synthétiques : un par objet analytique (une superposition
+des secteurs convergents sur la dimension concernée, une superposition
+des secteurs divergents, et un agrégat des secteurs touchés par un
+pattern macro). Cette mise en page reprend strictement le langage
+visuel toile d araignée défini plus haut.
+
+Le coût marginal du sous-chantier est faible parce qu il s appuie
+intégralement sur le module sectoriel principal. Estimation : huit
+heures pour l orchestrateur LLM et la table `inter_sectoral_briefs`,
+six heures pour l onglet dashboard, deux heures pour les tests
+déterministes sur la détection des convergences, divergences et
+patterns macro. Le coût LLM est négligeable, un appel Opus
+trimestriel.
+
+### Hors périmètre
+
+Les propositions Claude Code 3, 4 et 5 sont volontairement laissées
+hors du périmètre de cette phase, conformément à l arbitrage humain
+consigné en section précédente. La proposition 3 attend sa fiche
+conceptuelle dédiée et la re-calibration des vingt-et-un cas de la
+matrice de pertinence Phase 4. La proposition 4 attend le seuil de
+quatre trimestres d archive avant d être déclenchée. La proposition 5
+est définitivement écartée.
 
 ## Ce que la fiche laisse explicitement ouvert
 
