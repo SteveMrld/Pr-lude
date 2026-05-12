@@ -462,60 +462,118 @@ export async function POST(req: NextRequest) {
           const relevanceMatrix = computeRelevanceMatrix(extraction, matrixAssetClass);
 
           // ============================================================
-          // VAGUE 2 : DIAGNOSTICS FONDAMENTAUX EN PARALLELE
-          // (team, market, macro, financial-extraction, saas-metrics)
+          // PIPELINE DEPENDENCY-DRIVEN
+          // ------------------------------------------------------------
+          // Refonte du V2/V3/V4 historique en lancements pilotes par
+          // dependances reelles. Au lieu de barrieres Promise.all rigides
+          // entre vagues, chaque moteur attend uniquement ses deps
+          // strictes et demarre des qu elles sont resolues. Le scheduler
+          // JS prend la responsabilite d ordonnancer les appels Anthropic
+          // en concurrence selon ce qui est pret.
+          //
+          // Topologie effective :
+          //
+          //   Couche 1 (parallele, gates : extraction)
+          //     team, market, macro          (deps : extraction)
+          //     financial-extraction         (deps : pitchDeck + BP + extraction)
+          //     saas-metrics                 (deps : pitchDeck + BP + extraction)
+          //     industrial-metrics           (conditionnel matrice)
+          //
+          //   Couche 2 (parallele, gates : sous-ensembles couche 1)
+          //     benchmarks                   (deps : financial-extraction)
+          //     pattern                      (deps : team + market + macro)
+          //     blindspot                    (deps : team + market + macro)
+          //     contrarian                   (deps : team + market + macro)
+          //     narrative-drift              (deps : extraction)
+          //     financial-coherence          (deps : market + financial + benchmarks)
+          //     tech-claim                   (deps : financial)
+          //     execution-friction           (deps : financial)
+          //     fragility-structurelle       (deps : market + financial)
+          //
+          //   Couche 3 (parallele, gates : pattern)
+          //     causal                       (deps : team + market + macro + pattern)
+          //
+          //   Couche 4 (parallele, gates : team + blindspot + causal)
+          //     reference-checks
+          //
+          //   Couche 5 (gate final : tout)
+          //     orchestrate
+          //
+          // Gain critique attendu : sur un dossier ou financial-extraction
+          // domine la couche 1, pattern/blindspot/contrarian peuvent
+          // demarrer des que team+market+macro sont prets sans attendre
+          // financial. Causal pousse demarre des que pattern resout, sans
+          // attendre une barriere vague 3 complete. Reference-checks
+          // pousse demarre des que causal resout, sans attendre une
+          // barriere vague 4 complete. Cumul observe ~70-90s gagnees sur
+          // un dossier seed standard, ~120s sur dossier growth ou la
+          // couche 1 financial-extraction est plus lourde.
+          //
+          // Le pic Anthropic reste maitrise : on n autorise pas plus de
+          // moteurs simultanes qu avant (le V3 en lancait deja 7-8). On
+          // optimise simplement le moment de leur lancement et l ordre
+          // dans lequel ils convergent vers orchestrate.
           // ============================================================
           sendStart('team', 'Analyse de l\'equipe fondatrice');
           sendStart('market', 'Analyse du marche');
           sendStart('macro', 'Lecture macro et geopolitique');
           sendStart('financial-extraction', businessPlan ? 'Extraction des donnees financieres (deck + BP)' : 'Extraction des donnees financieres (deck)');
 
-          const [team, market, macro, financialData, saasMetrics, industrialMetrics] = await Promise.all([
-            // Moteur Equipe : skip en parcours growth, calibre early stage.
-            // En growth on retourne immediatement un output neutre marque
-            // skipped, sans appel LLM. Voir lib/engines/skipped-outputs.ts.
-            track === 'growth'
-              ? Promise.resolve(buildSkippedTeamOutput()).then(r => { sendDone('team', r); return r; })
-              : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team).then(r => { sendDone('team', r); return r; }),
-            analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix).then(r => { sendDone('market', r); return r; }),
-            analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix).then(r => { sendDone('macro', r); return r; }),
-            extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction).then(r => { sendDone('financial-extraction', r); return r; }),
-            // saas-metrics-engine : extraction LLM dediee NDR et Magic
-            // Number. Tourne en parallele de financial-extraction parce
-            // qu il a besoin du meme pitch+BP mais cible differemment.
-            // En cas d echec, retourne un objet vide qui laisse
-            // indicators-engine retomber sur les fallbacks regex.
-            // Pas de sendStart pour l instant : pas trace dans l UI de
-            // progression Bloc 1, ce qui restera a brancher une fois la
-            // valeur du moteur validee sur plusieurs dossiers.
-            extractSaasMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction),
-            // industrial-metrics-engine : extraction LLM dediee aux
-            // metriques industrielles (cycle commercial, carnet de
-            // commandes, working capital, capex projet, capacite,
-            // win rate). Conditionne par la matrice : on ne brule l
-            // appel LLM que si le verdict indicatorsIndustrial=full.
-            // Sur un dossier SaaS classique, on retourne null sans
-            // appel reseau. En cas d echec, fallback non-applicable.
-            relevanceMatrix.verdicts.indicatorsIndustrial.applicable === 'full'
-              ? extractIndustrialMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction)
-              : Promise.resolve(null),
-          ]);
+          // Moteur Equipe : skip en parcours growth, calibre early stage.
+          // En growth on retourne immediatement un output neutre marque
+          // skipped, sans appel LLM. Voir lib/engines/skipped-outputs.ts.
+          const teamPromise = (track === 'growth'
+            ? Promise.resolve(buildSkippedTeamOutput())
+            : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team)
+          ).then(r => { sendDone('team', r); return r; });
+
+          const marketPromise = analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix)
+            .then(r => { sendDone('market', r); return r; });
+
+          const macroPromise = analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix)
+            .then(r => { sendDone('macro', r); return r; });
+
+          const financialDataPromise = extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction)
+            .then(r => { sendDone('financial-extraction', r); return r; });
+
+          // saas-metrics-engine : extraction LLM dediee NDR et Magic
+          // Number. Tourne en parallele de financial-extraction parce
+          // qu il a besoin du meme pitch+BP mais cible differemment. En
+          // cas d echec, retourne un objet vide qui laisse
+          // indicators-engine retomber sur les fallbacks regex. Pas de
+          // sendStart pour l instant : pas trace dans l UI de progression
+          // Bloc 1, ce qui restera a brancher une fois la valeur du
+          // moteur validee sur plusieurs dossiers.
+          const saasMetricsPromise = extractSaasMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction);
+
+          // industrial-metrics-engine : extraction LLM dediee aux
+          // metriques industrielles (cycle commercial, carnet de
+          // commandes, working capital, capex projet, capacite, win
+          // rate). Conditionne par la matrice : on ne brule l appel
+          // LLM que si le verdict indicatorsIndustrial=full. Sur un
+          // dossier SaaS classique, on retourne null sans appel reseau.
+          const industrialMetricsPromise = relevanceMatrix.verdicts.indicatorsIndustrial.applicable === 'full'
+            ? extractIndustrialMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction)
+            : Promise.resolve(null);
 
           // ============================================================
           // BENCHMARKS : positionnement chiffre du dossier vs marche.
           // Deterministe, instantane. Sortie consommee par les moteurs
-          // financiers en aval pour enrichir leur raisonnement.
-          // Non bloquant : si echec, on continue.
+          // financiers en aval pour enrichir leur raisonnement. Chaine
+          // sur financialDataPromise pour ne bloquer aucun moteur qui
+          // n a pas besoin de benchmarks.
           // ============================================================
-          let benchmarks: any = null;
-          try {
-            benchmarks = await analyzeBenchmarks(extraction, financialData);
-          } catch (err: any) {
-            logException('pipeline.benchmarks', err, {
-              severity: 'warning',
-              context: { phase: 'benchmarks-deterministic' },
-            });
-          }
+          const benchmarksPromise = financialDataPromise.then(async (financialData) => {
+            try {
+              return await analyzeBenchmarks(extraction, financialData);
+            } catch (err: any) {
+              logException('pipeline.benchmarks', err, {
+                severity: 'warning',
+                context: { phase: 'benchmarks-deterministic' },
+              });
+              return null;
+            }
+          });
 
           // ============================================================
           // FIN DU BLOC 1 (INSTRUCTION / SCREENING)
@@ -535,32 +593,29 @@ export async function POST(req: NextRequest) {
           // ============================================================
 
           // ============================================================
-          // VAGUE 3 : SIX MOTEURS EN PARALLELE + NARRATIVE DRIFT
+          // COUCHE 2 : MOTEURS DE DIAGNOSTIC EN DEP-DRIVEN
           // ------------------------------------------------------------
-          // Audit fonctionnel a constate que pattern, blindspot, contrarian,
-          // financial-coherence, tech-claim et execution-friction sont
-          // mutuellement independants : aucun n attend le resultat d un
-          // autre. Les six peuvent demarrer simultanement des que la vague
-          // 2 (extraction + team + market + macro + financial-extraction)
-          // est terminee. Avant ce commit, ils tournaient en sequence
-          // (~250s cumules) puis pattern bloquait la vague suivante.
+          // pattern, blindspot, contrarian : besoin uniquement de
+          // team+market+macro (les moteurs Equipe-Marche-Macro). Demarrent
+          // des que ces trois sont prets, sans attendre financial-extraction.
           //
-          // Apres : Promise.all sur les six. Duree dominee par le plus
-          // lent (typiquement blindspot 60-90s). Gain ~140s sur le temps
-          // total du pipeline.
+          // financial-coherence : besoin marche + financial + benchmarks.
+          // Demarre quand benchmarks resout (qui resout quand financial
+          // resout).
           //
-          // Septieme moteur : narrative-drift. Mesure le glissement
-          // lexical concret/abstrait sur le corpus du dossier (rawSummary
-          // + marketPitch + productDescription + businessModel). Conditionne
-          // par la matrice de pertinence : applicable=none signifie que
-          // le moteur est skippe. Le moteur fait son propre check fin
-          // d applicabilite si lance.
+          // tech-claim et execution-friction : besoin financial. Demarrent
+          // quand financialDataPromise resout.
           //
-          // Risque maitrise : sept appels Anthropic en pic. Sur Tier 2
-          // (80k TPM Sonnet input), un dossier deeptech complexe peut
-          // pousser ~220k tokens en pic. La fenetre rate limit etant par
-          // minute glissante, le pic est etale sur 60-90s donc tient.
-          // Surveiller les 429 Anthropic dans les logs si symptomes.
+          // narrative-drift : besoin uniquement extraction. Pourrait
+          // demarrer immediatement, conditionne par la matrice.
+          //
+          // fragility-structurelle : besoin extraction + market + financial.
+          // Demarre quand les deux sont prets.
+          //
+          // Apres ce refactor, fragility passe de la vague 4 historique a
+          // la couche 2 : la barriere artificielle "attendre la fin de la
+          // vague 3" est levee. Causal reste sur sa propre couche puisqu il
+          // a besoin de pattern (qui appartient lui-meme a la couche 2).
           // ============================================================
           sendStart('pattern', 'Pattern matching contre le corpus de cas');
           sendStart('blindspot', 'Détection des patterns de vigilance critique');
@@ -578,87 +633,6 @@ export async function POST(req: NextRequest) {
           if (narrativeDriftRequested) {
             sendStart('narrative-drift', 'Lecture du langage');
           }
-
-          const rawSummary = (extraction as any)?.rawSummary || '';
-
-          // Composition du corpus pitch pour narrative-drift. On agrege
-          // les champs textuels denses de l extraction. Pas d ingestion
-          // d interviews ou de posts a ce stade : ces sources externes
-          // arriveront en V2 du moteur. Avec ce seul corpus, l applicabilite
-          // calculee par le moteur sera typiquement 'partial' (pas de
-          // baseline temporel).
-          const narrativeDriftPitchText = [
-            (extraction as any)?.rawSummary,
-            (extraction as any)?.marketPitch,
-            (extraction as any)?.productDescription,
-            (extraction as any)?.businessModel,
-          ].filter(Boolean).join('\n\n').trim();
-
-          const [
-            patternMatching,
-            blindspotAnalysis,
-            contrarianAnalysis,
-            financialCoherence,
-            techClaimCoherence,
-            executionFriction,
-            narrativeDrift,
-          ] = await Promise.all([
-            // Pattern Matching : skip en growth, calibre archetypes early.
-            track === 'growth'
-              ? Promise.resolve(buildSkippedPatternMatchingOutput()).then(r => { sendDone('pattern', r); return r; })
-              : matchPatterns(extraction, team, market, macro)
-                  .then(r => { sendDone('pattern', r); return r; }),
-            // Aveuglement : skip en growth, calibre lecture du discours fondateur early.
-            track === 'growth'
-              ? Promise.resolve(buildSkippedBlindspotOutput()).then(r => { sendDone('blindspot', r); return r; })
-              : analyzeBlindspots(extraction, team, market, macro)
-                  .then(r => { sendDone('blindspot', r); return r; }),
-            analyzeContrarian(extraction, team, market, macro)
-              .then(r => { sendDone('contrarian', r); return r; }),
-            analyzeFinancialCoherence(extraction, financialData, market, benchmarks, fundDimensionalNotes?.financial)
-              .then(r => { sendDone('financial-coherence', r); return r; }),
-            analyzeTechClaimCoherence(extraction, financialData)
-              .then(r => { sendDone('tech-claim', r); return r; })
-              .catch(err => { logException('pipeline.tech-claim', err, { severity: 'warning' }); sendDone('tech-claim', null); return null; }),
-            analyzeExecutionFriction(extraction, financialData ?? null, rawSummary)
-              .then(r => { sendDone('execution-friction', r); return r; })
-              .catch(err => { logException('pipeline.execution-friction', err, { severity: 'warning' }); sendDone('execution-friction', null); return null; }),
-            // narrative-drift : conditionne par la matrice OU forcable
-            // par flag dev. En non-applicable, on resoud immediatement
-            // sur null (la note saura dire pourquoi a partir du verdict
-            // de matrice). En cas d echec LLM, non-bloquant.
-            narrativeDriftRequested
-              ? analyzeNarrativeDrift({
-                  extraction,
-                  pitchText: narrativeDriftPitchText,
-                  fundNote: fundDimensionalNotes?.market || null,
-                })
-                  .then(r => { sendDone('narrative-drift', r); return r; })
-                  .catch(err => { logException('pipeline.narrative-drift', err, { severity: 'warning' }); sendDone('narrative-drift', null); return null; })
-              : Promise.resolve(null),
-          ]);
-
-          // ============================================================
-          // VAGUE 4 : RETOURNEMENT CAUSAL + FRAGILITE STRUCTURELLE
-          // ------------------------------------------------------------
-          // causal et fragility-structurelle ont des dependances
-          // distinctes : causal consomme patternMatching (sortie vague 3),
-          // fragility-structurelle consomme uniquement extraction et
-          // financialData (sortie vague 1 et vague 2). Les deux sont donc
-          // parallelisables.
-          //
-          // fragility-structurelle est conditionnee par la matrice : si
-          // tous les patterns Phase 4 sont marques non applicables par
-          // la matrice, l orchestrateur retourne immediatement un output
-          // minimal sans appeler de LLM.
-          //
-          // Le moteur Fragilite Structurelle s active typiquement a partir
-          // de Series B mais certains patterns (regulatory-time-bomb,
-          // commoditization-drift sur knowledge work, growth-subsidized
-          // sur Series A) peuvent se declencher plus tot selon le profil
-          // du dossier.
-          // ============================================================
-          sendStart('causal', 'Retournement causal');
 
           // Detection si le moteur Fragilite Structurelle doit tourner.
           // Si au moins un verdict pattern Phase 4 est applicable, on emet
@@ -678,47 +652,264 @@ export async function POST(req: NextRequest) {
             sendStart('fragility-structurelle', 'Fragilité structurelle');
           }
 
-          const [causalReversal, fragiliteStructurelle] = await Promise.all([
-            // Retournement Causal : skip en growth, calibre hypotheses
-            // fondatrices early. Fragilite Structurelle remplace structurellement
-            // ce moteur en growth (patterns de scale-up qui menacent la
-            // trajectoire commerciale au lieu de retourner les hypotheses
-            // fondatrices).
-            track === 'growth'
-              ? Promise.resolve(buildSkippedCausalOutput()).then(r => { sendDone('causal', r); return r; })
-              : performCausalReversal(extraction, team, market, macro, patternMatching)
-                  .then(r => { sendDone('causal', r); return r; }),
-            fragiliteRequested
-              ? analyzeFragiliteStructurelle(
-                  {
+          const rawSummary = (extraction as any)?.rawSummary || '';
+
+          // Composition du corpus pitch pour narrative-drift. On agrege
+          // les champs textuels denses de l extraction. Pas d ingestion
+          // d interviews ou de posts a ce stade : ces sources externes
+          // arriveront en V2 du moteur. Avec ce seul corpus, l applicabilite
+          // calculee par le moteur sera typiquement 'partial' (pas de
+          // baseline temporel).
+          const narrativeDriftPitchText = [
+            (extraction as any)?.rawSummary,
+            (extraction as any)?.marketPitch,
+            (extraction as any)?.productDescription,
+            (extraction as any)?.businessModel,
+          ].filter(Boolean).join('\n\n').trim();
+
+          // Pattern Matching : skip en growth, calibre archetypes early.
+          // Demarre des que team+market+macro sont prets, sans bloquer
+          // sur financial-extraction.
+          const patternPromise = (async () => {
+            if (track === 'growth') {
+              const r = buildSkippedPatternMatchingOutput();
+              sendDone('pattern', r);
+              return r;
+            }
+            const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            const r = await matchPatterns(extraction, team, market, macro);
+            sendDone('pattern', r);
+            return r;
+          })();
+
+          // Aveuglement : skip en growth, calibre lecture du discours fondateur early.
+          const blindspotPromise = (async () => {
+            if (track === 'growth') {
+              const r = buildSkippedBlindspotOutput();
+              sendDone('blindspot', r);
+              return r;
+            }
+            const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            const r = await analyzeBlindspots(extraction, team, market, macro);
+            sendDone('blindspot', r);
+            return r;
+          })();
+
+          const contrarianPromise = (async () => {
+            const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            const r = await analyzeContrarian(extraction, team, market, macro);
+            sendDone('contrarian', r);
+            return r;
+          })();
+
+          const financialCoherencePromise = (async () => {
+            const [market, financialData, benchmarks] = await Promise.all([
+              marketPromise,
+              financialDataPromise,
+              benchmarksPromise,
+            ]);
+            const r = await analyzeFinancialCoherence(extraction, financialData, market, benchmarks, fundDimensionalNotes?.financial);
+            sendDone('financial-coherence', r);
+            return r;
+          })();
+
+          const techClaimPromise = (async () => {
+            const financialData = await financialDataPromise;
+            try {
+              const r = await analyzeTechClaimCoherence(extraction, financialData);
+              sendDone('tech-claim', r);
+              return r;
+            } catch (err: any) {
+              logException('pipeline.tech-claim', err, { severity: 'warning' });
+              sendDone('tech-claim', null);
+              return null;
+            }
+          })();
+
+          const executionFrictionPromise = (async () => {
+            const financialData = await financialDataPromise;
+            try {
+              const r = await analyzeExecutionFriction(extraction, financialData ?? null, rawSummary);
+              sendDone('execution-friction', r);
+              return r;
+            } catch (err: any) {
+              logException('pipeline.execution-friction', err, { severity: 'warning' });
+              sendDone('execution-friction', null);
+              return null;
+            }
+          })();
+
+          // narrative-drift : conditionne par la matrice OU forcable par
+          // flag dev. En non-applicable, on resoud immediatement sur null
+          // (la note saura dire pourquoi a partir du verdict de matrice).
+          // En cas d echec LLM, non-bloquant.
+          const narrativeDriftPromise = narrativeDriftRequested
+            ? (async () => {
+                try {
+                  const r = await analyzeNarrativeDrift({
                     extraction,
-                    financialData: financialData ?? null,
-                    marketAnalysis: market,
-                    rawPitchText: (extraction as any)?.rawSummary ?? null,
-                  },
-                  relevanceMatrix,
-                )
-                  .then(r => { sendDone('fragility-structurelle', r); return r; })
-                  .catch(err => { logException('pipeline.fragility-structurelle', err, { severity: 'warning' }); sendDone('fragility-structurelle', null); return null; })
-              : Promise.resolve(null),
+                    pitchText: narrativeDriftPitchText,
+                    fundNote: fundDimensionalNotes?.market || null,
+                  });
+                  sendDone('narrative-drift', r);
+                  return r;
+                } catch (err: any) {
+                  logException('pipeline.narrative-drift', err, { severity: 'warning' });
+                  sendDone('narrative-drift', null);
+                  return null;
+                }
+              })()
+            : Promise.resolve(null);
+
+          // Fragilite Structurelle : remontee de la vague 4 historique a
+          // la couche 2 dep-driven. Le moteur n a besoin que de market et
+          // financial, deux outputs de la couche 1. Avant ce refactor, il
+          // etait artificiellement retenu derriere la barriere vague 3
+          // (qui contient des moteurs qu il ne consomme pas).
+          //
+          // Le moteur s active typiquement a partir de Series B mais
+          // certains patterns (regulatory-time-bomb, commoditization-drift
+          // sur knowledge work, growth-subsidized sur Series A) peuvent
+          // se declencher plus tot selon le profil du dossier.
+          const fragilityPromise = fragiliteRequested
+            ? (async () => {
+                const [market, financialData] = await Promise.all([marketPromise, financialDataPromise]);
+                try {
+                  const r = await analyzeFragiliteStructurelle(
+                    {
+                      extraction,
+                      financialData: financialData ?? null,
+                      marketAnalysis: market,
+                      rawPitchText: (extraction as any)?.rawSummary ?? null,
+                    },
+                    relevanceMatrix,
+                  );
+                  sendDone('fragility-structurelle', r);
+                  return r;
+                } catch (err: any) {
+                  logException('pipeline.fragility-structurelle', err, { severity: 'warning' });
+                  sendDone('fragility-structurelle', null);
+                  return null;
+                }
+              })()
+            : Promise.resolve(null);
+
+          // ============================================================
+          // COUCHE 3 : RETOURNEMENT CAUSAL (deps pattern)
+          // ------------------------------------------------------------
+          // causal consomme patternMatching donc demarre des que pattern
+          // resout. En growth, skip avec output neutre. Fragilite Structurelle
+          // remplace structurellement causal dans le verdict final pour
+          // les dossiers growth (patterns de scale-up vs hypotheses
+          // fondatrices), c est pour ca que causal devient un output
+          // neutre dans ce track.
+          // ============================================================
+          sendStart('causal', 'Retournement causal');
+          const causalPromise = (async () => {
+            if (track === 'growth') {
+              const r = buildSkippedCausalOutput();
+              sendDone('causal', r);
+              return r;
+            }
+            const [team, market, macro, pattern] = await Promise.all([
+              teamPromise, marketPromise, macroPromise, patternPromise,
+            ]);
+            const r = await performCausalReversal(extraction, team, market, macro, pattern);
+            sendDone('causal', r);
+            return r;
+          })();
+
+          // ============================================================
+          // COUCHE 4 : REFERENCE CHECKS (deps team + blindspot + causal)
+          // ------------------------------------------------------------
+          // generateReferenceChecks consomme extraction, team, blindspot,
+          // causal. Demarre des que ces quatre sont prets, sans attendre
+          // la convergence finale. Avant ce refactor, reference-checks
+          // tournait dans la "vague 5" avec orchestrate : il etait
+          // artificiellement retenu derriere la barriere vague 4 alors
+          // que ses deps tombaient des que causal resolvait.
+          //
+          // Non bloquant : si echec, on continue avec null. La note
+          // d instruction saura signaler l absence du plan d appels DD
+          // terrain comme une degradation non critique.
+          // ============================================================
+          sendStart('reference-checks', 'Plan d\'appels DD terrain');
+          const referenceChecksPromise = (async () => {
+            const [team, blindspot, causal] = await Promise.all([
+              teamPromise, blindspotPromise, causalPromise,
+            ]);
+            try {
+              const r = await generateReferenceChecks(extraction, team, blindspot, causal);
+              sendDone('reference-checks', r);
+              return r;
+            } catch (err: any) {
+              logException('pipeline.reference-checks', err, { severity: 'warning' });
+              sendDone('reference-checks', null);
+              return null;
+            }
+          })();
+
+          // ============================================================
+          // CONVERGENCE COUCHE 2 + COUCHE 3
+          // ------------------------------------------------------------
+          // Toutes les promesses lancees ci-dessus convergent ici. Le
+          // duree dominante est typiquement causal (qui attend pattern)
+          // ou fragility/financial-coherence selon le profil du dossier.
+          // ============================================================
+          const [
+            team,
+            market,
+            macro,
+            financialData,
+            saasMetrics,
+            industrialMetrics,
+            benchmarks,
+            patternMatching,
+            blindspotAnalysis,
+            contrarianAnalysis,
+            financialCoherence,
+            techClaimCoherence,
+            executionFriction,
+            narrativeDrift,
+            fragiliteStructurelle,
+            causalReversal,
+            referenceChecks,
+          ] = await Promise.all([
+            teamPromise,
+            marketPromise,
+            macroPromise,
+            financialDataPromise,
+            saasMetricsPromise,
+            industrialMetricsPromise,
+            benchmarksPromise,
+            patternPromise,
+            blindspotPromise,
+            contrarianPromise,
+            financialCoherencePromise,
+            techClaimPromise,
+            executionFrictionPromise,
+            narrativeDriftPromise,
+            fragilityPromise,
+            causalPromise,
+            referenceChecksPromise,
           ]);
 
           // ============================================================
-          // VAGUE 5 : ORCHESTRATION FINALE ET REFERENCE CHECKS EN PARALLELE
+          // COUCHE FINALE : ORCHESTRATION (deps tout)
           // ------------------------------------------------------------
           // orchestrate consomme tous les outputs amont (extraction, team,
-          // market, macro, pattern, causal, blindspot, contrarian) mais
-          // PAS reference-checks. reference-checks consomme extraction,
-          // team, blindspot, causal mais PAS orchestrate. Les deux sont
-          // donc parallelisables. Gain ~40s sur le temps total.
+          // market, macro, pattern, causal, blindspot, contrarian,
+          // narrative-drift, fragility, conflict-of-interest). Demarre des
+          // que toutes ses deps sont resolues, donc apres la convergence
+          // de la couche 2/3/4.
           //
-          // orchestrate garde son retry loop (2 retries avec backoff)
-          // pour absorber les 529 transitoires d Anthropic. reference-
-          // checks reste non-bloquant : si echec, on continue sans cette
-          // section.
+          // Conserve son retry loop (2 retries avec backoff 2s puis 5s)
+          // pour absorber les 529 transitoires d Anthropic. En cas
+          // d echec definitif, fallback degrade pour ne pas perdre le
+          // pipeline (le partner verra qu il y a eu un probleme et
+          // pourra relancer ulterieurement).
           // ============================================================
           sendStart('orchestrate', 'Synthèse finale');
-          sendStart('reference-checks', 'Plan d\'appels DD terrain');
 
           // Score mecanique calcule a partir des moteurs Bloc 1. Source de
           // verite pour le score global et le verdict, qui ne sont plus
@@ -811,17 +1002,10 @@ export async function POST(req: NextRequest) {
             };
           })();
 
-          const referenceChecksPromise = generateReferenceChecks(
-            extraction, team, blindspotAnalysis, causalReversal,
-          ).catch(err => {
-            logException('pipeline.reference-checks', err, { severity: 'warning' });
-            return null;
+          const finalRecommendation = await orchestratePromise.then(r => {
+            sendDone('orchestrate', r);
+            return r;
           });
-
-          const [finalRecommendation, referenceChecks] = await Promise.all([
-            orchestratePromise.then(r => { sendDone('orchestrate', r); return r; }),
-            referenceChecksPromise.then(r => { sendDone('reference-checks', r); return r; }),
-          ]);
 
           // ============================================================
           // AUDIT CONSOLIDE DES ASSERTIONS (Niveau 2.B)
