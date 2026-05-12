@@ -139,6 +139,13 @@ export interface AnalysisSummary {
    * charger result_json a chaque list.
    */
   hasBloc2: boolean;
+  /**
+   * True si le partner a marque le dossier comme detenu en portefeuille
+   * du fonds. Active la re-analyse automatique tous les six mois et le
+   * dispatch des alertes de trajectoire vers le proprietaire du dossier.
+   * Voir supabase-in-portfolio-schema.sql.
+   */
+  inPortfolio: boolean;
 }
 
 /**
@@ -484,6 +491,7 @@ export async function listAnalyses(
         year_founded, round_type, round_amount_eur,
         verdict, verdict_confidence, global_score, blindspot_score,
         contrarian_score, coherence_score, user_notes, has_bloc2,
+        in_portfolio,
         created_at, updated_at
       `)
       .eq('user_id', userId)
@@ -692,6 +700,91 @@ export async function updateAnalysisNotes(
 }
 
 // ============================================================
+// PORTFOLIO TAG
+// ------------------------------------------------------------
+// Bascule le flag in_portfolio sur un dossier. Le booleen pilote
+// l eligibilite du dossier au cron de re-analyse automatique tous
+// les six mois et au dispatch des alertes de trajectoire vers le
+// partner proprietaire. Voir supabase-in-portfolio-schema.sql et
+// lib/cron/portfolio-reanalysis-selector.ts pour la doctrine.
+// ============================================================
+
+export async function setAnalysisPortfolioFlag(
+  id: string,
+  inPortfolio: boolean,
+): Promise<boolean> {
+  if (!isPersistenceEnabled()) return false;
+
+  try {
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return false;
+    const supabase = getClient(useAdminClient);
+
+    const { error } = await supabase
+      .from('analyses')
+      .update({ in_portfolio: inPortfolio })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[analysis-store] setAnalysisPortfolioFlag erreur :', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[analysis-store] setAnalysisPortfolioFlag exception :', err);
+    return false;
+  }
+}
+
+/**
+ * Liste les dossiers in-portfolio de tous les users (mode admin
+ * cron). Sert au selecteur d eligibilite pour la re-analyse auto :
+ * on charge la liste plate, on enrichit avec le dernier snapshot
+ * trajectoire, on filtre par anciennete. Bypasse RLS via le client
+ * admin parce que le cron doit voir tous les fonds.
+ *
+ * Retourne le minimum necessaire au selecteur : id, user_id,
+ * company_name, source_text (pour la re-analyse), updated_at. Le
+ * cron n a pas besoin du result_json complet ici, il le chargera
+ * a la demande pour chaque dossier qu il decide de re-instruire.
+ */
+export interface PortfolioCandidate {
+  id: string;
+  userId: string;
+  companyName: string;
+  inPortfolio: boolean;
+  /** Date de creation initiale du dossier. */
+  createdAt: string;
+}
+
+export async function listAllInPortfolioAnalyses(): Promise<PortfolioCandidate[]> {
+  if (!isPersistenceEnabled()) return [];
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from('analyses')
+      .select('id, user_id, company_name, in_portfolio, created_at')
+      .eq('in_portfolio', true);
+
+    if (error) {
+      console.error('[analysis-store] listAllInPortfolioAnalyses erreur :', error);
+      return [];
+    }
+    return (data || []).map((r: any) => ({
+      id: r.id,
+      userId: r.user_id,
+      companyName: r.company_name,
+      inPortfolio: r.in_portfolio === true,
+      createdAt: r.created_at,
+    }));
+  } catch (err) {
+    console.error('[analysis-store] listAllInPortfolioAnalyses exception :', err);
+    return [];
+  }
+}
+
+// ============================================================
 // STATS
 // ============================================================
 
@@ -779,6 +872,7 @@ function rowToSummary(row: any): AnalysisSummary {
     versionsCount: 0,
     openCommentsCount: 0,
     hasBloc2: row.has_bloc2 === true,
+    inPortfolio: row.in_portfolio === true,
   };
 }
 

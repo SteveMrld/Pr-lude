@@ -2897,6 +2897,17 @@ export default function HomeClient({
               <AnnotationBlock analysisId={savedAnalysisId} />
             )}
 
+            {/* TAG IN-PORTFOLIO : declenche le monitoring continu du Score
+                de Trajectoire. Une fois coche, le dossier est re-instruit
+                automatiquement tous les six mois par le cron portfolio, et
+                les alertes crans 1 a 3 issues de la comparaison snapshot
+                a snapshot sont envoyees par email au partner proprietaire.
+                Voir lib/cron/portfolio-reanalysis-selector.ts et
+                lib/trajectory-notifications.ts pour la doctrine. */}
+            {savedAnalysisId && (
+              <PortfolioTagBlock analysisId={savedAnalysisId} />
+            )}
+
             {/* En mode normal: bascule selon viewMode. En mode print: rend dashboard + note en cascade. */}
             {(viewMode === 'note' && !printMode) ? (
               <InvestmentNoteView
@@ -6238,6 +6249,123 @@ function AnnotationBlock({ analysisId }: { analysisId: string }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// PORTFOLIO TAG BLOCK
+// ------------------------------------------------------------
+// Case a cocher qui marque le dossier comme detenu en portefeuille
+// du fonds. Le tag active le monitoring continu du Score de
+// Trajectoire : re-analyse automatique tous les six mois par le
+// cron portfolio, et dispatch des alertes crans 1 a 3 au partner
+// proprietaire via le module trajectory-notifications.
+//
+// Sobriete editoriale : voix Le Grand Continent. Une seule phrase
+// d explication, pas de bouton CTA proeminent, le tag se coche
+// silencieusement comme on annote en marge.
+// ============================================================
+function PortfolioTagBlock({ analysisId }: { analysisId: string }) {
+  const [inPortfolio, setInPortfolio] = useState<boolean>(false);
+  const [loaded, setLoaded] = useState<boolean>(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/analyses/${analysisId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setInPortfolio(Boolean(data?.analysis?.inPortfolio));
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [analysisId]);
+
+  const handleToggle = async (next: boolean) => {
+    setSaveState('saving');
+    setInPortfolio(next);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inPortfolio: next }),
+      });
+      if (res.ok) {
+        setSaveState('saved');
+        setTimeout(() => setSaveState('idle'), 2000);
+      } else {
+        setSaveState('error');
+        setInPortfolio(!next);
+      }
+    } catch {
+      setSaveState('error');
+      setInPortfolio(!next);
+    }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div style={{
+      margin: '20px 0',
+      background: 'var(--surface)',
+      border: '1px solid var(--hairline)',
+      padding: '14px 20px',
+    }}>
+      <label style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 12,
+        cursor: 'pointer',
+        userSelect: 'none',
+      }}>
+        <input
+          type="checkbox"
+          checked={inPortfolio}
+          onChange={(e) => handleToggle(e.target.checked)}
+          disabled={saveState === 'saving'}
+          style={{
+            marginTop: 3,
+            cursor: 'pointer',
+          }}
+        />
+        <div style={{ flex: 1 }}>
+          <div style={{
+            fontSize: 11,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--muted)',
+            fontWeight: 600,
+            marginBottom: 4,
+          }}>
+            Dossier en portefeuille du fonds
+            {saveState === 'saved' && (
+              <span style={{ marginLeft: 10, color: 'var(--vert-foret)', textTransform: 'none', letterSpacing: 0 }}>
+                · enregistré
+              </span>
+            )}
+            {saveState === 'error' && (
+              <span style={{ marginLeft: 10, color: 'var(--rouge-anglais)', textTransform: 'none', letterSpacing: 0 }}>
+                · erreur, réessayer
+              </span>
+            )}
+          </div>
+          <div style={{
+            fontSize: 12.5,
+            color: 'var(--muted)',
+            lineHeight: 1.55,
+          }}>
+            Active le monitoring de trajectoire. La société sera re-instruite tous les six mois et les transitions de verdict significatives seront notifiées au partner référent.
+          </div>
+        </div>
+      </label>
     </div>
   );
 }

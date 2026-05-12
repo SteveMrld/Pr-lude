@@ -31,6 +31,10 @@ import {
 import { createVersion } from '@/lib/collaboration-store';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
+import {
+  evaluateForAnalysis,
+  dispatchImmediateIfNeeded,
+} from '@/lib/cron/trajectory-alert-dispatcher';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -161,6 +165,23 @@ export async function POST(req: NextRequest) {
         }).catch(() => {});
       }
     }
+
+    // Dispatch immediat des alertes de trajectoire crans 1 ou 2 si
+    // la comparaison nouveau-snapshot vs precedent franchit un des
+    // seuils critiques. Fire-and-forget pour ne pas bloquer la
+    // reponse client. L echec d email ne casse jamais la chaine de
+    // persistance, c est une notification dissociee qui se rejoue
+    // a la demande via le runner cron en cas de probleme provider.
+    (async () => {
+      try {
+        const evaluation = await evaluateForAnalysis(existingId);
+        if (evaluation) {
+          await dispatchImmediateIfNeeded(evaluation);
+        }
+      } catch (err: any) {
+        console.error('[api/analyses] dispatch trajectoire echec:', err?.message || err);
+      }
+    })();
 
     return NextResponse.json({
       saved: true,

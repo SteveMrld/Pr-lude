@@ -74,6 +74,7 @@ function mockAnalysis(
     versionsCount: 0,
     openCommentsCount: 0,
     hasBloc2: false,
+    inPortfolio: false,
     ...opts,
   };
 }
