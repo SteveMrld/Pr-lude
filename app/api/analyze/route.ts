@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { runPreScan } from '@/lib/engines/prescan-engine';
+import { resolvePreScanOverride } from '@/lib/engines/prescan-override';
 import { extractFromDeck } from '@/lib/engines/extraction-engine';
 import { analyzeTeam } from '@/lib/engines/team-engine';
 import { analyzeMarket } from '@/lib/engines/market-engine';
@@ -88,6 +89,27 @@ export async function POST(req: NextRequest) {
     // sans retirer le pouvoir de decision au partner.
     const forcePrescanRaw = formData.get('forcePrescan');
     const forcePrescan = forcePrescanRaw === 'true' || forcePrescanRaw === '1';
+
+    // Pre-scan deja effectue lors de l appel precedent. Quand le partner
+    // force l analyse complete apres un knockout, le client renvoie
+    // l output integral du pre-scan (recu via l event SSE engine-done)
+    // pour qu on persiste le verdict d origine sans relancer le moteur.
+    // Sans cette re-injection, soit on perdrait la trace du knockout
+    // dans le resultJson final, soit on relancerait inutilement le
+    // moteur Haiku 4.5 (5-8 secondes, 0.02 USD) pour reconstituer un
+    // verdict que le partner a deja vu et choisi d ecarter.
+    const priorPreScanRaw = formData.get('priorPreScan');
+    let priorPreScan: any = null;
+    if (forcePrescan && typeof priorPreScanRaw === 'string' && priorPreScanRaw.length > 0) {
+      try {
+        priorPreScan = JSON.parse(priorPreScanRaw);
+      } catch {
+        // JSON malforme : on ignore. Le code en aval traitera
+        // priorPreScan = null comme un override sans verdict prealable
+        // et synthetisera un stub minimal.
+        priorPreScan = null;
+      }
+    }
 
     /**
      * Parcours d analyse choisi par le partner sur la page d entree.
@@ -343,19 +365,29 @@ export async function POST(req: NextRequest) {
           // et pipeline_with_caveats laissent le pipeline continuer
           // normalement.
           // ============================================================
-          sendStart('prescan', fundProfileForPreScan
-            ? 'Pré-scan : triage rapide dix tests (six universels et quatre fit thèse)'
-            : 'Pré-scan : triage rapide six tests éliminatoires');
           let preScan: any = null;
-          try {
-            preScan = await runPreScan(pitchDeck.payload, fundProfileForPreScan || undefined);
-          } catch (err: any) {
-            logException('pipeline.prescan', err, {
-              severity: 'warning',
-              context: { phase: 'prescan-bloc-0' },
-            });
+          if (forcePrescan) {
+            // Override partner apres knockout : on ne relance pas le
+            // moteur. La resolution est deleguee a resolvePreScanOverride
+            // pour pouvoir etre testee deterministe sans toucher a
+            // l API LLM.
+            sendStart('prescan', 'Pré-scan : verdict initial conservé, override partner');
+            preScan = resolvePreScanOverride(priorPreScan);
+            sendDone('prescan', preScan);
+          } else {
+            sendStart('prescan', fundProfileForPreScan
+              ? 'Pré-scan : triage rapide dix tests (six universels et quatre fit thèse)'
+              : 'Pré-scan : triage rapide six tests éliminatoires');
+            try {
+              preScan = await runPreScan(pitchDeck.payload, fundProfileForPreScan || undefined);
+            } catch (err: any) {
+              logException('pipeline.prescan', err, {
+                severity: 'warning',
+                context: { phase: 'prescan-bloc-0' },
+              });
+            }
+            sendDone('prescan', preScan);
           }
-          sendDone('prescan', preScan);
 
           // Gating doux : on ne stoppe que si le pre-scan a effectivement
           // tourne (preScan non null), si son verdict est knockout, et si

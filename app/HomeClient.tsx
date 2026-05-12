@@ -303,6 +303,15 @@ export default function HomeClient({
     score: number;
     totalTests: number;
   } | null>(null);
+  // Output integral du pre-scan recu via l event SSE engine-done.
+  // Conserve a part du state d affichage pour pouvoir etre renvoye
+  // tel quel au serveur si le partner choisit d ignorer le knockout
+  // et de forcer l analyse complete. Permet de skip le re-trigger
+  // du moteur prescan-engine cote API en preservant le verdict
+  // d origine dans le resultJson persiste. Sans cette retention,
+  // chaque override paierait 5-8 secondes et 0.02 USD pour
+  // reconstituer un verdict deja vu et explicitement ecarte.
+  const priorPreScanRef = useRef<any>(null);
   const [dragging, setDragging] = useState(false);
   // Mode dev : permet de forcer l execution du moteur narrative-drift
   // (Lecture du langage) meme quand la matrice de pertinence le
@@ -969,6 +978,12 @@ export default function HomeClient({
     setSavedAnalysisId(null);
     setPipelineStartTime(Date.now());
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
+    // Reset du verdict pre-scan capture sur fresh run uniquement. En
+    // cas de force apres knockout, on doit conserver le verdict
+    // d origine pour que la requete au serveur puisse le reinjecter.
+    if (!opts.forcePrescan) {
+      priorPreScanRef.current = null;
+    }
 
     // Demande silencieuse de la permission de notification au navigateur.
     // Si l utilisateur a deja accepte, no-op. Si il a refuse, on ne re-demande
@@ -998,9 +1013,21 @@ export default function HomeClient({
         formData.append('files', f);
       }
       // Si l user force apres un knockout pre-scan, on l indique au
-      // serveur pour qu il bypasse le gating.
+      // serveur pour qu il bypasse le gating et qu il evite de relancer
+      // le moteur Bloc 0. Le verdict d origine est renvoye au serveur
+      // qui le reinjecte tel quel dans le resultJson final : pas de
+      // perte de trace, pas de re-trigger inutile (gain 5-8 secondes
+      // et 0.02 USD a chaque override).
       if (opts.forcePrescan) {
         formData.append('forcePrescan', 'true');
+        if (priorPreScanRef.current) {
+          try {
+            formData.append('priorPreScan', JSON.stringify(priorPreScanRef.current));
+          } catch {
+            // Serialization impossible (cycle, BigInt, etc.) : on laisse
+            // le serveur synthetiser un stub par defaut.
+          }
+        }
       }
       // Mode dev : force l execution du moteur narrative-drift meme si
       // la matrice de pertinence le declare non applicable. Sert au
@@ -1082,6 +1109,13 @@ export default function HomeClient({
                     : prev[data.engine]?.durationMs,
                 }
               }));
+              // Capture l output integral du pre-scan a la volee. En cas
+              // de knockout suivi d un override partner, le second appel
+              // a /api/analyze renverra ce payload tel quel pour
+              // economiser un re-trigger inutile du moteur.
+              if (data.engine === 'prescan' && data.output) {
+                priorPreScanRef.current = data.output;
+              }
             } else if (eventType === 'complete') {
               setResult(data);
               receivedTerminal = true;
@@ -1220,6 +1254,7 @@ export default function HomeClient({
     setResult(null);
     setError(null);
     setPrescanKnockout(null);
+    priorPreScanRef.current = null;
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
     setActiveTab('synthesis');
     if (inputRef.current) inputRef.current.value = '';
