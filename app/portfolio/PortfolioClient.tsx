@@ -170,6 +170,9 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
               Vue consolidée de l&apos;activité de l&apos;organisation. Vélocité, conversion, répartition
               par stade et par secteur, durées moyennes d&apos;instruction.
             </p>
+            <Link href="/portfolio/trajectoires" className="pf-link-trajectoires">
+              Trajectoires · suivi temporel des dossiers →
+            </Link>
           </>
         )}
       </section>
@@ -678,6 +681,23 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         }
         .pf-cta-primary svg { transition: transform var(--motion-base); }
         .pf-cta-primary:hover svg { transform: translateX(3px); }
+
+        .pf-link-trajectoires {
+          display: inline-block;
+          margin-top: 18px;
+          font-family: var(--sans);
+          font-size: 12px;
+          letter-spacing: 0.04em;
+          color: var(--ocre-brule);
+          text-decoration: none;
+          border-bottom: 1px dotted var(--ocre-brule);
+          padding-bottom: 2px;
+          transition: all var(--motion-fast);
+        }
+        .pf-link-trajectoires:hover {
+          color: var(--ink);
+          border-bottom-color: var(--ink);
+        }
 
         .pf-kpis {
           max-width: 1080px;
