@@ -16,6 +16,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { PortfolioTrajectoryRow } from '@/lib/portfolio-trajectoires-core';
+import { CompanyLogo } from '@/app/components/CompanyLogo';
 
 interface Props {
   rows: PortfolioTrajectoryRow[];
@@ -324,7 +325,10 @@ export default function TrajectoiresClient({ rows, orgName, userEmail }: Props) 
                     )}
                   </div>
                   <div className="tj-row-main">
-                    <div className="tj-row-name">{row.companyName}</div>
+                    <div className="tj-row-name">
+                      <CompanyLogo companyName={row.companyName} size={32} />
+                      <span className="tj-row-name-text">{row.companyName}</span>
+                    </div>
                     <div className="tj-row-meta">
                       {row.sector && <span>{row.sector}</span>}
                       {row.workflowStage && <span>{STAGE_LABELS[row.workflowStage] ?? row.workflowStage}</span>}
@@ -584,6 +588,9 @@ export default function TrajectoiresClient({ rows, orgName, userEmail }: Props) 
           min-width: 0;
         }
         .tj-row-name {
+          display: flex;
+          align-items: center;
+          gap: 12px;
           font-family: var(--serif);
           font-size: 17px;
           font-weight: 600;
@@ -591,12 +598,19 @@ export default function TrajectoiresClient({ rows, orgName, userEmail }: Props) 
           margin-bottom: 4px;
           letter-spacing: -0.012em;
         }
+        .tj-row-name-text {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         .tj-row-meta {
           display: flex;
           gap: 14px;
           font-family: var(--sans);
           font-size: 11px;
           color: var(--muted);
+          padding-left: 44px;
         }
         .tj-row-meta span {
           letter-spacing: 0.04em;

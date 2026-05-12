@@ -35,6 +35,7 @@ import {
 } from 'recharts';
 import type { PortfolioStats } from '@/lib/portfolio-stats';
 import { Picto } from '../components/Picto';
+import { CompanyLogo } from '../components/CompanyLogo';
 
 interface Props {
   stats: PortfolioStats | null;
@@ -380,8 +381,17 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
                     lineHeight: 1.6,
                     textAlign: 'left',
                   }}>
-                    {companies.slice(0, 5).map((c, i) => (
-                      <div key={c.id} style={{ marginBottom: 2 }}>
+                    {companies.slice(0, 5).map((c) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          marginBottom: 4,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <CompanyLogo companyName={c.name} size={20} />
                         <a
                           href={`/?analysis=${c.id}`}
                           style={{
