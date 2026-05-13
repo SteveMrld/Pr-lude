@@ -16,10 +16,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { computeFreshness } from '@/lib/engines/sectoral-injection';
+import { computeFreshness } from '@/lib/engines/sectoral-injection-pure';
 import { SectoralSpiderChart, formatSectoralDate } from '@/app/components/sectoral';
 import { PALETTE } from '@/lib/visuals/spiderweb';
-import type { SectoralBrief } from '@/lib/engines/sectoral-intelligence';
+import type { SectoralBrief } from '@/lib/engines/sectoral-intelligence/client';
 
 export interface SectorListItem {
   slug: string;

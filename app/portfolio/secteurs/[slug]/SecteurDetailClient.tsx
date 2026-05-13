@@ -23,9 +23,9 @@ import {
   SectoralTemporalComparison,
   formatSectoralDate,
 } from '@/app/components/sectoral';
-import { computeFreshness } from '@/lib/engines/sectoral-injection';
+import { computeFreshness } from '@/lib/engines/sectoral-injection-pure';
 import { PALETTE } from '@/lib/visuals/spiderweb';
-import type { SectoralBrief } from '@/lib/engines/sectoral-intelligence';
+import type { SectoralBrief } from '@/lib/engines/sectoral-intelligence/client';
 
 type ViewMode = 'single' | 'overlay' | 'temporal';
 

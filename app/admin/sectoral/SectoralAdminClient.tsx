@@ -7,7 +7,7 @@ import {
   DIMENSION_LABELS,
   type DimensionKey,
   type FreshnessState,
-} from '@/lib/engines/sectoral-intelligence';
+} from '@/lib/engines/sectoral-intelligence/client';
 
 // ============================================================
 // CLIENT COMPONENT - DASHBOARD ADMIN SECTORAL
