@@ -62,6 +62,17 @@ export {
 // Orchestrateur principal.
 export { regenerateSectoralBrief, regenerateDimension } from './regenerator';
 
+// Helpers de fraicheur (page admin, badges UI).
+export type { FreshnessState, FreshnessColorKey } from './freshness';
+export {
+  computeFreshness,
+  computeAgeDays,
+  freshnessLabel,
+  freshnessColorKey,
+  FRESHNESS_THRESHOLD_A_JOUR_DAYS,
+  FRESHNESS_THRESHOLD_RECOMMANDEE_DAYS,
+} from './freshness';
+
 // ============================================================
 // PERSISTENCE SUPABASE
 // ------------------------------------------------------------
