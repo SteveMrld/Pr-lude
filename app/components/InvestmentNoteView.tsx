@@ -5,6 +5,12 @@ import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
 import PortfolioPositionChart from './PortfolioPositionChart';
+import { SectoralSpiderChart } from './sectoral';
+import {
+  DIMENSION_KEYS,
+  DIMENSION_LABELS,
+  SECTORS as SECTORAL_SECTORS,
+} from '@/lib/engines/sectoral-intelligence/types';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { computeTopRisks } from '@/lib/compute-top-risks';
@@ -207,6 +213,284 @@ function NoteSectionWrapper({
   );
 }
 
+// ============================================================
+// NoteSectoralMethodBlock
+// ------------------------------------------------------------
+// Mini SectoralSpiderChart inject en tete de la section
+// methodologique de la note. Le libelle pose le secteur primaire
+// et la date de la fiche, en sous-titre les secteurs secondaires
+// s ils existent. Lien cliquable vers la fiche complete dans le
+// dashboard partner (/portfolio/secteurs/[slug]). Les quatre cas
+// limites doctrinaux sont relayes au composant SectoralSpiderChart
+// via la prop mode. Pour les modes sans rendu graphique (unknown,
+// expired, no_brief), une mention textuelle sobre tient lieu de
+// trace methodologique.
+// ============================================================
+function NoteSectoralMethodBlock({
+  sectoral,
+}: {
+  sectoral: import('@/lib/engines/sectoral-injection').SectoralContext | null | undefined;
+}) {
+  // Pas de contexte du tout : on n affiche rien, le pipeline a
+  // tourne sans resolution sectorielle (cas legacy ou erreur en
+  // amont).
+  if (!sectoral) return null;
+
+  // Mode unknown_sector : mention textuelle, pas de chart.
+  if (sectoral.mode === 'unknown_sector') {
+    return (
+      <div className="note-sectoral-method" data-testid="note-sectoral-unknown">
+        <p className="note-sectoral-method-mention">
+          Secteur emergent non couvert par la matrice sectorielle Prelude. La
+          lecture sectorielle a ete suspendue pour ce dossier ; l analyse s
+          appuie sur le seul contenu du pitch et sur la doctrine generale
+          des moteurs.
+        </p>
+      </div>
+    );
+  }
+
+  // Mode expired : fiche perimee, mention explicite.
+  if (sectoral.mode === 'expired') {
+    return (
+      <div className="note-sectoral-method" data-testid="note-sectoral-expired">
+        <p className="note-sectoral-method-mention">
+          {sectoral.methodologyNote}
+        </p>
+      </div>
+    );
+  }
+
+  // Mode no_brief : secteur reconnu mais aucune fiche persistee.
+  if (sectoral.mode === 'no_brief') {
+    return (
+      <div className="note-sectoral-method" data-testid="note-sectoral-no-brief">
+        <p className="note-sectoral-method-mention">
+          {sectoral.methodologyNote}
+        </p>
+      </div>
+    );
+  }
+
+  // Mode applied (fresh ou stale) : on rend le mini chart.
+  const primary = sectoral.primary;
+  if (!primary) return null;
+
+  const SECTORS = SECTORAL_SECTORS;
+  const sectorLabel =
+    SECTORS.find((s) => s.slug === primary.brief.sector_slug)?.label
+    ?? primary.brief.sector_slug;
+
+  const secondaryLabels = sectoral.secondaries
+    .map((s) =>
+      SECTORS.find((sd) => sd.slug === s.brief.sector_slug)?.label
+      ?? s.brief.sector_slug,
+    )
+    .filter(Boolean);
+
+  const subtitle = secondaryLabels.length > 0
+    ? `Secteurs secondaires : ${secondaryLabels.join(' et ')}`
+    : undefined;
+
+  const mode: import('./sectoral').SectoralRenderMode = primary.freshness === 'stale'
+    ? 'stale'
+    : 'fresh';
+
+  return (
+    <div className="note-sectoral-method" data-testid="note-sectoral-applied">
+      <SectoralSpiderChart
+        brief={primary.brief}
+        sectorLabel={`Secteur primaire : ${sectorLabel}`}
+        mode={mode}
+        size={150}
+        subtitle={subtitle}
+        href={`/portfolio/secteurs/${primary.brief.sector_slug}`}
+      />
+      <style jsx>{`
+        .note-sectoral-method {
+          margin: 16px 0 20px;
+          display: flex;
+          justify-content: center;
+        }
+        .note-sectoral-method-mention {
+          font-family: var(--serif, Georgia, serif);
+          font-size: 0.88rem;
+          line-height: 1.55;
+          color: var(--ink-secondary, #475569);
+          font-style: italic;
+          margin: 0;
+          padding: 12px 16px;
+          background: #fef7f4;
+          border-left: 3px solid #9C5A2A;
+          max-width: 760px;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================
+// NoteSectoralAnnex
+// ------------------------------------------------------------
+// Annexe exhaustive en fin de note. Liste les huit dimensions de
+// la fiche sectorielle avec leur score, leur definition appliquee
+// et les sources citees par le LLM regenerateur. Sert l audit
+// doctrinal. Sur les modes degrades (unknown, expired, no_brief),
+// l annexe est omise : la mention dans la section methode suffit.
+// ============================================================
+function NoteSectoralAnnex({
+  sectoral,
+}: {
+  sectoral: import('@/lib/engines/sectoral-injection').SectoralContext | null | undefined;
+}) {
+  if (!sectoral || sectoral.mode !== 'applied' || !sectoral.primary) return null;
+
+  const SECTORS = SECTORAL_SECTORS;
+  const primary = sectoral.primary;
+  const sectorLabel =
+    SECTORS.find((s) => s.slug === primary.brief.sector_slug)?.label
+    ?? primary.brief.sector_slug;
+
+  const dateLabel = (() => {
+    try {
+      return new Date(primary.brief.generated_at).toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return primary.brief.generated_at;
+    }
+  })();
+
+  return (
+    <section
+      className="note-sectoral-annex"
+      id="engine-section-sectoral-annex"
+      data-testid="note-sectoral-annex"
+    >
+      <h4 className="note-h4">Annexe sectorielle</h4>
+      <p className="note-sectoral-annex-intro">
+        Lecture exhaustive de la fiche {sectorLabel} (generee le {dateLabel}) qui
+        a encadre l analyse de ce dossier. Huit dimensions standardisees, leurs
+        scores chiffres, la definition doctrinale appliquee au moment de la
+        generation et les sources citees par le LLM regenerateur.
+      </p>
+      <ol className="note-sectoral-annex-list">
+        {DIMENSION_KEYS.map((key) => {
+          const d = primary.brief.dimensions[key];
+          const score = d?.data_missing
+            ? 'donnee insuffisante'
+            : typeof d?.score === 'number'
+              ? `${d.score}/100`
+              : 'non chiffre';
+          return (
+            <li key={key}>
+              <div className="note-sectoral-annex-head">
+                <strong>{DIMENSION_LABELS[key]}</strong>
+                <span className="note-sectoral-annex-score">{score}</span>
+              </div>
+              {d?.definition_applied && (
+                <p className="note-sectoral-annex-def">{d.definition_applied}</p>
+              )}
+              {d?.notes && <p className="note-sectoral-annex-notes">{d.notes}</p>}
+              {d?.sources_cited && d.sources_cited.length > 0 && (
+                <ul className="note-sectoral-annex-sources">
+                  {d.sources_cited.slice(0, 4).map((s, i) => (
+                    <li key={i}>
+                      <a href={s.url} target="_blank" rel="noopener noreferrer">
+                        {s.title || s.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <style jsx>{`
+        .note-sectoral-annex {
+          margin-top: 32px;
+          padding-top: 24px;
+          border-top: 1px solid #C8A988;
+        }
+        .note-h4 {
+          font-family: var(--serif, Georgia, serif);
+          font-size: 1rem;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: #2B2B2B;
+          margin: 0 0 12px;
+        }
+        .note-sectoral-annex-intro {
+          font-family: var(--serif, Georgia, serif);
+          font-size: 0.92rem;
+          line-height: 1.65;
+          color: #2B2B2B;
+          margin: 0 0 16px;
+        }
+        .note-sectoral-annex-list {
+          list-style: decimal;
+          padding-left: 24px;
+          margin: 0;
+          font-family: var(--serif, Georgia, serif);
+        }
+        .note-sectoral-annex-list > li {
+          margin-bottom: 16px;
+        }
+        .note-sectoral-annex-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+          margin-bottom: 4px;
+        }
+        .note-sectoral-annex-head strong {
+          font-weight: 600;
+          font-size: 0.96rem;
+        }
+        .note-sectoral-annex-score {
+          font-family: var(--grotesque-condensed, sans-serif);
+          font-size: 0.85rem;
+          color: #6B5841;
+        }
+        .note-sectoral-annex-def {
+          font-size: 0.88rem;
+          line-height: 1.55;
+          margin: 4px 0;
+          color: #2B2B2B;
+        }
+        .note-sectoral-annex-notes {
+          font-size: 0.85rem;
+          line-height: 1.5;
+          margin: 4px 0;
+          color: #6B5841;
+          font-style: italic;
+        }
+        .note-sectoral-annex-sources {
+          list-style: none;
+          padding-left: 0;
+          margin: 6px 0 0;
+          font-size: 0.82rem;
+        }
+        .note-sectoral-annex-sources li {
+          margin-bottom: 2px;
+        }
+        .note-sectoral-annex-sources a {
+          color: #9C5A2A;
+          text-decoration: none;
+          border-bottom: 1px dotted #C8A988;
+        }
+        .note-sectoral-annex-sources a:hover {
+          color: #2B2B2B;
+          border-bottom-color: #2B2B2B;
+        }
+      `}</style>
+    </section>
+  );
+}
+
 export default function InvestmentNoteView({ result, analysisId, compactMode = false, onDeepenDDClick }: Props) {
   const r = result;
   const e = r.extraction || {};
@@ -226,6 +510,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   const ndVerdict = r.relevanceMatrix?.verdicts?.narrativeDrift;
   const fs = r.fragiliteStructurelle;
   const fsVerdicts = r.relevanceMatrix?.verdicts?.fragiliteStructurelle;
+  const sectoral = (r as any).sectoralContext as
+    | import('@/lib/engines/sectoral-injection').SectoralContext
+    | null
+    | undefined;
   const reco = r.finalRecommendation || {};
   const dateAnalyzed = new Date(r.meta?.analyzedAt || Date.now()).toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric'
@@ -3440,9 +3728,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
       {/* SECTION SOURCES & METHODOLOGY - Documentation des références externes
           consolidées par les moteurs Prélude. Montre la rigueur méthodologique
-          de la note. */}
-      <section className="note-sources">
+          de la note. Le mini SectoralSpiderChart en tête expose la fiche
+          sectorielle qui a effectivement encadré la lecture du dossier, avec
+          lien vers la fiche complète et mention des secteurs secondaires si
+          le dossier est multi-sectoriel. */}
+      <section className="note-sources" id="engine-section-sources">
         <h4 className="note-h4">Sources et méthodologie</h4>
+        <NoteSectoralMethodBlock sectoral={sectoral} />
         <p className="note-sources-intro">
           Cette note s'appuie sur l'analyse du dossier déposé et sur un corpus de bornes externes consolidées trimestriellement.
         </p>
@@ -3465,6 +3757,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </li>
         </ol>
       </section>
+
+      {/* ANNEXE SECTORIELLE - Exhaustif des huit dimensions de la fiche
+          sectorielle qui a encadre l analyse, avec score, definition
+          appliquee et sources citees par le LLM regenerateur. Affichee
+          en fin de note pour ne pas alourdir la lecture principale,
+          mais accessible pour audit doctrinal. */}
+      <NoteSectoralAnnex sectoral={sectoral} />
 
       <div className="note-footer">
         <div>Note préparée par Prélude · Plateforme d'instruction VC européenne</div>

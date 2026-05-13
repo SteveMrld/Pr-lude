@@ -174,6 +174,9 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
             <Link href="/portfolio/trajectoires" className="pf-link-trajectoires">
               Trajectoires · suivi temporel des dossiers →
             </Link>
+            <Link href="/portfolio/secteurs" className="pf-link-trajectoires">
+              Secteurs · catalogue sectoriel Prelude →
+            </Link>
           </>
         )}
       </section>

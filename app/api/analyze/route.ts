@@ -1193,6 +1193,14 @@ export async function POST(req: NextRequest) {
             // selon le stade et le profil sectoriel du dossier.
             // null si aucun pattern applicable ou en cas d echec global.
             fragiliteStructurelle,
+            // Contexte sectoriel resolu pour ce dossier : fiche
+            // primaire (avec sa fraicheur), secondaires eventuels,
+            // methodologyNote destinee a la section methode de la
+            // note d instruction. null si secteur hors catalogue ou
+            // si la resolution Supabase a echoue. Sert au rendu du
+            // mini spider chart en tete de note et a l annexe
+            // sectorielle en fin de note.
+            sectoralContext,
           };
 
           // ============================================================
