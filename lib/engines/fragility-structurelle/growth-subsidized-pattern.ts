@@ -46,6 +46,7 @@ import {
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
+import { buildSectoralPromptBlock } from '../sectoral-injection';
 
 const PATTERN_ID: PatternId = 'growth-subsidized-model';
 
@@ -316,7 +317,9 @@ function buildUserPrompt(input: PatternInput): string {
   const stage = e.fundraise?.stage ?? 'inconnu';
   const sector = e.sector ?? 'inconnu';
 
-  return `# DOSSIER A ANALYSER
+  const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
+
+  return `${sectoralBlock}# DOSSIER A ANALYSER
 
 Entreprise : ${e.companyName ?? 'non communique'}
 Secteur : ${sector}

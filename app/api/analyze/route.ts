@@ -462,6 +462,31 @@ export async function POST(req: NextRequest) {
           const relevanceMatrix = computeRelevanceMatrix(extraction, matrixAssetClass);
 
           // ============================================================
+          // SECTORAL INTELLIGENCE : resolution de la fiche sectorielle
+          // ------------------------------------------------------------
+          // Resout le secteur primaire et eventuels secondaires a partir
+          // de l extraction, charge la derniere fiche sectorielle
+          // persistee en Supabase pour chacun, evalue la fraicheur. Le
+          // contexte resultant est passe aux six moteurs sectoriels
+          // (macro, blindspot, contrarian, market, fragility, narrative
+          // drift) qui l injectent dans leur prompt selon le mapping
+          // doctrinal de la decision 6 (resume editorial commun plus
+          // dimensions selectives par moteur).
+          //
+          // Non-bloquant : toute erreur Supabase retourne un contexte
+          // mode='no_brief' qui desactive l injection silencieusement,
+          // le pipeline continue avec le fonctionnement legacy.
+          // ============================================================
+          const { resolveSectoralContext } = await import('@/lib/engines/sectoral-injection');
+          let sectoralContext: import('@/lib/engines/sectoral-injection').SectoralContext | null = null;
+          try {
+            sectoralContext = await resolveSectoralContext(extraction);
+          } catch (err: any) {
+            logException('pipeline.sectoral-injection.resolve', err, { severity: 'warning' });
+            sectoralContext = null;
+          }
+
+          // ============================================================
           // PIPELINE DEPENDENCY-DRIVEN
           // ------------------------------------------------------------
           // Refonte du V2/V3/V4 historique en lancements pilotes par
@@ -527,10 +552,10 @@ export async function POST(req: NextRequest) {
             : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team)
           ).then(r => { sendDone('team', r); return r; });
 
-          const marketPromise = analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix)
+          const marketPromise = analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix, sectoralContext)
             .then(r => { sendDone('market', r); return r; });
 
-          const macroPromise = analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix)
+          const macroPromise = analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix, sectoralContext)
             .then(r => { sendDone('macro', r); return r; });
 
           const financialDataPromise = extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction)
@@ -690,14 +715,14 @@ export async function POST(req: NextRequest) {
               return r;
             }
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
-            const r = await analyzeBlindspots(extraction, team, market, macro);
+            const r = await analyzeBlindspots(extraction, team, market, macro, sectoralContext);
             sendDone('blindspot', r);
             return r;
           })();
 
           const contrarianPromise = (async () => {
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
-            const r = await analyzeContrarian(extraction, team, market, macro);
+            const r = await analyzeContrarian(extraction, team, market, macro, sectoralContext);
             sendDone('contrarian', r);
             return r;
           })();
@@ -750,6 +775,7 @@ export async function POST(req: NextRequest) {
                     extraction,
                     pitchText: narrativeDriftPitchText,
                     fundNote: fundDimensionalNotes?.market || null,
+                    sectoralContext,
                   });
                   sendDone('narrative-drift', r);
                   return r;
@@ -781,6 +807,7 @@ export async function POST(req: NextRequest) {
                       financialData: financialData ?? null,
                       marketAnalysis: market,
                       rawPitchText: (extraction as any)?.rawSummary ?? null,
+                      sectoralContext,
                     },
                     relevanceMatrix,
                   );

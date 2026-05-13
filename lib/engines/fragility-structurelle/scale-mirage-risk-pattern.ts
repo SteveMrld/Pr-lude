@@ -43,6 +43,7 @@ import {
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
+import { buildSectoralPromptBlock } from '../sectoral-injection';
 
 const PATTERN_ID: PatternId = 'scale-mirage-risk';
 
@@ -332,8 +333,9 @@ function extractIndustrialSnapshot(extraction: ExtractionOutput): IndustrialSnap
 function buildUserPrompt(input: PatternInput): string {
   const e = input.extraction;
   const snap = extractIndustrialSnapshot(e);
+  const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
-  return `# DOSSIER A ANALYSER
+  return `${sectoralBlock}# DOSSIER A ANALYSER
 
 Entreprise : ${e.companyName ?? 'non communique'}
 Secteur : ${snap.sector}

@@ -7,6 +7,10 @@ import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, ContrarianAnalysisOutput
 } from './types';
+import {
+  buildSectoralPromptBlock,
+  type SectoralContext,
+} from './sectoral-injection';
 
 const SYSTEM_PROMPT = `Tu es le Moteur de Singularités et Signaux Contrariens de la plateforme Prélude. Ta mission est d'identifier ce qui justifie d'investir DESPITE les drapeaux rouges, les signaux qu'aucun outil de scoring standard ne capture.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -156,12 +160,15 @@ export async function analyzeContrarian(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
   market: MarketAnalysisOutput,
-  macro: MacroAnalysisOutput
+  macro: MacroAnalysisOutput,
+  sectoralContext?: SectoralContext | null,
 ): Promise<ContrarianAnalysisOutput> {
+
+  const sectoralBlock = buildSectoralPromptBlock(sectoralContext, 'contrarian');
 
   const userPrompt = `Analyse des singularités et signaux contrariens sur le dossier ${extraction?.companyName ?? '?'} :
 
-# CONTEXTE DOSSIER
+${sectoralBlock}# CONTEXTE DOSSIER
 Société : ${extraction?.companyName ?? '?'}
 Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
 Géographie : ${formatExtractionGeography(extraction)}

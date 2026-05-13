@@ -24,6 +24,10 @@ import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { scoreText, type NarrativeDriftMetrics } from '../narrative-drift/score-text';
 import type { ExtractionOutput } from './types';
+import {
+  buildSectoralPromptBlock,
+  type SectoralContext,
+} from './sectoral-injection';
 
 // ============================================================
 // TYPES DE SORTIE
@@ -303,6 +307,7 @@ export interface NarrativeDriftInput {
     timestamp: string;
   } | null;
   fundNote?: string | null;
+  sectoralContext?: SectoralContext | null;
 }
 
 export async function analyzeNarrativeDrift(
@@ -401,6 +406,8 @@ function buildUserPrompt(input: NarrativeDriftInput, metrics: NarrativeDriftMetr
   const sector = input.extraction.sector || 'non precise';
   const stage = input.extraction.fundraise?.stage || 'non precise';
 
+  const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'narrative-drift');
+
   const metricsBlock = `# METRIQUES LEXICALES OBJECTIVES (input externe, non hallucinable)
 
 Total mots analyses : ${metrics.totalWords}
@@ -437,7 +444,7 @@ s activer faute de comparaison temporelle. Mets son status='not-applicable'.`;
 
   return `Dossier : ${company} (secteur ${sector}, stade ${stage}).
 
-${metricsBlock}
+${sectoralBlock}${metricsBlock}
 
 ${corpusBlock}
 

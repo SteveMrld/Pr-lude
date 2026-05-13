@@ -20,6 +20,7 @@
 // ============================================================
 
 import type { ExtractionOutput, FinancialDataExtraction, MarketAnalysisOutput } from '../types';
+import type { SectoralContext } from '../sectoral-injection';
 
 // ============================================================
 // IDENTIFIANTS
@@ -108,6 +109,15 @@ export interface PatternInput {
   /** Note dimensionnelle du fonds sur le secteur, optionnelle.
    *  Sert a calibrer les benchmarks sectoriels. */
   fundNote?: string | null;
+
+  /** Contexte sectoriel Prelude resolu en amont par
+   *  resolveSectoralContext. Injection hybride (resume editorial
+   *  commun plus dimensions intensite capitalistique, cyclicite et
+   *  tension capital-talent) consommee par chaque pattern selon la
+   *  decision 6 de la fiche sectorielle. null quand la matrice
+   *  sectorielle ne couvre pas le secteur du dossier ou que la
+   *  fiche est perimee. */
+  sectoralContext?: SectoralContext | null;
 }
 
 // ============================================================

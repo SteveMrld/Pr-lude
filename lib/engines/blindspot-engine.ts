@@ -8,6 +8,10 @@ import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, BlindspotAnalysisOutput
 } from './types';
+import {
+  buildSectoralPromptBlock,
+  type SectoralContext,
+} from './sectoral-injection';
 
 const SYSTEM_PROMPT = `Tu es le Moteur de Vigilance Critique de la plateforme Prélude. Ta mission est de détecter les patterns récurrents d'erreur de jugement qui mènent les fonds VC à investir dans des dossiers structurellement insoutenables.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -270,7 +274,8 @@ export async function analyzeBlindspots(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
   market: MarketAnalysisOutput,
-  macro: MacroAnalysisOutput
+  macro: MacroAnalysisOutput,
+  sectoralContext?: SectoralContext | null,
 ): Promise<BlindspotAnalysisOutput> {
 
   // Recuperation des cas Strate D (echecs pedagogiques) du corpus etendu.
@@ -302,9 +307,11 @@ tu DOIS l indiquer dans le pattern correspondant en citant le cas
 historique en evidence.
 ` : '';
 
+  const sectoralBlock = buildSectoralPromptBlock(sectoralContext, 'blindspot');
+
   const userPrompt = `Analyse des lecture de vigilance critique sur le dossier ${extraction?.companyName ?? '?'} :
 
-${failuresBlock}
+${sectoralBlock}${failuresBlock}
 # CONTEXTE DOSSIER
 Société : ${extraction?.companyName ?? '?'}
 Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}

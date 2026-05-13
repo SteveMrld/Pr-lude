@@ -37,6 +37,7 @@ import {
   applyCentralAxisGating,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
+import { buildSectoralPromptBlock } from '../sectoral-injection';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 
 const PATTERN_ID: PatternId = 'capital-structure-fragility';
@@ -363,8 +364,9 @@ function extractCapTableSnapshot(extraction: ExtractionOutput): CapTableSnapshot
 function buildUserPrompt(input: PatternInput): string {
   const e = input.extraction;
   const snap = extractCapTableSnapshot(e);
+  const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
-  return `# DOSSIER A ANALYSER
+  return `${sectoralBlock}# DOSSIER A ANALYSER
 
 Entreprise : ${e.companyName ?? 'non communique'}
 Secteur : ${e.sector ?? 'inconnu'}

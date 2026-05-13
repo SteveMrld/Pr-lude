@@ -91,6 +91,20 @@ export async function runAutoReanalysis(
       return { analysisId, status: 'skipped', reason: 'source-text-missing' };
     }
 
+    // Resout le contexte sectoriel courant pour que les re-runs
+    // beneficient de la derniere fiche sectorielle persistee. Si la
+    // resolution echoue (Supabase down, secteur non couvert), on
+    // retombe sur l execution sans injection sectorielle.
+    let sectoralContext: import('@/lib/engines/sectoral-injection').SectoralContext | null = null;
+    try {
+      const { resolveSectoralContext } = await import('@/lib/engines/sectoral-injection');
+      sectoralContext = await resolveSectoralContext(extraction);
+    } catch (err: any) {
+      console.warn(
+        `[portfolio-reanalysis-runner] sectoral-context resolution echec: ${err?.message || err}`,
+      );
+    }
+
     // Re-run fragilite structurelle. L input combine l extraction,
     // les financialData et marketAnalysis precedents (qu on reuse
     // car re-extraction PDF impossible sans binaire source). Les
@@ -104,6 +118,7 @@ export async function runAutoReanalysis(
           financialData: previousResult.financialExtraction || null,
           marketAnalysis: previousResult.marketAnalysis || null,
           rawPitchText: sourceText,
+          sectoralContext,
         },
         previousResult.relevanceMatrix || null,
       );
@@ -130,6 +145,7 @@ export async function runAutoReanalysis(
               timestamp: previousResult.meta?.createdAt || analysis.createdAt || new Date().toISOString(),
             }
           : null,
+        sectoralContext,
       });
     } catch (err: any) {
       console.warn(

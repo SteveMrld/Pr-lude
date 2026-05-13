@@ -5,6 +5,10 @@ import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, MarketAnalysisOutput } from './types';
 import type { RelevanceMatrix } from './relevance-matrix';
+import {
+  buildSectoralPromptBlock,
+  type SectoralContext,
+} from './sectoral-injection';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Prélude. Tu reçois deux types de données :
 
@@ -309,6 +313,7 @@ export async function analyzeMarket(
   extraction: ExtractionOutput,
   fundNote?: string | null,
   relevanceMatrix?: RelevanceMatrix | null,
+  sectoralContext?: SectoralContext | null,
 ): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
   // ÉTAPE 1 : Récupération de data réelle
   // Mots-clés à utiliser pour interroger les sources
@@ -466,7 +471,9 @@ Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc,
 `
     : '';
 
-  const userPrompt = `# DONNÉES DÉCLARÉES (extraction du pitch deck)
+  const sectoralBlock = buildSectoralPromptBlock(sectoralContext, 'market');
+
+  const userPrompt = `${sectoralBlock}# DONNÉES DÉCLARÉES (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
 Géographie : ${formatExtractionGeography(extraction)}

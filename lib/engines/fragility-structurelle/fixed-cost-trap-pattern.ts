@@ -48,6 +48,7 @@ import {
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
+import { buildSectoralPromptBlock } from '../sectoral-injection';
 
 const PATTERN_ID: PatternId = 'fixed-cost-trap';
 
@@ -354,7 +355,9 @@ function buildUserPrompt(input: PatternInput): string {
     .map(([k, v]) => `- ${k} : ${v}`)
     .join('\n');
 
-  return `# DOSSIER A ANALYSER
+  const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
+
+  return `${sectoralBlock}# DOSSIER A ANALYSER
 
 Entreprise : ${e.companyName ?? 'non communique'}
 Secteur : ${e.sector ?? 'inconnu'}

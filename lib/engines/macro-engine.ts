@@ -6,6 +6,10 @@ import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, MacroAnalysisOutput } from './types';
 import type { RelevanceMatrix } from './relevance-matrix';
 import {
+  buildSectoralPromptBlock,
+  type SectoralContext,
+} from './sectoral-injection';
+import {
   LP_LIQUIDITY_PRESSURE,
   MARKET_CONCENTRATION_2026_Q1,
   DRY_POWDER_2024_2025,
@@ -180,6 +184,7 @@ export async function analyzeMacro(
   extraction: ExtractionOutput,
   fundNote?: string | null,
   relevanceMatrix?: RelevanceMatrix | null,
+  sectoralContext?: SectoralContext | null,
 ): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot; weoData?: ImfWeoSnapshot }> {
   // ÉTAPE 1 : Récupération des indicateurs macro réels du pays (timeout 8s pour éviter de bloquer le pipeline)
   const realData = await Promise.race([
@@ -401,6 +406,8 @@ Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc,
 `
     : '';
 
+  const sectoralBlock = buildSectoralPromptBlock(sectoralContext, 'macro');
+
   const userPrompt = `# DOSSIER À ANALYSER (extraction du pitch deck)
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector} / ${extraction.subSector}
@@ -413,6 +420,7 @@ Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
 
 ${summary}
 
+${sectoralBlock}
 ${cadrageBlock}
 ${relevanceBlock}
 
