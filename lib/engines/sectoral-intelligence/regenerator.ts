@@ -24,7 +24,7 @@
 // reseau ni a l API Anthropic.
 // ============================================================
 
-import { callClaude, parseJSON } from '../anthropic-client';
+import { callClaudeWithUsage, parseJSON } from '../anthropic-client';
 import {
   buildDimensionSystemPrompt,
   buildDimensionUserPrompt,
@@ -409,11 +409,18 @@ function createDefaultDimensionCaller(
   return async (dim, sector) => {
     const systemPrompt = buildDimensionSystemPrompt(dim);
     const userPrompt = buildDimensionUserPrompt(dim, sector);
-    const raw = await callClaude(systemPrompt, userPrompt, 2500, model, {
+    const { text, usage } = await callClaudeWithUsage(systemPrompt, userPrompt, 2500, model, {
       enableWebSearch: true,
       maxWebSearches: 4,
     });
-    const parsed = parseJSON<DimensionLLMResponse>(raw);
+    const parsed = parseJSON<DimensionLLMResponse>(text);
+    // Le LLM ne connait pas son propre token count ; on injecte
+    // l usage retourne par l API pour que l orchestrateur puisse
+    // estimer le cout reel par dimension.
+    parsed.usage = {
+      input_tokens: usage.input_tokens,
+      output_tokens: usage.output_tokens,
+    };
     return parsed;
   };
 }
@@ -427,10 +434,14 @@ function createDefaultAggregatorCaller(
       sector,
       summarizeDimensionsForAggregator(dims),
     );
-    const raw = await callClaude(systemPrompt, userPrompt, 1200, model, {
+    const { text, usage } = await callClaudeWithUsage(systemPrompt, userPrompt, 1200, model, {
       enableWebSearch: false,
     });
-    const parsed = parseJSON<AggregatorLLMResponse>(raw);
+    const parsed = parseJSON<AggregatorLLMResponse>(text);
+    parsed.usage = {
+      input_tokens: usage.input_tokens,
+      output_tokens: usage.output_tokens,
+    };
     return parsed;
   };
 }

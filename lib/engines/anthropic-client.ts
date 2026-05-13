@@ -154,6 +154,93 @@ export async function callClaude(
   return combined;
 }
 
+// ============================================================
+// VARIANTE callClaudeWithUsage
+// ------------------------------------------------------------
+// Meme appel que callClaude, mais retourne aussi les comptages de
+// tokens necessaires a l estimation de cout par appelant. Utilise
+// par les pipelines qui doivent journaliser un cout reel par
+// generation (ex : Sectoral Intelligence Layer, qui agrege le
+// cout des huit dimensions plus l agregation editoriale).
+//
+// Les comptages retournes sont ceux exposes par l API Anthropic
+// dans response.usage : input_tokens, output_tokens, plus les
+// champs cache si applicable. La sortie texte est nettoyee des
+// balises <cite> exactement comme dans callClaude.
+// ============================================================
+
+export interface CallUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}
+
+export async function callClaudeWithUsage(
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 2000,
+  model: string = MODEL,
+  options: CallClaudeOptions = {},
+): Promise<{ text: string; usage: CallUsage }> {
+  const client = getClient();
+  const useWebSearch = options.enableWebSearch ?? isWebSearchEnabled();
+  const maxWebSearches = options.maxWebSearches ?? 3;
+  const enableSystemCaching = systemPrompt.length >= 4000;
+
+  const requestParams: any = {
+    model,
+    max_tokens: maxTokens,
+    system: enableSystemCaching
+      ? [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
+      : systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+  };
+
+  if (useWebSearch) {
+    requestParams.tools = [
+      {
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: maxWebSearches,
+      },
+    ];
+  }
+
+  const response = await client.messages.create(requestParams);
+
+  const textBlocks = response.content.filter((c) => c.type === 'text');
+  if (textBlocks.length === 0) {
+    throw new Error('Réponse Claude vide ou invalide');
+  }
+  let combined = textBlocks.map((b: any) => b.text).join('\n');
+  if (useWebSearch) {
+    combined = stripCiteTags(combined);
+  }
+
+  const rawUsage = (response as any).usage || {};
+  const usage: CallUsage = {
+    input_tokens: typeof rawUsage.input_tokens === 'number' ? rawUsage.input_tokens : 0,
+    output_tokens: typeof rawUsage.output_tokens === 'number' ? rawUsage.output_tokens : 0,
+    cache_creation_input_tokens:
+      typeof rawUsage.cache_creation_input_tokens === 'number'
+        ? rawUsage.cache_creation_input_tokens
+        : undefined,
+    cache_read_input_tokens:
+      typeof rawUsage.cache_read_input_tokens === 'number'
+        ? rawUsage.cache_read_input_tokens
+        : undefined,
+  };
+
+  if (usage.cache_creation_input_tokens || usage.cache_read_input_tokens) {
+    console.log(
+      `[anthropic] cache write=${usage.cache_creation_input_tokens || 0} read=${usage.cache_read_input_tokens || 0} regular=${usage.input_tokens || 0} model=${model}`,
+    );
+  }
+
+  return { text: combined, usage };
+}
+
 /**
  * Retire les balises <cite index="..."> et </cite> du texte tout en
  * preservant leur contenu. Utilise apres web_search pour obtenir un
