@@ -1224,13 +1224,53 @@ export function detectAssetClass(extraction: any): ComparablesAssetClass {
   // de signaux discriminants. Deeptech industriel/hardware passe
   // avant SaaS parce qu un dossier peut etre 'SaaS pour usine' qui
   // est en realite un dossier industriel.
+  // Note : text est deja passe dans normalizeFrText (accents aplatis,
+  // lowercase). On liste les keywords sans accents. Le vocabulaire FR
+  // couvre les secteurs courants de pitchs francophones (maritime,
+  // sante, defense, energie, agritech) que les listes anglo-centrees
+  // historiques rataient (cas Platypus Craft : un dossier nautique FR
+  // retombait en 'all' et le bloc de comparables verifiables injectait
+  // saas-b2b par defaut, contaminant la lecture LLM aval).
   const signals = [
-    { klass: 'biotech_medtech' as const, kw: ['biotech', 'medtech', 'pharmaceut', 'therapeutic', 'mrna', 'clinical', 'diagnost', 'medical device'] },
-    { klass: 'deeptech_hardware' as const, kw: ['hardware', 'manufacturing', 'industrial', 'industriel', 'defense', 'défense', 'aerospace', 'aéronautique', 'spatial', 'robotic', 'capex', 'fleet', 'composant', 'production'] },
-    { klass: 'ai_deeptech' as const, kw: ['foundation model', 'llm', 'large language', 'modele de fondation', 'gpu', 'training cluster', 'ai infrastructure'] },
-    { klass: 'fintech' as const, kw: ['fintech', 'banque', 'banking', 'credit', 'paiement', 'payment', 'bnpl', 'insurtech', 'insurance'] },
-    { klass: 'marketplace' as const, kw: ['marketplace', 'place de marché', 'two-sided', 'multi-sided', 'plateforme c2c'] },
-    { klass: 'consumer' as const, kw: ['d2c', 'e-commerce', 'consumer goods', 'streaming', 'media', 'gaming', 'food delivery', 'micromobility', 'consumer brand'] },
+    { klass: 'biotech_medtech' as const, kw: [
+      'biotech', 'medtech', 'pharmaceut', 'therapeutic', 'mrna', 'clinical', 'diagnost', 'medical device',
+      // FR
+      'pharmaceutique', 'therapeutique', 'essai clinique', 'dispositif medical',
+      'hopital', 'clinique', 'medecine', 'sante', 'biotechnologie',
+      'drug discovery', 'molecule', 'crispr', 'genomique',
+    ] },
+    { klass: 'deeptech_hardware' as const, kw: [
+      'hardware', 'manufacturing', 'industrial', 'industriel', 'industrie',
+      'defense', 'defence', 'aerospace', 'aeronautique', 'spatial', 'aerospatial',
+      'robotic', 'robotique', 'capex', 'fleet', 'composant', 'production',
+      // FR maritime / naval (cas Platypus)
+      'naval', 'navale', 'navire', 'navires', 'nautique', 'nautisme',
+      'maritime', 'bateau', 'bateaux', 'sous-marin', 'submersible', 'semi-submersible',
+      'chantier naval', 'shipbuilding', 'shipyard', 'foilboard',
+      // FR defense ecosystem
+      'militaire', 'armement', 'naval group', 'dga', 'mbda', 'thales', 'safran',
+      // FR industrie elargie
+      'usine', 'fabrication', 'industrialisation', 'ligne de production',
+    ] },
+    { klass: 'ai_deeptech' as const, kw: [
+      'foundation model', 'llm', 'large language', 'modele de fondation',
+      'modele de langage', 'gpu', 'training cluster', 'ai infrastructure',
+      'intelligence artificielle', 'ia generative', 'machine learning',
+    ] },
+    { klass: 'fintech' as const, kw: [
+      'fintech', 'banque', 'banking', 'credit', 'paiement', 'payment', 'bnpl', 'insurtech', 'insurance',
+      'assurance', 'mutuelle', 'neobanque', 'agrement acpr', 'orias',
+    ] },
+    { klass: 'marketplace' as const, kw: [
+      'marketplace', 'place de marche', 'two-sided', 'multi-sided', 'plateforme c2c',
+    ] },
+    { klass: 'consumer' as const, kw: [
+      'd2c', 'dtc', 'e-commerce', 'ecommerce', 'consumer goods', 'streaming',
+      'media', 'gaming', 'food delivery', 'micromobility', 'consumer brand',
+      // FR consumer
+      'pret-a-porter', 'marque consumer', 'marque grand public', 'mode',
+      'cosmetique', 'restauration', 'tourisme', 'voyage',
+    ] },
     { klass: 'saas' as const, kw: ['saas', 'software', 'logiciel', 'b2b platform', 'plateforme b2b'] },
   ];
 

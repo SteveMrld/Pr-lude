@@ -331,16 +331,28 @@ export const INDICATOR_BENCHMARKS: Record<string, Record<ValuationStage, Indicat
 };
 
 /**
- * Recupere les benchmarks pour un couple (asset-class, stage). Si le
- * couple n est pas dans la table, fallback sur saas-b2b qui a la
- * couverture la plus complete.
+ * Recupere les benchmarks pour un couple (asset-class, stage).
+ *
+ * Doctrine : pas de fallback silencieux vers saas-b2b. Si la
+ * combinaison n est pas couverte (asset-class 'unclassified', stage
+ * 'unknown', ou paire absente de la table), retourne null. Le call
+ * site (indicators-engine) doit alors marquer les sept indicateurs
+ * canoniques non applicables, jamais les juger contre des seuils SaaS
+ * decales (un constructeur naval note a l aune du burn multiple SaaS,
+ * cas Platypus Craft mai 2026).
+ *
+ * Voir corollaire normalizeStage qui peut desormais retourner
+ * 'unknown' : la propagation de l incertitude jusqu a la note
+ * d investissement protege le partner d un score faux qui inspire une
+ * fausse confiance.
  */
 export function getIndicatorBenchmarks(
   assetClass: string,
-  stage: ValuationStage,
-): IndicatorBenchmarkSet {
-  return INDICATOR_BENCHMARKS[assetClass]?.[stage]
-    || INDICATOR_BENCHMARKS['saas-b2b'][stage];
+  stage: ValuationStage | 'unknown',
+): IndicatorBenchmarkSet | null {
+  if (stage === 'unknown') return null;
+  if (assetClass === 'unclassified') return null;
+  return INDICATOR_BENCHMARKS[assetClass]?.[stage] ?? null;
 }
 
 /**

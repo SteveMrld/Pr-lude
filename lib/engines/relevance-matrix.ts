@@ -780,11 +780,23 @@ function detectProductionChain(text: string): ProductionChain {
   if (regulated >= 2 && saasSignal === 0) return 'regulated-service';
   if (content >= 2) return 'content-media';
 
-  // Cas par defaut : pure-software si signal SaaS detecte (plateforme
-  // verticale qui adresse un marche hardware sans fabrication) ou si
-  // les keywords logiciel canoniques sont presents.
-  if (saasSignal >= 1
-    || containsAny(text, ['saas', 'software', 'application', 'plateforme web', 'app mobile', 'mobile app', 'cloud', 'api '])) {
+  // Cas par defaut : pure-software si signal SaaS canonique detecte.
+  // Doctrine : on EXIGE un signal canonique non ambigu (saas, software,
+  // logiciel, cloud, api, plateforme numerique, app mobile) plutot que
+  // d accepter le mot 'application' seul, qui matche aussi 'application
+  // industrielle', 'application marine', 'application militaire',
+  // 'application medicale' dans les decks FR de hardware et de biotech.
+  // Le mot 'application' n active la branche pure-software que s il est
+  // accompagne d un qualificatif logiciel (app mobile, application
+  // mobile, application web, application saas).
+  const hasCanonicalSoftwareSignal = saasSignal >= 1
+    || containsAny(text, [
+      'saas', 'software', 'logiciel',
+      'plateforme numerique', 'plateforme web',
+      'app mobile', 'application mobile', 'application web', 'application saas',
+      'cloud', 'api ',
+    ]);
+  if (hasCanonicalSoftwareSignal) {
     return 'pure-software';
   }
 
@@ -1683,12 +1695,22 @@ function deriveAssetClass(
   const hasDeeptechSignal = /\b(quantum|fusion|semiconducteur|semiconductor|materials|materiaux avances|crispr|nanotech|deep tech|deeptech|biotech)\b/.test(t);
   const hasMedtechSignal = /\b(medical|medecin|medecine|sante|health|clinique|hopital|dispositif medical|medtech|pharma|essai clinique)\b/.test(t);
   const hasFintechSignal = /\b(banque|banking|bank|paiement|payment|insurtech|assurance|lending|credit|fintech)\b/.test(t);
+  // Agritech / foodtech industriel : pisciculture, aquaculture,
+  // viticulture, elevage, agroalimentaire. Le secteur economique reste
+  // foodtech meme si la chaine de production est materielle (bassins,
+  // fermes, equipement industriel). Le hint foodtech doit dominer
+  // sur la classification hardware par defaut.
+  const hasAgriSignal = /\b(aquaculture|pisciculture|agriculture|agroalimentaire|viticulture|elevage|maraichage|horticulture|ferme aquacole|ferme verticale)\b/.test(t);
 
   switch (productionChain) {
     case 'hardware-physical': {
       // Signal sectoriel reconnu cote hardware : on respecte l indice.
+      // 'foodtech' ajoute pour les dossiers agritech industriels
+      // (aquaculture, pisciculture, agroalimentaire) qui ont une chaine
+      // hardware physique mais relevent doctrinalement de foodtech.
       if (hint === 'defense' || hint === 'climate-tech' || hint === 'deeptech'
-        || hint === 'industrial-hardware' || hint === 'healthtech') {
+        || hint === 'industrial-hardware' || hint === 'healthtech'
+        || hint === 'foodtech') {
         return hint;
       }
       // Sinon on arbitre par le texte.
@@ -1696,15 +1718,18 @@ function deriveAssetClass(
       if (hasDeeptechSignal) return 'deeptech';
       if (hasClimateSignal) return 'climate-tech';
       if (hasMedtechSignal) return 'healthtech';
+      if (hasAgriSignal) return 'foodtech';
       return 'industrial-hardware';
     }
     case 'infrastructure-physical': {
       if (hint === 'climate-tech' || hint === 'industrial-hardware'
-        || hint === 'defense' || hint === 'deeptech') {
+        || hint === 'defense' || hint === 'deeptech'
+        || hint === 'foodtech') {
         return hint;
       }
       if (hasClimateSignal) return 'climate-tech';
       if (hasDefenseSignal) return 'defense';
+      if (hasAgriSignal) return 'foodtech';
       return 'industrial-hardware';
     }
     case 'wet-biotech': {

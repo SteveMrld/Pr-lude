@@ -82,10 +82,17 @@ export interface ValuationOutput {
     /** Note explicative en clair pour la note. */
     rationale: string;
   } | null;
-  /** Asset class normalisee (saas-b2b, fintech, deeptech, etc.). */
+  /** Asset class normalisee (saas-b2b, fintech, deeptech, etc.) ou
+   *  'unclassified' si la matrice n a pas tranche : dans ce cas la
+   *  fourchette n est pas calculee, les methodes sont marquees non
+   *  applicables et la note doit afficher 'classification a confirmer'. */
   assetClass: string;
-  /** Stade normalise (seed, series-a, series-b, series-c-plus). */
-  stage: ValuationStage;
+  /** Stade normalise (seed, series-a, series-b, series-c-plus). 'unknown'
+   *  signale que le pitch n a pas livre un libelle reconnu (bridge,
+   *  tour intermediaire, pre-B, extension). Dans ce cas la valorisation
+   *  est explicitement marquee non calculable plutot que cale sur les
+   *  benchmarks seed par defaut. */
+  stage: ValuationStage | 'unknown';
   /** Phrase de synthese editoriale pour le partner. */
   synthesis: string;
   /** Avertissements methodologiques a remonter. */
@@ -141,6 +148,17 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     assetClass = normalizeAssetClass(assetClassRaw);
   }
   const stage = normalizeStage(stageRaw);
+
+  // Doctrine : si l asset class est non classifiee ou le stade non
+  // identifie, on ne calcule pas une fourchette ancree sur des
+  // benchmarks decales. On retourne un output ou toutes les methodes
+  // sont non applicables, avec un warning explicite, plutot que de
+  // simuler une valorisation seed (cas Platypus Craft : dossier
+  // industrial-hardware retombait en saas-b2b silencieux et appliquait
+  // des multiples ARR sur du hardware unitaire).
+  if (assetClass === 'unclassified' || stage === 'unknown') {
+    return buildNonApplicableValuation(assetClass, stage);
+  }
 
   // Detection automatique du cas 'profitable-mature' : si on est en
   // Series B+ et qu un EBITDA positif est extrait dans le pitch ou le
@@ -699,6 +717,53 @@ function nonApplicableScorecard(): ValuationMethodResult {
     label: 'Methode Scorecard (Bill Payne)',
     applicable: false,
     notApplicableReason: 'La methode Scorecard s applique uniquement au stade seed.',
+  };
+}
+
+/**
+ * Construit un output valorisation explicitement non applicable quand
+ * le couple (asset class, stade) ne fournit pas l ancrage benchmark
+ * necessaire. Toutes les methodes ressortent applicable=false avec un
+ * rationale specifique, recommendedRange=null, confidence='low'. Le
+ * partner voit dans la note 'fourchette non calculable, classification
+ * a confirmer' plutot qu une fourchette decalee inspiree de seuils
+ * saas-b2b par defaut.
+ */
+function buildNonApplicableValuation(
+  assetClass: string,
+  stage: ValuationStage | 'unknown',
+): ValuationOutput {
+  const stageMsg = stage === 'unknown'
+    ? 'Stade non identifie (libelle pitch atypique : bridge, tour intermediaire, pre-B, extension de seed, etc.).'
+    : `Stade ${stage}.`;
+  const assetMsg = assetClass === 'unclassified'
+    ? 'Asset class non reconnue par la matrice (sector libelle non couvert ou productionChain indeterminee).'
+    : `Asset class ${assetClass}.`;
+  const reason = `${assetMsg} ${stageMsg} Methodes de valorisation neutralisees pour eviter une fourchette cale sur des benchmarks saas-b2b par defaut.`;
+  const methods: ValuationMethodResult[] = [
+    { method: 'sector-multiples', label: 'Multiples sectoriels', applicable: false, notApplicableReason: reason },
+    { method: 'vc-method', label: 'Methode VC inverse', applicable: false, notApplicableReason: reason },
+    { method: 'berkus', label: 'Methode Berkus', applicable: false, notApplicableReason: reason },
+    { method: 'scorecard', label: 'Methode Scorecard (Bill Payne)', applicable: false, notApplicableReason: reason },
+  ];
+  const warnings: string[] = [];
+  if (assetClass === 'unclassified' && stage === 'unknown') {
+    warnings.push('Asset class non reconnue ET stade non identifie. Valorisation non calculable : le partner doit clarifier le secteur dominant et le palier de levee avant que le moteur puisse ancrer une fourchette.');
+  } else if (stage === 'unknown') {
+    warnings.push(`Stade non identifie (libelle pitch atypique). Valorisation non calculable plutot que calee sur les benchmarks seed par defaut. A confirmer avec le partner : tour de seed, series-a, series-b ou growth ?`);
+  } else if (assetClass === 'unclassified') {
+    warnings.push(`Asset class non reconnue. Valorisation non calculable plutot que calee sur des multiples saas-b2b decales. Voir matrix.productionChain pour le routage doctrinal : un dossier hardware-physical n est pas valorise comme un SaaS B2B.`);
+  }
+  return {
+    recommendedRange: null,
+    confidence: 'low',
+    methods,
+    dilutionAnalysis: null,
+    assetClass,
+    stage,
+    synthesis: 'Valorisation non calculable : la matrice n a pas trouve d ancrage sectoriel ou de stade reconnu pour ce dossier. Plutot qu une fourchette decalee, le moteur affiche explicitement l incertitude. Le partner doit clarifier (secteur dominant, palier de levee) avant de reactiver les methodes.',
+    warnings,
+    benchmarkSources: [],
   };
 }
 

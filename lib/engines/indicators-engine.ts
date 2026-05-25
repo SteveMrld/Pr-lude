@@ -84,7 +84,13 @@ export interface IndicatorResult {
  */
 export interface IndicatorsOutput {
   assetClass: string;
-  stage: ValuationStage;
+  /** Stade normalise. 'unknown' signale que le pitch n a pas livre un
+   * libelle reconnu (cas frequent : 'bridge', 'tour intermediaire',
+   * 'series B-1', extension de seed). Dans ce cas, les sept indicateurs
+   * SaaS sont neutralises plutot que juges contre les seuils seed par
+   * defaut. La note doit afficher 'classification a confirmer' au
+   * partner plutot qu un score faux qui inspire une fausse confiance. */
+  stage: ValuationStage | 'unknown';
   indicators: IndicatorResult[];
   /** Score global d execution operationnelle, 0-100. Calcule a partir
    * des verdicts des indicateurs applicables. Best-in-class +20pts,
@@ -179,15 +185,17 @@ function parsePercent(s: string | null | undefined): number | null {
  */
 function computeBurnMultiple(
   fd: FinancialDataExtraction | null | undefined,
-  benchmarks: IndicatorBenchmarkSet,
+  benchmarks: IndicatorBenchmarkSet | null,
 ): IndicatorResult {
   const label = 'Burn multiple';
-  const benchmark = benchmarks.burnMultiple;
+  const benchmark = benchmarks?.burnMultiple;
   if (!fd || !benchmark) {
     return {
       key: 'burnMultiple', label, value: null, unit: 'x',
       verdict: 'non-applicable',
-      rationale: 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
+      rationale: !benchmarks
+        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Indicateur neutralise pour eviter un verdict cale sur des seuils logiciels decales.'
+        : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
       dataConfidence: 'absent',
     };
   }
@@ -250,15 +258,17 @@ function computeYoYGrowthAbsolute(
  */
 function computeRuleOf40(
   fd: FinancialDataExtraction | null | undefined,
-  benchmarks: IndicatorBenchmarkSet,
+  benchmarks: IndicatorBenchmarkSet | null,
 ): IndicatorResult {
   const label = 'Rule of 40';
-  const benchmark = benchmarks.ruleOf40;
+  const benchmark = benchmarks?.ruleOf40;
   if (!fd || !benchmark) {
     return {
       key: 'ruleOf40', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      rationale: 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
+      rationale: !benchmarks
+        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Indicateur neutralise.'
+        : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
       dataConfidence: 'absent',
     };
   }
@@ -313,16 +323,18 @@ function computeRuleOf40(
  */
 function computeNdr(
   fd: FinancialDataExtraction | null | undefined,
-  benchmarks: IndicatorBenchmarkSet,
+  benchmarks: IndicatorBenchmarkSet | null,
   saasMetrics?: SaasMetricsExtraction | null,
 ): IndicatorResult {
   const label = 'NDR (Net Dollar Retention)';
-  const benchmark = benchmarks.ndr;
+  const benchmark = benchmarks?.ndr;
   if (!benchmark) {
     return {
       key: 'ndr', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      rationale: 'NDR non applicable a cet asset class. La metrique mesure la retention nette de revenus recurrents sur la base installee, pertinente uniquement pour les modeles SaaS, fintech recurrent, ou consumer subscriptions. Modele du dossier non concerne.',
+      rationale: !benchmarks
+        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). NDR neutralise.'
+        : 'NDR non applicable a cet asset class. La metrique mesure la retention nette de revenus recurrents sur la base installee, pertinente uniquement pour les modeles SaaS, fintech recurrent, ou consumer subscriptions. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
   }
@@ -395,16 +407,18 @@ function computeNdr(
  */
 function computeMagicNumber(
   fd: FinancialDataExtraction | null | undefined,
-  benchmarks: IndicatorBenchmarkSet,
+  benchmarks: IndicatorBenchmarkSet | null,
   saasMetrics?: SaasMetricsExtraction | null,
 ): IndicatorResult {
   const label = 'Magic Number';
-  const benchmark = benchmarks.magicNumber;
+  const benchmark = benchmarks?.magicNumber;
   if (!benchmark) {
     return {
       key: 'magicNumber', label, value: null, unit: 'x',
       verdict: 'non-applicable',
-      rationale: 'Magic Number non applicable a cet asset class. La metrique mesure l efficacite du capital S&M dans la generation d ARR new, pertinente uniquement pour les modeles SaaS et software a vente recurrente. Modele du dossier non concerne.',
+      rationale: !benchmarks
+        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Magic Number neutralise.'
+        : 'Magic Number non applicable a cet asset class. La metrique mesure l efficacite du capital S&M dans la generation d ARR new, pertinente uniquement pour les modeles SaaS et software a vente recurrente. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
   }
@@ -467,17 +481,19 @@ function computeMagicNumber(
  */
 function computePaybackCac(
   fd: FinancialDataExtraction | null | undefined,
-  benchmarks: IndicatorBenchmarkSet,
+  benchmarks: IndicatorBenchmarkSet | null,
   saasMetrics?: SaasMetricsExtraction | null,
   acquisitionFunnel?: 'present' | 'b2b-sales-led' | 'absent' | 'unknown' | null,
 ): IndicatorResult {
   const label = 'Payback CAC';
-  const benchmark = benchmarks.paybackCac;
+  const benchmark = benchmarks?.paybackCac;
   if (!benchmark) {
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
-      rationale: 'Payback CAC non applicable a cet asset class. La metrique mesure la duree d amortissement du cout d acquisition d un client, pertinente uniquement pour les modeles a vente recurrente ou repetable. Modele du dossier non concerne.',
+      rationale: !benchmarks
+        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Payback CAC neutralise.'
+        : 'Payback CAC non applicable a cet asset class. La metrique mesure la duree d amortissement du cout d acquisition d un client, pertinente uniquement pour les modeles a vente recurrente ou repetable. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
   }
@@ -596,15 +612,17 @@ function computePaybackCac(
  */
 function computeGrossMargin(
   fd: FinancialDataExtraction | null | undefined,
-  benchmarks: IndicatorBenchmarkSet,
+  benchmarks: IndicatorBenchmarkSet | null,
 ): IndicatorResult {
   const label = 'Marge brute';
-  const benchmark = benchmarks.grossMargin;
+  const benchmark = benchmarks?.grossMargin;
   if (!fd || !benchmark) {
     return {
       key: 'grossMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      rationale: 'Indicateur non applicable ou donnees BP absentes.',
+      rationale: !benchmarks
+        ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifie). Marge brute neutralisee : sera evaluee qualitativement en DD selon le secteur reel du dossier.'
+        : 'Indicateur non applicable ou donnees BP absentes.',
       dataConfidence: 'absent',
     };
   }
@@ -660,15 +678,17 @@ function computeGrossMargin(
  */
 function computeRevenuePerEmployee(
   fd: FinancialDataExtraction | null | undefined,
-  benchmarks: IndicatorBenchmarkSet,
+  benchmarks: IndicatorBenchmarkSet | null,
 ): IndicatorResult {
   const label = 'Revenue par employe';
-  const benchmark = benchmarks.revenuePerEmployee;
+  const benchmark = benchmarks?.revenuePerEmployee;
   if (!fd || !benchmark) {
     return {
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
-      rationale: 'Indicateur non applicable ou donnees BP absentes.',
+      rationale: !benchmarks
+        ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifie). Capital efficiency neutralisee.'
+        : 'Indicateur non applicable ou donnees BP absentes.',
       dataConfidence: 'absent',
     };
   }
@@ -1048,6 +1068,13 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   }
   const stage = normalizeStage(stageRaw);
 
+  // Doctrine : si l asset class ou le stade ne sont pas reconnus, on
+  // neutralise les sept indicateurs SaaS plutot que de les juger contre
+  // des seuils saas-b2b decales (cas Platypus Craft : dossier
+  // industrial-hardware retombait en saas-b2b silencieux, ratios
+  // industriels notes a l aune de standards logiciels). getIndicator
+  // Benchmarks retourne null dans ce cas et les compute* basculent
+  // automatiquement en non-applicable avec rationale explicite.
   const benchmarks = getIndicatorBenchmarks(assetClass, stage);
   const fd = input.financialData;
   const sm = input.saasMetrics;
@@ -1133,7 +1160,20 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
 
   // Warnings
   const warnings: string[] = [];
-  if (applicableCount === 0) {
+  // Signal explicite quand benchmarks ont ete neutralises faute d
+  // ancrage sectoriel ou de stade : la note doit savoir que le score
+  // d execution n est pas reellement ancre sur un comparable sectoriel.
+  if (!benchmarks) {
+    if (stage === 'unknown' && assetClass === 'unclassified') {
+      warnings.push('Stade et asset class non identifies. Indicateurs neutralises : le moteur ne peut pas evaluer la sante economique sans benchmarks ancres. Demander au partner de clarifier le palier de levee et le secteur dominant avant de conclure.');
+    } else if (stage === 'unknown') {
+      warnings.push(`Stade non identifie (libelle pitch atypique : 'bridge', 'tour intermediaire', 'pre-B', etc.). Indicateurs neutralises plutot que juges contre des seuils seed par defaut. A confirmer avec le partner.`);
+    } else if (assetClass === 'unclassified') {
+      warnings.push(`Asset class non reconnue. Indicateurs SaaS neutralises pour eviter un verdict cale sur des seuils logiciels decales. Voir matrix.assetClass + matrix.productionChain pour le routage doctrinal des indicateurs en aval.`);
+    } else {
+      warnings.push(`Benchmarks indisponibles pour le couple (${assetClass}, ${stage}). Indicateurs neutralises.`);
+    }
+  } else if (applicableCount === 0) {
     warnings.push(useIndustrialSet
       ? 'Aucun indicateur industriel calculable : la plupart des indicateurs (carnet de commandes, cycle commercial, working capital, capex projet) requierent une extraction LLM dediee ou des donnees DD non presentes dans le BP standard.'
       : 'Aucun indicateur calculable : le BP fourni ne contient pas les donnees structurees necessaires (revenue, marge brute, headcount, EBITDA, unit economics).');
@@ -1141,7 +1181,7 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
     warnings.push(`Seuls ${applicableCount} indicateurs applicables. Le score d execution est moins robuste qu une evaluation complete.`);
   }
   const naCount = indicators.filter((i) => i.verdict === 'non-applicable').length;
-  if (naCount >= 5 && !useIndustrialSet) {
+  if (naCount >= 5 && !useIndustrialSet && benchmarks) {
     warnings.push('La plupart des indicateurs sont non applicables faute de donnees structurees. Demander au fondateur un BP plus complet (revenue, marge brute, EBITDA, headcount, unit economics par segment).');
   }
 

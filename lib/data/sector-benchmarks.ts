@@ -76,19 +76,45 @@ export interface SectorBenchmarks {
 export type ValuationStage = 'seed' | 'series-a' | 'series-b' | 'series-c-plus';
 
 /**
- * Mapping permissif : differentes strings de roundType qu on peut
- * recevoir depuis l extraction LLM, vers les quatre stades canoniques.
+ * Mapping permissif des stades extraits du pitch vers les quatre paliers
+ * canoniques de valorisation.
+ *
+ * Doctrine : aucun fallback silencieux vers 'seed'. Un libelle vide ou
+ * non reconnu retourne 'unknown'. Le fallback historique faisait
+ * traiter une serie B exotique ('bridge', 'series B-1', 'pre-C', 'tour
+ * intermediaire') comme un seed en silence : valorisation et seuils
+ * KPI seed appliques a un dossier potentiellement en growth.
+ * Desormais l incertitude est explicite, et les call sites
+ * (valuation-engine, indicators-engine) la rendent visible en
+ * marquant les indicateurs et methodes non applicables.
  */
-export function normalizeStage(rawStage: string | null | undefined): ValuationStage {
-  if (!rawStage) return 'seed';
+export function normalizeStage(rawStage: string | null | undefined): ValuationStage | 'unknown' {
+  if (!rawStage) return 'unknown';
   const s = rawStage.toLowerCase();
   if (s.includes('pre-seed') || s.includes('preseed') || s.includes('pre seed')) return 'seed';
-  if (s.includes('seed')) return 'seed';
-  if (s.includes('series a') || s.includes('series-a') || s.includes('seriea') || s === 'a') return 'series-a';
-  if (s.includes('series b') || s.includes('series-b') || s.includes('seriesb') || s === 'b') return 'series-b';
+  if (s.includes('seed') || s.includes('amorcage') || s.includes('amorçage')) return 'seed';
+  // Series A late et variantes post-PMF, pre-B : ces tours sont
+  // doctrinalement series-a (et non series-b). On les traite comme
+  // series-a pour les benchmarks valorisation / KPI.
+  if (/late\s*series?\s*a|series?\s*a\s*late|series?\s*a\.?5|series?\s*a2|series?\s*a\s*\+|post[-\s]?pmf|pre[-\s]?b\b/.test(s)) {
+    return 'series-a';
+  }
+  if (s.includes('series a') || s.includes('series-a') || s.includes('seriea')
+    || s.includes('serie a') || s.includes('série a') || s.includes('tour a') || s.includes('round a')
+    || s === 'a') return 'series-a';
+  if (s.includes('series b') || s.includes('series-b') || s.includes('seriesb')
+    || s.includes('serie b') || s.includes('série b') || s.includes('tour b') || s.includes('round b')
+    || s === 'b') return 'series-b';
   if (s.includes('series c') || s.includes('series d') || s.includes('series e')
-    || s.includes('growth') || s.includes('late') || s.includes('pre-ipo')) return 'series-c-plus';
-  return 'seed';
+    || s.includes('serie c') || s.includes('série c') || s.includes('serie d') || s.includes('série d')
+    || s.includes('growth') || s.includes('late stage') || s.includes('late-stage')
+    || s.includes('pre-ipo') || s.includes('preipo') || s.includes('pre ipo')
+    || s.includes('capital de croissance') || s.includes('tour de croissance')) return 'series-c-plus';
+  // Bridge, tour intermediaire, extension : stages frequents en pratique
+  // FR mais qui ne portent pas l information du palier. Plutot que de
+  // simuler un seed, on remonte unknown pour que le pipeline aval
+  // demande au partner de preciser.
+  return 'unknown';
 }
 
 /**
@@ -584,7 +610,12 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   // ----- Asset-classes principales
   if (s.includes('cyber') || s.includes('security') || s.includes('siem') || s.includes('zero trust')) return 'cybersecurity';
   if (s.includes('fintech') || s.includes('finance') || s.includes('banking') || s.includes('payment')
-    || s.includes('insurtech') || s.includes('lending') || s.includes('regtech')) return 'fintech';
+    || s.includes('insurtech') || s.includes('lending') || s.includes('regtech')
+    // FR : vocabulaire bancaire et assurantiel francais frequent
+    || s.includes('banque') || s.includes('neobanque')
+    || s.includes('paiement') || s.includes('paiements')
+    || s.includes('assurance') || s.includes('mutuelle') || s.includes('prevoyance')
+    || s.includes('credit') || s.includes('agrement acpr') || s.includes('agrement orias')) return 'fintech';
   if (s.includes('marketplace') || s.includes('platform b2c') || s.includes('consumer marketplace')) return 'marketplace-b2c';
   if (s.includes('ecommerce') || s.includes('e-commerce') || s.includes('dtc') || s.includes('direct to consumer')
     || s.includes('retail')) return 'ecommerce-dtc';
@@ -615,7 +646,8 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
     || s.includes('transition energetique') || s.includes('transition énergétique')
     || /\benr\b/.test(s)) return 'climate-tech';
   if (s.includes('defense') || s.includes('defence') || s.includes('military')
-    || s.includes('dual-use') || s.includes('aerospace')) return 'defense';
+    || s.includes('militaire') || s.includes('armement') || s.includes('armee')
+    || s.includes('dual-use')) return 'defense';
   if (s.includes('hospitality') || s.includes('travel') || s.includes('tourism')
     || s.includes('hotel') || s.includes('vacation')) return 'hospitality';
 
@@ -623,13 +655,21 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   if (s.includes('adtech') || s.includes('ad tech') || s.includes('advertising')
     || s.includes('martech') || s.includes('marketing tech')) return 'adtech';
   if (s.includes('foodtech') || s.includes('agritech') || s.includes('agriculture')
-    || s.includes('food tech') || s.includes('vertical farming') || s.includes('alt protein')) return 'foodtech';
+    || s.includes('agroalimentaire') || s.includes('food tech') || s.includes('vertical farming')
+    || s.includes('alt protein') || s.includes('aquaculture') || s.includes('pisciculture')
+    || s.includes('viticulture') || s.includes('oenologie')
+    || s.includes('elevage') || s.includes('maraichage') || s.includes('horticulture')) return 'foodtech';
   if (s.includes('proptech') || s.includes('real estate') || s.includes('immobilier')
     || s.includes('construction tech') || s.includes('contech')) return 'proptech';
   if (s.includes('edtech') || s.includes('education') || s.includes('e-learning')
     || s.includes('learning')) return 'edtech';
+  // Logistics. Le mot 'maritime' a ete retire pour ne pas siphonner les
+  // dossiers de construction navale (qui ressortent en industrial-
+  // hardware via le bloc maritime/naval/nautique plus bas). Le fret
+  // maritime reste capture par 'freight', 'shipping', 'last mile'.
   if (s.includes('logistics') || s.includes('supply chain') || s.includes('freight')
-    || s.includes('shipping') || s.includes('last mile')) return 'logistics';
+    || s.includes('shipping') || s.includes('last mile') || s.includes('ferroviaire')
+    || s.includes('aviation civile') || s.includes('fret')) return 'logistics';
   if (s.includes('media') || s.includes('streaming') || s.includes('publishing')
     || s.includes('gaming') || s.includes('content') || s.includes('entertainment')) return 'mediatech';
   // Detection sport via word-boundary pour eviter la capture par
@@ -644,6 +684,14 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   if (s.includes('hardware') || s.includes('manufacturing') || s.includes('industrial')
     || s.includes('industrie') || s.includes('industriel') || s.includes('robotics')
     || s.includes('infrastructure') || s.includes('genie civil') || s.includes('génie civil')
+    // Aerospatial et ferroviaire FR : doctrinalement industrial-hardware
+    // (cycle long, capex outillage, chaine de production lourde). Le mot
+    // 'aviation civile' route en logistics plus haut ; 'aerospace' /
+    // 'aeronautique' / 'spatial' / 'aerospatial' restent ici car ils
+    // designent typiquement des constructeurs ou equipementiers, pas
+    // des operateurs de transport.
+    || s.includes('aerospatial') || s.includes('aeronautique')
+    || s.includes('spatial') || s.includes('aerospace') || s.includes('satellite')
     // Maritime / naval / nautique : vocabulaire FR et EN qui releve
     // doctrinalement de l industriel hardware (chaine de production
     // navire, cycle long, capex outillage). Bloc place ici pour que
@@ -680,6 +728,8 @@ export function getSectorMultiples(
 ): { range: SectorMultipleRange; assetClass: string; stage: ValuationStage } | null {
   const assetClass = normalizeAssetClass(rawAssetClass);
   const stage = normalizeStage(rawStage);
+  if (stage === 'unknown') return null;
+  if (assetClass === 'unclassified') return null;
   const sectorData = SECTOR_BENCHMARKS[assetClass];
   if (!sectorData) return null;
   const range = sectorData[stage];

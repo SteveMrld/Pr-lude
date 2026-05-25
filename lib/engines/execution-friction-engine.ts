@@ -51,6 +51,9 @@ import { formatExtractionGeography } from './fund-context';
 // ============================================================
 
 // Hardware physique : production de biens materiels.
+// FR ajoute : voilier, catamaran, multicoque, monocoque, chantier
+// naval, semi-submersible, propulsion marine, ferroviaire, aeronautique,
+// satellite (vocabulaire hardware FR frequent en pitch).
 const HARDWARE_KEYWORDS = [
   'hardware', 'manufacturing', 'usine', 'production industrielle',
   'fabrication', 'fabriqu', 'industrialis', 'serie', 'prototype',
@@ -59,6 +62,14 @@ const HARDWARE_KEYWORDS = [
   'embarqu', 'iot', 'object connect', 'objet connecté',
   'drone', 'vehicule', 'véhicule', 'sous-marin', 'aeronef', 'aéronef',
   'navire', 'bateau', 'foilboard', 'sup', 'paddle',
+  // FR maritime / naval elargi
+  'voilier', 'catamaran', 'multicoque', 'monocoque',
+  'chantier naval', 'shipbuilding', 'shipyard',
+  'semi-submersible', 'submersible', 'propulsion marine',
+  'nautique', 'nautisme', 'maritime industriel', 'naval', 'navale',
+  // FR aerospatial / ferroviaire / spatial
+  'ferroviaire', 'aeronautique', 'aéronautique', 'aerospatial', 'aérospatial',
+  'satellite', 'lanceur spatial', 'capsule', 'fusee', 'fusée',
 ];
 
 // Client B2G ou semi-etatique : vente a l Etat ou a des
@@ -78,6 +89,8 @@ const B2G_KEYWORDS = [
 
 // Deeptech non standardisee : technologie qui n est pas encore
 // installee comme standard de marche.
+// FR ajoute : hydrolien, energies marines, EMR, propulsion electrique
+// marine (deeptech maritime FR frequent).
 const DEEPTECH_KEYWORDS = [
   'hydrogene', 'hydrogène', 'hydrogen',
   'quantum', 'quantique', 'fusion nucleaire', 'fusion nucléaire',
@@ -90,6 +103,10 @@ const DEEPTECH_KEYWORDS = [
   'capture carbone', 'ccus', 'electrolyse', 'électrolyse',
   'small modular reactor', 'smr', 'thorium',
   'agri-tech ferme verticale', 'protein alternative',
+  // FR maritime deeptech
+  'hydrolien', 'energies marines', 'énergies marines', 'energie marine',
+  'énergie marine', 'emr', 'swac', 'otec', 'etm',
+  'propulsion electrique marine', 'propulsion électrique marine',
 ];
 
 // Capex significatif : investissement industriel lourd avant
@@ -126,6 +143,8 @@ const LONG_CYCLE_KEYWORDS = [
 ];
 
 // Regulation produit / certification.
+// FR maritime ajoute : class societies (Bureau Veritas, DNV, Lloyd's),
+// homologation marine, pavillon (immatriculation navire).
 const REGULATED_KEYWORDS = [
   'ce marking', 'marquage ce', 'certification ce',
   'fda', 'ema', 'ansm', 'mdr', 'ivdr',
@@ -139,6 +158,10 @@ const REGULATED_KEYWORDS = [
   'hébergeur de données de santé',
   'secret defense', 'secret défense', 'classifie', 'classifié',
   'banque de france', 'acpr', 'amf',
+  // FR certification maritime
+  'bureau veritas', 'dnv', 'lloyd', 'class society', 'societe de classification',
+  'société de classification', 'pavillon', 'immatriculation navire',
+  'homologation marine',
 ];
 
 // Dependance ecosysteme externe absent ou immature.

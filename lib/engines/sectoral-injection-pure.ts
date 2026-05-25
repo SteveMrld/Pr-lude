@@ -83,10 +83,14 @@ interface SlugMatcher {
 
 const SLUG_MATCHERS: SlugMatcher[] = [
   // Defense et cybersecurite (avant industrie/hardware qui peut sinon capturer drone)
+  // FR ajoute : armement, armee, dga, naval group, mbda, thales, safran
+  // (ecosysteme defense francais frequent en pitch).
   { slug: 'cybersecurite-defense', keywords: [
     'defense', 'defence', 'militaire', 'isr', 'cybersecurite', 'cybersecurity',
     'cyber', 'securite cloud', 'souverainete numerique', 'dual-use', 'drone militaire',
     'identity security', 'edr', 'siem',
+    'armement', 'armee', 'army', 'dga', 'mbda', 'naval group', 'thales', 'safran',
+    'gendarmerie', 'arianegroup',
   ]},
   // Crypto et blockchain
   { slug: 'crypto-blockchain', keywords: [
@@ -98,35 +102,77 @@ const SLUG_MATCHERS: SlugMatcher[] = [
     'fintech', 'insurtech', 'banque', 'banking', 'neobanque', 'paiement', 'payment',
     'kyc', 'wealth tech', 'lending', 'pret', 'embedded finance', 'bnpl',
     'compliance financiere', 'aml',
+    'assurance', 'mutuelle', 'agrement acpr', 'orias', 'amf',
   ]},
   // Sante et biotech
+  // FR ajoute : hopital, medecin, ehpad, ars, cpam, soins, infirmier
+  // (etablissements et professions reglementees frequents en pitch FR).
   { slug: 'sante-biotech', keywords: [
     'sante', 'health', 'medtech', 'biotech', 'pharma', 'therapeutique', 'diagnostic',
     'digital health', 'medical device', 'dispositif medical', 'drug discovery',
     'clinical', 'clinique',
+    'hopital', 'medecin', 'medecine', 'ehpad', 'soins', 'infirmier', 'kinesitherapeute',
+    'pharmacie', 'officine', 'imagerie medicale', 'biologie medicale',
+    'agrement ars', 'taxi cpam', 'transport sanitaire',
   ]},
-  // Climat et energie
-  { slug: 'climat-energie', keywords: [
-    'climat', 'climate', 'energie', 'energy', 'renouvelable', 'renewable',
-    'hydrogene', 'hydrogen', 'captation carbone', 'carbon', 'batterie', 'battery',
-    'efficacite energetique', 'cleantech', 'solar', 'wind',
-  ]},
-  // Mobilite et logistique
-  { slug: 'mobilite-logistique', keywords: [
-    'mobilite', 'mobility', 'logistique', 'logistics', 'transport',
-    'supply chain', 'fret', 'last mile', 'autonome', 'autonomous',
-    'vehicule electrique', 'ev', 'rail', 'aviation', 'maritime',
-  ]},
-  // Industrie et hardware
+  // Industrie et hardware. DEPLACE AVANT climat-energie : un dossier
+  // industriel qui mentionne batterie / energie / decarbonation matche
+  // les deux en substring, mais doctrinalement c est avant tout un
+  // hardware. Cas Platypus Craft : pitch construction navale mentionnant
+  // propulsion electrique marine matchait climat-energie en primaire
+  // avant ce reordering.
+  //
+  // FR ajoute : naval, navale, navire, nautique, nautisme, bateau,
+  // sous-marin, submersible, chantier naval, shipbuilding (construction
+  // hardware maritime, cas Platypus Craft). Le mot 'maritime' SEUL est
+  // intentionnellement EXCLU : trop large, matchait aussi les dossiers
+  // d energies marines (hydrolien, EMR) et de fret maritime. Pour
+  // capturer la construction navale FR, on s appuie sur les keywords
+  // doctrinaux precis (naval, navire, chantier naval, etc.).
   { slug: 'industrie-hardware', keywords: [
     'manufacturing', 'industrie', 'hardware', 'robotique', 'robotics',
     'semi-conducteur', 'semiconductor', 'deeptech industriel', 'industrie 4.0',
     'electronique', 'embarque', 'iot industriel',
+    // FR maritime / naval (vocabulaire de construction navale propre,
+    // sans 'maritime' generique)
+    'naval', 'navale', 'navire', 'navires', 'nautique', 'nautisme',
+    'bateau', 'bateaux', 'sous-marin', 'submersible',
+    'semi-submersible', 'chantier naval', 'shipbuilding', 'shipyard',
+    'foilboard',
+    // FR industrie elargie
+    'usine', 'fabrication', 'industrialisation', 'aerospatial', 'aeronautique',
+    'spatial', 'aerospace', 'satellite',
+  ]},
+  // Climat et energie
+  // FR ajoute : energies marines / EMR, eolien, photovoltaique, hydrolien,
+  // geothermie, solaire (vocabulaire energie FR frequent).
+  { slug: 'climat-energie', keywords: [
+    'climat', 'climate', 'energie', 'energy', 'renouvelable', 'renewable',
+    'hydrogene', 'hydrogen', 'captation carbone', 'carbon', 'batterie', 'battery',
+    'efficacite energetique', 'cleantech', 'solar', 'wind',
+    'eolien', 'eolien offshore', 'photovoltaique', 'hydrolien',
+    'energies marines', 'energie marine', 'emr', 'geothermie',
+    'solaire', 'biomasse', 'transition energetique',
+  ]},
+  // Mobilite et logistique. ATTENTION : 'maritime' a ete retire des
+  // keywords pour ne plus siphonner les dossiers de construction navale
+  // (cas Platypus Craft : maritime matchait ici, le dossier ressortait
+  // en mobilite-logistique au lieu d industrie-hardware). Le fret
+  // maritime reste capture par 'fret', 'shipping', 'last mile'.
+  { slug: 'mobilite-logistique', keywords: [
+    'mobilite', 'mobility', 'logistique', 'logistics', 'transport',
+    'supply chain', 'fret', 'last mile', 'autonome', 'autonomous',
+    'vehicule electrique', 'ev', 'rail', 'ferroviaire', 'aviation civile',
+    'shipping', 'freight forwarding',
   ]},
   // Agritech et foodtech
+  // FR ajoute : aquaculture, pisciculture, elevage, viticulture
+  // (filieres agri FR frequentes).
   { slug: 'agritech-foodtech', keywords: [
     'agritech', 'foodtech', 'agriculture', 'agroalimentaire', 'alternative protein',
     'agriculture verticale', 'vertical farming', 'biotech vegetal', 'packaging durable',
+    'aquaculture', 'pisciculture', 'elevage', 'viticulture', 'oenologie',
+    'ferme', 'maraichage', 'horticulture',
   ]},
   // Proptech et construction
   { slug: 'proptech-construction', keywords: [

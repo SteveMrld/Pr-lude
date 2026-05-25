@@ -45,7 +45,12 @@ function makeMatrix(overrides: Partial<RelevanceMatrix> = {}): RelevanceMatrix {
     rationale: 'test',
   });
   return {
-    assetClass: 'b2b-saas',
+    // Cle canonique de la table INDICATOR_BENCHMARKS : 'saas-b2b'.
+    // Avant le durcissement des classificateurs (mai 2026), le libelle
+    // 'b2b-saas' fonctionnait silencieusement via fallback saas-b2b.
+    // Desormais ce fallback est supprime : un libelle inconnu retourne
+    // null et neutralise les indicateurs. On utilise la cle canonique.
+    assetClass: 'saas-b2b',
     businessModel: 'recurrent-saas',
     productionChain: 'pure-software',
     supplyChainExposure: 'low',
