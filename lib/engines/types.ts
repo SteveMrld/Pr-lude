@@ -608,11 +608,45 @@ export interface FinancialCoherenceTest {
   evidence: string; // calcul ou observation factuelle
   benchmark: string; // standard sectoriel ou comparable
   implication: string;
+  /** Marqueur explicite : le test n est pas applicable au modele economique
+   * du dossier (cas hardware juge sur LTV/CAC, biotech juge sur unit
+   * economics pre-clinique, etc). Quand notApplicable=true, le test ne
+   * participe pas au calcul du globalCoherenceScore : ni penalise ni
+   * bonifie. C est l alternative au fallback silencieux qui faisait
+   * juger un constructeur naval contre des seuils SaaS. La decision
+   * est prise cote code a partir de matrix.assetClass et productionChain,
+   * pas par le LLM. */
+  notApplicable?: boolean;
 }
+
+/** Archetype economique du dossier, derive deterministe de la matrice
+ *  de pertinence. Conditionne quels tests de coherence financiere sont
+ *  pertinents et lesquels sont neutralises cote code AVANT meme l appel
+ *  LLM. Voir lib/engines/financial-coherence-archetype.ts. */
+export type FinancialCoherenceArchetype =
+  | 'A-saas-pur'
+  | 'B-hardware-deeptech'
+  | 'C-marketplace'
+  | 'D-biotech-pre-approval'
+  | 'E-b2g-defense'
+  | 'F-consumer-dtc'
+  | 'unclassified';
 
 export interface FinancialCoherenceOutput {
   hasFinancialData: boolean;
   dataSource: 'deck' | 'bp' | 'both' | 'none';
+  /** Archetype calcule cote code a partir de la matrice de pertinence.
+   *  Source de verite pour le gating des tests applicables : c est en
+   *  fonction de cet archetype que les tests SaaS-centriques sont
+   *  neutralises sur les dossiers hardware / biotech / B2G. */
+  archetype?: FinancialCoherenceArchetype;
+  /** Rationale court de la classification archetypale (productionChain +
+   *  businessModel utilises). Permet a l UI d expliquer au partner pourquoi
+   *  tel test a ete neutralise. */
+  archetypeRationale?: string;
+  /** Liste des testId reellement applicables a ce dossier (sous-ensemble
+   *  de T1..T7). Les autres sont neutralises cote code. */
+  applicableTests?: string[];
   tests: {
     crosseHockeySuspecte: FinancialCoherenceTest; // T1
     ratioLtvCacImplicite: FinancialCoherenceTest; // T2
@@ -622,6 +656,11 @@ export interface FinancialCoherenceOutput {
     unitEconomicsViables: FinancialCoherenceTest; // T6
     coherenceHypothesesMarche: FinancialCoherenceTest; // T7
   };
+  /** Score global 0-100. Calcule sur les tests APPLICABLES uniquement
+   *  (les tests notApplicable=true ne sont ni penalises ni bonifies).
+   *  Sur un dossier SaaS canonique (archetype A) ou tous les tests
+   *  sont applicables, le calcul est identique au comportement
+   *  historique. */
   globalCoherenceScore: number; // 0-100
   alertesCritiques: string[];
   incoherenceDeckVsBP: string[]; // chiffres qui divergent entre les deux sources

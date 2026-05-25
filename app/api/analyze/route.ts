@@ -733,7 +733,19 @@ export async function POST(req: NextRequest) {
               financialDataPromise,
               benchmarksPromise,
             ]);
-            const r = await analyzeFinancialCoherence(extraction, financialData, market, benchmarks, fundDimensionalNotes?.financial);
+            const r = await analyzeFinancialCoherence({
+              extraction,
+              financialData,
+              market,
+              benchmarks,
+              fundNote: fundDimensionalNotes?.financial,
+              // Matrice de pertinence : source de verite pour la
+              // classification archetypale (six archetypes A a F).
+              // Conditionne le gating deterministe des tests
+              // applicables avant l appel LLM, voir
+              // lib/engines/financial-coherence-archetype.ts.
+              relevanceMatrix,
+            });
             sendDone('financial-coherence', r);
             return r;
           })();

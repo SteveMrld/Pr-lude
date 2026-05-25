@@ -3812,10 +3812,18 @@ export default function HomeClient({
                             Source : {result.financialCoherence.dataSource === 'both' ? 'Pitch deck + Business plan' : result.financialCoherence.dataSource === 'bp' ? 'Business plan' : 'Pitch deck uniquement'}
                           </div>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>
-                            Tests passés : {Object.values(result.financialCoherence.tests || {}).filter((t: any) => t?.passed).length}/7
+                            {(() => {
+                              const allTests = Object.values(result.financialCoherence?.tests || {}).filter((t: any) => t && typeof t === 'object');
+                              const applicable = allTests.filter((t: any) => !t?.notApplicable);
+                              const passed = applicable.filter((t: any) => t?.passed).length;
+                              const neutralized = allTests.length - applicable.length;
+                              return neutralized > 0
+                                ? `Tests passés : ${passed}/${applicable.length} applicables (${neutralized} neutralisés par l'archétype)`
+                                : `Tests passés : ${passed}/${applicable.length}`;
+                            })()}
                           </div>
                         </div>
-                        <p style={{ fontSize: 14, margin: 0 }}>{result.financialCoherence.syntheseCoherence}</p>
+                        <p style={{ fontSize: 14, margin: 0, whiteSpace: 'pre-wrap' }}>{result.financialCoherence.syntheseCoherence}</p>
                       </div>
 
                       {result.financialCoherence.alertesCritiques?.length > 0 && (
@@ -3835,21 +3843,29 @@ export default function HomeClient({
                             padding: 16,
                             border: '1px solid var(--hairline)',
                             background: 'var(--surface)',
-                            borderLeft: t?.passed ? '3px solid #3a5a3a' : '3px solid #a04040',
+                            borderLeft: t?.notApplicable
+                              ? '3px solid #999'
+                              : t?.passed ? '3px solid #3a5a3a' : '3px solid #a04040',
+                            opacity: t?.notApplicable ? 0.7 : 1,
                           }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
                               <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>
                                 {t?.testId} · {t?.testName}
+                                {t?.notApplicable && (
+                                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10, marginLeft: 8, padding: '2px 6px', background: '#eee', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Non applicable</span>
+                                )}
                               </div>
-                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{t?.score ?? '—'}/100</div>
+                              <div style={{ fontFamily: 'var(--serif)', fontSize: 16 }}>{t?.notApplicable ? '—' : `${t?.score ?? '—'}/100`}</div>
                             </div>
-                            <div style={{ height: 3, background: 'rgba(0,0,0,0.06)', marginBottom: 10 }}>
-                              <div style={{
-                                height: '100%',
-                                width: `${t?.score ?? 0}%`,
-                                background: (t?.score ?? 0) >= 70 ? '#3a5a3a' : (t?.score ?? 0) >= 40 ? '#888' : '#a04040',
-                              }} />
-                            </div>
+                            {!t?.notApplicable && (
+                              <div style={{ height: 3, background: 'rgba(0,0,0,0.06)', marginBottom: 10 }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${t?.score ?? 0}%`,
+                                  background: (t?.score ?? 0) >= 70 ? '#3a5a3a' : (t?.score ?? 0) >= 40 ? '#888' : '#a04040',
+                                }} />
+                              </div>
+                            )}
                             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
                               <strong style={{ fontWeight: 500 }}>Calcul / observation :</strong> {t.evidence}
                             </div>
