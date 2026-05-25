@@ -586,10 +586,18 @@ Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'général
   const delta = finalComputedScore - llmScore;
   const absDelta = Math.abs(delta);
 
+  // Seuils de divergence alignes sur 12 partout pour que tout desaccord
+  // motive remonte visuellement (correction 3 de l audit score mecanique).
+  // L incoherence historique 12 vs 15 produisait une plage 12-15 ou le
+  // rationale du LLM apparaissait dans la note sans alerte UI associee.
+  // Note : l alerte visuelle critique cote UI utilise un seuil
+  // supplementaire adapte a l archetype (computedScoreBreakdown.
+  // divergenceThreshold : 15 / 20 / 25). Ici c est le seuil universel
+  // de remontee du desaccord motive.
   let auditNote = '';
   if (absDelta <= 5) {
     auditNote = 'Score LLM aligne avec le calcul mecanique (ecart <= 5 points).';
-  } else if (absDelta <= 15) {
+  } else if (absDelta <= 12) {
     auditNote = `Ecart modere de ${delta > 0 ? '+' : ''}${delta} points entre score LLM (${llmScore}) et calcul mecanique (${finalComputedScore}). Le jugement LLM ${delta > 0 ? 'sous-estime' : 'sur-estime'} legerement par rapport a la ponderation directe.`;
   } else {
     auditNote = `ECART CRITIQUE de ${delta > 0 ? '+' : ''}${delta} points entre score LLM (${llmScore}) et calcul mecanique (${finalComputedScore}). Le LLM a fait un saut de jugement non capture par les dimensions. Examiner la coherence : soit les dimensionProbabilities sous-estiment / sur-estiment certains axes, soit la tension blindspots/contrarian merite un recalibrage des seuils. Le score mecanique est plus traçable, le score LLM peut integrer des facteurs implicites non chiffres.`;
@@ -739,7 +747,13 @@ Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'général
       { dimensionName: 'Vigilance critique', successProbability: mechanicalScore.dimensions.vigilance.score, riskScore: 100 - mechanicalScore.dimensions.vigilance.score, weight: mechanicalScore.dimensions.vigilance.weight, rationale: mechanicalScore.dimensions.vigilance.rationale, keyDrivers: [], keyRisks: [] },
     ];
 
-    // computedScoreBreakdown reflete le calcul mecanique deterministe
+    // computedScoreBreakdown reflete le calcul mecanique deterministe.
+    // divergenceThreshold et archetype sont propages depuis le score-
+    // calculator pour que l UI adapte son bandeau d alerte rouge a
+    // l archetype : un dossier hardware/biotech tolere un ecart plus
+    // large entre LLM et mecanique sans crier au scandale visuellement.
+    // Le seuil assessorDisagreement (>12) reste lui universel pour
+    // remonter tout desaccord motive dans la note.
     recommendation.computedScoreBreakdown = {
       weightedDimensionScore: mechanicalScore.globalScore,
       blindspotsContrarianAdjustment: 0,
@@ -752,6 +766,8 @@ Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'général
       formula: mechanicalScore.formula,
       mechanicalDimensions: mechanicalScore.dimensions,
       thresholds: mechanicalScore.thresholds,
+      divergenceThreshold: mechanicalScore.divergenceThreshold,
+      archetype: mechanicalScore.archetype,
     };
   }
 

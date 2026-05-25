@@ -935,6 +935,18 @@ export interface OrchestratedResult {
       formula: string; // formule textuelle exacte appliquee
       mechanicalDimensions?: any; // breakdown complet par dimension (depuis score-calculator)
       thresholds?: { invest: number; conditions: number; investigate: number };
+      /** Seuil de divergence adapte a l archetype (15 / 20 / 25). Lu par
+       *  l UI pour decider quand afficher le bandeau d alerte rouge.
+       *  Un dossier hardware ou biotech tolere un ecart plus large entre
+       *  score LLM et score mecanique sans declencher l alerte visuelle :
+       *  le score mecanique repose sur moins de tests applicables et le
+       *  LLM voit plus de contexte qualitatif. Ce seuil n affecte pas
+       *  assessorDisagreement qui reste a 12 partout pour remonter le
+       *  desaccord motive dans la note. */
+      divergenceThreshold?: number;
+      /** Archetype detecte (issu de financial-coherence). Expose pour
+       *  affichage editorial dans la note d investissement. */
+      archetype?: FinancialCoherenceArchetype;
     };
     /**
      * Desaccord motive du moteur d orchestration. Quand le score mecanique

@@ -3195,14 +3195,25 @@ export default function HomeClient({
 
               {/* Score auditable : delta entre jugement LLM et calcul mecanique
                   des dimensions ponderees + ajustement blindspots/contrarian.
-                  Si delta > 15 points, bandeau d alerte de divergence. */}
-              {result.finalRecommendation?.computedScoreBreakdown && (
+                  Le seuil de l alerte est adapte a l archetype du dossier
+                  (computedScoreBreakdown.divergenceThreshold : 15 pour A/C/F
+                  ou tous les tests Cohérence financière sont applicables, 20
+                  pour B/E ou T2 LTV/CAC est neutralise cote code, 25 pour D
+                  biotech pre-clinique et unclassified ou la couverture est
+                  encore plus partielle). Cela evite les fausses alertes sur
+                  hardware et biotech tout en preservant la sensibilite sur
+                  les dossiers SaaS standards. */}
+              {result.finalRecommendation?.computedScoreBreakdown && (() => {
+                const breakdown = result.finalRecommendation.computedScoreBreakdown;
+                const divergenceThreshold = breakdown.divergenceThreshold ?? 15;
+                const isDivergent = Math.abs(breakdown.delta) > divergenceThreshold;
+                return (
                 <div style={{
                   marginTop: 18, padding: '14px 16px',
-                  background: Math.abs(result.finalRecommendation.computedScoreBreakdown.delta) > 15
+                  background: isDivergent
                     ? 'rgba(220, 80, 60, 0.10)'
                     : 'rgba(255,255,255,0.04)',
-                  border: Math.abs(result.finalRecommendation.computedScoreBreakdown.delta) > 15
+                  border: isDivergent
                     ? '1px solid rgba(220, 80, 60, 0.4)'
                     : '1px solid rgba(255,255,255,0.08)',
                   borderRadius: 4,
@@ -3210,43 +3221,49 @@ export default function HomeClient({
                 }}>
                   <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
                     Audit du score · jugement LLM vs calcul mécanique
+                    {breakdown.archetype && (
+                      <span style={{ marginLeft: 10, opacity: 0.6, textTransform: 'none', letterSpacing: 0 }}>
+                        · seuil de divergence {divergenceThreshold} pts (archétype {breakdown.archetype})
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 10 }}>
                     <div>
                       <div style={{ opacity: 0.6, fontSize: 10 }}>Score LLM</div>
-                      <div style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>{result.finalRecommendation.computedScoreBreakdown.llmScore}</div>
+                      <div style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>{breakdown.llmScore}</div>
                     </div>
                     <div>
                       <div style={{ opacity: 0.6, fontSize: 10 }}>Score mécanique</div>
-                      <div style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>{result.finalRecommendation.computedScoreBreakdown.finalComputedScore}</div>
+                      <div style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>{breakdown.finalComputedScore}</div>
                     </div>
                     <div>
                       <div style={{ opacity: 0.6, fontSize: 10 }}>Écart</div>
                       <div style={{
                         fontSize: 22, fontFamily: 'var(--serif)',
-                        color: Math.abs(result.finalRecommendation.computedScoreBreakdown.delta) > 15 ? '#e88a7e' : 'inherit',
+                        color: isDivergent ? '#e88a7e' : 'inherit',
                       }}>
-                        {result.finalRecommendation.computedScoreBreakdown.delta > 0 ? '+' : ''}
-                        {result.finalRecommendation.computedScoreBreakdown.delta}
+                        {breakdown.delta > 0 ? '+' : ''}
+                        {breakdown.delta}
                       </div>
                     </div>
                     <div>
                       <div style={{ opacity: 0.6, fontSize: 10 }}>Dimensions pondérées</div>
-                      <div style={{ fontSize: 14 }}>{result.finalRecommendation.computedScoreBreakdown.weightedDimensionScore}</div>
+                      <div style={{ fontSize: 14 }}>{breakdown.weightedDimensionScore}</div>
                     </div>
                     <div>
                       <div style={{ opacity: 0.6, fontSize: 10 }}>Ajustement blindspots / contrarian</div>
                       <div style={{ fontSize: 14 }}>
-                        {result.finalRecommendation.computedScoreBreakdown.blindspotsContrarianAdjustment > 0 ? '+' : ''}
-                        {result.finalRecommendation.computedScoreBreakdown.blindspotsContrarianAdjustment}
+                        {breakdown.blindspotsContrarianAdjustment > 0 ? '+' : ''}
+                        {breakdown.blindspotsContrarianAdjustment}
                       </div>
                     </div>
                   </div>
                   <div style={{ opacity: 0.85, lineHeight: 1.5 }}>
-                    {result.finalRecommendation.computedScoreBreakdown.auditNote}
+                    {breakdown.auditNote}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Recommandation finale - prose dense decoupee en paragraphes
                   courts (3 phrases chacun) avec chiffres mis en valeur.

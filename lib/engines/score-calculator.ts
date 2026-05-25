@@ -56,9 +56,48 @@ import type {
   BlindspotAnalysisOutput,
   ContrarianAnalysisOutput,
   FinancialCoherenceOutput,
+  FinancialCoherenceArchetype,
 } from './types';
 
 export type Verdict = 'investir' | 'investir avec conditions' | 'approfondir' | 'refuser';
+
+// ============================================================
+// SEUILS DE DIVERGENCE ADAPTES A L ARCHETYPE
+// ------------------------------------------------------------
+// Le bandeau d alerte de divergence (UI) compare le score LLM au
+// score mecanique. Un seuil universel etait trop sensible sur les
+// dossiers non-SaaS : un dossier hardware ou biotech peut legitimement
+// produire un ecart >15 points entre la lecture LLM (qui voit tous
+// les outputs des moteurs) et le score mecanique (qui aggrege 6
+// scores sources). On adapte le seuil a la couverture des tests
+// applicables de l archetype :
+//   - A SaaS pur, C marketplace, F consumer DTC : 7 tests applicables,
+//     score mecanique pleinement instrumente. Seuil 15.
+//   - B hardware, E B2G : 6 tests applicables (T2 LTV/CAC neutralise),
+//     score mecanique legerement moins instrumente. Seuil 20.
+//   - D biotech pre-approbation : 3 tests applicables seulement.
+//     Score mecanique tres polarise, divergence LLM attendue. Seuil 25.
+//   - unclassified : matrice non tranchee, 4 tests universels. Seuil 25.
+//
+// Le seuil 'assessorDisagreement' du LLM dans l orchestrator reste
+// fixe a 12 points : il remonte tout desaccord motive dans la note,
+// independamment de l archetype. Le bandeau visuel rouge n est
+// declenche qu au-dela du seuil archetypal ci-dessous.
+// ============================================================
+export const DIVERGENCE_THRESHOLDS_BY_ARCHETYPE: Record<FinancialCoherenceArchetype, number> = {
+  'A-saas-pur': 15,
+  'C-marketplace': 15,
+  'F-consumer-dtc': 15,
+  'B-hardware-deeptech': 20,
+  'E-b2g-defense': 20,
+  'D-biotech-pre-approval': 25,
+  'unclassified': 25,
+};
+
+/** Seuil de divergence par defaut quand l archetype n est pas connu
+ *  (legacy / dossiers anterieurs au commit 5184213). Identique au
+ *  comportement historique pour preserver la non-regression. */
+export const DEFAULT_DIVERGENCE_THRESHOLD = 15;
 
 /**
  * Poids des six dimensions dans le score global. Doivent sommer a 1.0
@@ -113,6 +152,16 @@ export interface MechanicalScoreResult {
   globalScore: number;
   /** Verdict derive deterministe via les seuils. */
   verdict: Verdict;
+  /** Archetype economique du dossier (issu de financial-coherence,
+   *  passe au score-calculator pour transparence des rationales et
+   *  adaptation du seuil de divergence affiche dans l UI). N affecte
+   *  PAS le calcul du score lui-meme (ponderations strictement
+   *  identiques peu importe l archetype). */
+  archetype?: FinancialCoherenceArchetype;
+  /** Seuil de divergence applicable a ce dossier, en points (15 / 20 /
+   *  25). Lu par l UI pour adapter le bandeau d alerte rouge a la
+   *  couverture des tests applicables de l archetype. */
+  divergenceThreshold: number;
   /** Detail du calcul par dimension, expose dans l UI pour auditabilite. */
   dimensions: {
     team: DimensionBreakdown;
@@ -124,7 +173,7 @@ export interface MechanicalScoreResult {
   };
   /** Formule lisible exposee a l UI. */
   formula: string;
-  /** Seuils utilises, pour affichage et auditabilite. */
+  /** Seuils de verdict utilises, pour affichage et auditabilite. */
   thresholds: typeof VERDICT_THRESHOLDS;
 }
 
@@ -294,7 +343,7 @@ export function computeMechanicalScore(input: {
       weight: DIMENSION_WEIGHTS.financial,
       contribution: Math.round(financialScore * DIMENSION_WEIGHTS.financial * 100) / 100,
       rationale: financialEvaluable
-        ? `Score de coherence financiere ${financialScore} aggrege sur les sept tests structures (T1-T7) du moteur Cohérence financière.`
+        ? buildFinancialRationale(financialScore, input.financial)
         : `Modele economique non evaluable : aucun business plan exploitable fourni avec ce dossier (dataSource='${input.financial?.dataSource ?? 'none'}'). Valeur neutre 50 utilisee dans le calcul global pour ne pas penaliser ni bonifier injustement la dimension. Demander le BP au fondateur avant decision finale.`,
       notEvaluable: !financialEvaluable,
     },
@@ -323,11 +372,79 @@ export function computeMechanicalScore(input: {
   const globalScore = Math.max(0, Math.min(100, Math.round(rawSum)));
   const verdict = deriveVerdict(globalScore);
 
+  // Archetype passe au resultat pour transparence dans l UI (rationale
+  // de la dimension Financial, adaptation du seuil de divergence visuel).
+  // N affecte PAS le calcul du score lui-meme : les ponderations restent
+  // strictement identiques peu importe l archetype, le score d un dossier
+  // SaaS canonique reste exactement ce qu il etait.
+  const archetype = input.financial?.archetype;
+  const divergenceThreshold = archetype
+    ? DIVERGENCE_THRESHOLDS_BY_ARCHETYPE[archetype]
+    : DEFAULT_DIVERGENCE_THRESHOLD;
+
   return {
     globalScore,
     verdict,
+    archetype,
+    divergenceThreshold,
     dimensions,
     formula: `score = 0.20 * Equipe + 0.22 * Marche + 0.15 * Macro + 0.13 * Modele economique + 0.15 * Contrariens + 0.15 * Vigilance (inversee). Verdict derive : <45 = refuser, 45-59 = approfondir, 60-74 = investir avec conditions, >=75 = investir.`,
     thresholds: VERDICT_THRESHOLDS,
   };
+}
+
+// ============================================================
+// HELPERS - RATIONALE EDITORIAL DE LA DIMENSION FINANCIAL
+// ============================================================
+
+const ARCHETYPE_SHORT_LABEL: Record<FinancialCoherenceArchetype, string> = {
+  'A-saas-pur': 'SaaS pur',
+  'B-hardware-deeptech': 'hardware ou deeptech',
+  'C-marketplace': 'marketplace',
+  'D-biotech-pre-approval': 'biotech pre-approbation',
+  'E-b2g-defense': 'B2G ou defense',
+  'F-consumer-dtc': 'consumer DTC',
+  'unclassified': 'non classifie',
+};
+
+/**
+ * Construit un rationale editorial pour la dimension Financial qui
+ * dit la verite sur la couverture reelle des tests applicables.
+ * Avant ce fix le texte mentionnait systematiquement "sept tests
+ * structures T1-T7" meme quand l archetype en neutralisait certains
+ * (cas hardware : T2 neutralise ; cas biotech : T1, T2, T5, T6
+ * neutralises). Desormais le rationale enonce le nombre exact de
+ * tests appliques et l archetype detecte, pour que le partner sache
+ * sur quelle base le score a ete calcule.
+ */
+function buildFinancialRationale(
+  score: number,
+  financial: FinancialCoherenceOutput | null | undefined,
+): string {
+  if (!financial) {
+    return `Score de coherence financiere ${score} aggrege sur les sept tests structures (T1-T7) du moteur Cohérence financière.`;
+  }
+  const archetype = financial.archetype;
+  const applicable = financial.applicableTests;
+  if (!archetype || !applicable || applicable.length === 0) {
+    // Compatibilite ascendante : si l output Coherence ne porte pas
+    // encore archetype / applicableTests (analyses anterieures au
+    // commit 5184213), on retombe sur le texte historique pour ne
+    // pas casser l affichage des dossiers deja persistes.
+    return `Score de coherence financiere ${score} aggrege sur les sept tests structures (T1-T7) du moteur Cohérence financière.`;
+  }
+  const total = 7;
+  const n = applicable.length;
+  const neutralized: string[] = [];
+  for (const t of ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']) {
+    if (!applicable.includes(t)) neutralized.push(t);
+  }
+  const label = ARCHETYPE_SHORT_LABEL[archetype];
+  if (n === total) {
+    return `Score de coherence financiere ${score} aggrege sur les sept tests structures (T1-T7) du moteur Cohérence financière. Archetype detecte : ${label}, tous les tests applicables.`;
+  }
+  const neutralizedLabel = neutralized.length === 1
+    ? `${neutralized[0]} neutralise`
+    : `${neutralized.join(', ')} neutralises`;
+  return `Score de coherence financiere ${score} calcule sur ${n} tests applicables (sur ${total} doctrinaux) du moteur Cohérence financière. Archetype detecte : ${label}, ${neutralizedLabel} cote code car non pertinent pour ce modele economique.`;
 }
