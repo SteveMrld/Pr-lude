@@ -342,10 +342,19 @@ function matchRegion(target: string | null, ref: string | null): number {
  *   infrastructure_physical: usines, batteries, gigafactory (Northvolt, Form Energy)
  *   deep_tech_research     : quantum, fusion, carbon capture (Pasqal, Helion)
  *   hardware_consumer      : wearables et hardware grand public (Oura, GoPro)
+ *   unknown                : aucun signal exploitable (le hard filter
+ *                            devient permissif, mais les comparables
+ *                            sont scores au merite sectoriel pur).
  *
  * Cette fonction sert au hard filter dans findComparables : un dossier
  * hardware_industrial ne sera jamais matche avec un comparable
  * software_pure, meme si les patterns abstraits semblent similaires.
+ *
+ * Doctrine : pas de defaut silencieux vers software_pure. Un dossier
+ * dont les keywords ne matchent rien ressort en 'unknown', signal
+ * explicite que la classification a echoue. Voir bug Platypus Craft,
+ * mai 2026 : vocabulaire FR nautique non couvert, retombait en
+ * software_pure, ouvrait la porte a Zalando / Deezer / HelloFresh.
  */
 function detectAssetClass(sector: string | null, subSector: string | null): string {
   const s = (sector || '').toLowerCase();
@@ -361,7 +370,11 @@ function detectAssetClass(sector: string | null, subSector: string | null): stri
     return 'infrastructure_physical';
   }
   // Hardware industriel : drones, defense, EV, eVTOL, robotics, aerospace, mobilite
-  if (/drone|defense|counter-drone|evtol|aviation|aerospace|robot|humanoid|warehouse robotics|industrial automation|industrial robotics|mobility|automotive|ev \/|autonomous|maritime|ship|boat|submersible|nautical|naval|additive manufacturing/.test(combined)) {
+  // FR ajoute : navire, navires, navale, nautique, nautisme, bateau,
+  // bateaux, sous-marin, semi-submersible, chantier naval. Sans ces
+  // keywords, un dossier Platypus Craft francophone ressortait en
+  // software_pure et matchait Zalando / Deezer / HelloFresh.
+  if (/drone|defense|counter-drone|evtol|aviation|aerospace|robot|humanoid|warehouse robotics|industrial automation|industrial robotics|mobility|automotive|ev \/|autonomous|maritime|ship|boat|submersible|nautical|naval|navale|navires?|nautique|nautisme|bateaux?|sous-marin|semi-submersible|chantier naval|shipyard|shipbuilding|additive manufacturing/.test(combined)) {
     return 'hardware_industrial';
   }
   // Hardware industriel : energy storage, hydrogen
@@ -376,8 +389,70 @@ function detectAssetClass(sector: string | null, subSector: string | null): stri
   if (/cyber-physical|industrial cyber|industrial iot/.test(combined)) {
     return 'software_with_hardware';
   }
-  // Software pur : tout le reste
-  return 'software_pure';
+  // Signal software explicite : SaaS, AI, marketplace, fintech, etc.
+  if (/saas|software|logiciel|enterprise software|cloud|api\b|platform|plateforme|marketplace|ai\b|llm|generative|fintech|payment|banking|adtech|edtech|proptech|healthtech|gaming|streaming|content|media|publishing|cybersecurity|cyber security/.test(combined)) {
+    return 'software_pure';
+  }
+  // Aucun signal exploitable : classification indeterminee. Le hard
+  // filter se desactive (target unknown -> on laisse passer) plutot
+  // que de pretendre que c est du software par defaut.
+  return 'unknown';
+}
+
+/**
+ * Mapping de la classe d actif "matrice" (sector-benchmarks /
+ * relevance-matrix) vers le vocabulaire "comparables historiques".
+ * Permet a extractFeaturesFromAnalysis de lire matrix.assetClass
+ * comme source de verite plutot que de re-classifier sur sector +
+ * subSector. La matrice arbitre deja entre indice sectoriel et
+ * productionChain (cf. deriveAssetClass dans relevance-matrix.ts).
+ */
+function mapMatrixAssetClassToComparable(matrixClass: string | null | undefined): string | null {
+  if (!matrixClass) return null;
+  switch (matrixClass) {
+    case 'industrial-hardware':
+      return 'hardware_industrial';
+    case 'defense':
+      return 'hardware_industrial';
+    case 'climate-tech':
+      // Climate-tech mixte : si la chaine est hardware physique
+      // (eolien, panneaux, batteries), la classe pertinente est
+      // infrastructure_physical. Sinon software cleantech. On choisit
+      // infrastructure_physical par defaut car le mismatch
+      // doctrinal le plus couteux est hardware climate compare a
+      // SaaS climate (cas Northvolt vs SaaS carbon accounting).
+      return 'infrastructure_physical';
+    case 'deeptech':
+      return 'deep_tech_research';
+    case 'healthtech':
+      // Healthtech couvre digital health (software) et medtech
+      // dispositif (hardware). On laisse software_with_hardware qui
+      // est le compromis le moins restrictif des deux registres.
+      return 'software_with_hardware';
+    case 'saas-b2b':
+    case 'cybersecurity':
+    case 'ai-generative':
+    case 'fintech':
+    case 'marketplace-b2c':
+    case 'ecommerce-dtc':
+    case 'adtech':
+    case 'edtech':
+    case 'proptech':
+    case 'logistics':
+    case 'mediatech':
+    case 'sportstech':
+    case 'services-b2b':
+    case 'hospitality':
+    case 'foodtech':
+      return 'software_pure';
+    case 'profitable-mature':
+      // Multiples EBITDA : ne contraint pas la classe hardware/soft.
+      // On laisse l indeterminisme et le filtre cle reste permissif.
+      return null;
+    case 'unclassified':
+    default:
+      return null;
+  }
 }
 
 /**
@@ -397,6 +472,11 @@ function detectAssetClass(sector: string | null, subSector: string | null): stri
  * similaires.
  */
 function isAssetClassCompatible(target: string, ref: string | null): boolean {
+  // Cible indeterminee : on ne dispose pas de signal pour filtrer,
+  // on laisse passer et le scoring sectoriel / sub-sector / region
+  // fait le tri. Comportement explicitement permissif, pas un
+  // contournement silencieux.
+  if (target === 'unknown') return true;
   if (!ref) return true; // legacy V3 sans asset_class : on laisse passer
   if (target === ref) return true;
 
@@ -405,7 +485,11 @@ function isAssetClassCompatible(target: string, ref: string | null): boolean {
 
   if (HARD_GROUP.includes(target) && HARD_GROUP.includes(ref)) return true;
   if (SOFT_GROUP.includes(target) && SOFT_GROUP.includes(ref)) return true;
-  // software_with_hardware peut etre compare avec hardware_industrial (cas frontiere : Tesla, Apple)
+  // software_with_hardware peut etre compare avec hardware_industrial
+  // (cas frontiere : Tesla, Apple, Rivian). Le pont est volontairement
+  // restreint a cette paire : un dossier hardware_industrial pur ne
+  // doit jamais matcher un software_pure (cas Zalando / Deezer /
+  // HelloFresh contre Platypus Craft, mai 2026).
   if (target === 'software_with_hardware' && ref === 'hardware_industrial') return true;
   if (target === 'hardware_industrial' && ref === 'software_with_hardware') return true;
 
@@ -1112,6 +1196,20 @@ export function extractFeaturesFromAnalysis(result: any): ComparableFeatures | n
     result.extraction?.rawSummary || null,
   );
 
+  // Source de verite : la matrice de pertinence arbitre l asset class
+  // a partir du productionChain detecte sur le texte complet du
+  // dossier. On lit cette valeur en priorite, on retombe sur la
+  // classification locale uniquement quand la matrice est absente
+  // (anciens resultats sans matrice persistee). Voir bug Platypus
+  // Craft, mai 2026 : la classification locale sur sector + subSector
+  // ratait le vocabulaire FR nautique et retombait en software_pure,
+  // ce qui ouvrait la porte a Zalando / Deezer / HelloFresh.
+  const matrixAssetClass = mapMatrixAssetClassToComparable(
+    result.relevanceMatrix?.assetClass,
+  );
+  const resolvedAssetClass = matrixAssetClass
+    || detectAssetClass(sector, result.extraction?.subSector || null);
+
   return {
     founder: Math.round(founder),
     market: Math.round(market),
@@ -1122,10 +1220,7 @@ export function extractFeaturesFromAnalysis(result: any): ComparableFeatures | n
     sector,
     subSector: result.extraction?.subSector || null,
     country: result.extraction?.country || null,
-    // Detection automatique de la classe d actif. Permet le hard filter
-    // dans findComparables : un dossier hardware industriel ne sera pas
-    // matche avec une marketplace e-commerce.
-    assetClass: detectAssetClass(sector, result.extraction?.subSector || null),
+    assetClass: resolvedAssetClass,
     fundingBand,
     sectorSubgroup,
   };

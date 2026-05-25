@@ -26,6 +26,7 @@
 
 import type { ExtractionOutput } from './types';
 import { normalizeFrText } from '../data/text-normalize';
+import { normalizeAssetClass } from '../data/sector-benchmarks';
 
 // ============================================================
 // TYPES
@@ -1640,6 +1641,107 @@ function buildScaleMirageRiskVerdict(maturity: NarrativeMaturity, productionChai
 }
 
 // ============================================================
+// DERIVATION DE L ASSET CLASS DEPUIS LA CHAINE DE PRODUCTION
+// ------------------------------------------------------------
+// La classe d actif ne doit jamais contredire la chaine de production
+// detectee sur le corpus complet du dossier. Un dossier dont le
+// productionChain est hardware-physical ne peut pas ressortir en
+// saas-b2b, meme si le sector extrait par le LLM est lacunaire ou
+// francophone (cas Platypus Craft : sector "Nautique" sans keyword
+// reconnu, retombait en saas-b2b par defaut dans normalizeAssetClass,
+// pollluait valuation et comparables historiques).
+//
+// Regle structurelle. La fonction prend l indice sectoriel
+// normalizeAssetClass, le confronte au productionChain detecte sur le
+// texte exhaustif (rawSummary + productDescription + businessModel +
+// marketPitch), et arbitre :
+//   - hardware-physical / infrastructure-physical : industrial-hardware
+//     par defaut, sauf indices forts vers defense / climate-tech /
+//     deeptech qui prennent la main.
+//   - wet-biotech : healthtech ou deeptech selon les keywords biotech
+//     R&D vs medtech.
+//   - regulated-service : healthtech / fintech / services-b2b selon
+//     le contexte texte.
+//   - pure-software : preserve l indice si reconnu (saas-b2b, fintech,
+//     cybersecurity, etc.), sinon saas-b2b (la signature software
+//     ETANT le signal).
+//   - content-media : mediatech.
+//   - unknown : on conserve l indice tel quel, y compris 'unclassified'
+//     si rien n a matche. Pas de promotion silencieuse vers saas-b2b.
+// ============================================================
+function deriveAssetClass(
+  productionChain: ProductionChain,
+  rawAssetClass: string,
+  searchableText: string,
+): string {
+  const hint = normalizeAssetClass(rawAssetClass);
+  const t = searchableText; // deja normalise lowercase + sans diacritiques
+
+  // Helpers de detection thematique sur le texte complet.
+  const hasDefenseSignal = /\b(defense|defence|militaire|military|dual.use|aerospace|armement|drone militaire)\b/.test(t);
+  const hasClimateSignal = /\b(climate|cleantech|greentech|decarbon|carbon capture|hydrogene|renouvelable|energie marine|marine energy|ocean energy|emr|solaire|eolien|hydrolien|photovoltaique)\b/.test(t);
+  const hasDeeptechSignal = /\b(quantum|fusion|semiconducteur|semiconductor|materials|materiaux avances|crispr|nanotech|deep tech|deeptech|biotech)\b/.test(t);
+  const hasMedtechSignal = /\b(medical|medecin|medecine|sante|health|clinique|hopital|dispositif medical|medtech|pharma|essai clinique)\b/.test(t);
+  const hasFintechSignal = /\b(banque|banking|bank|paiement|payment|insurtech|assurance|lending|credit|fintech)\b/.test(t);
+
+  switch (productionChain) {
+    case 'hardware-physical': {
+      // Signal sectoriel reconnu cote hardware : on respecte l indice.
+      if (hint === 'defense' || hint === 'climate-tech' || hint === 'deeptech'
+        || hint === 'industrial-hardware' || hint === 'healthtech') {
+        return hint;
+      }
+      // Sinon on arbitre par le texte.
+      if (hasDefenseSignal) return 'defense';
+      if (hasDeeptechSignal) return 'deeptech';
+      if (hasClimateSignal) return 'climate-tech';
+      if (hasMedtechSignal) return 'healthtech';
+      return 'industrial-hardware';
+    }
+    case 'infrastructure-physical': {
+      if (hint === 'climate-tech' || hint === 'industrial-hardware'
+        || hint === 'defense' || hint === 'deeptech') {
+        return hint;
+      }
+      if (hasClimateSignal) return 'climate-tech';
+      if (hasDefenseSignal) return 'defense';
+      return 'industrial-hardware';
+    }
+    case 'wet-biotech': {
+      if (hint === 'deeptech' || hint === 'healthtech') return hint;
+      if (hasMedtechSignal) return 'healthtech';
+      return 'deeptech';
+    }
+    case 'regulated-service': {
+      if (hint === 'healthtech' || hint === 'fintech'
+        || hint === 'services-b2b' || hint === 'edtech') {
+        return hint;
+      }
+      if (hasMedtechSignal) return 'healthtech';
+      if (hasFintechSignal) return 'fintech';
+      return 'services-b2b';
+    }
+    case 'content-media': {
+      if (hint === 'mediatech' || hint === 'adtech' || hint === 'sportstech') return hint;
+      return 'mediatech';
+    }
+    case 'pure-software': {
+      // Indice reconnu : on le conserve. Sinon, la signature software
+      // legitime la classe saas-b2b comme defaut applicable.
+      if (hint !== 'unclassified') return hint;
+      return 'saas-b2b';
+    }
+    case 'unknown':
+    default:
+      // Pas de fallback silencieux : on garde l indice tel quel,
+      // 'unclassified' inclus, pour que la valuation et les indicateurs
+      // se declarent non applicables plutot que de simuler un
+      // ancrage SaaS factice.
+      return hint;
+  }
+}
+
+// ============================================================
 // POINT D ENTREE
 // ============================================================
 
@@ -1647,6 +1749,12 @@ function buildScaleMirageRiskVerdict(maturity: NarrativeMaturity, productionChai
  * Calcule la matrice de pertinence complete du dossier. Toutes les
  * decisions sont deterministes. La matrice est ensuite consommee par
  * chaque moteur Bloc 1 pour scoper son comportement.
+ *
+ * Source de verite unique pour l asset class : la matrice arbitre
+ * entre l indice sectoriel (extraction.sector + subSector) et le
+ * productionChain detecte sur le texte complet. Les moteurs aval
+ * (valuation, indicateurs, comparables historiques) lisent
+ * matrix.assetClass, ils ne re-derivent plus de leur cote.
  */
 export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass: string): RelevanceMatrix {
   const text = buildSearchableText(extraction);
@@ -1654,6 +1762,14 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
   // Calcul des criteres dans l ordre de dependance
   const businessModel = detectBusinessModel(text);
   const productionChain = detectProductionChain(text);
+
+  // Arbitrage assetClass : l indice sectoriel passe en argument peut
+  // etre lacunaire (vocabulaire FR non reconnu, secteur extrait
+  // partiellement). On le confronte au productionChain detecte sur le
+  // texte complet pour garantir qu un dossier hardware-physical ne
+  // ressort jamais en saas-b2b par accident. Voir deriveAssetClass et
+  // bug Platypus Craft, mai 2026.
+  const resolvedAssetClass = deriveAssetClass(productionChain, assetClass, text);
   const supplyChain = detectSupplyChainExposure(text);
   const macroSensitivity = detectMacroSensitivity(text, businessModel);
   const geopolitical = detectGeopoliticalExposure(text, supplyChain);
@@ -1703,7 +1819,7 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
   };
 
   return {
-    assetClass,
+    assetClass: resolvedAssetClass,
     businessModel,
     productionChain,
     supplyChainExposure: supplyChain.level,

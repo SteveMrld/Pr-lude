@@ -35,6 +35,7 @@ import {
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
+import type { RelevanceMatrix } from '@/lib/engines/relevance-matrix';
 
 /**
  * Resultat d une methode de valorisation individuelle. Plusieurs
@@ -108,6 +109,13 @@ interface ValuationInput {
   teamScore?: number;
   /** Score marche mecanique (0-100). */
   marketScore?: number;
+  /** Matrice de pertinence : source de verite pour l asset class
+   * (arbitree avec le productionChain detecte sur le texte complet).
+   * Si fournie, le moteur lit matrix.assetClass plutot que de
+   * re-classifier sur extraction.sector seul. Voir bug Platypus
+   * Craft, mai 2026 : trois classificateurs independants tous biaises
+   * vers saas-b2b en silence, on consolide. */
+  relevanceMatrix?: RelevanceMatrix | null | undefined;
 }
 
 /**
@@ -115,15 +123,23 @@ interface ValuationInput {
  * partir des outputs Bloc 1 et des scores mecaniques.
  */
 export function computeValuation(input: ValuationInput): ValuationOutput {
-  // Mapping permissif : on accepte plusieurs sources possibles pour
-  // l asset class (sector + subSector concatenes pour granularite max)
-  // et pour le stade (fundraise.stage est le champ canonique).
+  // Asset class : on lit en priorite matrix.assetClass, source de
+  // verite unique arbitree par computeRelevanceMatrix (croisement
+  // indice sectoriel + productionChain detecte sur texte complet).
+  // Fallback sur la classification locale uniquement si la matrice
+  // est absente (legacy / tests unitaires).
   const ext: any = input.extraction;
-  const assetClassRaw = ext
-    ? `${ext.sector || ''} ${ext.subSector || ''}`.trim() || ext.sector
-    : null;
+  const matrixAssetClass = input.relevanceMatrix?.assetClass;
   const stageRaw = ext?.fundraise?.stage || null;
-  let assetClass = normalizeAssetClass(assetClassRaw);
+  let assetClass: string;
+  if (matrixAssetClass) {
+    assetClass = matrixAssetClass;
+  } else {
+    const assetClassRaw = ext
+      ? `${ext.sector || ''} ${ext.subSector || ''}`.trim() || ext.sector
+      : null;
+    assetClass = normalizeAssetClass(assetClassRaw);
+  }
   const stage = normalizeStage(stageRaw);
 
   // Detection automatique du cas 'profitable-mature' : si on est en

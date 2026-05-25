@@ -548,9 +548,18 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
  * Mapping permissif des secteurs / asset classes textuels vers les
  * cles SECTOR_BENCHMARKS. Le moteur d extraction LLM produit des
  * libelles libres, on les normalise ici.
+ *
+ * Doctrine : aucune entree silencieuse vers 'saas-b2b'. Un libelle
+ * vide ou inconnu retourne 'unclassified'. Le fallback historique
+ * vers saas-b2b promouvait par defaut tout dossier hardware/marine
+ * /defense dont le secteur extrait n etait pas anglophone (cas
+ * Platypus Craft : sector = "Nautique" ou "Marine" sans "hardware",
+ * retombait sur saas-b2b en silence, polluait valuation et
+ * comparables historiques). Desormais l incertitude est explicite,
+ * pas habillee en SaaS.
  */
 export function normalizeAssetClass(raw: string | null | undefined): string {
-  if (!raw) return 'saas-b2b'; // default safe
+  if (!raw) return 'unclassified'; // jamais saas-b2b silencieux
   // Normalisation lowercase + suppression diacritiques. Permet de
   // matcher indifferemment "Santé", "santé", "sante", "SANTÉ" avec
   // un seul keyword non accentue. Voir lib/data/text-normalize.ts.
@@ -634,14 +643,29 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
     || s.includes('agencies') || s.includes('professional services')) return 'services-b2b';
   if (s.includes('hardware') || s.includes('manufacturing') || s.includes('industrial')
     || s.includes('industrie') || s.includes('industriel') || s.includes('robotics')
-    || s.includes('infrastructure') || s.includes('genie civil') || s.includes('génie civil')) return 'industrial-hardware';
+    || s.includes('infrastructure') || s.includes('genie civil') || s.includes('génie civil')
+    // Maritime / naval / nautique : vocabulaire FR et EN qui releve
+    // doctrinalement de l industriel hardware (chaine de production
+    // navire, cycle long, capex outillage). Bloc place ici pour que
+    // les dossiers nautique / construction navale ne tombent plus en
+    // saas-b2b par defaut. Voir bug Platypus Craft, mai 2026.
+    || s.includes('naval') || s.includes('navale')
+    || s.includes('navire') || s.includes('bateau') || s.includes('bateaux')
+    || s.includes('nautique') || s.includes('nautisme')
+    || s.includes('shipbuilding') || s.includes('shipyard')
+    || s.includes('marine') || s.includes('maritime')
+    || s.includes('submersible')) return 'industrial-hardware';
 
-  // ----- SaaS / B2B logiciel : par defaut quand on est dans la nuance
+  // ----- SaaS / B2B logiciel : SEULEMENT si signal explicite. Pas de
+  // fallback silencieux : un dossier dont le secteur n est reconnu par
+  // aucune des regles ci-dessus ressort en 'unclassified', pas en
+  // saas-b2b. La matrice de pertinence reclassera ensuite a partir du
+  // productionChain detecte sur le corpus textuel complet.
   if (s.includes('saas') || s.includes('b2b') || s.includes('software')
     || s.includes('logiciel') || s.includes('edition logicielle')
     || s.includes('hrtech') || s.includes('legaltech') || s.includes('govtech')) return 'saas-b2b';
 
-  return 'saas-b2b'; // fallback safe
+  return 'unclassified'; // jamais saas-b2b silencieux
 }
 
 /**

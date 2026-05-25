@@ -1031,12 +1031,21 @@ interface IndicatorsInput {
 }
 
 export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
+  // Asset class : on lit en priorite matrix.assetClass, source de
+  // verite arbitree dans computeRelevanceMatrix. Fallback sur la
+  // classification locale uniquement si la matrice est absente.
   const ext: any = input.extraction;
-  const assetClassRaw = ext
-    ? `${ext.sector || ''} ${ext.subSector || ''}`.trim() || ext.sector
-    : null;
+  const matrixAssetClass = input.relevanceMatrix?.assetClass;
   const stageRaw = ext?.fundraise?.stage || null;
-  const assetClass = normalizeAssetClass(assetClassRaw);
+  let assetClass: string;
+  if (matrixAssetClass) {
+    assetClass = matrixAssetClass;
+  } else {
+    const assetClassRaw = ext
+      ? `${ext.sector || ''} ${ext.subSector || ''}`.trim() || ext.sector
+      : null;
+    assetClass = normalizeAssetClass(assetClassRaw);
+  }
   const stage = normalizeStage(stageRaw);
 
   const benchmarks = getIndicatorBenchmarks(assetClass, stage);

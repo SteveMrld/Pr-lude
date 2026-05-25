@@ -964,6 +964,12 @@ export async function POST(req: NextRequest) {
             market,
             teamScore: mechanicalScore.dimensions.team.score,
             marketScore: mechanicalScore.dimensions.market.score,
+            // Source de verite unique pour l asset class. Sans cette
+            // injection, valuation reclassifiait de son cote sur
+            // extraction.sector + subSector seul, ratait les dossiers
+            // hardware au vocabulaire FR, retombait en saas-b2b par
+            // defaut et calibrait la fourchette sur des exits SaaS.
+            relevanceMatrix,
           });
 
           // Calcul des sept indicateurs deal type (Burn multiple, Rule of
