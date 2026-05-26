@@ -12,7 +12,7 @@ export function getClient(): Anthropic {
   return _client;
 }
 
-export const MODEL = 'claude-sonnet-4-5';
+export const MODEL = 'claude-sonnet-4-6';
 export const FAST_MODEL = 'claude-haiku-4-5-20251001';
 
 // ============================================================
@@ -43,7 +43,7 @@ interface CallClaudeOptions {
 
 // Helper appel texte simple, avec option web_search natif.
 //
-// IMPORTANT : le defaut est MODEL (Sonnet 4.5) parce que la majorite des
+// IMPORTANT : le defaut est MODEL (Sonnet 4.6) parce que la majorite des
 // moteurs Bloc 1 (team, market, macro, pattern, causal, blindspot,
 // contrarian, financial-coherence) tournent sur Sonnet pour la qualite
 // dialectique. Haiku reste explicite quand voulu (prescan Bloc 0,
