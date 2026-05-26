@@ -849,6 +849,25 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
   },
 
   // ============ CAUTIONARY TALES complements ============
+  pluralsight: {
+    name: 'Pluralsight',
+    founded: 2004,
+    sectorAssetClass: 'SaaS B2B / edtech / workforce development tech',
+    keyMilestones: 'IPO 2018. Sortie de bourse par Vista Equity Partners en 2021 pour 3,5Md$ a 22,50$/action, finance par plus de 1,3Md$ de dette private credit menee par Blue Owl. Croissance EBITDA +26% en 2023 (~123M$ EBITDA) mais insuffisante pour servir la dette emise a taux bas. Q1 2024 deterioration rapide. Mai 2024 Vista marque l equity a zero. Aout 2024 restructuration convertissant ~1,2Md$ de dette en equity, preteurs prenant ~85% du controle [Reuters + Axios + Goodwin Law + Private Equity Wire].',
+    currentStatus: 'Controle par les creanciers depuis la restructuration 2024, equity Vista efface.',
+    notes: 'Cautionary tale structure de capital. SaaS B2B operationnellement viable (EBITDA positif et croissant) dont l equity a ete reduit a zero non par le produit ou le marche mais par un LBO a valorisation de pic 2021, une dette a taux variable non couverte et la hausse des taux : charge d interet superieure a l EBITDA, marge EBITDA ~43% requise juste pour breakeven, irrealiste. These long terme erodee par l automatisation des competences dev enseignees. Lecon : la structure de capital et le risque de taux peuvent effacer l equity independamment de la performance operationnelle.',
+    asOf: '2024',
+  },
+  tally: {
+    name: 'Tally',
+    founded: 2015,
+    sectorAssetClass: 'fintech / consumer credit puis pivot B2B',
+    keyMilestones: 'App de remboursement de dette de carte de credit, valorisation ~855M$. Pivot vers un modele B2B debut 2024. Fermeture aout 2024 avec 180+ licenciements faute d avoir leve [Sifted + presse fintech].',
+    currentStatus: 'Ferme en aout 2024.',
+    notes: 'Cautionary tale pivot tardif. Pivot consumer vers B2B en fin de runway comme manoeuvre de la derniere chance, echec a securiser le financement. Lecon : un changement de modele economique en fin de piste est rarement salvateur.',
+    needsExternalCheck: true,
+    asOf: '2024',
+  },
   better: {
     name: 'Better.com',
     founded: 2016,
