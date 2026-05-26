@@ -231,6 +231,45 @@ const TPL_DEEPTECH_SERIES_A: IndicatorBenchmarkSet = {
   notes: 'Seuils calibres sur Series A deeptech, appliques sans differenciation aux stades seed / Series B / Series C+ faute de matiere editoriale dediee. Un deeptech mature en Series C+ avec produit commercialise devrait etre plus exigeant sur burn multiple ; un seed pre-revenu plus tolerant. En attente de sources externes pour calibration par stade.',
 };
 
+// Healthtech : profil dominant healthcare SaaS calibre sur Bessemer
+// Venture Partners Atlas "Benchmarks for Growing Health Tech Businesses"
+// 2022 et "How to scale a health tech business to 100M ARR" 2023 (reprise
+// Rocket Digital Health 2025). Cycle de vente sante plus lent que le
+// SaaS pur (paybackCac assoupli), composante services frequente
+// (grossMargin tolerante a 60% sain), R-of-40 plus modere reflet de la
+// frilosite des hopitaux et payeurs sur le tempo d adoption.
+// G3 (audit corpus mai 2026) : sortie du mapping TPL_FINTECH qui
+// imposait des seuils fintech SaaS decales sur un dossier sante.
+const TPL_HEALTHTECH: IndicatorBenchmarkSet = {
+  burnMultiple: { best: 2, sain: 3, surveille: 5, direction: 'lower-is-better', unit: 'x' },
+  ruleOf40: { best: 35, sain: 15, surveille: 0, direction: 'higher-is-better', unit: '%' },
+  paybackCac: { best: 15, sain: 20, surveille: 30, direction: 'lower-is-better', unit: 'mois' },
+  grossMargin: { best: 75, sain: 60, surveille: 45, direction: 'higher-is-better', unit: '%' },
+  revenuePerEmployee: { best: 200_000, sain: 130_000, surveille: 70_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2023',
+  confidence: 'medium',
+  notes: 'Template cale sur le profil dominant healthcare SaaS (sources Bessemer Atlas 2022/2023). Sous-modeles a affiner : les services tech-enabled sante portent des marges brutes plus basses (25-45% a 1-10M$ revenu, montant vers 35-60% top quartile) et se jugent en EV/Gross Profit plutot qu en EV/ARR. Le medtech device releve d un profil hardware (exit 2-5x revenue, cycle reglementaire long), pas de ce template. NDR et Magic Number non instrumentes faute de seuils sources publies par stade.',
+};
+
+// Climate-tech : profil capital-intensif a long horizon, calibration
+// qualitative sur Sightline Climate / CTVC 2025 Climate Tech Investment
+// Trends et Net Zero Insights State of Climate Tech Q3 2025. Le climate-
+// tech recouvre des economies opposees : software (comptabilite carbone,
+// marges SaaS) versus hardware/infrastructure (gigafactory, hydrogene,
+// capital lourd). Aucun benchmark operationnel granulaire par stade n est
+// publiquement sourcable a ce jour, d ou confidence: low.
+// G3 (audit corpus mai 2026) : sortie du mapping TPL_FINTECH qui calait
+// un climate-tech CAPEX sur des seuils fintech SaaS asset-light.
+const TPL_CLIMATE: IndicatorBenchmarkSet = {
+  burnMultiple: { best: 3, sain: 5, surveille: 8, direction: 'lower-is-better', unit: 'x' },
+  ruleOf40: { best: 25, sain: 10, surveille: -10, direction: 'higher-is-better', unit: '%' },
+  grossMargin: { best: 60, sain: 35, surveille: 15, direction: 'higher-is-better', unit: '%' },
+  revenuePerEmployee: { best: 250_000, sain: 150_000, surveille: 80_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2025',
+  confidence: 'low',
+  notes: 'Le climate-tech recouvre du software (comptabilite carbone, marges SaaS) et du hardware/infrastructure (capital lourd), economies opposees. Ce template vise le profil capital-intensif dominant en VC climate europeen. Calibration qualitative faute de benchmark operationnel granulaire publie par stade. A interpreter selon que le dossier est software ou hardware. Garder en tete : Series C devenue valley of death sur le climate-tech 2024-2025, financement first-of-a-kind reste la falaise structurelle du runway (sources Sightline / CTVC 2025, Net Zero Insights Q3 2025). PaybackCac SaaS non pertinent par defaut.',
+};
+
 // AI generative : marges erodees par cout LLM
 const TPL_AI_GEN_SERIES_A: IndicatorBenchmarkSet = {
   burnMultiple: { best: 1.5, sain: 2.5, surveille: 4, direction: 'lower-is-better', unit: 'x' },
@@ -316,16 +355,16 @@ export const INDICATOR_BENCHMARKS: Record<string, Record<ValuationStage, Indicat
     'series-c-plus': TPL_EDTECH_SERIES_A,
   },
   'healthtech': {
-    'seed': TPL_FINTECH_SEED,
-    'series-a': TPL_FINTECH_SERIES_A,
-    'series-b': TPL_FINTECH_SERIES_A,
-    'series-c-plus': TPL_FINTECH_SERIES_A,
+    'seed': TPL_HEALTHTECH,
+    'series-a': TPL_HEALTHTECH,
+    'series-b': TPL_HEALTHTECH,
+    'series-c-plus': TPL_HEALTHTECH,
   },
   'climate-tech': {
-    'seed': TPL_FINTECH_SEED,
-    'series-a': TPL_FINTECH_SERIES_A,
-    'series-b': TPL_FINTECH_SERIES_A,
-    'series-c-plus': TPL_FINTECH_SERIES_A,
+    'seed': TPL_CLIMATE,
+    'series-a': TPL_CLIMATE,
+    'series-b': TPL_CLIMATE,
+    'series-c-plus': TPL_CLIMATE,
   },
   'defense': {
     'seed': TPL_FINTECH_SEED,
