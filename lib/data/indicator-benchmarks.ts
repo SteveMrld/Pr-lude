@@ -49,6 +49,14 @@ export interface IndicatorThresholds {
   direction: 'higher-is-better' | 'lower-is-better';
   /** Unite affichable (ex. '%', 'mois', 'EUR/FTE'). */
   unit: string;
+  /**
+   * Annee de calibration du seuil. Optionnel et reserve aux overrides
+   * par indicateur (ex. NDR recalibre sur une source plus recente). Par
+   * defaut, la fraicheur du seuil est portee par IndicatorBenchmarkSet.
+   * asOf, partagee par tous les seuils du couple (asset-class, stage).
+   * Format conventionnel : 'YYYY' ou 'YYYY-Qn'.
+   */
+  asOf?: string;
 }
 
 /**
@@ -65,6 +73,23 @@ export interface IndicatorBenchmarkSet {
   paybackCac?: IndicatorThresholds;
   grossMargin?: IndicatorThresholds;
   revenuePerEmployee?: IndicatorThresholds;
+  /**
+   * Annee de calibration la plus recente parmi les sources citees dans
+   * l en-tete de fichier. Surfacee par computeBenchmarkFreshnessMonths
+   * pour declencher un signal sobre dans la note d instruction quand
+   * l ancrage benchmark depasse 12 mois. Optionnel pour compat retro.
+   */
+  asOf?: string;
+  /**
+   * Niveau de fiabilite du jeu de seuils pour ce couple (asset-class,
+   * stage). Utile quand on signale au lecteur que les seuils sont
+   * partages avec un autre asset class par defaut de calibration
+   * dediee (cas industrial-hardware et deeptech, dont les templates
+   * ne sont pas differencies par stade).
+   */
+  confidence?: 'high' | 'medium' | 'low';
+  /** Note de doctrine pour ce jeu de seuils (limite, fallback, etc.). */
+  notes?: string;
 }
 
 // ----- Templates reutilisables ---------------------------------
@@ -77,6 +102,7 @@ const TPL_SAAS_SEED: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 24, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 75, sain: 65, surveille: 50, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 150_000, sain: 100_000, surveille: 50_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 const TPL_SAAS_SERIES_A: IndicatorBenchmarkSet = {
@@ -87,6 +113,7 @@ const TPL_SAAS_SERIES_A: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 24, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 80, sain: 70, surveille: 60, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 200_000, sain: 150_000, surveille: 100_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 const TPL_SAAS_SERIES_B: IndicatorBenchmarkSet = {
@@ -97,6 +124,7 @@ const TPL_SAAS_SERIES_B: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 24, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 80, sain: 75, surveille: 65, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 250_000, sain: 200_000, surveille: 150_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 const TPL_SAAS_SERIES_C: IndicatorBenchmarkSet = {
@@ -107,6 +135,7 @@ const TPL_SAAS_SERIES_C: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 24, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 80, sain: 75, surveille: 65, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 300_000, sain: 250_000, surveille: 200_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 // Marketplace : take rate effectif comme proxy de marge brute, NDR pas pertinent
@@ -116,6 +145,7 @@ const TPL_MARKETPLACE_SEED: IndicatorBenchmarkSet = {
   paybackCac: { best: 18, sain: 24, surveille: 36, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 35, sain: 25, surveille: 15, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 200_000, sain: 120_000, surveille: 60_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 const TPL_MARKETPLACE_SERIES_A: IndicatorBenchmarkSet = {
@@ -124,6 +154,7 @@ const TPL_MARKETPLACE_SERIES_A: IndicatorBenchmarkSet = {
   paybackCac: { best: 18, sain: 24, surveille: 36, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 40, sain: 30, surveille: 20, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 250_000, sain: 180_000, surveille: 100_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 // Fintech B2B/B2C : marges intermediaires, NDR applicable B2B
@@ -133,6 +164,7 @@ const TPL_FINTECH_SEED: IndicatorBenchmarkSet = {
   paybackCac: { best: 18, sain: 24, surveille: 30, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 65, sain: 50, surveille: 35, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 200_000, sain: 150_000, surveille: 80_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 const TPL_FINTECH_SERIES_A: IndicatorBenchmarkSet = {
@@ -143,6 +175,7 @@ const TPL_FINTECH_SERIES_A: IndicatorBenchmarkSet = {
   paybackCac: { best: 18, sain: 24, surveille: 30, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 70, sain: 55, surveille: 40, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 250_000, sain: 180_000, surveille: 120_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 // Edtech : marges contenu legerement plus elevees que services humains
@@ -152,6 +185,7 @@ const TPL_EDTECH_SEED: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 30, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 65, sain: 50, surveille: 35, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 150_000, sain: 100_000, surveille: 50_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 const TPL_EDTECH_SERIES_A: IndicatorBenchmarkSet = {
@@ -161,23 +195,40 @@ const TPL_EDTECH_SERIES_A: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 30, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 70, sain: 55, surveille: 40, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 180_000, sain: 130_000, surveille: 80_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
-// Hardware / industrial : marges 30-50%, capital efficiency comme metrique cle
+// Hardware / industrial : marges 30-50%, capital efficiency comme metrique cle.
+// G4 (audit corpus mai 2026) : ce template est applique aux 4 stages
+// (seed/A/B/C+) faute de matiere editoriale dediee permettant de
+// modeliser la pente attendue de durcissement du burn multiple avec
+// la maturite. On refuse d inventer une contraction par translation
+// abstraite de la pente SaaS : on signale la limite confidence: low
+// et on documente le partage par stade dans notes. Le pipeline avale
+// peut surfacer cette limite vers le lecteur sans masquer la
+// degradation de precision pour les industriels Series B+.
 const TPL_HARDWARE_SERIES_A: IndicatorBenchmarkSet = {
   burnMultiple: { best: 2.5, sain: 4, surveille: 6, direction: 'lower-is-better', unit: 'x' },
   ruleOf40: { best: 30, sain: 15, surveille: 0, direction: 'higher-is-better', unit: '%' },
   paybackCac: { best: 24, sain: 36, surveille: 48, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 50, sain: 40, surveille: 25, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 350_000, sain: 250_000, surveille: 150_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
+  confidence: 'low',
+  notes: 'Seuils calibres sur Series A industrielle, appliques sans differenciation aux stades seed / Series B / Series C+ faute de matiere editoriale dediee permettant de modeliser la pente attendue de durcissement avec la maturite. A interpreter en fonction du stade reel du dossier : un industriel Series C+ devrait etre plus exigeant sur le burn multiple, un seed plus tolerant. En attente de sources externes pour calibration par stade.',
 };
 
-// Deeptech : phases longues, profitability tardive
+// Deeptech : phases longues, profitability tardive.
+// Meme remarque G4 que TPL_HARDWARE_SERIES_A : template applique aux
+// 4 stades faute de calibration dediee, confidence: low.
 const TPL_DEEPTECH_SERIES_A: IndicatorBenchmarkSet = {
   burnMultiple: { best: 3, sain: 5, surveille: 8, direction: 'lower-is-better', unit: 'x' },
   ruleOf40: { best: 30, sain: 10, surveille: -10, direction: 'higher-is-better', unit: '%' },
   grossMargin: { best: 70, sain: 55, surveille: 40, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 250_000, sain: 150_000, surveille: 80_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
+  confidence: 'low',
+  notes: 'Seuils calibres sur Series A deeptech, appliques sans differenciation aux stades seed / Series B / Series C+ faute de matiere editoriale dediee. Un deeptech mature en Series C+ avec produit commercialise devrait etre plus exigeant sur burn multiple ; un seed pre-revenu plus tolerant. En attente de sources externes pour calibration par stade.',
 };
 
 // AI generative : marges erodees par cout LLM
@@ -188,6 +239,7 @@ const TPL_AI_GEN_SERIES_A: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 24, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 65, sain: 50, surveille: 35, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 300_000, sain: 200_000, surveille: 150_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 // Profitable-mature : on durcit le burn multiple, on baisse l exigence sur growth
@@ -197,6 +249,7 @@ const TPL_PROFITABLE_MATURE: IndicatorBenchmarkSet = {
   paybackCac: { best: 12, sain: 18, surveille: 24, direction: 'lower-is-better', unit: 'mois' },
   grossMargin: { best: 50, sain: 35, surveille: 25, direction: 'higher-is-better', unit: '%' },
   revenuePerEmployee: { best: 400_000, sain: 300_000, surveille: 200_000, direction: 'higher-is-better', unit: 'EUR/FTE' },
+  asOf: '2024',
 };
 
 // ----- Mapping complet ----------------------------------------
@@ -353,6 +406,49 @@ export function getIndicatorBenchmarks(
   if (stage === 'unknown') return null;
   if (assetClass === 'unclassified') return null;
   return INDICATOR_BENCHMARKS[assetClass]?.[stage] ?? null;
+}
+
+/**
+ * Calcule l anciennete d un asOf benchmark en mois pleins, relative
+ * au today fourni (ou Date.now() par defaut). Accepte les formats
+ * 'YYYY' et 'YYYY-Qn'. La date de reference est calee en fin de
+ * periode (decembre pour 'YYYY', dernier mois du trimestre pour
+ * 'YYYY-Qn') pour eviter de sur-flagger : on suppose toujours que la
+ * source a ete publiee au plus tard possible dans sa periode.
+ *
+ * Retourne null si le format est invalide ou si asOf est absent. Le
+ * code appelant traite null comme "pas de signal de fraicheur",
+ * different de zero qui voudrait dire "calibration toute fraiche".
+ */
+export function computeBenchmarkFreshnessMonths(
+  asOf: string | undefined | null,
+  today: Date = new Date(),
+): number | null {
+  if (!asOf) return null;
+  const trimmed = asOf.trim();
+  // 'YYYY-Qn' : on prend le dernier mois du trimestre.
+  const qMatch = /^(\d{4})-Q([1-4])$/.exec(trimmed);
+  if (qMatch) {
+    const year = parseInt(qMatch[1], 10);
+    const quarter = parseInt(qMatch[2], 10);
+    const month = quarter * 3; // Q1->3, Q2->6, Q3->9, Q4->12
+    const ref = new Date(Date.UTC(year, month - 1, 28));
+    return monthsBetween(ref, today);
+  }
+  // 'YYYY' : on suppose decembre (la source a ete publiee dans l annee).
+  const yMatch = /^(\d{4})$/.exec(trimmed);
+  if (yMatch) {
+    const year = parseInt(yMatch[1], 10);
+    const ref = new Date(Date.UTC(year, 11, 28)); // 28 decembre
+    return monthsBetween(ref, today);
+  }
+  return null;
+}
+
+function monthsBetween(from: Date, to: Date): number {
+  const diff = (to.getUTCFullYear() - from.getUTCFullYear()) * 12
+    + (to.getUTCMonth() - from.getUTCMonth());
+  return Math.max(0, diff);
 }
 
 /**

@@ -33,6 +33,7 @@
 import {
   getIndicatorBenchmarks,
   classifyValue,
+  computeBenchmarkFreshnessMonths,
   type IndicatorBenchmarkSet,
   type IndicatorThresholds,
 } from '@/lib/data/indicator-benchmarks';
@@ -1183,6 +1184,19 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   const naCount = indicators.filter((i) => i.verdict === 'non-applicable').length;
   if (naCount >= 5 && !useIndustrialSet && benchmarks) {
     warnings.push('La plupart des indicateurs sont non applicables faute de donnees structurees. Demander au fondateur un BP plus complet (revenue, marge brute, EBITDA, headcount, unit economics par segment).');
+  }
+
+  // Signal G2 : fraicheur du benchmark. Si le set d indicateurs utilise
+  // a ete calibre il y a plus de 12 mois, on emet UN warning sobre. Le
+  // partner doit savoir que les seuils ne sont pas alignes sur la photo
+  // marche du trimestre courant, sans noyer la note dans des disclaimers.
+  if (benchmarks && applicableCount > 0) {
+    const months = computeBenchmarkFreshnessMonths(benchmarks.asOf);
+    if (months !== null && months > 12) {
+      warnings.push(
+        `Benchmarks indicateurs calibres il y a ${months} mois (asOf ${benchmarks.asOf}, sources OpenView / Bessemer / Pavilion / Atomico). A recroiser au prochain refresh annuel.`,
+      );
+    }
   }
 
   return {

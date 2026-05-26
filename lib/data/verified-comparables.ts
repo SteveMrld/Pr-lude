@@ -51,6 +51,15 @@ export interface VerifiedComparable {
    * verifier source primaire avant diffusion.
    */
   needsExternalCheck?: boolean;
+  /**
+   * Annee du dernier datapoint chiffre verifie pour cette fiche
+   * (typiquement la derniere levee ou la derniere valorisation
+   * triangulee). Optionnel, sert au front-office a juger la fraicheur
+   * d un comparable cite. Format conventionnel : 'YYYY' ou 'YYYY-Qn'.
+   * Non encore retropopule sur l ensemble du corpus, surface progressive
+   * au fil des audits.
+   */
+  asOf?: string;
 }
 
 /**
@@ -116,7 +125,9 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
     sectorAssetClass: 'SaaS B2B+B2C / productivity / capital efficient',
     keyMilestones: 'Funding 2021 275M$ Coatue + Sequoia valuation 10Md$ [Forbes + TechCrunch].',
     currentStatus: 'Prive. Derniere valuation publique : 10Md$ en 2021. Valuation 2024-2026 inconnue sans source secondaire a verifier.',
-    notes: 'Fondation 2013, quasi-faillite 2015, recapitalisation et pivot vers re-launch 2016. Notion n est pas public.',
+    notes: 'Fondation 2013, quasi-faillite 2015, recapitalisation et pivot vers re-launch 2016. Notion n est pas public. Valorisation 2021 au pic de marche SaaS, non extrapolable a 2026 (compression multiples post-correction).',
+    needsExternalCheck: true,
+    asOf: '2021',
   },
   datadog: {
     name: 'Datadog',
@@ -221,6 +232,15 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
     keyMilestones: 'Fondation 2017 par Palmer Luckey. Series E 2022 ~1.48Md$ valuation 8.5Md$. Series F 2024 ~1.5Md$ valuation 14Md$.',
     currentStatus: 'Prive.',
     notes: 'Valuation 2026 60Md$+ rapportee mais en quarantaine sans communique officiel triangule.',
+    needsExternalCheck: true,
+  },
+  helsing: {
+    name: 'Helsing',
+    founded: 2021,
+    sectorAssetClass: 'hardware deeptech / defense AI / capex modere',
+    keyMilestones: 'Fondation 2021 a Munich. Series D 2025 ~660M$ rapportee dans Atomico State of European Tech 2025.',
+    currentStatus: 'Prive. Allemagne. Repere souverainete defense EU.',
+    notes: 'Repere recurrent dans les analyses defense europeenne (cite dans la whitelist universelle des comparables Prelude). Donnees consolidees a partir de european-comparables.ts (Atomico SoET 2025) : recroiser via Helsing IR ou Atomico SoET le plus recent avant chiffrage precis.',
     needsExternalCheck: true,
   },
 
@@ -674,6 +694,9 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
     sectorAssetClass: 'hardware deeptech / battery anode silicon / capex lourd',
     keyMilestones: 'Series F 2021 590M$ Coatue valuation 3.3Md$ [Sila communique].',
     currentStatus: 'Prive.',
+    notes: 'Valorisation 2021 au pic de marche hardware/climate, non extrapolable a 2026 sans triangulation IR ou tour subsequent.',
+    needsExternalCheck: true,
+    asOf: '2021',
   },
   redwood: {
     name: 'Redwood Materials',
@@ -1109,7 +1132,9 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
     sectorAssetClass: 'SaaS B2B / contact center / scale rapide',
     keyMilestones: 'Series D 2021 230M$ Whale Rock + TI Platform valuation 10Md$ [Talkdesk communique].',
     currentStatus: 'Prive.',
-    notes: 'Valuation 2021 a verifier en contexte SaaS 2022-2026.',
+    notes: 'Valorisation 2021 au pic de marche SaaS, non extrapolable a 2026 (compression multiples contact-center post-correction). A recroiser via IR ou tour subsequent.',
+    needsExternalCheck: true,
+    asOf: '2021',
   },
   faire: {
     name: 'Faire',
@@ -1118,7 +1143,9 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
     sectorAssetClass: 'B2B marketplace / wholesale / scale rapide',
     keyMilestones: 'Series G 2021 400M$ Durable/Dragoneer valuation 12.4Md$ [Faire communique].',
     currentStatus: 'Prive.',
-    notes: 'B2B marketplace, pas retail DTC.',
+    notes: 'B2B marketplace, pas retail DTC. Valorisation 2021 au pic de marche marketplace, non extrapolable a 2026 (compression multiples GMV post-correction).',
+    needsExternalCheck: true,
+    asOf: '2021',
   },
   vestiaire: {
     name: 'Vestiaire Collective',

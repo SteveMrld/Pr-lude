@@ -55,6 +55,15 @@ export interface SectorMultipleRange {
   confidence: 'high' | 'medium' | 'low';
   /** Note metier specifique a la plage. */
   notes?: string;
+  /**
+   * Annee de calibration la plus recente parmi les sources citees dans
+   * l en-tete de bloc (format conventionnel : 'YYYY' ou 'YYYY-Qn').
+   * Surfacee en runtime par computeBenchmarkFreshnessMonths pour
+   * declencher un signal sobre dans la note d instruction quand
+   * l ancrage benchmark depasse 12 mois. Le champ est optionnel pour
+   * preserver la compat retro avec d eventuels imports tests.
+   */
+  asOf?: string;
 }
 
 /**
@@ -134,19 +143,19 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'saas-b2b': {
     seed: {
-      min: 4, central: 8, max: 15, multipleType: 'arr', confidence: 'medium',
+      min: 4, central: 8, max: 15, multipleType: 'arr', confidence: 'medium', asOf: '2025',
       notes: 'A ce stade l ARR est souvent <300k. Les multiples eleves refletent l option-value, pas une realite economique.',
     },
     'series-a': {
-      min: 8, central: 15, max: 25, multipleType: 'arr', confidence: 'high',
+      min: 8, central: 15, max: 25, multipleType: 'arr', confidence: 'high', asOf: '2025',
       notes: 'Plage centrale 15x ARR pour SaaS B2B europeen avec croissance 100-150%. Au-dela de 200% de croissance, depassement frequent du max.',
     },
     'series-b': {
-      min: 6, central: 10, max: 18, multipleType: 'arr', confidence: 'high',
+      min: 6, central: 10, max: 18, multipleType: 'arr', confidence: 'high', asOf: '2025',
       notes: 'La compression des multiples post-2022 a touche la Series B en premier. Median ~10x.',
     },
     'series-c-plus': {
-      min: 4, central: 7, max: 12, multipleType: 'arr', confidence: 'high',
+      min: 4, central: 7, max: 12, multipleType: 'arr', confidence: 'high', asOf: '2025',
       notes: 'Multiples convergent vers ceux du marche public a mesure que le deal s approche du IPO.',
     },
   },
@@ -157,18 +166,18 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'fintech': {
     seed: {
-      min: 3, central: 6, max: 12, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 6, max: 12, multipleType: 'revenue', confidence: 'medium', asOf: '2025',
       notes: 'Multiples plus bas que SaaS pur a cause du cout d acquisition reglementaire et de la pression marges.',
     },
     'series-a': {
-      min: 5, central: 10, max: 18, multipleType: 'revenue', confidence: 'high',
+      min: 5, central: 10, max: 18, multipleType: 'revenue', confidence: 'high', asOf: '2025',
       notes: 'Large dispersion selon vertical : payments (premium) vs lending (decoté).',
     },
     'series-b': {
-      min: 4, central: 7, max: 13, multipleType: 'revenue', confidence: 'high',
+      min: 4, central: 7, max: 13, multipleType: 'revenue', confidence: 'high', asOf: '2025',
     },
     'series-c-plus': {
-      min: 2, central: 5, max: 9, multipleType: 'revenue', confidence: 'high',
+      min: 2, central: 5, max: 9, multipleType: 'revenue', confidence: 'high', asOf: '2025',
       notes: 'Compression severe sur fintech mature post-correction 2022.',
     },
   },
@@ -180,18 +189,18 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'marketplace-b2c': {
     seed: {
-      min: 2, central: 4, max: 8, multipleType: 'gmv', confidence: 'medium',
+      min: 2, central: 4, max: 8, multipleType: 'gmv', confidence: 'medium', asOf: '2025',
       notes: 'Multiple sur GMV plutot que revenue : a ce stade le take-rate fluctue trop. Si pas de GMV stable, retomber sur Berkus.',
     },
     'series-a': {
-      min: 1.5, central: 3, max: 6, multipleType: 'gmv', confidence: 'medium',
+      min: 1.5, central: 3, max: 6, multipleType: 'gmv', confidence: 'medium', asOf: '2025',
       notes: 'Plage etroite : la qualite de la liquidite (depth marketplace) compte plus que le GMV brut.',
     },
     'series-b': {
-      min: 1, central: 2, max: 4, multipleType: 'gmv', confidence: 'medium',
+      min: 1, central: 2, max: 4, multipleType: 'gmv', confidence: 'medium', asOf: '2025',
     },
     'series-c-plus': {
-      min: 0.5, central: 1.2, max: 2.5, multipleType: 'gmv', confidence: 'high',
+      min: 0.5, central: 1.2, max: 2.5, multipleType: 'gmv', confidence: 'high', asOf: '2025',
     },
   },
 
@@ -201,17 +210,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'ecommerce-dtc': {
     seed: {
-      min: 1, central: 2.5, max: 5, multipleType: 'revenue', confidence: 'medium',
+      min: 1, central: 2.5, max: 5, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'DTC sous pression depuis 2022. Multiples 50% plus bas qu en 2021.',
     },
     'series-a': {
-      min: 0.8, central: 2, max: 4, multipleType: 'revenue', confidence: 'high',
+      min: 0.8, central: 2, max: 4, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-b': {
-      min: 0.6, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high',
+      min: 0.6, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-c-plus': {
-      min: 0.4, central: 1, max: 2.2, multipleType: 'revenue', confidence: 'high',
+      min: 0.4, central: 1, max: 2.2, multipleType: 'revenue', confidence: 'high', asOf: '2024',
       notes: 'Convergence vers les multiples retail public (1-2x revenue mature).',
     },
   },
@@ -222,18 +231,18 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'deeptech': {
     seed: {
-      min: 0, central: 0, max: 0, multipleType: 'revenue', confidence: 'low',
+      min: 0, central: 0, max: 0, multipleType: 'revenue', confidence: 'low', asOf: '2024',
       notes: 'A ce stade pre-revenue le multiple n est pas applicable. Utiliser methode Berkus + valorisation IP / TRL. Plage typique observee : pre-money 3-15M€ selon TRL et qualite equipe.',
     },
     'series-a': {
-      min: 8, central: 18, max: 40, multipleType: 'revenue', confidence: 'low',
+      min: 8, central: 18, max: 40, multipleType: 'revenue', confidence: 'low', asOf: '2024',
       notes: 'Tres forte dispersion. Le multiple eleve reflete la valorisation forward (revenue projete 24 mois) plutot que le revenue actuel. Si pas de revenue, basculer sur methode VC inverse.',
     },
     'series-b': {
-      min: 5, central: 12, max: 22, multipleType: 'revenue', confidence: 'medium',
+      min: 5, central: 12, max: 22, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-c-plus': {
-      min: 3, central: 7, max: 14, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 7, max: 14, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
   },
 
@@ -243,17 +252,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'cybersecurity': {
     seed: {
-      min: 5, central: 10, max: 18, multipleType: 'arr', confidence: 'medium',
+      min: 5, central: 10, max: 18, multipleType: 'arr', confidence: 'medium', asOf: '2024',
       notes: 'Premium par rapport au SaaS B2B generique grace au TAM grow et a la bargaining power CISO.',
     },
     'series-a': {
-      min: 10, central: 18, max: 30, multipleType: 'arr', confidence: 'high',
+      min: 10, central: 18, max: 30, multipleType: 'arr', confidence: 'high', asOf: '2024',
     },
     'series-b': {
-      min: 7, central: 12, max: 20, multipleType: 'arr', confidence: 'high',
+      min: 7, central: 12, max: 20, multipleType: 'arr', confidence: 'high', asOf: '2024',
     },
     'series-c-plus': {
-      min: 5, central: 8, max: 14, multipleType: 'arr', confidence: 'high',
+      min: 5, central: 8, max: 14, multipleType: 'arr', confidence: 'high', asOf: '2024',
     },
   },
 
@@ -263,17 +272,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'healthtech': {
     seed: {
-      min: 3, central: 6, max: 12, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 6, max: 12, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Distinguer digital health (multiples SaaS) et MedTech reglemente (multiples plus bas).',
     },
     'series-a': {
-      min: 6, central: 11, max: 18, multipleType: 'revenue', confidence: 'medium',
+      min: 6, central: 11, max: 18, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 4, central: 8, max: 14, multipleType: 'revenue', confidence: 'medium',
+      min: 4, central: 8, max: 14, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-c-plus': {
-      min: 3, central: 6, max: 10, multipleType: 'revenue', confidence: 'high',
+      min: 3, central: 6, max: 10, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
   },
 
@@ -283,17 +292,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'climate-tech': {
     seed: {
-      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Souvent capital intensive : valorisation impacted par CAPEX requis. Multiples plus bas que SaaS pur.',
     },
     'series-a': {
-      min: 4, central: 9, max: 16, multipleType: 'revenue', confidence: 'medium',
+      min: 4, central: 9, max: 16, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-c-plus': {
-      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
   },
 
@@ -303,18 +312,18 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'defense': {
     seed: {
-      min: 0, central: 0, max: 0, multipleType: 'revenue', confidence: 'low',
+      min: 0, central: 0, max: 0, multipleType: 'revenue', confidence: 'low', asOf: '2024',
       notes: 'Secteur recent. Multiples non stabilises. Utiliser comparables Anduril/Helsing/ICEYE en justification qualitative plutot qu en plage chiffree.',
     },
     'series-a': {
-      min: 8, central: 18, max: 35, multipleType: 'revenue', confidence: 'low',
+      min: 8, central: 18, max: 35, multipleType: 'revenue', confidence: 'low', asOf: '2024',
       notes: 'Premium tres eleve sur backlog gov contracts vs revenue execute. La distinction backlog vs revenue execute est critique.',
     },
     'series-b': {
-      min: 6, central: 12, max: 22, multipleType: 'revenue', confidence: 'low',
+      min: 6, central: 12, max: 22, multipleType: 'revenue', confidence: 'low', asOf: '2024',
     },
     'series-c-plus': {
-      min: 4, central: 8, max: 15, multipleType: 'revenue', confidence: 'low',
+      min: 4, central: 8, max: 15, multipleType: 'revenue', confidence: 'low', asOf: '2024',
     },
   },
 
@@ -324,16 +333,16 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'hospitality': {
     seed: {
-      min: 1, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium',
+      min: 1, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-a': {
-      min: 2, central: 4.5, max: 9, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 4.5, max: 9, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 1.5, central: 3.5, max: 7, multipleType: 'revenue', confidence: 'medium',
+      min: 1.5, central: 3.5, max: 7, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-c-plus': {
-      min: 1, central: 2.5, max: 5, multipleType: 'revenue', confidence: 'medium',
+      min: 1, central: 2.5, max: 5, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
   },
 
@@ -344,18 +353,18 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'ai-generative': {
     seed: {
-      min: 5, central: 15, max: 40, multipleType: 'arr', confidence: 'low',
+      min: 5, central: 15, max: 40, multipleType: 'arr', confidence: 'low', asOf: '2024',
       notes: 'Plage tres large reflechissant la frenesie 2023-2024. Les multiples bas (5x) correspondent aux dossiers AI wrapper sans defensibilite, les multiples eleves aux vrais foundation models. Le moteur doit ajuster en fonction du score Singularites contrariennes (defensibilite reelle).',
     },
     'series-a': {
-      min: 10, central: 25, max: 60, multipleType: 'arr', confidence: 'low',
+      min: 10, central: 25, max: 60, multipleType: 'arr', confidence: 'low', asOf: '2024',
       notes: 'Cas Anthropic/OpenAI/Mistral : multiples 50-200x non aberrants. Cas AI feature thin wrapper : multiples 5-10x.',
     },
     'series-b': {
-      min: 8, central: 18, max: 35, multipleType: 'arr', confidence: 'low',
+      min: 8, central: 18, max: 35, multipleType: 'arr', confidence: 'low', asOf: '2024',
     },
     'series-c-plus': {
-      min: 5, central: 12, max: 25, multipleType: 'arr', confidence: 'low',
+      min: 5, central: 12, max: 25, multipleType: 'arr', confidence: 'low', asOf: '2024',
     },
   },
 
@@ -365,17 +374,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'adtech': {
     seed: {
-      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Multiples plus bas que SaaS pur a cause du rev share et de la dependance plateformes (Google, Meta). Premium si ad tech infrastructure plutot que media buying.',
     },
     'series-a': {
-      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 2, central: 4.5, max: 8, multipleType: 'revenue', confidence: 'high',
+      min: 2, central: 4.5, max: 8, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-c-plus': {
-      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'high',
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
   },
 
@@ -385,17 +394,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'foodtech': {
     seed: {
-      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Tres heterogene : multiples differents pour vertical farming (capex intensive, plus bas) vs digital nutrition (multiples SaaS). Selon le modele, retomber sur SaaS B2B ou marketplace si pertinent.',
     },
     'series-a': {
-      min: 3, central: 7, max: 13, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 7, max: 13, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 5, max: 10, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-c-plus': {
-      min: 1.5, central: 3.5, max: 7, multipleType: 'revenue', confidence: 'medium',
+      min: 1.5, central: 3.5, max: 7, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
   },
 
@@ -405,17 +414,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'proptech': {
     seed: {
-      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Distinguer SaaS proptech (multiples plus eleves, 8-15x ARR si recurrent) des plateformes transactionnelles (multiples revenue plus bas). Verifier si modele transactional ou recurrent dans le pitch.',
     },
     'series-a': {
-      min: 4, central: 8, max: 14, multipleType: 'revenue', confidence: 'medium',
+      min: 4, central: 8, max: 14, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-c-plus': {
-      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'high',
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
   },
 
@@ -425,17 +434,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'edtech': {
     seed: {
-      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'B2C edtech sous pression depuis 2022. B2B (corporate learning, K-12 SaaS) plus stable. Si modele SaaS B2B clair, retomber sur saas-b2b.',
     },
     'series-a': {
-      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium',
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 2, central: 4.5, max: 8, multipleType: 'revenue', confidence: 'high',
+      min: 2, central: 4.5, max: 8, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-c-plus': {
-      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'high',
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
   },
 
@@ -445,17 +454,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'logistics': {
     seed: {
-      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium',
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Multiples bas refletent l intensite capitalistique et la commoditisation. Si SaaS supply chain pur, retomber sur saas-b2b. Si freight forwarding ou last mile asset-heavy, multiples encore plus bas.',
     },
     'series-a': {
-      min: 2, central: 4, max: 7, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 4, max: 7, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 1.5, central: 3, max: 5.5, multipleType: 'revenue', confidence: 'high',
+      min: 1.5, central: 3, max: 5.5, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-c-plus': {
-      min: 1, central: 2, max: 4, multipleType: 'revenue', confidence: 'high',
+      min: 1, central: 2, max: 4, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
   },
 
@@ -465,17 +474,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'services-b2b': {
     seed: {
-      min: 0.8, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high',
+      min: 0.8, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high', asOf: '2024',
       notes: 'Services non recurrents valorises a 1-2x revenue ou 4-8x EBITDA. Si la part recurrente / managed services depasse 40%, le multiple monte vers 2-4x revenue.',
     },
     'series-a': {
-      min: 1, central: 2, max: 3.5, multipleType: 'revenue', confidence: 'high',
+      min: 1, central: 2, max: 3.5, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-b': {
-      min: 0.8, central: 1.5, max: 2.8, multipleType: 'revenue', confidence: 'high',
+      min: 0.8, central: 1.5, max: 2.8, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-c-plus': {
-      min: 0.6, central: 1.2, max: 2.2, multipleType: 'revenue', confidence: 'high',
+      min: 0.6, central: 1.2, max: 2.2, multipleType: 'revenue', confidence: 'high', asOf: '2024',
       notes: 'Sur les Series B+ profitable, basculer sur EBITDA multiples (6-12x EBITDA) qui sont plus pertinents que revenue multiples.',
     },
   },
@@ -488,18 +497,18 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'industrial-hardware': {
     seed: {
-      min: 0, central: 0, max: 0, multipleType: 'revenue', confidence: 'low',
+      min: 0, central: 0, max: 0, multipleType: 'revenue', confidence: 'low', asOf: '2024',
       notes: 'A ce stade pre-revenue ou faiblement revenue, basculer sur Berkus + valorisation IP / TRL. Plage typique observee : pre-money 2-8M EUR selon TRL.',
     },
     'series-a': {
-      min: 1, central: 2.5, max: 5, multipleType: 'revenue', confidence: 'medium',
+      min: 1, central: 2.5, max: 5, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Multiples revenue plus bas que pure tech. Si profitable, basculer sur EBITDA multiples (5-10x).',
     },
     'series-b': {
-      min: 0.8, central: 2, max: 4, multipleType: 'revenue', confidence: 'high',
+      min: 0.8, central: 2, max: 4, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
     'series-c-plus': {
-      min: 0.6, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high',
+      min: 0.6, central: 1.5, max: 3, multipleType: 'revenue', confidence: 'high', asOf: '2024',
       notes: 'Sur les profitable mature : EBITDA multiples 5-10x deviennent la reference. La methode revenue est conservee pour comparaison.',
     },
   },
@@ -512,19 +521,19 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'profitable-mature': {
     seed: {
-      min: 0, central: 0, max: 0, multipleType: 'ebitda', confidence: 'low',
+      min: 0, central: 0, max: 0, multipleType: 'ebitda', confidence: 'low', asOf: '2024',
       notes: 'Categorie non applicable au seed. Une boite seed n a pas d EBITDA stable.',
     },
     'series-a': {
-      min: 0, central: 0, max: 0, multipleType: 'ebitda', confidence: 'low',
+      min: 0, central: 0, max: 0, multipleType: 'ebitda', confidence: 'low', asOf: '2024',
       notes: 'Rare au stade Series A d avoir un EBITDA stable et representatif. Privilegier multiples revenue.',
     },
     'series-b': {
-      min: 6, central: 10, max: 15, multipleType: 'ebitda', confidence: 'high',
+      min: 6, central: 10, max: 15, multipleType: 'ebitda', confidence: 'high', asOf: '2024',
       notes: 'EBITDA multiples standard PME profitable Europe : Argos Index mediane 9-11x sur PME 2024. Premium si croissance > 20%.',
     },
     'series-c-plus': {
-      min: 7, central: 11, max: 17, multipleType: 'ebitda', confidence: 'high',
+      min: 7, central: 11, max: 17, multipleType: 'ebitda', confidence: 'high', asOf: '2024',
       notes: 'Approche du marche public : multiples EBITDA convergent vers 10-12x sur PME mature europeenne. Sources : Argos Index Q4 2024 (mediane 9,8x), S&P Global SME 2024.',
     },
   },
@@ -535,17 +544,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'mediatech': {
     seed: {
-      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium',
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
       notes: 'Distinguer subscription content (multiples SaaS-like, 4-8x ARR) du gaming hit-driven (multiples revenue volatils selon catalogue).',
     },
     'series-a': {
-      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium',
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-b': {
-      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium',
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'medium', asOf: '2024',
     },
     'series-c-plus': {
-      min: 1, central: 2, max: 4, multipleType: 'revenue', confidence: 'high',
+      min: 1, central: 2, max: 4, multipleType: 'revenue', confidence: 'high', asOf: '2024',
     },
   },
 
@@ -555,17 +564,17 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
   // ============================================================
   'sportstech': {
     seed: {
-      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'low',
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'low', asOf: '2024',
       notes: 'Categorie etroite, peu de comparables stables. Selon vertical (athlete tech, fan engagement, betting tech, performance analytics) les multiples varient fortement. Souvent retomber sur saas-b2b ou marketplace-b2c selon modele.',
     },
     'series-a': {
-      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'low',
+      min: 3, central: 6, max: 11, multipleType: 'revenue', confidence: 'low', asOf: '2024',
     },
     'series-b': {
-      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'low',
+      min: 2, central: 4, max: 8, multipleType: 'revenue', confidence: 'low', asOf: '2024',
     },
     'series-c-plus': {
-      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'low',
+      min: 1.5, central: 3, max: 6, multipleType: 'revenue', confidence: 'low', asOf: '2024',
     },
   },
 };

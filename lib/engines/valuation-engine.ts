@@ -34,6 +34,7 @@ import {
   type ValuationStage,
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
+import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 import type { RelevanceMatrix } from '@/lib/engines/relevance-matrix';
 
@@ -288,6 +289,21 @@ function computeBySectorMultiples(
   const max = baseMetric * range.max;
   const adjustedCentral = central + (max - central) * (qualitySignal - 0.5) * 0.6;
 
+  // Signal G2 : fraicheur du benchmark. Si la plage sectorielle a ete
+  // calibree il y a plus de 12 mois, on ajoute une mention sobre au
+  // rationale pour que la note d instruction garde tracable l ancrage
+  // temporel du multiple. Le partner doit savoir qu il regarde une
+  // photo de marche 2024 quand il instruit un dossier 2026.
+  const freshnessMonths = computeBenchmarkFreshnessMonths(range.asOf);
+  const freshnessNote = freshnessMonths !== null && freshnessMonths > 12
+    ? ` Benchmark sectoriel calibre il y a ${freshnessMonths} mois (asOf ${range.asOf}), a recroiser.`
+    : '';
+
+  const baseRationale = `Multiple ${range.multipleType.toUpperCase()} ${range.min}x-${range.max}x applique sur ${formatEur(baseMetric)} (${range.multipleType.toUpperCase()} declare).`;
+  const rationale = range.notes
+    ? `${baseRationale} ${range.notes}${freshnessNote}`
+    : `${baseRationale}${freshnessNote}`;
+
   return {
     method: 'sector-multiples',
     label: 'Multiples sectoriels',
@@ -305,9 +321,7 @@ function computeBySectorMultiples(
       stage,
       qualitySignal: Math.round(qualitySignal * 100) / 100,
     },
-    rationale: range.notes
-      ? `Multiple ${range.multipleType.toUpperCase()} ${range.min}x-${range.max}x applique sur ${formatEur(baseMetric)} (${range.multipleType.toUpperCase()} declare). ${range.notes}`
-      : `Multiple ${range.multipleType.toUpperCase()} ${range.min}x-${range.max}x applique sur ${formatEur(baseMetric)} (${range.multipleType.toUpperCase()} declare).`,
+    rationale,
   };
 }
 
