@@ -467,6 +467,280 @@ export async function saveAnalysis(
 }
 
 // ============================================================
+// CYCLE DE VIE STATUTAIRE (refonte transit + polling)
+// ------------------------------------------------------------
+// Le pipeline /api/analyze ne persiste plus en fin de course :
+// il cree la ligne a t0 (status='running'), la met a jour au fil
+// des vagues (progress JSON), puis pose un statut terminal a la
+// fin (completed ou failed). Avantages :
+//   - L id est connu du client des le depart : la lecture par id
+//     ne renvoie plus jamais "Analyse introuvable" sur cause de
+//     timeout pipeline.
+//   - Le client peut basculer en polling si la connexion SSE
+//     coupe : il appelle GET /api/analyses/[id]/status jusqu a
+//     status='completed' puis recharge le result_json.
+//   - L admin voit les jobs orphelins (status='running' depuis
+//     plus de N minutes) pour nettoyage cron.
+// ============================================================
+
+export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface CreatePendingAnalysisInput {
+  /** Nom provisoire affiche tant que extraction n a pas tourne. */
+  initialCompanyName?: string | null;
+  /** Nom du fichier source principal (deck) pour la liste Historique. */
+  sourceFilename?: string | null;
+  /** References Storage des fichiers deposes (audit + cleanup futur). */
+  uploadedFiles?: Array<{
+    storagePath: string;
+    name: string;
+    mimeType: string;
+    size: number;
+  }>;
+}
+
+/**
+ * Cree une ligne d analyse en statut 'running' au tout debut du
+ * pipeline. Retourne l id assigne par Postgres. Si la persistence
+ * est desactivee, retourne null (la route appelante doit alors
+ * refuser de demarrer le pipeline parce que le polling n a aucun
+ * moyen de fonctionner sans base).
+ */
+export async function createPendingAnalysis(
+  input: CreatePendingAnalysisInput,
+): Promise<string | null> {
+  if (!isPersistenceEnabled()) return null;
+  try {
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) {
+      console.warn('[analysis-store] createPendingAnalysis : pas de user');
+      return null;
+    }
+    const supabase = getClient(useAdminClient);
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('analyses')
+      .insert({
+        user_id: userId,
+        company_name: input.initialCompanyName || '(analyse en cours)',
+        verdict: null,
+        result_json: null,
+        status: 'running',
+        progress: { stage: 'started', engines: {} },
+        started_at: now,
+        source_filename: input.sourceFilename || null,
+        uploaded_files: input.uploadedFiles || [],
+      })
+      .select('id')
+      .single();
+    if (error) {
+      console.error('[analysis-store] createPendingAnalysis erreur :', error);
+      return null;
+    }
+    return data?.id || null;
+  } catch (err) {
+    console.error('[analysis-store] createPendingAnalysis exception :', err);
+    return null;
+  }
+}
+
+/**
+ * Met a jour la progression d une analyse en cours. Patch shallow :
+ * seules les cles fournies sont ecrites. companyName et metadata
+ * sont remplis des que extraction a tourne, pour que la liste
+ * Historique affiche le nom reel sans attendre la fin du pipeline.
+ */
+export interface UpdateAnalysisProgressInput {
+  companyName?: string | null;
+  sector?: string | null;
+  subSector?: string | null;
+  country?: string | null;
+  geographicHub?: string | null;
+  yearFounded?: number | null;
+  roundType?: string | null;
+  roundAmountEur?: number | null;
+  /** Snapshot des etats moteurs pour reprise apres coupure SSE. */
+  progress?: any;
+}
+
+export async function updateAnalysisProgress(
+  analysisId: string,
+  input: UpdateAnalysisProgressInput,
+): Promise<boolean> {
+  if (!isPersistenceEnabled()) return false;
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+    const patch: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (input.companyName !== undefined) patch.company_name = input.companyName;
+    if (input.sector !== undefined) patch.sector = input.sector;
+    if (input.subSector !== undefined) patch.sub_sector = input.subSector;
+    if (input.country !== undefined) patch.country = input.country;
+    if (input.geographicHub !== undefined) patch.geographic_hub = input.geographicHub;
+    if (input.yearFounded !== undefined) patch.year_founded = input.yearFounded;
+    if (input.roundType !== undefined) patch.round_type = input.roundType;
+    if (input.roundAmountEur !== undefined) patch.round_amount_eur = input.roundAmountEur;
+    if (input.progress !== undefined) patch.progress = input.progress;
+    const { error } = await supabase.from('analyses').update(patch).eq('id', analysisId);
+    if (error) {
+      console.warn('[analysis-store] updateAnalysisProgress erreur :', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[analysis-store] updateAnalysisProgress exception :', err);
+    return false;
+  }
+}
+
+/**
+ * Pose le statut terminal succes : ecrit result_json complet,
+ * metadata extraites, verdict, scores, et passe status='completed'.
+ * C est cette ecriture qui rend l analyse consultable en lecture
+ * pleine. Avant elle, le polling ne voit que status='running'.
+ */
+export async function markAnalysisCompleted(
+  analysisId: string,
+  input: SaveAnalysisInput,
+): Promise<boolean> {
+  if (!isPersistenceEnabled()) return false;
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+    const { error } = await supabase
+      .from('analyses')
+      .update({
+        company_name: input.companyName,
+        sector: input.sector,
+        sub_sector: input.subSector,
+        country: input.country,
+        geographic_hub: input.geographicHub,
+        year_founded: input.yearFounded,
+        round_type: input.roundType,
+        round_amount_eur: input.roundAmountEur,
+        verdict: input.verdict,
+        verdict_confidence: input.verdictConfidence,
+        global_score: input.globalScore,
+        blindspot_score: input.blindspotScore,
+        contrarian_score: input.contrarianScore,
+        coherence_score: input.coherenceScore,
+        result_json: input.resultJson,
+        has_bloc2: computeHasBloc2(input.resultJson),
+        source_text: input.sourceText,
+        source_filename: input.sourceFilename,
+        source_pages: input.sourcePages,
+        pipeline_duration_ms: input.pipelineDurationMs,
+        pipeline_engines_status: input.pipelineEnginesStatus,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', analysisId);
+    if (error) {
+      console.error('[analysis-store] markAnalysisCompleted erreur :', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[analysis-store] markAnalysisCompleted exception :', err);
+    return false;
+  }
+}
+
+/**
+ * Pose le statut terminal erreur. Permet a l UI de differencier
+ * une analyse perdue (jamais creee) d une analyse plantee (creee
+ * mais avec error_message rempli) et d offrir un rejeu sur la
+ * meme ligne plutot que la creation d un nouveau dossier homonyme.
+ */
+export async function markAnalysisFailed(
+  analysisId: string,
+  errorMessage: string,
+): Promise<boolean> {
+  if (!isPersistenceEnabled()) return false;
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+    const { error } = await supabase
+      .from('analyses')
+      .update({
+        status: 'failed',
+        error_message: (errorMessage || 'unknown').slice(0, 2000),
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', analysisId);
+    if (error) {
+      console.error('[analysis-store] markAnalysisFailed erreur :', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[analysis-store] markAnalysisFailed exception :', err);
+    return false;
+  }
+}
+
+/**
+ * Lecture legere pour le polling cote client : retourne status,
+ * progress, companyName et verdict sans charger result_json.
+ * Vise a etre appele toutes les 2 a 5 secondes par la page de
+ * resultat tant que status n est pas terminal.
+ */
+export interface AnalysisStatusSnapshot {
+  id: string;
+  status: AnalysisStatus;
+  progress: any;
+  companyName: string;
+  verdict: string | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  updatedAt: string;
+}
+
+export async function getAnalysisStatus(
+  analysisId: string,
+): Promise<AnalysisStatusSnapshot | null> {
+  if (!isPersistenceEnabled()) return null;
+  try {
+    const { userId, useAdminClient } = await resolveUserContext();
+    if (!userId) return null;
+    const supabase = getClient(useAdminClient);
+    const { data, error } = await supabase
+      .from('analyses')
+      .select(
+        'id, status, progress, company_name, verdict, error_message, started_at, completed_at, updated_at, user_id',
+      )
+      .eq('id', analysisId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) {
+      if ((error as any).code !== 'PGRST116') {
+        console.warn('[analysis-store] getAnalysisStatus erreur :', error);
+      }
+      return null;
+    }
+    if (!data) return null;
+    return {
+      id: data.id,
+      status: (data.status || 'running') as AnalysisStatus,
+      progress: data.progress || null,
+      companyName: data.company_name,
+      verdict: data.verdict || null,
+      errorMessage: data.error_message || null,
+      startedAt: data.started_at || null,
+      completedAt: data.completed_at || null,
+      updatedAt: data.updated_at,
+    };
+  } catch (err) {
+    console.warn('[analysis-store] getAnalysisStatus exception :', err);
+    return null;
+  }
+}
+
+// ============================================================
 // LIST
 // ============================================================
 

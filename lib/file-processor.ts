@@ -23,9 +23,21 @@ export interface ClassifiedFile {
 }
 
 /**
+ * Forme minimale utilisee par classifyFile et getFileType. Compatible
+ * avec File (qui a `name` et `type`) et avec n importe quel objet
+ * porteur des memes deux champs, ce qui permet de classer les
+ * fichiers downloades depuis Supabase Storage sans reconstituer un
+ * objet File cote serveur.
+ */
+export interface FileMeta {
+  name: string;
+  type: string;
+}
+
+/**
  * Identifie la nature d'un fichier à partir de son nom et type MIME
  */
-export function classifyFile(file: File): FileNature {
+export function classifyFile(file: FileMeta): FileNature {
   const lowerName = file.name.toLowerCase();
 
   // Heuristiques sur le nom : grand livre comptable / FEC.
@@ -169,7 +181,7 @@ export function classifyFile(file: File): FileNature {
 /**
  * Détecte le type technique du fichier
  */
-export function getFileType(file: File): ClassifiedFile['type'] {
+export function getFileType(file: FileMeta): ClassifiedFile['type'] {
   const lowerName = file.name.toLowerCase();
   if (file.type.includes('pdf') || lowerName.endsWith('.pdf')) return 'pdf';
   if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) return 'excel';
@@ -244,53 +256,81 @@ export async function extractWordContent(buffer: Buffer, fileName: string): Prom
 }
 
 /**
- * Classifie et extrait le contenu de tous les fichiers d'un dossier
+ * Result type partage par processFiles et processFileRefs.
  */
-export async function processFiles(files: File[]): Promise<{
+export interface ProcessedFiles {
   pitchDeck: ClassifiedFile | null;
   businessPlan: ClassifiedFile | null;
   generalLedger: ClassifiedFile | null;
-  // Documents juridiques (Module 2 DD contractuelle)
   shareholdersAgreement: ClassifiedFile | null;
   statutes: ClassifiedFile | null;
   capTable: ClassifiedFile | null;
-  clientContracts: ClassifiedFile[]; // peut etre plusieurs
-  // Dossier technique (Module 3 DD technique)
-  technicalDocs: ClassifiedFile[]; // peut etre plusieurs
+  clientContracts: ClassifiedFile[];
+  technicalDocs: ClassifiedFile[];
   others: ClassifiedFile[];
-}> {
-  const classified: ClassifiedFile[] = [];
+}
 
-  for (const file of files) {
-    const nature = classifyFile(file);
-    const type = getFileType(file);
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+/**
+ * Entree pour processFileRefs : fichier deja telecharge cote serveur
+ * (typiquement depuis Supabase Storage) dont on a les meta + le buffer.
+ * Permet a /api/analyze et /api/analyses/[id]/dd-deepen de classer
+ * et d extraire sans avoir recu les octets dans le body multipart.
+ */
+export interface FileBufferInput {
+  name: string;
+  mimeType: string;
+  size: number;
+  buffer: Buffer;
+}
 
-    let payload = '';
-    if (type === 'pdf') {
-      payload = buffer.toString('base64');
-    } else if (type === 'excel') {
-      payload = extractExcelContent(buffer);
-    } else if (type === 'csv') {
-      payload = extractCSVContent(buffer);
-    } else if (type === 'word') {
-      // Extraction docx via mammoth. Permet aux startups d uploader
-      // leur business plan en Word plutot qu en PDF.
-      payload = await extractWordContent(buffer, file.name);
-    } else {
-      payload = buffer.toString('utf-8').slice(0, 30000);
-    }
+/**
+ * Classifie et extrait un fichier individuel a partir d un buffer.
+ * Helper partage : utilise par processFiles (entree File[]) et par
+ * processFileRefs (entree FileBufferInput[]). Garantit que la
+ * logique de classification, d encodage base64 PDF, d extraction
+ * Excel/CSV/Word reste strictement identique quel que soit le
+ * point d entree, pour eviter toute divergence subtile entre les
+ * deux chemins.
+ */
+async function classifyAndExtract(input: {
+  name: string;
+  mimeType: string;
+  size: number;
+  buffer: Buffer;
+}): Promise<ClassifiedFile> {
+  const meta: FileMeta = { name: input.name, type: input.mimeType };
+  const nature = classifyFile(meta);
+  const type = getFileType(meta);
 
-    classified.push({
-      name: file.name,
-      nature,
-      type,
-      size: file.size,
-      payload,
-    });
+  let payload = '';
+  if (type === 'pdf') {
+    payload = input.buffer.toString('base64');
+  } else if (type === 'excel') {
+    payload = extractExcelContent(input.buffer);
+  } else if (type === 'csv') {
+    payload = extractCSVContent(input.buffer);
+  } else if (type === 'word') {
+    payload = await extractWordContent(input.buffer, input.name);
+  } else {
+    payload = input.buffer.toString('utf-8').slice(0, 30000);
   }
 
+  return {
+    name: input.name,
+    nature,
+    type,
+    size: input.size,
+    payload,
+  };
+}
+
+/**
+ * Agrege les fichiers classifies en buckets metier (pitch deck, BP,
+ * grand livre, documents juridiques, dossier technique, autres).
+ * Sans appel reseau, sans I/O : tout le travail couteux a deja ete
+ * fait en amont par classifyAndExtract.
+ */
+function bucketize(classified: ClassifiedFile[]): ProcessedFiles {
   // Documents juridiques en priorite : on les extrait avant le pitch
   // pour eviter qu un PDF nomme "pacte_x.pdf" soit pris comme pitch.
   const shareholdersAgreement: ClassifiedFile | null = classified.find(f =>
@@ -401,6 +441,48 @@ export async function processFiles(files: File[]): Promise<{
     technicalDocs,
     others,
   };
+}
+
+/**
+ * Classifie et extrait le contenu de tous les fichiers d'un dossier
+ * a partir d une liste de File[] (typique d un FormData multipart).
+ *
+ * Conserve pour la compatibilite avec d eventuels appels legacy.
+ * Le nouveau flux production passe par processFileRefs (transit
+ * Storage), qui ne fait plus passer les octets dans le body de la
+ * fonction Vercel.
+ */
+export async function processFiles(files: File[]): Promise<ProcessedFiles> {
+  const classified: ClassifiedFile[] = [];
+  for (const file of files) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    classified.push(
+      await classifyAndExtract({
+        name: file.name,
+        mimeType: file.type,
+        size: file.size,
+        buffer,
+      }),
+    );
+  }
+  return bucketize(classified);
+}
+
+/**
+ * Variante consommee par les routes serveur apres download depuis
+ * Supabase Storage. Le client n envoie plus que des references
+ * (nom, MIME, taille, chemin Storage) au lieu des octets, le
+ * serveur telecharge les buffers en parallele puis les passe ici.
+ *
+ * Sortie identique a processFiles : meme contrat metier pour le
+ * pipeline en aval. Aucun moteur d analyse ne change.
+ */
+export async function processFileRefs(items: FileBufferInput[]): Promise<ProcessedFiles> {
+  const classified: ClassifiedFile[] = [];
+  for (const item of items) {
+    classified.push(await classifyAndExtract(item));
+  }
+  return bucketize(classified);
 }
 
 /**

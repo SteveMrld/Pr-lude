@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { processFiles } from '@/lib/file-processor';
+import { processFileRefs, type FileBufferInput } from '@/lib/file-processor';
 import { getAnalysis, updateAnalysisLive, extractAnalysisMetadata } from '@/lib/analysis-store';
 import { parseLedger } from '@/lib/ledger-parser';
 import { parseCapTable } from '@/lib/cap-table-parser';
@@ -7,6 +7,10 @@ import { analyzeDDFinancial } from '@/lib/engines/dd-financial-engine';
 import { analyzeDDContractual } from '@/lib/engines/dd-contractual-engine';
 import { analyzeDDTechnical } from '@/lib/engines/dd-technical-engine';
 import { logException } from '@/lib/error-logger';
+import {
+  downloadDossierFile,
+  isValidStoragePath,
+} from '@/lib/storage/dossier-uploads';
 
 // ============================================================
 // ROUTE DD APPROFONDIE (Module Bloc 2)
@@ -78,25 +82,71 @@ export async function POST(
       );
     }
 
-    // Recupere les fichiers Bloc 2
-    const formData = await req.formData();
-    const files: File[] = [];
-    const filesEntries = formData.getAll('files');
-    for (const entry of filesEntries) {
-      if (entry instanceof File) files.push(entry);
+    // Recupere les fichiers Bloc 2 via references Storage. Meme
+    // raison qu en Bloc 1 : le multipart frappait le plafond 4,5 Mo
+    // des fonctions Vercel sur les pieces lourdes (grand livre Excel
+    // dense, dossier technique multi-PDF). Le client doit avoir
+    // appele /api/uploads/sign et uploade les octets directement
+    // vers Supabase Storage avant ce POST.
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Body JSON invalide. Cette route ne prend plus de multipart, voir /api/uploads/sign.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      );
     }
 
-    if (files.length === 0) {
+    const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+    if (!sessionId || !/^[a-zA-Z0-9-]{8,64}$/.test(sessionId)) {
+      return new Response(
+        JSON.stringify({ error: 'sessionId requis' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    const ownerKey = typeof body?.ownerKey === 'string' ? body.ownerKey : 'solo';
+
+    const rawRefs: any[] = Array.isArray(body?.files) ? body.files : [];
+    if (rawRefs.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Au moins un document data room requis pour declencher la DD approfondie' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } },
       );
     }
 
+    const sessionPrefix = `${ownerKey}/${sessionId}`;
+    for (const r of rawRefs) {
+      if (!r || typeof r.storagePath !== 'string' || typeof r.name !== 'string') {
+        return new Response(
+          JSON.stringify({ error: 'Ref invalide : storagePath et name requis' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      if (!isValidStoragePath(r.storagePath, sessionPrefix)) {
+        return new Response(
+          JSON.stringify({ error: `Chemin Storage refuse : ${r.storagePath}` }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
+    const buffered: FileBufferInput[] = await Promise.all(
+      rawRefs.map(async (r: any) => {
+        const buf = await downloadDossierFile(r.storagePath);
+        return {
+          name: r.name,
+          mimeType: typeof r.mimeType === 'string' ? r.mimeType : '',
+          size: typeof r.size === 'number' ? r.size : buf.byteLength,
+          buffer: buf,
+        };
+      }),
+    );
+
     const {
       generalLedger, shareholdersAgreement, statutes, capTable, clientContracts,
       technicalDocs,
-    } = await processFiles(files);
+    } = await processFileRefs(buffered);
 
     // Verifie qu au moins un moteur Bloc 2 va pouvoir tourner.
     // Sinon le partner a uploade des fichiers non reconnus, on ne

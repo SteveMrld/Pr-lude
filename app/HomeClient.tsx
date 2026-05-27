@@ -1007,11 +1007,30 @@ export default function HomeClient({
       // Wake Lock non disponible : on continue sans
     }
 
+    // Capture locale de l id assigne a la creation de la ligne
+    // analyses (premier event SSE analysis-created). Sert au
+    // fallback polling si la connexion SSE coupe : la closure
+    // setState peut etre stale, alors qu une variable locale du
+    // scope analyze() reste a jour.
+    let pendingAnalysisId: string | null = null;
+
     try {
-      const formData = new FormData();
-      for (const f of files) {
-        formData.append('files', f);
-      }
+      // Etape 1 : upload des fichiers directement vers Supabase
+      // Storage via signed URLs. Le navigateur streame les octets,
+      // /api/analyze ne recoit ensuite que les references (chemin,
+      // nom, mimeType, taille). Sans ce detour Storage, les decks
+      // au-dela de 4,5 Mo declenchaient FUNCTION_PAYLOAD_TOO_LARGE
+      // cote Vercel et le pipeline ne demarrait meme pas.
+      const { uploadDossierFiles } = await import('@/lib/storage/upload-client');
+      const uploaded = await uploadDossierFiles(files);
+
+      const payload: any = {
+        sessionId: uploaded.sessionId,
+        ownerKey: uploaded.ownerKey,
+        files: uploaded.refs,
+        track: track ?? 'early',
+      };
+
       // Si l user force apres un knockout pre-scan, on l indique au
       // serveur pour qu il bypasse le gating et qu il evite de relancer
       // le moteur Bloc 0. Le verdict d origine est renvoye au serveur
@@ -1019,14 +1038,9 @@ export default function HomeClient({
       // perte de trace, pas de re-trigger inutile (gain 5-8 secondes
       // et 0.02 USD a chaque override).
       if (opts.forcePrescan) {
-        formData.append('forcePrescan', 'true');
+        payload.forcePrescan = true;
         if (priorPreScanRef.current) {
-          try {
-            formData.append('priorPreScan', JSON.stringify(priorPreScanRef.current));
-          } catch {
-            // Serialization impossible (cycle, BigInt, etc.) : on laisse
-            // le serveur synthetiser un stub par defaut.
-          }
+          payload.priorPreScan = priorPreScanRef.current;
         }
       }
       // Mode dev : force l execution du moteur narrative-drift meme si
@@ -1034,19 +1048,19 @@ export default function HomeClient({
       // QA sur dossiers seed avec corpus court pour valider la
       // robustesse du moteur en bord de plage.
       if (opts.forceNarrativeDrift || forceNarrativeDrift) {
-        formData.append('forceNarrativeDrift', '1');
+        payload.forceNarrativeDrift = true;
       }
       // Mode dev symetrique pour Fragilite Structurelle : force les sept
       // patterns a tourner meme si la matrice les declare tous hors-scope.
       if (opts.forceFragility || forceFragility) {
-        formData.append('forceFragility', '1');
+        payload.forceFragility = true;
       }
-      // Parcours d analyse choisi par le partner sur la page d entree.
-      // 'early' (defaut) ou 'growth'. Determine quels moteurs sont
-      // mobilises cote backend et la structure de la note finale.
-      formData.append('track', track ?? 'early');
 
-      const response = await fetch('/api/analyze', { method: 'POST', body: formData });
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
       // Cas 429 : rate limit atteint au niveau de l organisation. Le
       // serveur retourne un JSON structure avec currentCount et
@@ -1089,7 +1103,17 @@ export default function HomeClient({
           try {
             const data = JSON.parse(dataStr);
 
-            if (eventType === 'engine-start') {
+            if (eventType === 'analysis-created') {
+              // Premier event emis par le serveur des la creation de
+              // la ligne en base. On capture l id immediatement pour
+              // permettre un fallback polling si la connexion SSE
+              // coupe avant la fin du pipeline. Sans ce capture, une
+              // coupure laissait le pipeline orphelin cote client.
+              if (typeof data?.analysisId === 'string' && data.analysisId.length > 0) {
+                pendingAnalysisId = data.analysisId;
+                setSavedAnalysisId(data.analysisId);
+              }
+            } else if (eventType === 'engine-start') {
               setEngineStates(prev => ({
                 ...prev,
                 [data.engine]: { status: 'running', startedAt: Date.now() }
@@ -1217,6 +1241,51 @@ export default function HomeClient({
         throw new Error('Le pipeline s\'est interrompu avant la fin (probable timeout serveur). Recharge la page et réessaie. Si le problème persiste, le pipeline prend trop de temps et il faut réduire la charge.');
       }
     } catch (e: any) {
+      // Connexion SSE perdue. Si l id de l analyse est connu (event
+      // analysis-created recu avant la coupure), on bascule en mode
+      // polling : on interroge /run-status jusqu a un statut terminal,
+      // puis on recharge le payload complet via /api/analyses/[id].
+      // Le pipeline cote serveur continue independamment du client
+      // (la fonction Vercel garde son maxDuration), donc une
+      // deconnexion ne tue plus rien.
+      const pollId = pendingAnalysisId;
+      if (pollId) {
+        try {
+          const { pollAnalysisUntilTerminal } = await import('@/lib/storage/upload-client');
+          const finalResult = await pollAnalysisUntilTerminal(pollId);
+          if (finalResult) {
+            setResult(finalResult);
+            // Tous les moteurs Bloc 1 sont consideres done puisque le
+            // pipeline a abouti cote serveur. On laisse les etats
+            // intermediaires si presents, sinon on les force a done.
+            setEngineStates(prev => {
+              const next = { ...prev };
+              for (const eng of ENGINES) {
+                if (eng.block !== 'dataroom' && next[eng.id]?.status !== 'error') {
+                  next[eng.id] = { status: 'done', ...(next[eng.id] || {}) };
+                }
+              }
+              return next;
+            });
+            setError(null);
+            try {
+              const co = finalResult?.extraction?.companyName || 'Dossier';
+              const verdict = finalResult?.recommendation?.verdict || finalResult?.finalRecommendation?.verdict || null;
+              notifyPipelineComplete({ companyName: co, verdict });
+              setTabTitleAttention('done', co);
+            } catch {}
+            return;
+          }
+          // Polling abouti sur failed ou expire : on affiche un
+          // message clair avec l id pour que le partner puisse
+          // retrouver son dossier dans Historique.
+          setError(`Le pipeline a echoue cote serveur (id ${pollId}). Voir Historique pour le detail.`);
+          return;
+        } catch {
+          // Le polling a lui-meme echoue : fallback message generique.
+        }
+      }
+
       // Enrichissement du message d erreur : on ajoute le contexte du
       // dernier moteur en running au moment de l erreur, ce qui permet
       // au partner de comprendre OU le pipeline a plante (orchestrate ?
@@ -1236,7 +1305,7 @@ export default function HomeClient({
       const enrichedMsg = baseMsg.includes('network')
         || baseMsg.includes('Network')
         || baseMsg.toLowerCase().includes('failed to fetch')
-        ? `Connexion interrompue avec le serveur Prelude. Cause typique sur mobile : ecran qui s eteint ou app en arriere-plan, le navigateur coupe le flux SSE. Le serveur peut avoir continue a tourner et persister l analyse meme apres la coupure cote client.\n\nA verifier en premier : ouvrir l onglet Historique pour voir si le dossier est apparu (le moteur orchestrate est l avant-dernier de la chaine, donc l analyse a souvent ete sauvee). Si le dossier est present, ne pas relancer. Si absent au bout de 2 minutes, recharger la page et relancer le pipeline a zero.${contextSuffix}`
+        ? `Connexion interrompue avec le serveur Prelude. Cause typique sur mobile : ecran qui s eteint ou app en arriere-plan, le navigateur coupe le flux SSE. Le serveur continue de tourner en arriere-plan et l analyse est persistee meme apres la coupure cote client.\n\nA verifier en premier : ouvrir l onglet Historique. Si le dossier est present, ne pas relancer. Si absent au bout de 2 minutes, recharger la page et relancer le pipeline a zero.${contextSuffix}`
         : baseMsg + contextSuffix;
       setError(enrichedMsg);
     } finally {
@@ -1340,14 +1409,22 @@ export default function HomeClient({
     } catch (_e) {}
 
     try {
-      const formData = new FormData();
-      for (const f of ddDeepenFiles) {
-        formData.append('files', f);
-      }
+      // Bloc 2 : meme detour Storage qu en Bloc 1. Les documents
+      // data room (grand livre, pacte, statuts, dossier technique)
+      // peuvent peser plusieurs dizaines de Mo cumules. Sans le
+      // transit via Storage, le multipart explose le plafond
+      // Vercel 4,5 Mo de la fonction.
+      const { uploadDossierFiles } = await import('@/lib/storage/upload-client');
+      const uploaded = await uploadDossierFiles(ddDeepenFiles);
 
       const response = await fetch(`/api/analyses/${savedAnalysisId}/dd-deepen`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: uploaded.sessionId,
+          ownerKey: uploaded.ownerKey,
+          files: uploaded.refs,
+        }),
       });
 
       if (!response.ok || !response.body) {

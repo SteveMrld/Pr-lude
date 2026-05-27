@@ -43,11 +43,22 @@ import { computeRelevanceMatrix } from '@/lib/engines/relevance-matrix';
 import { normalizeAssetClass } from '@/lib/data/sector-benchmarks';
 import { generateReferenceChecks } from '@/lib/engines/reference-checks-engine';
 import { auditAssertions } from '@/lib/engines/assertion-validator';
-import { processFiles } from '@/lib/file-processor';
+import { processFileRefs, type FileBufferInput } from '@/lib/file-processor';
 import { logException } from '@/lib/error-logger';
-import { persistAnalysisAutomatically } from '@/lib/persist-analysis';
+import {
+  createPendingAnalysis,
+  updateAnalysisProgress,
+  markAnalysisCompleted,
+  markAnalysisFailed,
+  extractAnalysisMetadata,
+} from '@/lib/analysis-store';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
+import {
+  downloadDossierFile,
+  isValidStoragePath,
+  type DossierFileRef,
+} from '@/lib/storage/dossier-uploads';
 
 // Vercel Pro permet jusqu a 800s par function (13 min). Avec 12+ moteurs
 // Claude dont certains prennent 60s+ chacun, on a besoin de cette marge
@@ -62,78 +73,99 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   // Declare au scope outer pour que le catch global puisse liberer
-  // le slot rate-limit si une erreur survient apres son acquisition.
+  // le slot rate-limit et marquer l analyse en echec si une erreur
+  // survient apres acquisition de l id.
   let jobId: string | null = null;
+  let analysisId: string | null = null;
   try {
-    const formData = await req.formData();
-
-    // Recuperer tous les fichiers
-    const files: File[] = [];
-    const filesEntries = formData.getAll('files');
-    for (const entry of filesEntries) {
-      if (entry instanceof File) files.push(entry);
+    // Body JSON leger : plus aucun octet de fichier ne transite par
+    // cette fonction. Les fichiers ont ete uploades par le client
+    // sur Supabase Storage via signed URL (route /api/uploads/sign),
+    // on n a recu ici que des references {storagePath, name,
+    // mimeType, size}. Resout le FUNCTION_PAYLOAD_TOO_LARGE qui
+    // sautait sur les decks lourds (>4,5 Mo, plafond Vercel).
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Body JSON invalide. Cette route ne prend plus de multipart, voir /api/uploads/sign pour le nouveau flux.' }),
+        { status: 400 },
+      );
     }
-    // Compat ascendante
-    const legacyFile = formData.get('pitchdeck');
-    if (legacyFile instanceof File) files.push(legacyFile);
 
-    if (files.length === 0) {
-      return new Response(JSON.stringify({ error: 'Au moins un fichier requis' }), { status: 400 });
+    const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
+    if (!sessionId || !/^[a-zA-Z0-9-]{8,64}$/.test(sessionId)) {
+      return new Response(JSON.stringify({ error: 'sessionId requis (UUID genere cote client)' }), { status: 400 });
+    }
+    const ownerKey = typeof body?.ownerKey === 'string' ? body.ownerKey : 'solo';
+
+    const rawRefs: any[] = Array.isArray(body?.files) ? body.files : [];
+    if (rawRefs.length === 0) {
+      return new Response(JSON.stringify({ error: 'Au moins une reference de fichier requise' }), { status: 400 });
+    }
+    if (rawRefs.length > 25) {
+      return new Response(JSON.stringify({ error: 'Trop de fichiers (max 25)' }), { status: 400 });
     }
 
-    // Flag d override du gating pre-scan. Si le pre-scan retourne un
-    // verdict not_recommended (knockout), le pipeline s arrete par defaut
-    // et l UI propose au partner de relancer avec ce flag a true s il
-    // veut analyser le dossier malgre le verdict du Bloc 0. Permet
-    // l economie reelle des credits LLM sur les dossiers eliminatoires
-    // sans retirer le pouvoir de decision au partner.
-    const forcePrescanRaw = formData.get('forcePrescan');
-    const forcePrescan = forcePrescanRaw === 'true' || forcePrescanRaw === '1';
-
-    // Pre-scan deja effectue lors de l appel precedent. Quand le partner
-    // force l analyse complete apres un knockout, le client renvoie
-    // l output integral du pre-scan (recu via l event SSE engine-done)
-    // pour qu on persiste le verdict d origine sans relancer le moteur.
-    // Sans cette re-injection, soit on perdrait la trace du knockout
-    // dans le resultJson final, soit on relancerait inutilement le
-    // moteur Haiku 4.5 (5-8 secondes, 0.02 USD) pour reconstituer un
-    // verdict que le partner a deja vu et choisi d ecarter.
-    const priorPreScanRaw = formData.get('priorPreScan');
-    let priorPreScan: any = null;
-    if (forcePrescan && typeof priorPreScanRaw === 'string' && priorPreScanRaw.length > 0) {
-      try {
-        priorPreScan = JSON.parse(priorPreScanRaw);
-      } catch {
-        // JSON malforme : on ignore. Le code en aval traitera
-        // priorPreScan = null comme un override sans verdict prealable
-        // et synthetisera un stub minimal.
-        priorPreScan = null;
+    // Validation defensive : chaque chemin doit pointer dans le
+    // namespace de la session (sinon un client malveillant pourrait
+    // tenter de telecharger un fichier d un autre dossier).
+    const sessionPrefix = `${ownerKey}/${sessionId}`;
+    const refs: DossierFileRef[] = [];
+    for (const r of rawRefs) {
+      if (!r || typeof r.storagePath !== 'string' || typeof r.name !== 'string') {
+        return new Response(JSON.stringify({ error: 'Ref invalide : storagePath et name requis' }), { status: 400 });
       }
+      if (!isValidStoragePath(r.storagePath, sessionPrefix)) {
+        return new Response(JSON.stringify({ error: `Chemin Storage refuse : ${r.storagePath}` }), { status: 400 });
+      }
+      refs.push({
+        storagePath: r.storagePath,
+        name: r.name,
+        mimeType: typeof r.mimeType === 'string' ? r.mimeType : '',
+        size: typeof r.size === 'number' ? r.size : 0,
+      });
+    }
+
+    const forcePrescan = body?.forcePrescan === true || body?.forcePrescan === 'true' || body?.forcePrescan === '1';
+    let priorPreScan: any = null;
+    if (forcePrescan && body?.priorPreScan) {
+      priorPreScan = body.priorPreScan;
     }
 
     /**
      * Parcours d analyse choisi par le partner sur la page d entree.
-     * - 'early' (defaut) : pipeline historique seed et serie A,
-     *   tous les moteurs Bloc 1 plus pattern matching plus aveuglement
-     *   plus causal plus contrarien.
-     * - 'growth' : pipeline serie B et au-dela. Skip equipe early,
-     *   pattern matching, aveuglement et causal early. Garde marche,
-     *   macro, financier, contrarien. Ajoute fragilite structurelle
-     *   au coeur du verdict.
-     *
-     * Le track determine quels moteurs sont mobilises et structure
-     * le verdict final. Voir la suite du pipeline pour les conditions
-     * d activation par moteur.
+     * Voir la suite du pipeline pour les conditions d activation
+     * par moteur.
      */
-    const trackRaw = formData.get('track');
-    const track: 'early' | 'growth' = (trackRaw === 'growth') ? 'growth' : 'early';
+    const track: 'early' | 'growth' = (body?.track === 'growth') ? 'growth' : 'early';
+
+    const forceNarrativeDriftFlag = body?.forceNarrativeDrift === true || body?.forceNarrativeDrift === '1';
+    const forceFragilityFlag = body?.forceFragility === true || body?.forceFragility === '1';
+
+    // Download des fichiers depuis Storage en parallele. C est le
+    // seul moment ou le serveur manipule les octets : ensuite c est
+    // du base64 en memoire passe aux moteurs LLM. Pas d ecriture
+    // disque, pas de copie inutile.
+    const buffered: FileBufferInput[] = await Promise.all(
+      refs.map(async (ref) => {
+        const buf = await downloadDossierFile(ref.storagePath);
+        return {
+          name: ref.name,
+          mimeType: ref.mimeType || guessMimeFromName(ref.name),
+          size: ref.size || buf.byteLength,
+          buffer: buf,
+        };
+      }),
+    );
 
     const {
       pitchDeck, businessPlan, generalLedger,
       shareholdersAgreement, statutes, capTable, clientContracts,
       technicalDocs,
       others,
-    } = await processFiles(files);
+    } = await processFileRefs(buffered);
 
     if (!pitchDeck) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
@@ -285,6 +317,31 @@ export async function POST(req: NextRequest) {
       ...others.map(o => o.name),
     ];
 
+    // ============================================================
+    // CREATION DE LA LIGNE ANALYSES A T0
+    // ------------------------------------------------------------
+    // L id est assigne maintenant, AVANT le pipeline. Le client le
+    // recoit immediatement dans le premier event SSE 'analysis-created'
+    // et peut basculer en polling (/api/analyses/[id]/run-status) si
+    // la connexion SSE coupe. Sans cette creation precoce, une
+    // analyse perdue par timeout fonction ne laissait aucune trace
+    // en base et produisait le "Analyse introuvable" cote lecture.
+    //
+    // En mode persistence-off (dev sans Supabase), on continue mais
+    // sans id : le client ne pourra pas faire de polling, seul le
+    // streaming SSE est utilisable.
+    // ============================================================
+    analysisId = await createPendingAnalysis({
+      initialCompanyName: '(analyse en cours)',
+      sourceFilename: pitchDeck.name,
+      uploadedFiles: refs.map((r) => ({
+        storagePath: r.storagePath,
+        name: r.name,
+        mimeType: r.mimeType,
+        size: r.size,
+      })),
+    });
+
     // Streaming SSE
     const stream = new ReadableStream({
       async start(controller) {
@@ -312,6 +369,40 @@ export async function POST(req: NextRequest) {
           const durationMs = startedAt != null ? Date.now() - startedAt : null;
           if (durationMs != null) engineDurations[engine] = durationMs;
           send('engine-done', { engine, output, durationMs });
+          // Flush throttled (2s) de la progression vers la base. Sert
+          // au polling de secours quand la connexion SSE coupe.
+          flushProgress(false).catch(() => {});
+        }
+
+        // Snapshot de progression : met a jour la ligne analyses avec
+        // un patch des engines courants. Best effort : un echec
+        // n arrete pas le pipeline, mais le polling cote client
+        // perdrait son fil. Throttle 2 secondes pour ne pas marteler
+        // la base avec douze updates par seconde quand plusieurs
+        // moteurs resolvent en rafale.
+        let lastProgressFlush = 0;
+        async function flushProgress(force: boolean = false): Promise<void> {
+          if (!analysisId) return;
+          const now = Date.now();
+          if (!force && now - lastProgressFlush < 2000) return;
+          lastProgressFlush = now;
+          const engines: Record<string, any> = {};
+          for (const eng of Object.keys(engineStartedAt)) {
+            const startedAt = engineStartedAt[eng];
+            const durationMs = engineDurations[eng];
+            engines[eng] = {
+              startedAt,
+              durationMs: durationMs ?? null,
+              status: durationMs != null ? 'done' : 'running',
+            };
+          }
+          await updateAnalysisProgress(analysisId, {
+            progress: {
+              stage: 'running',
+              engines,
+              heartbeatAt: new Date().toISOString(),
+            },
+          });
         }
 
         // Heartbeat SSE : envoie un commentaire SSE vide ":\n\n"
@@ -331,6 +422,12 @@ export async function POST(req: NextRequest) {
         }, 15000);
 
         try {
+          // Premier event : l id de l analyse cree a t0. Le client
+          // peut deja brancher son polling de secours sur cet id
+          // avant meme que le pipeline ait demarre. Si la persistance
+          // est desactivee (mode dev), id=null et le polling est skip.
+          send('analysis-created', { analysisId });
+
           send('files-received', {
             pitchDeck: pitchDeck.name,
             businessPlan: businessPlan?.name || null,
@@ -417,6 +514,25 @@ export async function POST(req: NextRequest) {
           sendStart('extraction', 'Extraction du contenu du pitch deck');
           const extraction = await extractFromDeck(pitchDeck.payload);
           sendDone('extraction', extraction);
+
+          // Propage les metadonnees de base en BDD des qu on les a :
+          // companyName, sector, country, etc. La liste Historique
+          // affiche desormais le bon nom et le secteur reels au lieu
+          // de "(analyse en cours)" pendant toute la duree du pipeline.
+          // Non bloquant : un echec ne stoppe pas le pipeline.
+          if (analysisId) {
+            updateAnalysisProgress(analysisId, {
+              companyName: (extraction as any)?.companyName || null,
+              sector: (extraction as any)?.sector || null,
+              subSector: (extraction as any)?.subSector || null,
+              country: (extraction as any)?.country || null,
+              geographicHub: (extraction as any)?.geographicHub || null,
+              yearFounded: typeof (extraction as any)?.yearFounded === 'number'
+                ? (extraction as any).yearFounded : null,
+              roundType: (extraction as any)?.roundType
+                || (extraction as any)?.roundStage || null,
+            }).catch(() => {});
+          }
 
           // ============================================================
           // CONFLITS D INTERET : detection deterministe instantanee
@@ -654,7 +770,7 @@ export async function POST(req: NextRequest) {
           // tuile pipeline pour ne pas afficher un faux skip dans l UI.
           // Le client, lui, voit le verdict de la matrice dans la note.
           const narrativeDriftRequested = relevanceMatrix.verdicts.narrativeDrift.applicable !== 'none'
-            || (formData.get('forceNarrativeDrift') === '1');
+            || forceNarrativeDriftFlag;
           if (narrativeDriftRequested) {
             sendStart('narrative-drift', 'Lecture du langage');
           }
@@ -669,7 +785,7 @@ export async function POST(req: NextRequest) {
           // des dossiers seed qui seraient normalement filtres hors-scope
           // par la matrice. Le client envoie ce flag depuis le coin admin.
           const fsVerdicts = relevanceMatrix.verdicts.fragiliteStructurelle;
-          const forceFragility = formData.get('forceFragility') === '1';
+          const forceFragility = forceFragilityFlag;
           const fragiliteRequested = forceFragility || Object.values(fsVerdicts).some(
             (v) => v.applicable !== 'none',
           );
@@ -1222,90 +1338,85 @@ export async function POST(req: NextRequest) {
           };
 
           // ============================================================
-          // PERSISTENCE COTE SERVEUR (avant send complete)
+          // STATUT TERMINAL : COMPLETED
           // ------------------------------------------------------------
-          // Avant cette refonte, la persistence dependait du client : le
-          // serveur emettait le complete event via SSE, le client
-          // l interceptait et appelait POST /api/analyses. Si le client
-          // se deconnectait avant la fin du pipeline (mobile en arriere-
-          // plan, ecran qui s eteint, hand-off 4G/wifi), le serveur
-          // poussait dans le vide et l analyse etait perdue alors que
-          // tout le travail LLM avait deja ete fait.
+          // La ligne analyses a ete creee a t0 et tenue a jour par
+          // flushProgress tout au long du pipeline. On la basule
+          // maintenant en status='completed' avec le result_json
+          // complet, le verdict, les scores et toutes les metadonnees.
           //
-          // Maintenant, on persiste cote serveur dans la meme fonction
-          // Vercel. Si le client est connecte, il recoit l id deja
-          // persiste et peut afficher l analyse direct. Si le client
-          // est deconnecte, l analyse est en base et apparait dans
-          // Historique au prochain refresh. Aucune perte possible.
+          // L ancien flux passait par persistAnalysisAutomatically
+          // qui creait une nouvelle ligne en fin de pipeline. Cela
+          // posait deux problemes : (1) si la fonction mourait avant
+          // ce point, l analyse etait perdue alors que les credits
+          // Anthropic avaient ete brules ; (2) le client recoit
+          // l "Analyse introuvable" parce que la ligne n existait
+          // jamais. La creation a t0 + update terminal resout les
+          // deux d un coup.
           //
-          // Non-bloquant : si la persistence echoue (Supabase down,
-          // env de dev sans persistence), on continue et on envoie
-          // quand meme le complete au client avec saved:false. Le
-          // client aura toujours le resultat en main et peut
-          // re-tenter la persistence cote client si besoin.
+          // Non-bloquant : si markAnalysisCompleted echoue (Supabase
+          // down, ligne deleted entre temps), on log et on envoie
+          // quand meme le complete au client avec le payload complet.
+          // Le client peut afficher le resultat meme sans persistance.
           // ============================================================
-          let persistResult: Awaited<ReturnType<typeof persistAnalysisAutomatically>> = {
-            saved: false,
-            id: null,
-            mode: 'unsaved',
-          };
-          try {
-            persistResult = await persistAnalysisAutomatically({
-              result,
-              sourceFilename: pitchDeck.name,
-              pipelineDurationMs: result.meta.durationMs,
-              pipelineEnginesStatus: null,
-            });
-            if (persistResult.saved && persistResult.id) {
-              console.log(
-                `[api/analyze] analyse persistee cote serveur : id=${persistResult.id} mode=${persistResult.mode}`,
-              );
-            } else {
-              console.warn(
-                `[api/analyze] persistence cote serveur echouee : ${persistResult.reason || 'unknown'}`,
-              );
+          let persistOk = false;
+          if (analysisId) {
+            try {
+              const metadata = extractAnalysisMetadata(result);
+              persistOk = await markAnalysisCompleted(analysisId, {
+                ...metadata,
+                companyName: metadata.companyName || (extraction as any)?.companyName || 'Sans nom',
+                verdict: metadata.verdict || 'approfondir',
+                resultJson: result,
+                sourceFilename: pitchDeck.name,
+                pipelineDurationMs: result.meta.durationMs,
+                pipelineEnginesStatus: null,
+              });
+              if (persistOk) {
+                console.log(`[api/analyze] analyse ${analysisId} marquee completed`);
+              } else {
+                console.warn(`[api/analyze] markAnalysisCompleted echec pour ${analysisId}`);
+              }
+            } catch (persistErr: any) {
+              console.error('[api/analyze] persistence exception :', persistErr);
+              await logException('api.analyze.persist', persistErr, {
+                severity: 'warning',
+                context: { phase: 'mark-completed', analysisId },
+              });
             }
-          } catch (persistErr: any) {
-            console.error('[api/analyze] persistence exception :', persistErr);
-            await logException('api.analyze.persist', persistErr, {
-              severity: 'warning',
-              context: { phase: 'server-side-persist' },
-            });
           }
 
-          // Notifications Slack non bloquantes apres persistence reussie
-          // (si auth active et persistence OK). Auparavant gere par
-          // /api/analyses cote client : maintenant cote serveur pour
-          // que la notif parte meme si le SSE coupe.
-          if (persistResult.saved && persistResult.id && isAuthEnabled()) {
+          // Notifications Slack non bloquantes apres persistance OK.
+          // Auparavant gere par /api/analyses cote client : maintenant
+          // cote serveur pour que la notif parte meme si le SSE coupe.
+          if (persistOk && analysisId && isAuthEnabled()) {
             try {
               const ctx = await getAuthenticatedContext();
               if (ctx) {
-                // Fire-and-forget : on ne attend pas pour ne pas
-                // retarder le send complete au client.
                 dispatchSlackNotifications({
                   organizationId: ctx.org.id,
-                  analysisId: persistResult.id,
+                  analysisId,
                   result,
                   baseUrl: req.nextUrl.origin,
                 }).catch(() => {});
               }
             } catch (notifErr) {
-              // Ignore : notif Slack ne doit jamais bloquer le client.
               console.warn('[api/analyze] dispatch Slack failed silently:', notifErr);
             }
           }
 
-          // Inclut l id de persistence dans le complete event pour
-          // que le client puisse afficher l analyse direct sans
-          // re-appel /api/analyses.
+          // Inclut l id de persistance dans le complete event pour
+          // que le client puisse rediriger directement sur la note.
+          // Mode reste 'new-record' (le versioning automatique a
+          // disparu avec la creation a t0 : si re-run sur dossier
+          // homonyme, c est un nouveau dossier ; le partner peut
+          // ensuite versionner via l UI dediee).
           send('complete', {
             ...result,
             _persisted: {
-              saved: persistResult.saved,
-              id: persistResult.id,
-              mode: persistResult.mode,
-              versionNum: persistResult.versionNum,
+              saved: persistOk,
+              id: analysisId,
+              mode: 'new-record',
             },
           });
         } catch (error: any) {
@@ -1338,9 +1449,19 @@ export async function POST(req: NextRequest) {
             userMessage = 'Solde de credits Anthropic epuise. Recharge sur https://console.anthropic.com/settings/billing puis relance.';
           }
 
+          // Marque la ligne d analyse en status='failed' avec le
+          // message d erreur traduit. Le client peut alors lire
+          // /api/analyses/[id]/run-status et afficher l erreur
+          // meme apres une coupure SSE. Sans cette ecriture, la
+          // ligne restait coincee a status='running' indefiniment.
+          if (analysisId) {
+            markAnalysisFailed(analysisId, userMessage).catch(() => {});
+          }
+
           send('error', {
             message: userMessage,
             stack: error.stack ? String(error.stack).slice(0, 500) : undefined,
+            analysisId,
           });
         } finally {
           clearInterval(heartbeatInterval);
@@ -1373,6 +1494,34 @@ export async function POST(req: NextRequest) {
         await releaseJobSlot(jobId);
       } catch {}
     }
-    return new Response(JSON.stringify({ error: error.message || 'Erreur' }), { status: 500 });
+    // Si la ligne d analyse a ete creee avant l erreur, on la
+    // bascule en status='failed' pour qu elle n apparaisse pas
+    // indefiniment comme 'running' dans Historique. Le client
+    // peut lire le message via /api/analyses/[id]/run-status.
+    if (analysisId) {
+      try {
+        await markAnalysisFailed(analysisId, error?.message || 'Erreur avant pipeline');
+      } catch {}
+    }
+    return new Response(JSON.stringify({ error: error.message || 'Erreur', analysisId }), { status: 500 });
   }
+}
+
+/**
+ * Helper minimal : devine le MIME type a partir de l extension du
+ * nom de fichier quand le client ne fournit pas explicitement le
+ * mimeType dans la reference. file-processor accepte les MIMEs
+ * approximatifs (il classe surtout par extension du nom), ce
+ * fallback suffit donc largement pour eviter d echouer faute de
+ * Content-Type cote client.
+ */
+function guessMimeFromName(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  if (lower.endsWith('.xls')) return 'application/vnd.ms-excel';
+  if (lower.endsWith('.csv')) return 'text/csv';
+  if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (lower.endsWith('.doc')) return 'application/msword';
+  return 'application/octet-stream';
 }
