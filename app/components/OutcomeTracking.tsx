@@ -261,7 +261,7 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
   // rejected pour eviter qu il revienne au scan suivant. N entre pas
   // dans l agregation.
   const handleRejectProposed = async (milestoneId: string) => {
-    if (!confirm('Rejeter ce milestone propose ? Il ne sera pas re-detecte au prochain scan.')) return;
+    if (!confirm('Rejeter ce milestone proposé ? Il ne sera pas re-détecté au prochain scan.')) return;
     const res = await fetch(`/api/analyses/${analysisId}/milestones/${milestoneId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

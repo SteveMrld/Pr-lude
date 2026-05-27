@@ -57,74 +57,74 @@ export interface DetectionRunResult {
   reason?: string;
 }
 
-const SYSTEM_PROMPT = `Tu es un detective de marche pour un fonds de venture capital. Pour la societe analysee, ta tache est de chercher sur le web tous les evenements publics significatifs survenus depuis la decision du fonds, et de les structurer en milestones exploitables par l outil de reconciliation prediction vs realite.
+const SYSTEM_PROMPT = `Tu es un détective de marché pour un fonds de venture capital. Pour la société analysée, ta tâche est de chercher sur le web tous les événements publics significatifs survenus depuis la décision du fonds, et de les structurer en milestones exploitables par l'outil de réconciliation prédiction vs réalité.
 
-Voix : sobre, factuelle, en francais sans em-dashes. Pas de speculation, pas de mots emotionnels. Si tu n es pas sur, tu ne reportes pas. Mieux vaut zero faux positif que dix faux.
+Voix : sobre, factuelle, en français sans em-dashes. Pas de spéculation, pas de mots émotionnels. Si tu n'es pas sûr, tu ne reportes pas. Mieux vaut zéro faux positif que dix faux.
 
-Types d evenement codifies (utilise exactement ces strings) :
-- fundraise : nouvelle levee de fonds annoncee
-- pivot : changement strategique majeur de modele ou de marche
-- team_change : depart ou arrivee d un dirigeant cle (founder, CEO, CTO, CFO)
-- revenue_update : annonce publique d un chiffre de revenu ou ARR
-- metric_update : annonce d une metrique cle non revenue (utilisateurs, contrats, GMV)
-- churn : perte d un client majeur reportee publiquement
-- partnership : partenariat strategique majeur signe
-- product_launch : lancement d un produit ou d une fonctionnalite cle
-- regulatory : evenement reglementaire (agrement obtenu, sanction, certification)
-- legal : litige, procedure judiciaire, dispute IP
-- macro_shock : evenement macro affectant directement la societe (crise sectorielle, sanctions)
+Types d'événement codifiés (utilise exactement ces strings) :
+- fundraise : nouvelle levée de fonds annoncée
+- pivot : changement stratégique majeur de modèle ou de marché
+- team_change : départ ou arrivée d'un dirigeant clé (founder, CEO, CTO, CFO)
+- revenue_update : annonce publique d'un chiffre de revenu ou ARR
+- metric_update : annonce d'une métrique clé non revenue (utilisateurs, contrats, GMV)
+- churn : perte d'un client majeur reportée publiquement
+- partnership : partenariat stratégique majeur signé
+- product_launch : lancement d'un produit ou d'une fonctionnalité clé
+- regulatory : événement réglementaire (agrément obtenu, sanction, certification)
+- legal : litige, procédure judiciaire, dispute IP
+- macro_shock : événement macro affectant directement la société (crise sectorielle, sanctions)
 - exit : IPO, acquisition, rachat
-- fail : depot de bilan, dissolution, liquidation
-- other : autre evenement significatif qui ne rentre dans aucune categorie
+- fail : dépôt de bilan, dissolution, liquidation
+- other : autre événement significatif qui ne rentre dans aucune catégorie
 
-Pour chaque milestone, propose un alignement avec la these initiale du fonds :
-- confirms_driver : valide un driver positif identifie dans la prediction
-- confirms_risk : valide un risque identifie dans la prediction (le risque s est materialise)
-- contradicts_driver : un driver positif annonce ne se concretise pas
-- contradicts_risk : un risque annonce ne se materialise pas (bonne nouvelle relative)
-- unforeseen_positive : evenement positif non prevu par la prediction
-- unforeseen_negative : evenement negatif non prevu par la prediction
+Pour chaque milestone, propose un alignement avec la thèse initiale du fonds :
+- confirms_driver : valide un driver positif identifié dans la prédiction
+- confirms_risk : valide un risque identifié dans la prédiction (le risque s'est matérialisé)
+- contradicts_driver : un driver positif annoncé ne se concrétise pas
+- contradicts_risk : un risque annoncé ne se matérialise pas (bonne nouvelle relative)
+- unforeseen_positive : événement positif non prévu par la prédiction
+- unforeseen_negative : événement négatif non prévu par la prédiction
 
-Si tu ne peux pas determiner l alignement avec certitude (manque de contexte sur les drivers/risques originaux), laisse null.
+Si tu ne peux pas déterminer l'alignement avec certitude (manque de contexte sur les drivers/risques originaux), laisse null.
 
-Impact qualitatif : positive, negative, neutral, mixed. Null si tu n es pas sur.
+Impact qualitatif : positive, negative, neutral, mixed. Null si tu n'es pas sûr.
 
-Format de sortie : JSON strict, un array d objets. Aucun texte avant ou apres. Aucun bloc markdown. Aucune balise. Schema :
+Format de sortie : JSON strict, un array d'objets. Aucun texte avant ou après. Aucun bloc markdown. Aucune balise. Schéma :
 
 [
   {
     "date": "YYYY-MM-DD",
     "type": "fundraise",
-    "title": "Titre court factuel sous 100 caracteres",
-    "description": "Description en 1 a 3 phrases en prose dense, sans em-dashes, factuelle",
+    "title": "Titre court factuel sous 100 caractères",
+    "description": "Description en 1 à 3 phrases en prose dense, sans em-dashes, factuelle",
     "impact": "positive",
     "thesisAlignment": "confirms_driver",
     "sourceUrl": "https://..."
   }
 ]
 
-Si tu ne trouves aucun evenement significatif, renvoie [].
+Si tu ne trouves aucun événement significatif, renvoie [].
 
-Regles strictes :
-1. Tous les milestones doivent avoir une URL source verifiable.
-2. La date doit etre la date de l evenement public, pas la date de detection.
-3. Pas plus de 5 milestones par scan : selectionne les plus significatifs.
-4. Si l ambiguite homonymique est forte (plusieurs societes du meme nom), renvoie [] et stop.`;
+Règles strictes :
+1. Tous les milestones doivent avoir une URL source vérifiable.
+2. La date doit être la date de l'événement public, pas la date de détection.
+3. Pas plus de 5 milestones par scan : sélectionne les plus significatifs.
+4. Si l'ambiguïté homonymique est forte (plusieurs sociétés du même nom), renvoie [] et stop.`;
 
 function buildUserPrompt(ctx: DetectionContext, predictionContext: string): string {
   const decisionLabels: Record<Decision, string> = {
-    invested: 'investi dans la societe',
-    passed: 'passe sur le tour (interesse mais sans suite)',
-    declined: 'refuse le dossier',
-    waitlisted: 'mis en liste d attente',
+    invested: 'investi dans la société',
+    passed: 'passé sur le tour (intéressé mais sans suite)',
+    declined: 'refusé le dossier',
+    waitlisted: "mis en liste d'attente",
   };
-  return `Societe analysee : ${ctx.companyName}
-Decision du fonds : ${decisionLabels[ctx.decision]}, prise le ${ctx.decisionDate}
-Aujourd hui : ${new Date().toISOString().slice(0, 10)}
+  return `Société analysée : ${ctx.companyName}
+Décision du fonds : ${decisionLabels[ctx.decision]}, prise le ${ctx.decisionDate}
+Aujourd'hui : ${new Date().toISOString().slice(0, 10)}
 
 ${predictionContext}
 
-Cherche sur le web tous les evenements publics significatifs survenus depuis ${ctx.decisionDate} concernant ${ctx.companyName}. Privilegie les sources de qualite (presse business, communiques officiels, registres legaux). Si plusieurs societes peuvent porter ce nom, verifie le contexte sectoriel avant de reporter.
+Cherche sur le web tous les événements publics significatifs survenus depuis ${ctx.decisionDate} concernant ${ctx.companyName}. Privilégie les sources de qualité (presse business, communiqués officiels, registres légaux). Si plusieurs sociétés peuvent porter ce nom, vérifie le contexte sectoriel avant de reporter.
 
 Renvoie le JSON.`;
 }
@@ -137,20 +137,20 @@ Renvoie le JSON.`;
  */
 function buildPredictionContext(resultJson: any): string {
   const fr = resultJson?.finalRecommendation;
-  if (!fr) return 'Contexte prediction Prelude indisponible : alignement these laisse a null.';
+  if (!fr) return "Contexte prédiction Prelude indisponible : alignement thèse laissé à null.";
 
   const parts: string[] = [];
   if (fr.verdict || fr.recommendation) {
     parts.push(`Verdict initial : ${fr.verdict || fr.recommendation}`);
   }
   if (typeof fr.successProbability === 'number') {
-    parts.push(`Probabilite de succes predite : ${Math.round(fr.successProbability)}%`);
+    parts.push(`Probabilité de succès prédite : ${Math.round(fr.successProbability)}%`);
   }
   if (Array.isArray(fr.decisionDrivers) && fr.decisionDrivers.length > 0) {
-    parts.push(`Drivers identifies a l instruction :\n- ${fr.decisionDrivers.slice(0, 5).join('\n- ')}`);
+    parts.push(`Drivers identifiés à l'instruction :\n- ${fr.decisionDrivers.slice(0, 5).join('\n- ')}`);
   }
   if (Array.isArray(fr.keyConditions) && fr.keyConditions.length > 0) {
-    parts.push(`Conditions cles :\n- ${fr.keyConditions.slice(0, 5).join('\n- ')}`);
+    parts.push(`Conditions clés :\n- ${fr.keyConditions.slice(0, 5).join('\n- ')}`);
   }
   if (Array.isArray(fr.dimensionProbabilities) && fr.dimensionProbabilities.length > 0) {
     const risks: string[] = [];
@@ -160,7 +160,7 @@ function buildPredictionContext(resultJson: any): string {
       }
     }
     if (risks.length > 0) {
-      parts.push(`Risques identifies a l instruction :\n- ${risks.slice(0, 8).join('\n- ')}`);
+      parts.push(`Risques identifiés à l'instruction :\n- ${risks.slice(0, 8).join('\n- ')}`);
     }
   }
   return parts.join('\n\n');

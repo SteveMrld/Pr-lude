@@ -109,7 +109,7 @@ const emptyByDecision = { invested: 0, passed: 0, declined: 0, waitlisted: 0 };
   const p3 = out.find((p) => p.includes('Tech'));
   check('pattern 3 : sur-cautionneux declenche', !!p3);
   check('pattern 3 : mentionne prudence',
-    !!p3 && (p3.includes('prudent') || p3.includes('defiance')));
+    !!p3 && (p3.includes('prudent') || p3.includes('défiance')));
 }
 
 // ============================================================
@@ -179,7 +179,7 @@ const emptyByDecision = { invested: 0, passed: 0, declined: 0, waitlisted: 0 };
   const p6 = out.find((p) => p.includes('seulement'));
   check('pattern 6 : taux invested <= 10% declenche', !!p6);
   check('pattern 6 : mention defiance',
-    !!p6 && p6.includes('defiance'));
+    !!p6 && p6.includes('défiance'));
 }
 
 {
@@ -202,13 +202,13 @@ const emptyByDecision = { invested: 0, passed: 0, declined: 0, waitlisted: 0 };
 {
   const out = buildProgressNarrative(15, 8, 5, THRESHOLD);
   check('progress : sous seuil, mention restant',
-    out.includes('5 dossiers reconciliables') && out.includes('25 dossiers pour'));
+    out.includes('5 dossiers réconciliables') && out.includes('25 dossiers pour'));
 }
 
 {
   const out = buildProgressNarrative(15, 8, 5, THRESHOLD);
   check('progress : sous seuil, evite faux signal',
-    out.includes('faux signal') || out.includes('statistiquement defendable'));
+    out.includes('faux signal') || out.includes('statistiquement défendable'));
 }
 
 {
@@ -220,7 +220,7 @@ const emptyByDecision = { invested: 0, passed: 0, declined: 0, waitlisted: 0 };
 {
   const out = buildProgressNarrative(50, 35, 32, THRESHOLD);
   check('progress : au-dessus seuil, ton descriptif pas prescriptif',
-    out.includes('pas prescriptif') || out.includes('decrivent'));
+    out.includes('pas prescriptif') || out.includes('décrivent'));
 }
 
 // Cas sous seuil avec decision en attente
@@ -234,7 +234,7 @@ const emptyByDecision = { invested: 0, passed: 0, declined: 0, waitlisted: 0 };
 {
   const out = buildProgressNarrative(20, 15, 5, THRESHOLD);
   check('progress : 10 avec decision sans milestone, mention detection',
-    out.includes('detection web') || out.includes('automatique'));
+    out.includes('détection web') || out.includes('automatique'));
 }
 
 console.log(`\n=== reconciliation-narrative ===`);

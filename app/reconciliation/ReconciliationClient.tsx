@@ -24,32 +24,32 @@ type Tab = 'portfolio' | 'dossier';
 
 const VERDICT_LABEL: Record<string, string> = {
   invested: 'Investi',
-  passed: 'Passe',
-  declined: 'Refuse',
-  waitlisted: 'En liste d attente',
+  passed: 'Passé',
+  declined: 'Refusé',
+  waitlisted: "En liste d'attente",
 };
 
 const ALIGNMENT_LABEL: Record<string, string> = {
-  confirms_driver: 'Driver confirme',
-  confirms_risk: 'Risque confirme',
+  confirms_driver: 'Driver confirmé',
+  confirms_risk: 'Risque confirmé',
   contradicts_driver: 'Driver contredit',
   contradicts_risk: 'Risque contredit',
-  unforeseen_positive: 'Imprevu positif',
-  unforeseen_negative: 'Imprevu negatif',
+  unforeseen_positive: 'Imprévu positif',
+  unforeseen_negative: 'Imprévu négatif',
 };
 
 const ACCURACY_LABEL: Record<string, string> = {
   high: 'Forte',
-  medium: 'Moderee',
+  medium: 'Modérée',
   low: 'Faible',
-  insufficient_data: 'Donnees insuffisantes',
+  insufficient_data: 'Données insuffisantes',
 };
 
 const QUALITY_LABEL: Record<string, string> = {
-  strong: 'These confirmee',
-  mixed: 'These mixte',
-  weak: 'These contredite',
-  insufficient_data: 'Donnees insuffisantes',
+  strong: 'Thèse confirmée',
+  mixed: 'Thèse mixte',
+  weak: 'Thèse contredite',
+  insufficient_data: 'Données insuffisantes',
 };
 
 export default function ReconciliationClient({
@@ -92,14 +92,14 @@ export default function ReconciliationClient({
     <div className="reco-page">
       <header className="reco-header">
         <div>
-          <h1 className="reco-title">Reconciliation</h1>
+          <h1 className="reco-title">Réconciliation</h1>
           <p className="reco-sub">
-            Confronter ce que Prelude predisait avec ce qui s est reellement passe.
+            Confronter ce que Prelude prédisait avec ce qui s'est réellement passé.
             {' '}{orgName} · {userEmail}
           </p>
         </div>
         <div className="reco-back">
-          <Link href="/">Retour a l accueil</Link>
+          <Link href="/">Retour à l'accueil</Link>
         </div>
       </header>
 
@@ -220,10 +220,10 @@ function PortfolioPane({ portfolio }: { portfolio: PortfolioReconciliation }) {
       parts.push(`${portfolio.byDecision.invested} ${portfolio.byDecision.invested > 1 ? 'investis' : 'investi'}`);
     }
     if (portfolio.byDecision.passed > 0) {
-      parts.push(`${portfolio.byDecision.passed} ${portfolio.byDecision.passed > 1 ? 'passes' : 'passe'}`);
+      parts.push(`${portfolio.byDecision.passed} ${portfolio.byDecision.passed > 1 ? 'passés' : 'passé'}`);
     }
     if (portfolio.byDecision.declined > 0) {
-      parts.push(`${portfolio.byDecision.declined} ${portfolio.byDecision.declined > 1 ? 'refuses' : 'refuse'}`);
+      parts.push(`${portfolio.byDecision.declined} ${portfolio.byDecision.declined > 1 ? 'refusés' : 'refusé'}`);
     }
     if (portfolio.byDecision.waitlisted > 0) {
       parts.push(`${portfolio.byDecision.waitlisted} en attente`);
@@ -248,45 +248,45 @@ function PortfolioPane({ portfolio }: { portfolio: PortfolioReconciliation }) {
         <section className="patterns-section">
           <h2 className="section-title">Lecture du miroir</h2>
           <p className="pattern-paragraph">
-            Sur les {portfolio.totalDossiersWithReconciliation} dossiers reconcilies, aucun pattern
-            structurel ne se degage. La prediction du fonds se confirme sans biais systematique
-            visible sur cet echantillon. Cela ne dit pas que l instruction est parfaite : cela dit
-            qu il n y a pas d ecart cumule assez net pour faire signal. Continuez a alimenter la
-            reconciliation, et les angles morts apparaitront s ils existent.
+            Sur les {portfolio.totalDossiersWithReconciliation} dossiers réconciliés, aucun pattern
+            structurel ne se dégage. La prédiction du fonds se confirme sans biais systématique
+            visible sur cet échantillon. Cela ne dit pas que l'instruction est parfaite : cela dit
+            qu'il n'y a pas d'écart cumulé assez net pour faire signal. Continuez à alimenter la
+            réconciliation, et les angles morts apparaîtront s'ils existent.
           </p>
         </section>
       )}
 
       {distributionPhrase && (
         <section className="distribution-section">
-          <h3 className="distribution-title">Distribution des decisions</h3>
+          <h3 className="distribution-title">Distribution des décisions</h3>
           <p className="distribution-prose">
-            Sur les {totalDecisions} {totalDecisions > 1 ? 'dossiers' : 'dossier'} decid{totalDecisions > 1 ? 'es' : 'e'} : {distributionPhrase}.
+            Sur les {totalDecisions} {totalDecisions > 1 ? 'dossiers' : 'dossier'} décid{totalDecisions > 1 ? 'és' : 'é'} : {distributionPhrase}.
           </p>
         </section>
       )}
 
       {portfolio.thresholdMet && portfolio.byDimension.length > 0 && (
         <details className="dimensions-annex">
-          <summary>Detail chiffre par dimension</summary>
+          <summary>Détail chiffré par dimension</summary>
           <ul className="dimensions-list">
             {portfolio.byDimension.map((d, i) => (
               <li key={i} className="dimension-line">
                 <span className="dim-name">{d.dimensionName}</span>
-                <span className="dim-sep"> — </span>
+                <span className="dim-sep"> · </span>
                 <span className="dim-stats">
-                  succes predit moyen {d.averagePredictedSuccess} pour cent,
-                  drivers confirmes {d.confirmedDrivers} contre {d.contradictedDrivers} contredits,
-                  risques confirmes {d.confirmedRisks} contre {d.contradictedRisks} contredits,
+                  succès prédit moyen {d.averagePredictedSuccess} pour cent,
+                  drivers confirmés {d.confirmedDrivers} contre {d.contradictedDrivers} contredits,
+                  risques confirmés {d.confirmedRisks} contre {d.contradictedRisks} contredits,
                   calibration {ACCURACY_LABEL[d.predictionAccuracy] || d.predictionAccuracy}
                 </span>
               </li>
             ))}
           </ul>
           <p className="annex-note">
-            Les nombres ci-dessus sont l ossature des paragraphes du miroir, jamais l inverse.
+            Les nombres ci-dessus sont l'ossature des paragraphes du miroir, jamais l'inverse.
             Ils ne se lisent pas comme un dashboard : ils permettent de remonter au cas par cas
-            quand un constat de prose merite verification.
+            quand un constat de prose mérite vérification.
           </p>
         </details>
       )}
@@ -444,7 +444,7 @@ function DossierPane({
           value={selectedDossierId || ''}
           onChange={(e) => e.target.value && onSelect(e.target.value)}
         >
-          <option value="">Selectionnez un dossier...</option>
+          <option value="">Sélectionnez un dossier...</option>
           {dossiersList.map((d) => (
             <option key={d.id} value={d.id}>
               {d.companyName} · {new Date(d.createdAt).toLocaleDateString('fr-FR')}
@@ -453,7 +453,7 @@ function DossierPane({
         </select>
       </div>
 
-      {loading && <p className="loading">Chargement de la reconciliation...</p>}
+      {loading && <p className="loading">Chargement de la réconciliation...</p>}
       {error && <p className="error">Erreur : {error}</p>}
 
       {dossierData && (
@@ -461,7 +461,7 @@ function DossierPane({
       )}
 
       {!loading && !error && !dossierData && selectedDossierId === null && (
-        <p className="empty">Selectionnez un dossier dans la liste ci-dessus pour afficher sa reconciliation.</p>
+        <p className="empty">Sélectionnez un dossier dans la liste ci-dessus pour afficher sa réconciliation.</p>
       )}
 
       <style jsx>{`
@@ -507,21 +507,21 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
       <header className="d-header">
         <h2 className="d-title">{data.companyName}</h2>
         <div className="d-meta">
-          Analyse le {new Date(data.analyzedAt).toLocaleDateString('fr-FR')}
+          Analysé le {new Date(data.analyzedAt).toLocaleDateString('fr-FR')}
           {data.decision && (
             <>
-              {' · '}Decision : {VERDICT_LABEL[data.decision]}
+              {' · '}Décision : {VERDICT_LABEL[data.decision]}
               {data.decisionDate && ` (${new Date(data.decisionDate).toLocaleDateString('fr-FR')})`}
             </>
           )}
         </div>
       </header>
 
-      <h3 className="d-section-title">Prediction Prelude</h3>
+      <h3 className="d-section-title">Prédiction Prelude</h3>
       <div className="prediction-summary">
         <div className="prob-block">
           <div className="prob-num">{Math.round(data.predictionSummary.successProbability)}%</div>
-          <div className="prob-label">Probabilite de succes</div>
+          <div className="prob-label">Probabilité de succès</div>
         </div>
         <div className="verdict-block">
           <div className="verdict-label">Verdict</div>
@@ -531,7 +531,7 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
 
       {data.predictionSummary.decisionDrivers.length > 0 && (
         <>
-          <h4 className="d-h4">Drivers de decision</h4>
+          <h4 className="d-h4">Drivers de décision</h4>
           <ul className="d-list">
             {data.predictionSummary.decisionDrivers.map((d, i) => <li key={i}>{d}</li>)}
           </ul>
@@ -540,12 +540,12 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
 
       {data.predictionSummary.dimensions.length > 0 && (
         <>
-          <h4 className="d-h4">Predictions par dimension</h4>
+          <h4 className="d-h4">Prédictions par dimension</h4>
           <table className="d-table">
             <thead>
               <tr>
                 <th>Dimension</th>
-                <th className="num">Succes</th>
+                <th className="num">Succès</th>
                 <th className="num">Risque</th>
                 <th>Drivers</th>
                 <th>Risques</th>
@@ -574,10 +574,10 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
         </>
       )}
 
-      <h3 className="d-section-title">Realite observee</h3>
+      <h3 className="d-section-title">Réalité observée</h3>
 
       {data.realizedMilestones.length === 0 ? (
-        <p className="empty-soft">Aucun milestone enregistre pour ce dossier.</p>
+        <p className="empty-soft">Aucun milestone enregistré pour ce dossier.</p>
       ) : (
         <>
           <h4 className="d-h4">Milestones ({data.realizedMilestones.length})</h4>
@@ -603,27 +603,27 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
         </>
       )}
 
-      <h3 className="d-section-title">Reconciliation prediction vs realite</h3>
+      <h3 className="d-section-title">Réconciliation prédiction vs réalité</h3>
 
       <div className={`quality-verdict quality-${stats.predictionQuality}`}>
-        <strong>Qualite de la prediction sur ce dossier :</strong>{' '}
+        <strong>Qualité de la prédiction sur ce dossier :</strong>{' '}
         {QUALITY_LABEL[stats.predictionQuality]}
-        {stats.predictionQuality === 'strong' && ' La these initiale s est confirmee dans la realite, les drivers et risques identifies a l instruction se sont averes pertinents.'}
-        {stats.predictionQuality === 'mixed' && ' La realite confirme partiellement la these initiale. Certains drivers se sont concretises, certains risques se sont materialises, d autres ont ete contredits.'}
-        {stats.predictionQuality === 'weak' && ' La realite contredit la these initiale. Les drivers ne se sont pas concretises ou les risques anticipes ne se sont pas materialises. Cas d apprentissage utile pour la calibration future.'}
-        {stats.predictionQuality === 'insufficient_data' && ' Trop peu de milestones enregistres pour conclure sur la qualite de la prediction. Enregistrer davantage d evenements post-decision permettra une reconciliation robuste.'}
+        {stats.predictionQuality === 'strong' && " La thèse initiale s'est confirmée dans la réalité, les drivers et risques identifiés à l'instruction se sont avérés pertinents."}
+        {stats.predictionQuality === 'mixed' && " La réalité confirme partiellement la thèse initiale. Certains drivers se sont concrétisés, certains risques se sont matérialisés, d'autres ont été contredits."}
+        {stats.predictionQuality === 'weak' && " La réalité contredit la thèse initiale. Les drivers ne se sont pas concrétisés ou les risques anticipés ne se sont pas matérialisés. Cas d'apprentissage utile pour la calibration future."}
+        {stats.predictionQuality === 'insufficient_data' && " Trop peu de milestones enregistrés pour conclure sur la qualité de la prédiction. Enregistrer davantage d'événements post-décision permettra une réconciliation robuste."}
       </div>
 
       {stats.totalMilestones > 0 && (
         <p className="d-reco-prose">
-          Sur les {stats.totalMilestones} milestone{stats.totalMilestones > 1 ? 's' : ''} reconciles,
-          {stats.confirmsDriver > 0 && ` ${stats.confirmsDriver} ${stats.confirmsDriver > 1 ? 'confirment' : 'confirme'} un driver positif identifie a l instruction,`}
-          {stats.contradictsDriver > 0 && ` ${stats.contradictsDriver} ${stats.contradictsDriver > 1 ? 'contredisent' : 'contredit'} un driver positif annonce,`}
-          {stats.confirmsRisk > 0 && ` ${stats.confirmsRisk} ${stats.confirmsRisk > 1 ? 'valident' : 'valide'} un risque identifie,`}
-          {stats.contradictsRisk > 0 && ` ${stats.contradictsRisk} ${stats.contradictsRisk > 1 ? 'demontrent' : 'demontre'} qu un risque alerte ne se materialise pas,`}
-          {stats.unforeseenPositive > 0 && ` ${stats.unforeseenPositive} ${stats.unforeseenPositive > 1 ? 'sont des surprises positives' : 'est une surprise positive'} non anticipees,`}
-          {stats.unforeseenNegative > 0 && ` ${stats.unforeseenNegative} ${stats.unforeseenNegative > 1 ? 'sont des chocs negatifs' : 'est un choc negatif'} non anticipe${stats.unforeseenNegative > 1 ? 's' : ''} a l instruction,`}
-          {' '}sur la base des milestones confirmes par le partner.
+          Sur les {stats.totalMilestones} milestone{stats.totalMilestones > 1 ? 's' : ''} réconcilié{stats.totalMilestones > 1 ? 's' : ''},
+          {stats.confirmsDriver > 0 && ` ${stats.confirmsDriver} ${stats.confirmsDriver > 1 ? 'confirment' : 'confirme'} un driver positif identifié à l'instruction,`}
+          {stats.contradictsDriver > 0 && ` ${stats.contradictsDriver} ${stats.contradictsDriver > 1 ? 'contredisent' : 'contredit'} un driver positif annoncé,`}
+          {stats.confirmsRisk > 0 && ` ${stats.confirmsRisk} ${stats.confirmsRisk > 1 ? 'valident' : 'valide'} un risque identifié,`}
+          {stats.contradictsRisk > 0 && ` ${stats.contradictsRisk} ${stats.contradictsRisk > 1 ? 'démontrent' : 'démontre'} qu'un risque alerté ne se matérialise pas,`}
+          {stats.unforeseenPositive > 0 && ` ${stats.unforeseenPositive} ${stats.unforeseenPositive > 1 ? 'sont des surprises positives' : 'est une surprise positive'} non anticipées,`}
+          {stats.unforeseenNegative > 0 && ` ${stats.unforeseenNegative} ${stats.unforeseenNegative > 1 ? 'sont des chocs négatifs' : 'est un choc négatif'} non anticipé${stats.unforeseenNegative > 1 ? 's' : ''} à l'instruction,`}
+          {' '}sur la base des milestones confirmés par le partner.
         </p>
       )}
 

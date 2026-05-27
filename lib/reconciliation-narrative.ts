@@ -68,7 +68,7 @@ export function detectSystemicPatterns(
     const correct = lowAccuracyDims.reduce((s, d) => s + d.confirmedDrivers + d.confirmedRisks, 0);
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
     patterns.push(
-      `Sur ${lowAccuracyDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(lowAccuracyDims)}, la prediction du fonds se confirme dans ${pct} pour cent des cas instruits, en dessous du seuil ${lowAccuracyDims.length === 1 ? 'qui marquerait une calibration robuste' : 'qui marquerait une calibration robuste sur cet axe'}. Cela ne dit pas que ces dimensions sont mal analysees, mais que la lecture du fonds sur cet angle precis se confronte mal a la realite post-decision. C est l axe ou l ecart entre instruction et resultat est le plus systematique, ${lowAccuracyDims.length === 1 ? 'et ou il y a sans doute le plus a apprendre' : 'et ou se concentrent probablement les angles morts les plus structurants'}.`,
+      `Sur ${lowAccuracyDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(lowAccuracyDims)}, la prédiction du fonds se confirme dans ${pct} pour cent des cas instruits, en deçà du seuil ${lowAccuracyDims.length === 1 ? 'qui marquerait une calibration robuste' : 'qui marquerait une calibration robuste sur cet axe'}. Cela ne dit pas que ces dimensions sont mal analysées, mais que la lecture du fonds sur cet angle précis se confronte mal à la réalité post-décision. C'est l'axe où l'écart entre instruction et résultat est le plus systématique, ${lowAccuracyDims.length === 1 ? 'et où il y a sans doute le plus à apprendre' : 'et où se concentrent probablement les angles morts les plus structurants'}.`,
     );
   }
 
@@ -79,7 +79,7 @@ export function detectSystemicPatterns(
   );
   if (overpromisingDims.length > 0) {
     patterns.push(
-      `Les drivers positifs identifies a l instruction sur ${overpromisingDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(overpromisingDims)} se contredisent plus souvent qu ils ne se confirment dans la realite post-decision. Le fonds tend a voir des leviers de creation de valeur sur cet axe qui ne se materialisent pas. ${overpromisingDims.length === 1 ? 'C est' : 'Ce sont'} le genre d ecart qui revient sous des formes variees : un produit qui devait scaler et qui plafonne, une equipe qui devait s entendre et qui se brouille, un partenariat qui devait s ouvrir et qui ferme. Le pattern merite d etre regarde en face avant la prochaine instruction sur un dossier comparable.`,
+      `Les drivers positifs identifiés à l'instruction sur ${overpromisingDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(overpromisingDims)} se contredisent plus souvent qu'ils ne se confirment dans la réalité post-décision. Le fonds tend à voir des leviers de création de valeur sur cet axe qui ne se matérialisent pas. ${overpromisingDims.length === 1 ? "C'est" : 'Ce sont'} le genre d'écart qui revient sous des formes variées : un produit qui devait scaler et qui plafonne, une équipe qui devait s'entendre et qui se brouille, un partenariat qui devait s'ouvrir et qui ferme. Le pattern mérite d'être regardé en face avant la prochaine instruction sur un dossier comparable.`,
     );
   }
 
@@ -90,7 +90,7 @@ export function detectSystemicPatterns(
   );
   if (overcautiousDims.length > 0) {
     patterns.push(
-      `A l inverse, sur ${overcautiousDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(overcautiousDims)}, les risques alertes a l instruction se materialisent rarement : ils sont plus de deux fois plus souvent contredits qu ils ne se confirment. Le fonds est calibre comme prudent sur cet axe, et cette prudence n est pas validee par la realite portfolio. Si certains de ces refus reposaient principalement sur ces risques-la, ils ont possiblement coute au fonds des dossiers qui auraient du passer. La question n est pas de relacher la vigilance mais de noter ou se loge l excedent de defiance.`,
+      `À l'inverse, sur ${overcautiousDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(overcautiousDims)}, les risques alertés à l'instruction se matérialisent rarement : ils sont plus de deux fois plus souvent contredits qu'ils ne se confirment. Le fonds est calibré comme prudent sur cet axe, et cette prudence n'est pas validée par la réalité portfolio. Si certains de ces refus reposaient principalement sur ces risques-là, ils ont possiblement coûté au fonds des dossiers qui auraient dû passer. La question n'est pas de relâcher la vigilance mais de noter où se loge l'excédent de défiance.`,
     );
   }
 
@@ -98,7 +98,7 @@ export function detectSystemicPatterns(
   const highAccuracyDims = byDimension.filter((d) => d.predictionAccuracy === 'high');
   if (highAccuracyDims.length > 0) {
     patterns.push(
-      `Sur ${highAccuracyDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(highAccuracyDims)}, la calibration du fonds tient : drivers et risques identifies a l instruction se confirment dans plus de deux tiers des cas reconcilies. ${highAccuracyDims.length === 1 ? 'C est' : 'Ce sont'} l axe ou le jugement du fonds est le plus aligne avec la realite, et ${highAccuracyDims.length === 1 ? 'celui' : 'ceux'} sur lequel l ecart entre verdict et outcome est le plus faible. Une bonne base de confiance pour les prochaines instructions sur ce type de dossier.`,
+      `Sur ${highAccuracyDims.length === 1 ? 'la dimension' : 'les dimensions'} ${namesOf(highAccuracyDims)}, la calibration du fonds tient : drivers et risques identifiés à l'instruction se confirment dans plus de deux tiers des cas réconciliés. ${highAccuracyDims.length === 1 ? "C'est" : 'Ce sont'} l'axe où le jugement du fonds est le plus aligné avec la réalité, et ${highAccuracyDims.length === 1 ? 'celui' : 'ceux'} sur lequel l'écart entre verdict et outcome est le plus faible. Une bonne base de confiance pour les prochaines instructions sur ce type de dossier.`,
     );
   }
 
@@ -109,7 +109,7 @@ export function detectSystemicPatterns(
       ? Math.round((globalAlignment.unforeseenNegative / globalAlignment.total) * 100)
       : 0;
     patterns.push(
-      `${globalAlignment.unforeseenNegative} milestones negatifs ${globalAlignment.unforeseenNegative > 1 ? 'ont surgi' : 'a surgi'} sans qu aucun risque ne les ait anticipes a l instruction, soit ${ratio} pour cent des milestones aligned. Le fonds ne voit pas venir une part significative des problemes qui finissent par compter. Ces angles morts sont les plus interessants a relire : ils ne signalent pas une mauvaise lecture, mais une dimension absente du cadre d analyse. Une lecture par cas peut suggerer ce que le cadre devrait integrer.`,
+      `${globalAlignment.unforeseenNegative} milestones négatifs ${globalAlignment.unforeseenNegative > 1 ? 'ont surgi' : 'a surgi'} sans qu'aucun risque ne les ait anticipés à l'instruction, soit ${ratio} pour cent des milestones alignés. Le fonds ne voit pas venir une part significative des problèmes qui finissent par compter. Ces angles morts sont les plus intéressants à relire : ils ne signalent pas une mauvaise lecture, mais une dimension absente du cadre d'analyse. Une lecture par cas peut suggérer ce que le cadre devrait intégrer.`,
     );
   }
 
@@ -119,11 +119,11 @@ export function detectSystemicPatterns(
     const investedRatio = byDecision.invested / decisionTotal;
     if (investedRatio >= 0.40) {
       patterns.push(
-        `Sur les ${decisionTotal} dossiers decides du portefeuille reconcilie, ${Math.round(investedRatio * 100)} pour cent ont ete investis. C est un taux eleve pour un fonds early ou growth, et cela merite d etre confronte avec la qualite des outcomes observes : si la calibration des drivers tient sur les dossiers investis, l agressivite paye ; si les imprevus negatifs y sont concentres, le fonds confond peut-etre conviction et appetence au risque.`,
+        `Sur les ${decisionTotal} dossiers décidés du portefeuille réconcilié, ${Math.round(investedRatio * 100)} pour cent ont été investis. C'est un taux élevé pour un fonds early ou growth, et cela mérite d'être confronté avec la qualité des outcomes observés : si la calibration des drivers tient sur les dossiers investis, l'agressivité paye ; si les imprévus négatifs y sont concentrés, le fonds confond peut-être conviction et appétence au risque.`,
       );
     } else if (investedRatio <= 0.10 && byDecision.passed + byDecision.declined > byDecision.invested * 5) {
       patterns.push(
-        `Sur les ${decisionTotal} dossiers decides du portefeuille reconcilie, ${Math.round(investedRatio * 100)} pour cent seulement ont ete investis. Un ratio aussi bas peut traduire une vraie discipline ou une defiance systematique. La question utile n est pas la quantite mais la qualite : parmi les passes et refus, combien ont continue a performer publiquement apres la decision, et que disent ces materialisations sur l angle ou le fonds a peut-etre trop filtre.`,
+        `Sur les ${decisionTotal} dossiers décidés du portefeuille réconcilié, ${Math.round(investedRatio * 100)} pour cent seulement ont été investis. Un ratio aussi bas peut traduire une vraie discipline ou une défiance systématique. La question utile n'est pas la quantité mais la qualité : parmi les passés et refus, combien ont continué à performer publiquement après la décision, et que disent ces matérialisations sur l'angle où le fonds a peut-être trop filtré.`,
       );
     }
   }
@@ -144,32 +144,32 @@ export function buildProgressNarrative(
   threshold: number,
 ): string {
   if (totalAnalyzed === 0) {
-    return `Aucun dossier n a encore ete instruit avec Prelude. Le miroir du fonds se construit a partir de l accumulation : chaque dossier analyse puis suivi nourrit une lecture progressive de vos angles morts. La calibration commence a partir de ${threshold} dossiers reconciliables, c est-a-dire decides et accompagnes d au moins un milestone post-decision confirme.`;
+    return `Aucun dossier n'a encore été instruit avec Prelude. Le miroir du fonds se construit à partir de l'accumulation : chaque dossier analysé puis suivi nourrit une lecture progressive de vos angles morts. La calibration commence à partir de ${threshold} dossiers réconciliables, c'est-à-dire décidés et accompagnés d'au moins un milestone post-décision confirmé.`;
   }
 
   if (totalReconciled >= threshold) {
-    return `Le fonds a franchi le seuil de ${threshold} dossiers reconciliables. Sur ${totalAnalyzed} dossiers instruits, ${totalWithDecision} portent une decision posee et ${totalReconciled} disposent d au moins un milestone confirme. Le miroir qui suit interprete ces ${totalReconciled} dossiers : ce qui a ete vu juste, ce qui a ete vu de travers, et ce qui n a pas ete vu du tout. Aucun de ces paragraphes n est prescriptif. Ils decrivent ce que la pratique du fonds donne a voir une fois confrontee a la realite post-decision.`;
+    return `Le fonds a franchi le seuil de ${threshold} dossiers réconciliables. Sur ${totalAnalyzed} dossiers instruits, ${totalWithDecision} portent une décision posée et ${totalReconciled} disposent d'au moins un milestone confirmé. Le miroir qui suit interprète ces ${totalReconciled} dossiers : ce qui a été vu juste, ce qui a été vu de travers, et ce qui n'a pas été vu du tout. Aucun de ces paragraphes n'est prescriptif. Ils décrivent ce que la pratique du fonds donne à voir une fois confrontée à la réalité post-décision.`;
   }
 
   const remaining = threshold - totalReconciled;
   const lines: string[] = [];
   lines.push(
-    `Vous etes a ${totalReconciled} dossiers reconciliables sur les ${threshold} qui declenchent la calibration agregee. ${totalAnalyzed} dossiers ont ete instruits dans Prelude, dont ${totalWithDecision} portent une decision posee.`,
+    `Vous êtes à ${totalReconciled} dossiers réconciliables sur les ${threshold} qui déclenchent la calibration agrégée. ${totalAnalyzed} dossiers ont été instruits dans Prelude, dont ${totalWithDecision} portent une décision posée.`,
   );
   if (totalWithDecision < totalAnalyzed) {
     const undecided = totalAnalyzed - totalWithDecision;
     lines.push(
-      `${undecided} ${undecided > 1 ? 'dossiers attendent encore' : 'dossier attend encore'} une decision : le passage du Kanban vers signe ou refuse pre-remplit automatiquement la fiche, il reste ensuite a preciser les conditions d entree dans la note d instruction.`,
+      `${undecided} ${undecided > 1 ? 'dossiers attendent encore' : 'dossier attend encore'} une décision : le passage du Kanban vers signé ou refusé pré-remplit automatiquement la fiche, il reste ensuite à préciser les conditions d'entrée dans la note d'instruction.`,
     );
   }
   if (totalWithDecision > totalReconciled) {
     const decisionWithoutMilestone = totalWithDecision - totalReconciled;
     lines.push(
-      `${decisionWithoutMilestone} ${decisionWithoutMilestone > 1 ? 'dossiers ont' : 'dossier a'} une decision posee mais pas encore de milestone confirme. La detection web automatique tourne tous les matins sur les dossiers decides depuis plus de six mois et propose des milestones a confirmer en un clic.`,
+      `${decisionWithoutMilestone} ${decisionWithoutMilestone > 1 ? 'dossiers ont' : 'dossier a'} une décision posée mais pas encore de milestone confirmé. La détection web automatique tourne tous les matins sur les dossiers décidés depuis plus de six mois et propose des milestones à confirmer en un clic.`,
     );
   }
   lines.push(
-    `Il manque ${remaining} dossier${remaining > 1 ? 's' : ''} pour que la lecture agregee soit statistiquement defendable. Avant ce seuil, des paragraphes affirmatifs seraient un faux signal : un fonds avec quinze dossiers peut sembler systematiquement biaise sur un axe simplement parce que trois cas tirent l agregat. C est l accumulation qui rend la calibration lisible.`,
+    `Il manque ${remaining} dossier${remaining > 1 ? 's' : ''} pour que la lecture agrégée soit statistiquement défendable. Avant ce seuil, des paragraphes affirmatifs seraient un faux signal : un fonds avec quinze dossiers peut sembler systématiquement biaisé sur un axe simplement parce que trois cas tirent l'agrégat. C'est l'accumulation qui rend la calibration lisible.`,
   );
   return lines.join(' ');
 }
