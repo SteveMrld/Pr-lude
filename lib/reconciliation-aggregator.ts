@@ -1,6 +1,10 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import type { Decision, MilestoneType, MilestoneImpact, ThesisAlignment } from './reconciliation-store';
+import {
+  detectSystemicPatterns as detectSystemicPatternsPure,
+  buildProgressNarrative as buildProgressNarrativePure,
+} from './reconciliation-narrative';
 
 /**
  * Bloc E3.3 - Reconciliation prediction vs reality (aggregator)
@@ -132,8 +136,15 @@ export interface PortfolioReconciliation {
   };
   // Performance par dimension
   byDimension: DimensionPortfolioPerformance[];
-  // Patterns systemiques detectes (en langage naturel)
+  // Patterns systemiques detectes, en prose argumentee. Chaque entree
+  // est un paragraphe de 3 a 5 phrases qui pose un constat avec
+  // chiffres, situe le pattern dans la pratique du fonds, et propose
+  // une lecture sans prescrire. Vide sous le seuil de reconciliation.
   systemicPatterns: string[];
+  // Narratif d avancement vers le seuil. Toujours non null. En
+  // dessous du seuil, raconte ou en est le fonds et ce qu il manque.
+  // Au-dessus, replace le compte courant dans l interpretation.
+  progressNarrative: string;
 }
 
 // ============================================================
@@ -302,36 +313,10 @@ function classifyDimensionAccuracy(perf: Omit<DimensionPortfolioPerformance, 'pr
   return 'low';
 }
 
-function detectSystemicPatterns(byDimension: DimensionPortfolioPerformance[], totalReconciled: number): string[] {
-  const patterns: string[] = [];
-  if (totalReconciled < 10) return patterns;
-
-  // Pattern 1 : dimensions ou la prediction sous-performe systematiquement
-  const lowAccuracyDims = byDimension.filter((d) => d.predictionAccuracy === 'low');
-  if (lowAccuracyDims.length > 0) {
-    patterns.push(
-      `Sous-performance de prediction observee sur ${lowAccuracyDims.length} dimension${lowAccuracyDims.length > 1 ? 's' : ''} : ${lowAccuracyDims.map((d) => d.dimensionName).join(', ')}. Les drivers ou risques annonces sur ces dimensions ne se confirment pas suffisamment dans la realite portfolio.`
-    );
-  }
-
-  // Pattern 2 : dimensions ou les risques sont systematiquement sous-evalues
-  const underestimatedRiskDims = byDimension.filter((d) => d.contradictedDrivers > d.confirmedDrivers && d.confirmedDrivers + d.contradictedDrivers >= 3);
-  if (underestimatedRiskDims.length > 0) {
-    patterns.push(
-      `Drivers sur-evalues a la prediction sur ${underestimatedRiskDims.length} dimension${underestimatedRiskDims.length > 1 ? 's' : ''} : ${underestimatedRiskDims.map((d) => d.dimensionName).join(', ')}. Les drivers identifies a l instruction sont plus souvent contredits que confirmes par les milestones realises.`
-    );
-  }
-
-  // Pattern 3 : dimensions ou les risques predits sont rarement confirmes (ie le moteur est trop alarmiste)
-  const overcautiousDims = byDimension.filter((d) => d.contradictedRisks > d.confirmedRisks * 2 && d.confirmedRisks + d.contradictedRisks >= 3);
-  if (overcautiousDims.length > 0) {
-    patterns.push(
-      `Risques sur-evalues a la prediction sur ${overcautiousDims.length} dimension${overcautiousDims.length > 1 ? 's' : ''} : ${overcautiousDims.map((d) => d.dimensionName).join(', ')}. Les risques alertes a l instruction sont plus souvent contredits qu il ne se materialisent. Le moteur peut etre calibre comme trop alarmiste sur cet axe.`
-    );
-  }
-
-  return patterns;
-}
+// Prose de calibration : extraite dans reconciliation-narrative pour
+// permettre des tests deterministes sans dependance 'server-only'.
+const detectSystemicPatterns = detectSystemicPatternsPure;
+const buildProgressNarrative = buildProgressNarrativePure;
 
 export async function getPortfolioReconciliation(userId: string): Promise<PortfolioReconciliation> {
   const admin = getAdmin();
@@ -350,6 +335,7 @@ export async function getPortfolioReconciliation(userId: string): Promise<Portfo
     },
     byDimension: [],
     systemicPatterns: [],
+    progressNarrative: buildProgressNarrative(0, 0, 0, PORTFOLIO_RECONCILIATION_THRESHOLD),
   };
   if (!admin) return empty;
 
@@ -498,6 +484,18 @@ export async function getPortfolioReconciliation(userId: string): Promise<Portfo
     byDecision,
     globalAlignmentBreakdown: globalAlignment,
     byDimension,
-    systemicPatterns: detectSystemicPatterns(byDimension, totalDossiersWithReconciliation),
+    systemicPatterns: detectSystemicPatterns(
+      byDimension,
+      globalAlignment,
+      totalDossiersWithReconciliation,
+      byDecision,
+      PORTFOLIO_RECONCILIATION_THRESHOLD,
+    ),
+    progressNarrative: buildProgressNarrative(
+      totalAnalyses || 0,
+      totalDossiersWithDecision,
+      totalDossiersWithReconciliation,
+      PORTFOLIO_RECONCILIATION_THRESHOLD,
+    ),
   };
 }

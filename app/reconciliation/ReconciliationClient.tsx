@@ -205,221 +205,211 @@ export default function ReconciliationClient({
 // ============================================================
 
 function PortfolioPane({ portfolio }: { portfolio: PortfolioReconciliation }) {
-  const ga = portfolio.globalAlignmentBreakdown;
+  const totalDecisions =
+    portfolio.byDecision.invested
+    + portfolio.byDecision.passed
+    + portfolio.byDecision.declined
+    + portfolio.byDecision.waitlisted;
+
+  // Compose la phrase de distribution des decisions en prose, plutot
+  // qu en colonne. Skip les zeros pour eviter la mention triviale.
+  const distributionPhrase = (() => {
+    if (totalDecisions === 0) return null;
+    const parts: string[] = [];
+    if (portfolio.byDecision.invested > 0) {
+      parts.push(`${portfolio.byDecision.invested} ${portfolio.byDecision.invested > 1 ? 'investis' : 'investi'}`);
+    }
+    if (portfolio.byDecision.passed > 0) {
+      parts.push(`${portfolio.byDecision.passed} ${portfolio.byDecision.passed > 1 ? 'passes' : 'passe'}`);
+    }
+    if (portfolio.byDecision.declined > 0) {
+      parts.push(`${portfolio.byDecision.declined} ${portfolio.byDecision.declined > 1 ? 'refuses' : 'refuse'}`);
+    }
+    if (portfolio.byDecision.waitlisted > 0) {
+      parts.push(`${portfolio.byDecision.waitlisted} en attente`);
+    }
+    return parts.join(', ');
+  })();
 
   return (
     <div className="pane">
-      <div className="banner">
-        <div className="banner-stats">
-          <div className="stat">
-            <div className="stat-num">{portfolio.totalDossiersAnalyzed}</div>
-            <div className="stat-label">Dossiers analyses</div>
-          </div>
-          <div className="stat">
-            <div className="stat-num">{portfolio.totalDossiersWithDecision}</div>
-            <div className="stat-label">Avec decision</div>
-          </div>
-          <div className="stat">
-            <div className="stat-num">{portfolio.totalDossiersWithReconciliation}</div>
-            <div className="stat-label">Reconciliables (decision + milestones)</div>
-          </div>
-        </div>
-        {!portfolio.thresholdMet && (
-          <div className="threshold-warning">
-            La reconciliation portfolio est exposee a partir de {portfolio.threshold} dossiers reconciliables. Vous etes a {portfolio.totalDossiersWithReconciliation}/{portfolio.threshold}. Les agreges ci-dessous sont presentes a titre indicatif et n ont pas encore la robustesse statistique requise pour identifier des patterns systemiques fiables.
-          </div>
-        )}
-      </div>
+      <p className="progress-narrative">{portfolio.progressNarrative}</p>
 
-      <h2 className="section-title">Distribution des decisions</h2>
-      <table className="table">
-        <thead>
-          <tr><th>Decision</th><th className="num">Nombre</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Investi</td><td className="num">{portfolio.byDecision.invested}</td></tr>
-          <tr><td>Passe</td><td className="num">{portfolio.byDecision.passed}</td></tr>
-          <tr><td>Refuse</td><td className="num">{portfolio.byDecision.declined}</td></tr>
-          <tr><td>En liste d attente</td><td className="num">{portfolio.byDecision.waitlisted}</td></tr>
-        </tbody>
-      </table>
-
-      <h2 className="section-title">Alignement global des theses</h2>
-      <p className="section-sub">
-        Sur l ensemble des milestones enregistres avec un alignement de these.
-      </p>
-      <table className="table">
-        <thead>
-          <tr><th>Categorie</th><th className="num">Nombre</th><th className="num">Part</th></tr>
-        </thead>
-        <tbody>
-          {(['confirmsDriver', 'confirmsRisk', 'contradictsDriver', 'contradictsRisk', 'unforeseenPositive', 'unforeseenNegative'] as const).map((k) => {
-            const count = ga[k];
-            const pct = ga.total > 0 ? Math.round((count / ga.total) * 100) : 0;
-            const labelKey = k.replace(/([A-Z])/g, '_$1').toLowerCase();
-            return (
-              <tr key={k}>
-                <td>{ALIGNMENT_LABEL[labelKey] || k}</td>
-                <td className="num">{count}</td>
-                <td className="num">{pct}%</td>
-              </tr>
-            );
-          })}
-          <tr className="total-row">
-            <td>Total milestones alignes</td>
-            <td className="num">{ga.total}</td>
-            <td className="num">100%</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h2 className="section-title">Performance de prediction par dimension</h2>
-      <p className="section-sub">
-        Pour chaque dimension : moyenne des probabilites de succes predites, puis nombre de drivers et risques confirmes ou contredits par les milestones realises.
-      </p>
-      {portfolio.byDimension.length === 0 ? (
-        <p className="empty">Aucune dimension disponible pour le moment.</p>
-      ) : (
-        <table className="table table-wide">
-          <thead>
-            <tr>
-              <th>Dimension</th>
-              <th className="num">Succes predit moyen</th>
-              <th className="num">Drivers confirmes</th>
-              <th className="num">Drivers contredits</th>
-              <th className="num">Risques confirmes</th>
-              <th className="num">Risques contredits</th>
-              <th>Calibration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {portfolio.byDimension.map((d, i) => (
-              <tr key={i}>
-                <td className="dim-name">{d.dimensionName}</td>
-                <td className="num">{d.averagePredictedSuccess}%</td>
-                <td className="num pos">{d.confirmedDrivers}</td>
-                <td className="num neg">{d.contradictedDrivers}</td>
-                <td className="num pos">{d.confirmedRisks}</td>
-                <td className="num neg">{d.contradictedRisks}</td>
-                <td>
-                  <span className={`pill pill-${d.predictionAccuracy}`}>
-                    {ACCURACY_LABEL[d.predictionAccuracy] || d.predictionAccuracy}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {portfolio.thresholdMet && portfolio.systemicPatterns.length > 0 && (
+        <section className="patterns-section">
+          <h2 className="section-title">Lecture du miroir</h2>
+          {portfolio.systemicPatterns.map((p, i) => (
+            <p key={i} className="pattern-paragraph">{p}</p>
+          ))}
+        </section>
       )}
 
-      {portfolio.systemicPatterns.length > 0 && (
-        <>
-          <h2 className="section-title">Patterns systemiques detectes</h2>
-          <ul className="patterns-list">
-            {portfolio.systemicPatterns.map((p, i) => (
-              <li key={i}>{p}</li>
+      {portfolio.thresholdMet && portfolio.systemicPatterns.length === 0 && (
+        <section className="patterns-section">
+          <h2 className="section-title">Lecture du miroir</h2>
+          <p className="pattern-paragraph">
+            Sur les {portfolio.totalDossiersWithReconciliation} dossiers reconcilies, aucun pattern
+            structurel ne se degage. La prediction du fonds se confirme sans biais systematique
+            visible sur cet echantillon. Cela ne dit pas que l instruction est parfaite : cela dit
+            qu il n y a pas d ecart cumule assez net pour faire signal. Continuez a alimenter la
+            reconciliation, et les angles morts apparaitront s ils existent.
+          </p>
+        </section>
+      )}
+
+      {distributionPhrase && (
+        <section className="distribution-section">
+          <h3 className="distribution-title">Distribution des decisions</h3>
+          <p className="distribution-prose">
+            Sur les {totalDecisions} {totalDecisions > 1 ? 'dossiers' : 'dossier'} decid{totalDecisions > 1 ? 'es' : 'e'} : {distributionPhrase}.
+          </p>
+        </section>
+      )}
+
+      {portfolio.thresholdMet && portfolio.byDimension.length > 0 && (
+        <details className="dimensions-annex">
+          <summary>Detail chiffre par dimension</summary>
+          <ul className="dimensions-list">
+            {portfolio.byDimension.map((d, i) => (
+              <li key={i} className="dimension-line">
+                <span className="dim-name">{d.dimensionName}</span>
+                <span className="dim-sep"> — </span>
+                <span className="dim-stats">
+                  succes predit moyen {d.averagePredictedSuccess} pour cent,
+                  drivers confirmes {d.confirmedDrivers} contre {d.contradictedDrivers} contredits,
+                  risques confirmes {d.confirmedRisks} contre {d.contradictedRisks} contredits,
+                  calibration {ACCURACY_LABEL[d.predictionAccuracy] || d.predictionAccuracy}
+                </span>
+              </li>
             ))}
           </ul>
-        </>
+          <p className="annex-note">
+            Les nombres ci-dessus sont l ossature des paragraphes du miroir, jamais l inverse.
+            Ils ne se lisent pas comme un dashboard : ils permettent de remonter au cas par cas
+            quand un constat de prose merite verification.
+          </p>
+        </details>
       )}
 
       <style jsx>{`
-        .pane { font-size: 14px; line-height: 1.55; }
-        .banner {
+        .pane {
+          font-size: 15px;
+          line-height: 1.7;
+          color: #1d1d1f;
+          max-width: 760px;
+        }
+        .progress-narrative {
+          margin: 0 0 32px 0;
+          padding: 22px 26px;
           background: #f6f3ec;
-          border: 1px solid #e6e3dd;
-          border-radius: 6px;
-          padding: 22px 24px;
-          margin-bottom: 28px;
-        }
-        .banner-stats {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 24px;
-          margin-bottom: 16px;
-        }
-        .stat-num {
-          font-family: var(--serif);
-          font-size: 30px;
-          font-weight: 600;
-          color: #16213a;
-          line-height: 1.1;
-        }
-        .stat-label {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 11px;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: #8a8780;
-          margin-top: 4px;
-        }
-        .threshold-warning {
-          padding: 12px 14px;
-          background: rgba(180, 120, 50, 0.06);
           border-left: 3px solid #b47832;
-          border-radius: 3px;
-          font-size: 13px;
-          color: #5e4b30;
-          line-height: 1.55;
+          border-radius: 0 4px 4px 0;
+          font-size: 15px;
+          line-height: 1.75;
+          color: #2a2a26;
+        }
+        .patterns-section {
+          margin-top: 36px;
         }
         .section-title {
           font-family: var(--serif);
-          font-size: 20px;
+          font-size: 22px;
           color: #16213a;
-          margin: 32px 0 6px;
+          margin: 0 0 18px;
+          font-weight: 600;
+          letter-spacing: -0.005em;
+        }
+        .pattern-paragraph {
+          margin: 0 0 22px 0;
+          font-size: 15px;
+          line-height: 1.75;
+          color: #1d1d1f;
+        }
+        .pattern-paragraph:first-of-type::before {
+          content: '';
+          display: block;
+          width: 28px;
+          border-top: 1px solid #1f5f3f;
+          margin-bottom: 14px;
+        }
+        .distribution-section {
+          margin-top: 40px;
+          padding-top: 24px;
+          border-top: 1px solid #e6e3dd;
+        }
+        .distribution-title {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 11px;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          color: #8a8780;
+          margin: 0 0 6px;
           font-weight: 600;
         }
-        .section-sub {
-          font-size: 13px;
-          color: #6e6c66;
-          margin: 0 0 14px;
+        .distribution-prose {
+          margin: 0;
+          font-size: 14.5px;
+          line-height: 1.7;
+          color: #2a2a26;
         }
-        .table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 4px 0 18px;
-          font-size: 13.5px;
+        .dimensions-annex {
+          margin-top: 32px;
+          padding-top: 18px;
+          border-top: 1px solid #e6e3dd;
         }
-        .table th, .table td {
-          padding: 10px 12px;
-          text-align: left;
-          border-bottom: 1px solid #e6e3dd;
-        }
-        .table th {
+        .dimensions-annex summary {
+          cursor: pointer;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 10.5px;
-          letter-spacing: 0.08em;
+          font-size: 11px;
+          letter-spacing: 0.10em;
           text-transform: uppercase;
           color: #8a8780;
           font-weight: 600;
-          background: #fafaf6;
+          margin-bottom: 12px;
+          list-style: none;
         }
-        .table .num { text-align: right; font-variant-numeric: tabular-nums; }
-        .table .pos { color: #1f5f3f; }
-        .table .neg { color: #b14842; }
-        .table .dim-name { font-weight: 600; }
-        .total-row { font-weight: 600; background: #fafaf6; }
-        .pill {
+        .dimensions-annex summary::-webkit-details-marker { display: none; }
+        .dimensions-annex summary::before {
+          content: '▸';
           display: inline-block;
-          padding: 2px 10px;
-          border-radius: 11px;
-          font-size: 11px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          letter-spacing: 0.04em;
+          margin-right: 8px;
+          color: #b47832;
+          font-size: 10px;
+          transition: transform 200ms;
         }
-        .pill-high { color: #1f5f3f; background: rgba(31, 95, 63, 0.08); }
-        .pill-medium { color: #b47832; background: rgba(180, 120, 50, 0.08); }
-        .pill-low { color: #b14842; background: rgba(177, 72, 66, 0.08); }
-        .pill-insufficient_data { color: #6e6c66; background: #efece5; }
-        .empty { color: #8a8780; font-style: italic; }
-        .patterns-list {
-          padding-left: 20px;
-          margin: 6px 0 18px;
+        .dimensions-annex[open] summary::before {
+          transform: rotate(90deg);
         }
-        .patterns-list li {
-          margin-bottom: 10px;
-          font-size: 14px;
+        .dimensions-list {
+          list-style: none;
+          padding: 0;
+          margin: 0 0 14px;
+        }
+        .dimension-line {
+          padding: 6px 0;
+          font-size: 13.5px;
+          line-height: 1.55;
+          color: #2a2a26;
+        }
+        .dim-name {
+          font-weight: 600;
+          color: #16213a;
+        }
+        .dim-sep { color: #b47832; }
+        .dim-stats { color: #4a4a44; }
+        .annex-note {
+          font-size: 12.5px;
+          color: #8a8780;
+          font-style: italic;
           line-height: 1.6;
+          margin: 14px 0 0;
+        }
+
+        @media (max-width: 700px) {
+          .progress-narrative {
+            padding: 18px 20px;
+            font-size: 14.5px;
+          }
         }
       `}</style>
     </div>
@@ -614,36 +604,6 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
       )}
 
       <h3 className="d-section-title">Reconciliation prediction vs realite</h3>
-      <div className="reco-stats">
-        <div className="rs-block">
-          <div className="rs-num">{stats.totalMilestones}</div>
-          <div className="rs-label">Milestones totaux</div>
-        </div>
-        <div className="rs-block pos">
-          <div className="rs-num">{stats.confirmsDriver}</div>
-          <div className="rs-label">Drivers confirmes</div>
-        </div>
-        <div className="rs-block pos">
-          <div className="rs-num">{stats.confirmsRisk}</div>
-          <div className="rs-label">Risques confirmes</div>
-        </div>
-        <div className="rs-block neg">
-          <div className="rs-num">{stats.contradictsDriver}</div>
-          <div className="rs-label">Drivers contredits</div>
-        </div>
-        <div className="rs-block neg">
-          <div className="rs-num">{stats.contradictsRisk}</div>
-          <div className="rs-label">Risques contredits</div>
-        </div>
-        <div className="rs-block">
-          <div className="rs-num">{stats.unforeseenPositive}</div>
-          <div className="rs-label">Imprevus positifs</div>
-        </div>
-        <div className="rs-block">
-          <div className="rs-num">{stats.unforeseenNegative}</div>
-          <div className="rs-label">Imprevus negatifs</div>
-        </div>
-      </div>
 
       <div className={`quality-verdict quality-${stats.predictionQuality}`}>
         <strong>Qualite de la prediction sur ce dossier :</strong>{' '}
@@ -653,6 +613,19 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
         {stats.predictionQuality === 'weak' && ' La realite contredit la these initiale. Les drivers ne se sont pas concretises ou les risques anticipes ne se sont pas materialises. Cas d apprentissage utile pour la calibration future.'}
         {stats.predictionQuality === 'insufficient_data' && ' Trop peu de milestones enregistres pour conclure sur la qualite de la prediction. Enregistrer davantage d evenements post-decision permettra une reconciliation robuste.'}
       </div>
+
+      {stats.totalMilestones > 0 && (
+        <p className="d-reco-prose">
+          Sur les {stats.totalMilestones} milestone{stats.totalMilestones > 1 ? 's' : ''} reconciles,
+          {stats.confirmsDriver > 0 && ` ${stats.confirmsDriver} ${stats.confirmsDriver > 1 ? 'confirment' : 'confirme'} un driver positif identifie a l instruction,`}
+          {stats.contradictsDriver > 0 && ` ${stats.contradictsDriver} ${stats.contradictsDriver > 1 ? 'contredisent' : 'contredit'} un driver positif annonce,`}
+          {stats.confirmsRisk > 0 && ` ${stats.confirmsRisk} ${stats.confirmsRisk > 1 ? 'valident' : 'valide'} un risque identifie,`}
+          {stats.contradictsRisk > 0 && ` ${stats.contradictsRisk} ${stats.contradictsRisk > 1 ? 'demontrent' : 'demontre'} qu un risque alerte ne se materialise pas,`}
+          {stats.unforeseenPositive > 0 && ` ${stats.unforeseenPositive} ${stats.unforeseenPositive > 1 ? 'sont des surprises positives' : 'est une surprise positive'} non anticipees,`}
+          {stats.unforeseenNegative > 0 && ` ${stats.unforeseenNegative} ${stats.unforeseenNegative > 1 ? 'sont des chocs negatifs' : 'est un choc negatif'} non anticipe${stats.unforeseenNegative > 1 ? 's' : ''} a l instruction,`}
+          {' '}sur la base des milestones confirmes par le partner.
+        </p>
+      )}
 
       <style jsx>{`
         .dossier-details { font-size: 14px; line-height: 1.55; }
@@ -789,33 +762,11 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
         .m-align-confirms_risk { color: #b47832; background: rgba(180, 120, 50, 0.08); }
         .m-align-contradicts_driver, .m-align-unforeseen_negative { color: #b14842; background: rgba(177, 72, 66, 0.08); }
         .m-align-unforeseen_positive { color: #1f5f3f; background: rgba(31, 95, 63, 0.06); }
-        .reco-stats {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          gap: 10px;
-          margin: 10px 0 22px;
-        }
-        .rs-block {
-          background: #f6f3ec;
-          border-radius: 6px;
-          padding: 12px;
-          text-align: center;
-        }
-        .rs-num {
-          font-family: var(--serif);
-          font-size: 22px;
-          font-weight: 600;
-          color: #16213a;
-        }
-        .rs-block.pos .rs-num { color: #1f5f3f; }
-        .rs-block.neg .rs-num { color: #b14842; }
-        .rs-label {
-          font-size: 9.5px;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          color: #8a8780;
-          margin-top: 4px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        .d-reco-prose {
+          margin: 14px 0 0;
+          font-size: 14px;
+          line-height: 1.7;
+          color: #2a2a26;
         }
         .quality-verdict {
           padding: 14px 18px;
@@ -841,7 +792,6 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
 
         @media (max-width: 800px) {
           .prediction-summary { grid-template-columns: 1fr; }
-          .reco-stats { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
     </div>
