@@ -41,6 +41,8 @@ interface Milestone {
   numericalUnit: string | null;
   thesisAlignment: string | null;
   sourceUrl: string | null;
+  sourceKind?: 'manual' | 'auto_detected';
+  detectionStatus?: 'confirmed' | 'proposed' | 'rejected';
 }
 
 const DECISION_LABELS: Record<string, string> = {
@@ -216,6 +218,36 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
     }
   };
 
+  // Confirme un milestone propose par la detection auto : entre dans
+  // l agregation de calibration. Aucun ajustement de contenu, le
+  // partner accepte tel quel.
+  const handleConfirmProposed = async (milestoneId: string) => {
+    const res = await fetch(`/api/analyses/${analysisId}/milestones/${milestoneId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ detectionStatus: 'confirmed' }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      setMilestones(milestones.map((m) => (m.id === milestoneId ? json.milestone : m)));
+    }
+  };
+
+  // Rejette un milestone propose : reste en base avec detection_status
+  // rejected pour eviter qu il revienne au scan suivant. N entre pas
+  // dans l agregation.
+  const handleRejectProposed = async (milestoneId: string) => {
+    if (!confirm('Rejeter ce milestone propose ? Il ne sera pas re-detecte au prochain scan.')) return;
+    const res = await fetch(`/api/analyses/${analysisId}/milestones/${milestoneId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ detectionStatus: 'rejected' }),
+    });
+    if (res.ok) {
+      setMilestones(milestones.filter((m) => m.id !== milestoneId));
+    }
+  };
+
   if (loading) {
     return <div className="ot-loading">Chargement du suivi...</div>;
   }
@@ -310,66 +342,112 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
           </form>
         )}
 
-        {milestones.length === 0 && !addingMilestone && (
-          <p className="ot-empty">
-            Aucun événement enregistré. Note ici les levées de fonds, pivots, lancements,
-            churns, exits ou tout signal qui valide ou contredit la thèse initiale.
-          </p>
-        )}
-
-        {milestones.length > 0 && (
-          <ul className="ot-milestone-list">
-            {milestones.map((m) => (
-              <li key={m.id} className="ot-milestone">
-                <div className="ot-milestone-date">{formatDate(m.milestoneDate)}</div>
-                <div className="ot-milestone-content">
-                  <div className="ot-milestone-header">
-                    <span className="ot-milestone-type">
-                      {MILESTONE_TYPES.find((t) => t.key === m.milestoneType)?.label || m.milestoneType}
-                    </span>
-                    {m.impact && (
-                      <span
-                        className="ot-milestone-impact"
-                        style={{ color: IMPACT_COLORS[m.impact] }}
-                      >
-                        ●
-                      </span>
-                    )}
-                  </div>
-                  <div className="ot-milestone-title">{m.title}</div>
-                  {m.description && <p className="ot-milestone-desc">{m.description}</p>}
-                  {m.numericalValue !== null && (
-                    <div className="ot-milestone-metric">
-                      {m.numericalValue.toLocaleString('fr-FR')} {m.numericalUnit}
-                    </div>
-                  )}
-                  {m.thesisAlignment && (
-                    <div className="ot-milestone-alignment">
-                      {ALIGNMENT_LABELS[m.thesisAlignment]}
-                    </div>
-                  )}
-                  {m.sourceUrl && (
-                    <a
-                      href={m.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ot-milestone-source"
-                    >
-                      Source ↗
-                    </a>
-                  )}
+        {(() => {
+          // Filtre les milestones rejected (ne doivent plus apparaitre
+          // dans l UI). Separe les proposed (detection auto en attente
+          // de validation partner) des confirmed (manuels ou auto deja
+          // valides). Les proposed apparaissent en tete avec un bloc
+          // d action dedie : ils sont la file de travail du partner.
+          const visible = milestones.filter((m) => m.detectionStatus !== 'rejected');
+          const proposed = visible.filter((m) => m.detectionStatus === 'proposed');
+          const confirmed = visible.filter((m) => m.detectionStatus !== 'proposed');
+          if (visible.length === 0 && !addingMilestone) {
+            return (
+              <p className="ot-empty">
+                Aucun événement enregistré. Le scan automatique des signaux publics tourne tous les jours
+                pour les dossiers décidés depuis plus de six mois et propose des milestones que vous confirmez.
+                Note ici à la main ce qui ne se détecte pas publiquement : changements internes, signaux de
+                conversations, métriques privées.
+              </p>
+            );
+          }
+          return (
+            <>
+              {proposed.length > 0 && (
+                <div className="ot-proposed-banner">
+                  <strong>{proposed.length} milestone{proposed.length > 1 ? 's' : ''} détecté{proposed.length > 1 ? 's' : ''} automatiquement.</strong>
+                  {' '}Confirmez pour entrer dans la calibration du fonds, rejetez si la détection est erronée.
                 </div>
-                <button
-                  className="ot-milestone-delete"
-                  onClick={() => handleDeleteMilestone(m.id)}
-                  title="Supprimer"
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+              )}
+              <ul className="ot-milestone-list">
+                {proposed.map((m) => (
+                  <li key={m.id} className="ot-milestone ot-milestone-proposed">
+                    <div className="ot-milestone-date">{formatDate(m.milestoneDate)}</div>
+                    <div className="ot-milestone-content">
+                      <div className="ot-milestone-header">
+                        <span className="ot-milestone-type">
+                          {MILESTONE_TYPES.find((t) => t.key === m.milestoneType)?.label || m.milestoneType}
+                        </span>
+                        <span className="ot-proposed-tag">Détection auto</span>
+                        {m.impact && (
+                          <span className="ot-milestone-impact" style={{ color: IMPACT_COLORS[m.impact] }}>●</span>
+                        )}
+                      </div>
+                      <div className="ot-milestone-title">{m.title}</div>
+                      {m.description && <p className="ot-milestone-desc">{m.description}</p>}
+                      {m.thesisAlignment && (
+                        <div className="ot-milestone-alignment">
+                          {ALIGNMENT_LABELS[m.thesisAlignment]}
+                        </div>
+                      )}
+                      {m.sourceUrl && (
+                        <a href={m.sourceUrl} target="_blank" rel="noopener noreferrer" className="ot-milestone-source">
+                          Source ↗
+                        </a>
+                      )}
+                      <div className="ot-proposed-actions">
+                        <button className="ot-btn-confirm" onClick={() => handleConfirmProposed(m.id)}>
+                          Confirmer
+                        </button>
+                        <button className="ot-btn-reject" onClick={() => handleRejectProposed(m.id)}>
+                          Rejeter
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+                {confirmed.map((m) => (
+                  <li key={m.id} className="ot-milestone">
+                    <div className="ot-milestone-date">{formatDate(m.milestoneDate)}</div>
+                    <div className="ot-milestone-content">
+                      <div className="ot-milestone-header">
+                        <span className="ot-milestone-type">
+                          {MILESTONE_TYPES.find((t) => t.key === m.milestoneType)?.label || m.milestoneType}
+                        </span>
+                        {m.sourceKind === 'auto_detected' && (
+                          <span className="ot-auto-tag" title="Détecté automatiquement puis confirmé">●●</span>
+                        )}
+                        {m.impact && (
+                          <span className="ot-milestone-impact" style={{ color: IMPACT_COLORS[m.impact] }}>●</span>
+                        )}
+                      </div>
+                      <div className="ot-milestone-title">{m.title}</div>
+                      {m.description && <p className="ot-milestone-desc">{m.description}</p>}
+                      {m.numericalValue !== null && (
+                        <div className="ot-milestone-metric">
+                          {m.numericalValue.toLocaleString('fr-FR')} {m.numericalUnit}
+                        </div>
+                      )}
+                      {m.thesisAlignment && (
+                        <div className="ot-milestone-alignment">
+                          {ALIGNMENT_LABELS[m.thesisAlignment]}
+                        </div>
+                      )}
+                      {m.sourceUrl && (
+                        <a href={m.sourceUrl} target="_blank" rel="noopener noreferrer" className="ot-milestone-source">
+                          Source ↗
+                        </a>
+                      )}
+                    </div>
+                    <button className="ot-milestone-delete" onClick={() => handleDeleteMilestone(m.id)} title="Supprimer">
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          );
+        })()}
       </div>
 
       <style jsx>{`
@@ -564,6 +642,83 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
           border: 1px solid var(--hairline);
           border-radius: 8px;
           margin-bottom: 14px;
+        }
+
+        .ot-proposed-banner {
+          margin: 6px 0 14px 0;
+          padding: 10px 14px;
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.08));
+          border-left: 3px solid var(--ocre-brule, #b47832);
+          border-radius: 3px;
+          font-size: 12.5px;
+          line-height: 1.55;
+          color: var(--ink);
+        }
+        .ot-proposed-banner strong {
+          font-weight: 600;
+          color: var(--ocre-brule, #b47832);
+        }
+
+        .ot-milestone-proposed {
+          background: rgba(180, 120, 50, 0.04);
+          border-left: 2px solid var(--ocre-brule, #b47832);
+          padding-left: 12px;
+          margin-left: -14px;
+          border-radius: 0 4px 4px 0;
+          grid-template-columns: 100px 1fr;
+        }
+        .ot-proposed-tag {
+          display: inline-block;
+          padding: 1px 8px;
+          margin-left: 4px;
+          font-size: 9.5px;
+          font-family: var(--sans);
+          font-weight: 700;
+          letter-spacing: 0.10em;
+          text-transform: uppercase;
+          background: var(--ocre-brule, #b47832);
+          color: var(--paper, #fff);
+          border-radius: 10px;
+        }
+        .ot-auto-tag {
+          font-size: 8px;
+          letter-spacing: -1px;
+          color: var(--vert-foret, #1f5f3f);
+        }
+        .ot-proposed-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 10px;
+          padding-top: 8px;
+          border-top: 1px dashed var(--hairline);
+        }
+        .ot-btn-confirm,
+        .ot-btn-reject {
+          padding: 5px 14px;
+          font-family: var(--sans);
+          font-size: 11.5px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          border-radius: 4px;
+          cursor: pointer;
+          border: 1px solid;
+          background: transparent;
+        }
+        .ot-btn-confirm {
+          color: var(--vert-foret, #1f5f3f);
+          border-color: var(--vert-foret, #1f5f3f);
+        }
+        .ot-btn-confirm:hover {
+          background: var(--vert-foret, #1f5f3f);
+          color: var(--paper, #fff);
+        }
+        .ot-btn-reject {
+          color: var(--muted, #6e6c66);
+          border-color: var(--hairline, #d9d4cb);
+        }
+        .ot-btn-reject:hover {
+          color: var(--warn, #b14842);
+          border-color: var(--warn, #b14842);
         }
       `}</style>
     </div>

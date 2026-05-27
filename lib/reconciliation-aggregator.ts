@@ -244,12 +244,17 @@ export async function getDossierReconciliation(
     .eq('user_id', userId)
     .maybeSingle();
 
-  // 3. Charger les milestones
+  // 3. Charger les milestones confirmes uniquement. Les milestones
+  //    en 'proposed' (issus du cron de detection web et pas encore
+  //    valides par le partner) ne doivent pas entrer dans la
+  //    reconciliation tant qu ils n ont pas ete confirmes manuellement,
+  //    sinon une hallucination du LLM pollue la calibration du fonds.
   const { data: milestonesRaw } = await admin
     .from('outcome_milestones')
     .select('id, milestone_date, milestone_type, title, description, impact, thesis_alignment')
     .eq('analysis_id', analysisId)
     .eq('user_id', userId)
+    .eq('detection_status', 'confirmed')
     .order('milestone_date', { ascending: true });
 
   const realizedMilestones: MilestoneSummary[] = (milestonesRaw || []).map((m: any) => ({
@@ -367,11 +372,14 @@ export async function getPortfolioReconciliation(userId: string): Promise<Portfo
     .select('analysis_id, decision')
     .eq('user_id', userId);
 
-  // 4. Charger tous les milestones avec leur thesis_alignment
+  // 4. Charger tous les milestones confirmes avec leur thesis_alignment.
+  //    Memes raisons qu en getDossierReconciliation : les 'proposed'
+  //    ne polluent pas l agregation portfolio tant que pas confirmes.
   const { data: milestones } = await admin
     .from('outcome_milestones')
     .select('analysis_id, thesis_alignment')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('detection_status', 'confirmed');
 
   // 5. Construire l index outcomes
   const outcomeByAnalysisId = new Map<string, Decision>();

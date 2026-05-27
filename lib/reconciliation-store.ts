@@ -27,6 +27,8 @@ function getAdmin() {
 
 export type Decision = 'invested' | 'passed' | 'declined' | 'waitlisted';
 
+export type OutcomeSource = 'manual' | 'kanban_auto';
+
 export interface RealizedOutcome {
   id: string;
   analysisId: string;
@@ -42,6 +44,7 @@ export interface RealizedOutcome {
   entryOwnershipPct: number | null;
   entryLead: boolean | null;
   entryCoInvestors: string[] | null;
+  source: OutcomeSource;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +61,10 @@ export type ThesisAlignment =
   | 'contradicts_driver' | 'contradicts_risk'
   | 'unforeseen_positive' | 'unforeseen_negative';
 
+export type MilestoneSourceKind = 'manual' | 'auto_detected';
+
+export type MilestoneDetectionStatus = 'confirmed' | 'proposed' | 'rejected';
+
 export interface Milestone {
   id: string;
   analysisId: string;
@@ -72,6 +79,8 @@ export interface Milestone {
   thesisAlignment: ThesisAlignment | null;
   sourceUrl: string | null;
   sourceType: string | null;
+  sourceKind: MilestoneSourceKind;
+  detectionStatus: MilestoneDetectionStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -90,6 +99,9 @@ export interface RealizedOutcomeInput {
   entryOwnershipPct?: number | null;
   entryLead?: boolean | null;
   entryCoInvestors?: string[] | null;
+  /** 'manual' par defaut. 'kanban_auto' quand la decision est deduite
+   *  d une transition Kanban (signed/declined) plutot que saisie. */
+  source?: OutcomeSource;
 }
 
 export interface MilestoneInput {
@@ -105,6 +117,13 @@ export interface MilestoneInput {
   thesisAlignment?: ThesisAlignment | null;
   sourceUrl?: string | null;
   sourceType?: string | null;
+  /** 'manual' par defaut (saisie partner). 'auto_detected' quand
+   *  le cron de detection web propose le milestone. */
+  sourceKind?: MilestoneSourceKind;
+  /** 'confirmed' par defaut (entre dans l agregation). 'proposed'
+   *  quand le cron propose le milestone (n entre pas dans l agregation
+   *  tant que le partner ne l a pas confirme). */
+  detectionStatus?: MilestoneDetectionStatus;
 }
 
 // ============================================================
@@ -127,6 +146,7 @@ function mapOutcome(row: any): RealizedOutcome {
     entryOwnershipPct: row.entry_ownership_pct,
     entryLead: row.entry_lead,
     entryCoInvestors: row.entry_co_investors,
+    source: (row.source as OutcomeSource) || 'manual',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -147,6 +167,8 @@ function mapMilestone(row: any): Milestone {
     thesisAlignment: row.thesis_alignment,
     sourceUrl: row.source_url,
     sourceType: row.source_type,
+    sourceKind: (row.source_kind as MilestoneSourceKind) || 'manual',
+    detectionStatus: (row.detection_status as MilestoneDetectionStatus) || 'confirmed',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -194,6 +216,7 @@ export async function upsertOutcome(input: RealizedOutcomeInput): Promise<Realiz
     entry_ownership_pct: input.entryOwnershipPct ?? null,
     entry_lead: input.entryLead ?? null,
     entry_co_investors: input.entryCoInvestors ?? null,
+    source: input.source ?? 'manual',
   };
 
   const { data, error } = await admin
@@ -263,6 +286,8 @@ export async function addMilestone(input: MilestoneInput): Promise<Milestone | n
     thesis_alignment: input.thesisAlignment ?? null,
     source_url: input.sourceUrl ?? null,
     source_type: input.sourceType ?? null,
+    source_kind: input.sourceKind ?? 'manual',
+    detection_status: input.detectionStatus ?? 'confirmed',
   };
   const { data, error } = await admin
     .from('outcome_milestones')
@@ -271,6 +296,78 @@ export async function addMilestone(input: MilestoneInput): Promise<Milestone | n
     .single();
   if (error) {
     console.error('[reconciliation] addMilestone error', error);
+    return null;
+  }
+  return mapMilestone(data);
+}
+
+/**
+ * Met a jour le detection_status d un milestone propose : 'confirmed'
+ * pour valider, 'rejected' pour ignorer. Permet au partner de trier
+ * les milestones proposes par le cron de detection web. Aucun effet
+ * sur les milestones manuels (deja en 'confirmed').
+ */
+export async function updateMilestoneDetectionStatus(
+  milestoneId: string,
+  userId: string,
+  status: MilestoneDetectionStatus,
+): Promise<Milestone | null> {
+  const admin = getAdmin();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from('outcome_milestones')
+    .update({ detection_status: status })
+    .eq('id', milestoneId)
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+  if (error) {
+    console.error('[reconciliation] updateMilestoneDetectionStatus error', error);
+    return null;
+  }
+  return mapMilestone(data);
+}
+
+/**
+ * Met a jour selectivement les champs editables d un milestone
+ * (typiquement utilise apres confirmation d un milestone propose
+ * que le partner veut ajuster avant validation). Aucun champ
+ * n est obligatoire : seuls les champs fournis sont ecrits.
+ */
+export async function patchMilestone(
+  milestoneId: string,
+  userId: string,
+  patch: Partial<Pick<MilestoneInput,
+    'milestoneDate' | 'milestoneType' | 'title' | 'description'
+    | 'impact' | 'numericalValue' | 'numericalUnit'
+    | 'thesisAlignment' | 'sourceUrl' | 'sourceType' | 'detectionStatus'
+  >>,
+): Promise<Milestone | null> {
+  const admin = getAdmin();
+  if (!admin) return null;
+  const dbPatch: any = {};
+  if (patch.milestoneDate !== undefined) dbPatch.milestone_date = patch.milestoneDate;
+  if (patch.milestoneType !== undefined) dbPatch.milestone_type = patch.milestoneType;
+  if (patch.title !== undefined) dbPatch.title = patch.title;
+  if (patch.description !== undefined) dbPatch.description = patch.description;
+  if (patch.impact !== undefined) dbPatch.impact = patch.impact;
+  if (patch.numericalValue !== undefined) dbPatch.numerical_value = patch.numericalValue;
+  if (patch.numericalUnit !== undefined) dbPatch.numerical_unit = patch.numericalUnit;
+  if (patch.thesisAlignment !== undefined) dbPatch.thesis_alignment = patch.thesisAlignment;
+  if (patch.sourceUrl !== undefined) dbPatch.source_url = patch.sourceUrl;
+  if (patch.sourceType !== undefined) dbPatch.source_type = patch.sourceType;
+  if (patch.detectionStatus !== undefined) dbPatch.detection_status = patch.detectionStatus;
+  if (Object.keys(dbPatch).length === 0) return null;
+
+  const { data, error } = await admin
+    .from('outcome_milestones')
+    .update(dbPatch)
+    .eq('id', milestoneId)
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+  if (error) {
+    console.error('[reconciliation] patchMilestone error', error);
     return null;
   }
   return mapMilestone(data);
@@ -358,4 +455,128 @@ export async function getReconciliationStats(userId: string): Promise<Reconcilia
     totalMilestones: milestones?.length || 0,
     thesisAlignmentBreakdown,
   };
+}
+
+// ============================================================
+// CRON detection auto - listing cross-user en service-role
+// ============================================================
+
+/**
+ * Snapshot leger d un outcome plus contexte analyse, pour le cron
+ * de detection web. Le cron itere sur tout le bassin d outcomes
+ * (cross-user) pour identifier les dossiers a scanner. L isolation
+ * se fait au moment de l ecriture des milestones via user_id.
+ */
+export interface OutcomeForDetection {
+  analysisId: string;
+  userId: string;
+  companyName: string;
+  decision: Decision;
+  decisionDate: string;
+  analyzedAt: string;
+  /** ISO de la derniere detection auto qui a tourne sur ce dossier,
+   *  ou null si aucune n a jamais tourne. */
+  lastAutoDetectionAt: string | null;
+  /** Nombre de milestones proposed deja en attente pour ce dossier.
+   *  Permet au cron de skipper les dossiers qui ont deja une file
+   *  non triee pour eviter d empiler. */
+  pendingProposedCount: number;
+}
+
+/**
+ * Liste tous les outcomes du systeme, joints au companyName et
+ * decisionDate, plus le timestamp de la derniere detection auto.
+ * Utilise par le cron de detection en service-role.
+ *
+ * @param decisions Liste optionnelle de decisions a inclure. Defaut :
+ *                  invested, passed (ce sont les dossiers ou la
+ *                  realite post-decision est utile a verifier).
+ */
+export async function listOutcomesForDetection(
+  decisions: Decision[] = ['invested', 'passed'],
+): Promise<OutcomeForDetection[]> {
+  const admin = getAdmin();
+  if (!admin) return [];
+
+  // Outcomes filtrer par decision. On charge dans le meme select le
+  // company_name et created_at de l analyse via la jointure
+  // implicite Supabase (foreign-key relations).
+  const { data: outcomes, error } = await admin
+    .from('realized_outcomes')
+    .select('analysis_id, user_id, decision, decision_date, analyses(company_name, created_at)')
+    .in('decision', decisions);
+
+  if (error || !outcomes) {
+    console.error('[reconciliation] listOutcomesForDetection error', error);
+    return [];
+  }
+
+  const analysisIds = outcomes.map((o: any) => o.analysis_id);
+  if (analysisIds.length === 0) return [];
+
+  // Pour chaque analyse, on cherche le timestamp max d un milestone
+  // auto_detected et le compte de milestones proposed. Une seule query
+  // pour eviter N+1.
+  const { data: autoMilestones } = await admin
+    .from('outcome_milestones')
+    .select('analysis_id, created_at, detection_status')
+    .eq('source_kind', 'auto_detected')
+    .in('analysis_id', analysisIds);
+
+  const lastByAnalysis = new Map<string, string>();
+  const pendingByAnalysis = new Map<string, number>();
+  for (const m of autoMilestones || []) {
+    const cur = lastByAnalysis.get((m as any).analysis_id);
+    if (!cur || (m as any).created_at > cur) {
+      lastByAnalysis.set((m as any).analysis_id, (m as any).created_at);
+    }
+    if ((m as any).detection_status === 'proposed') {
+      pendingByAnalysis.set(
+        (m as any).analysis_id,
+        (pendingByAnalysis.get((m as any).analysis_id) || 0) + 1,
+      );
+    }
+  }
+
+  return outcomes.map((o: any) => {
+    const analysisJoined = Array.isArray(o.analyses) ? o.analyses[0] : o.analyses;
+    return {
+      analysisId: o.analysis_id,
+      userId: o.user_id,
+      companyName: analysisJoined?.company_name || 'Sans nom',
+      decision: o.decision as Decision,
+      decisionDate: o.decision_date,
+      analyzedAt: analysisJoined?.created_at || o.decision_date,
+      lastAutoDetectionAt: lastByAnalysis.get(o.analysis_id) || null,
+      pendingProposedCount: pendingByAnalysis.get(o.analysis_id) || 0,
+    };
+  });
+}
+
+/**
+ * Liste les milestones existants d un dossier, en mode admin
+ * (cross-user, utilise par le cron pour deduplication avant
+ * d inserer un nouveau milestone propose).
+ *
+ * Retourne les milestones confirmed et proposed (pas les rejected,
+ * qui sont des signaux que le partner ne veut pas re-voir).
+ */
+export async function listMilestonesForDedup(
+  analysisId: string,
+): Promise<Pick<Milestone, 'id' | 'milestoneDate' | 'title' | 'sourceUrl' | 'detectionStatus'>[]> {
+  const admin = getAdmin();
+  if (!admin) return [];
+  const { data, error } = await admin
+    .from('outcome_milestones')
+    .select('id, milestone_date, title, source_url, detection_status')
+    .eq('analysis_id', analysisId)
+    .neq('detection_status', 'rejected');
+  if (error || !data) return [];
+  return data.map((row: any) => ({
+    id: row.id,
+    milestoneDate: row.milestone_date,
+    title: row.title,
+    sourceUrl: row.source_url,
+    detectionStatus: row.detection_status as MilestoneDetectionStatus,
+  }));
 }
