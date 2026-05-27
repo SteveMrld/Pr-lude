@@ -132,11 +132,20 @@ export default function WorkflowStageBadge({ analysisId, authEnabled }: Props) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || 'Echec du changement de stade');
       }
+      const data = await res.json().catch(() => ({}));
       setStatus({
         stage: newStage,
         updatedAt: new Date().toISOString(),
         updatedBy: status?.updatedBy ?? null,
       });
+      // Signale a la section OutcomeTracking de la note qu une decision
+      // vient d etre auto-creee : elle refetch et affiche sa banniere
+      // "decision deduite, precisez les conditions".
+      if (data?.outcomeAutoCreated && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('prelude:outcome-auto-created', {
+          detail: { analysisId, stage: newStage },
+        }));
+      }
       setOpen(false);
     } catch (err: any) {
       setError(err?.message || 'Erreur');

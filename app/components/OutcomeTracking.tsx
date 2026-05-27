@@ -28,6 +28,7 @@ interface RealizedOutcome {
   entryOwnershipPct: number | null;
   entryLead: boolean | null;
   entryCoInvestors: string[] | null;
+  source?: 'manual' | 'kanban_auto';
 }
 
 interface Milestone {
@@ -112,43 +113,66 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
   const [editingDecision, setEditingDecision] = useState(false);
   const [addingMilestone, setAddingMilestone] = useState(false);
 
-  // Charge les deux en parallele
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        setLoading(true);
-        const [oRes, mRes] = await Promise.all([
-          fetch(`/api/analyses/${analysisId}/outcome`),
-          fetch(`/api/analyses/${analysisId}/milestones`),
-        ]);
-        if (cancelled) return;
-        if (oRes.status === 403 || oRes.status === 401) {
-          setError('auth-required');
-          setLoading(false);
-          return;
-        }
-        if (!oRes.ok || !mRes.ok) {
-          setError('load-failed');
-          setLoading(false);
-          return;
-        }
-        const oJson = await oRes.json();
-        const mJson = await mRes.json();
-        if (cancelled) return;
-        setOutcome(oJson.outcome || null);
-        setMilestones(mJson.milestones || []);
-        setError(null);
+  // Charge les deux en parallele. Extraite en fonction pour pouvoir
+  // refetch sur evenement (auto-capture depuis Kanban, confirmation
+  // milestone) sans dupliquer la logique.
+  const loadAll = async (signal: { cancelled: boolean }) => {
+    try {
+      setLoading(true);
+      const [oRes, mRes] = await Promise.all([
+        fetch(`/api/analyses/${analysisId}/outcome`),
+        fetch(`/api/analyses/${analysisId}/milestones`),
+      ]);
+      if (signal.cancelled) return;
+      if (oRes.status === 403 || oRes.status === 401) {
+        setError('auth-required');
         setLoading(false);
-      } catch {
-        if (!cancelled) {
-          setError('network-error');
-          setLoading(false);
-        }
+        return;
+      }
+      if (!oRes.ok || !mRes.ok) {
+        setError('load-failed');
+        setLoading(false);
+        return;
+      }
+      const oJson = await oRes.json();
+      const mJson = await mRes.json();
+      if (signal.cancelled) return;
+      setOutcome(oJson.outcome || null);
+      setMilestones(mJson.milestones || []);
+      setError(null);
+      setLoading(false);
+    } catch {
+      if (!signal.cancelled) {
+        setError('network-error');
+        setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const signal = { cancelled: false };
+    loadAll(signal);
+
+    // Auto-refresh sur evenement de capture Kanban : WorkflowStageBadge
+    // dispatch 'prelude:outcome-auto-created' quand un PATCH signed ou
+    // declined a auto-cree un outcome. On refetch pour faire apparaitre
+    // la banniere "decision deduite" sans rechargement de page.
+    const onAutoCreated = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.analysisId === analysisId) {
+        loadAll({ cancelled: false });
       }
     };
-    load();
-    return () => { cancelled = true; };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('prelude:outcome-auto-created', onAutoCreated);
+    }
+    return () => {
+      signal.cancelled = true;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('prelude:outcome-auto-created', onAutoCreated);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysisId]);
 
   // Si auth desactivee, on ne montre meme pas le bloc
@@ -267,6 +291,20 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
 
         {!editingDecision && outcome && (
           <div className="ot-decision-card">
+            {outcome.source === 'kanban_auto' && (
+              <div className="ot-kanban-banner">
+                <strong>Décision déduite du Kanban.</strong>{' '}
+                Précisez les conditions d&apos;entrée (ticket, ownership, lead, co-investors)
+                pour que ce dossier entre pleinement dans la calibration du fonds.
+                <button
+                  type="button"
+                  className="ot-kanban-banner-cta"
+                  onClick={() => setEditingDecision(true)}
+                >
+                  Préciser
+                </button>
+              </div>
+            )}
             <div className="ot-decision-row">
               <span
                 className="ot-decision-badge"
@@ -657,6 +695,41 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
         .ot-proposed-banner strong {
           font-weight: 600;
           color: var(--ocre-brule, #b47832);
+        }
+
+        .ot-kanban-banner {
+          margin-bottom: 14px;
+          padding: 10px 14px;
+          background: var(--ocre-brule-soft, rgba(180, 120, 50, 0.06));
+          border-left: 3px solid var(--ocre-brule, #b47832);
+          border-radius: 3px;
+          font-size: 12.5px;
+          line-height: 1.55;
+          color: var(--ink);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .ot-kanban-banner strong {
+          font-weight: 600;
+          color: var(--ocre-brule, #b47832);
+        }
+        .ot-kanban-banner-cta {
+          margin-left: auto;
+          padding: 4px 12px;
+          font-family: var(--sans);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          color: var(--paper, #fff);
+          background: var(--ocre-brule, #b47832);
+          border: 1px solid var(--ocre-brule, #b47832);
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .ot-kanban-banner-cta:hover {
+          opacity: 0.92;
         }
 
         .ot-milestone-proposed {

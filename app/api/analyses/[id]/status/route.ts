@@ -22,6 +22,11 @@ import {
 import { isPersistenceEnabled, getAnalysis } from '@/lib/analysis-store';
 import { getAuthenticatedContext, isAuthEnabled, getCurrentOrganization, canEdit } from '@/lib/auth';
 import { notifyWorkflowStageChange } from '@/lib/slack-store';
+import {
+  getOutcomeForAnalysis,
+  upsertOutcome,
+} from '@/lib/reconciliation-store';
+import { buildKanbanOutcomePrefill } from '@/lib/reconciliation-prefill';
 
 export const runtime = 'nodejs';
 export const maxDuration = 15;
@@ -86,6 +91,41 @@ export async function PATCH(
     return NextResponse.json({ error: 'update-failed' }, { status: 500 });
   }
 
+  // Auto-capture decision Kanban -> realized_outcomes.
+  // Branchee sur les transitions terminales (signed / declined) :
+  // on cree un outcome en source='kanban_auto' avec un pre-fill
+  // derive du result_json (round type, montant, valo). Le partner
+  // verra dans la section reconciliation de la note une banniere
+  // "decision deduite, precisez les conditions" qui ouvre le
+  // formulaire en mode edition pre-rempli.
+  //
+  // Regle de non-ecrasement : si un outcome existe deja pour ce
+  // dossier (saisi manuellement ou cree par un Kanban precedent),
+  // on ne touche a rien. Le manuel l emporte toujours sur l auto.
+  // L outcome auto-cree par une transition signed reste meme si
+  // le partner repasse en ic_review (rollback Kanban).
+  let outcomeAutoCreated = false;
+  if (fromStage !== stage && (stage === 'signed' || stage === 'declined')) {
+    try {
+      const existing = await getOutcomeForAnalysis(params.id, ctx.user.id);
+      if (!existing) {
+        const analysis = await getAnalysis(params.id);
+        const prefill = buildKanbanOutcomePrefill(
+          params.id,
+          ctx.user.id,
+          stage,
+          analysis?.resultJson,
+        );
+        if (prefill) {
+          const created = await upsertOutcome(prefill);
+          if (created) outcomeAutoCreated = true;
+        }
+      }
+    } catch (err) {
+      console.warn('[status] auto-capture outcome failed (non-fatal):', err);
+    }
+  }
+
   // Notification Slack : best effort, ne pas faire echouer la requete
   // si le webhook tombe ou n est pas configure. On notifie seulement si
   // le stage change reellement (pas un re-set du meme stage).
@@ -115,5 +155,5 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json({ updated: true, stage });
+  return NextResponse.json({ updated: true, stage, outcomeAutoCreated });
 }
