@@ -108,7 +108,7 @@ export default function VersionSelector({
         return;
       }
       const res = await fetch(`/api/analyses/${analysisId}/versions/${versionNum}`);
-      if (!res.ok) throw new Error('echec chargement version');
+      if (!res.ok) throw new Error('échec chargement version');
       const data = await res.json();
       if (data?.version?.snapshotJson) {
         onVersionChange(data.version.snapshotJson, versionNum);
@@ -168,7 +168,7 @@ export default function VersionSelector({
             fontFamily: 'inherit',
           }}
         >
-          ↺ Revenir a v{latestVersion}
+          ↺ Revenir à v{latestVersion}
         </button>
       )}
 

@@ -110,7 +110,7 @@ export async function POST(
     const rawRefs: any[] = Array.isArray(body?.files) ? body.files : [];
     if (rawRefs.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Au moins un document data room requis pour declencher la DD approfondie' }),
+        JSON.stringify({ error: 'Au moins un document data room requis pour déclencher la DD approfondie' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } },
       );
     }
@@ -125,7 +125,7 @@ export async function POST(
       }
       if (!isValidStoragePath(r.storagePath, sessionPrefix)) {
         return new Response(
-          JSON.stringify({ error: `Chemin Storage refuse : ${r.storagePath}` }),
+          JSON.stringify({ error: `Chemin Storage refusé : ${r.storagePath}` }),
           { status: 400, headers: { 'Content-Type': 'application/json' } },
         );
       }

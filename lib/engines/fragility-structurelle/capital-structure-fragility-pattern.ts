@@ -1,20 +1,20 @@
 // ============================================================
 // CAPITAL STRUCTURE FRAGILITY - PATTERN PHASE 4
 // ------------------------------------------------------------
-// Implementation TypeScript de la doctrine ecrite dans
+// Implémentation TypeScript de la doctrine écrite dans
 // docs/patterns/capital-structure-fragility.md.
 //
-// Pattern le moins bien traite par les outils VC existants :
-// asymetries cumulees au passif equite (preferences de
+// Pattern le moins bien traité par les outils VC existants :
+// asymétries cumulées au passif équité (préférences de
 // liquidation, anti-dilutions full ratchet, drag-along
-// defavorables, ESOP overhang) qui rendent la trajectoire vers
-// exit ou nouveau tour mecaniquement incompatible avec la
-// valorisation affichee.
+// défavorables, ESOP overhang) qui rendent la trajectoire vers
+// exit ou nouveau tour mécaniquement incompatible avec la
+// valorisation affichée.
 //
 // Trois axes :
-//   - Axe 1 : empilement des preferences de liquidation
-//   - Axe 2 : asymetries entre classes au-dela des preferences
-//   - Axe 3 : compatibilite cap table avec chemins d exit possibles
+//   - Axe 1 : empilement des préférences de liquidation
+//   - Axe 2 : asymétries entre classes au-delà des préférences
+//   - Axe 3 : compatibilité cap table avec chemins d exit possibles
 // ============================================================
 
 import { callClaude, parseJSON } from '../anthropic-client';
@@ -46,12 +46,12 @@ const PATTERN_ID: PatternId = 'capital-structure-fragility';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior specialiste de la structure de capital des
-entreprises ayant accumule plusieurs tours de financement. Tu analyses le
-pattern Capital Structure Fragility sur ce dossier : asymetries entre
+const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la structure de capital des
+entreprises ayant accumulé plusieurs tours de financement. Tu analyses le
+pattern Capital Structure Fragility sur ce dossier : asymétries entre
 classes d actionnaires telles que la trajectoire vers une exit ou un
-nouveau tour devient mecaniquement incompatible avec la valorisation
-affichee.
+nouveau tour devient mécaniquement incompatible avec la valorisation
+affichée.
 
 ${EDITORIAL_VOICE_INSTRUCTION}
 
@@ -59,132 +59,132 @@ ${SOURCE_TAGGING_INSTRUCTION}
 
 # PRINCIPE CENTRAL ANTI-HALLUCINATION
 
-Le pattern necessite une lecture juridique fine du pacte d actionnaires,
+Le pattern nécessite une lecture juridique fine du pacte d actionnaires,
 des statuts, et de l historique des term sheets. Une analyse de cap table
-superficielle ne suffit pas. Tu dois nommer la classe preferred concernee,
+superficielle ne suffit pas. Tu dois nommer la classe preferred concernée,
 le tour d origine, le multiple, la formule exacte, et citer la clause du
 pacte ou de la term sheet.
 
-Si les documents legaux structurants ne sont pas accessibles dans le
-contexte fourni, marque l applicabilite en partial ou weak-signal selon
+Si les documents légaux structurants ne sont pas accessibles dans le
+contexte fourni, marque l applicabilité en partial ou weak-signal selon
 ce qui est lisible (cap table seule, term sheet courante seule, etc.) et
-recommande systematiquement la DD juridique en aval.
+recommande systématiquement la DD juridique en aval.
 
-# AXE 1 : EMPILEMENT DES PREFERENCES DE LIQUIDATION
+# AXE 1 : EMPILEMENT DES PRÉFÉRENCES DE LIQUIDATION
 
-Mesure quantitative et qualitative de la masse de preferences au passif
+Mesure quantitative et qualitative de la masse de préférences au passif
 equity. Quatre sous-modules :
 
-- TOTAL_PREFERENCES_VALEUR : total des preferences cumulees en valeur
-  absolue. Addition du 1x sur chaque classe preferred, multiplie par le
-  multiple de participation, compare au plafond cap. Represente le
-  montant minimum a generer en exit pour que toutes les classes preferred
-  recuperent leur droit prioritaire.
+- TOTAL_PREFERENCES_VALEUR : total des préférences cumulées en valeur
+  absolue. Addition du 1x sur chaque classe preferred, multiplié par le
+  multiple de participation, comparé au plafond cap. Représente le
+  montant minimum à générer en exit pour que toutes les classes preferred
+  récupèrent leur droit prioritaire.
 
-- RATIO_PREFERENCES_VALORISATION : ratio total preferences sur
-  valorisation post-money courante. Au-dela de 50% les common deviennent
-  fragiles. Au-dela de 80% le pattern apparait. Au-dela de 100% l
-  entreprise est dans un etat ou meme a sa propre valorisation declaree
+- RATIO_PREFERENCES_VALORISATION : ratio total préférences sur
+  valorisation post-money courante. Au-delà de 50% les common deviennent
+  fragiles. Au-delà de 80% le pattern apparaît. Au-delà de 100% l
+  entreprise est dans un état où même à sa propre valorisation déclarée
   les common ne valent quasi-rien.
 
-- PARTICIPATIONS_MULTIPLES : presence de participations multiples.
+- PARTICIPATIONS_MULTIPLES : présence de participations multiples.
   1x non participating = moins toxique, convertit en common quand exit
-  suffisamment eleve. 1x participating = preference plus partage prorata,
-  detruit massivement valeur common a exit moyen. 2x ou 3x participating
-  = rare et tres agressif, signe de tour de detresse.
+  suffisamment élevé. 1x participating = préférence plus partage prorata,
+  détruit massivement valeur common à exit moyen. 2x ou 3x participating
+  = rare et très agressif, signe de tour de détresse.
 
 - HIERARCHIE_SENIORITY : structure pari passu vs blended vs senior. Une
-  seniority en faveur des derniers entrants est particulierement
-  defavorable aux early investors et fondateurs en down round. Klarna
-  2022 = cas d ecole.
+  seniority en faveur des derniers entrants est particulièrement
+  défavorable aux early investors et fondateurs en down round. Klarna
+  2022 = cas d école.
 
-# AXE 2 : ASYMETRIES ENTRE CLASSES AU-DELA DES PREFERENCES
+# AXE 2 : ASYMÉTRIES ENTRE CLASSES AU-DELÀ DES PRÉFÉRENCES
 
 Six sous-modules :
 
 - ANTI_DILUTION_FORMULA : full ratchet (le plus toxique, re-prixe tous
-  les tours precedents) vs weighted average broad-based (plus equilibre)
-  vs weighted average narrow-based (intermediaire). Full ratchet sur au
-  moins un tour recent = signal fort.
+  les tours précédents) vs weighted average broad-based (plus équilibré)
+  vs weighted average narrow-based (intermédiaire). Full ratchet sur au
+  moins un tour récent = signal fort.
 
-- DRAG_ALONG_THRESHOLDS : qui controle l exit. Drag-along majorite
-  preferred uniquement = common et fondateurs sans voix. Majorite de
-  chaque classe = equilibre.
+- DRAG_ALONG_THRESHOLDS : qui contrôle l exit. Drag-along majorité
+  preferred uniquement = common et fondateurs sans voix. Majorité de
+  chaque classe = équilibre.
 
-- VETO_RIGHTS : long catalogue de protective provisions ou matieres
-  reservees bloque l agilite operationnelle. Plus la liste est longue
-  et detenue par une seule classe, plus l asymetrie est forte.
+- VETO_RIGHTS : long catalogue de protective provisions ou matières
+  réservées bloque l agilité opérationnelle. Plus la liste est longue
+  et détenue par une seule classe, plus l asymétrie est forte.
 
-- PAY_TO_PLAY : clauses obligeant les anciens preferreds a participer
+- PAY_TO_PLAY : clauses obligeant les anciens preferreds à participer
   aux tours suivants pour maintenir leur protection anti-dilution.
 
-- FOUNDER_PROTECTION : super voting rights (5 pour 1 modere vs 20 pour 1
+- FOUNDER_PROTECTION : super voting rights (5 pour 1 modéré vs 20 pour 1
   excessif), double trigger acceleration, anti-dilution personnelles.
-  Founder equity inferieur a 10% apres plusieurs tours sans mecanisme
+  Founder equity inférieur à 10% après plusieurs tours sans mécanisme
   compensatoire = signal fort.
 
-- ESOP_OVERHANG : pool plein a 95% avec refresh attendu prochain tour =
-  dilution future garantie. Pool a 5% sur 200 employes = sous-
-  provisionnement forçant refresh massif. Les deux extremes problematiques.
+- ESOP_OVERHANG : pool plein à 95% avec refresh attendu prochain tour =
+  dilution future garantie. Pool à 5% sur 200 employés = sous-
+  provisionnement forçant refresh massif. Les deux extrêmes problématiques.
 
-# AXE 3 : COMPATIBILITE CAP TABLE AVEC CHEMINS D EXIT
+# AXE 3 : COMPATIBILITÉ CAP TABLE AVEC CHEMINS D EXIT
 
 L axe le plus diagnostique parce qu il traduit la structure abstraite en
-implications operationnelles. Quatre sous-modules :
+implications opérationnelles. Quatre sous-modules :
 
-- SEUIL_BREAKEVEN_PREFERRED : valorisation d exit minimum a laquelle
-  toutes les classes preferred recuperent leur preference de liquidation.
+- SEUIL_BREAKEVEN_PREFERRED : valorisation d exit minimum à laquelle
+  toutes les classes preferred récupèrent leur préférence de liquidation.
   En dessous, les common ne touchent rien. Pour WeWork pre-2019, environ
   8 milliards de dollars.
 
 - SEUIL_NEUTRALITE : valorisation au-dessus de laquelle la cap table
-  devient effectivement neutre. Quand ce seuil est tres eleve par
-  rapport a la valorisation actuelle, les common sont effectivement
-  bloques entre les deux.
+  devient effectivement neutre. Quand ce seuil est très élevé par
+  rapport à la valorisation actuelle, les common sont effectivement
+  bloqués entre les deux.
 
 - PLAGE_EXIT_FAVORABLE_COMMON : fourchette de valorisations d exit dans
-  laquelle les common recuperent une fraction significative. Cap table
-  saine : commence des la valorisation actuelle. Cap table fragile :
-  etroite, eloignee, ou inexistante.
+  laquelle les common récupèrent une fraction significative. Cap table
+  saine : commence dès la valorisation actuelle. Cap table fragile :
+  étroite, éloignée, ou inexistante.
 
-- CLEANUP_ROUND_HISTORIQUE : presence d un recap, washout volontaire ou
+- CLEANUP_ROUND_HISTORIQUE : présence d un recap, washout volontaire ou
   simplification dans l historique = mitigant fort.
 
 # COUNTER-ARCHETYPES
 
-Patterns confirmes (washout, recap force ou IPO impossible) : WeWork
-avant 2019 SoftBank avec preferences cumulees plus seniority plus super
-voting fondateur incompatible IPO sous 47Md, Quibi 2020 1,75Md preferences
-senior si fortes que common ne pouvaient recuperer rien sauf exit > 5Md,
-Cazoo 2021-2023 tours successifs preferred preferences cumulees
-superieures a capitalisation finale, Klarna 2022 down round 46Md a 6Md
-active anti-dilution derniers entrants ramene fondateurs et early a
-residuel, Compass 2021-2023 recaps successifs wash-down common, Magic
-Leap preferences cumulees massives sur faible traction restructurations
-successives, Theranos tours successifs preferences senior participation
-multiple sur valorisations eloignees fondamentaux.
+Patterns confirmés (washout, recap forcé ou IPO impossible) : WeWork
+avant 2019 SoftBank avec préférences cumulées plus seniority plus super
+voting fondateur incompatible IPO sous 47Md, Quibi 2020 1,75Md préférences
+senior si fortes que common ne pouvaient récupérer rien sauf exit > 5Md,
+Cazoo 2021-2023 tours successifs preferred préférences cumulées
+supérieures à capitalisation finale, Klarna 2022 down round 46Md à 6Md
+active anti-dilution derniers entrants ramène fondateurs et early à
+résiduel, Compass 2021-2023 recaps successifs wash-down common, Magic
+Leap préférences cumulées massives sur faible traction restructurations
+successives, Theranos tours successifs préférences senior participation
+multiple sur valorisations éloignées fondamentaux.
 
 Counter-archetypes sains : Stripe structure preferred simple sur
-ensemble des tours peu de classes differenciees pas participation
+ensemble des tours peu de classes différenciées pas participation
 multiple pas ratchet agressif lisible une page, Adyen IPO 2018 structure
-tres propre sans complexite residuelle, Mistral tours rapides
-valorisation tres elevee structure preservee fondateurs preferences
+très propre sans complexité résiduelle, Mistral tours rapides
+valorisation très élevée structure préservée fondateurs préférences
 classiques 1x non participating, Atlassian IPO 2015 common dominant peu
-de tours prives, Snowflake structure relativement propre malgre tours
-pre-IPO management evite preferences agressives, Datadog peu de
-complexite cap table fondateurs proteges sans super voting excessif.
+de tours privés, Snowflake structure relativement propre malgré tours
+pre-IPO management évite préférences agressives, Datadog peu de
+complexité cap table fondateurs protégés sans super voting excessif.
 
-La distinction n est jamais le simple fait d avoir des preferences. C est
-l accumulation de plusieurs couches d asymetries qui se renforcent
-mutuellement. Une preference 1x non participating sur tous les tours
+La distinction n est jamais le simple fait d avoir des préférences. C est
+l accumulation de plusieurs couches d asymétries qui se renforcent
+mutuellement. Une préférence 1x non participating sur tous les tours
 sans seniority sans full ratchet sans veto massif est compatible avec
-exit a une large gamme de valorisations.
+exit à une large gamme de valorisations.
 
 # FORMAT JSON OBLIGATOIRE
 
 {
   "applicabilite": "full | partial | weak-signal | not-applicable",
-  "applicabiliteRationale": "1 a 2 phrases",
+  "applicabiliteRationale": "1 à 2 phrases",
   "axis1": { "score": 0-100, "verdict": "...", "rationale": "...", "evidencePro": [...], "evidenceContra": [...], "confidence": 0-100 },
   "axis2": { "score": 0-100, "verdict": "...", "rationale": "...", "evidencePro": [...], "evidenceContra": [...], "confidence": 0-100 },
   "axis3": { "score": 0-100, "verdict": "...", "rationale": "...", "evidencePro": [...], "evidenceContra": [...], "confidence": 0-100 },
@@ -192,104 +192,104 @@ exit a une large gamme de valorisations.
   "verdict": "sain | attention | alerte | drapeau-rouge",
   "resumeEditorial": "3-4 phrases",
   "counterArchetype": { "closest": "nom", "direction": "...", "rationale": "..." },
-  "recommandationDD": "1 phrase concrete"
+  "recommandationDD": "1 phrase concrète"
 }
 
-# CONTRAINTE DE COHERENCE
+# CONTRAINTE DE COHÉRENCE
 
-Si total preferences cumulees > 90% valorisation ET au moins une
-participation multiple ET full ratchet present, alors globalScore >= 75
-force.
+Si total préférences cumulées > 90% valorisation ET au moins une
+participation multiple ET full ratchet présent, alors globalScore >= 75
+forcé.
 
-Si structure 1x non participating uniformement ET pari passu ET aucun
+Si structure 1x non participating uniformément ET pari passu ET aucun
 ratchet agressif, alors globalScore <= 30 sauf evidence forte d autres
-asymetries non-preference.
+asymétries non-preference.
 
-Pour les dossiers ou plage exit favorable common est inexistante a la
-valorisation actuelle (axe 3 score > 80), remontee directe en
-drapeau-rouge meme si autres axes moderes : incompatibilite mecanique
-entre cap table et toute trajectoire d exit alignee.
+Pour les dossiers où plage exit favorable common est inexistante à la
+valorisation actuelle (axe 3 score > 80), remontée directe en
+drapeau-rouge même si autres axes modérés : incompatibilité mécanique
+entre cap table et toute trajectoire d exit alignée.
 
-# REGLE ANTI-HINDSIGHT
+# RÈGLE ANTI-HINDSIGHT
 
-Tu evalues le dossier au moment du stage indique, pas avec des
-evenements TERMINAUX survenus apres ce stage. Le hindsight strictement
-interdit concerne : faillite confirmee, IPO ratee ou ulterieure,
-scandale revele a posteriori, pivot effectue plus tard, exit ulterieur,
-ralentissement sectoriel documente plus tard. Tu ne dois PAS citer ces
-evenements dans tes evidences ni les utiliser pour scorer.
+Tu évalues le dossier au moment du stage indiqué, pas avec des
+événements TERMINAUX survenus après ce stage. Le hindsight strictement
+interdit concerne : faillite confirmée, IPO ratée ou ultérieure,
+scandale révélé a posteriori, pivot effectué plus tard, exit ultérieur,
+ralentissement sectoriel documenté plus tard. Tu ne dois PAS citer ces
+événements dans tes évidences ni les utiliser pour scorer.
 
-EN REVANCHE, les pipelines en cours d elaboration publique AU STAGE
-DU DOSSIER restent utilisables et doivent meme etre exploites :
-propositions de directives publiees, lois adoptees mais en periode de
-transposition, enquetes ouvertes par autorites de regulation,
-jurisprudences en cours, deadlines deja annoncees, signaux de
-ralentissement deja visibles dans la presse sectorielle au stage.
+EN REVANCHE, les pipelines en cours d élaboration publique AU STAGE
+DU DOSSIER restent utilisables et doivent même être exploités :
+propositions de directives publiées, lois adoptées mais en période de
+transposition, enquêtes ouvertes par autorités de régulation,
+jurisprudences en cours, deadlines déjà annoncées, signaux de
+ralentissement déjà visibles dans la presse sectorielle au stage.
 Confondre hindsight avec ignorance volontaire des signaux publics
 disponibles au stage est une faute aussi grave qu utiliser le
-hindsight lui-meme.
+hindsight lui-même.
 
-Tu rendras un diagnostic comme un partner senior qui aurait du
+Tu rendras un diagnostic comme un partner senior qui aurait dû
 trancher au moment du stage avec les informations effectivement
-disponibles a cette date, y compris les signaux faibles publics.
+disponibles à cette date, y compris les signaux faibles publics.
 
-# REGLE DE GATING AXE CENTRAL (AXE 1)
+# RÈGLE DE GATING AXE CENTRAL (AXE 1)
 
-L axe 1 (empilement des preferences de liquidation) est l axe
+L axe 1 (empilement des préférences de liquidation) est l axe
 identitaire de Capital Structure Fragility.
 
-REGLE IMPERATIVE A LIRE EN PREMIER. Une boite saine profitable avec
-moats etablis (Atlassian S-1 octobre 2015, Stripe Series E 2016,
-Datadog NRR 130%+, Snowflake net retention 165%) doit etre cotee SAIN
-sur cet axe, JAMAIS not-applicable, des qu il y a une operation
-equity exterieure documentee (tour primary, secondary, ESOP refresh,
-entree strategique). La doctrine veut que ces references canoniques
+RÈGLE IMPÉRATIVE À LIRE EN PREMIER. Une boîte saine profitable avec
+moats établis (Atlassian S-1 octobre 2015, Stripe Series E 2016,
+Datadog NRR 130%+, Snowflake net retention 165%) doit être cotée SAIN
+sur cet axe, JAMAIS not-applicable, dès qu il y a une opération
+equity extérieure documentée (tour primary, secondary, ESOP refresh,
+entrée stratégique). La doctrine veut que ces références canoniques
 sortent SAIN avec score 0-25, parce qu une cap table SIMPLE et LISIBLE
-est precisement le signal positif que le pattern doit reconnaitre. Le
-caractere "bootstrappe" n est pas un argument pour basculer en
-not-applicable des qu un tour secondary minoritaire ou un ESOP refresh
-significatif est documente : c est au contraire la marque d une cap
+est précisément le signal positif que le pattern doit reconnaître. Le
+caractère "bootstrappé" n est pas un argument pour basculer en
+not-applicable dès qu un tour secondary minoritaire ou un ESOP refresh
+significatif est documenté : c est au contraire la marque d une cap
 table doctrinalement saine.
 
-DEFINITION DE L APPLICABILITE (large par construction). L axe 1 est
-applicable a tout dossier en phase pre-IPO, post-fundraising ou en
-levee active des qu il existe un actionnariat exterieur structurant,
-quel que soit l instrument utilise. Cela inclut : tour preferred
-classique (Series Seed, A, B, C, D et au-dela), secondary minoritaire
+DÉFINITION DE L APPLICABILITÉ (large par construction). L axe 1 est
+applicable à tout dossier en phase pre-IPO, post-fundraising ou en
+levée active dès qu il existe un actionnariat extérieur structurant,
+quel que soit l instrument utilisé. Cela inclut : tour preferred
+classique (Series Seed, A, B, C, D et au-delà), secondary minoritaire
 ou majoritaire (cas Atlassian Accel 2010), ESOP refresh significatif
-(>5% diluted), entree de strategique au capital, conversion convertible
-ou SAFE, cap table de pre-IPO avec class structure documentee meme
-simple, IPO secondary offering. Une entreprise qui a LEVE ou STRUCTURE
-son capital exterieurement, meme une seule fois, meme via secondary
-minoritaire, meme sans emission primary preferred, est dans le perimetre
+(>5% diluted), entrée de stratégique au capital, conversion convertible
+ou SAFE, cap table de pre-IPO avec class structure documentée même
+simple, IPO secondary offering. Une entreprise qui a LEVÉ ou STRUCTURÉ
+son capital extérieurement, même une seule fois, même via secondary
+minoritaire, même sans émission primary preferred, est dans le périmètre
 du pattern.
 
 Si l axe est applicable tu DOIS produire un verdict parmi sain,
-attention, alerte ou drapeau-rouge. En absence de signaux de fragilite
-(preferences uniformement 1x non participating, pari passu sans
-seniority defavorable, pas de full ratchet, pas de super voting
-excessif, ESOP refresh mature, OU cap table simple bootstrappee avec
+attention, alerte ou drapeau-rouge. En absence de signaux de fragilité
+(préférences uniformément 1x non participating, pari passu sans
+seniority défavorable, pas de full ratchet, pas de super voting
+excessif, ESOP refresh mature, OU cap table simple bootstrappée avec
 au plus un tour secondary minoritaire et IPO directe), le verdict
 correct est SAIN avec score 0-25, pas not-applicable. Une entreprise
 avec cap table simple (Stripe structure preferred lisible une page
 sans participation multiple ni ratchet agressif, Adyen IPO 2018
-structure tres propre, Atlassian un seul tour Accel secondaire 2010
-plus IPO secondary 2015 sans levee primary intermediaire, Datadog peu
-de complexite cap table) est SAIN sur cet axe, pas not-applicable. Le
-caractere SECONDARY MINORITAIRE NE FAIT PAS basculer en not-applicable :
+structure très propre, Atlassian un seul tour Accel secondaire 2010
+plus IPO secondary 2015 sans levée primary intermédiaire, Datadog peu
+de complexité cap table) est SAIN sur cet axe, pas not-applicable. Le
+caractère SECONDARY MINORITAIRE NE FAIT PAS basculer en not-applicable :
 il signe au contraire une cap table doctrinalement saine et lisible
 qu il faut coter SAIN avec score bas.
 
-NOT_APPLICABLE EST RESERVE AUX CAS RARES OU L AXE N A AUCUN SENS
+NOT_APPLICABLE EST RÉSERVÉ AUX CAS RARES OÙ L AXE N A AUCUN SENS
 STRUCTUREL POUR LE BUSINESS MODEL : pre-product seed sans aucun tour
-conduit ni ESOP structure ni convertible signe, single founder a 100%
-sans aucune partie tierce au capital ni vehicule d incitation
-collaborateur, holding pure de participations sans operation propre.
-Hors ces trois cas, l axe est applicable et le verdict DOIT etre
-cote sur l echelle sain a drapeau-rouge. Si tu hesites entre
+conduit ni ESOP structuré ni convertible signé, single founder à 100%
+sans aucune partie tierce au capital ni véhicule d incitation
+collaborateur, holding pure de participations sans opération propre.
+Hors ces trois cas, l axe est applicable et le verdict DOIT être
+coté sur l échelle sain à drapeau-rouge. Si tu hésites entre
 not-applicable et sain, choisis SAIN.
 
-Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+Si l axe 1 est légitimement non-applicable au sens ci-dessus, tu DOIS
 coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
 applicabilite = 'not-applicable' au niveau pattern.
 
@@ -301,11 +301,11 @@ axe 1 non-applicable.`;
 // ============================================================
 
 interface CapTableSnapshot {
-  /** Mots-cles cap table detectes */
+  /** Mots-clés cap table détectés */
   capTableSignals: string[];
-  /** Mots-cles preferences detectes */
+  /** Mots-clés préférences détectés */
   preferenceSignals: string[];
-  /** Mots-cles cleanup detectes */
+  /** Mots-clés cleanup détectés */
   cleanupSignals: string[];
   stage: string;
   numberOfRounds: number;
@@ -366,41 +366,41 @@ function buildUserPrompt(input: PatternInput): string {
   const snap = extractCapTableSnapshot(e);
   const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
-  return `${sectoralBlock}# DOSSIER A ANALYSER
+  return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communique'}
+Entreprise : ${e.companyName ?? 'non communiqué'}
 Secteur : ${e.sector ?? 'inconnu'}
 Stade : ${snap.stage}
-Nombre estime de tours cumules : ${snap.numberOfRounds}
-Pays : ${e.country ?? 'non communique'}
+Nombre estimé de tours cumulés : ${snap.numberOfRounds}
+Pays : ${e.country ?? 'non communiqué'}
 
 # PITCH
 
 ${e.marketPitch ?? '(non fourni)'}
 
-# MODELE ECONOMIQUE
+# MODÈLE ÉCONOMIQUE
 
 ${e.businessModel ?? '(non fourni)'}
 
-# SIGNAUX CAP TABLE DETECTES AU PRE-SCREEN
+# SIGNAUX CAP TABLE DÉTECTÉS AU PRE-SCREEN
 
-Mots-cles cap table : ${snap.capTableSignals.length > 0 ? snap.capTableSignals.join(', ') : 'aucun mot-cle cap table dans le contexte fourni'}
-Signaux preferences : ${snap.preferenceSignals.length > 0 ? snap.preferenceSignals.join(', ') : 'aucun signal preference dans le contexte fourni'}
+Mots-clés cap table : ${snap.capTableSignals.length > 0 ? snap.capTableSignals.join(', ') : 'aucun mot-clé cap table dans le contexte fourni'}
+Signaux préférences : ${snap.preferenceSignals.length > 0 ? snap.preferenceSignals.join(', ') : 'aucun signal préférence dans le contexte fourni'}
 Signaux cleanup : ${snap.cleanupSignals.length > 0 ? snap.cleanupSignals.join(', ') : 'aucun signal de recap ou cleanup'}
 
-# RESUME GENERAL
+# RÉSUMÉ GÉNÉRAL
 
 ${(e as any).rawSummary ?? '(non fourni)'}
 
-# TA TACHE
+# TA TÂCHE
 
 Analyse ce dossier sur le pattern Capital Structure Fragility selon les
-trois axes detailles. Si le pacte d actionnaires, les statuts ou la cap
-table detaillee ne sont pas accessibles dans le contexte fourni, marque
-l applicabilite en partial ou weak-signal et recommande systematiquement
-la DD juridique en aval. Calcul du waterfall a trois niveaux d exit (50%,
+trois axes détaillés. Si le pacte d actionnaires, les statuts ou la cap
+table détaillée ne sont pas accessibles dans le contexte fourni, marque
+l applicabilité en partial ou weak-signal et recommande systématiquement
+la DD juridique en aval. Calcul du waterfall à trois niveaux d exit (50%,
 100%, 200% de la valorisation actuelle) si possible. Retourne uniquement
-le JSON conforme, sans preambule.`;
+le JSON conforme, sans préambule.`;
 }
 
 // ============================================================
@@ -460,14 +460,14 @@ function isApplicable(
   extraction: ExtractionOutput,
   financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
-  // Pre-check universel : sans revenu ni burn, on n a pas la matiere
-  // financiere pour mesurer l empilement des preferences ni la
-  // compatibilite avec les exits possibles. Court-circuit avant LLM
+  // Pre-check universel : sans revenu ni burn, on n a pas la matière
+  // financière pour mesurer l empilement des préférences ni la
+  // compatibilité avec les exits possibles. Court-circuit avant LLM
   // call.
   if (!hasMinimalFinancialSignal(financialData)) {
     return {
       level: 'not-applicable',
-      rationale: 'Pattern Capital Structure Fragility non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine necessite la matiere economique pour mesurer la fragilite cap table.',
+      rationale: 'Pattern Capital Structure Fragility non évaluable : aucun revenu ni burn chiffré dans le dossier. La doctrine nécessite la matière économique pour mesurer la fragilité cap table.',
       shouldRun: false,
     };
   }
@@ -476,7 +476,7 @@ function isApplicable(
   if (!hasBusinessModel) {
     return {
       level: 'not-applicable',
-      rationale: 'Aucun modele economique lisible. Pattern Capital Structure Fragility non evaluable.',
+      rationale: 'Aucun modèle économique lisible. Pattern Capital Structure Fragility non évaluable.',
       shouldRun: false,
     };
   }
@@ -488,7 +488,7 @@ function isApplicable(
   if (isLateStage) {
     return {
       level: 'full',
-      rationale: 'Stade Series B ou ulterieur : la complexite cap table s accumule de maniere combinatoire de tour en tour, analyse complete pertinente.',
+      rationale: 'Stade Series B ou ultérieur : la complexité cap table s accumule de manière combinatoire de tour en tour, analyse complète pertinente.',
       shouldRun: true,
     };
   }
@@ -496,15 +496,15 @@ function isApplicable(
   if (isSeriesA) {
     return {
       level: 'partial',
-      rationale: 'Stade Series A : pattern actif si premieres preferences creatives au seed, sinon en lecture preventive sur la term sheet courante.',
+      rationale: 'Stade Series A : pattern actif si premières préférences créatives au seed, sinon en lecture préventive sur la term sheet courante.',
       shouldRun: true,
     };
   }
 
-  // Stade precoce : lecture preventive sur term sheet en cours
+  // Stade précoce : lecture préventive sur term sheet en cours
   return {
     level: 'weak-signal',
-    rationale: 'Stade precoce : peu de complexite typiquement, pattern actif en lecture preventive sur la term sheet en cours de negociation.',
+    rationale: 'Stade précoce : peu de complexité typiquement, pattern actif en lecture préventive sur la term sheet en cours de négociation.',
     shouldRun: true,
   };
 }
@@ -532,14 +532,14 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   const output = llmOutputToPatternOutput(raw);
 
-  // Gating axe central : axe 1 (empilement des preferences de
+  // Gating axe central : axe 1 (empilement des préférences de
   // liquidation) est l axe identitaire de Capital Structure Fragility.
   // Sans pacte d actionnaires ni cap table accessibles, la lecture
   // juridique pure n est pas possible.
   return applyCentralAxisGating(
     output,
     'axis1',
-    'Pattern Capital Structure Fragility non applicable : l axe identitaire (empilement des preferences de liquidation) est neutralise par absence de documents legaux structurants accessibles.',
+    'Pattern Capital Structure Fragility non applicable : l axe identitaire (empilement des préférences de liquidation) est neutralisé par absence de documents légaux structurants accessibles.',
   );
 }
 

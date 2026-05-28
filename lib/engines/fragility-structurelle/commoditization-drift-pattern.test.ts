@@ -116,7 +116,7 @@ console.log('\n=== Test 8 : buildUserPrompt structure ===');
   const p = _internal.buildUserPrompt(input);
   checkTrue('mentionne entreprise', p.includes('TestCo'));
   checkTrue('mentionne signaux IA', p.includes('GPT'));
-  checkTrue('contient SIGNAUX DEFENSIBILITE', p.includes('SIGNAUX DEFENSIBILITE'));
+  checkTrue('contient SIGNAUX DÉFENSIBILITÉ', p.includes('SIGNAUX DÉFENSIBILITÉ'));
 }
 
 console.log('\n=== Test 9 : llmOutputToPatternOutput ===');
@@ -144,13 +144,13 @@ console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
 {
   const sp = _internal.SYSTEM_PROMPT;
   checkTrue('mentionne axe 1 nature moats', sp.toLowerCase().includes('axe 1') && sp.toLowerCase().includes('moats'));
-  checkTrue('mentionne axe 2 dereliction techno', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('dereliction'));
+  checkTrue('mentionne axe 2 dereliction techno', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('déréliction'));
   checkTrue('mentionne axe 3 reconstruire', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('reconstruire'));
   checkTrue('mentionne Chegg confirme', sp.includes('Chegg'));
   checkTrue('mentionne Stripe Salesforce sains', sp.includes('Stripe') && sp.includes('Salesforce'));
   checkTrue('mentionne Bloomberg', sp.includes('Bloomberg'));
   checkTrue('mentionne distinction monomoats', sp.toLowerCase().includes('monomoats'));
-  checkTrue('contrainte coherence', sp.includes('CONTRAINTE DE COHERENCE'));
+  checkTrue('contrainte coherence', sp.includes('CONTRAINTE DE COHÉRENCE'));
 }
 
 console.log('\n=== Test 11 : KEYWORDS calibres ===');

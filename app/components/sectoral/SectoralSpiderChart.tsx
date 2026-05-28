@@ -134,9 +134,9 @@ export function SectoralSpiderChart(props: SectoralSpiderChartProps): React.Reac
     return (
       <div className="sectoral-empty" data-testid="sectoral-empty-unknown">
         <p>
-          Secteur emergent non couvert par la matrice Prelude. La lecture
-          sectorielle est suspendue pour ce dossier, l analyse s appuie sur le
-          seul contenu du pitch et sur la doctrine generale des moteurs.
+          Secteur émergent non couvert par la matrice Prélude. La lecture
+          sectorielle est suspendue pour ce dossier, l&apos;analyse s&apos;appuie sur le
+          seul contenu du pitch et sur la doctrine générale des moteurs.
         </p>
         <ChartStyles />
       </div>
@@ -148,10 +148,10 @@ export function SectoralSpiderChart(props: SectoralSpiderChartProps): React.Reac
       <div className="sectoral-empty" data-testid="sectoral-empty-expired">
         <p>
           {sectorLabel
-            ? `La fiche sectorielle ${sectorLabel} disponible depasse douze mois sans regeneration.`
-            : 'La fiche sectorielle disponible depasse douze mois sans regeneration.'}{' '}
-          L injection sectorielle est desactivee pour ne pas contaminer l
-          analyse avec une lecture perimee.
+            ? `La fiche sectorielle ${sectorLabel} disponible dépasse douze mois sans régénération.`
+            : 'La fiche sectorielle disponible dépasse douze mois sans régénération.'}{' '}
+          L&apos;injection sectorielle est désactivée pour ne pas contaminer l&apos;analyse
+          avec une lecture périmée.
         </p>
         <ChartStyles />
       </div>
@@ -164,7 +164,7 @@ export function SectoralSpiderChart(props: SectoralSpiderChartProps): React.Reac
   const resolvedSubtitle =
     subtitle ??
     (mode === 'stale'
-      ? `Fiche du ${dateLabel}, regeneration recommandee`
+      ? `Fiche du ${dateLabel}, régénération recommandée`
       : `Fiche du ${dateLabel}`);
 
   const data = briefToSpiderData(brief, {
@@ -224,7 +224,7 @@ export function SectoralSpiderChart(props: SectoralSpiderChartProps): React.Reac
             aria-expanded={expanded}
             data-testid="sectoral-spider-toggle"
           >
-            {expanded ? 'Replier les definitions' : 'Deplier les definitions des huit dimensions'}
+            {expanded ? 'Replier les définitions' : 'Déplier les définitions des huit dimensions'}
           </button>
           {expanded && <DimensionsList brief={brief} />}
         </div>
@@ -246,10 +246,10 @@ function DimensionsList({ brief }: { brief: SectoralBrief }): React.ReactElement
         const d = brief.dimensions[key];
         const label = DIMENSION_LABELS[key];
         const score = d?.data_missing
-          ? 'donnee insuffisante'
+          ? 'donnée insuffisante'
           : typeof d?.score === 'number'
             ? `${d.score}/100`
-            : 'non chiffre';
+            : 'non chiffré';
         return (
           <li key={key} className="sectoral-dimensions-item">
             <div className="sectoral-dimensions-head">

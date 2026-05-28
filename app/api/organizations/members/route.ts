@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'userId manquant' }, { status: 400 });
   }
   if (role !== 'admin' && role !== 'member' && role !== 'observer') {
-    return NextResponse.json({ error: 'Role invalide' }, { status: 400 });
+    return NextResponse.json({ error: 'Rôle invalide' }, { status: 400 });
   }
 
   // Garde-fou : si on degrade le dernier admin, on bloque.

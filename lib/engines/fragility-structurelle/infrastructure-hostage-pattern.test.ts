@@ -252,13 +252,13 @@ console.log('\n=== Test 9 : llmOutputToPatternOutput ===');
 console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
 {
   const sp = _internal.SYSTEM_PROMPT;
-  checkTrue('mentionne axe 1 intensite dependance', sp.toLowerCase().includes('axe 1') && sp.toLowerCase().includes('dependance'));
+  checkTrue('mentionne axe 1 intensite dependance', sp.toLowerCase().includes('axe 1') && sp.toLowerCase().includes('dépendance'));
   checkTrue('mentionne axe 2 pouvoir de marche', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('pouvoir'));
-  checkTrue('mentionne axe 3 deverrouillage', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('deverrouillage'));
+  checkTrue('mentionne axe 3 deverrouillage', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('déverrouillage'));
   checkTrue('mentionne Jasper et Copy.ai', sp.includes('Jasper') && sp.includes('Copy.ai'));
   checkTrue('mentionne Stripe Salesforce sains', sp.includes('Salesforce') && sp.includes('Stripe'));
-  checkTrue('mentionne contrainte coherence', sp.includes('CONTRAINTE DE COHERENCE'));
-  checkTrue('mentionne specificite wrappers LLM', sp.includes('SPECIFICITE WRAPPERS LLM'));
+  checkTrue('mentionne contrainte coherence', sp.includes('CONTRAINTE DE COHÉRENCE'));
+  checkTrue('mentionne specificite wrappers LLM', sp.includes('SPÉCIFICITÉ WRAPPERS LLM'));
   checkTrue('format JSON specifie', sp.includes('FORMAT JSON OBLIGATOIRE'));
 }
 

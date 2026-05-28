@@ -78,7 +78,7 @@ export async function regenerateSectoralBrief(
       total_sources_cited: 0,
       cost_usd: 0,
       duration_ms: Date.now() - start,
-      rejection_reason: `Secteur inconnu : ${sectorSlug}. Verifier le slug dans types.SECTORS.`,
+      rejection_reason: `Secteur inconnu : ${sectorSlug}. Vérifier le slug dans types.SECTORS.`,
       error_message: 'sector_unknown',
     };
   }
@@ -140,7 +140,7 @@ export async function regenerateSectoralBrief(
       const err = res.reason instanceof Error ? res.reason.message : String(res.reason);
       dimensions[key] = makeDataMissingDimension(
         key,
-        `Echec appel LLM pour ${DIMENSION_LABELS[key]}. ${err}`,
+        `Échec appel LLM pour ${DIMENSION_LABELS[key]}. ${err}`,
       );
       missing.push(key);
     }
@@ -153,7 +153,7 @@ export async function regenerateSectoralBrief(
     if (!dimensions[k]) {
       dimensions[k] = makeDataMissingDimension(
         k,
-        'Dimension non incluse dans cette regeneration.',
+        'Dimension non incluse dans cette régénération.',
       );
     }
   }
@@ -179,7 +179,7 @@ export async function regenerateSectoralBrief(
       total_sources_cited: totalSourcesCited,
       cost_usd: costAccumulator,
       duration_ms: Date.now() - start,
-      rejection_reason: `${finalMissing.length} dimensions en data_missing, seuil de tolerance fixe a ${MAX_DATA_MISSING_TOLERATED}. Dimensions concernees : ${finalMissing.join(
+      rejection_reason: `${finalMissing.length} dimensions en data_missing, seuil de tolérance fixé à ${MAX_DATA_MISSING_TOLERATED}. Dimensions concernées : ${finalMissing.join(
         ', ',
       )}.`,
     };
@@ -208,7 +208,7 @@ export async function regenerateSectoralBrief(
       total_sources_cited: totalSourcesCited,
       cost_usd: costAccumulator,
       duration_ms: Date.now() - start,
-      rejection_reason: 'Echec de l agregation editoriale finale.',
+      rejection_reason: "Échec de l'agrégation éditoriale finale.",
       error_message: message,
     };
   }
@@ -330,7 +330,7 @@ function sanitizeDimensionResponse(
       sources_cited: hasSources ? raw.sources_cited : [],
       confidence: 'data_missing',
       data_missing: true,
-      notes: raw.notes ?? `Donnee insuffisante pour ${DIMENSION_LABELS[dimension]}.`,
+      notes: raw.notes ?? `Donnée insuffisante pour ${DIMENSION_LABELS[dimension]}.`,
     };
   }
 
@@ -343,7 +343,7 @@ function sanitizeDimensionResponse(
   if (typeof originalScore === 'number' && !Number.isNaN(originalScore)) {
     clampedScore = Math.max(0, Math.min(100, originalScore));
     if (clampedScore !== originalScore) {
-      scoreNote = `Score original ${originalScore} clampe a ${clampedScore} pour respecter l echelle 0-100.`;
+      scoreNote = `Score original ${originalScore} clampé à ${clampedScore} pour respecter l'échelle 0-100.`;
     }
   } else {
     // Score non-numerique alors que data_missing=false : on bascule
@@ -354,7 +354,7 @@ function sanitizeDimensionResponse(
       sources_cited: hasSources ? raw.sources_cited : [],
       confidence: 'data_missing',
       data_missing: true,
-      notes: `Score non-numerique retourne par le LLM, bascule en data_missing pour ${DIMENSION_LABELS[dimension]}.`,
+      notes: `Score non-numérique retourné par le LLM, bascule en data_missing pour ${DIMENSION_LABELS[dimension]}.`,
     };
   }
 
@@ -381,7 +381,7 @@ function makeDataMissingDimension(
     sources_cited: [],
     confidence: 'data_missing',
     data_missing: true,
-    notes: reason || `Donnee insuffisante pour ${DIMENSION_LABELS[dimension]}.`,
+    notes: reason || `Donnée insuffisante pour ${DIMENSION_LABELS[dimension]}.`,
   };
 }
 
@@ -390,7 +390,7 @@ function summarizeDimensionsForAggregator(
 ): string {
   return DIMENSION_KEYS.map((k) => {
     const d = dimensions[k];
-    const scoreText = d.data_missing ? 'donnee manquante' : `score ${d.score}/100`;
+    const scoreText = d.data_missing ? 'donnée manquante' : `score ${d.score}/100`;
     const conf = d.confidence;
     const note = d.notes ? ` Notes : ${d.notes}` : '';
     return `- ${DIMENSION_LABELS[k]} (${scoreText}, confidence ${conf}).${note}`;

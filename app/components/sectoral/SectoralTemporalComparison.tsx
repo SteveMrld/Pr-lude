@@ -77,8 +77,8 @@ export function SectoralTemporalComparison(
     size,
     mode: 'temporal',
     secondary: previousData,
-    primaryLabel: `Aujourd hui (${currentDateLabel})`,
-    secondaryLabel: `Reference historique (${previousDateLabel})`,
+    primaryLabel: `Aujourd'hui (${currentDateLabel})`,
+    secondaryLabel: `Référence historique (${previousDateLabel})`,
   });
 
   const paragraph =
@@ -94,11 +94,11 @@ export function SectoralTemporalComparison(
     >
       <div className="sectoral-temporal-header">
         <div className="sectoral-temporal-title">
-          {sectorLabel}, evolution sectorielle
+          {sectorLabel}, évolution sectorielle
         </div>
         <div className="sectoral-temporal-subtitle">
           Comparaison entre la fiche actuelle ({currentDateLabel}) et la
-          reference historique ({previousDateLabel}).
+          référence historique ({previousDateLabel}).
         </div>
       </div>
       <div

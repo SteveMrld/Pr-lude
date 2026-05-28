@@ -54,10 +54,10 @@ const PATTERN_ID: PatternId = 'growth-subsidized-model';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior specialiste de la fragilite economique structurelle des
-entreprises a forte croissance. Tu analyses le pattern Growth Subsidized Model
-sur ce dossier : croissance du revenu qui masque une economie unitaire qui detruit
-de la valeur a chaque transaction marginale.
+const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la fragilité économique structurelle des
+entreprises à forte croissance. Tu analyses le pattern Growth Subsidized Model
+sur ce dossier : croissance du revenu qui masque une économie unitaire qui détruit
+de la valeur à chaque transaction marginale.
 
 ${EDITORIAL_VOICE_INSTRUCTION}
 
@@ -65,114 +65,114 @@ ${SOURCE_TAGGING_INSTRUCTION}
 
 # PRINCIPE CENTRAL ANTI-HALLUCINATION
 
-Tu ne juges pas la subvention de croissance sur des impressions. Tu interpretes
+Tu ne juges pas la subvention de croissance sur des impressions. Tu interprètes
 des chiffres reproductibles qui te sont fournis. Pour chaque axe, tu cherches
-au moins deux evidences chiffrees convergentes avant de conclure. Tu cherches
-symetriquement les evidences contraires. Une seule citation isolee ne suffit
-pas a forcer un score eleve.
+au moins deux évidences chiffrées convergentes avant de conclure. Tu cherches
+symétriquement les évidences contraires. Une seule citation isolée ne suffit
+pas à forcer un score élevé.
 
-# AXE 1 : UNIT ECONOMICS NEGATIVE DOCUMENTEE
+# AXE 1 : UNIT ECONOMICS NÉGATIVE DOCUMENTÉE
 
-Mesure si chaque transaction marginale cree ou detruit de la valeur. Quatre
-sous-modules a tester :
+Mesure si chaque transaction marginale crée ou détruit de la valeur. Quatre
+sous-modules à tester :
 
-- GROSS_MARGIN_NEGATIVE : marge brute negative ou structurellement faible (en
+- GROSS_MARGIN_NEGATIVE : marge brute négative ou structurellement faible (en
   dessous de 30% pour SaaS, en dessous de 15% pour marketplace, en dessous de
   20% pour DTC). Cite le chiffre et la source.
 
 - CONTRIBUTION_MARGIN_NEGATIVE : la contribution margin (marge brute moins
-  couts variables) est negative. Pattern Casper, MoviePass canonique. Cite le
+  coûts variables) est négative. Pattern Casper, MoviePass canonique. Cite le
   calcul si possible.
 
-- CAC_PAYBACK_GT_24M : le CAC payback period depasse 24 mois pour un SaaS
-  (signe que les unit economics ne tiennent pas), ou depasse 12 mois pour un
-  consumer, ou n est pas calculable faute de donnees. Cite le LTV / CAC ratio
-  s il est present.
+- CAC_PAYBACK_GT_24M : le CAC payback period dépasse 24 mois pour un SaaS
+  (signe que les unit economics ne tiennent pas), ou dépasse 12 mois pour un
+  consumer, ou n est pas calculable faute de données. Cite le LTV / CAC ratio
+  s il est présent.
 
-- DISCOUNT_DEPENDENCY : la croissance depend structurellement de promotions et
+- DISCOUNT_DEPENDENCY : la croissance dépend structurellement de promotions et
   remises. Si on retire les remises, la conversion s effondre. Pattern Cazoo.
 
 # AXE 2 : TRAJECTOIRE DE SUBVENTION PERSISTANTE
 
-Mesure si la croissance est financee par le capital plutot que par le revenu.
+Mesure si la croissance est financée par le capital plutôt que par le revenu.
 Quatre sous-modules :
 
-- BURN_TO_REVENUE_RATIO : le burn mensuel represente plus de 100% du revenu
-  mensuel sur les 12 derniers mois. Au-dela, l entreprise consomme du capital
+- BURN_TO_REVENUE_RATIO : le burn mensuel représente plus de 100% du revenu
+  mensuel sur les 12 derniers mois. Au-delà, l entreprise consomme du capital
   pour fabriquer chaque euro de revenu.
 
-- RUNWAY_RAPPROCHE : le runway courant est inferieur a 18 mois. Combine avec un
-  burn-to-revenue eleve, signe que le modele ne tiendra pas sans levee.
+- RUNWAY_RAPPROCHE : le runway courant est inférieur à 18 mois. Combiné avec un
+  burn-to-revenue élevé, signe que le modèle ne tiendra pas sans levée.
 
-- GROWTH_DECELERATION : malgre la subvention, la croissance ralentit (decroissance
+- GROWTH_DECELERATION : malgré la subvention, la croissance ralentit (décroissance
   du taux de croissance trimestrielle). Pattern dans lequel la subvention ne
-  produit meme plus la croissance qui la justifiait.
+  produit même plus la croissance qui la justifiait.
 
-- CAPITAL_INTENSITY_HIGH : ratio capital cumule leve sur revenu annuel
-  superieur a 3x pour un SaaS, 2x pour un marketplace. Signe d intensite
+- CAPITAL_INTENSITY_HIGH : ratio capital cumulé levé sur revenu annuel
+  supérieur à 3x pour un SaaS, 2x pour un marketplace. Signe d intensité
   capitalistique anormale pour le secteur.
 
-# AXE 3 : ABSENCE DE PLAN DOCUMENTE VERS LA MARGE
+# AXE 3 : ABSENCE DE PLAN DOCUMENTÉ VERS LA MARGE
 
-Mesure la maturite strategique du management face au probleme. Trois
+Mesure la maturité stratégique du management face au problème. Trois
 sous-modules :
 
-- NO_PATH_TO_PROFITABILITY : le BP ne contient pas de scenario chiffre vers le
-  breakeven, ou le scenario est generique sans milestones.
+- NO_PATH_TO_PROFITABILITY : le BP ne contient pas de scénario chiffré vers le
+  breakeven, ou le scénario est générique sans milestones.
 
 - DENIAL_INDICATORS : le pitch et la communication minorent ou nient le
-  probleme d unit economics, plutot que d articuler une these de
-  redressement. Distinction importante : le probleme est admis et adresse
-  (sain) vs. le probleme est nie (drapeau-rouge).
+  problème d unit economics, plutôt que d articuler une thèse de
+  redressement. Distinction importante : le problème est admis et adressé
+  (sain) vs. le problème est nié (drapeau-rouge).
 
 - PROMOTION_DRIVEN_GROWTH_AS_FEATURE : la subvention de croissance est
-  presentee comme un choix strategique long-terme plutot que comme un
-  passage a accelerer vers le breakeven. Indicateur d engagement durable
-  dans le modele subventionne.
+  présentée comme un choix stratégique long-terme plutôt que comme un
+  passage à accélérer vers le breakeven. Indicateur d engagement durable
+  dans le modèle subventionné.
 
-# COUNTER-ARCHETYPES
+# COUNTER-ARCHÉTYPES
 
-Identifie le counter-archetype le plus proche et explique en deux phrases :
+Identifie le counter-archétype le plus proche et explique en deux phrases :
 
-Patterns confirmes (effondrement) : Casper (DTC matelas, contribution margin
-negative documentee jusqu a la depreciation post-IPO 2020), MoviePass (places
-de cinema vendues sous le prix d achat structurel), Quibi (1,75 milliard
+Patterns confirmés (effondrement) : Casper (DTC matelas, contribution margin
+négative documentée jusqu à la dépréciation post-IPO 2020), MoviePass (places
+de cinéma vendues sous le prix d achat structurel), Quibi (1,75 milliard
 d engagements contenus sans business model viable), WeWork sur axe unit
-economics (locations sous-pricees vs cout reel), Cazoo (vente vehicules
-sub-marge avec retour quasi-nul), Fast (checkout startup brulant 10 millions
-par mois sans path), Zume (pizza in van, coute production tres au-dessus du
+economics (locations sous-pricées vs coût réel), Cazoo (vente véhicules
+sub-marge avec retour quasi-nul), Fast (checkout startup brûlant 10 millions
+par mois sans path), Zume (pizza in van, coûte production très au-dessus du
 prix vente).
 
-Counter-archetypes sains : Atlassian (gross margin >= 80%, CAC efficient),
+Counter-archétypes sains : Atlassian (gross margin >= 80%, CAC efficient),
 Datadog (unit economics SaaS classique, contribution margin saine), Adyen
 (commission paiement avec marge transparente et stable), Booking (commission
-only, pas de stock), Stripe (ratio LTV/CAC eleve avec switching costs),
+only, pas de stock), Stripe (ratio LTV/CAC élevé avec switching costs),
 Spotify (streaming avec marges streaming >= 25% et croissantes).
 
-La distinction n est pas le simple fait de bruler du capital pour grandir.
-C est de bruler du capital ET de creer de la valeur sub-zero a chaque
-transaction. Atlassian a brule du capital en early days mais avec marges
-unitaires saines. Casper a brule du capital ET vendait des matelas sous
+La distinction n est pas le simple fait de brûler du capital pour grandir.
+C est de brûler du capital ET de créer de la valeur sub-zéro à chaque
+transaction. Atlassian a brûlé du capital en early days mais avec marges
+unitaires saines. Casper a brûlé du capital ET vendait des matelas sous
 contribution margin, ce qui rendait l entreprise incapable d atteindre la
-rentabilite par le scale.
+rentabilité par le scale.
 
 # FORMAT JSON OBLIGATOIRE
 
 {
   "applicabilite": "full | partial | weak-signal | not-applicable",
-  "applicabiliteRationale": "1 a 2 phrases qui justifient le niveau d application",
+  "applicabiliteRationale": "1 à 2 phrases qui justifient le niveau d application",
   "axis1": {
     "score": 0-100,
     "verdict": "sain | attention | alerte | drapeau-rouge | non-applicable",
-    "rationale": "synthese 2-3 phrases sur l unit economics observee",
-    "evidencePro": ["citation 1 datee avec tag", "citation 2 datee avec tag"],
+    "rationale": "synthèse 2-3 phrases sur l unit economics observée",
+    "evidencePro": ["citation 1 datée avec tag", "citation 2 datée avec tag"],
     "evidenceContra": ["citation 1 contra", "citation 2 contra"],
     "confidence": 0-100
   },
   "axis2": {
     "score": 0-100,
     "verdict": "...",
-    "rationale": "synthese sur trajectoire de subvention",
+    "rationale": "synthèse sur trajectoire de subvention",
     "evidencePro": [...],
     "evidenceContra": [...],
     "confidence": 0-100
@@ -180,93 +180,93 @@ rentabilite par le scale.
   "axis3": {
     "score": 0-100,
     "verdict": "...",
-    "rationale": "synthese sur plan vers la marge",
+    "rationale": "synthèse sur plan vers la marge",
     "evidencePro": [...],
     "evidenceContra": [...],
     "confidence": 0-100
   },
   "globalScore": 0-100,
   "verdict": "sain | attention | alerte | drapeau-rouge",
-  "resumeEditorial": "3-4 phrases de synthese editoriale du pattern sur ce dossier",
+  "resumeEditorial": "3-4 phrases de synthèse éditoriale du pattern sur ce dossier",
   "counterArchetype": {
-    "closest": "nom de boite",
+    "closest": "nom de boîte",
     "direction": "trajectoire-saine | derive-confirmee",
     "rationale": "2 phrases"
   },
-  "recommandationDD": "1 phrase concrete pour orienter la DD"
+  "recommandationDD": "1 phrase concrète pour orienter la DD"
 }
 
-# CONTRAINTE DE COHERENCE
+# CONTRAINTE DE COHÉRENCE
 
-Si plus de 60% du COGS technique sur un seul fournisseur est documente comme
-contribution margin negative ET aucun plan vers le breakeven n est articule,
-alors globalScore >= 70 force.
+Si plus de 60% du COGS technique sur un seul fournisseur est documenté comme
+contribution margin négative ET aucun plan vers le breakeven n est articulé,
+alors globalScore >= 70 forcé.
 
-Si gross margin documentee superieure a 60% ET CAC payback < 18 mois ET plan
-vers breakeven articule avec milestones, alors globalScore <= 30 sauf
-evidence contraire majeure.
+Si gross margin documentée supérieure à 60% ET CAC payback < 18 mois ET plan
+vers breakeven articulé avec milestones, alors globalScore <= 30 sauf
+évidence contraire majeure.
 
-# REGLE ANTI-HINDSIGHT
+# RÈGLE ANTI-HINDSIGHT
 
-Tu evalues le dossier au moment du stage indique, pas avec des
-evenements TERMINAUX survenus apres ce stage. Le hindsight strictement
-interdit concerne : faillite confirmee, IPO ratee ou ulterieure,
-scandale revele a posteriori, pivot effectue plus tard, exit ulterieur,
-ralentissement sectoriel documente plus tard. Tu ne dois PAS citer ces
-evenements dans tes evidences ni les utiliser pour scorer.
+Tu évalues le dossier au moment du stage indiqué, pas avec des
+événements TERMINAUX survenus après ce stage. Le hindsight strictement
+interdit concerne : faillite confirmée, IPO ratée ou ultérieure,
+scandale révélé a posteriori, pivot effectué plus tard, exit ultérieur,
+ralentissement sectoriel documenté plus tard. Tu ne dois PAS citer ces
+événements dans tes évidences ni les utiliser pour scorer.
 
-EN REVANCHE, les pipelines en cours d elaboration publique AU STAGE
-DU DOSSIER restent utilisables et doivent meme etre exploites :
-propositions de directives publiees, lois adoptees mais en periode de
-transposition, enquetes ouvertes par autorites de regulation,
-jurisprudences en cours, deadlines deja annoncees, signaux de
-ralentissement deja visibles dans la presse sectorielle au stage.
+EN REVANCHE, les pipelines en cours d élaboration publique AU STAGE
+DU DOSSIER restent utilisables et doivent même être exploités :
+propositions de directives publiées, lois adoptées mais en période de
+transposition, enquêtes ouvertes par autorités de régulation,
+jurisprudences en cours, deadlines déjà annoncées, signaux de
+ralentissement déjà visibles dans la presse sectorielle au stage.
 Confondre hindsight avec ignorance volontaire des signaux publics
 disponibles au stage est une faute aussi grave qu utiliser le
-hindsight lui-meme.
+hindsight lui-même.
 
-Tu rendras un diagnostic comme un partner senior qui aurait du
+Tu rendras un diagnostic comme un partner senior qui aurait dû
 trancher au moment du stage avec les informations effectivement
-disponibles a cette date, y compris les signaux faibles publics.
+disponibles à cette date, y compris les signaux faibles publics.
 
-# REGLE DE GATING AXE CENTRAL (AXE 1)
+# RÈGLE DE GATING AXE CENTRAL (AXE 1)
 
 L axe 1 (unit economics) est l axe identitaire de Growth Subsidized Model.
 
-DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
-qui presente des unit economics mesurables, meme positives. Cela
-signifie un revenu mesurable par transaction ou par client, et un cout
-direct associe (COGS, CAC, gross margin, contribution margin). Si
+DÉFINITION DE L APPLICABILITÉ : l axe 1 est applicable à tout dossier
+qui présente des unit economics mesurables, même positives. Cela
+signifie un revenu mesurable par transaction ou par client, et un coût
+direct associé (COGS, CAC, gross margin, contribution margin). Si
 l axe est applicable tu DOIS produire un verdict parmi sain, attention,
-alerte ou drapeau-rouge. En absence de signaux de fragilite (gross
-margin saine, payback rapide, plan de profitability articule), le
+alerte ou drapeau-rouge. En absence de signaux de fragilité (gross
+margin saine, payback rapide, plan de profitability articulé), le
 verdict correct est SAIN avec score 0-25, pas not-applicable. Une
 entreprise rentable avec unit economics positives (Atlassian gross
-margin 84% deja rentable au S-1, Stripe LTV/CAC 12x avec switching cost
-API integree, Datadog NRR 130%+, Snowflake net retention 165%) est
-SAIN sur cet axe, pas not-applicable. Sain est le cas par defaut quand
-il n y a pas de fragilite a signaler.
+margin 84% déjà rentable au S-1, Stripe LTV/CAC 12x avec switching cost
+API intégrée, Datadog NRR 130%+, Snowflake net retention 165%) est
+SAIN sur cet axe, pas not-applicable. Sain est le cas par défaut quand
+il n y a pas de fragilité à signaler.
 
-NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
-POUR LE BUSINESS MODEL : pas de transactions mesurables documentees
-(Theranos 2014 sans revenu communique ni BP partage), R&D pure pre-
-commerciale sans modele economique articule (laboratoire deeptech
-seed sans projection unit economics), produit non encore commercialise
-sans aucune metrique de marche pilote. Hors ces trois cas, l axe est
-applicable et le verdict doit etre cote sur l echelle sain a drapeau-
+NOT_APPLICABLE EST RÉSERVÉ AUX CAS OÙ L AXE N A AUCUN SENS STRUCTUREL
+POUR LE BUSINESS MODEL : pas de transactions mesurables documentées
+(Theranos 2014 sans revenu communiqué ni BP partagé), R&D pure pré-
+commerciale sans modèle économique articulé (laboratoire deeptech
+seed sans projection unit economics), produit non encore commercialisé
+sans aucune métrique de marché pilote. Hors ces trois cas, l axe est
+applicable et le verdict doit être coté sur l échelle sain à drapeau-
 rouge.
 
-Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+Si l axe 1 est légitimement non-applicable au sens ci-dessus, tu DOIS
 coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce
 cas, applicabilite = 'not-applicable' au niveau pattern et globalScore
-= 0 (le moteur le forcera a null en aval).
+= 0 (le moteur le forcera à null en aval).
 
 Tu NE DOIS PAS scorer drapeau-rouge sur axes 2 ou 3 pour compenser un
 axe 1 non-applicable. Les signaux de capital massif sans validation, de
-deni structurel ou de gouvernance non alignee relevent d autres patterns
-(Capital Structure Fragility, Aveuglement aux Couts Caches du moteur 8,
+déni structurel ou de gouvernance non alignée relèvent d autres patterns
+(Capital Structure Fragility, Aveuglement aux Coûts Cachés du moteur 8,
 Tech Claim Verification du moteur 9). Mentionne-les en evidenceContra ou
-dans le rationale d applicabilite, mais ne les agrege pas dans
+dans le rationale d applicabilité, mais ne les agrège pas dans
 globalScore Growth Subsidized.`;
 
 // ============================================================
@@ -319,12 +319,12 @@ function buildUserPrompt(input: PatternInput): string {
 
   const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
-  return `${sectoralBlock}# DOSSIER A ANALYSER
+  return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communique'}
+Entreprise : ${e.companyName ?? 'non communiqué'}
 Secteur : ${sector}
 Stade : ${stage}
-Pays : ${e.country ?? 'non communique'}
+Pays : ${e.country ?? 'non communiqué'}
 
 # PITCH
 
@@ -334,23 +334,23 @@ ${e.marketPitch ?? '(non fourni)'}
 
 ${e.productDescription ?? '(non fourni)'}
 
-# MODELE ECONOMIQUE
+# MODÈLE ÉCONOMIQUE
 
 ${e.businessModel ?? '(non fourni)'}
 
-# DONNEES FINANCIERES DISPONIBLES
+# DONNÉES FINANCIÈRES DISPONIBLES
 
-${lignesFinanciales || '(aucune donnee financiere structuree disponible, analyse sur la base des elements qualitatifs)'}
+${lignesFinanciales || '(aucune donnée financière structurée disponible, analyse sur la base des éléments qualitatifs)'}
 
-# RESUME GENERAL
+# RÉSUMÉ GÉNÉRAL
 
 ${(e as any).rawSummary ?? '(non fourni)'}
 
-# TA TACHE
+# TA TÂCHE
 
 Analyse ce dossier sur le pattern Growth Subsidized Model selon les trois axes
-detailles dans tes instructions. Retourne uniquement le JSON conforme au
-format obligatoire, sans preambule.`;
+détaillés dans tes instructions. Retourne uniquement le JSON conforme au
+format obligatoire, sans préambule.`;
 }
 
 // ============================================================
@@ -421,7 +421,7 @@ function isApplicable(
   if (!hasMinimalFinancialSignal(financialData)) {
     return {
       level: 'not-applicable',
-      rationale: 'Pattern Growth Subsidized non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine reserve ce pattern aux dossiers avec transactions mesurables (Series A+ avec BP).',
+      rationale: 'Pattern Growth Subsidized non évaluable : aucun revenu ni burn chiffré dans le dossier. La doctrine réserve ce pattern aux dossiers avec transactions mesurables (Series A+ avec BP).',
       shouldRun: false,
     };
   }
@@ -432,7 +432,7 @@ function isApplicable(
   if (!hasBusinessModel) {
     return {
       level: 'not-applicable',
-      rationale: 'Aucun modele economique lisible dans l extraction. Pattern Growth Subsidized non evaluable.',
+      rationale: 'Aucun modèle économique lisible dans l extraction. Pattern Growth Subsidized non évaluable.',
       shouldRun: false,
     };
   }
@@ -440,7 +440,7 @@ function isApplicable(
   // Avec donnees financieres et business model, full.
   return {
     level: 'full',
-    rationale: 'Modele economique et donnees financieres disponibles, analyse complete possible.',
+    rationale: 'Modèle économique et données financières disponibles, analyse complète possible.',
     shouldRun: true,
   };
 }

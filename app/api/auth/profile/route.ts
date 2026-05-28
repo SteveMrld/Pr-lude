@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.displayName === 'string') {
     const displayName = body.displayName.trim();
     if (displayName.length > 120) {
-      return NextResponse.json({ error: 'Nom affiche trop long (max 120)' }, { status: 400 });
+      return NextResponse.json({ error: 'Nom affiché trop long (max 120)' }, { status: 400 });
     }
     userMetaUpdates.display_name = displayName || null;
   }
@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest) {
   if (body.newPassword) {
     if (typeof body.newPassword !== 'string' || body.newPassword.length < 8) {
       return NextResponse.json(
-        { error: 'Mot de passe trop court (min 8 caracteres)' },
+        { error: 'Mot de passe trop court (min 8 caractères)' },
         { status: 400 },
       );
     }

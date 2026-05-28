@@ -40,7 +40,7 @@ export async function PUT(
   }
   if (!isAuthEnabled()) {
     return NextResponse.json(
-      { error: 'auth-required', detail: 'La decision IC necessite un compte fonds.' },
+      { error: 'auth-required', detail: 'La décision IC nécessite un compte fonds.' },
       { status: 403 },
     );
   }

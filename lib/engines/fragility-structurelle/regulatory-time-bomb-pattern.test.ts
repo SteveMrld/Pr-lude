@@ -74,7 +74,7 @@ console.log('\n=== Test 3 : isApplicable Fintech BNPL ===');
   });
   const result = _internal.isApplicable(fintech, MINIMAL_FIN);
   check('fintech BNPL -> full', result.level, 'full');
-  checkTrue('rationale mentionne secteur regule', result.rationale.toLowerCase().includes('regule') || result.rationale.toLowerCase().includes('reglementaire'));
+  checkTrue('rationale mentionne secteur regule', result.rationale.toLowerCase().includes('régulé') || result.rationale.toLowerCase().includes('réglementaire'));
 }
 
 console.log('\n=== Test 4 : isApplicable IA generative ===');
@@ -144,7 +144,7 @@ console.log('\n=== Test 8 : buildUserPrompt structure ===');
   };
   const prompt = _internal.buildUserPrompt(input);
   checkTrue('mentionne entreprise', prompt.includes('TestCo'));
-  checkTrue('mentionne SIGNAUX REGLEMENTAIRES', prompt.includes('SIGNAUX REGLEMENTAIRES'));
+  checkTrue('mentionne SIGNAUX RÉGLEMENTAIRES', prompt.includes('SIGNAUX RÉGLEMENTAIRES'));
   checkTrue('liste les sous-types a identifier', prompt.toLowerCase().includes('sous-type'));
 }
 
@@ -203,7 +203,7 @@ console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
   checkTrue('mentionne AI Act', sp.includes('AI Act'));
   checkTrue('mentionne Stripe Plaid Anthropic sains', sp.includes('Stripe') && sp.includes('Plaid') && sp.includes('Anthropic'));
   checkTrue('mentionne Theranos FTX confirmes', sp.includes('Theranos') && sp.includes('FTX'));
-  checkTrue('contrainte coherence presente', sp.includes('CONTRAINTE DE COHERENCE'));
+  checkTrue('contrainte coherence presente', sp.includes('CONTRAINTE DE COHÉRENCE'));
   checkTrue('format JSON specifie', sp.includes('FORMAT JSON OBLIGATOIRE'));
 }
 

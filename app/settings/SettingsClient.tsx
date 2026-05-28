@@ -79,10 +79,10 @@ export default function SettingsClient({
       }
       setOrgName(json.name);
       setEditingOrg(false);
-      setOrgMsg({ type: 'ok', text: 'Nom de l organisation mis a jour' });
+      setOrgMsg({ type: 'ok', text: 'Nom de l’organisation mis à jour' });
       setTimeout(() => setOrgMsg(null), 3000);
     } catch (err: any) {
-      setOrgMsg({ type: 'err', text: err?.message || 'Erreur reseau' });
+      setOrgMsg({ type: 'err', text: err?.message || 'Erreur réseau' });
     }
     setSavingOrg(false);
   }
@@ -102,7 +102,7 @@ export default function SettingsClient({
       body.currentPassword = profileDraft.currentPassword;
     }
     if (Object.keys(body).length === 0) {
-      setProfileMsg({ type: 'err', text: 'Rien a mettre a jour' });
+      setProfileMsg({ type: 'err', text: 'Rien à mettre à jour' });
       setSavingProfile(false);
       return;
     }
@@ -130,11 +130,11 @@ export default function SettingsClient({
       setEditingProfile(false);
       setProfileMsg({
         type: 'ok',
-        text: json.detail || 'Profil mis a jour',
+        text: json.detail || 'Profil mis à jour',
       });
       setTimeout(() => setProfileMsg(null), 5000);
     } catch (err: any) {
-      setProfileMsg({ type: 'err', text: err?.message || 'Erreur reseau' });
+      setProfileMsg({ type: 'err', text: err?.message || 'Erreur réseau' });
     }
     setSavingProfile(false);
   }

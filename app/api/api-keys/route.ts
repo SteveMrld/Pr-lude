@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 function requireAuthEnabled(): NextResponse | null {
   if (!isAuthEnabled()) {
     return NextResponse.json(
-      { error: 'Auth requise pour les cles BYOK' },
+      { error: 'Auth requise pour les clés BYOK' },
       { status: 400 },
     );
   }
@@ -29,7 +29,7 @@ export async function GET() {
   const guard = requireAuthEnabled();
   if (guard) return guard;
   const ctx = await getAuthenticatedContext();
-  if (!ctx) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+  if (!ctx) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   const keys = await listOrgApiKeys(ctx.org.id);
   return NextResponse.json({ keys });
 }
@@ -38,14 +38,14 @@ export async function PUT(req: NextRequest) {
   const guard = requireAuthEnabled();
   if (guard) return guard;
   const ctx = await getAuthenticatedContext();
-  if (!ctx) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+  if (!ctx) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   // Verification KMS key tot pour donner une erreur claire si manquante
   try {
     ensureKmsKey();
   } catch (e: any) {
     return NextResponse.json(
-      { error: 'PRELUDE_KMS_KEY non configuree cote serveur. Voir AUTH_SETUP.md.' },
+      { error: 'PRELUDE_KMS_KEY non configurée côté serveur. Voir AUTH_SETUP.md.' },
       { status: 500 },
     );
   }
@@ -65,15 +65,15 @@ export async function PUT(req: NextRequest) {
   }
   if (desc.access !== 'byok' && desc.access !== 'free-byok') {
     return NextResponse.json(
-      { error: 'Cette source n attend pas de cle utilisateur' },
+      { error: 'Cette source n’attend pas de clé utilisateur' },
       { status: 400 },
     );
   }
   if (!key) {
-    return NextResponse.json({ error: 'Cle vide' }, { status: 400 });
+    return NextResponse.json({ error: 'Clé vide' }, { status: 400 });
   }
   if (key.length > 4096) {
-    return NextResponse.json({ error: 'Cle trop longue' }, { status: 400 });
+    return NextResponse.json({ error: 'Clé trop longue' }, { status: 400 });
   }
 
   try {

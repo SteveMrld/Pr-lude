@@ -90,7 +90,7 @@ export function TrajectoryView({ analysisId }: TrajectoryViewProps) {
           Trajectoire
         </h3>
         <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', fontSize: 13 }}>
-          Aucune analyse persistee pour ce dossier.
+          Aucune analyse persistée pour ce dossier.
         </div>
       </div>
     );
@@ -104,9 +104,9 @@ export function TrajectoryView({ analysisId }: TrajectoryViewProps) {
         </h3>
         <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ink)', fontSize: 13, lineHeight: 1.55 }}>
           Une seule analyse au dossier. La trajectoire devient calculable
-          a partir de la deuxieme analyse. Re-lancer le pipeline sur le
-          dossier (deck v2 ou actualisation) pour generer une seconde version
-          et observer l evolution.
+          à partir de la deuxième analyse. Relancer le pipeline sur le
+          dossier (deck v2 ou actualisation) pour générer une seconde version
+          et observer l&apos;évolution.
         </div>
       </div>
     );
@@ -131,7 +131,7 @@ export function TrajectoryView({ analysisId }: TrajectoryViewProps) {
             <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: tone.ink }}>{tone.label}</span>
           </div>
           <div>
-            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: tone.ink }}>Periode </span>
+            <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: tone.ink }}>Période </span>
             <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: tone.ink }}>{summary.totalDays} j</span>
           </div>
           <div>
@@ -226,8 +226,8 @@ export function TrajectoryView({ analysisId }: TrajectoryViewProps) {
 
       {/* Snapshots de reference */}
       <div style={{ marginTop: 24, fontSize: 12, opacity: 0.6 }}>
-        Premiere analyse : {new Date(summary.firstSnapshot!.analyzedAt).toLocaleString('fr-FR')} · 
-        Derniere : {new Date(summary.lastSnapshot!.analyzedAt).toLocaleString('fr-FR')}
+        Première analyse : {new Date(summary.firstSnapshot!.analyzedAt).toLocaleString('fr-FR')} ·
+        Dernière : {new Date(summary.lastSnapshot!.analyzedAt).toLocaleString('fr-FR')}
       </div>
     </div>
   );

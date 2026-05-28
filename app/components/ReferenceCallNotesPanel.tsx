@@ -28,12 +28,12 @@ type CallCategory =
   | 'other';
 
 const CALL_CATEGORY_LABELS: Record<CallCategory, string> = {
-  founder_superior: 'Ancien superieur du fondateur',
+  founder_superior: 'Ancien supérieur du fondateur',
   founder_peer: 'Ancien pair du fondateur',
-  founder_subordinate: 'Ancien subordonne du fondateur',
-  customer: 'Client / utilisateur cle',
+  founder_subordinate: 'Ancien subordonné du fondateur',
+  customer: 'Client / utilisateur clé',
   board_advisor: 'Board / advisor',
-  weak_signal: 'Verification signal faible',
+  weak_signal: 'Vérification signal faible',
   other: 'Autre interlocuteur',
 };
 
@@ -56,11 +56,11 @@ type OverallTone =
   | 'non_concluant';
 
 const OVERALL_TONE_LABELS: Record<OverallTone, string> = {
-  tres_positif: 'Tres positif',
+  tres_positif: 'Très positif',
   positif: 'Positif',
-  mitige: 'Mitige',
-  negatif: 'Negatif',
-  tres_negatif: 'Tres negatif',
+  mitige: 'Mitigé',
+  negatif: 'Négatif',
+  tres_negatif: 'Très négatif',
   non_concluant: 'Non concluant',
 };
 
@@ -109,10 +109,10 @@ interface ReferenceAggregationOutput {
 
 const CONVICTION_LABELS: Record<ReferenceAggregationOutput['emergentConviction']['level'], string> = {
   forte_positive: 'Conviction positive forte',
-  plutot_positive: 'Conviction plutot positive',
-  partagee: 'Conviction partagee',
-  plutot_negative: 'Conviction plutot negative',
-  forte_negative: 'Conviction negative forte',
+  plutot_positive: 'Conviction plutôt positive',
+  partagee: 'Conviction partagée',
+  plutot_negative: 'Conviction plutôt négative',
+  forte_negative: 'Conviction négative forte',
   insuffisante: 'Conviction insuffisante (pas assez de notes)',
 };
 
@@ -224,7 +224,7 @@ export default function ReferenceCallNotesPanel({
       });
       const j = await r.json();
       if (!r.ok || j?.error) {
-        setErrorMsg(j?.error || 'Echec sauvegarde');
+        setErrorMsg(j?.error || 'Échec sauvegarde');
         return;
       }
       setShowForm(false);
@@ -235,7 +235,7 @@ export default function ReferenceCallNotesPanel({
       setAggregation(null);
       setAggregationGeneratedAt(null);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Erreur reseau');
+      setErrorMsg(err?.message || 'Erreur réseau');
     } finally {
       setSubmitting(false);
     }
@@ -263,10 +263,10 @@ export default function ReferenceCallNotesPanel({
     <div className="ref-calls-panel">
       <div className="ref-calls-header">
         <div>
-          <h3 className="ref-calls-title">Notes des appels de reference</h3>
+          <h3 className="ref-calls-title">Notes des appels de référence</h3>
           <p className="ref-calls-subtitle">
             {notes.length === 0
-              ? 'Aucune note saisie. Apres chaque call, ajoute-la ici pour alimenter la synthese.'
+              ? 'Aucune note saisie. Après chaque call, ajoute-la ici pour alimenter la synthèse.'
               : `${notes.length} note${notes.length > 1 ? 's' : ''} saisie${notes.length > 1 ? 's' : ''}.`}
           </p>
         </div>
@@ -296,7 +296,7 @@ export default function ReferenceCallNotesPanel({
       {notes.length > 0 && (
         <div className="ref-calls-synthesis">
           <div className="ref-calls-synthesis-head">
-            <h4 className="ref-calls-synthesis-title">Synthese DD reference</h4>
+            <h4 className="ref-calls-synthesis-title">Synthèse DD référence</h4>
             <button
               type="button"
               className="ref-calls-btn-ghost"
@@ -304,10 +304,10 @@ export default function ReferenceCallNotesPanel({
               onClick={() => fetchAggregation(true)}
             >
               {aggregationLoading
-                ? 'Generation en cours...'
+                ? 'Génération en cours...'
                 : aggregation
-                  ? 'Mettre a jour la synthese'
-                  : 'Generer la synthese'}
+                  ? 'Mettre à jour la synthèse'
+                  : 'Générer la synthèse'}
             </button>
           </div>
           {aggregation && (
@@ -320,8 +320,8 @@ export default function ReferenceCallNotesPanel({
           {!aggregation && !aggregationLoading && (
             <p className="ref-calls-synthesis-empty">
               {notes.length < 3
-                ? `Saisis au moins 2-3 notes supplementaires pour activer une synthese pertinente.`
-                : `Clique sur "Generer la synthese" pour obtenir l agregation des notes.`}
+                ? `Saisis au moins 2-3 notes supplémentaires pour activer une synthèse pertinente.`
+                : `Clique sur "Générer la synthèse" pour obtenir l'agrégation des notes.`}
             </p>
           )}
         </div>
@@ -433,11 +433,11 @@ function NoteForm({
 
   return (
     <div className="ref-calls-form">
-      <h4 className="ref-calls-form-title">{initial ? 'Modifier la note' : 'Nouvel appel de reference'}</h4>
+      <h4 className="ref-calls-form-title">{initial ? 'Modifier la note' : 'Nouvel appel de référence'}</h4>
 
       <div className="ref-calls-form-grid">
         <label className="ref-calls-field">
-          <span>Categorie d appel *</span>
+          <span>Catégorie d&apos;appel *</span>
           <select value={callCategory} onChange={e => setCallCategory(e.target.value as CallCategory)}>
             {CATEGORY_ORDER.map(cat => (
               <option key={cat} value={cat}>{CALL_CATEGORY_LABELS[cat]}</option>
@@ -451,7 +451,7 @@ function NoteForm({
         </label>
 
         <label className="ref-calls-field">
-          <span>Nom de l interlocuteur *</span>
+          <span>Nom de l&apos;interlocuteur *</span>
           <input
             type="text"
             value={contactName}
@@ -461,7 +461,7 @@ function NoteForm({
         </label>
 
         <label className="ref-calls-field">
-          <span>Role / titre</span>
+          <span>Rôle / titre</span>
           <input
             type="text"
             value={contactRole}
@@ -491,7 +491,7 @@ function NoteForm({
         </label>
 
         <label className="ref-calls-field">
-          <span>Duree (min)</span>
+          <span>Durée (min)</span>
           <input
             type="number"
             min="1"
@@ -503,9 +503,9 @@ function NoteForm({
         </label>
 
         <label className="ref-calls-field">
-          <span>Tonalite generale</span>
+          <span>Tonalité générale</span>
           <select value={overallTone} onChange={e => setOverallTone(e.target.value as OverallTone | '')}>
-            <option value="">Non specifie</option>
+            <option value="">Non spécifié</option>
             {Object.entries(OVERALL_TONE_LABELS).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
@@ -515,23 +515,23 @@ function NoteForm({
 
       {isFounderCall && (
         <div className="ref-calls-ratings">
-          <div className="ref-calls-ratings-label">Evaluations rapides du fondateur (1-5, optionnel)</div>
+          <div className="ref-calls-ratings-label">Évaluations rapides du fondateur (1-5, optionnel)</div>
           <div className="ref-calls-ratings-grid">
-            <RatingInput label="Competence" value={ratingCompetence} onChange={setRatingCompetence} />
-            <RatingInput label="Integrite" value={ratingIntegrity} onChange={setRatingIntegrity} />
+            <RatingInput label="Compétence" value={ratingCompetence} onChange={setRatingCompetence} />
+            <RatingInput label="Intégrité" value={ratingIntegrity} onChange={setRatingIntegrity} />
             <RatingInput label="Leadership" value={ratingLeadership} onChange={setRatingLeadership} />
-            <RatingInput label="Travaillerais a nouveau" value={ratingWouldWorkAgain} onChange={setRatingWouldWorkAgain} />
+            <RatingInput label="Travaillerais à nouveau" value={ratingWouldWorkAgain} onChange={setRatingWouldWorkAgain} />
           </div>
         </div>
       )}
 
       <label className="ref-calls-field-full">
-        <span>Notes brutes du call * (au moins 200 caracteres conseille)</span>
+        <span>Notes brutes du call * (au moins 200 caractères conseillé)</span>
         <textarea
           value={rawNotes}
           onChange={e => setRawNotes(e.target.value)}
           rows={8}
-          placeholder="Ce que l interlocuteur a dit, le ton, les anecdotes precises, les nuances. Plus tu es factuel et detaille, plus la synthese aggregee sera pertinente."
+          placeholder="Ce que l'interlocuteur a dit, le ton, les anecdotes précises, les nuances. Plus tu es factuel et détaillé, plus la synthèse agrégée sera pertinente."
         />
       </label>
 
@@ -552,7 +552,7 @@ function NoteForm({
           onClick={handleSubmit}
           disabled={submitting || !contactName.trim() || !rawNotes.trim()}
         >
-          {submitting ? 'Sauvegarde...' : initial ? 'Mettre a jour' : 'Sauvegarder'}
+          {submitting ? 'Sauvegarde...' : initial ? 'Mettre à jour' : 'Sauvegarder'}
         </button>
       </div>
     </div>
@@ -617,10 +617,10 @@ function NoteCard({
           )}
           {(note.ratingCompetence || note.ratingIntegrity || note.ratingLeadership || note.ratingWouldWorkAgain) && (
             <div className="ref-calls-note-ratings">
-              {note.ratingCompetence && <span>Competence {note.ratingCompetence}/5</span>}
-              {note.ratingIntegrity && <span>Integrite {note.ratingIntegrity}/5</span>}
+              {note.ratingCompetence && <span>Compétence {note.ratingCompetence}/5</span>}
+              {note.ratingIntegrity && <span>Intégrité {note.ratingIntegrity}/5</span>}
               {note.ratingLeadership && <span>Leadership {note.ratingLeadership}/5</span>}
-              {note.ratingWouldWorkAgain && <span>Re-emploi {note.ratingWouldWorkAgain}/5</span>}
+              {note.ratingWouldWorkAgain && <span>Réemploi {note.ratingWouldWorkAgain}/5</span>}
             </div>
           )}
           <div className="ref-calls-note-raw">
@@ -669,7 +669,7 @@ function AggregationView({
 
       {aggregation.executiveSummary && (
         <div className="ref-calls-section">
-          <h5 className="ref-calls-section-title">Synthese executive</h5>
+          <h5 className="ref-calls-section-title">Synthèse exécutive</h5>
           <p className="ref-calls-exec-summary">{aggregation.executiveSummary}</p>
         </div>
       )}
@@ -707,7 +707,7 @@ function AggregationView({
                 <ul>
                   {d.positions.map((p, j) => <li key={j}>{p}</li>)}
                 </ul>
-                <p className="ref-calls-divergence-interp"><em>Interpretation :</em> {d.interpretation}</p>
+                <p className="ref-calls-divergence-interp"><em>Interprétation :</em> {d.interpretation}</p>
               </div>
             ))}
           </div>
@@ -716,7 +716,7 @@ function AggregationView({
 
       {aggregation.confirmedRedFlags?.length > 0 && (
         <div className="ref-calls-section">
-          <h5 className="ref-calls-section-title">Red flags confirmes par 2+ sources</h5>
+          <h5 className="ref-calls-section-title">Red flags confirmés par 2+ sources</h5>
           <div className="ref-calls-redflags">
             {aggregation.confirmedRedFlags.map((rf, i) => (
               <div key={i} className={`ref-calls-redflag ref-calls-redflag-${rf.severity}`}>
@@ -733,7 +733,7 @@ function AggregationView({
 
       {aggregation.remainingGaps?.length > 0 && (
         <div className="ref-calls-section">
-          <h5 className="ref-calls-section-title">Lacunes : appels a complementer</h5>
+          <h5 className="ref-calls-section-title">Lacunes : appels à compléter</h5>
           <ul className="ref-calls-gaps">
             {aggregation.remainingGaps.map((g, i) => <li key={i}>{g}</li>)}
           </ul>
@@ -742,7 +742,7 @@ function AggregationView({
 
       {generatedAtFormatted && (
         <p className="ref-calls-aggregation-meta">
-          Synthese generee le {generatedAtFormatted} a partir de {notesCount} note{notesCount > 1 ? 's' : ''}.
+          Synthèse générée le {generatedAtFormatted} à partir de {notesCount} note{notesCount > 1 ? 's' : ''}.
         </p>
       )}
     </div>

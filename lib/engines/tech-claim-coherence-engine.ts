@@ -311,35 +311,37 @@ function runBudgetVsTeamTest(
 // Tests 2 et 3 : LLM (un seul appel)
 // ============================================================
 
-const LLM_SYSTEM_PROMPT = `Tu es un investisseur technique senior qui audite la revendication technologique d un pitch deck. Tu produis un jugement structure sur deux questions precises.
+const LLM_SYSTEM_PROMPT = `Tu es un investisseur technique senior qui audite la revendication technologique d'un pitch deck. Tu produis un jugement structuré sur deux questions précises.
 
-REGLES STRICTES.
-- Pas de complaisance. Pas de surevaluation par enthousiasme.
-- Distingue ce qui est decrit precisement (algo nomme, brevet cite, dataset chiffre, KPI mesurable) de ce qui est abstrait (brique technologique, plateforme scalable, infrastructure innovante).
-- Si la revendication est uniquement abstraite, dis-le. Si elle est precise, identifie l actif.
-- Pour le contre-factuel : imagine le pitch sans aucune mention de tech. Le pari commercial reste-t-il defendable sur ses propres bases editoriales / commerciales / operationnelles ?
-- Pas d em-dashes dans tes textes. Utilise des virgules, des points, des nouvelles phrases.
+Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 
-Retourne uniquement le JSON structure suivant :
+RÈGLES STRICTES.
+- Pas de complaisance. Pas de surévaluation par enthousiasme.
+- Distingue ce qui est décrit précisément (algo nommé, brevet cité, dataset chiffré, KPI mesurable) de ce qui est abstrait (brique technologique, plateforme scalable, infrastructure innovante).
+- Si la revendication est uniquement abstraite, dis-le. Si elle est précise, identifie l'actif.
+- Pour le contre-factuel : imagine le pitch sans aucune mention de tech. Le pari commercial reste-t-il défendable sur ses propres bases éditoriales / commerciales / opérationnelles ?
+- Pas d'em-dashes dans tes textes. Utilise des virgules, des points, des nouvelles phrases.
+
+Retourne uniquement le JSON structuré suivant :
 
 {
-  "claimSummary": "Resume neutre en 1-2 phrases du claim tech tel qu il apparait dans le pitch",
+  "claimSummary": "Résumé neutre en 1-2 phrases du claim tech tel qu'il apparaît dans le pitch",
   "assetTraceability": {
-    "score": <0-100, 0 = aucun actif identifiable, 100 = actif precis et auditable>,
+    "score": <0-100, 0 = aucun actif identifiable, 100 = actif précis et auditable>,
     "passed": <true si score >= 60, false sinon>,
-    "observation": "1-2 phrases factuelles sur ce qui est ou n est pas decrit",
-    "implication": "1 phrase sur ce que ca implique pour l investisseur"
+    "observation": "1-2 phrases factuelles sur ce qui est ou n'est pas décrit",
+    "implication": "1 phrase sur ce que ça implique pour l'investisseur"
   },
   "counterFactual": {
     "score": <0-100, 0 = sans la tech le pari ne tient pas du tout, 100 = sans la tech le pari tient parfaitement (donc tech = habillage)>,
-    "passed": <true si score >= 60, ie le pari tient sans la tech, ce qui est en realite un signal NEGATIF pour la revendication tech>,
+    "passed": <true si score >= 60, ie le pari tient sans la tech, ce qui est en réalité un signal NÉGATIF pour la revendication tech>,
     "observation": "1-2 phrases sur ce qui reste si on retire la revendication tech",
-    "implication": "1 phrase sur la nature reelle du moat (tech vs editorial vs operationnel vs commercial)"
+    "implication": "1 phrase sur la nature réelle du moat (tech vs éditorial vs opérationnel vs commercial)"
   },
   "questionsToInstruct": [
-    "3 a 5 questions precises a poser au fondateur en DD pour clarifier le claim tech"
+    "3 à 5 questions précises à poser au fondateur en DD pour clarifier le claim tech"
   ],
-  "synthesis": "Paragraphe editorial de 3-4 phrases qui synthetise le claim, sa credibilite, et ce que l investisseur doit retenir. Voix neutre, factuelle, pas de complaisance."
+  "synthesis": "Paragraphe éditorial de 3-4 phrases qui synthétise le claim, sa crédibilité, et ce que l'investisseur doit retenir. Voix neutre, factuelle, pas de complaisance."
 }`;
 
 async function runLLMTests(
@@ -359,25 +361,25 @@ async function runLLMTests(
 Secteur : ${extraction.sector || '?'} / ${extraction.subSector || '?'}
 Tour : ${extraction.fundraise?.stage || '?'} ${extraction.fundraise?.amount || '?'}
 
-# REVENDICATION TECH DETECTEE
-Budget tech : ${budgetSignal.detected ? `${budgetSignal.percentage}% de la levee, soit ~${budgetSignal.amountEur ? Math.round(budgetSignal.amountEur / 1000) + 'k EUR' : 'montant non chiffre'}` : 'non chiffre dans le pitch'}
+# REVENDICATION TECH DÉTECTÉE
+Budget tech : ${budgetSignal.detected ? `${budgetSignal.percentage}% de la levée, soit ~${budgetSignal.amountEur ? Math.round(budgetSignal.amountEur / 1000) + 'k EUR' : 'montant non chiffré'}` : 'non chiffré dans le pitch'}
 ${budgetSignal.evidence ? `Extrait pitch : "${budgetSignal.evidence}"` : ''}
-Mots-cles moat : ${moatSignal.detected ? moatSignal.keywords.join(', ') : 'aucun'}
+Mots-clés moat : ${moatSignal.detected ? moatSignal.keywords.join(', ') : 'aucun'}
 ${moatSignal.evidence ? `Extrait pitch : "${moatSignal.evidence}"` : ''}
 
 # PRODUIT
-${extraction.productDescription || 'non renseigne'}
+${extraction.productDescription || 'non renseigné'}
 
-# MODELE ECONOMIQUE
-${extraction.businessModel || 'non renseigne'}
+# MODÈLE ÉCONOMIQUE
+${extraction.businessModel || 'non renseigné'}
 
 # FONDATEURS
-${(extraction.founders || []).map((f) => `- ${f.name} (${f.role}) : ${f.background}`).join('\n') || 'non renseigne'}
+${(extraction.founders || []).map((f) => `- ${f.name} (${f.role}) : ${f.background}`).join('\n') || 'non renseigné'}
 
-# RESUME BRUT DOSSIER
-${extraction.rawSummary || 'non renseigne'}
+# RÉSUMÉ BRUT DOSSIER
+${extraction.rawSummary || 'non renseigné'}
 
-Audite la tracabilite de l actif tech revendique et le contre-factuel (le pari tient-il sans la tech ?). Retourne uniquement le JSON structure demande.`;
+Audite la traçabilité de l'actif tech revendiqué et le contre-factuel (le pari tient-il sans la tech ?). Retourne uniquement le JSON structuré demandé.`;
 
   const rawResponse = await callClaude(LLM_SYSTEM_PROMPT, userPrompt, 2000, FAST_MODEL);
   return parseJSON(rawResponse);

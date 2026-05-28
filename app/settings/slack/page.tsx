@@ -188,7 +188,7 @@ export default function SlackSettingsPage() {
         marginBottom: 8,
         fontWeight: 500,
       }}>
-        Parametres organisation
+        Paramètres organisation
       </div>
       <h1 style={{
         fontFamily: 'var(--serif)',
@@ -197,7 +197,7 @@ export default function SlackSettingsPage() {
         margin: '0 0 8px',
         letterSpacing: '-0.01em',
       }}>
-        Integration Slack
+        Intégration Slack
       </h1>
       <p style={{
         fontSize: 14,
@@ -206,9 +206,9 @@ export default function SlackSettingsPage() {
         marginBottom: 32,
         opacity: 0.8,
       }}>
-        Connectez Prelude a un channel Slack du fonds. Chaque dossier instruit y sera publie
-        automatiquement avec son verdict, ses facteurs decisifs et ses risques critiques. Une
-        alerte distincte se declenche en plus pour les dossiers refuses ou presentant des
+        Connectez Prélude à un channel Slack du fonds. Chaque dossier instruit y sera publié
+        automatiquement avec son verdict, ses facteurs décisifs et ses risques critiques. Une
+        alerte distincte se déclenche en plus pour les dossiers refusés ou présentant des
         patterns à risque intenses.
       </p>
 

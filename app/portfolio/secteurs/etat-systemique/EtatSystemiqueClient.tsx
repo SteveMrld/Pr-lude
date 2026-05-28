@@ -62,18 +62,18 @@ export default function EtatSystemiqueClient({
             <Link href="/portfolio/secteurs" className="es-nav-link">
               Treize secteurs
             </Link>
-            <span className="es-nav-active">Etat systemique</span>
+            <span className="es-nav-active">État systémique</span>
           </nav>
         </div>
-        <h1 className="es-title">Etat systemique des secteurs Prelude</h1>
+        <h1 className="es-title">État systémique des secteurs Prélude</h1>
         <p className="es-lede">
-          Lecture trimestrielle agregee des treize fiches sectorielles.
+          Lecture trimestrielle agrégée des treize fiches sectorielles.
           Trois objets analytiques structurent la sortie : convergences
           (secteurs qui se rapprochent sur une dimension), divergences
-          (secteurs qui s ecartent brutalement), et patterns macro
-          structurels (dimensions qui bougent sur la majorite des
-          secteurs). Sources auditables, calculs deterministes,
-          interpretation editoriale Le Grand Continent.
+          (secteurs qui s&apos;écartent brutalement), et patterns macro
+          structurels (dimensions qui bougent sur la majorité des
+          secteurs). Sources auditables, calculs déterministes,
+          interprétation éditoriale Le Grand Continent.
         </p>
 
         <PeriodSelector
@@ -85,12 +85,12 @@ export default function EtatSystemiqueClient({
 
       {!brief ? (
         <section className="es-empty">
-          <h2 className="es-empty-title">Aucun brief disponible pour cette periode.</h2>
+          <h2 className="es-empty-title">Aucun brief disponible pour cette période.</h2>
           <p className="es-empty-body">
-            Le brief inter-sectoriel se genere automatiquement le premier
-            jour de chaque trimestre civil. Un super-admin Prelude peut
-            egalement declencher manuellement la regeneration depuis
-            l administration. Connecte en : {userEmail}.
+            Le brief inter-sectoriel se génère automatiquement le premier
+            jour de chaque trimestre civil. Un super-admin Prélude peut
+            également déclencher manuellement la régénération depuis
+            l&apos;administration. Connecté en : {userEmail}.
           </p>
         </section>
       ) : (
@@ -120,7 +120,7 @@ function PeriodSelector({
   }
   return (
     <div className="es-period-row">
-      <label className="es-period-label">Periode</label>
+      <label className="es-period-label">Période</label>
       <select
         className="es-period-select"
         value={selectedPeriod ?? ''}
@@ -310,11 +310,11 @@ function MacroPatternItem({ item }: { item: MacroPatternWithInterpretation }) {
 function DataCompletenessBanner({ completeness }: { completeness: NonNullable<InterSectoralBrief['data_completeness']> }) {
   return (
     <div className="bv-banner">
-      <div className="bv-banner-title">Perimetre degraded</div>
+      <div className="bv-banner-title">Périmètre dégradé</div>
       <p className="bv-banner-body">
-        Le brief a ete genere avec des donnees incompletes. Les paires
-        impliquant les secteurs sans fiche ne sont pas evaluables et
-        sont silencieusement exclues des calculs deterministes.
+        Le brief a été généré avec des données incomplètes. Les paires
+        impliquant les secteurs sans fiche ne sont pas évaluables et
+        sont silencieusement exclues des calculs déterministes.
       </p>
       <ul className="bv-banner-list">
         {completeness.missing_at_t.length > 0 && (
@@ -325,7 +325,7 @@ function DataCompletenessBanner({ completeness }: { completeness: NonNullable<In
         )}
         {completeness.missing_at_t_minus_1.length > 0 && (
           <li>
-            Secteurs sans fiche au trimestre precedent (non comparables) :{' '}
+            Secteurs sans fiche au trimestre précédent (non comparables) :{' '}
             {completeness.missing_at_t_minus_1.map(sectorLabel).join(', ')}.
           </li>
         )}
@@ -344,7 +344,7 @@ function DataCompletenessBanner({ completeness }: { completeness: NonNullable<In
 function MethodologyFooter({ brief }: { brief: InterSectoralBrief }) {
   return (
     <footer className="bv-footer">
-      <h3 className="bv-footer-title">Note methodologique</h3>
+      <h3 className="bv-footer-title">Note méthodologique</h3>
       <p>
         Brief genere par le modele {brief.generation_metadata.model}{' '}
         (version de prompt {brief.generation_metadata.prompt_version}).{' '}

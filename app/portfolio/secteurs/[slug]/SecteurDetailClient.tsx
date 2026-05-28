@@ -96,11 +96,11 @@ export default function SecteurDetailClient({
         <p className="sectoral-detail-perimeter">{sector.perimeter}</p>
         {current && (
           <p className="sectoral-detail-meta">
-            Derniere generation le {formatSectoralDate(current.generated_at)}{' '}
+            Dernière génération le {formatSectoralDate(current.generated_at)}{' '}
             {(() => {
               const { freshness, ageDays } = computeFreshness(current.generated_at);
               if (freshness === 'stale') {
-                return `(age ${Math.floor(ageDays / 30)} mois, regeneration recommandee)`;
+                return `(âge ${Math.floor(ageDays / 30)} mois, régénération recommandée)`;
               }
               return `(${ageDays} jours)`;
             })()}
@@ -111,9 +111,9 @@ export default function SecteurDetailClient({
       {!current && (
         <section className="sectoral-detail-empty" data-testid="sectoral-detail-empty">
           <p>
-            Aucune fiche sectorielle n est encore persistee pour {sector.label}.
-            La premiere generation est attendue au prochain cycle trimestriel
-            ou par declenchement manuel depuis la page admin.
+            Aucune fiche sectorielle n&apos;est encore persistée pour {sector.label}.
+            La première génération est attendue au prochain cycle trimestriel
+            ou par déclenchement manuel depuis la page admin.
           </p>
         </section>
       )}

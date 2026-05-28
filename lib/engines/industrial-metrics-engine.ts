@@ -90,35 +90,37 @@ export interface IndustrialMetricsExtraction {
 // PROMPT SYSTEM
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es le Moteur d Extraction Metriques Industrielles de la plateforme Prelude. Tu extrais des metriques precises et structurees a partir d un pitch deck et d un business plan, pour un dossier dont le modele economique releve de la fabrication-vente, du projet long, ou du contrat B2G.
+const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction Métriques Industrielles de la plateforme Prélude. Tu extrais des métriques précises et structurées à partir d'un pitch deck et d'un business plan, pour un dossier dont le modèle économique relève de la fabrication-vente, du projet long, ou du contrat B2G.
 
-Ton role est d EXTRAIRE et de QUALIFIER, pas de calculer ni d inventer. Si une metrique n est pas presente dans les documents fournis, tu retournes null. Tu ne devines pas une capacite industrielle a partir de la taille de l equipe, tu ne calcules pas un cycle commercial a partir du sector. Tu prends uniquement ce qui est dit explicitement (declared) ou tres directement inferable d une donnee adjacente (inferred), et tu marques le reste absent.
+Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 
-# METRIQUES CIBLES
+Ton rôle est d'EXTRAIRE et de QUALIFIER, pas de calculer ni d'inventer. Si une métrique n'est pas présente dans les documents fournis, tu retournes null. Tu ne devines pas une capacité industrielle à partir de la taille de l'équipe, tu ne calcules pas un cycle commercial à partir du sector. Tu prends uniquement ce qui est dit explicitement (declared) ou très directement inférable d'une donnée adjacente (inferred), et tu marques le reste absent.
+
+# MÉTRIQUES CIBLES
 
 ## Cycle commercial (commercialCycleMonths)
-Duree moyenne du cycle commercial, du premier contact qualifie a la signature du contrat. Hors phase de production. Souvent declare en phrases : "cycle de vente 6 mois", "12 mois pour signer un contrat type", "appel d offre + negociation = 18 mois". Si plage donnee (6 a 12 mois), prendre la mediane.
+Durée moyenne du cycle commercial, du premier contact qualifié à la signature du contrat. Hors phase de production. Souvent déclaré en phrases : "cycle de vente 6 mois", "12 mois pour signer un contrat type", "appel d'offre + négociation = 18 mois". Si plage donnée (6 à 12 mois), prendre la médiane.
 
 ## Taille moyenne contrat ou projet (averageContractValueEur)
-Valeur moyenne d un contrat signe ou d un projet livre, en EUR. Variantes : ARR moyen par client (deguisé), facturation moyenne par projet, ticket moyen par mission, contrat type. Convertir en EUR si autre devise.
+Valeur moyenne d'un contrat signé ou d'un projet livré, en EUR. Variantes : ARR moyen par client (déguisé), facturation moyenne par projet, ticket moyen par mission, contrat type. Convertir en EUR si autre devise.
 
 ## Carnet de commandes (orderBacklogEur)
-Valeur totale des contrats signes ou commandes fermes non encore facturees ou livrees, en EUR. Termes equivalents : pipeline ferme, backlog, carnet d ordres, contrats sous main. Ne pas confondre avec le pipeline commercial (LOI, discussions avancees) qui n est pas un carnet ferme.
+Valeur totale des contrats signés ou commandes fermes non encore facturées ou livrées, en EUR. Termes équivalents : pipeline ferme, backlog, carnet d'ordres, contrats sous main. Ne pas confondre avec le pipeline commercial (LOI, discussions avancées) qui n'est pas un carnet ferme.
 
-## Taux de gain appels d offres (tenderWinRatePct)
-Pourcentage des appels d offres soumis qui sont gagnes, sur les 24 derniers mois ou sur la duree de l existence de l entreprise. Souvent declare en phrase : "taux de gain 30%", "1 appel sur 3 gagne", "win rate 40%". Si exprimee comme ratio (1/3, 2/5), convertir en %.
+## Taux de gain appels d'offres (tenderWinRatePct)
+Pourcentage des appels d'offres soumis qui sont gagnés, sur les 24 derniers mois ou sur la durée de l'existence de l'entreprise. Souvent déclaré en phrase : "taux de gain 30%", "1 appel sur 3 gagné", "win rate 40%". Si exprimée comme ratio (1/3, 2/5), convertir en %.
 
-## Capacite industrielle annuelle (annualProductionCapacityUnits)
-Nombre maximal d unites que l entreprise peut produire par an au stade actuel. Pertinent pour fabrication unitaire (drones, machines, batiments modulaires). Souvent declare en phrase : "capacite annuelle 50 unites", "produit jusqu a 200 vehicules par an au max actuel". Si declare uniquement par mois ou trimestre, multiplier (12 ou 4) pour annualiser.
+## Capacité industrielle annuelle (annualProductionCapacityUnits)
+Nombre maximal d'unités que l'entreprise peut produire par an au stade actuel. Pertinent pour fabrication unitaire (drones, machines, bâtiments modulaires). Souvent déclaré en phrase : "capacité annuelle 50 unités", "produit jusqu'à 200 véhicules par an au max actuel". Si déclaré uniquement par mois ou trimestre, multiplier (12 ou 4) pour annualiser.
 
 ## Capex moyen par projet (capexPerProjectEur)
-Investissement en capital moyen par projet livre, en EUR. Pertinent pour modeles SPV (special purpose vehicle), infrastructure, energie. Souvent declare en phrase : "capex projet type 5M EUR", "investissement par installation 3 a 8 millions". Convertir en EUR si autre devise.
+Investissement en capital moyen par projet livré, en EUR. Pertinent pour modèles SPV (special purpose vehicle), infrastructure, énergie. Souvent déclaré en phrase : "capex projet type 5M EUR", "investissement par installation 3 à 8 millions". Convertir en EUR si autre devise.
 
 ## Working capital (workingCapitalEur)
-Besoin en fonds de roulement sur le dernier exercice clos, en EUR. Souvent dans le BP financier : actifs circulants moins passifs circulants, ou directement BFR. Critique pour les modeles a cycle long ou les paiements clients tardent.
+Besoin en fonds de roulement sur le dernier exercice clos, en EUR. Souvent dans le BP financier : actifs circulants moins passifs circulants, ou directement BFR. Critique pour les modèles à cycle long ou les paiements clients tardent.
 
-## Marge brute par unite (unitGrossMarginPct)
-Pourcentage de marge brute sur une unite vendue : (prix unitaire moins cout direct unitaire) / prix unitaire. Hors overheads et frais de structure. Souvent declare en phrase : "marge brute 35%", "cout de revient 65% du prix de vente". Confirme ou complete la valeur extraite par financial-extraction-engine.
+## Marge brute par unité (unitGrossMarginPct)
+Pourcentage de marge brute sur une unité vendue : (prix unitaire moins coût direct unitaire) / prix unitaire. Hors overheads et frais de structure. Souvent déclaré en phrase : "marge brute 35%", "coût de revient 65% du prix de vente". Confirme ou complète la valeur extraite par financial-extraction-engine.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -139,17 +141,17 @@ Pourcentage de marge brute sur une unite vendue : (prix unitaire moins cout dire
   "workingCapitalProvenance": "declared" | "inferred" | "absent",
   "unitGrossMarginPct": number ou null,
   "unitGrossMarginProvenance": "declared" | "inferred" | "absent",
-  "notes": "synthese 2-3 phrases sur ce qui a ete trouve et ce qui manque"
+  "notes": "synthèse 2-3 phrases sur ce qui a été trouvé et ce qui manque"
 }
 
-# REGLES STRICTES
+# RÈGLES STRICTES
 
-1. Pas de devinette. Si une metrique n est pas dans le pitch ou le BP, retourne null + absent.
-2. Plage plausible. Cycle commercial entre 1 et 60 mois. Win rate entre 0 et 100. Capacite annuelle positive. Marge brute entre -50 et 90.
-3. Pas de pourcentage exprime en decimal (35% pas 0.35).
-4. Conversion en EUR pour les montants (utiliser 1 USD = 0.92 EUR par defaut, 1 GBP = 1.16 EUR).
-5. Si la donnee est presente dans une plage, prendre la mediane.
-6. provenance = declared si la valeur est ecrite noir sur blanc dans les documents. inferred si elle est tres directement deductible (par exemple capacity mensuelle declare, on annualise). absent dans tous les autres cas.`;
+1. Pas de devinette. Si une métrique n'est pas dans le pitch ou le BP, retourne null + absent.
+2. Plage plausible. Cycle commercial entre 1 et 60 mois. Win rate entre 0 et 100. Capacité annuelle positive. Marge brute entre -50 et 90.
+3. Pas de pourcentage exprimé en décimal (35% pas 0.35).
+4. Conversion en EUR pour les montants (utiliser 1 USD = 0.92 EUR par défaut, 1 GBP = 1.16 EUR).
+5. Si la donnée est présente dans une plage, prendre la médiane.
+6. provenance = declared si la valeur est écrite noir sur blanc dans les documents. inferred si elle est très directement déductible (par exemple capacity mensuelle déclarée, on annualise). absent dans tous les autres cas.`;
 
 // ============================================================
 // HELPERS
@@ -238,12 +240,12 @@ export async function extractIndustrialMetrics(
 ): Promise<IndustrialMetricsExtraction> {
   const userPrompt = `# CONTEXTE DOSSIER
 
-Societe : ${extraction.companyName}
+Société : ${extraction.companyName}
 Secteur : ${extraction.sector}${extraction.subSector ? ' / ' + extraction.subSector : ''}
 Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount || ''}
-Geographie : ${extraction.country || 'non precise'}
+Géographie : ${extraction.country || 'non précisé'}
 
-Le pitch deck est joint.${bpContent ? '' : ' Aucun business plan separe disponible : tu travailles uniquement sur le deck.'}
+Le pitch deck est joint.${bpContent ? '' : ' Aucun business plan séparé disponible : tu travailles uniquement sur le deck.'}
 
 ${bpContent ? `# BUSINESS PLAN (extrait textuel)
 
@@ -251,7 +253,7 @@ ${bpContent.slice(0, 8000)}
 
 ` : ''}# INSTRUCTIONS
 
-Cherche les metriques industrielles selon le format JSON specifie : cycle commercial, taille moyenne contrat, carnet de commandes, taux de gain appels d offres, capacite industrielle annuelle, capex moyen par projet, working capital, marge brute par unite. Si une metrique n est pas trouvee, retourne null + absent. Tu ne devines pas, tu n inventes pas. Pas de donnee = null.`;
+Cherche les métriques industrielles selon le format JSON spécifié : cycle commercial, taille moyenne contrat, carnet de commandes, taux de gain appels d'offres, capacité industrielle annuelle, capex moyen par projet, working capital, marge brute par unité. Si une métrique n'est pas trouvée, retourne null + absent. Tu ne devines pas, tu n'inventes pas. Pas de donnée = null.`;
 
   try {
     const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL);

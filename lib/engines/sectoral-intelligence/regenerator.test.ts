@@ -224,7 +224,7 @@ console.log('\n=== Test 4 : sanitizeDimensionResponse ===');
     makeDimensionResponse({ score: 150 }),
   );
   check('score 150 clampe a 100', high.score, 100);
-  checkTrue('notes mentionnent le clamp', (high.notes ?? '').includes('clampe'));
+  checkTrue('notes mentionnent le clamp', (high.notes ?? '').includes('clampé'));
 
   // Score negatif clampe a 0.
   const low = __TEST_ONLY.sanitizeDimensionResponse(
@@ -546,7 +546,7 @@ console.log('\n=== Test 16 : summarizeDimensionsForAggregator ===');
     'summary contient les huit libelles de dimension',
     DIMENSION_KEYS.every((k) => summary.includes(DIMENSION_LABELS[k])),
   );
-  checkTrue('summary mentionne donnee manquante', summary.includes('donnee manquante'));
+  checkTrue('summary mentionne donnee manquante', summary.includes('donnée manquante'));
   checkTrue('summary mentionne score 60/100', summary.includes('60/100'));
 }
 

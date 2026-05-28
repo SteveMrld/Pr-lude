@@ -297,7 +297,7 @@ export default function HistoricalComparables({ analysisId }: Props) {
             const scenario = data.trajectory[key];
             const labels = {
               optimistic: { fr: 'Optimiste', color: 'var(--vert-foret)' },
-              median: { fr: 'Median', color: 'var(--ocre-brule)' },
+              median: { fr: 'Médian', color: 'var(--ocre-brule)' },
               downside: { fr: 'Downside', color: 'var(--warn)' },
             }[key];
             return (
@@ -342,8 +342,8 @@ export default function HistoricalComparables({ analysisId }: Props) {
                 {c.dataQuality === 'High' && <span className="hc-pill hc-pill-quality-high" title="Source officielle">Source haute</span>}
                 {c.dataQuality === 'Low' && <span className="hc-pill hc-pill-quality-low" title="Source qualitative seulement">Source faible</span>}
                 {showStatePill && (
-                  <span className="hc-pill hc-pill-state" title="Influence d État probable">
-                    Capital d État
+                  <span className="hc-pill hc-pill-state" title="Influence d&apos;État probable">
+                    Capital d&apos;État
                   </span>
                 )}
                 {c.vcRelevanceScore !== null && c.vcRelevanceScore >= 4 && (
@@ -357,7 +357,7 @@ export default function HistoricalComparables({ analysisId }: Props) {
                   </span>
                 )}
                 {c.capitalIntensity && (c.capitalIntensity === 'very high' || c.capitalIntensity === 'high') && (
-                  <span className="hc-pill hc-pill-capex" title="Intensite capitalistique elevee">
+                  <span className="hc-pill hc-pill-capex" title="Intensité capitalistique élevée">
                     Capex {c.capitalIntensity === 'very high' ? 'massif' : 'élevé'}
                   </span>
                 )}
@@ -414,14 +414,14 @@ export default function HistoricalComparables({ analysisId }: Props) {
                 <div className="hc-row-name">
                   {c.name}
                   {c.fundingBand && FUNDING_BAND_LABELS[c.fundingBand] && (
-                    <span className="hc-pill hc-pill-funding-far" title="Hors fenetre de financement du dossier">
+                    <span className="hc-pill hc-pill-funding-far" title="Hors fenêtre de financement du dossier">
                       {FUNDING_BAND_LABELS[c.fundingBand]}
                     </span>
                   )}
                   {c.sectorMatch === 'exact' && <span className="hc-pill hc-pill-exact">Même secteur</span>}
                   {c.sectorMatch === 'related' && <span className="hc-pill hc-pill-related">Secteur voisin</span>}
                   {showStatePill && (
-                    <span className="hc-pill hc-pill-state" title="Influence d État probable">
+                    <span className="hc-pill hc-pill-state" title="Influence d&apos;État probable">
                       Capital d&apos;État
                     </span>
                   )}

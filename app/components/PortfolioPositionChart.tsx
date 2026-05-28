@@ -146,7 +146,7 @@ export default function PortfolioPositionChart({ currentScore, printMode = false
         color: 'var(--muted)',
         lineHeight: 1.55,
       }}>
-        La courbe de positionnement dans le portfolio s affichera apres l instruction d au moins deux dossiers. Ce dossier est l un des premiers a passer le pipeline.
+        La courbe de positionnement dans le portfolio s&apos;affichera après l&apos;instruction d&apos;au moins deux dossiers. Ce dossier est l&apos;un des premiers à passer le pipeline.
       </div>
     );
   }
@@ -183,9 +183,9 @@ export default function PortfolioPositionChart({ currentScore, printMode = false
   // Texte editorial du percentile
   const percentileText = (() => {
     const p = computed.percentile;
-    if (p >= 75) return `Ce dossier se situe au ${p}e percentile de votre portfolio. C est dans le haut du panier de vos instructions.`;
-    if (p >= 50) return `Ce dossier se situe au ${p}e percentile de votre portfolio. Au-dessus de la mediane de vos instructions.`;
-    if (p >= 25) return `Ce dossier se situe au ${p}e percentile de votre portfolio. En dessous de la mediane de vos instructions.`;
+    if (p >= 75) return `Ce dossier se situe au ${p}e percentile de votre portfolio. C'est dans le haut du panier de vos instructions.`;
+    if (p >= 50) return `Ce dossier se situe au ${p}e percentile de votre portfolio. Au-dessus de la médiane de vos instructions.`;
+    if (p >= 25) return `Ce dossier se situe au ${p}e percentile de votre portfolio. En dessous de la médiane de vos instructions.`;
     return `Ce dossier se situe au ${p}e percentile de votre portfolio. Dans le bas du panier de vos instructions.`;
   })();
 
@@ -275,7 +275,7 @@ export default function PortfolioPositionChart({ currentScore, printMode = false
         lineHeight: 1.55,
         fontStyle: 'italic',
       }}>
-        {percentileText} Distribution etablie sur {scores.length} dossier{scores.length > 1 ? 's' : ''} instruit{scores.length > 1 ? 's' : ''}, seuils 45 / 60 / 75 du systeme de verdicts indiques en pointilles.
+        {percentileText} Distribution établie sur {scores.length} dossier{scores.length > 1 ? 's' : ''} instruit{scores.length > 1 ? 's' : ''}, seuils 45 / 60 / 75 du système de verdicts indiqués en pointillés.
       </div>
     </div>
   );

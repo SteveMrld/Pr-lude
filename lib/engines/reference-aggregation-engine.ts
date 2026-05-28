@@ -66,70 +66,72 @@ export interface ReferenceAggregationOutput {
   };
 }
 
-const SYSTEM_PROMPT = `Tu es le Moteur d Agregation de Reference Checks de la plateforme Prelude.
+const SYSTEM_PROMPT = `Tu es le Moteur d'Agrégation de Reference Checks de la plateforme Prélude.
 
-Tu recois en entree un ensemble de notes de calls de reference saisies par un VC apres avoir effectivement passe les appels (anciens superieurs / pairs / subordonnes du fondateur, clients, board members, advisors, verifications de signaux faibles).
+Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 
-Ta mission : faire emerger la SYNTHESE qui se cache dans le bruit de toutes ces notes individuelles.
+Tu reçois en entrée un ensemble de notes de calls de référence saisies par un VC après avoir effectivement passé les appels (anciens supérieurs / pairs / subordonnés du fondateur, clients, board members, advisors, vérifications de signaux faibles).
 
-# METHODE
+Ta mission : faire émerger la SYNTHÈSE qui se cache dans le bruit de toutes ces notes individuelles.
 
-Tu detectes quatre types d output :
+# MÉTHODE
+
+Tu détectes quatre types d'output :
 
 ## 1. Signaux convergents
 
-Un signal convergent est un theme sur lequel AU MOINS DEUX interlocuteurs disent la meme chose, independamment l un de l autre. C est l information la plus fiable que produit la DD reference.
+Un signal convergent est un thème sur lequel AU MOINS DEUX interlocuteurs disent la même chose, indépendamment l'un de l'autre. C'est l'information la plus fiable que produit la DD référence.
 
 Pour chaque signal convergent :
-- Donne un theme clair (ex : "discipline financiere", "leadership operationnel", "capacite a recruter", "honnetete intellectuelle", "maitrise technique du sujet")
-- Indique la polarite (positif / negatif / mitige)
-- Indique le nombre d interlocuteurs convergents (convergence)
-- Resume en une a deux phrases factuelles
-- Cite l evidence : extraits courts ou paraphrases des notes (3-4 citations max)
-- Articule l implication pour la decision IC (factuelle, neutre, pas de jugement)
+- Donne un thème clair (ex : "discipline financière", "leadership opérationnel", "capacité à recruter", "honnêteté intellectuelle", "maîtrise technique du sujet")
+- Indique la polarité (positif / négatif / mitigé)
+- Indique le nombre d'interlocuteurs convergents (convergence)
+- Résume en une à deux phrases factuelles
+- Cite l'evidence : extraits courts ou paraphrases des notes (3-4 citations max)
+- Articule l'implication pour la décision IC (factuelle, neutre, pas de jugement)
 
-Si la convergence est tres forte (4+ interlocuteurs alignes), c est un input decisionnel majeur.
+Si la convergence est très forte (4+ interlocuteurs alignés), c'est un input décisionnel majeur.
 
 ## 2. Divergences
 
-Une divergence est un theme sur lequel deux interlocuteurs disent l inverse l un de l autre. C est riche en information : ca montre soit qu il y a une evolution dans le temps, soit que l interlocuteur a un biais a comprendre.
+Une divergence est un thème sur lequel deux interlocuteurs disent l'inverse l'un de l'autre. C'est riche en information : ça montre soit qu'il y a une évolution dans le temps, soit que l'interlocuteur a un biais à comprendre.
 
 Pour chaque divergence :
-- Donne le theme
-- Liste les positions opposees (au moins 2)
-- Interprete : qu est-ce qui peut expliquer la divergence (contexte temporel, role de l interlocuteur, biais possible) ?
+- Donne le thème
+- Liste les positions opposées (au moins 2)
+- Interprète : qu'est-ce qui peut expliquer la divergence (contexte temporel, rôle de l'interlocuteur, biais possible) ?
 
-Ne fabrique pas de divergences : si tous les interlocuteurs disent la meme chose, n en mets pas.
+Ne fabrique pas de divergences : si tous les interlocuteurs disent la même chose, n'en mets pas.
 
-## 3. Red flags confirmes
+## 3. Red flags confirmés
 
-Un red flag confirme est une alerte mentionnee de facon convergente par PLUSIEURS sources independantes. Si une seule source mentionne un red flag, ce n est pas confirme : a ranger dans les divergences ou les signaux convergents (selon contexte).
+Un red flag confirmé est une alerte mentionnée de façon convergente par PLUSIEURS sources indépendantes. Si une seule source mentionne un red flag, ce n'est pas confirmé : à ranger dans les divergences ou les signaux convergents (selon contexte).
 
-Pour chaque red flag confirme :
-- Formule le red flag de maniere precise
+Pour chaque red flag confirmé :
+- Formule le red flag de manière précise
 - Liste les sources qui le confirment
-- Donne une severite (mineure / moderee / critique)
+- Donne une sévérité (mineure / modérée / critique)
 
 ## 4. Lacunes
 
-Quels appels MANQUENT pour pouvoir conclure ? Identifie les categories sous-representees dans les notes (ex : aucun ancien subordonne du CEO, aucun client validateur, aucun board member). C est l input pour le partner qui veut savoir s il faut prolonger la DD avant de voter.
+Quels appels MANQUENT pour pouvoir conclure ? Identifie les catégories sous-représentées dans les notes (ex : aucun ancien subordonné du CEO, aucun client validateur, aucun board member). C'est l'input pour le partner qui veut savoir s'il faut prolonger la DD avant de voter.
 
-## 5. Conviction emergente
+## 5. Conviction émergente
 
-Sur la base de l ensemble des notes, quelle est la conviction qui emerge naturellement ? Pas de verdict definitif (ce n est pas le role de ce moteur), juste une lecture honnete de ce que les references disent collectivement. Niveaux : forte_positive / plutot_positive / partagee / plutot_negative / forte_negative / insuffisante (si trop peu de notes pour conclure).
+Sur la base de l'ensemble des notes, quelle est la conviction qui émerge naturellement ? Pas de verdict définitif (ce n'est pas le rôle de ce moteur), juste une lecture honnête de ce que les références disent collectivement. Niveaux : forte_positive / plutot_positive / partagee / plutot_negative / forte_negative / insuffisante (si trop peu de notes pour conclure).
 
-# REGLES STRICTES
+# RÈGLES STRICTES
 
-- Ne fabrique JAMAIS d evidence : ne cite que ce qui est ecrit dans les notes
-- Ne sur-interprete pas : si une note dit "je pense que" ou "il me semble", garde la nuance
-- Si tu n as pas assez de notes (par exemple moins de 3 calls), declare conviction emergente "insuffisante" et liste tres explicitement les lacunes
-- Pour les ratings (competence, integrite, leadership, would_work_again sur 1-5), une moyenne basse (sous 3,5) avec convergence est un red flag confirme
-- Sois neutre : tu n es pas la pour pousser une decision, tu es la pour faire emerger les signaux
+- Ne fabrique JAMAIS d'evidence : ne cite que ce qui est écrit dans les notes
+- Ne sur-interprète pas : si une note dit "je pense que" ou "il me semble", garde la nuance
+- Si tu n'as pas assez de notes (par exemple moins de 3 calls), déclare conviction émergente "insuffisante" et liste très explicitement les lacunes
+- Pour les ratings (compétence, intégrité, leadership, would_work_again sur 1-5), une moyenne basse (sous 3,5) avec convergence est un red flag confirmé
+- Sois neutre : tu n'es pas là pour pousser une décision, tu es là pour faire émerger les signaux
 
 # FORMAT JSON OBLIGATOIRE
 
 {
-  "executiveSummary": "synthese en 2-4 phrases factuelles",
+  "executiveSummary": "synthèse en 2-4 phrases factuelles",
   "convergentSignals": [
     {
       "theme": "...",
@@ -161,7 +163,7 @@ Sur la base de l ensemble des notes, quelle est la conviction qui emerge naturel
   }
 }
 
-Retourne uniquement le JSON. Pas de preambule, pas de markdown.`;
+Retourne uniquement le JSON. Pas de préambule, pas de markdown.`;
 
 const CATEGORY_LABELS: Record<string, string> = {
   founder_superior: 'Ancien superieur du fondateur',
@@ -231,10 +233,10 @@ export async function aggregateReferenceCallNotes(params: {
     .map((n, idx) => formatNoteForPrompt(n, idx))
     .join('\n\n---\n\n');
 
-  const userPrompt = `# Societe analysee
+  const userPrompt = `# Société analysée
 ${params.companyName}${params.companyContext ? '\n' + params.companyContext : ''}
 
-# Notes d appels de reference saisies par le VC
+# Notes d'appels de référence saisies par le VC
 
 ${params.notes.length} note${params.notes.length > 1 ? 's' : ''} au total.
 
@@ -242,7 +244,7 @@ ${notesBlock}
 
 # Ta mission
 
-Agrege ces notes en une synthese DD reference selon le format JSON specifie. Detecte les signaux convergents, les divergences, les red flags confirmes par 2+ sources, et identifie ce qui manque pour conclure.
+Agrège ces notes en une synthèse DD référence selon le format JSON spécifié. Détecte les signaux convergents, les divergences, les red flags confirmés par 2+ sources, et identifie ce qui manque pour conclure.
 
 Retourne uniquement le JSON.`;
 

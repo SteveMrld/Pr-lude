@@ -52,7 +52,7 @@ function LoginForm() {
       setStatus('sent');
     } catch (err: any) {
       setStatus('error');
-      setErrorMsg(err?.message || "Erreur lors de l envoi du lien");
+      setErrorMsg(err?.message || "Erreur lors de l'envoi du lien");
     }
   }
 

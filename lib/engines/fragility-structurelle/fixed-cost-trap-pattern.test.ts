@@ -145,7 +145,7 @@ console.log('\n=== Test 8 : buildUserPrompt structure ===');
   checkTrue('mentionne stade Series B', prompt.includes('Series B'));
   checkTrue('mentionne monthly burn', prompt.includes('500000'));
   checkTrue('mentionne runway', prompt.includes('18'));
-  checkTrue('contient DONNEES BURN ET ENGAGEMENTS', prompt.includes('DONNEES BURN ET ENGAGEMENTS'));
+  checkTrue('contient DONNÉES BURN ET ENGAGEMENTS', prompt.includes('DONNÉES BURN ET ENGAGEMENTS'));
 }
 
 console.log('\n=== Test 9 : llmOutputToPatternOutput ===');
@@ -200,20 +200,20 @@ console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
   const sp = _internal.SYSTEM_PROMPT;
   checkTrue('mentionne axe 1 ratio couts fixes', sp.toLowerCase().includes('axe 1') && sp.toLowerCase().includes('ratio'));
   checkTrue('mentionne axe 2 engagements long terme', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('engagements'));
-  checkTrue('mentionne axe 3 elasticite', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('elasticite'));
+  checkTrue('mentionne axe 3 elasticite', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('élasticité'));
   checkTrue('mentionne WeWork canonique', sp.includes('WeWork'));
   checkTrue('mentionne Airbnb asset-light', sp.includes('Airbnb'));
   checkTrue('format JSON specifie', sp.includes('FORMAT JSON OBLIGATOIRE'));
-  checkTrue('contrainte coherence presente', sp.includes('CONTRAINTE DE COHERENCE'));
+  checkTrue('contrainte coherence presente', sp.includes('CONTRAINTE DE COHÉRENCE'));
 }
 
 console.log('\n=== Test 11 : trois regles SYSTEM_PROMPT FCT ===');
 {
   const sp = _internal.SYSTEM_PROMPT;
   checkTrue('regle gating axe central presente', sp.includes('GATING AXE CENTRAL'));
-  checkTrue('regle plafond axe 2 presente', sp.includes('REGLE DE PLAFOND'));
+  checkTrue('regle plafond axe 2 presente', sp.includes('RÈGLE DE PLAFOND'));
   checkTrue('regle anti-contamination presente', sp.includes('ANTI-CONTAMINATION'));
-  checkTrue('regle detection inversion presente', sp.includes("DETECTION D INVERSION"));
+  checkTrue('regle detection inversion presente', sp.includes("DÉTECTION D INVERSION"));
   checkTrue('mentionne MoviePass dans inversion', sp.includes('MoviePass'));
   checkTrue('mentionne seuil 1x ratio', sp.includes('1x'));
 }

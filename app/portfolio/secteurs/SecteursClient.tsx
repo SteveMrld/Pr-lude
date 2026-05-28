@@ -65,17 +65,17 @@ export default function SecteursClient({ items, orgName, userEmail }: Props): Re
           Treize secteurs sous lecture <em>doctrinale et trimestrielle.</em>
         </h1>
         <p className="sectoral-lede">
-          Vue d ensemble de la cartographie sectorielle Prelude. Chaque fiche
-          est regeneree trimestriellement, citee, datee, lisible par tous les
-          moteurs en injection hybride. Cliquer sur une carte pour deplier la
-          fiche complete et activer la superposition ou la comparaison
+          Vue d&apos;ensemble de la cartographie sectorielle Prélude. Chaque fiche
+          est régénérée trimestriellement, citée, datée, lisible par tous les
+          moteurs en injection hybride. Cliquer sur une carte pour déplier la
+          fiche complète et activer la superposition ou la comparaison
           temporelle.
         </p>
         <div className="sectoral-stats">
-          <span><strong>{generated}</strong> sur {total} fiches generees</span>
+          <span><strong>{generated}</strong> sur {total} fiches générées</span>
           {stale > 0 && (
             <span className="sectoral-stat-stale">
-              <strong>{stale}</strong> obsoletes (regeneration recommandee)
+              <strong>{stale}</strong> obsolètes (régénération recommandée)
             </span>
           )}
         </div>

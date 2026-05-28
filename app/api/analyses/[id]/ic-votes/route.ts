@@ -47,7 +47,7 @@ export async function POST(
   }
   if (!isAuthEnabled()) {
     return NextResponse.json(
-      { error: 'auth-required', detail: 'Le vote IC necessite un compte fonds.' },
+      { error: 'auth-required', detail: 'Le vote IC nécessite un compte fonds.' },
       { status: 403 },
     );
   }

@@ -46,7 +46,7 @@ export async function POST(
   }
   if (!isAuthEnabled()) {
     return NextResponse.json(
-      { error: 'auth-required', detail: 'La saisie de notes de reference necessite un compte fonds.' },
+      { error: 'auth-required', detail: 'La saisie de notes de référence nécessite un compte fonds.' },
       { status: 403 },
     );
   }

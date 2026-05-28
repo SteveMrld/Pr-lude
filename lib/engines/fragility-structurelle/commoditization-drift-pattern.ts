@@ -1,24 +1,24 @@
 // ============================================================
 // COMMODITIZATION DRIFT - PATTERN PHASE 4
 // ------------------------------------------------------------
-// Implementation TypeScript de la doctrine ecrite dans
+// Implémentation TypeScript de la doctrine écrite dans
 // docs/patterns/commoditization-drift.md.
 //
-// Pattern de l ere IA generative : entreprise dont la
-// defensibilite repose sur des barrieres en train de devenir
+// Pattern de l ère IA générative : entreprise dont la
+// défensibilité repose sur des barrières en train de devenir
 // reproductibles ou contournables par des outils IA, des LLMs,
-// ou d autres baisses de cout technologique. La position
-// concurrentielle s erode mecaniquement, sans que l entreprise
+// ou d autres baisses de coût technologique. La position
+// concurrentielle s érode mécaniquement, sans que l entreprise
 // ait construit de nouveaux moats pour la remplacer.
 //
 // Discrimination structurelle : la commoditisation attaque les
-// monomoats, elle est inoperante contre les cumuls multi-couches
+// monomoats, elle est inopérante contre les cumuls multi-couches
 // (Stripe, Salesforce, Bloomberg restent solides).
 //
 // Trois axes :
 //   - Axe 1 : nature et profondeur des moats actuels
-//   - Axe 2 : exposition a la dereliction technologique
-//   - Axe 3 : capacite a reconstruire ou cumuler de nouveaux moats
+//   - Axe 2 : exposition à la dérèliction technologique
+//   - Axe 3 : capacité à reconstruire ou cumuler de nouveaux moats
 // ============================================================
 
 import { callClaude, parseJSON } from '../anthropic-client';
@@ -51,10 +51,10 @@ const PATTERN_ID: PatternId = 'commoditization-drift';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior specialiste de la defensibilite des entreprises a
+const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la défensibilité des entreprises à
 forte composante cognitive ou software. Tu analyses le pattern Commoditization
-Drift sur ce dossier : erosion mecanique des moats existants par les outils
-IA generative et autres baisses de cout technologique.
+Drift sur ce dossier : érosion mécanique des moats existants par les outils
+IA générative et autres baisses de coût technologique.
 
 ${EDITORIAL_VOICE_INSTRUCTION}
 
@@ -63,116 +63,116 @@ ${SOURCE_TAGGING_INSTRUCTION}
 # PRINCIPE CENTRAL ANTI-HALLUCINATION
 
 Le pattern n est pas l absence de moats actuels, qui est le cas de toute
-jeune entreprise. C est l erosion d un moat existant qui ne peut pas etre
-restaure. Tu dois nommer le moat precis attaque, le mecanisme d erosion,
-et idealement le ou les outils ou produits qui materialisent l attaque.
+jeune entreprise. C est l érosion d un moat existant qui ne peut pas être
+restauré. Tu dois nommer le moat précis attaqué, le mécanisme d érosion,
+et idéalement le ou les outils ou produits qui matérialisent l attaque.
 
 DISTINCTION FONDAMENTALE : la commoditisation attaque les monomoats. Elle
-est inoperante contre les cumuls multi-couches. Stripe combine reseau
-banques plus donnees fraude plus integrations developpeurs plus agrements
-bancaires plus brand. Salesforce combine donnees clients verrouillees plus
-ecosysteme partenaires plus switching costs plus distribution enterprise.
-Tu dois compter les moats distincts vraiment independants, pas les claims
-empiles dans le pitch.
+est inopérante contre les cumuls multi-couches. Stripe combine réseau
+banques plus données fraude plus intégrations développeurs plus agréments
+bancaires plus brand. Salesforce combine données clients verrouillées plus
+écosystème partenaires plus switching costs plus distribution enterprise.
+Tu dois compter les moats distincts vraiment indépendants, pas les claims
+empilés dans le pitch.
 
 # AXE 1 : NATURE ET PROFONDEUR DES MOATS ACTUELS
 
-Mesure de la solidite des barrieres existantes. Trois sous-modules :
+Mesure de la solidité des barrières existantes. Trois sous-modules :
 
 - MOATS_VERIFIES_VS_DECLARES : croisement des claims pitch avec les
-  elements observables. Network effect declare = chercher croissance non-
-  lineaire de la base utilisateurs vs valeur produite, NRR > 120%, viralite
-  organique mesuree. Donnees proprietaires = chercher volume, duree
-  d accumulation, proprietarite contractuelle, absence de sources
+  éléments observables. Network effect déclaré = chercher croissance non-
+  linéaire de la base utilisateurs vs valeur produite, NRR > 120%, viralité
+  organique mesurée. Données propriétaires = chercher volume, durée
+  d accumulation, propriétarité contractuelle, absence de sources
   alternatives. Brand = aided awareness, premium pricing, NPS. Les moats
-  declares mais non verifiables ne contribuent pas.
+  déclarés mais non vérifiables ne contribuent pas.
 
 - CUMUL_MOATS_INDEPENDANTS : nombre de moats distincts vraiment
-  independants. Un seul moat = fragile. Quatre ou cinq moats independants
-  = resistant a la commoditisation par couche.
+  indépendants. Un seul moat = fragile. Quatre ou cinq moats indépendants
+  = résistant à la commoditisation par couche.
 
-- REPLICATION_COST : capital plus temps requis pour repliquer la position.
-  SaaS verticalement specialise : 12 mois et 5M de developpement = faible.
+- REPLICATION_COST : capital plus temps requis pour répliquer la position.
+  SaaS verticalement spécialisé : 12 mois et 5M de développement = faible.
   Marketplace network effects matures : 200M et 7 ans = massif.
 
-# AXE 2 : EXPOSITION A LA DERELICTION TECHNOLOGIQUE
+# AXE 2 : EXPOSITION À LA DÉRÉLICTION TECHNOLOGIQUE
 
 Mesure de la part de valeur produite attaquable par les outils existants
-ou en developpement. Quatre sous-modules :
+ou en développement. Quatre sous-modules :
 
 - LLM_SUBSTITUTION_RATE : pourcentage de la valeur produite substituable
-  par utilisation directe d un LLM general (ChatGPT, Claude, Gemini)
-  eventuellement avec prompt engineering. Copywriting basique > 80%,
-  traduction generaliste > 90%, helpdesk niveau 1 > 70%.
+  par utilisation directe d un LLM général (ChatGPT, Claude, Gemini)
+  éventuellement avec prompt engineering. Copywriting basique > 80%,
+  traduction généraliste > 90%, helpdesk niveau 1 > 70%.
 
-- AI_NATIVE_CHALLENGERS : presence de challengers IA-native dedies dans
-  la categorie avec leur traction. Cursor et Codeium dans le code, Vercel
+- AI_NATIVE_CHALLENGERS : présence de challengers IA-native dédiés dans
+  la catégorie avec leur traction. Cursor et Codeium dans le code, Vercel
   v0 dans le frontend, Harvey dans le legal, Hippocratic AI dans le
-  medical, Decagon dans le customer support.
+  médical, Decagon dans le customer support.
 
-- EROSION_MATERIALISEE : marqueurs de pression concurrentielle deja
+- EROSION_MATERIALISEE : marqueurs de pression concurrentielle déjà
   visibles : pricing en baisse > 10% sur 12 mois, churn anormalement
-  eleve, NRR en degradation, taux de conversion en chute, augmentation
+  élevé, NRR en dégradation, taux de conversion en chute, augmentation
   cycles de vente.
 
 - HORIZON_24M : capabilities probables dans les 24 prochains mois.
-  Agents autonomes capables d executer taches multi-etapes sur
-  ordinateur en alpha en 2025-2026. Categorie supplementaire de SaaS
-  ergonomique va basculer dans la zone d attaque a horizon court.
+  Agents autonomes capables d exécuter tâches multi-étapes sur
+  ordinateur en alpha en 2025-2026. Catégorie supplémentaire de SaaS
+  ergonomique va basculer dans la zone d attaque à horizon court.
 
-# AXE 3 : CAPACITE A RECONSTRUIRE OU CUMULER DE NOUVEAUX MOATS
+# AXE 3 : CAPACITÉ À RECONSTRUIRE OU CUMULER DE NOUVEAUX MOATS
 
-Mesure du plan defensif documente. C est le mitigant majeur.
+Mesure du plan défensif documenté. C est le mitigant majeur.
 
 - CONSTRUCTION_ACTIVE_HORS_PERIMETRE : marqueurs concrets de
   construction de nouveaux moats hors zone attaquable : accumulation
-  donnees proprietaires non repliquables, network effects mesures,
-  acquisition agrements, partenariats distribution captive,
-  integrations OS ou plateforme exclusives.
+  données propriétaires non réplicables, network effects mesurés,
+  acquisition agréments, partenariats distribution captive,
+  intégrations OS ou plateforme exclusives.
 
 - PLAN_TRANSITION_DOCUMENTE : analyse explicite de la commoditisation
-  potentielle dans le pitch et le BP, plan de reaction. La presence
-  d une telle analyse est en elle-meme un signal positif sur la
-  maturite strategique du management.
+  potentielle dans le pitch et le BP, plan de réaction. La présence
+  d une telle analyse est en elle-même un signal positif sur la
+  maturité stratégique du management.
 
-- EXECUTION_DEJA_COMMENCEE : preuves d execution. Acquisitions
-  strategiques recentes orientees moats, recrutements explicitement
-  data engineering, BD enterprise, distribution. Pas plan, execution.
+- EXECUTION_DEJA_COMMENCEE : preuves d exécution. Acquisitions
+  stratégiques récentes orientées moats, recrutements explicitement
+  data engineering, BD enterprise, distribution. Pas plan, exécution.
 
 # COUNTER-ARCHETYPES
 
-Patterns confirmes (erosion materialisee) : Chegg 2022-2024 valorisation
-effondree de 10 milliards a moins d un milliard apres ChatGPT, Stack
-Overflow 2023-2025 trafic divise par deux apres GitHub Copilot et
-ChatGPT, services traduction generaliste grand public cannibalises par
-DeepL puis LLMs, sites Q&A generalistes type Quora fonction acquisition
-connaissance basculee vers les modeles, plateformes freelance copywriting
-basique et traduction marges en compression, helpdesk niveau 1 attaques
-par bots conversationnels et solutions integrees CRM, generation logo
-et stock photo basique attaques par Midjourney et DALL-E, plateformes
-tutoring generaliste segment academic standard.
+Patterns confirmés (érosion matérialisée) : Chegg 2022-2024 valorisation
+effondrée de 10 milliards à moins d un milliard après ChatGPT, Stack
+Overflow 2023-2025 trafic divisé par deux après GitHub Copilot et
+ChatGPT, services traduction généraliste grand public cannibalisés par
+DeepL puis LLMs, sites Q&A généralistes type Quora fonction acquisition
+connaissance basculée vers les modèles, plateformes freelance copywriting
+basique et traduction marges en compression, helpdesk niveau 1 attaqués
+par bots conversationnels et solutions intégrées CRM, génération logo
+et stock photo basique attaqués par Midjourney et DALL-E, plateformes
+tutoring généraliste segment academic standard.
 
-Counter-archetypes sains : Stripe defensibilite multi-moats independants
-(reseau banques + donnees fraude + integrations developpeurs + agrements
-bancaires + brand), Salesforce (donnees clients verrouillees + ecosysteme
+Counter-archetypes sains : Stripe défensibilité multi-moats indépendants
+(réseau banques + données fraude + intégrations développeurs + agréments
+bancaires + brand), Salesforce (données clients verrouillées + écosystème
 partenaires + switching costs + distribution enterprise), Bloomberg
-(donnees proprietaires + community + workflows trading + hardware
-terminal), Adyen (licences bancaires propres + donnees flux + contrats
-enterprise), verticales avec donnees proprietaires Clio dans le legal
+(données propriétaires + community + workflows trading + hardware
+terminal), Adyen (licences bancaires propres + données flux + contrats
+enterprise), verticales avec données propriétaires Clio dans le legal
 Toast dans la restauration Procore dans la construction, marketplaces
 matures Booking Airbnb Doctolib Schibsted classifieds.
 
-La distinction structurale n est jamais le simple fait d operer dans une
-categorie cognitive. C est la nature et le cumul des moats. Une agence de
-copywriting basique avec un seul moat (la qualite de prestation) est
-exposee. Bloomberg avec quatre moats independants ne l est pas, meme dans
-une categorie cognitive. La commoditisation attaque les monomoats.
+La distinction structurale n est jamais le simple fait d opérer dans une
+catégorie cognitive. C est la nature et le cumul des moats. Une agence de
+copywriting basique avec un seul moat (la qualité de prestation) est
+exposée. Bloomberg avec quatre moats indépendants ne l est pas, même dans
+une catégorie cognitive. La commoditisation attaque les monomoats.
 
 # FORMAT JSON OBLIGATOIRE
 
 {
   "applicabilite": "full | partial | weak-signal | not-applicable",
-  "applicabiliteRationale": "1 a 2 phrases qui justifient le niveau d application",
+  "applicabiliteRationale": "1 à 2 phrases qui justifient le niveau d application",
   "axis1": { "score": 0-100, "verdict": "...", "rationale": "...", "evidencePro": [...], "evidenceContra": [...], "confidence": 0-100 },
   "axis2": { "score": 0-100, "verdict": "...", "rationale": "...", "evidencePro": [...], "evidenceContra": [...], "confidence": 0-100 },
   "axis3": { "score": 0-100, "verdict": "...", "rationale": "...", "evidencePro": [...], "evidenceContra": [...], "confidence": 0-100 },
@@ -180,80 +180,80 @@ une categorie cognitive. La commoditisation attaque les monomoats.
   "verdict": "sain | attention | alerte | drapeau-rouge",
   "resumeEditorial": "3-4 phrases",
   "counterArchetype": { "closest": "nom", "direction": "trajectoire-saine | derive-confirmee", "rationale": "2 phrases" },
-  "recommandationDD": "1 phrase concrete"
+  "recommandationDD": "1 phrase concrète"
 }
 
-# CONTRAINTE DE COHERENCE
+# CONTRAINTE DE COHÉRENCE
 
 Si valeur principale en knowledge work ET pas de network effects ET pricing
-en baisse documentee, alors globalScore >= 70 force.
+en baisse documentée, alors globalScore >= 70 forcé.
 
-Si cumul demontre de trois moats independants ET absence de signaux
-d erosion materialises, alors globalScore <= 30 sauf evidence forte de
+Si cumul démontré de trois moats indépendants ET absence de signaux
+d érosion matérialisés, alors globalScore <= 30 sauf evidence forte de
 basculement imminent.
 
-Pour les categories deja effondrees ou en effondrement actif (knowledge
-Q&A, copywriting basique, traduction generaliste, helpdesk niveau 1),
-remontee directe en drapeau-rouge meme a score modere parce que la
+Pour les catégories déjà effondrées ou en effondrement actif (knowledge
+Q&A, copywriting basique, traduction généraliste, helpdesk niveau 1),
+remontée directe en drapeau-rouge même à score modéré parce que la
 trajectoire est connue.
 
-# REGLE ANTI-HINDSIGHT
+# RÈGLE ANTI-HINDSIGHT
 
-Tu evalues le dossier au moment du stage indique, pas avec des
-evenements TERMINAUX survenus apres ce stage. Le hindsight strictement
-interdit concerne : faillite confirmee, IPO ratee ou ulterieure,
-scandale revele a posteriori, pivot effectue plus tard, exit ulterieur,
-ralentissement sectoriel documente plus tard. Tu ne dois PAS citer ces
-evenements dans tes evidences ni les utiliser pour scorer.
+Tu évalues le dossier au moment du stage indiqué, pas avec des
+événements TERMINAUX survenus après ce stage. Le hindsight strictement
+interdit concerne : faillite confirmée, IPO ratée ou ultérieure,
+scandale révélé a posteriori, pivot effectué plus tard, exit ultérieur,
+ralentissement sectoriel documenté plus tard. Tu ne dois PAS citer ces
+événements dans tes évidences ni les utiliser pour scorer.
 
-EN REVANCHE, les pipelines en cours d elaboration publique AU STAGE
-DU DOSSIER restent utilisables et doivent meme etre exploites :
-propositions de directives publiees, lois adoptees mais en periode de
-transposition, enquetes ouvertes par autorites de regulation,
-jurisprudences en cours, deadlines deja annoncees, signaux de
-ralentissement deja visibles dans la presse sectorielle au stage.
+EN REVANCHE, les pipelines en cours d élaboration publique AU STAGE
+DU DOSSIER restent utilisables et doivent même être exploités :
+propositions de directives publiées, lois adoptées mais en période de
+transposition, enquêtes ouvertes par autorités de régulation,
+jurisprudences en cours, deadlines déjà annoncées, signaux de
+ralentissement déjà visibles dans la presse sectorielle au stage.
 Confondre hindsight avec ignorance volontaire des signaux publics
 disponibles au stage est une faute aussi grave qu utiliser le
-hindsight lui-meme.
+hindsight lui-même.
 
-Tu rendras un diagnostic comme un partner senior qui aurait du
+Tu rendras un diagnostic comme un partner senior qui aurait dû
 trancher au moment du stage avec les informations effectivement
-disponibles a cette date, y compris les signaux faibles publics.
+disponibles à cette date, y compris les signaux faibles publics.
 
-# REGLE DE GATING AXE CENTRAL (AXE 1)
+# RÈGLE DE GATING AXE CENTRAL (AXE 1)
 
 L axe 1 (nature et profondeur des moats actuels) est l axe identitaire
 de Commoditization Drift.
 
-DEFINITION DE L APPLICABILITE : l axe 1 est applicable a tout dossier
-qui a une proposition de valeur sur un marche concurrentiel, peu
+DÉFINITION DE L APPLICABILITÉ : l axe 1 est applicable à tout dossier
+qui a une proposition de valeur sur un marché concurrentiel, peu
 importe le secteur (logiciel, IA, knowledge work, DTC consumer,
 marketplace, hardware grand public, plateforme). Le pattern n est pas
 restreint au knowledge work ou au SaaS pur. Un produit physique
-commoditise (Casper matelas DTC face a Purple, Tuft, Saatva, Leesa
-et dizaines d acteurs interchangeables) est dans le perimetre du
-pattern : l erosion de defensibilite y est doctrinalement la meme
+commoditisé (Casper matelas DTC face à Purple, Tuft, Saatva, Leesa
+et dizaines d acteurs interchangeables) est dans le périmètre du
+pattern : l érosion de défensibilité y est doctrinalement la même
 que sur un wrapper LLM. Si l axe est applicable tu DOIS produire un
 verdict parmi sain, attention, alerte ou drapeau-rouge. En absence
-de signaux de fragilite (cumul de moats independants verifies,
-switching cost demontre, network effect mesure, donnees proprietaires
-non repliquables), le verdict correct est SAIN avec score 0-25, pas
+de signaux de fragilité (cumul de moats indépendants vérifiés,
+switching cost démontré, network effect mesuré, données propriétaires
+non réplicables), le verdict correct est SAIN avec score 0-25, pas
 not-applicable. Une entreprise avec moats multi-couches (Stripe
-reseau banques plus donnees fraude plus integrations developpeurs
-plus agrements bancaires plus brand, Salesforce donnees clients
-plus ecosysteme plus switching costs plus distribution, Bloomberg
-quatre moats independants, Adyen licences bancaires propres) est
+réseau banques plus données fraude plus intégrations développeurs
+plus agréments bancaires plus brand, Salesforce données clients
+plus écosystème plus switching costs plus distribution, Bloomberg
+quatre moats indépendants, Adyen licences bancaires propres) est
 SAIN sur cet axe, pas not-applicable.
 
-NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+NOT_APPLICABLE EST RÉSERVÉ AUX CAS OÙ L AXE N A AUCUN SENS STRUCTUREL
 POUR LE BUSINESS MODEL : phase R&D pre-product sans proposition de
-valeur commerciale articulee (lab deeptech seed sans pilote client),
-recherche academique pre-commerciale, monopole legal absolu rare
-(concession publique exclusive de tres long terme). Hors ces cas,
-l axe est applicable et le verdict doit etre cote sur l echelle sain
-a drapeau-rouge.
+valeur commerciale articulée (lab deeptech seed sans pilote client),
+recherche académique pre-commerciale, monopole légal absolu rare
+(concession publique exclusive de très long terme). Hors ces cas,
+l axe est applicable et le verdict doit être coté sur l échelle sain
+à drapeau-rouge.
 
-Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+Si l axe 1 est légitimement non-applicable au sens ci-dessus, tu DOIS
 coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
 applicabilite = 'not-applicable' au niveau pattern.
 
@@ -265,9 +265,9 @@ axe 1 non-applicable.`;
 // ============================================================
 
 interface MoatSnapshot {
-  /** Mots-cles defensibilite detectes */
+  /** Mots-clés défensibilité détectés */
   moatClaims: string[];
-  /** Mots-cles attaque IA detectes */
+  /** Mots-clés attaque IA détectés */
   aiAttackSignals: string[];
   stage: string;
   sector: string;
@@ -311,12 +311,12 @@ function buildUserPrompt(input: PatternInput): string {
   const snap = extractMoatSnapshot(e);
   const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
-  return `${sectoralBlock}# DOSSIER A ANALYSER
+  return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communique'}
+Entreprise : ${e.companyName ?? 'non communiqué'}
 Secteur : ${snap.sector}
 Stade : ${snap.stage}
-Pays : ${e.country ?? 'non communique'}
+Pays : ${e.country ?? 'non communiqué'}
 
 # PITCH
 
@@ -326,25 +326,25 @@ ${e.marketPitch ?? '(non fourni)'}
 
 ${e.productDescription ?? '(non fourni)'}
 
-# MODELE ECONOMIQUE
+# MODÈLE ÉCONOMIQUE
 
 ${e.businessModel ?? '(non fourni)'}
 
-# SIGNAUX DEFENSIBILITE ET ATTAQUE IA AU PRE-SCREEN
+# SIGNAUX DÉFENSIBILITÉ ET ATTAQUE IA AU PRE-SCREEN
 
-Claims de moats identifies : ${snap.moatClaims.length > 0 ? snap.moatClaims.join(', ') : 'aucun claim de moat identifie explicitement'}
-Signaux d ecosysteme IA : ${snap.aiAttackSignals.length > 0 ? snap.aiAttackSignals.join(', ') : 'aucun signal IA explicite'}
+Claims de moats identifiés : ${snap.moatClaims.length > 0 ? snap.moatClaims.join(', ') : 'aucun claim de moat identifié explicitement'}
+Signaux d écosystème IA : ${snap.aiAttackSignals.length > 0 ? snap.aiAttackSignals.join(', ') : 'aucun signal IA explicite'}
 
-# RESUME GENERAL
+# RÉSUMÉ GÉNÉRAL
 
 ${(e as any).rawSummary ?? '(non fourni)'}
 
-# TA TACHE
+# TA TÂCHE
 
 Analyse ce dossier sur le pattern Commoditization Drift selon les trois axes
-detailles. Compte les moats distincts vraiment independants. Identifie le
+détaillés. Compte les moats distincts vraiment indépendants. Identifie le
 counter-archetype le plus proche. Retourne uniquement le JSON conforme,
-sans preambule.`;
+sans préambule.`;
 }
 
 // ============================================================
@@ -405,12 +405,12 @@ function isApplicable(
   financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
   // Pre-check universel : sans revenu ni burn, on ne peut pas raisonner
-  // sur l erosion d une defensibilite economique. Court-circuit avant
+  // sur l érosion d une défensibilité économique. Court-circuit avant
   // LLM call.
   if (!hasMinimalFinancialSignal(financialData)) {
     return {
       level: 'not-applicable',
-      rationale: 'Pattern Commoditization Drift non evaluable : aucun revenu ni burn chiffre. La defensibilite economique ne peut pas etre mesuree sans matiere financiere.',
+      rationale: 'Pattern Commoditization Drift non évaluable : aucun revenu ni burn chiffré. La défensibilité économique ne peut pas être mesurée sans matière financière.',
       shouldRun: false,
     };
   }
@@ -419,7 +419,7 @@ function isApplicable(
   if (!hasBusinessModel) {
     return {
       level: 'not-applicable',
-      rationale: 'Aucun modele economique lisible. Pattern Commoditization Drift non evaluable.',
+      rationale: 'Aucun modèle économique lisible. Pattern Commoditization Drift non évaluable.',
       shouldRun: false,
     };
   }
@@ -430,16 +430,16 @@ function isApplicable(
   );
   const sector = normalizeFrText(extraction.sector);
 
-  // Hardware physique pur, services a forte composante physique :
-  // pattern hors-scope (presence operationnelle terrain non
-  // automatisable a court terme).
+  // Hardware physique pur, services à forte composante physique :
+  // pattern hors-scope (présence opérationnelle terrain non
+  // automatisable à court terme).
   const isPurelyPhysical = /^(hardware|industriel|industrial|deeptech|biotech|wet[ -]?lab|construction|manufacturing)$/i.test(sector)
     && !/\b(saas|software|api|platform|cloud|knowledge|content|design|copy)\b/i.test(text);
 
   if (isPurelyPhysical) {
     return {
       level: 'not-applicable',
-      rationale: 'Modele a forte composante physique, valeur produite necessite presence operationnelle terrain non automatisable a court terme. Pattern hors-scope.',
+      rationale: 'Modèle à forte composante physique, valeur produite nécessite présence opérationnelle terrain non automatisable à court terme. Pattern hors-scope.',
       shouldRun: false,
     };
   }
@@ -447,7 +447,7 @@ function isApplicable(
   // Knowledge work / SaaS / IA / content : full
   return {
     level: 'full',
-    rationale: 'Modele a composante cognitive ou software : analyse complete des trois axes Commoditization Drift pertinente.',
+    rationale: 'Modèle à composante cognitive ou software : analyse complète des trois axes Commoditization Drift pertinente.',
     shouldRun: true,
   };
 }
@@ -477,11 +477,11 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   // Gating axe central : axe 1 (nature et profondeur des moats actuels)
   // est l axe identitaire de Commoditization Drift. Sans moats actuels
-  // identifiables, il n y a rien a eroder.
+  // identifiables, il n y a rien à éroder.
   return applyCentralAxisGating(
     output,
     'axis1',
-    'Pattern Commoditization Drift non applicable : l axe identitaire (moats actuels) est neutralise. Sans defensibilite identifiable, aucune erosion mesurable.',
+    'Pattern Commoditization Drift non applicable : l axe identitaire (moats actuels) est neutralisé. Sans défensibilité identifiable, aucune érosion mesurable.',
   );
 }
 

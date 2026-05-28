@@ -571,27 +571,29 @@ function determineVerdict(tests: DDFinancialOutput['tests']): DDFinancialOutput[
 // Synthese editoriale (LLM)
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es l auditeur DD financier de la plateforme Prelude. Tu ecris pour un partner senior d un fonds VC ou un membre de comite d investissement qui va lire ta synthese en 90 secondes avant de poser des questions.
+const SYSTEM_PROMPT = `Tu es l'auditeur DD financier de la plateforme Prélude. Tu écris pour un partner senior d'un fonds VC ou un membre de comité d'investissement qui va lire ta synthèse en 90 secondes avant de poser des questions.
+
+Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 
 Tu produis :
-1. Une synthese editoriale de 5 a 7 phrases, niveau memo IC, qui resume le profil de friction observe entre BP projete et realite comptable. Citation des chiffres exacts cote a cote. Ton descriptif et factuel, pas alarmiste, pas complaisant.
-2. Une liste de 5 a 8 questions DD prioritaires a poser au fondateur, classees par criticite.
+1. Une synthèse éditoriale de 5 à 7 phrases, niveau memo IC, qui résume le profil de friction observé entre BP projeté et réalité comptable. Citation des chiffres exacts côte à côte. Ton descriptif et factuel, pas alarmiste, pas complaisant.
+2. Une liste de 5 à 8 questions DD prioritaires à poser au fondateur, classées par criticité.
 
-Regles :
-- Pas d em-dashes (jamais de "—" ou "–"), uniquement points et points-virgules.
+Règles :
+- Pas d'em-dashes (jamais de "—" ou "–"), uniquement points et points-virgules.
 - Pas de jargon non standard. Vocabulaire VC / CFO classique.
-- Cite les chiffres precis (CA reel vs CA projete, marge reelle vs marge BP, etc.).
-- Si la realite confirme le pitch, dis-le clairement et explicite les points a confirmer en DD.
-- Si la realite contredit le pitch, dis-le aussi clairement, sans pirouette mais sans dramatiser.
-- Le ton est celui d un memo professionnel adresse a un partner senior, pas d un rapport pedagogique.
+- Cite les chiffres précis (CA réel vs CA projeté, marge réelle vs marge BP, etc.).
+- Si la réalité confirme le pitch, dis-le clairement et explicite les points à confirmer en DD.
+- Si la réalité contredit le pitch, dis-le aussi clairement, sans pirouette mais sans dramatiser.
+- Le ton est celui d'un memo professionnel adressé à un partner senior, pas d'un rapport pédagogique.
 
 Format JSON obligatoire :
 {
-  "synthesis": "5 a 7 phrases denses, citations chiffrees cote a cote",
-  "questionsToInstruct": ["question 1", "question 2", "...", "question 5 a 8"]
+  "synthesis": "5 à 7 phrases denses, citations chiffrées côte à côte",
+  "questionsToInstruct": ["question 1", "question 2", "...", "question 5 à 8"]
 }
 
-Reponds UNIQUEMENT avec le JSON valide, sans bloc markdown.`;
+Réponds UNIQUEMENT avec le JSON valide, sans bloc markdown.`;
 
 // ============================================================
 // Fonction principale
@@ -625,41 +627,41 @@ export async function analyzeDDFinancial(
   const verdict = determineVerdict(tests);
 
   // Synthese editoriale via LLM
-  const userPrompt = `Donnees du dossier :
+  const userPrompt = `Données du dossier :
 
-Societe : ${extraction.companyName ?? '?'}
+Société : ${extraction.companyName ?? '?'}
 Secteur : ${extraction.sector ?? '?'} / ${extraction.subSector ?? '?'}
 
-Resultats des 7 tests :
+Résultats des 7 tests :
 
-T1 - Ecart CA declare vs CA reel
+T1 - Écart CA déclaré vs CA réel
 ${JSON.stringify(tests.revenueGap, null, 2)}
 
-T2 - Marge brute projetee vs reelle
+T2 - Marge brute projetée vs réelle
 ${JSON.stringify(tests.grossMarginGap, null, 2)}
 
-T3 - Burn rate declare vs reel
+T3 - Burn rate déclaré vs réel
 ${JSON.stringify(tests.burnRateGap, null, 2)}
 
-T4 - Headcount declare vs charges salariales reelles
+T4 - Headcount déclaré vs charges salariales réelles
 ${JSON.stringify(tests.headcountGap, null, 2)}
 
-T5 - Concentration client reelle
+T5 - Concentration client réelle
 ${JSON.stringify(tests.clientConcentration, null, 2)}
 
-T6 - Trajectoire recente vs crosse de hockey BP
+T6 - Trajectoire récente vs crosse de hockey BP
 ${JSON.stringify(tests.growthTrajectory, null, 2)}
 
 T7 - Engagements hors bilan vs cash et narratif pitch
 ${JSON.stringify(tests.offBalanceVsNarrative, null, 2)}
 
-Verdict global calcule : ${verdict}
+Verdict global calculé : ${verdict}
 Score global : ${globalScore}/100
 
-Drapeaux deterministes du grand livre :
+Drapeaux déterministes du grand livre :
 ${(ledgerExtraction.flags || []).map(f => `- [${f.severity}] ${f.message}`).join('\n') || 'aucun'}
 
-Produis la synthese editoriale et les questions DD prioritaires. Reponds UNIQUEMENT avec le JSON specifie.`;
+Produis la synthèse éditoriale et les questions DD prioritaires. Réponds UNIQUEMENT avec le JSON spécifié.`;
 
   let synthesis = '';
   let questionsToInstruct: string[] = [];

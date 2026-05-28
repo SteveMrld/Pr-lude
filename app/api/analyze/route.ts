@@ -96,13 +96,13 @@ export async function POST(req: NextRequest) {
 
     const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
     if (!sessionId || !/^[a-zA-Z0-9-]{8,64}$/.test(sessionId)) {
-      return new Response(JSON.stringify({ error: 'sessionId requis (UUID genere cote client)' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'sessionId requis (UUID généré côté client)' }), { status: 400 });
     }
     const ownerKey = typeof body?.ownerKey === 'string' ? body.ownerKey : 'solo';
 
     const rawRefs: any[] = Array.isArray(body?.files) ? body.files : [];
     if (rawRefs.length === 0) {
-      return new Response(JSON.stringify({ error: 'Au moins une reference de fichier requise' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Au moins une référence de fichier requise' }), { status: 400 });
     }
     if (rawRefs.length > 25) {
       return new Response(JSON.stringify({ error: 'Trop de fichiers (max 25)' }), { status: 400 });
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         return new Response(JSON.stringify({ error: 'Ref invalide : storagePath et name requis' }), { status: 400 });
       }
       if (!isValidStoragePath(r.storagePath, sessionPrefix)) {
-        return new Response(JSON.stringify({ error: `Chemin Storage refuse : ${r.storagePath}` }), { status: 400 });
+        return new Response(JSON.stringify({ error: `Chemin Storage refusé : ${r.storagePath}` }), { status: 400 });
       }
       refs.push({
         storagePath: r.storagePath,

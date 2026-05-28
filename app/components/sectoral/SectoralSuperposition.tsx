@@ -99,7 +99,7 @@ export function SectoralSuperposition(props: SectoralSuperpositionProps): React.
           {primaryLabel} <span className="sep">contre</span> {secondaryLabel}
         </div>
         <div className="sectoral-superposition-subtitle">
-          Superposition des deux fiches sectorielles, lecture editoriale des
+          Superposition des deux fiches sectorielles, lecture éditoriale des
           convergences et divergences sous le polygone.
         </div>
       </div>

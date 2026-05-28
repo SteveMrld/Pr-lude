@@ -52,7 +52,7 @@ export async function PATCH(
   }
   if (!isAuthEnabled()) {
     return NextResponse.json(
-      { error: 'auth-required', detail: 'Le workflow multi-stade necessite un compte fonds.' },
+      { error: 'auth-required', detail: 'Le workflow multi-stade nécessite un compte fonds.' },
       { status: 403 },
     );
   }

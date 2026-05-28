@@ -286,9 +286,9 @@ console.log('\n--- aggregateInterSectoral : cas nominal ---');
 
   const sys = buildAggregatorSystemPrompt();
   checkTrue('system prompt evoque Le Grand Continent', sys.includes('Grand Continent'));
-  checkTrue('system prompt interdit em-dashes', sys.includes('Pas d em-dashes'));
+  checkTrue('system prompt interdit em-dashes', sys.includes("Pas d'em-dashes"));
   checkTrue('system prompt force JSON strict', sys.includes('JSON strict'));
-  checkTrue('system prompt rappelle la voix Prelude', sys.includes('Prelude'));
+  checkTrue('system prompt rappelle la voix Prelude', sys.includes('Prélude'));
 
   // ============================================================
   console.log('\n--- buildAggregatorUserPrompt : indexation ---');
@@ -314,7 +314,7 @@ console.log('\n--- aggregateInterSectoral : cas nominal ---');
   );
   checkTrue('user prompt cite la periode', userPrompt.includes('2026-Q2'));
   checkTrue('user prompt indexe les convergences', userPrompt.includes('[0]'));
-  checkTrue('user prompt signale donnees incompletes', userPrompt.includes('Donnees incompletes'));
+  checkTrue('user prompt signale donnees incompletes', userPrompt.includes('Données incomplètes'));
   checkTrue(
     'user prompt liste les secteurs manquants',
     userPrompt.includes('nouveau'),

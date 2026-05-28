@@ -186,10 +186,10 @@ export default function HistoryPage() {
       if (res.ok) {
         load();
       } else {
-        alert('Suppression echouee');
+        alert('Suppression échouée');
       }
     } catch {
-      alert('Erreur reseau');
+      alert('Erreur réseau');
     }
   };
 

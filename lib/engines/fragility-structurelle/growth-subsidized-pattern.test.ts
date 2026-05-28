@@ -151,7 +151,7 @@ console.log('\n=== Test 6 : buildUserPrompt sans financialData ===');
     financialData: null,
   };
   const prompt = _internal.buildUserPrompt(input);
-  checkTrue('prompt indique aucune donnee financiere', prompt.toLowerCase().includes('aucune donnee financiere'));
+  checkTrue('prompt indique aucune donnée financière', prompt.toLowerCase().includes('aucune donnée financière'));
   checkTrue('prompt reste exploitable (mentionne le pitch)', prompt.includes('SaaS B2B'));
 }
 
@@ -223,7 +223,7 @@ console.log('\n=== Test 8 : SYSTEM_PROMPT doctrine ===');
   checkTrue('mentionne counter-archetype Casper', sp.includes('Casper'));
   checkTrue('mentionne counter-archetype sain Atlassian', sp.includes('Atlassian'));
   checkTrue('format JSON specifie', sp.includes('FORMAT JSON OBLIGATOIRE'));
-  checkTrue('contrainte de coherence presente', sp.includes('CONTRAINTE DE COHERENCE'));
+  checkTrue('contrainte de coherence presente', sp.includes('CONTRAINTE DE COHÉRENCE'));
 }
 
 // ============================================================

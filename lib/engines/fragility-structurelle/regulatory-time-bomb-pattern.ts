@@ -1,28 +1,28 @@
 // ============================================================
 // REGULATORY TIME BOMB - PATTERN PHASE 4
 // ------------------------------------------------------------
-// Implementation TypeScript de la doctrine ecrite dans
+// Implémentation TypeScript de la doctrine écrite dans
 // docs/patterns/regulatory-time-bomb.md.
 //
-// Pattern : entreprise dont le modele economique repose sur un
-// etat reglementaire actuel destine a changer dans une fenetre
-// temporelle previsible, sans que l entreprise ait prepare sa
+// Pattern : entreprise dont le modèle économique repose sur un
+// état réglementaire actuel destiné à changer dans une fenêtre
+// temporelle prévisible, sans que l entreprise ait préparé sa
 // transformation ou son positionnement post-changement.
 //
 // Trois sous-types canoniques :
-//   - regulation a venir connue (CCD2 BNPL 2026, AI Act GPAI 2025)
-//   - regulation existante mal appliquee (Airbnb meubles
+//   - régulation à venir connue (CCD2 BNPL 2026, AI Act GPAI 2025)
+//   - régulation existante mal appliquée (Airbnb meublés
 //     touristiques, crypto Securities Acts US)
-//   - regulation future probabiliste (IA generative horizon
-//     2027, Web3 MiCA implementations)
+//   - régulation future probabiliste (IA générative horizon
+//     2027, Web3 MiCA implémentations)
 //
 // Trois axes :
-//   - Axe 1 : exposition reglementaire structurelle
-//   - Axe 2 : visibilite du changement a venir
-//   - Axe 3 : preparation documentee du changement
+//   - Axe 1 : exposition réglementaire structurelle
+//   - Axe 2 : visibilité du changement à venir
+//   - Axe 3 : préparation documentée du changement
 //
 // Le pattern ne suit pas la logique standard de stade : une
-// regulation a venir frappe la jeune boite avec la meme force
+// régulation à venir frappe la jeune boîte avec la même force
 // que la mature.
 // ============================================================
 
@@ -56,11 +56,11 @@ const PATTERN_ID: PatternId = 'regulatory-time-bomb';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior specialiste de l exposition reglementaire des
-entreprises operant dans des secteurs regules ou en zone grise. Tu analyses
-le pattern Regulatory Time Bomb sur ce dossier : modele economique reposant
-sur un etat reglementaire actuel destine a changer dans une fenetre
-temporelle previsible, sans preparation operationnelle adequate.
+const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de l exposition réglementaire des
+entreprises opérant dans des secteurs régulés ou en zone grise. Tu analyses
+le pattern Regulatory Time Bomb sur ce dossier : modèle économique reposant
+sur un état réglementaire actuel destiné à changer dans une fenêtre
+temporelle prévisible, sans préparation opérationnelle adéquate.
 
 ${EDITORIAL_VOICE_INSTRUCTION}
 
@@ -68,13 +68,13 @@ ${SOURCE_TAGGING_INSTRUCTION}
 
 # PRINCIPE CENTRAL ANTI-HALLUCINATION
 
-Le pattern n est pas la simple existence d un risque reglementaire, qui est
-inherent a toute activite regulee. C est l absence de scenario chiffre et
-execute pour absorber le changement. Tu dois nommer chaque regulation
-precisement (texte legislatif, article si pertinent, juridiction, date
-d entree en vigueur prevue) et citer la source.
+Le pattern n est pas la simple existence d un risque réglementaire, qui est
+inhérent à toute activité régulée. C est l absence de scénario chiffré et
+exécuté pour absorber le changement. Tu dois nommer chaque régulation
+précisément (texte législatif, article si pertinent, juridiction, date
+d entrée en vigueur prévue) et citer la source.
 
-Tu ne formules pas d avis sur l opportunite politique d une regulation. Tu
+Tu ne formules pas d avis sur l opportunité politique d une régulation. Tu
 observes le risque, tu ne prends pas position sur la justesse. Strictement
 instrumental.
 
@@ -82,133 +82,133 @@ instrumental.
 
 Identifie d abord lequel s applique au dossier :
 
-- REGULATION_A_VENIR_CONNUE : texte legislatif date dans le pipeline
-  parlementaire, contenu public, l entreprise opere comme si elle ne
-  s appliquerait pas. Cas BNPL europeens face a CCD2 entree novembre 2026,
-  cas IA generative face a AI Act GPAI Article 51 aout 2025, cas plateformes
-  numeriques face a DSA et DMA.
+- REGULATION_A_VENIR_CONNUE : texte législatif daté dans le pipeline
+  parlementaire, contenu public, l entreprise opère comme si elle ne
+  s appliquerait pas. Cas BNPL européens face à CCD2 entrée novembre 2026,
+  cas IA générative face à AI Act GPAI Article 51 août 2025, cas plateformes
+  numériques face à DSA et DMA.
 
 - REGULATION_EXISTANTE_MAL_APPLIQUEE : loi en place mais non activement
-  appliquee, l entreprise opere en zone grise. Risque d application
-  soudaine declenchee par un incident mediatique ou un changement
-  politique. Cas Airbnb face aux reglements meubles touristiques de Paris,
+  appliquée, l entreprise opère en zone grise. Risque d application
+  soudaine déclenchée par un incident médiatique ou un changement
+  politique. Cas Airbnb face aux règlements meublés touristiques de Paris,
   Barcelone, New York, cas plateformes crypto US face Securities Acts
-  intensifies par SEC en 2022-2023.
+  intensifiés par SEC en 2022-2023.
 
 - REGULATION_FUTURE_PROBABILISTE : texte n existe pas encore mais le
-  precedent politique annonce sa venue dans 24 a 48 mois. Cas IA generative
+  précédent politique annonce sa venue dans 24 à 48 mois. Cas IA générative
   face aux extensions AI Act probables 2026-2027, cas neurotechnologies,
-  cas mobilite aerienne urbaine.
+  cas mobilité aérienne urbaine.
 
-# AXE 1 : EXPOSITION REGLEMENTAIRE STRUCTURELLE
+# AXE 1 : EXPOSITION RÉGLEMENTAIRE STRUCTURELLE
 
-Mesure de la dependance du modele a un etat reglementaire qui peut changer.
+Mesure de la dépendance du modèle à un état réglementaire qui peut changer.
 Trois sous-modules :
 
 - ZONE_GRISE_DEPENDENCE : part significative du revenu repose sur une
-  categorie d activite dont le statut legal est conteste, mal defini ou en
-  cours de redefinition. Plus de 50% du revenu en zone grise = signal fort.
+  catégorie d activité dont le statut légal est contesté, mal défini ou en
+  cours de redéfinition. Plus de 50% du revenu en zone grise = signal fort.
 
-- MULTI_JURISDICTIONS : nombre de juridictions ou la zone grise existe pour
-  le modele. Une exposition dans dix juridictions multiplie la complexite.
+- MULTI_JURISDICTIONS : nombre de juridictions où la zone grise existe pour
+  le modèle. Une exposition dans dix juridictions multiplie la complexité.
 
-- ACTIONS_DEJA_ENGAGEES : actions formelles deja initiees contre
-  l entreprise ou des acteurs de sa categorie (enquetes, mises en demeure,
-  sanctions, audits formels). Une action engagee transforme l exposition
-  abstraite en risque materialise.
+- ACTIONS_DEJA_ENGAGEES : actions formelles déjà initiées contre
+  l entreprise ou des acteurs de sa catégorie (enquêtes, mises en demeure,
+  sanctions, audits formels). Une action engagée transforme l exposition
+  abstraite en risque matérialisé.
 
-# AXE 2 : VISIBILITE DU CHANGEMENT A VENIR
+# AXE 2 : VISIBILITÉ DU CHANGEMENT À VENIR
 
-Mesure de la prevision possible. Trois sous-modules :
+Mesure de la prévision possible. Trois sous-modules :
 
-- TEXTE_DATE_PIPELINE : texte legislatif date avec contenu connu dans le
-  pipeline parlementaire impactant directement le modele.
+- TEXTE_DATE_PIPELINE : texte législatif daté avec contenu connu dans le
+  pipeline parlementaire impactant directement le modèle.
 
-- PRECEDENT_POLITIQUE : categorie voisine deja reglementee dans les 24
-  derniers mois, signe que le legislateur etend. Logique d empilage GDPR
+- PRECEDENT_POLITIQUE : catégorie voisine déjà réglementée dans les 24
+  derniers mois, signe que le législateur étend. Logique d empilage GDPR
   puis ePrivacy puis Data Act, ou DSA puis DMA puis AI Act.
 
-- DURCISSEMENT_REGULATEURS : declarations publiques recentes des chefs de
-  regulateurs pertinents, rapports parlementaires, avis des autorites
-  independantes. Convergence de signaux dans un meme sens, repetee sur
-  plusieurs mois, prefigure une reglementation.
+- DURCISSEMENT_REGULATEURS : déclarations publiques récentes des chefs de
+  régulateurs pertinents, rapports parlementaires, avis des autorités
+  indépendantes. Convergence de signaux dans un même sens, répétée sur
+  plusieurs mois, préfigure une réglementation.
 
-# AXE 3 : PREPARATION DOCUMENTEE DU CHANGEMENT
+# AXE 3 : PRÉPARATION DOCUMENTÉE DU CHANGEMENT
 
-Mesure de la capacite reelle a absorber. Quatre sous-modules :
+Mesure de la capacité réelle à absorber. Quatre sous-modules :
 
 - COMPLIANCE_FUNCTION_DOTEE : compliance officer, DPO, ou general counsel
-  documente a l organigramme avec budget et perimetre. Pour les boites
-  Series B+ en secteur regule, l absence est un signal fort.
+  documenté à l organigramme avec budget et périmètre. Pour les boîtes
+  Series B+ en secteur régulé, l absence est un signal fort.
 
-- PLAN_TRANSITION_DOCUMENTE : scenario chiffre dans le BP modelisant l etat
-  post-regulation : revenu attendu, marges, capex mise en conformite,
-  calendrier. Plan avec milestones chiffres = mitigant. Slide marketing
-  generique = declaratif.
+- PLAN_TRANSITION_DOCUMENTE : scénario chiffré dans le BP modélisant l état
+  post-régulation : revenu attendu, marges, capex mise en conformité,
+  calendrier. Plan avec milestones chiffrés = mitigant. Slide marketing
+  générique = déclaratif.
 
-- LOBBYING_ACTIF : depots aupres registres de transparence (Union
-  europeenne transparency.europa.eu, Etats-Unis LDA system), positions
+- LOBBYING_ACTIF : dépôts auprès registres de transparence (Union
+  européenne transparency.europa.eu, États-Unis LDA system), positions
   publiques, associations sectorielles. Proposition 22 californienne
-  d Uber 2020 = 200 millions de dollars de lobbying decisif.
+  d Uber 2020 = 200 millions de dollars de lobbying décisif.
 
-- AGREMENTS_OBTENUS : agrements ou licenses deja obtenus dans les
-  juridictions cles. Klarna licence credit institution europeenne avant
-  CCD2 = mitigant fort. Stripe agrement etablissement de paiement des
+- AGREMENTS_OBTENUS : agréments ou licenses déjà obtenus dans les
+  juridictions clés. Klarna licence credit institution européenne avant
+  CCD2 = mitigant fort. Stripe agrément établissement de paiement dès
   2017 en anticipation PSD2.
 
 # COUNTER-ARCHETYPES
 
-Patterns confirmes (sanction, faillite ou pivot impose) : Theranos
-2015-2018 claims marketing depassant approbations FDA enquetes serie SEC
-DOJ FDA CMS faillite et proces penal, FTX et chaine Celsius Voyager BlockFi
-2022-2023 operation crypto US sans qualification Securities Acts
-intensification SEC effondrements domino, Uber periode AB5 californienne
-2019-2020 classification contractor contestee 200 millions Proposition 22
-accords pays par pays, Foodora et plateformes livraison europeennes
-2018-2022 requalification livreurs en employes restructurations en chaine,
-Wirecard 2020 fraude comptable plus defaillances regulatoires BaFin, N26
-sanctionne BaFin 2021 plafond impose acquisition clients pendant deux ans,
-Direct-to-consumer genetics annees 2010 face FDA contraintes de retirer
+Patterns confirmés (sanction, faillite ou pivot imposé) : Theranos
+2015-2018 claims marketing dépassant approbations FDA enquêtes série SEC
+DOJ FDA CMS faillite et procès pénal, FTX et chaîne Celsius Voyager BlockFi
+2022-2023 opération crypto US sans qualification Securities Acts
+intensification SEC effondrements domino, Uber période AB5 californienne
+2019-2020 classification contractor contestée 200 millions Proposition 22
+accords pays par pays, Foodora et plateformes livraison européennes
+2018-2022 requalification livreurs en employés restructurations en chaîne,
+Wirecard 2020 fraude comptable plus défaillances regulatoires BaFin, N26
+sanctionné BaFin 2021 plafond imposé acquisition clients pendant deux ans,
+Direct-to-consumer genetics années 2010 face FDA contraintes de retirer
 produits.
 
-Counter-archetypes sains : Stripe anticipation PSD2 des 2017 agrement
-etablissement paiement obtenu en avance de phase evitement complet de la
-fenetre de risque que d autres ont subi, Plaid anticipation Open Banking
-US et Europe partenariats banques avant l obligation reglementaire,
-Anthropic anticipation AI Act europeen frontier model commitments
-unilaterales 2023 lab safety policy publique dialogues continus avec AI
-Office europeen, Airbnb post-2018 transition compliance ville par ville
-equipes juridiques locales accords avec municipalites integration des
-declarations dans le produit, Klarna apres 2022 obtention licence credit
-institution europeenne avant CCD2 transition operationnelle reussie,
-Adyen agrement etablissement paiement obtenu en propre des 2010
-positionnant au-dessus du regime PSP simple.
+Counter-archetypes sains : Stripe anticipation PSD2 dès 2017 agrément
+établissement paiement obtenu en avance de phase évitement complet de la
+fenêtre de risque que d autres ont subi, Plaid anticipation Open Banking
+US et Europe partenariats banques avant l obligation réglementaire,
+Anthropic anticipation AI Act européen frontier model commitments
+unilatérales 2023 lab safety policy publique dialogues continus avec AI
+Office européen, Airbnb post-2018 transition compliance ville par ville
+équipes juridiques locales accords avec municipalités intégration des
+déclarations dans le produit, Klarna après 2022 obtention licence credit
+institution européenne avant CCD2 transition opérationnelle réussie,
+Adyen agrément établissement paiement obtenu en propre dès 2010
+positionnant au-dessus du régime PSP simple.
 
-La distinction structurale n est jamais le simple fait d operer dans un
-secteur regule. C est l alignement entre la trajectoire reglementaire
-previsible et la preparation operationnelle. Stripe et Klarna operent dans
-le meme paysage reglementaire que les BNPL aujourd hui en difficulte. La
-difference est l anticipation. Airbnb et les plateformes meubles
-touristiques operent dans le meme paysage reglementaire municipal. La
-difference est l adaptation locale.
+La distinction structurale n est jamais le simple fait d opérer dans un
+secteur régulé. C est l alignement entre la trajectoire réglementaire
+prévisible et la préparation opérationnelle. Stripe et Klarna opèrent dans
+le même paysage réglementaire que les BNPL aujourd hui en difficulté. La
+différence est l anticipation. Airbnb et les plateformes meublés
+touristiques opèrent dans le même paysage réglementaire municipal. La
+différence est l adaptation locale.
 
 # FORMAT JSON OBLIGATOIRE
 
 {
   "applicabilite": "full | partial | weak-signal | not-applicable",
-  "applicabiliteRationale": "1 a 2 phrases qui justifient le niveau d application",
+  "applicabiliteRationale": "1 à 2 phrases qui justifient le niveau d application",
   "axis1": {
     "score": 0-100,
     "verdict": "sain | attention | alerte | drapeau-rouge | non-applicable",
-    "rationale": "synthese 2-3 phrases sur l exposition reglementaire structurelle",
-    "evidencePro": ["citation 1 datee avec tag"],
+    "rationale": "synthèse 2-3 phrases sur l exposition réglementaire structurelle",
+    "evidencePro": ["citation 1 datée avec tag"],
     "evidenceContra": ["citation 1 contra"],
     "confidence": 0-100
   },
   "axis2": {
     "score": 0-100,
     "verdict": "...",
-    "rationale": "synthese sur visibilite du changement",
+    "rationale": "synthèse sur visibilité du changement",
     "evidencePro": [...],
     "evidenceContra": [...],
     "confidence": 0-100
@@ -216,109 +216,109 @@ difference est l adaptation locale.
   "axis3": {
     "score": 0-100,
     "verdict": "...",
-    "rationale": "synthese sur preparation documentee",
+    "rationale": "synthèse sur préparation documentée",
     "evidencePro": [...],
     "evidenceContra": [...],
     "confidence": 0-100
   },
   "globalScore": 0-100,
   "verdict": "sain | attention | alerte | drapeau-rouge",
-  "resumeEditorial": "3-4 phrases de synthese editoriale, mentionne le sous-type identifie",
+  "resumeEditorial": "3-4 phrases de synthèse éditoriale, mentionne le sous-type identifié",
   "counterArchetype": {
-    "closest": "nom de boite",
+    "closest": "nom de boîte",
     "direction": "trajectoire-saine | derive-confirmee",
     "rationale": "2 phrases"
   },
-  "recommandationDD": "1 phrase concrete pour orienter la DD"
+  "recommandationDD": "1 phrase concrète pour orienter la DD"
 }
 
-# CONTRAINTE DE COHERENCE
+# CONTRAINTE DE COHÉRENCE
 
-Si exposition documentee a une regulation a venir dans moins de 24 mois ET
-pas de plan documente de preparation, alors globalScore >= 70 force.
+Si exposition documentée à une régulation à venir dans moins de 24 mois ET
+pas de plan documenté de préparation, alors globalScore >= 70 forcé.
 
-Si secteur regule mais agrement principal deja obtenu ET plan de transition
-documente avec milestones chiffres, alors globalScore <= 35 sauf evidence
-forte d exposition residuelle non couverte.
+Si secteur régulé mais agrément principal déjà obtenu ET plan de transition
+documenté avec milestones chiffrés, alors globalScore <= 35 sauf evidence
+forte d exposition résiduelle non couverte.
 
-Pour les dossiers en zone grise reglementaire avec absence totale de
-fonction compliance documentee, remontee directe en drapeau-rouge meme a
-score modere parce que la trajectoire est empiriquement connue.
+Pour les dossiers en zone grise réglementaire avec absence totale de
+fonction compliance documentée, remontée directe en drapeau-rouge même à
+score modéré parce que la trajectoire est empiriquement connue.
 
-# REGLE ANTI-HINDSIGHT
+# RÈGLE ANTI-HINDSIGHT
 
-Tu evalues le dossier au moment du stage indique, pas avec des
-evenements TERMINAUX survenus apres ce stage. Le hindsight strictement
-interdit concerne : faillite confirmee, IPO ratee ou ulterieure,
-scandale revele a posteriori, pivot effectue plus tard, exit ulterieur,
-ralentissement sectoriel documente plus tard. Tu ne dois PAS citer ces
-evenements dans tes evidences ni les utiliser pour scorer.
+Tu évalues le dossier au moment du stage indiqué, pas avec des
+événements TERMINAUX survenus après ce stage. Le hindsight strictement
+interdit concerne : faillite confirmée, IPO ratée ou ultérieure,
+scandale révélé a posteriori, pivot effectué plus tard, exit ultérieur,
+ralentissement sectoriel documenté plus tard. Tu ne dois PAS citer ces
+événements dans tes évidences ni les utiliser pour scorer.
 
-EN REVANCHE, les pipelines en cours d elaboration publique AU STAGE
-DU DOSSIER restent utilisables et doivent meme etre exploites :
-propositions de directives publiees, lois adoptees mais en periode de
-transposition, enquetes ouvertes par autorites de regulation,
-jurisprudences en cours, deadlines deja annoncees, signaux de
-ralentissement deja visibles dans la presse sectorielle au stage.
+EN REVANCHE, les pipelines en cours d élaboration publique AU STAGE
+DU DOSSIER restent utilisables et doivent même être exploités :
+propositions de directives publiées, lois adoptées mais en période de
+transposition, enquêtes ouvertes par autorités de régulation,
+jurisprudences en cours, deadlines déjà annoncées, signaux de
+ralentissement déjà visibles dans la presse sectorielle au stage.
 Confondre hindsight avec ignorance volontaire des signaux publics
 disponibles au stage est une faute aussi grave qu utiliser le
-hindsight lui-meme.
+hindsight lui-même.
 
-Tu rendras un diagnostic comme un partner senior qui aurait du
+Tu rendras un diagnostic comme un partner senior qui aurait dû
 trancher au moment du stage avec les informations effectivement
-disponibles a cette date, y compris les signaux faibles publics.
+disponibles à cette date, y compris les signaux faibles publics.
 
-# REGLE DE GATING AXE CENTRAL (AXE 1)
+# RÈGLE DE GATING AXE CENTRAL (AXE 1)
 
-L axe 1 (exposition reglementaire structurelle) est l axe identitaire
+L axe 1 (exposition réglementaire structurelle) est l axe identitaire
 de Regulatory Time Bomb.
 
-REGLE IMPERATIVE A LIRE EN PREMIER. Une boite saine profitable avec
-moats etablis (Atlassian S-1 octobre 2015, Stripe Series E 2016,
-Datadog NRR 130%+, Snowflake net retention 165%) doit etre cotee SAIN
-sur cet axe, JAMAIS not-applicable, des qu il existe une operation
+RÈGLE IMPÉRATIVE À LIRE EN PREMIER. Une boîte saine profitable avec
+moats établis (Atlassian S-1 octobre 2015, Stripe Series E 2016,
+Datadog NRR 130%+, Snowflake net retention 165%) doit être cotée SAIN
+sur cet axe, JAMAIS not-applicable, dès qu il existe une opération
 commerciale dans au moins une juridiction. Toute entreprise B2B SaaS
-internationale opere a minima sous RGPD, DPDPA et CCPA, donc l axe
-est applicable et le verdict doit etre cote sur l echelle sain a
-drapeau-rouge. Une exposition reglementaire faible se traduit par un
-verdict SAIN avec score 0-25, jamais par not-applicable. Le caractere
-"hors secteur regule" n est pas un argument pour basculer en
+internationale opère a minima sous RGPD, DPDPA et CCPA, donc l axe
+est applicable et le verdict doit être coté sur l échelle sain à
+drapeau-rouge. Une exposition réglementaire faible se traduit par un
+verdict SAIN avec score 0-25, jamais par not-applicable. Le caractère
+"hors secteur régulé" n est pas un argument pour basculer en
 not-applicable : il signifie que le verdict est SAIN avec score bas.
 
-DEFINITION DE L APPLICABILITE (large par construction). L axe 1 est
-applicable a tout dossier qui opere dans une ou plusieurs juridictions
-avec des utilisateurs reels, ce qui couvre la quasi-totalite des
+DÉFINITION DE L APPLICABILITÉ (large par construction). L axe 1 est
+applicable à tout dossier qui opère dans une ou plusieurs juridictions
+avec des utilisateurs réels, ce qui couvre la quasi-totalité des
 entreprises commerciales modernes (logiciel, SaaS, IA, plateforme,
 fintech, hardware grand public, DTC, marketplace, services pros). Une
-SaaS B2B internationale opere dans le perimetre RGPD + DPDPA + CCPA
-donc l axe est applicable meme si l exposition est faible. Une
-entreprise mono-juridiction opere dans le perimetre reglementaire de
+SaaS B2B internationale opère dans le périmètre RGPD + DPDPA + CCPA
+donc l axe est applicable même si l exposition est faible. Une
+entreprise mono-juridiction opère dans le périmètre réglementaire de
 sa juridiction (RGPD si EU, FTC si US, etc.) donc l axe est applicable.
 
 Si l axe est applicable tu DOIS produire un verdict parmi sain,
 attention, alerte ou drapeau-rouge. En absence de signaux de
-fragilite (perimetre reglementaire stable, agrements obtenus en
-amont, fonction compliance documentee, lobbying actif aligne avec
-trajectoire reglementaire previsible, OU absence pure de zone grise
-identifiable parce que le secteur n est pas regule au moment du
+fragilité (périmètre réglementaire stable, agréments obtenus en
+amont, fonction compliance documentée, lobbying actif aligné avec
+trajectoire réglementaire prévisible, OU absence pure de zone grise
+identifiable parce que le secteur n est pas régulé au moment du
 dossier), le verdict correct est SAIN avec score 0-25, pas
-not-applicable. Une entreprise dans un secteur peu regule ou avec
-compliance mature (Atlassian SaaS B2B sans exposition particuliere
-au S-1 2015, Datadog observabilite B2B, Stripe avec agrement
-etablissement paiement obtenu des 2017 avant PSD2, Klarna apres 2022
-avec licence credit institution europeenne en place) est SAIN sur
-cet axe, pas not-applicable. Si tu hesites entre not-applicable et
+not-applicable. Une entreprise dans un secteur peu régulé ou avec
+compliance mature (Atlassian SaaS B2B sans exposition particulière
+au S-1 2015, Datadog observabilité B2B, Stripe avec agrément
+établissement paiement obtenu dès 2017 avant PSD2, Klarna après 2022
+avec licence credit institution européenne en place) est SAIN sur
+cet axe, pas not-applicable. Si tu hésites entre not-applicable et
 sain, choisis SAIN.
 
-NOT_APPLICABLE EST RESERVE AUX CAS RARES OU L AXE N A AUCUN SENS
+NOT_APPLICABLE EST RÉSERVÉ AUX CAS RARES OÙ L AXE N A AUCUN SENS
 STRUCTUREL POUR LE BUSINESS MODEL : pre-revenu sans utilisateurs ni
-perimetre juridictionnel articule (lab deeptech sans deploiement
-commercial), R&D pure pre-commerciale avec produit non encore expose
+périmètre juridictionnel articulé (lab deeptech sans déploiement
+commercial), R&D pure pre-commerciale avec produit non encore exposé
 au public ni clients pilote, holding pure de participations sans
-operation propre. Hors ces trois cas, l axe est applicable et le
-verdict DOIT etre cote sur l echelle sain a drapeau-rouge.
+opération propre. Hors ces trois cas, l axe est applicable et le
+verdict DOIT être coté sur l échelle sain à drapeau-rouge.
 
-Si l axe 1 est legitimement non-applicable au sens ci-dessus, tu DOIS
+Si l axe 1 est légitimement non-applicable au sens ci-dessus, tu DOIS
 coter axis1.verdict = 'non-applicable' et axis1.score = 0. Dans ce cas,
 applicabilite = 'not-applicable' au niveau pattern.
 
@@ -330,9 +330,9 @@ axe 1 non-applicable.`;
 // ============================================================
 
 interface RegulatorySnapshot {
-  /** Mots-cles secteur regule detectes */
+  /** Mots-clés secteur régulé détectés */
   reguleKeywords: string[];
-  /** Mots-cles compliance detectes */
+  /** Mots-clés compliance détectés */
   complianceSignals: string[];
   /** Stage et secteur */
   stage: string;
@@ -340,18 +340,18 @@ interface RegulatorySnapshot {
   country: string;
 }
 
-// Liste testee via regex \\b{keyword}\\b sur le texte normalise
+// Liste testée via regex \\b{keyword}\\b sur le texte normalisé
 // (normalizeFrText : lowercase + diacritiques aplatis). On garde
-// donc des keywords sans accents. Le perimetre FR est tisse fin :
-// secteurs verticaux regules, autorites de regulation (ACPR, AMF,
+// donc des keywords sans accents. Le périmètre FR est tissé fin :
+// secteurs verticaux régulés, autorités de régulation (ACPR, AMF,
 // ARS, ANSM, ANJ, CNIL, ARCOM, DGCCRF), codes structurants (code
-// monetaire et financier, code de la sante publique, loi Hoguet),
-// statuts d agrement (PSAN, IOBSP, EAJE, ESMS, ICPE, CFA, qualiopi),
-// et regulations europeennes et US qui frappent en transverse
+// monétaire et financier, code de la santé publique, loi Hoguet),
+// statuts d agrément (PSAN, IOBSP, EAJE, ESMS, ICPE, CFA, qualiopi),
+// et régulations européennes et US qui frappent en transverse
 // (GDPR, AI Act, DSA, DMA, PSD2, PSD3, MiCA, DORA, NIS2, Securities
 // Act, KYC, AML).
 const REGULE_KEYWORDS = [
-  // Secteurs verticaux regules
+  // Secteurs verticaux régulés
   'finance', 'fintech', 'banque', 'bank', 'credit', 'paiement', 'payment',
   'assurance', 'insurance', 'mutuelle', 'prevoyance',
   'sante', 'health', 'biotech', 'pharma', 'medicament',
@@ -365,25 +365,25 @@ const REGULE_KEYWORDS = [
   'short-term rental', 'airbnb', 'meuble touristique',
   'energie', 'electricite', 'gaz naturel', 'reseau de chaleur',
   'transport sanitaire', 'ambulance', 'taxi cpam', 'vsl',
-  // Education et accueil reglementes
+  // Education et accueil réglementés
   'eaje', 'creche', 'assistante maternelle',
   'cfa', 'qualiopi', 'organisme de formation',
   'etablissement sous contrat',
-  // Etablissements et services medico-sociaux
+  // Établissements et services médico-sociaux
   'ehpad', 'esms', 'saad', 'had',
-  // Professions reglementees (proxy fort de presence reglementaire)
+  // Professions réglementées (proxy fort de présence réglementaire)
   'avocat', 'notaire', 'huissier', 'commissaire de justice',
   'expert-comptable', 'commissaire aux comptes',
   'medecin', 'pharmacien', 'infirmier', 'sage-femme',
   'kinesitherapeute', 'chirurgien-dentiste', 'veterinaire',
   'agent immobilier', 'architecte', 'geometre-expert',
-  // Autorites de regulation et codes FR
+  // Autorités de régulation et codes FR
   'acpr', 'amf', 'arcom', 'arjel', 'anj',
   'cnil', 'ars', 'ansm', 'has ', 'dgccrf', 'dreal',
   'code monetaire et financier', 'code de la sante publique',
   'loi hoguet', 'loi badinter', 'loi lemoine', 'loi pacte',
   'icpe', 'iobsp', 'agrement',
-  // Regulations transverses europeennes et US. Conserve la casse
+  // Régulations transverses européennes et US. Conserve la casse
   // canonique des acronymes : la regex de match utilise le flag
   // case-insensitive donc le routage marche, mais la liste sert
   // aussi de contrat lisible (test 11 du fichier de tests).
@@ -392,9 +392,9 @@ const REGULE_KEYWORDS = [
   'Securities Act', 'KYC', 'AML', 'LCB-FT', 'lutte blanchiment',
 ];
 
-// Signaux compliance attendus dans un dossier vraiment regule.
-// La detection se fait via includes(k.toLowerCase()) donc on peut
-// melanger les casses ici, mais on garde la forme canonique pour
+// Signaux compliance attendus dans un dossier vraiment régulé.
+// La détection se fait via includes(k.toLowerCase()) donc on peut
+// mélanger les casses ici, mais on garde la forme canonique pour
 // faciliter la lecture et conserver le contrat de tests (DPO,
 // agrement).
 const COMPLIANCE_SIGNALS = [
@@ -417,9 +417,9 @@ function extractRegulatorySnapshot(extraction: ExtractionOutput): RegulatorySnap
     (extraction as any).rawSummary,
   ].filter(Boolean).join(' ');
 
-  // text normalise (lowercase + diacritiques aplatis) avant
+  // text normalisé (lowercase + diacritiques aplatis) avant
   // match : sante/santé, defense/défense, energie/énergie sont
-  // traites comme equivalents.
+  // traités comme équivalents.
   const normalized = normalizeFrText(text);
   const reguleKeywords = REGULE_KEYWORDS.filter((k) =>
     new RegExp(`\\b${k.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(normalized),
@@ -443,9 +443,9 @@ function buildUserPrompt(input: PatternInput): string {
   const snap = extractRegulatorySnapshot(e);
   const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
-  return `${sectoralBlock}# DOSSIER A ANALYSER
+  return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communique'}
+Entreprise : ${e.companyName ?? 'non communiqué'}
 Secteur : ${snap.sector}
 Stade : ${snap.stage}
 Pays : ${snap.country}
@@ -458,28 +458,28 @@ ${e.marketPitch ?? '(non fourni)'}
 
 ${e.productDescription ?? '(non fourni)'}
 
-# MODELE ECONOMIQUE
+# MODÈLE ÉCONOMIQUE
 
 ${e.businessModel ?? '(non fourni)'}
 
-# SIGNAUX REGLEMENTAIRES DETECTES AU PRE-SCREEN
+# SIGNAUX RÉGLEMENTAIRES DÉTECTÉS AU PRE-SCREEN
 
-Mots-cles secteur regule : ${snap.reguleKeywords.length > 0 ? snap.reguleKeywords.join(', ') : 'aucun mot-cle reglementaire detecte explicitement'}
-Signaux compliance : ${snap.complianceSignals.length > 0 ? snap.complianceSignals.join(', ') : 'aucun signal de fonction compliance detecte'}
+Mots-clés secteur régulé : ${snap.reguleKeywords.length > 0 ? snap.reguleKeywords.join(', ') : 'aucun mot-clé réglementaire détecté explicitement'}
+Signaux compliance : ${snap.complianceSignals.length > 0 ? snap.complianceSignals.join(', ') : 'aucun signal de fonction compliance détecté'}
 
-# RESUME GENERAL
+# RÉSUMÉ GÉNÉRAL
 
 ${(e as any).rawSummary ?? '(non fourni)'}
 
-# TA TACHE
+# TA TÂCHE
 
 Analyse ce dossier sur le pattern Regulatory Time Bomb selon les trois axes
-detailles. Identifie d abord lequel des trois sous-types s applique
-(regulation a venir connue, regulation existante mal appliquee, regulation
-future probabiliste). Mentionne le sous-type identifie dans le
-resumeEditorial. Si aucun sous-type ne s applique, marque l applicabilite
+détaillés. Identifie d abord lequel des trois sous-types s applique
+(régulation à venir connue, régulation existante mal appliquée, régulation
+future probabiliste). Mentionne le sous-type identifié dans le
+resumeEditorial. Si aucun sous-type ne s applique, marque l applicabilité
 en not-applicable. Retourne uniquement le JSON conforme au format
-obligatoire, sans preambule.`;
+obligatoire, sans préambule.`;
 }
 
 // ============================================================
@@ -540,12 +540,12 @@ function isApplicable(
   financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
   // Pre-check universel : sans revenu ni burn, on ne peut pas raisonner
-  // sur l exposition reglementaire structurelle ni sur la preparation
-  // documentee. Court-circuit avant LLM call.
+  // sur l exposition réglementaire structurelle ni sur la préparation
+  // documentée. Court-circuit avant LLM call.
   if (!hasMinimalFinancialSignal(financialData)) {
     return {
       level: 'not-applicable',
-      rationale: 'Pattern Regulatory Time Bomb non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine necessite une matiere economique pour mesurer l exposition reglementaire.',
+      rationale: 'Pattern Regulatory Time Bomb non évaluable : aucun revenu ni burn chiffré dans le dossier. La doctrine nécessite une matière économique pour mesurer l exposition réglementaire.',
       shouldRun: false,
     };
   }
@@ -554,22 +554,22 @@ function isApplicable(
   if (!hasBusinessModel) {
     return {
       level: 'not-applicable',
-      rationale: 'Aucun modele economique lisible. Pattern Regulatory Time Bomb non evaluable.',
+      rationale: 'Aucun modèle économique lisible. Pattern Regulatory Time Bomb non évaluable.',
       shouldRun: false,
     };
   }
 
   const snap = extractRegulatorySnapshot(extraction);
 
-  // Aucun mot-cle reglementaire detecte ET pas de business model en
-  // contact direct avec le regulateur (marketplace, contract-b2g)
+  // Aucun mot-clé réglementaire détecté ET pas de business model en
+  // contact direct avec le régulateur (marketplace, contract-b2g)
   const businessModelText = normalizeFrText(extraction.businessModel);
   const isPublicOrMarketplace = /marketplace|contract|b2g|public sector|gouvernement|government/i.test(businessModelText);
 
   if (snap.reguleKeywords.length === 0 && !isPublicOrMarketplace) {
     return {
       level: 'not-applicable',
-      rationale: 'Aucun signal reglementaire detecte au pre-screen et modele economique sans contact direct avec le regulateur. Pattern non applicable.',
+      rationale: 'Aucun signal réglementaire détecté au pre-screen et modèle économique sans contact direct avec le régulateur. Pattern non applicable.',
       shouldRun: false,
     };
   }
@@ -577,8 +577,8 @@ function isApplicable(
   return {
     level: 'full',
     rationale: snap.reguleKeywords.length > 0
-      ? `Secteur regule detecte (${snap.reguleKeywords.slice(0, 3).join(', ')}${snap.reguleKeywords.length > 3 ? '...' : ''}), analyse complete des trois axes pertinente.`
-      : 'Modele economique avec contact regulatoire (marketplace ou public), analyse complete pertinente.',
+      ? `Secteur régulé détecté (${snap.reguleKeywords.slice(0, 3).join(', ')}${snap.reguleKeywords.length > 3 ? '...' : ''}), analyse complète des trois axes pertinente.`
+      : 'Modèle économique avec contact regulatoire (marketplace ou public), analyse complète pertinente.',
     shouldRun: true,
   };
 }
@@ -606,13 +606,13 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   const output = llmOutputToPatternOutput(raw);
 
-  // Gating axe central : axe 1 (exposition reglementaire structurelle)
+  // Gating axe central : axe 1 (exposition réglementaire structurelle)
   // est l axe identitaire de Regulatory Time Bomb. Sans exposition
-  // reglementaire mesurable, le pattern n a pas d objet.
+  // réglementaire mesurable, le pattern n a pas d objet.
   return applyCentralAxisGating(
     output,
     'axis1',
-    'Pattern Regulatory Time Bomb non applicable : l axe identitaire (exposition reglementaire structurelle) est neutralise. Le secteur n est pas en bascule reglementaire identifiable.',
+    'Pattern Regulatory Time Bomb non applicable : l axe identitaire (exposition réglementaire structurelle) est neutralisé. Le secteur n est pas en bascule réglementaire identifiable.',
   );
 }
 

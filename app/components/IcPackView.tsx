@@ -88,20 +88,20 @@ const VERDICT_COLORS: Record<string, string> = {
 
 const TENSION_LABELS: Record<string, string> = {
   'blindspots-dominate': 'Vigilance dominante',
-  'contrarian-justifies': 'Singularites justificatives',
-  'balanced-investigate': 'Equilibre, instruction a poursuivre',
+  'contrarian-justifies': 'Singularités justificatives',
+  'balanced-investigate': 'Équilibre, instruction à poursuivre',
 };
 
 // Vocabulaire de comite : on traduit les codes machine en termes
 // que des partners reconnaissent immediatement sur la couverture
 // d un pack IC.
 const STAGE_LABELS: Record<string, string> = {
-  deposited: 'Depose',
+  deposited: 'Déposé',
   in_review: 'En instruction',
   dd_field: 'DD terrain',
-  ic_review: 'Pret pour IC',
-  signed: 'Signe',
-  declined: 'Refuse',
+  ic_review: 'Prêt pour IC',
+  signed: 'Signé',
+  declined: 'Refusé',
 };
 
 function formatDate(iso?: string): string {
@@ -155,11 +155,11 @@ export default function IcPackView({
 
   // Agenda type calibre sur 60 minutes
   const agenda = [
-    { duration: '10 min', label: 'Presentation par le partner principal' },
-    { duration: '5 min', label: 'Lecture du verdict et des probabilites' },
-    { duration: '15 min', label: 'Discussion des facteurs decisifs et des risques' },
-    { duration: '15 min', label: 'Reponses aux questions ouvertes' },
-    { duration: '10 min', label: 'Tour de table sur les conditions cles' },
+    { duration: '10 min', label: 'Présentation par le partner principal' },
+    { duration: '5 min', label: 'Lecture du verdict et des probabilités' },
+    { duration: '15 min', label: 'Discussion des facteurs décisifs et des risques' },
+    { duration: '15 min', label: 'Réponses aux questions ouvertes' },
+    { duration: '10 min', label: 'Tour de table sur les conditions clés' },
     { duration: '5 min', label: 'Vote' },
   ];
 
@@ -218,7 +218,7 @@ export default function IcPackView({
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('Export Pack IC echec:', err);
-      alert('Echec export Pack IC : ' + (err?.message || 'erreur inconnue'));
+      alert('Échec export Pack IC : ' + (err?.message || 'erreur inconnue'));
     }
   };
 
@@ -250,7 +250,7 @@ export default function IcPackView({
             fontFamily: 'inherit',
           }}
         >
-          ↓ Telecharger en PDF
+          ↓ Télécharger en PDF
         </button>
       </div>
 
@@ -267,7 +267,7 @@ export default function IcPackView({
         </div>
 
         <div className="ic-cover-title">
-          <h1 className="ic-company">{ext.companyName || 'Societe'}</h1>
+          <h1 className="ic-company">{ext.companyName || 'Société'}</h1>
           <div className="ic-company-sub">
             {[ext.sector, ext.subSector, ext.country].filter(Boolean).join(' · ')}
           </div>
@@ -276,25 +276,25 @@ export default function IcPackView({
         <div className="ic-fact-grid">
           <div className="ic-fact">
             <div className="ic-fact-label">Stade</div>
-            <div className="ic-fact-value">{fundraise.stage || 'Non precise'}</div>
+            <div className="ic-fact-value">{fundraise.stage || 'Non précisé'}</div>
           </div>
           <div className="ic-fact">
-            <div className="ic-fact-label">Levee demandee</div>
-            <div className="ic-fact-value">{fundraise.amount || 'Non precise'}</div>
+            <div className="ic-fact-label">Levée demandée</div>
+            <div className="ic-fact-value">{fundraise.amount || 'Non précisé'}</div>
           </div>
           <div className="ic-fact">
             <div className="ic-fact-label">Valuation</div>
-            <div className="ic-fact-value">{fundraise.valuation || 'Non precise'}</div>
+            <div className="ic-fact-value">{fundraise.valuation || 'Non précisé'}</div>
           </div>
           <div className="ic-fact">
-            <div className="ic-fact-label">Annee de fondation</div>
-            <div className="ic-fact-value">{ext.yearFounded || 'Non precise'}</div>
+            <div className="ic-fact-label">Année de fondation</div>
+            <div className="ic-fact-value">{ext.yearFounded || 'Non précisé'}</div>
           </div>
         </div>
 
         {founders.length > 0 && (
           <div className="ic-founders">
-            <div className="ic-fact-label">Equipe fondatrice</div>
+            <div className="ic-fact-label">Équipe fondatrice</div>
             <div className="ic-founders-list">
               {founders.map((f: any, i: number) => (
                 <div key={i} className="ic-founder">
@@ -316,21 +316,21 @@ export default function IcPackView({
             </div>
             <div className="ic-prob-block">
               <div className="ic-prob-row">
-                <span className="ic-prob-label">Probabilite de succes</span>
+                <span className="ic-prob-label">Probabilité de succès</span>
                 <span className="ic-prob-value" style={{ color: 'var(--vert-foret)' }}>
-                  {reco.successProbability ?? '—'}%
+                  {reco.successProbability ?? '-'}%
                 </span>
               </div>
               <div className="ic-prob-row">
-                <span className="ic-prob-label">Probabilite d echec</span>
+                <span className="ic-prob-label">Probabilité d&apos;échec</span>
                 <span className="ic-prob-value" style={{ color: 'var(--rouge-anglais)' }}>
-                  {reco.failureProbability ?? '—'}%
+                  {reco.failureProbability ?? '-'}%
                 </span>
               </div>
               <div className="ic-prob-row">
                 <span className="ic-prob-label">Score auditable</span>
                 <span className="ic-prob-value">
-                  {reco.computedScoreBreakdown?.finalComputedScore ?? reco.globalScore ?? '—'}/100
+                  {reco.computedScoreBreakdown?.finalComputedScore ?? reco.globalScore ?? '-'}/100
                 </span>
               </div>
             </div>
@@ -339,7 +339,7 @@ export default function IcPackView({
           {tension.resolution && (
             <div className="ic-tension">
               <div className="ic-tension-label">
-                Resolution dialectique · {TENSION_LABELS[tension.tensionResolved] || tension.tensionResolved}
+                Résolution dialectique · {TENSION_LABELS[tension.tensionResolved] || tension.tensionResolved}
               </div>
               <p className="ic-tension-text">{tension.resolution}</p>
             </div>
@@ -381,12 +381,12 @@ export default function IcPackView({
       <section className="ic-page">
         <div className="ic-page-title">
           <span className="ic-page-num">II.</span>
-          <span>Deliberation</span>
+          <span>Délibération</span>
         </div>
 
         {decisionDrivers.length > 0 && (
           <div className="ic-block">
-            <h3 className="ic-block-title">Facteurs decisifs</h3>
+            <h3 className="ic-block-title">Facteurs décisifs</h3>
             <ol className="ic-numbered-list">
               {decisionDrivers.map((d, i) => <li key={i}>{d}</li>)}
             </ol>
@@ -401,7 +401,7 @@ export default function IcPackView({
                 <div key={i} className="ic-risk-item">
                   <div className="ic-risk-head">
                     <span className="ic-risk-label">{r.label}</span>
-                    <span className="ic-risk-intensity">Intensite {r.intensity}</span>
+                    <span className="ic-risk-intensity">Intensité {r.intensity}</span>
                   </div>
                   {r.evidence && <p className="ic-risk-evidence">{r.evidence}</p>}
                 </div>
@@ -412,7 +412,7 @@ export default function IcPackView({
 
         {keyConditions.length > 0 && (
           <div className="ic-block ic-block-conditions">
-            <h3 className="ic-block-title">Conditions cles</h3>
+            <h3 className="ic-block-title">Conditions clés</h3>
             <ul className="ic-bullet-list">
               {keyConditions.map((c, i) => <li key={i}>{c}</li>)}
             </ul>
@@ -461,12 +461,12 @@ export default function IcPackView({
               </div>
               <div className="ic-dd-stat">
                 <span className="ic-dd-num">{weakSignals}</span>
-                <span className="ic-dd-lab">Signaux faibles a verifier</span>
+                <span className="ic-dd-lab">Signaux faibles à vérifier</span>
               </div>
             </div>
             {(refchecks.priorityOrder || []).length > 0 && (
               <div className="ic-priority">
-                <div className="ic-fact-label">Ordre de priorite recommande</div>
+                <div className="ic-fact-label">Ordre de priorité recommandé</div>
                 <ol className="ic-numbered-list ic-numbered-tight">
                   {(refchecks.priorityOrder || []).slice(0, 3).map((p: string, i: number) => (
                     <li key={i}>{p}</li>
@@ -498,7 +498,7 @@ export default function IcPackView({
             <div className="ic-plan-grid">
               {(structuringPlan.shortTerm || []).length > 0 && (
                 <div className="ic-plan-col">
-                  <div className="ic-plan-head">0 a 3 mois</div>
+                  <div className="ic-plan-head">0 à 3 mois</div>
                   <ul className="ic-plan-list">
                     {(structuringPlan.shortTerm || []).map((s: any, i: number) => (
                       <li key={i}><strong>{s.axis}.</strong> {s.action}</li>
@@ -508,7 +508,7 @@ export default function IcPackView({
               )}
               {(structuringPlan.mediumTerm || []).length > 0 && (
                 <div className="ic-plan-col">
-                  <div className="ic-plan-head">3 a 12 mois</div>
+                  <div className="ic-plan-head">3 à 12 mois</div>
                   <ul className="ic-plan-list">
                     {(structuringPlan.mediumTerm || []).map((s: any, i: number) => (
                       <li key={i}><strong>{s.axis}.</strong> {s.action}</li>
@@ -518,7 +518,7 @@ export default function IcPackView({
               )}
               {(structuringPlan.longTerm || []).length > 0 && (
                 <div className="ic-plan-col">
-                  <div className="ic-plan-head">12 mois et au-dela</div>
+                  <div className="ic-plan-head">12 mois et au-delà</div>
                   <ul className="ic-plan-list">
                     {(structuringPlan.longTerm || []).map((s: any, i: number) => (
                       <li key={i}><strong>{s.axis}.</strong> {s.action}</li>
@@ -531,7 +531,7 @@ export default function IcPackView({
         ) : null}
 
         <div className="ic-block">
-          <h3 className="ic-block-title">Agenda du comite (60 minutes)</h3>
+          <h3 className="ic-block-title">Agenda du comité (60 minutes)</h3>
           <table className="ic-agenda-table">
             <tbody>
               {agenda.map((a, i) => (
@@ -603,7 +603,7 @@ export default function IcPackView({
                     </div>
                     <div className="ic-vote-label">{opt.label}</div>
                     {recommended && (
-                      <div className="ic-vote-badge">Recommande par l instruction</div>
+                      <div className="ic-vote-badge">Recommandé par l&apos;instruction</div>
                     )}
                     {interactive && count > 0 && (
                       <div className="ic-vote-count">
@@ -623,7 +623,7 @@ export default function IcPackView({
               utile au comite. */}
           {onVote && icVotes && icVotes.length > 0 && (
             <div className="ic-votes-roster">
-              <div className="ic-fact-label">Votes enregistres ({icVotes.length})</div>
+              <div className="ic-fact-label">Votes enregistrés ({icVotes.length})</div>
               <ul className="ic-votes-roster-list">
                 {icVotes.map((v) => (
                   <li key={v.userId} className="ic-votes-roster-item">
@@ -759,7 +759,7 @@ function IcDecisionBlock({
           )}
         </div>
         <div className="ic-signature-line">
-          <div className="ic-fact-label">Date de comite</div>
+          <div className="ic-fact-label">Date de comité</div>
           {editable ? (
             <input
               type="date"
@@ -775,7 +775,7 @@ function IcDecisionBlock({
       </div>
       <div className="ic-signature-row">
         <div className="ic-signature-line">
-          <div className="ic-fact-label">Resultat du vote</div>
+          <div className="ic-fact-label">Résultat du vote</div>
           {editable ? (
             <select
               className="ic-decision-input"

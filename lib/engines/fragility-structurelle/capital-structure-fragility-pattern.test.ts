@@ -136,12 +136,12 @@ console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
 {
   const sp = _internal.SYSTEM_PROMPT;
   checkTrue('mentionne axe 1 preferences', sp.toLowerCase().includes('axe 1') && sp.toLowerCase().includes('preferences'));
-  checkTrue('mentionne axe 2 asymetries', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('asymetries'));
+  checkTrue('mentionne axe 2 asymetries', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('asymétries'));
   checkTrue('mentionne axe 3 exit', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('exit'));
   checkTrue('mentionne WeWork', sp.includes('WeWork'));
   checkTrue('mentionne Klarna 2022', sp.includes('Klarna'));
   checkTrue('mentionne Stripe Adyen sains', sp.includes('Stripe') && sp.includes('Adyen'));
-  checkTrue('contrainte coherence', sp.includes('CONTRAINTE DE COHERENCE'));
+  checkTrue('contrainte coherence', sp.includes('CONTRAINTE DE COHÉRENCE'));
   checkTrue('format JSON', sp.includes('FORMAT JSON OBLIGATOIRE'));
 }
 

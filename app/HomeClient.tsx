@@ -3515,13 +3515,13 @@ export default function HomeClient({
                     maxWidth: 720,
                   }}>
                     {verdict === 'approfondir' && (
-                      <>L&apos;instruction Bloc 1 ne tranche pas. Le score positionne le dossier en zone d&apos;instruction approfondie, la DD doit cristalliser l&apos;arbitrage. Demander a la startup les documents data room : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira des cinq audits Bloc 2 sans recalculer le Bloc 1.</>
+                      <>L&apos;instruction Bloc 1 ne tranche pas. Le score positionne le dossier en zone d&apos;instruction approfondie, la DD doit cristalliser l&apos;arbitrage. Demander à la startup les documents data room : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira des cinq audits Bloc 2 sans recalculer le Bloc 1.</>
                     )}
                     {verdict === 'investir avec conditions' && (
-                      <>L&apos;instruction Bloc 1 conclut a un go conditionne. La DD doit valider les conditions identifiees plus loin dans la note, en particulier sur la coherence financiere et la structure capitalistique. Demander a la startup les documents data room (grand livre, pacte, statuts, cap table, contrats, dossier technique) avant de formaliser la term sheet.</>
+                      <>L&apos;instruction Bloc 1 conclut à un go conditionné. La DD doit valider les conditions identifiées plus loin dans la note, en particulier sur la cohérence financière et la structure capitalistique. Demander à la startup les documents data room (grand livre, pacte, statuts, cap table, contrats, dossier technique) avant de formaliser la term sheet.</>
                     )}
                     {verdict === 'investir' && (
-                      <>L&apos;instruction Bloc 1 conclut a un go franc. La DD est confirmatoire : valider que les chiffres declares dans le pitch se retrouvent dans le grand livre, que le pacte ne contient pas de clauses bloquantes, que la cap table est propre, et que le dossier technique tient ses promesses. Apres ces verifications, la term sheet peut etre formalisee.</>
+                      <>L&apos;instruction Bloc 1 conclut à un go franc. La DD est confirmatoire : valider que les chiffres déclarés dans le pitch se retrouvent dans le grand livre, que le pacte ne contient pas de clauses bloquantes, que la cap table est propre, et que le dossier technique tient ses promesses. Après ces vérifications, la term sheet peut être formalisée.</>
                     )}
                   </div>
                   <button
@@ -3793,7 +3793,7 @@ export default function HomeClient({
                   }}>
                     <strong style={{ fontWeight: 600, fontStyle: 'normal', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-tertiary)' }}>Lecture des deux chiffres</strong>
                     <br />
-                    <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Succès %</strong> : probabilité bayésienne de retour positif sur cette dimension, integre l incertitude residuelle. <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Risque /100</strong> : score de risque structurel composé sur la dimension, mesure différente. Les deux chiffres ne s additionnent pas a 100 car ils répondent à deux questions distinctes : la probabilité de réussir vs l intensité des facteurs de risque structurels.
+                    <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Succès %</strong> : probabilité bayésienne de retour positif sur cette dimension, intègre l&apos;incertitude résiduelle. <strong style={{ fontWeight: 600, fontStyle: 'normal' }}>Risque /100</strong> : score de risque structurel composé sur la dimension, mesure différente. Les deux chiffres ne s&apos;additionnent pas à 100 car ils répondent à deux questions distinctes : la probabilité de réussir vs l&apos;intensité des facteurs de risque structurels.
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                     {(result.finalRecommendation?.dimensionProbabilities || [])
@@ -3811,7 +3811,7 @@ export default function HomeClient({
                               {dim?.successProbability ?? '—'}<span style={{ fontSize: 14, opacity: 0.6 }}>%</span>
                             </div>
                           </div>
-                          <div title="Score composé d intensité des facteurs de risque structurels">
+                          <div title="Score composé d'intensité des facteurs de risque structurels">
                             <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score risque structurel</div>
                             <div style={{ fontSize: 28, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1.1, opacity: 0.85 }}>
                               {dim?.riskScore ?? '—'}<span style={{ fontSize: 14, opacity: 0.6 }}>/100</span>
@@ -4392,7 +4392,7 @@ export default function HomeClient({
                     {/* Bloc des metriques lexicales, en grand pour lecture editoriale. */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
                       <div style={{ padding: 16, border: '1px solid var(--hairline)' }}>
-                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Densite concrete</div>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Densité concrète</div>
                         <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500 }}>{ndr.metriquesLexicales.densiteConcrete.toFixed(1)}</div>
                         <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>mots concrets / 1000 (sain ≥ 30)</div>
                       </div>
@@ -4402,12 +4402,12 @@ export default function HomeClient({
                         <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>sain &lt; 0,3, drapeau rouge &gt; 2</div>
                       </div>
                       <div style={{ padding: 16, border: '1px solid var(--hairline)' }}>
-                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Score d&apos;opacite</div>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Score d&apos;opacité</div>
                         <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500 }}>{ndr.metriquesLexicales.opaciteScore.toFixed(1)}%</div>
-                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>jargon non chiffre</div>
+                        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>jargon non chiffré</div>
                       </div>
                       <div style={{ padding: 16, border: '1px solid var(--hairline)' }}>
-                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Corpus analyse</div>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Corpus analysé</div>
                         <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500 }}>{ndr.metriquesLexicales.totalWordsAnalyses}</div>
                         <div style={{ fontSize: 11, opacity: 0.55, marginTop: 4 }}>mots</div>
                       </div>
@@ -4597,7 +4597,7 @@ export default function HomeClient({
                           <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: v.ink }}>{v.label}</span>
                         </div>
                         <div>
-                          <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: v.ink }}>Score de fragilite </span>
+                          <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, color: v.ink }}>Score de fragilité </span>
                           <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6, color: v.ink }}>{fsr.globalFragilityScore}/100</span>
                         </div>
                         <div style={{ fontSize: 12, opacity: 0.75, color: v.ink }}>
@@ -4662,7 +4662,7 @@ export default function HomeClient({
                     {fsr.combinaisons && fsr.combinaisons.length > 0 && (
                       <div style={{ marginBottom: 20, padding: 14, borderLeft: '3px solid var(--ocre-brule, #8a4a17)', background: 'rgba(138, 74, 23, 0.06)' }}>
                         <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 10, color: 'var(--ocre-brule, #8a4a17)', fontWeight: 600 }}>
-                          Combinaisons diagnostiques detectees
+                          Combinaisons diagnostiques détectées
                         </div>
                         {fsr.combinaisons.map((comb: any, i: number) => (
                           <div key={i} style={{ marginBottom: i < fsr.combinaisons.length - 1 ? 12 : 0 }}>
@@ -5357,7 +5357,7 @@ export default function HomeClient({
                           color: 'var(--ink-soft)',
                           lineHeight: 1.6,
                         }}>
-                          Analyse macro non concluante pour ce dossier. Les sources interrogees n ont pas produit de signal sur le cycle, le capital VC, la geopolitique ou les tendances structurelles applicables. Pour completer cette dimension : verifier le contexte sectoriel via un brief macro externe (Atomico SoET, PitchBook, Bain Global Private Equity Report).
+                          Analyse macro non concluante pour ce dossier. Les sources interrogées n&apos;ont pas produit de signal sur le cycle, le capital VC, la géopolitique ou les tendances structurelles applicables. Pour compléter cette dimension : vérifier le contexte sectoriel via un brief macro externe (Atomico SoET, PitchBook, Bain Global Private Equity Report).
                         </div>
                       );
                     }
@@ -6028,7 +6028,7 @@ export default function HomeClient({
               margin: '0 0 14px',
               lineHeight: 1.2,
             }}>
-              Un dossier <em>{pendingCollision.existingCompanyName}</em> existe deja
+              Un dossier <em>{pendingCollision.existingCompanyName}</em> existe déjà
             </h3>
             <p style={{
               fontSize: 13,
@@ -6036,9 +6036,9 @@ export default function HomeClient({
               color: 'var(--ink)',
               margin: '0 0 20px',
             }}>
-              Vous avez instruit cette societe le {new Date(pendingCollision.existingCreatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}.
-              Cette nouvelle analyse peut etre traitee comme une mise a jour
-              du dossier existant (version {pendingCollision.nextVersionNum}) ou comme un nouveau dossier independant.
+              Vous avez instruit cette société le {new Date(pendingCollision.existingCreatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}.
+              Cette nouvelle analyse peut être traitée comme une mise à jour
+              du dossier existant (version {pendingCollision.nextVersionNum}) ou comme un nouveau dossier indépendant.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

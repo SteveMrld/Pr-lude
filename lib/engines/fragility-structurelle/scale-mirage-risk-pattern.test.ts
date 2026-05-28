@@ -158,13 +158,13 @@ console.log('\n=== Test 11 : SYSTEM_PROMPT doctrinal ===');
 {
   const sp = _internal.SYSTEM_PROMPT;
   checkTrue('mentionne axe 1 disproportion capex', sp.toLowerCase().includes('axe 1') && sp.toLowerCase().includes('disproportion'));
-  checkTrue('mentionne axe 2 maturite', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('maturite'));
-  checkTrue('mentionne axe 3 flexibilite', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('flexibilite'));
+  checkTrue('mentionne axe 2 maturite', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('maturité'));
+  checkTrue('mentionne axe 3 flexibilite', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('flexibilité'));
   checkTrue('mentionne Ynsect canonique', sp.includes('Ynsect'));
   checkTrue('mentionne Northvolt 2024', sp.includes('Northvolt'));
   checkTrue('mentionne Britishvolt', sp.includes('Britishvolt'));
   checkTrue('mentionne Tesla Innovafeed sains', sp.includes('Tesla') && sp.includes('Innovafeed'));
-  checkTrue('contrainte coherence', sp.includes('CONTRAINTE DE COHERENCE'));
+  checkTrue('contrainte coherence', sp.includes('CONTRAINTE DE COHÉRENCE'));
   checkTrue('format JSON', sp.includes('FORMAT JSON OBLIGATOIRE'));
 }
 

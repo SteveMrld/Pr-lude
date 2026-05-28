@@ -19,22 +19,22 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 const SECTION_LABELS: Record<string, string> = {
-  synthesis: 'Synthese',
+  synthesis: 'Synthèse',
   dimensions: 'Dimensions',
-  team: 'Equipe',
-  verified: 'Faits verifies',
-  market: 'Marche',
+  team: 'Équipe',
+  verified: 'Faits vérifiés',
+  market: 'Marché',
   macro: 'Macro',
   financial: 'Financier',
   pattern: 'Pattern matching',
   aveuglement: 'Vigilance critique',
-  singularite: 'Singularites',
-  blindspots: 'Vigilance critique et singularites',
+  singularite: 'Singularités',
+  blindspots: 'Vigilance critique et singularités',
   risksplan: 'Risques et plan',
   refchecks: 'Reference checks',
-  instruction: 'A instruire',
+  instruction: 'À instruire',
   'ic-pack': 'Pack IC',
-  general: 'General',
+  general: 'Général',
 };
 
 type Annotation = {
@@ -60,7 +60,7 @@ function formatRelative(iso: string): string {
     const then = new Date(iso).getTime();
     const now = Date.now();
     const diffMin = Math.floor((now - then) / 60000);
-    if (diffMin < 1) return 'a l instant';
+    if (diffMin < 1) return 'à l’instant';
     if (diffMin < 60) return `il y a ${diffMin} min`;
     const diffH = Math.floor(diffMin / 60);
     if (diffH < 24) return `il y a ${diffH}h`;
@@ -130,7 +130,7 @@ export default function CommentsPanel({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || 'Echec envoi');
+        throw new Error(data?.error || 'Échec envoi');
       }
       const data = await res.json();
       if (data.annotation) {
@@ -257,7 +257,7 @@ export default function CommentsPanel({
               checked={showResolved}
               onChange={(e) => setShowResolved(e.target.checked)}
             />
-            Afficher les commentaires resolus
+            Afficher les commentaires résolus
           </label>
         </div>
 
@@ -279,9 +279,9 @@ export default function CommentsPanel({
               padding: '24px 0',
               lineHeight: 1.55,
             }}>
-              Aucun commentaire pour ce dossier. Demarrez la discussion en ajoutant
-              une remarque ci-dessous, optionnellement rattachee a une section
-              precise de l analyse.
+              Aucun commentaire pour ce dossier. Démarrez la discussion en ajoutant
+              une remarque ci-dessous, optionnellement rattachée à une section
+              précise de l&apos;analyse.
             </div>
           )}
           {visible.map((a) => {
@@ -354,12 +354,12 @@ export default function CommentsPanel({
                         fontFamily: 'inherit',
                       }}
                     >
-                      Marquer resolu
+                      Marquer résolu
                     </button>
                   )}
                   {isResolved && (
                     <span style={{ color: 'var(--vert-foret, #1f7a3c)' }}>
-                      Resolu {formatRelative(a.resolvedAt!)}
+                      Résolu {formatRelative(a.resolvedAt!)}
                     </span>
                   )}
                 </div>
@@ -456,8 +456,8 @@ export default function CommentsPanel({
             color: 'var(--muted)',
             lineHeight: 1.5,
           }}>
-            Les commentaires partages necessitent un compte fonds. Activez l auth
-            pour permettre aux membres de votre fonds de commenter et resoudre.
+            Les commentaires partagés nécessitent un compte fonds. Activez l&apos;auth
+            pour permettre aux membres de votre fonds de commenter et résoudre.
           </div>
         )}
       </aside>

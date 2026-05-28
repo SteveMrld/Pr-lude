@@ -371,19 +371,19 @@ function NoteSectoralAnnex({
     >
       <h4 className="note-h4">Annexe sectorielle</h4>
       <p className="note-sectoral-annex-intro">
-        Lecture exhaustive de la fiche {sectorLabel} (generee le {dateLabel}) qui
-        a encadre l analyse de ce dossier. Huit dimensions standardisees, leurs
-        scores chiffres, la definition doctrinale appliquee au moment de la
-        generation et les sources citees par le LLM regenerateur.
+        Lecture exhaustive de la fiche {sectorLabel} (générée le {dateLabel}) qui
+        a encadré l&apos;analyse de ce dossier. Huit dimensions standardisées, leurs
+        scores chiffrés, la définition doctrinale appliquée au moment de la
+        génération et les sources citées par le LLM régénérateur.
       </p>
       <ol className="note-sectoral-annex-list">
         {DIMENSION_KEYS.map((key) => {
           const d = primary.brief.dimensions[key];
           const score = d?.data_missing
-            ? 'donnee insuffisante'
+            ? 'donnée insuffisante'
             : typeof d?.score === 'number'
               ? `${d.score}/100`
-              : 'non chiffre';
+              : 'non chiffré';
           return (
             <li key={key}>
               <div className="note-sectoral-annex-head">
@@ -1470,7 +1470,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               parmi d autres. C est la conclusion narrative de l instruction
               Bloc 1, elle merite un traitement typographique distinct. */}
           <div className="verdict-headline">
-            <div className="verdict-headline-label">Verdict de l&apos;instruction prealable</div>
+            <div className="verdict-headline-label">Verdict de l&apos;instruction préalable</div>
             <div className="verdict-headline-value">{reco.verdict || '—'}</div>
           </div>
 
@@ -1482,7 +1482,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <div className="verdict-block">
             <div className="verdict-block-head">
               <span className="verdict-block-num" aria-hidden="true">1</span>
-              <span className="verdict-block-title">Score d&apos;attractivite structurelle</span>
+              <span className="verdict-block-title">Score d&apos;attractivité structurelle</span>
               <span className="verdict-block-figure">
                 {reco.globalScore || 0}
                 <span style={{ fontSize: 14, opacity: 0.45, fontWeight: 400, marginLeft: 2 }}>/100</span>
@@ -1517,7 +1517,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               </div>
             )}
             <div className="verdict-block-legend">
-              Note ponderee sur six dimensions (equipe 0,20 ; marche 0,22 ; macro 0,15 ; modele economique 0,13 ; singularites contrariennes 0,15 ; vigilance critique inversee 0,15). Verdict derive deterministe : moins de 45 = refuser, 45 a 59 = approfondir, 60 a 74 = investir avec conditions, 75 et plus = investir. Score calcule par le code a partir des moteurs Bloc 1, independamment du jugement narratif.
+              Note pondérée sur six dimensions (équipe 0,20 ; marché 0,22 ; macro 0,15 ; modèle économique 0,13 ; singularités contrariennes 0,15 ; vigilance critique inversée 0,15). Verdict dérivé déterministe : moins de 45 = refuser, 45 à 59 = approfondir, 60 à 74 = investir avec conditions, 75 et plus = investir. Score calculé par le code à partir des moteurs Bloc 1, indépendamment du jugement narratif.
             </div>
           </div>
 
@@ -1532,11 +1532,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           {reco.computedScoreBreakdown?.mechanicalDimensions && (() => {
             const md = reco.computedScoreBreakdown.mechanicalDimensions as any;
             const rows: Array<{ key: string; label: string; dim: any }> = [
-              { key: 'team', label: 'Equipe', dim: md.team },
-              { key: 'market', label: 'Marche', dim: md.market },
+              { key: 'team', label: 'Équipe', dim: md.team },
+              { key: 'market', label: 'Marché', dim: md.market },
               { key: 'macro', label: 'Macro', dim: md.macro },
-              { key: 'financial', label: 'Modele economique', dim: md.financial },
-              { key: 'contrarian', label: 'Singularites contrariennes', dim: md.contrarian },
+              { key: 'financial', label: 'Modèle économique', dim: md.financial },
+              { key: 'contrarian', label: 'Singularités contrariennes', dim: md.contrarian },
               { key: 'vigilance', label: 'Vigilance critique', dim: md.vigilance },
             ];
             return (
@@ -1548,10 +1548,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 borderRadius: 4,
               }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)', marginBottom: 4 }}>
-                  Decomposition du score
+                  Décomposition du score
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 12px 0', lineHeight: 1.55 }}>
-                  Le score global est la somme ponderee des six dimensions Bloc 1, calculees independamment par chaque moteur sur les faits du dossier. Aucun ajustement narratif au moment de la synthese.
+                  Le score global est la somme pondérée des six dimensions Bloc 1, calculées indépendamment par chaque moteur sur les faits du dossier. Aucun ajustement narratif au moment de la synthèse.
                 </p>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
@@ -1600,7 +1600,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   </tbody>
                 </table>
                 <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--surface-soft, rgba(0,0,0,0.04))', borderRadius: 3, fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.55 }}>
-                  <strong style={{ color: 'var(--ink)' }}>Verdict derive.</strong> Refuser sous 45. Approfondir entre 45 et 59. Investir avec conditions entre 60 et 74. Investir au-dela de 75. Le verdict <strong style={{ color: 'var(--ink)' }}>{(reco.verdict || '').toUpperCase()}</strong> decoule strictement de ces seuils, sans intervention narrative possible.
+                  <strong style={{ color: 'var(--ink)' }}>Verdict dérivé.</strong> Refuser sous 45. Approfondir entre 45 et 59. Investir avec conditions entre 60 et 74. Investir au-delà de 75. Le verdict <strong style={{ color: 'var(--ink)' }}>{(reco.verdict || '').toUpperCase()}</strong> découle strictement de ces seuils, sans intervention narrative possible.
                 </div>
               </div>
           );
@@ -1620,18 +1620,18 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <div className="verdict-block" style={{ borderLeft: '3px solid var(--ocre-brule)', paddingLeft: 14, marginTop: 12 }}>
               <div className="verdict-block-head">
                 <span className="verdict-block-title" style={{ color: 'var(--ocre-brule)' }}>
-                  Desaccord motive de l&apos;analyste
+                  Désaccord motivé de l&apos;analyste
                 </span>
               </div>
               <div style={{ fontSize: 13, lineHeight: 1.55, opacity: 0.92 }}>
                 <p style={{ margin: '0 0 8px 0' }}>
-                  Le calcul mecanique des dimensions donne <strong>{reco.assessorDisagreement.mechanicalVerdict}</strong> a {reco.assessorDisagreement.mechanicalScore}/100. Le moteur d orchestration aurait calibre le dossier a <strong>{reco.assessorDisagreement.llmVerdict}</strong> a {reco.assessorDisagreement.llmScoreSuggestion}/100 si on lui avait laisse le choix, soit un ecart de {reco.assessorDisagreement.scoreDelta > 0 ? '+' : ''}{reco.assessorDisagreement.scoreDelta} points.
+                  Le calcul mécanique des dimensions donne <strong>{reco.assessorDisagreement.mechanicalVerdict}</strong> à {reco.assessorDisagreement.mechanicalScore}/100. Le moteur d&apos;orchestration aurait calibré le dossier à <strong>{reco.assessorDisagreement.llmVerdict}</strong> à {reco.assessorDisagreement.llmScoreSuggestion}/100 si on lui avait laissé le choix, soit un écart de {reco.assessorDisagreement.scoreDelta > 0 ? '+' : ''}{reco.assessorDisagreement.scoreDelta} points.
                 </p>
                 <p style={{ margin: 0, fontStyle: 'italic' }}>
                   {reco.assessorDisagreement.rationale}
                 </p>
                 <div style={{ fontSize: 11, opacity: 0.7, marginTop: 8, fontStyle: 'normal' }}>
-                  Le score affiche reste le calcul mecanique deterministe. Cette alerte est un signal qualitatif a integrer a la decision, pas un override.
+                  Le score affiché reste le calcul mécanique déterministe. Cette alerte est un signal qualitatif à intégrer à la décision, pas un override.
                 </div>
               </div>
             </div>
@@ -1649,18 +1649,18 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <div className="verdict-block" style={{ marginTop: 14 }}>
               <div className="verdict-block-head">
                 <span className="verdict-block-num" aria-hidden="true">1.5</span>
-                <span className="verdict-block-title">Decomposition du score par dimension</span>
+                <span className="verdict-block-title">Décomposition du score par dimension</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8 }}>
                 {(['team', 'market', 'macro', 'financial', 'contrarian', 'vigilance'] as const).map((key) => {
                   const dim: any = (reco.computedScoreBreakdown as any).mechanicalDimensions[key];
                   const labels: Record<string, string> = {
-                    team: 'Equipe',
-                    market: 'Marche',
+                    team: 'Équipe',
+                    market: 'Marché',
                     macro: 'Macro / timing',
-                    financial: 'Modele economique',
-                    contrarian: 'Singularites contrariennes',
-                    vigilance: 'Vigilance critique (inversee)',
+                    financial: 'Modèle économique',
+                    contrarian: 'Singularités contrariennes',
+                    vigilance: 'Vigilance critique (inversée)',
                   };
                   return (
                     <div key={key} style={{ borderLeft: `2px solid ${dim.notEvaluable ? 'var(--ocre-brule)' : 'var(--hairline)'}`, paddingLeft: 10 }}>
@@ -1671,11 +1671,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       {dim.notEvaluable ? (
                         <>
                           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 2 }}>
-                            <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, color: 'var(--ocre-brule)', fontStyle: 'italic' }}>Non evaluable</span>
-                            <span style={{ fontSize: 11, opacity: 0.65 }}>valeur neutre 50 utilisee</span>
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, color: 'var(--ocre-brule)', fontStyle: 'italic' }}>Non évaluable</span>
+                            <span style={{ fontSize: 11, opacity: 0.65 }}>valeur neutre 50 utilisée</span>
                           </div>
                           <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, lineHeight: 1.5, fontStyle: 'italic' }}>
-                            Donnees insuffisantes pour evaluer cette dimension. Le calcul global utilise une valeur neutre de 50 pour ne pas penaliser le dossier.
+                            Données insuffisantes pour évaluer cette dimension. Le calcul global utilise une valeur neutre de 50 pour ne pas pénaliser le dossier.
                           </div>
                         </>
                       ) : (
@@ -1701,7 +1701,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 })}
               </div>
               <div className="verdict-block-legend" style={{ marginTop: 10 }}>
-                Formule : score = somme des (score_dimension x poids). Les six dimensions et leurs poids sont stables dans le temps. Les seuils de verdict sont 45 / 60 / 75. Un partner qui souhaite recalibrer la formule peut le faire en modifiant les poids dans le code, sans changer la nature des scores produits par les moteurs Bloc 1.
+                Formule : score = somme des (score_dimension × poids). Les six dimensions et leurs poids sont stables dans le temps. Les seuils de verdict sont 45 / 60 / 75. Un partner qui souhaite recalibrer la formule peut le faire en modifiant les poids dans le code, sans changer la nature des scores produits par les moteurs Bloc 1.
               </div>
             </div>
           )}
@@ -1958,7 +1958,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   color: 'var(--muted)',
                   marginBottom: 6,
                 }}>
-                  Methodes appliquees
+                  Méthodes appliquées
                 </div>
                 {valuation.methods.map((m: any, i: number) => (
                   <div key={m.method} style={{
@@ -2011,7 +2011,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               )}
 
               <div className="verdict-block-legend" style={{ marginTop: 12 }}>
-                Sources de benchmarks utilisees : {valuation.benchmarkSources.join(', ')}. Les fourchettes sont indicatives, calibrees sur les transactions europeennes 2023-2025. Le pricing reel depend de signaux qualitatifs non chiffrables (founder-market fit, momentum competitif, contexte du tour).
+                Sources de benchmarks utilisées : {valuation.benchmarkSources.join(', ')}. Les fourchettes sont indicatives, calibrées sur les transactions européennes 2023-2025. Le pricing réel dépend de signaux qualitatifs non chiffrables (founder-market fit, momentum compétitif, contexte du tour).
               </div>
             </div>
           )}
@@ -2057,7 +2057,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     color: 'var(--muted)',
                     marginBottom: 8,
                   }}>
-                    Indicateurs calcules
+                    Indicateurs calculés
                   </div>
                   {indicators.indicators
                     .filter((i: any) => i.verdict !== 'non-applicable')
@@ -2070,7 +2070,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       const verdictLabel =
                         ind.verdict === 'best-in-class' ? 'best-in-class' :
                         ind.verdict === 'sain' ? 'sain' :
-                        ind.verdict === 'a-surveiller' ? 'a surveiller' :
+                        ind.verdict === 'a-surveiller' ? 'à surveiller' :
                         ind.verdict === 'rouge' ? 'rouge' : '';
                       return (
                         <div key={ind.key} style={{
@@ -2100,7 +2100,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                           </div>
                           {ind.benchmark && (
                             <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2, fontFamily: 'var(--sans)' }}>
-                              Benchmark : best {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.best}{ind.unit} · sain {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.sain}{ind.unit} · surveille {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.surveille}{ind.unit}
+                              Benchmark : best {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.best}{ind.unit} · sain {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.sain}{ind.unit} · à surveiller {ind.benchmark.direction === 'higher-is-better' ? '≥' : '≤'} {ind.benchmark.surveille}{ind.unit}
                             </div>
                           )}
                         </div>
@@ -2154,7 +2154,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               )}
 
               <div className="verdict-block-legend" style={{ marginTop: 12 }}>
-                Sources des benchmarks : OpenView SaaS Benchmarks 2024, Bessemer State of the Cloud 2024, Pavilion B2B SaaS Benchmarks 2024, ChartMogul Churn Benchmarks 2024, David Sacks Burn Multiple 2020. Calibration europeenne 2024-2025. Indicateurs deterministes calcules a partir du BP, sans appel LLM.
+                Sources des benchmarks : OpenView SaaS Benchmarks 2024, Bessemer State of the Cloud 2024, Pavilion B2B SaaS Benchmarks 2024, ChartMogul Churn Benchmarks 2024, David Sacks Burn Multiple 2020. Calibration européenne 2024-2025. Indicateurs déterministes calculés à partir du BP, sans appel LLM.
               </div>
             </div>
           )}
@@ -2168,7 +2168,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <div className="verdict-block">
               <div className="verdict-block-head">
                 <span className="verdict-block-num" aria-hidden="true">2</span>
-                <span className="verdict-block-title">Probabilite de succes</span>
+                <span className="verdict-block-title">Probabilité de succès</span>
                 <span className="verdict-block-figure">
                   {reco.successProbability}
                   <span style={{ fontSize: 14, opacity: 0.45, fontWeight: 400, marginLeft: 2 }}>%</span>
@@ -2176,14 +2176,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               </div>
               <div className="success-failure-bar">
                 <div className="sf-success" style={{ width: `${reco.successProbability}%` }}>
-                  <span>{reco.successProbability}% succes</span>
+                  <span>{reco.successProbability}% succès</span>
                 </div>
                 <div className="sf-failure" style={{ width: `${100 - reco.successProbability}%` }}>
-                  <span>{100 - reco.successProbability}% echec</span>
+                  <span>{100 - reco.successProbability}% échec</span>
                 </div>
               </div>
               <div className="verdict-block-legend">
-                Estimation bayesienne de retour positif sur l&apos;investissement. Distincte du score : integre l&apos;incertitude residuelle face aux signaux contradictoires (blindspots versus contrariens). Plus pessimiste que le score quand la dialectique reste non tranchee.
+                Estimation bayésienne de retour positif sur l&apos;investissement. Distincte du score : intègre l&apos;incertitude résiduelle face aux signaux contradictoires (blindspots versus contrariens). Plus pessimiste que le score quand la dialectique reste non tranchée.
               </div>
             </div>
           )}
@@ -2195,16 +2195,16 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <div className="verdict-reading-label">Lecture</div>
             <div className="verdict-reading-text">
               {reco.verdict === 'investir' && (
-                <>L&apos;instruction conclut a un go franc. Le passage en DD approfondie sert a confirmer les hypotheses structurantes et formaliser les conditions de la term sheet.</>
+                <>L&apos;instruction conclut à un go franc. Le passage en DD approfondie sert à confirmer les hypothèses structurantes et formaliser les conditions de la term sheet.</>
               )}
               {reco.verdict === 'investir avec conditions' && (
-                <>L&apos;instruction conclut a un go conditionne. Les conditions cles enumerees plus loin doivent etre verifiees ou negociees lors de la DD approfondie avant signature.</>
+                <>L&apos;instruction conclut à un go conditionné. Les conditions clés énumérées plus loin doivent être vérifiées ou négociées lors de la DD approfondie avant signature.</>
               )}
               {reco.verdict === 'approfondir' && (
-                <>L&apos;instruction Bloc 1 ne tranche pas. Le score positionne le dossier en zone d&apos;instruction approfondie ; la probabilite de succes signale que les signaux contradictoires ne sont pas leves. La DD Bloc 2 (data room) doit cristalliser l&apos;arbitrage.</>
+                <>L&apos;instruction Bloc 1 ne tranche pas. Le score positionne le dossier en zone d&apos;instruction approfondie ; la probabilité de succès signale que les signaux contradictoires ne sont pas levés. La DD Bloc 2 (data room) doit cristalliser l&apos;arbitrage.</>
               )}
               {reco.verdict === 'refuser' && (
-                <>L&apos;instruction conclut au refus. Les drapeaux rouges structurels ne sont pas compenses par les signaux contrariens. Pas de DD approfondie justifiee a ce stade.</>
+                <>L&apos;instruction conclut au refus. Les drapeaux rouges structurels ne sont pas compensés par les signaux contrariens. Pas de DD approfondie justifiée à ce stade.</>
               )}
             </div>
           </div>
@@ -2260,7 +2260,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <>
                 <h4 className="note-h4">Comparables contrariens</h4>
                 <p className="comparable-scope-note">
-                  Comparables retenus pour la similarite d&apos;asset class avec le dossier en cours (nature business, modele economique, intensite capitalistique). Si aucune analogie sectorielle directe n&apos;est trouvee dans le corpus, le moteur le signale dans la recommandation plutot que de forcer une comparaison.
+                  Comparables retenus pour la similarité d&apos;asset class avec le dossier en cours (nature business, modèle économique, intensité capitalistique). Si aucune analogie sectorielle directe n&apos;est trouvée dans le corpus, le moteur le signale dans la recommandation plutôt que de forcer une comparaison.
                 </p>
                 {ca.comparablesContrariens.map((c: any, i: number) => {
                   const acm = c.assetClassMatch;
@@ -2447,7 +2447,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                         <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{v.label}</span>
                       </div>
                       <div className="verdict-line">
-                        <span className="verdict-label">Score de derive</span>
+                        <span className="verdict-label">Score de dérive</span>
                         <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{nd.globalDriftScore}/100</span>
                       </div>
                       <div className="verdict-line">
@@ -2534,7 +2534,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       <p className="note-paragraph" style={{ marginTop: 6, marginBottom: 6 }}>{enrichProse(a.rationale)}</p>
                       {a.evidencePro?.length > 0 && (
                         <div style={{ fontSize: 13, marginBottom: 4 }}>
-                          <span style={{ fontWeight: 500, color: tone }}>Au charge : </span>
+                          <span style={{ fontWeight: 500, color: tone }}>À charge : </span>
                           <span>{a.evidencePro.join(' ')}</span>
                         </div>
                       )}
@@ -2725,14 +2725,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 Affichage sobre pour la transparence du perimetre. */}
             {!fs && fsVerdicts && Object.values(fsVerdicts).every((v: any) => v.applicable === 'none') && (
               <p className="note-paragraph" style={{ opacity: 0.75 }}>
-                <em>Non applicable.</em> Aucun des sept patterns Phase 4 ne s applique a ce dossier selon la matrice de pertinence (stade et profil sectoriel hors-scope).
+                <em>Non applicable.</em> Aucun des sept patterns Phase 4 ne s&apos;applique à ce dossier selon la matrice de pertinence (stade et profil sectoriel hors-scope).
               </p>
             )}
 
             {/* Cas 2 : moteur lance mais payload null (echec global). */}
             {!fs && fsVerdicts && Object.values(fsVerdicts).some((v: any) => v.applicable !== 'none') && (
               <p className="note-paragraph" style={{ opacity: 0.75 }}>
-                Lecture de fragilite structurelle indisponible pour ce dossier (incident transitoire). Au moins un pattern etait pourtant retenu par la matrice. Relancer l analyse pour reproduire.
+                Lecture de fragilité structurelle indisponible pour ce dossier (incident transitoire). Au moins un pattern était pourtant retenu par la matrice. Relancer l&apos;analyse pour reproduire.
               </p>
             )}
 
@@ -2757,7 +2757,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                         <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{v.label}</span>
                       </div>
                       <div className="verdict-line">
-                        <span className="verdict-label">Score de fragilite</span>
+                        <span className="verdict-label">Score de fragilité</span>
                         <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{fs.globalFragilityScore}/100</span>
                       </div>
                       <div className="verdict-line">
@@ -2861,8 +2861,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                           )}
                           {p.counterArchetype?.closest && p.counterArchetype.closest !== 'non determine' && (
                             <div style={{ fontSize: 13, marginBottom: 4, opacity: 0.85 }}>
-                              <span style={{ fontWeight: 500 }}>Archetype proche :</span> {p.counterArchetype.closest}
-                              {p.counterArchetype.direction === 'derive-confirmee' ? ' (trajectoire de derive confirmee)' : ' (trajectoire saine)'}
+                              <span style={{ fontWeight: 500 }}>Archétype proche :</span> {p.counterArchetype.closest}
+                              {p.counterArchetype.direction === 'derive-confirmee' ? ' (trajectoire de dérive confirmée)' : ' (trajectoire saine)'}
                             </div>
                           )}
                           {p.recommandationDD && (
@@ -2921,7 +2921,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 {/* Recommandations DD consolidees en encart final. */}
                 {fs.recommandationsDD && fs.recommandationsDD.length > 0 && (
                   <div style={{ marginTop: 8, padding: 12, background: 'rgba(168, 116, 58, 0.06)', borderLeft: '2px solid rgba(168, 116, 58, 0.4)' }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, fontWeight: 600 }}>A investiguer en DD</div>
+                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, fontWeight: 600 }}>À investiguer en DD</div>
                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
                       {fs.recommandationsDD.map((reco: string, i: number) => (
                         <li key={i} style={{ marginBottom: 4 }}>{reco}</li>
@@ -2987,14 +2987,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             ))}
             <div className="tech-claim-tests">
               <div className="tech-claim-row">
-                <div className="tech-claim-test-name">Budget vs equipe</div>
+                <div className="tech-claim-test-name">Budget vs équipe</div>
                 <div className={`tech-claim-test-score ${tcc.tests.budgetVsTeam.passed ? 'pass' : 'fail'}`}>
                   {tcc.tests.budgetVsTeam.score}/100
                 </div>
                 <div className="tech-claim-test-obs">{tcc.tests.budgetVsTeam.observation}</div>
               </div>
               <div className="tech-claim-row">
-                <div className="tech-claim-test-name">Tracabilite de l&apos;actif</div>
+                <div className="tech-claim-test-name">Traçabilité de l&apos;actif</div>
                 <div className={`tech-claim-test-score ${tcc.tests.assetTraceability.passed ? 'pass' : 'fail'}`}>
                   {tcc.tests.assetTraceability.score}/100
                 </div>
@@ -3010,13 +3010,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </div>
             <div className={`tech-claim-verdict tech-claim-verdict-${tcc.verdict}`}>
               <strong>Verdict :</strong>{' '}
-              {tcc.verdict === 'tech_credible' && 'Revendication technologique credible. Actif precis, equipe coherente, le pari ne tient pas sans la tech.'}
-              {tcc.verdict === 'tech_partially_substantiated' && 'Revendication partiellement etayee. Quelques signaux concrets mais l audit reste a approfondir.'}
-              {tcc.verdict === 'tech_storytelling' && 'Revendication tech relevant principalement de l habillage commercial. Le pari tient sur ses bases editoriales / commerciales / operationnelles, pas sur la tech.'}
+              {tcc.verdict === 'tech_credible' && 'Revendication technologique crédible. Actif précis, équipe cohérente, le pari ne tient pas sans la tech.'}
+              {tcc.verdict === 'tech_partially_substantiated' && 'Revendication partiellement étayée. Quelques signaux concrets mais l’audit reste à approfondir.'}
+              {tcc.verdict === 'tech_storytelling' && 'Revendication tech relevant principalement de l’habillage commercial. Le pari tient sur ses bases éditoriales / commerciales / opérationnelles, pas sur la tech.'}
             </div>
             {tcc.questionsToInstruct?.length > 0 && (
               <div className="tech-claim-questions">
-                <strong>Questions a instruire en DD :</strong>
+                <strong>Questions à instruire en DD :</strong>
                 <ul>{tcc.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
@@ -3035,10 +3035,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   'go_to_market': 'Go-to-market commercial',
                   'transactional_finance': 'Financement transactionnel',
                   'industrialization': 'Industrialisation',
-                  'supply_chain_geopolitics': 'Supply chain et geopolitique',
-                  'tech_adoption_ecosystem': 'Adoption technologique et ecosysteme',
-                  'product_regulation': 'Regulation produit et certification',
-                  'institutional_referencing': 'Referencement client institutionnel',
+                  'supply_chain_geopolitics': 'Supply chain et géopolitique',
+                  'tech_adoption_ecosystem': 'Adoption technologique et écosystème',
+                  'product_regulation': 'Régulation produit et certification',
+                  'institutional_referencing': 'Référencement client institutionnel',
                   'rare_technical_talent': 'Talent technique rare',
                 };
                 const score = typeof a.score === 'number' ? a.score : 0;
@@ -3057,14 +3057,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </div>
             <div className={`exec-friction-verdict exec-friction-verdict-${efr.verdict}`}>
               <strong>Verdict :</strong>{' '}
-              {efr.verdict === 'friction_low' && 'Friction d\u2019execution faible. Path commercial direct, calendrier classique.'}
-              {efr.verdict === 'friction_medium' && 'Friction d\u2019execution moderee. Un goulot identifie ou cycles longs ; calendrier 24-36 mois.'}
-              {efr.verdict === 'friction_high' && 'Friction d\u2019execution elevee. Plusieurs frictions concomitantes ; calendrier 36-48 mois et capital patient requis.'}
-              {efr.verdict === 'friction_structural' && 'Friction d\u2019execution structurelle. Profil deeptech / B2G / industriel cumulant friction sur plusieurs axes ; calendrier long, capital patient et partenariats industriels requis. Caracteristique du business a integrer dans la these.'}
+              {efr.verdict === 'friction_low' && 'Friction d\u2019ex\u00e9cution faible. Path commercial direct, calendrier classique.'}
+              {efr.verdict === 'friction_medium' && 'Friction d\u2019ex\u00e9cution mod\u00e9r\u00e9e. Un goulot identifi\u00e9 ou cycles longs ; calendrier 24-36 mois.'}
+              {efr.verdict === 'friction_high' && 'Friction d\u2019ex\u00e9cution \u00e9lev\u00e9e. Plusieurs frictions concomitantes ; calendrier 36-48 mois et capital patient requis.'}
+              {efr.verdict === 'friction_structural' && 'Friction d\u2019ex\u00e9cution structurelle. Profil deeptech / B2G / industriel cumulant friction sur plusieurs axes ; calendrier long, capital patient et partenariats industriels requis. Caract\u00e9ristique du business \u00e0 int\u00e9grer dans la th\u00e8se.'}
             </div>
             {efr.questionsToInstruct?.length > 0 && (
               <div className="exec-friction-questions">
-                <strong>Questions a instruire en DD :</strong>
+                <strong>Questions à instruire en DD :</strong>
                 <ul>{efr.questionsToInstruct.map((q: string, i: number) => <li key={i}>{q}</li>)}</ul>
               </div>
             )}
@@ -3076,13 +3076,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <ol className="ordered-list">
             {(reco.decisionDrivers || []).map((d: string, i: number) => <li key={i}>{d}</li>)}
           </ol>
-        ) : <p className="note-paragraph muted">Decision drivers non disponibles.</p>}
+        ) : <p className="note-paragraph muted">Décision drivers non disponibles.</p>}
 
         {pm?.internationalBenchmarks?.length > 0 && (
           <>
             <h3 className="note-h3" id="engine-section-pattern">Comparables et précédents</h3>
             <p className="comparable-scope-note">
-              Ces comparables internationaux sont retenus pour la pertinence d&apos;asset class avec le dossier (nature business, modele economique, intensite capitalistique). Les comparables d&apos;archetype d&apos;instruction (proximite de pattern sans similarite sectorielle) sont identifies separement plus loin dans la note.
+              Ces comparables internationaux sont retenus pour la pertinence d&apos;asset class avec le dossier (nature business, modèle économique, intensité capitalistique). Les comparables d&apos;archétype d&apos;instruction (proximité de pattern sans similarité sectorielle) sont identifiés séparément plus loin dans la note.
             </p>
             {(pm.internationalBenchmarks || []).map((b: any, i: number) => {
               // Mapping cautionLevel -> classe + libelle pour le badge
@@ -3226,7 +3226,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <>
               <h3 className="note-h3" id="engine-section-reference-checks">Plan d&apos;appels DD terrain</h3>
               <p className="note-paragraph muted">
-                Plan d&apos;instruction terrain genere a partir des outputs Bloc 1. {totalCalls > 0 && `${totalCalls} interlocuteur${totalCalls > 1 ? 's' : ''} a contacter`}{totalCalls > 0 && weakSignalsCount > 0 ? ', ' : ''}{weakSignalsCount > 0 && `${weakSignalsCount} signal${weakSignalsCount > 1 ? 'aux' : ''} faible${weakSignalsCount > 1 ? 's' : ''} a verifier en data`}. Couvre fondateurs, clients, gouvernance et traction independante.
+                Plan d&apos;instruction terrain généré à partir des outputs Bloc 1. {totalCalls > 0 && `${totalCalls} interlocuteur${totalCalls > 1 ? 's' : ''} à contacter`}{totalCalls > 0 && weakSignalsCount > 0 ? ', ' : ''}{weakSignalsCount > 0 && `${weakSignalsCount} signal${weakSignalsCount > 1 ? 'aux' : ''} faible${weakSignalsCount > 1 ? 's' : ''} à vérifier en data`}. Couvre fondateurs, clients, gouvernance et traction indépendante.
               </p>
 
               {priorityOrder.length > 0 && (
@@ -3251,7 +3251,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       <div className="refcheck-item-name">{f.founderName}</div>
                       {(f.contactsToFind || []).length > 0 && (
                         <div className="refcheck-item-detail">
-                          <span className="refcheck-item-detail-label">Contacts a trouver : </span>
+                          <span className="refcheck-item-detail-label">Contacts à trouver : </span>
                           {(f.contactsToFind || []).map((c: any, j: number) => (
                             <span key={j}>{c.profile}{j < (f.contactsToFind || []).length - 1 ? ', ' : ''}</span>
                           ))}
@@ -3273,7 +3273,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <div className="refcheck-block">
                   <div className="refcheck-block-head">
                     <span className="refcheck-block-tag">Clients</span>
-                    <span className="refcheck-block-count">{customerCount} a appeler</span>
+                    <span className="refcheck-block-count">{customerCount} à appeler</span>
                   </div>
                   {(refchecks.customerChecks || []).map((c: any, i: number) => (
                     <div key={i} className="refcheck-item">
@@ -3323,7 +3323,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <div className="refcheck-block">
                   <div className="refcheck-block-head">
                     <span className="refcheck-block-tag">Signaux faibles</span>
-                    <span className="refcheck-block-count">{weakSignalsCount} a verifier en data</span>
+                    <span className="refcheck-block-count">{weakSignalsCount} à vérifier en data</span>
                   </div>
                   {(refchecks.weakSignalsChecks || []).map((w: any, i: number) => (
                     <div key={i} className="refcheck-item">
@@ -3339,7 +3339,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               {redFlags.length > 0 && (
                 <div className="refcheck-redflags">
-                  <div className="refcheck-redflags-label">Drapeaux rouges a creuser</div>
+                  <div className="refcheck-redflags-label">Drapeaux rouges à creuser</div>
                   <ul className="refcheck-redflags-list">
                     {redFlags.map((f: string, i: number) => (
                       <li key={i}>{f}</li>
@@ -3378,10 +3378,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           if (!canDeepen) return null;
           return (
             <div className="dd-deepen-banner">
-              <div className="dd-deepen-banner-tag">Etape suivante</div>
+              <div className="dd-deepen-banner-tag">Étape suivante</div>
               <div className="dd-deepen-banner-title">Passer en DD approfondie</div>
               <div className="dd-deepen-banner-desc">
-                L&apos;instruction Bloc 1 conclut a un verdict <strong>{verdict}</strong>. Le passage en DD approfondie active les moteurs Data Room sur les documents transmis par la startup : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira sans recalculer le Bloc 1 deja produit.
+                L&apos;instruction Bloc 1 conclut à un verdict <strong>{verdict}</strong>. Le passage en DD approfondie active les moteurs Data Room sur les documents transmis par la startup : grand livre comptable, pacte d&apos;actionnaires, statuts, cap table, contrats clients principaux, dossier technique. La note s&apos;enrichira sans recalculer le Bloc 1 déjà produit.
               </div>
               <button className="btn btn-primary dd-deepen-banner-btn" onClick={onDeepenDDClick}>
                 Ouvrir la zone d&apos;upload Data Room &rarr;
@@ -3394,7 +3394,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <div className="block-marker block-marker-dataroom">
             <div className="block-marker-tag">Bloc 2</div>
             <div className="block-marker-title">Data Room</div>
-            <div className="block-marker-sub">Due diligence approfondie &middot; Lecture pour comite d&apos;investissement</div>
+            <div className="block-marker-sub">Due diligence approfondie &middot; Lecture pour comité d&apos;investissement</div>
           </div>
         )}
 
@@ -3402,7 +3402,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           <>
             <h3 className="note-h3" id="engine-section-dd-financial">Data Room · DD financière</h3>
             <p className="note-paragraph muted">
-              Periode du grand livre : {ddf.ledgerPeriod.start || 'n.a.'} au {ddf.ledgerPeriod.end || 'n.a.'}.
+              Période du grand livre : {ddf.ledgerPeriod.start || 'n.a.'} au {ddf.ledgerPeriod.end || 'n.a.'}.
               {' '}Score global de l&apos;audit : {ddf.globalScore}/100.
             </p>
             {splitIntoParagraphs(ddf.synthesis, 3).map((p: string, i: number) => (
@@ -3410,12 +3410,12 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             ))}
             <div className="dd-tests">
               {[
-                { key: 'revenueGap', label: 'Ecart CA declare vs CA reel' },
-                { key: 'grossMarginGap', label: 'Marge brute projetee vs reelle' },
-                { key: 'burnRateGap', label: 'Burn rate declare vs reel' },
+                { key: 'revenueGap', label: 'Écart CA déclaré vs CA réel' },
+                { key: 'grossMarginGap', label: 'Marge brute projetée vs réelle' },
+                { key: 'burnRateGap', label: 'Burn rate déclaré vs réel' },
                 { key: 'headcountGap', label: 'Headcount vs charges salariales' },
-                { key: 'clientConcentration', label: 'Concentration client reelle' },
-                { key: 'growthTrajectory', label: 'Trajectoire recente vs BP' },
+                { key: 'clientConcentration', label: 'Concentration client réelle' },
+                { key: 'growthTrajectory', label: 'Trajectoire récente vs BP' },
                 { key: 'offBalanceVsNarrative', label: 'Engagements hors bilan vs narratif' },
               ].map((row) => {
                 const t = ddf.tests[row.key];
@@ -3426,16 +3426,16 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       <span className="dd-test-id">{t.testId}</span>
                       <span className="dd-test-label">{row.label}</span>
                       <span className={`dd-test-pill dd-test-pill-${t.severity}`}>
-                        {t.severity === 'aligned' && 'Aligne'}
+                        {t.severity === 'aligned' && 'Aligné'}
                         {t.severity === 'attention' && 'Attention'}
                         {t.severity === 'alert' && 'Alerte'}
                         {t.severity === 'red_flag' && 'Red flag'}
-                        {t.severity === 'not_assessable' && 'Non evaluable'}
+                        {t.severity === 'not_assessable' && 'Non évaluable'}
                       </span>
                     </div>
                     <div className="dd-test-values">
                       <div className="dd-test-bp"><strong>BP / Pitch</strong>{' '}{t.bpValue}</div>
-                      <div className="dd-test-real"><strong>Reel</strong>{' '}{t.realValue}</div>
+                      <div className="dd-test-real"><strong>Réel</strong>{' '}{t.realValue}</div>
                     </div>
                     <div className="dd-test-evidence">{t.evidence}</div>
                     {t.ddQuestion && (
@@ -3470,7 +3470,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               ))}
             </div>
             <p className="note-paragraph muted">
-              Documents analyses :
+              Documents analysés :
               {ddc.documentsAnalyzed.shareholdersAgreement && ` pacte (${ddc.documentsAnalyzed.shareholdersAgreement.name})`}
               {ddc.documentsAnalyzed.statutes && `${ddc.documentsAnalyzed.shareholdersAgreement ? ', ' : ' '}statuts (${ddc.documentsAnalyzed.statutes.name})`}
               {(ddc.documentsAnalyzed.clientContracts?.length || 0) > 0 && `, ${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length} contrat${ddc.documentsAnalyzed.clientContracts.filter((c: any) => c.analyzed).length > 1 ? 's' : ''} client`}
@@ -3484,10 +3484,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <>
                 <h4 className="note-h4">Cap table à date</h4>
                 <div className="ddc-cap-summary">
-                  <div className="ddc-cap-row"><span>Fondateurs cumules</span><strong>{ddc.capTableSummary.founderPercentage.toFixed(1)}%</strong></div>
-                  <div className="ddc-cap-row"><span>Investisseurs cumules</span><strong>{ddc.capTableSummary.investorPercentage.toFixed(1)}%</strong></div>
-                  <div className="ddc-cap-row"><span>Pool d options</span><strong>{ddc.capTableSummary.optionPoolPercentage.toFixed(1)}%</strong></div>
-                  <div className="ddc-cap-row"><span>Allocation employes</span><strong>{ddc.capTableSummary.employeeAllocatedPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Fondateurs cumulés</span><strong>{ddc.capTableSummary.founderPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Investisseurs cumulés</span><strong>{ddc.capTableSummary.investorPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Pool d&apos;options</span><strong>{ddc.capTableSummary.optionPoolPercentage.toFixed(1)}%</strong></div>
+                  <div className="ddc-cap-row"><span>Allocation employés</span><strong>{ddc.capTableSummary.employeeAllocatedPercentage.toFixed(1)}%</strong></div>
                   {ddc.capTableSummary.topInvestor && (
                     <div className="ddc-cap-row"><span>Top investisseur</span><strong>{ddc.capTableSummary.topInvestor.name} ({ddc.capTableSummary.topInvestor.percentage.toFixed(1)}%)</strong></div>
                   )}
@@ -3513,7 +3513,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                           {c.severity === 'attention' && 'Attention'}
                           {c.severity === 'non_standard' && 'Non standard'}
                           {c.severity === 'red_flag' && 'Red flag'}
-                          {c.severity === 'not_found' && 'Non trouvee'}
+                          {c.severity === 'not_found' && 'Non trouvée'}
                         </span>
                       </div>
                       {c.citation && (
@@ -3524,7 +3524,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                         <span><strong>Source :</strong> {c.source}</span>
                       </div>
                       {c.marketComparison && (
-                        <div className="ddc-clause-market"><strong>Marche :</strong> {c.marketComparison}</div>
+                        <div className="ddc-clause-market"><strong>Marché :</strong> {c.marketComparison}</div>
                       )}
                       {c.implication && (
                         <div className="ddc-clause-implication">{c.implication}</div>
@@ -3604,12 +3604,12 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <>
               <h3 className="note-h3" id="engine-section-dd-tech">Data Room · DD technique</h3>
               <p className="note-paragraph muted">
-                Audit du dossier technique transmis par la startup, aligne sur les sections 4 (Technology/Product), 6 (Intellectual Property), 7 (Information Technology) et 8 (Data Protection) de la GCV Investor Due Diligence Checklist.
+                Audit du dossier technique transmis par la startup, aligné sur les sections 4 (Technology/Product), 6 (Intellectual Property), 7 (Information Technology) et 8 (Data Protection) de la GCV Investor Due Diligence Checklist.
                 {' '}{(ddt.documentsAnalyzed || []).length > 0 && (
-                  <>Documents analyses : {ddt.documentsAnalyzed.map((d: any) => d.name).join(', ')}.{' '}</>
+                  <>Documents analysés : {ddt.documentsAnalyzed.map((d: any) => d.name).join(', ')}.{' '}</>
                 )}
                 Score global de l&apos;audit : {ddt.globalScore}/100.
-                {' '}Taux de zones non documentees : {ddt.underDocumentationRate}%.
+                {' '}Taux de zones non documentées : {ddt.underDocumentationRate}%.
               </p>
 
               {/* Disclaimers obligatoires */}
@@ -3637,11 +3637,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                         <span className="dd-test-id">{t.testId}</span>
                         <span className="dd-test-label">{t.testLabel}</span>
                         <span className={`dd-test-pill dd-test-pill-${t.severity}`}>
-                          {t.severity === 'aligned' && 'Aligne'}
+                          {t.severity === 'aligned' && 'Aligné'}
                           {t.severity === 'attention' && 'Attention'}
                           {t.severity === 'alert' && 'Alerte'}
                           {t.severity === 'red_flag' && 'Red flag'}
-                          {t.severity === 'non_documented' && 'Non documente'}
+                          {t.severity === 'non_documented' && 'Non documenté'}
                         </span>
                       </div>
                       {/* Citation mot pour mot (facon ddc) si presente */}

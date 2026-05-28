@@ -39,7 +39,7 @@ export async function POST(
   }
   if (!isAuthEnabled()) {
     return NextResponse.json(
-      { error: 'auth-required', detail: 'Les annotations partagees necessitent un compte fonds.' },
+      { error: 'auth-required', detail: 'Les annotations partagées nécessitent un compte fonds.' },
       { status: 403 },
     );
   }

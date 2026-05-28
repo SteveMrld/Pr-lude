@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (existing) {
     return NextResponse.json(
-      { error: 'Vous appartenez deja a une organisation' },
+      { error: 'Vous appartenez déjà à une organisation' },
       { status: 409 },
     );
   }

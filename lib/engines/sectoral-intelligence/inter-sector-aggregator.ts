@@ -290,24 +290,26 @@ function annotateAll<T>(
 
 export function buildAggregatorSystemPrompt(): string {
   return [
-    'Tu es l analyste systemique de Prelude, plateforme d instruction de dossiers de venture capital vendue aux fonds institutionnels europeens.',
+    "Tu es l'analyste systémique de Prélude, plateforme d'instruction de dossiers de venture capital vendue aux fonds institutionnels européens.",
     '',
-    'Ton role est de produire un brief editorial trimestriel qui agrege la lecture inter-sectorielle des treize fiches sectorielles Prelude. Le brief est expose au partner dans un onglet dashboard et doit servir d ancrage strategique a la lecture des dossiers individuels qui suivront.',
+    "Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.",
     '',
-    'Voix editoriale stricte :',
-    '- Le Grand Continent ou The Atlantic. Prose dense, phrases longues quand le sujet le justifie, peu de listes a puces, peu de gras.',
-    '- Pas d em-dashes (caractere long). Tirets simples ou virgules a la place.',
+    "Ton rôle est de produire un brief éditorial trimestriel qui agrège la lecture inter-sectorielle des treize fiches sectorielles Prélude. Le brief est exposé au partner dans un onglet dashboard et doit servir d'ancrage stratégique à la lecture des dossiers individuels qui suivront.",
+    '',
+    'Voix éditoriale stricte :',
+    '- Le Grand Continent ou The Atlantic. Prose dense, phrases longues quand le sujet le justifie, peu de listes à puces, peu de gras.',
+    "- Pas d'em-dashes (caractère long). Tirets simples ou virgules à la place.",
     '- Pas de flatterie, pas de Excellente question, pas de Tu as raison.',
-    '- Refus de la complaisance : si une dynamique sectorielle ressemble a celle d un episode historique connu, le nommer (ex Trajectoire WeWork, Pattern Northvolt).',
-    '- Pas de jargon SaaS marketing. Vocabulaire d analyse politique et industrielle.',
+    "- Refus de la complaisance : si une dynamique sectorielle ressemble à celle d'un épisode historique connu, le nommer (ex Trajectoire WeWork, Pattern Northvolt).",
+    "- Pas de jargon SaaS marketing. Vocabulaire d'analyse politique et industrielle.",
     '',
     'Discipline analytique :',
-    '- Les calculs sont deja faits pour toi. Tu recois une matrice de convergences, divergences et patterns macro. Tu interpretes, tu ne recalcules pas.',
-    '- Pour chaque paire de convergence ou de divergence, tu produis une interpretation editoriale courte (deux a trois phrases) qui nomme la dynamique sous-jacente probable.',
-    '- Pour chaque pattern macro, tu produis une lecture systemique (trois a cinq phrases) qui relie le mouvement observe a un signal externe identifiable (regulation, technologie de rupture, choc geopolitique, retournement de cycle).',
-    '- Tu produis enfin un narrative_summary de quatre a six mille caracteres qui ouvre par une synthese du trimestre, expose les trois sections (convergences, divergences, patterns macro) en developpement, et conclut par une lecture doctrinale Prelude.',
+    "- Les calculs sont déjà faits pour toi. Tu reçois une matrice de convergences, divergences et patterns macro. Tu interprètes, tu ne recalcules pas.",
+    "- Pour chaque paire de convergence ou de divergence, tu produis une interprétation éditoriale courte (deux à trois phrases) qui nomme la dynamique sous-jacente probable.",
+    "- Pour chaque pattern macro, tu produis une lecture systémique (trois à cinq phrases) qui relie le mouvement observé à un signal externe identifiable (régulation, technologie de rupture, choc géopolitique, retournement de cycle).",
+    "- Tu produis enfin un narrative_summary de quatre à six mille caractères qui ouvre par une synthèse du trimestre, expose les trois sections (convergences, divergences, patterns macro) en développement, et conclut par une lecture doctrinale Prélude.",
     '',
-    'Format de sortie : JSON strict, sans bloc markdown, avec exactement les cles suivantes :',
+    'Format de sortie : JSON strict, sans bloc markdown, avec exactement les clés suivantes :',
     '{',
     '  "narrative_summary": text,',
     '  "convergences_interpretation": [ text, ... ],',
@@ -315,7 +317,7 @@ export function buildAggregatorSystemPrompt(): string {
     '  "macro_patterns_interpretation": [ text, ... ]',
     '}',
     '',
-    'Les trois tableaux d interpretations doivent contenir exactement le meme nombre d entrees que les tableaux d entree, dans le meme ordre. Si l entree est vide, le tableau correspondant l est aussi.',
+    "Les trois tableaux d'interprétations doivent contenir exactement le même nombre d'entrées que les tableaux d'entrée, dans le même ordre. Si l'entrée est vide, le tableau correspondant l'est aussi.",
   ].join('\n');
 }
 
@@ -329,9 +331,9 @@ export function buildAggregatorUserPrompt(
   completeness: DataCompleteness,
 ): string {
   const lines: string[] = [];
-  lines.push(`Periode courante : ${periodQuarter}.`);
+  lines.push(`Période courante : ${periodQuarter}.`);
   lines.push(`Fiches sectorielles disponibles au trimestre courant : ${currentBriefs.length} sur ${SECTORS.length}.`);
-  lines.push(`Fiches sectorielles disponibles au trimestre precedent : ${previousBriefs.length} sur ${SECTORS.length}.`);
+  lines.push(`Fiches sectorielles disponibles au trimestre précédent : ${previousBriefs.length} sur ${SECTORS.length}.`);
 
   if (
     completeness.missing_at_t.length > 0 ||
@@ -339,21 +341,21 @@ export function buildAggregatorUserPrompt(
     completeness.missing_both.length > 0
   ) {
     lines.push('');
-    lines.push('Donnees incompletes :');
+    lines.push('Données incomplètes :');
     if (completeness.missing_at_t.length > 0) {
       lines.push(`- Secteurs sans fiche au trimestre courant : ${completeness.missing_at_t.join(', ')}.`);
     }
     if (completeness.missing_at_t_minus_1.length > 0) {
-      lines.push(`- Secteurs sans fiche au trimestre precedent (donc non comparables) : ${completeness.missing_at_t_minus_1.join(', ')}.`);
+      lines.push(`- Secteurs sans fiche au trimestre précédent (donc non comparables) : ${completeness.missing_at_t_minus_1.join(', ')}.`);
     }
     if (completeness.missing_both.length > 0) {
       lines.push(`- Secteurs absents des deux trimestres : ${completeness.missing_both.join(', ')}.`);
     }
-    lines.push('Tu mentionnes ce perimetre degraded en tete du narrative_summary, sobrement.');
+    lines.push('Tu mentionnes ce périmètre dégradé en tête du narrative_summary, sobrement.');
   }
 
   lines.push('');
-  lines.push('--- RESUMES EDITORIAUX SECTORIELS DU TRIMESTRE COURANT ---');
+  lines.push('--- RÉSUMÉS ÉDITORIAUX SECTORIELS DU TRIMESTRE COURANT ---');
   for (const b of currentBriefs) {
     const label = SECTORS.find((s) => s.slug === b.sector_slug)?.label ?? b.sector_slug;
     const summary = (b.narrative_summary || '').slice(0, 1200);
@@ -362,43 +364,43 @@ export function buildAggregatorUserPrompt(
     lines.push('');
   }
 
-  lines.push('--- MATRICE ANALYTIQUE DETERMINISTE ---');
+  lines.push('--- MATRICE ANALYTIQUE DÉTERMINISTE ---');
   lines.push('');
-  lines.push(`Convergences detectees (${convergences.length}) :`);
+  lines.push(`Convergences détectées (${convergences.length}) :`);
   if (convergences.length === 0) {
     lines.push('Aucune paire de secteurs ne franchit le seuil de convergence ce trimestre.');
   } else {
     convergences.forEach((c, i) => {
       lines.push(
-        `[${i}] ${c.sectors[0]} et ${c.sectors[1]} sur la dimension ${DIMENSION_LABELS[c.dimension]} : ecart ${c.delta_t_minus_1} pts au trimestre precedent, ${c.delta_t} pts au trimestre courant (resserrement de ${c.delta_t_minus_1 - c.delta_t} pts).`,
+        `[${i}] ${c.sectors[0]} et ${c.sectors[1]} sur la dimension ${DIMENSION_LABELS[c.dimension]} : écart ${c.delta_t_minus_1} pts au trimestre précédent, ${c.delta_t} pts au trimestre courant (resserrement de ${c.delta_t_minus_1 - c.delta_t} pts).`,
       );
     });
   }
   lines.push('');
-  lines.push(`Divergences detectees (${divergences.length}) :`);
+  lines.push(`Divergences détectées (${divergences.length}) :`);
   if (divergences.length === 0) {
     lines.push('Aucune paire de secteurs ne franchit le seuil de divergence ce trimestre.');
   } else {
     divergences.forEach((d, i) => {
       lines.push(
-        `[${i}] ${d.sectors[0]} et ${d.sectors[1]} sur la dimension ${DIMENSION_LABELS[d.dimension]} : ecart ${d.delta_t_minus_1} pts au trimestre precedent, ${d.delta_t} pts au trimestre courant (rupture de ${d.delta_t - d.delta_t_minus_1} pts).`,
+        `[${i}] ${d.sectors[0]} et ${d.sectors[1]} sur la dimension ${DIMENSION_LABELS[d.dimension]} : écart ${d.delta_t_minus_1} pts au trimestre précédent, ${d.delta_t} pts au trimestre courant (rupture de ${d.delta_t - d.delta_t_minus_1} pts).`,
       );
     });
   }
   lines.push('');
-  lines.push(`Patterns macro structurels detectes (${macroPatterns.length}) :`);
+  lines.push(`Patterns macro structurels détectés (${macroPatterns.length}) :`);
   if (macroPatterns.length === 0) {
-    lines.push('Aucune dimension ne bouge significativement sur la majorite des secteurs ce trimestre.');
+    lines.push('Aucune dimension ne bouge significativement sur la majorité des secteurs ce trimestre.');
   } else {
     macroPatterns.forEach((p, i) => {
       lines.push(
-        `[${i}] Dimension ${DIMENSION_LABELS[p.dimension]} : direction ${p.direction === 'up' ? 'haussiere' : 'baissiere'}, delta moyen ${p.average_delta} pts, ${p.sectors_affected.length} secteurs concernes (${p.sectors_affected.join(', ')}).`,
+        `[${i}] Dimension ${DIMENSION_LABELS[p.dimension]} : direction ${p.direction === 'up' ? 'haussière' : 'baissière'}, delta moyen ${p.average_delta} pts, ${p.sectors_affected.length} secteurs concernés (${p.sectors_affected.join(', ')}).`,
       );
     });
   }
 
   lines.push('');
-  lines.push('Tu produis maintenant le JSON strict demande par le system prompt. Les interpretations doivent etre indexees a la matrice ci-dessus dans le meme ordre.');
+  lines.push('Tu produis maintenant le JSON strict demandé par le system prompt. Les interprétations doivent être indexées à la matrice ci-dessus dans le même ordre.');
 
   return lines.join('\n');
 }

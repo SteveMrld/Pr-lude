@@ -18,12 +18,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 
 const STAGE_LABELS: Record<string, string> = {
-  deposited: 'Depose',
+  deposited: 'Déposé',
   in_review: 'En instruction',
   dd_field: 'DD terrain',
-  ic_review: 'Pret pour IC',
-  signed: 'Signe',
-  declined: 'Refuse',
+  ic_review: 'Prêt pour IC',
+  signed: 'Signé',
+  declined: 'Refusé',
 };
 
 const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
@@ -54,7 +54,7 @@ function formatRelative(iso: string): string {
     const then = new Date(iso).getTime();
     const now = Date.now();
     const diffMin = Math.floor((now - then) / 60000);
-    if (diffMin < 1) return 'a l instant';
+    if (diffMin < 1) return 'à l’instant';
     if (diffMin < 60) return `il y a ${diffMin} min`;
     const diffH = Math.floor(diffMin / 60);
     if (diffH < 24) return `il y a ${diffH}h`;
@@ -130,7 +130,7 @@ export default function WorkflowStageBadge({ analysisId, authEnabled }: Props) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || 'Echec du changement de stade');
+        throw new Error(data?.error || 'Échec du changement de stade');
       }
       const data = await res.json().catch(() => ({}));
       setStatus({
@@ -170,7 +170,7 @@ export default function WorkflowStageBadge({ analysisId, authEnabled }: Props) {
         type="button"
         onClick={() => canEdit && setOpen(!open)}
         disabled={!canEdit || updating}
-        title={canEdit ? 'Cliquez pour changer le stade' : 'Le changement de stade necessite un compte fonds'}
+        title={canEdit ? 'Cliquez pour changer le stade' : 'Le changement de stade nécessite un compte fonds'}
         style={{
           padding: '6px 14px',
           fontSize: 10.5,

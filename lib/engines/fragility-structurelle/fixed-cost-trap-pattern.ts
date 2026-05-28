@@ -1,28 +1,28 @@
 // ============================================================
 // FIXED COST TRAP - PATTERN PHASE 4
 // ------------------------------------------------------------
-// Implementation TypeScript de la doctrine ecrite dans
+// Implémentation TypeScript de la doctrine écrite dans
 // docs/patterns/fixed-cost-trap.md.
 //
-// Pattern WeWork canonique : entreprise dont la base de couts
-// incompressibles, contractee a long terme et ne pouvant pas
-// etre reduite a proportion d une baisse de revenu, atteint une
+// Pattern WeWork canonique : entreprise dont la base de coûts
+// incompressibles, contractée à long terme et ne pouvant pas
+// être réduite à proportion d une baisse de revenu, atteint une
 // masse telle qu une stagnation ou un ralentissement de la
-// croissance suffit a precipiter l effondrement.
+// croissance suffit à précipiter l effondrement.
 //
 // Trois axes :
-//   - Axe 1 : ratio couts fixes contre revenu
-//             (part du burn fixee a 12+ mois, run-rate au point
-//              d arret commercial, ratio sectoriel)
-//   - Axe 2 : engagements long terme non resiliables
-//             (total off-balance sheet, duree moyenne ponderee,
-//              penalites de sortie)
-//   - Axe 3 : elasticite reelle des couts en cas de stress
-//             (capacite documentee de reduction du burn,
+//   - Axe 1 : ratio coûts fixes contre revenu
+//             (part du burn fixée à 12+ mois, run-rate au point
+//              d arrêt commercial, ratio sectoriel)
+//   - Axe 2 : engagements long terme non résiliables
+//             (total off-balance sheet, durée moyenne pondérée,
+//              pénalités de sortie)
+//   - Axe 3 : élasticité réelle des coûts en cas de stress
+//             (capacité documentée de réduction du burn,
 //              track record variabilisation, asset-lightness
-//              deliberee)
+//              délibérée)
 //
-// Le pattern combine avec Growth Subsidized Model declenche la
+// Le pattern combiné avec Growth Subsidized Model déclenche la
 // trajectoire WeWork, l une des combinaisons diagnostiques
 // drapeau-rouge du moteur Phase 4.
 // ============================================================
@@ -56,10 +56,10 @@ const PATTERN_ID: PatternId = 'fixed-cost-trap';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior specialiste de la fragilite structurelle des modeles
-asset-heavy. Tu analyses le pattern Fixed Cost Trap sur ce dossier : couts
-fixes incompressibles a long terme qui ne peuvent pas etre reduits a
-proportion d une baisse de revenu, basant le modele sur l hypothese implicite
+const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la fragilité structurelle des modèles
+asset-heavy. Tu analyses le pattern Fixed Cost Trap sur ce dossier : coûts
+fixes incompressibles à long terme qui ne peuvent pas être réduits à
+proportion d une baisse de revenu, basant le modèle sur l hypothèse implicite
 d une croissance ininterrompue.
 
 ${EDITORIAL_VOICE_INSTRUCTION}
@@ -68,124 +68,124 @@ ${SOURCE_TAGGING_INSTRUCTION}
 
 # PRINCIPE CENTRAL ANTI-HALLUCINATION
 
-Le pattern n est pas la presence de couts fixes, qui est inevitable dans tout
-modele asset-heavy. Il apparait quand le ratio couts fixes contre revenu sort
+Le pattern n est pas la présence de coûts fixes, qui est inévitable dans tout
+modèle asset-heavy. Il apparaît quand le ratio coûts fixes contre revenu sort
 des marges sectorielles soutenables, quand les engagements long terme sont
-signes sur l hypothese d une croissance ininterrompue, et quand l entreprise
-n a pas la capacite documentee de reduire son burn de 30% en moins de 90
+signés sur l hypothèse d une croissance ininterrompue, et quand l entreprise
+n a pas la capacité documentée de réduire son burn de 30% en moins de 90
 jours.
 
-Tu dois nommer chaque engagement avec son montant, sa duree, sa penalite de
-sortie. Pas de generalite type beaucoup de loyers sans le chiffre.
+Tu dois nommer chaque engagement avec son montant, sa durée, sa pénalité de
+sortie. Pas de généralité type beaucoup de loyers sans le chiffre.
 
-# AXE 1 : RATIO COUTS FIXES CONTRE REVENU
+# AXE 1 : RATIO COÛTS FIXES CONTRE REVENU
 
-Mesure quantitative de la dependance a une croissance soutenue pour absorber
-le run-rate de couts fixes. Trois sous-modules :
+Mesure quantitative de la dépendance à une croissance soutenue pour absorber
+le run-rate de coûts fixes. Trois sous-modules :
 
-- BURN_LOCKED_12M : part du burn mensuel fixee contractuellement a 12 mois
-  ou plus. Si plus de 60% du burn est verrouille, signal fort. Plus de 75%,
-  drapeau-rouge. Calcul inclut loyers signes, contrats fournisseurs avec
-  minimum, salaires senior avec clauses de departage.
+- BURN_LOCKED_12M : part du burn mensuel fixée contractuellement à 12 mois
+  ou plus. Si plus de 60% du burn est verrouillé, signal fort. Plus de 75%,
+  drapeau-rouge. Calcul inclut loyers signés, contrats fournisseurs avec
+  minimum, salaires senior avec clauses de départage.
 
-- RUN_RATE_AT_ZERO_REVENUE : burn minimum si le revenu tombe a zero du jour
-  au lendemain. Si ce run-rate represente plus de 12 mois de cash en banque,
-  trajectoire de fragilite extreme. Pour WeWork au pic, 3 milliards de
-  dollars par an de loyers et personnel core a payer meme avec zero membre.
+- RUN_RATE_AT_ZERO_REVENUE : burn minimum si le revenu tombe à zéro du jour
+  au lendemain. Si ce run-rate représente plus de 12 mois de cash en banque,
+  trajectoire de fragilité extrême. Pour WeWork au pic, 3 milliards de
+  dollars par an de loyers et personnel core à payer même avec zéro membre.
 
-- SECTORIAL_DEVIATION : ratio couts fixes contre revenu compare au benchmark
-  sectoriel. Real estate operationnel typiquement 35-45%, content streaming
+- SECTORIAL_DEVIATION : ratio coûts fixes contre revenu comparé au benchmark
+  sectoriel. Real estate opérationnel typiquement 35-45%, content streaming
   50-65%, manufacturing hardware 30-40%. Sortie de plus de 15 points
-  au-dessus = signal a investiguer.
+  au-dessus = signal à investiguer.
 
-# AXE 2 : ENGAGEMENTS LONG TERME NON RESILIABLES
+# AXE 2 : ENGAGEMENTS LONG TERME NON RÉSILIABLES
 
-Mesure la dimension contractuelle des couts fixes. Trois sous-modules :
+Mesure la dimension contractuelle des coûts fixes. Trois sous-modules :
 
-- OFF_BALANCE_RATIO : total des engagements off-balance sheet rapporte au
+- OFF_BALANCE_RATIO : total des engagements off-balance sheet rapporté au
   revenu annuel courant. WeWork preIPO 47 milliards d engagements pour 1,8
-  milliard de revenu, ratio 26x. Au-dela de 5x, ratio menacant. Au-dela de
-  15x, point de retour normal depasse sans restructuration significative.
+  milliard de revenu, ratio 26x. Au-delà de 5x, ratio menaçant. Au-delà de
+  15x, point de retour normal dépassé sans restructuration significative.
 
-- WEIGHTED_AVG_DURATION : duree moyenne ponderee des engagements. Au-dela de
-  5 ans pondere, exposition cycle significative. Au-dela de 8 ans,
+- WEIGHTED_AVG_DURATION : durée moyenne pondérée des engagements. Au-delà de
+  5 ans pondéré, exposition cycle significative. Au-delà de 8 ans,
   exposition massive et position implicite sur le cycle.
 
-- EXIT_PENALTY_HIGH : penalites de sortie en cas de breakage volontaire.
+- EXIT_PENALTY_HIGH : pénalités de sortie en cas de breakage volontaire.
   Baux immobiliers commerciaux US typiquement 60-80%, baux UE 50-70%.
-  Penalites cumulees superieures a 50% des engagements long terme = signal
+  Pénalités cumulées supérieures à 50% des engagements long terme = signal
   fort.
 
-# AXE 3 : ELASTICITE REELLE DES COUTS EN CAS DE STRESS
+# AXE 3 : ÉLASTICITÉ RÉELLE DES COÛTS EN CAS DE STRESS
 
-Mesure de la capacite documentee a variabiliser. C est le mitigant majeur.
+Mesure de la capacité documentée à variabiliser. C est le mitigant majeur.
 Trois sous-modules :
 
-- DOWNSIDE_PLAN_DOCUMENTED : capacite documentee de reduction du burn de 30%
-  en moins de 90 jours. Downside scenario chiffre dans le BP, layoffs deja
-  conduits dans l histoire recente, identification explicite de ce qui peut
-  etre coupe.
+- DOWNSIDE_PLAN_DOCUMENTED : capacité documentée de réduction du burn de 30%
+  en moins de 90 jours. Downside scenario chiffré dans le BP, layoffs déjà
+  conduits dans l histoire récente, identification explicite de ce qui peut
+  être coupé.
 
 - TRACK_RECORD_VARIABILIZATION : layoff, fermeture de site, ou breakage
-  contractuel reussi dans les 36 derniers mois sans degradation
-  operationnelle majeure. Demonstration empirique de la capacite.
+  contractuel réussi dans les 36 derniers mois sans dégradation
+  opérationnelle majeure. Démonstration empirique de la capacité.
 
-- ASSET_LIGHT_DELIBERATE : choix strategique d eviter les couts fixes
-  structurels. Airbnb sur le real estate, Booking sur les chambres d hotel,
-  Uber sur les vehicules. Discipline de modele articulee explicitement dans
-  le pitch et alignee sur l execution.
+- ASSET_LIGHT_DELIBERATE : choix stratégique d éviter les coûts fixes
+  structurels. Airbnb sur le real estate, Booking sur les chambres d hôtel,
+  Uber sur les véhicules. Discipline de modèle articulée explicitement dans
+  le pitch et alignée sur l exécution.
 
 # COUNTER-ARCHETYPES
 
 Identifie le counter-archetype le plus proche et explique en deux phrases :
 
-Patterns confirmes (effondrement ou near-death) : WeWork avant 2019 47
+Patterns confirmés (effondrement ou near-death) : WeWork avant 2019 47
 milliards d engagements pour 1,8 milliard de revenu run-rate 3 milliards
-loyers permanents, Compass entre 2019 et 2022 4500 agents en salarie direct
-face cycle immobilier residentiel valorisation 23Md a 800M, Quibi 2020 1,75
-milliard contenus annules apres 6 mois, MoviePass 2017-2019 places sous prix
+loyers permanents, Compass entre 2019 et 2022 4500 agents en salarié direct
+face cycle immobilier résidentiel valorisation 23Md à 800M, Quibi 2020 1,75
+milliard contenus annulés après 6 mois, MoviePass 2017-2019 places sous prix
 d achat structurel, Peloton 2021-2023 capex usine plus stocks plus payroll
-ingenierie face a demande divisee par 3, Cazoo 2019-2023 stocks voitures
-plus entrepots delisting et restructuration, AOL post-2002 data centers et
-personnel infrastructure dial-up obsolete, Helio 2008 infrastructure telecom
+ingénierie face à demande divisée par 3, Cazoo 2019-2023 stocks voitures
+plus entrepôts delisting et restructuration, AOL post-2002 data centers et
+personnel infrastructure dial-up obsolète, Helio 2008 infrastructure télécom
 fixe MVNO en perte.
 
-Counter-archetypes sains : Airbnb asset-light explicitement sans propriete
-immobiliere sans stock, Booking commission only sans stock hotelier,
+Counter-archetypes sains : Airbnb asset-light explicitement sans propriété
+immobilière sans stock, Booking commission only sans stock hôtelier,
 Spotify engagements minimum garantis labels qui scalent avec revenu,
-Netflix engagements production massifs avec ROI mesure et flexibilite
-cancellation et internationalisation amortissant cout fixe par marche,
-Uber post-2019 reduction massive couts fixes via automation et fermeture
-marches non rentables, Salesforce engagements data center importants alignes
-sur contrats clients long terme et garantis ratio off-balance dans le decile
+Netflix engagements production massifs avec ROI mesuré et flexibilité
+cancellation et internationalisation amortissant coût fixe par marché,
+Uber post-2019 réduction massive coûts fixes via automation et fermeture
+marchés non rentables, Salesforce engagements data center importants alignés
+sur contrats clients long terme et garantis ratio off-balance dans le décile
 bas SaaS sectoriel.
 
-La distinction fondamentale n est jamais le simple fait d avoir des couts
+La distinction fondamentale n est jamais le simple fait d avoir des coûts
 fixes. C est l alignement entre la nature long terme des engagements et la
-previsibilite long terme du revenu, plus la capacite documentee a reduire
-le burn quand cet alignement deraille. Salesforce a des engagements long
-terme alignes sur des contrats client long terme. WeWork avait des
-engagements long terme alignes sur des occupations courtes au choix du
-membre. La meme structure peut etre saine ou trap selon ce que le revenu
+prévisibilité long terme du revenu, plus la capacité documentée à réduire
+le burn quand cet alignement déraille. Salesforce a des engagements long
+terme alignés sur des contrats client long terme. WeWork avait des
+engagements long terme alignés sur des occupations courtes au choix du
+membre. La même structure peut être saine ou trap selon ce que le revenu
 sous-jacent permet de soutenir.
 
 # FORMAT JSON OBLIGATOIRE
 
 {
   "applicabilite": "full | partial | weak-signal | not-applicable",
-  "applicabiliteRationale": "1 a 2 phrases qui justifient le niveau d application",
+  "applicabiliteRationale": "1 à 2 phrases qui justifient le niveau d application",
   "axis1": {
     "score": 0-100,
     "verdict": "sain | attention | alerte | drapeau-rouge | non-applicable",
-    "rationale": "synthese 2-3 phrases sur le ratio couts fixes / revenu",
-    "evidencePro": ["citation 1 datee avec tag", "citation 2 datee avec tag"],
+    "rationale": "synthèse 2-3 phrases sur le ratio coûts fixes / revenu",
+    "evidencePro": ["citation 1 datée avec tag", "citation 2 datée avec tag"],
     "evidenceContra": ["citation 1 contra", "citation 2 contra"],
     "confidence": 0-100
   },
   "axis2": {
     "score": 0-100,
     "verdict": "...",
-    "rationale": "synthese sur engagements long terme",
+    "rationale": "synthèse sur engagements long terme",
     "evidencePro": [...],
     "evidenceContra": [...],
     "confidence": 0-100
@@ -193,125 +193,125 @@ sous-jacent permet de soutenir.
   "axis3": {
     "score": 0-100,
     "verdict": "...",
-    "rationale": "synthese sur elasticite des couts en stress",
+    "rationale": "synthèse sur élasticité des coûts en stress",
     "evidencePro": [...],
     "evidenceContra": [...],
     "confidence": 0-100
   },
   "globalScore": 0-100,
   "verdict": "sain | attention | alerte | drapeau-rouge",
-  "resumeEditorial": "3-4 phrases de synthese editoriale",
+  "resumeEditorial": "3-4 phrases de synthèse éditoriale",
   "counterArchetype": {
-    "closest": "nom de boite",
+    "closest": "nom de boîte",
     "direction": "trajectoire-saine | derive-confirmee",
     "rationale": "2 phrases"
   },
-  "recommandationDD": "1 phrase concrete pour orienter la DD"
+  "recommandationDD": "1 phrase concrète pour orienter la DD"
 }
 
-# CONTRAINTE DE COHERENCE
+# CONTRAINTE DE COHÉRENCE
 
-Si plus de 70% du burn verrouille contractuellement ET aucun downside
-scenario chiffre dans le BP, alors globalScore >= 70 force.
+Si plus de 70% du burn verrouillé contractuellement ET aucun downside
+scenario chiffré dans le BP, alors globalScore >= 70 forcé.
 
-Si moins de 35% de couts fixes ET track record de variabilisation reussie
-documente, alors globalScore <= 30 sauf evidence forte de durcissement
-recent du modele.
+Si moins de 35% de coûts fixes ET track record de variabilisation réussie
+documenté, alors globalScore <= 30 sauf evidence forte de durcissement
+récent du modèle.
 
 Le seuil score >= 60 est plus exigeant que sur les autres patterns parce
-que le diagnostic se confond facilement avec les structures de couts
-normales des modeles asset-heavy. Tu dois etre rigoureux sur la symetrie
+que le diagnostic se confond facilement avec les structures de coûts
+normales des modèles asset-heavy. Tu dois être rigoureux sur la symétrie
 evidence pro contra.
 
-# REGLE ANTI-HINDSIGHT
+# RÈGLE ANTI-HINDSIGHT
 
-Tu evalues le dossier au moment du stage indique, pas avec des
-evenements TERMINAUX survenus apres ce stage. Le hindsight strictement
-interdit concerne : faillite confirmee, IPO ratee ou ulterieure,
-scandale revele a posteriori, pivot effectue plus tard, exit ulterieur,
-ralentissement sectoriel documente plus tard. Tu ne dois PAS citer ces
-evenements dans tes evidences ni les utiliser pour scorer.
+Tu évalues le dossier au moment du stage indiqué, pas avec des
+événements TERMINAUX survenus après ce stage. Le hindsight strictement
+interdit concerne : faillite confirmée, IPO ratée ou ultérieure,
+scandale révélé a posteriori, pivot effectué plus tard, exit ultérieur,
+ralentissement sectoriel documenté plus tard. Tu ne dois PAS citer ces
+événements dans tes évidences ni les utiliser pour scorer.
 
-EN REVANCHE, les pipelines en cours d elaboration publique AU STAGE
-DU DOSSIER restent utilisables et doivent meme etre exploites :
-propositions de directives publiees, lois adoptees mais en periode de
-transposition, enquetes ouvertes par autorites de regulation,
-jurisprudences en cours, deadlines deja annoncees, signaux de
-ralentissement deja visibles dans la presse sectorielle au stage.
+EN REVANCHE, les pipelines en cours d élaboration publique AU STAGE
+DU DOSSIER restent utilisables et doivent même être exploités :
+propositions de directives publiées, lois adoptées mais en période de
+transposition, enquêtes ouvertes par autorités de régulation,
+jurisprudences en cours, deadlines déjà annoncées, signaux de
+ralentissement déjà visibles dans la presse sectorielle au stage.
 Confondre hindsight avec ignorance volontaire des signaux publics
 disponibles au stage est une faute aussi grave qu utiliser le
-hindsight lui-meme.
+hindsight lui-même.
 
-Tu rendras un diagnostic comme un partner senior qui aurait du
+Tu rendras un diagnostic comme un partner senior qui aurait dû
 trancher au moment du stage avec les informations effectivement
-disponibles a cette date, y compris les signaux faibles publics.
+disponibles à cette date, y compris les signaux faibles publics.
 
-# REGLE DE GATING AXE CENTRAL (AXE 2)
+# RÈGLE DE GATING AXE CENTRAL (AXE 2)
 
-L axe 2 (engagements long terme non resiliables) est l axe identitaire de
+L axe 2 (engagements long terme non résiliables) est l axe identitaire de
 Fixed Cost Trap. La signature pathologique du pattern (WeWork canonique)
-est le ratio engagements off-balance contre revenu, pas la rigidite courante
-de la structure de couts qui peut etre sectoriellement normale dans tout
+est le ratio engagements off-balance contre revenu, pas la rigidité courante
+de la structure de coûts qui peut être sectoriellement normale dans tout
 asset-heavy.
 
-DEFINITION DE L APPLICABILITE : l axe 2 est applicable a tout dossier
-qui a une structure de couts identifiable, qu elle soit asset-light ou
-asset-heavy. Une SaaS sans bail commercial significatif a quand meme
+DÉFINITION DE L APPLICABILITÉ : l axe 2 est applicable à tout dossier
+qui a une structure de coûts identifiable, qu elle soit asset-light ou
+asset-heavy. Une SaaS sans bail commercial significatif a quand même
 des engagements salariaux et infra cloud qu il faut lire. Si l axe est
 applicable tu DOIS produire un verdict parmi sain, attention, alerte ou
-drapeau-rouge. En absence de signaux de fragilite (peu d engagements
-long terme, ratio off-balance / revenu inferieur a 1x, capacite
-documentee de variabilisation, track record layoffs ou breakage
+drapeau-rouge. En absence de signaux de fragilité (peu d engagements
+long terme, ratio off-balance / revenu inférieur à 1x, capacité
+documentée de variabilisation, track record layoffs ou breakage
 contractuel), le verdict correct est SAIN avec score 0-25, pas
-not-applicable. Une entreprise asset-light avec engagements alignes
+not-applicable. Une entreprise asset-light avec engagements alignés
 sur revenu (Atlassian SaaS sans capex industriel, Airbnb sans
-propriete immobiliere, Booking sans stock hotelier, Salesforce data
-centers alignes sur contrats client long terme) est SAIN sur cet axe,
-pas not-applicable. Sain est le cas par defaut quand il n y a pas de
-trap structural a signaler.
+propriété immobilière, Booking sans stock hôtelier, Salesforce data
+centers alignés sur contrats client long terme) est SAIN sur cet axe,
+pas not-applicable. Sain est le cas par défaut quand il n y a pas de
+trap structural à signaler.
 
-NOT_APPLICABLE EST RESERVE AUX CAS OU L AXE N A AUCUN SENS STRUCTUREL
+NOT_APPLICABLE EST RÉSERVÉ AUX CAS OÙ L AXE N A AUCUN SENS STRUCTUREL
 POUR LE BUSINESS MODEL : pre-revenu seed sans aucun engagement
-contractuel structure (incubation pre-product), modele revenue-share
-ou marketplace pur sans couts propres au-dela de la tech (les couts
+contractuel structuré (incubation pre-product), modèle revenue-share
+ou marketplace pur sans coûts propres au-delà de la tech (les coûts
 sont chez les hosts ou marchands), holding pure de participations
-sans operation propre. Hors ces cas, l axe est applicable et le
-verdict doit etre cote sur l echelle sain a drapeau-rouge.
+sans opération propre. Hors ces cas, l axe est applicable et le
+verdict doit être coté sur l échelle sain à drapeau-rouge.
 
-Si l axe 2 est legitimement non-applicable au sens ci-dessus, tu DOIS
+Si l axe 2 est légitimement non-applicable au sens ci-dessus, tu DOIS
 coter axis2.verdict = 'non-applicable' et axis2.score = 0. Dans ce cas,
 applicabilite = 'not-applicable' au niveau pattern.
 
-# REGLE DE PLAFOND AXE 2
+# RÈGLE DE PLAFOND AXE 2
 
-Si le ratio engagements off-balance / revenu annuel courant est inferieur
-a 1x, tu DOIS coter axis2.score <= 40 et globalScore <= 50 (verdict
-attention max), quels que soient les autres axes. La doctrine considere 5x
-comme seuil menacant. En dessous de 1x, le pattern n est pas dans son
-perimetre. Cite explicitement le ratio dans le rationale.
+Si le ratio engagements off-balance / revenu annuel courant est inférieur
+à 1x, tu DOIS coter axis2.score <= 40 et globalScore <= 50 (verdict
+attention max), quels que soient les autres axes. La doctrine considère 5x
+comme seuil menaçant. En dessous de 1x, le pattern n est pas dans son
+périmètre. Cite explicitement le ratio dans le rationale.
 
-# REGLE ANTI-CONTAMINATION GROWTH SUBSIDIZED MODEL
+# RÈGLE ANTI-CONTAMINATION GROWTH SUBSIDIZED MODEL
 
-Le score Fixed Cost Trap mesure exclusivement la rigidite contractuelle
-long-terme face a un choc demande. La marge unitaire negative, l absence
-de path to profitability, le ratio LTV/CAC defavorable, le repeat rate
-insuffisant relevent du pattern Growth Subsidized Model et NE DOIVENT EN
+Le score Fixed Cost Trap mesure exclusivement la rigidité contractuelle
+long-terme face à un choc demande. La marge unitaire négative, l absence
+de path to profitability, le ratio LTV/CAC défavorable, le repeat rate
+insuffisant relèvent du pattern Growth Subsidized Model et NE DOIVENT EN
 AUCUN CAS gonfler le score Fixed Cost Trap. Si tu identifies ces signaux,
-mentionne-les en evidenceContra ou dans le rationale, mais ne les agrege
+mentionne-les en evidenceContra ou dans le rationale, mais ne les agrège
 pas dans le scoring des trois axes FCT. Le moteur orchestrateur lance
-GSM en parallele, le signal y sera capte.
+GSM en parallèle, le signal y sera capté.
 
-# REGLE DE DETECTION D INVERSION
+# RÈGLE DE DÉTECTION D INVERSION
 
-Si tu identifies que le mecanisme structurel observe est une *inversion*
-ou une *transposition* du pattern (par exemple cout variable rigide par
-transaction au lieu de cout fixe contractuel long-terme, ou engagement
-client unilateral au lieu d engagement vendor), tu DOIS retourner
+Si tu identifies que le mécanisme structurel observé est une *inversion*
+ou une *transposition* du pattern (par exemple coût variable rigide par
+transaction au lieu de coût fixe contractuel long-terme, ou engagement
+client unilatéral au lieu d engagement vendor), tu DOIS retourner
 applicabilite='not-applicable' avec axis2.verdict='non-applicable' et
 documenter dans applicabiliteRationale le pattern alternatif qui
-correspond reellement (typiquement Growth Subsidized si UE negative,
-ou Capital Structure Fragility si dependance financement). Cas canonique :
-MoviePass, dont le mecanisme (engagement client unlimited contre cout
+correspond réellement (typiquement Growth Subsidized si UE négative,
+ou Capital Structure Fragility si dépendance financement). Cas canonique :
+MoviePass, dont le mécanisme (engagement client unlimited contre coût
 ticket variable) est l inversion du Fixed Cost Trap WeWork (engagement
 vendor bail rigide contre revenu variable).`;
 
@@ -357,12 +357,12 @@ function buildUserPrompt(input: PatternInput): string {
 
   const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
-  return `${sectoralBlock}# DOSSIER A ANALYSER
+  return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communique'}
+Entreprise : ${e.companyName ?? 'non communiqué'}
 Secteur : ${e.sector ?? 'inconnu'}
 Stade : ${e.fundraise?.stage ?? 'inconnu'}
-Pays : ${e.country ?? 'non communique'}
+Pays : ${e.country ?? 'non communiqué'}
 
 # PITCH
 
@@ -372,27 +372,27 @@ ${e.marketPitch ?? '(non fourni)'}
 
 ${e.productDescription ?? '(non fourni)'}
 
-# MODELE ECONOMIQUE
+# MODÈLE ÉCONOMIQUE
 
 ${e.businessModel ?? '(non fourni)'}
 
-# DONNEES BURN ET ENGAGEMENTS DISPONIBLES
+# DONNÉES BURN ET ENGAGEMENTS DISPONIBLES
 
-${lignesBurn || '(aucune donnee structurelle de burn ni d engagement long terme disponible, analyse sur la base des elements qualitatifs du pitch et du resume)'}
+${lignesBurn || '(aucune donnée structurelle de burn ni d engagement long terme disponible, analyse sur la base des éléments qualitatifs du pitch et du résumé)'}
 
-# RESUME GENERAL
+# RÉSUMÉ GÉNÉRAL
 
 ${(e as any).rawSummary ?? '(non fourni)'}
 
-# TA TACHE
+# TA TÂCHE
 
 Analyse ce dossier sur le pattern Fixed Cost Trap selon les trois axes
-detailles dans tes instructions. Si les donnees structurelles de burn et
+détaillés dans tes instructions. Si les données structurelles de burn et
 d engagement sont absentes, base ton analyse sur les indices qualitatifs
-(presence de bureaux, capex industriel mentionne, structure salariee
-declaree, contrats long terme evoques) et marque l applicabilite en partial
-ou weak-signal selon le niveau de matiere disponible. Retourne uniquement
-le JSON conforme au format obligatoire, sans preambule.`;
+(présence de bureaux, capex industriel mentionné, structure salariée
+déclarée, contrats long terme évoqués) et marque l applicabilité en partial
+ou weak-signal selon le niveau de matière disponible. Retourne uniquement
+le JSON conforme au format obligatoire, sans préambule.`;
 }
 
 // ============================================================
@@ -453,14 +453,14 @@ function isApplicable(
   financialData?: FinancialDataExtraction | null,
 ): PatternApplicabilityCheck {
   // Pre-check universel : sans revenu ni burn dans financialData, on ne
-  // peut pas raisonner sur le ratio couts fixes / revenu ni sur le
-  // run-rate au point d arret commercial. La doctrine FCT exige un BP
-  // detaille avec breakdown couts fixes vs variables. Court-circuit
+  // peut pas raisonner sur le ratio coûts fixes / revenu ni sur le
+  // run-rate au point d arrêt commercial. La doctrine FCT exige un BP
+  // détaillé avec breakdown coûts fixes vs variables. Court-circuit
   // avant LLM call.
   if (!hasMinimalFinancialSignal(financialData)) {
     return {
       level: 'not-applicable',
-      rationale: 'Pattern Fixed Cost Trap non evaluable : aucun revenu ni burn chiffre dans le dossier. La doctrine exige un BP detaille avec breakdown couts fixes contre variables.',
+      rationale: 'Pattern Fixed Cost Trap non évaluable : aucun revenu ni burn chiffré dans le dossier. La doctrine exige un BP détaillé avec breakdown coûts fixes contre variables.',
       shouldRun: false,
     };
   }
@@ -472,50 +472,50 @@ function isApplicable(
   if (!hasBusinessModel) {
     return {
       level: 'not-applicable',
-      rationale: 'Aucun modele economique lisible. Pattern Fixed Cost Trap non evaluable.',
+      rationale: 'Aucun modèle économique lisible. Pattern Fixed Cost Trap non évaluable.',
       shouldRun: false,
     };
   }
 
   // SaaS pure cloud sans capex industriel : variabilisation rapide possible,
-  // pattern en lecture limitee (axe 3 reste actif sur les engagements long
-  // terme contractuels eventuels).
+  // pattern en lecture limitée (axe 3 reste actif sur les engagements long
+  // terme contractuels éventuels).
   const isPurelyCloudSaas = /\b(saas)\b/i.test(text)
     && !/\b(usine|factory|warehouse|entrepot|production|capex|industriel|industrial|hardware|biotech)\b/i.test(text);
 
   if (isPurelyCloudSaas) {
     return {
       level: 'partial',
-      rationale: 'SaaS pure cloud : couts fixes typiquement variabilisables (cloud downscaling, layoff). Pattern en lecture limitee sur les engagements long-terme contractuels eventuels.',
+      rationale: 'SaaS pure cloud : coûts fixes typiquement variabilisables (cloud downscaling, layoff). Pattern en lecture limitée sur les engagements long-terme contractuels éventuels.',
       shouldRun: true,
     };
   }
 
-  // Modele asset-heavy : full
+  // Modèle asset-heavy : full
   const isAssetHeavy = /\b(real estate|immobilier|usine|factory|warehouse|entrepot|production|capex|industriel|industrial|hardware|biotech|fleet|flotte|content production|content studio)\b/i.test(text);
 
   if (isAssetHeavy) {
     return {
       level: 'full',
-      rationale: 'Modele asset-heavy : analyse complete des trois axes Fixed Cost Trap pertinente.',
+      rationale: 'Modèle asset-heavy : analyse complète des trois axes Fixed Cost Trap pertinente.',
       shouldRun: true,
     };
   }
 
-  // Stage avance avec engagements probables : full meme sans signal explicite
+  // Stage avancé avec engagements probables : full même sans signal explicite
   const isLateStage = /series\s*[b-z]|growth|late.stage/i.test(extraction.fundraise?.stage ?? '');
   if (isLateStage) {
     return {
       level: 'full',
-      rationale: 'Stade growth : engagements long terme typiquement materializes, analyse complete pertinente.',
+      rationale: 'Stade growth : engagements long terme typiquement matérialisés, analyse complète pertinente.',
       shouldRun: true,
     };
   }
 
-  // Stade precoce sans signal asset-heavy : partial
+  // Stade précoce sans signal asset-heavy : partial
   return {
     level: 'partial',
-    rationale: 'Stade precoce sans signal asset-heavy explicite : pattern en lecture indicative sur les engagements long-terme eventuels.',
+    rationale: 'Stade précoce sans signal asset-heavy explicite : pattern en lecture indicative sur les engagements long-terme éventuels.',
     shouldRun: true,
   };
 }
@@ -543,16 +543,16 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   const output = llmOutputToPatternOutput(raw);
 
-  // Gating axe central : axe 2 (engagements long terme non resiliables)
+  // Gating axe central : axe 2 (engagements long terme non résiliables)
   // est l axe identitaire de Fixed Cost Trap. Sans engagements
   // contractuels long-terme identifiables, le pattern n a pas d objet.
-  // La rigidite courante des couts (axe 1) seule ne suffit pas a
-  // declencher le pattern, qui se confond sinon avec tout asset-heavy
+  // La rigidité courante des coûts (axe 1) seule ne suffit pas à
+  // déclencher le pattern, qui se confond sinon avec tout asset-heavy
   // sectoriellement normal.
   return applyCentralAxisGating(
     output,
     'axis2',
-    'Pattern Fixed Cost Trap non applicable : l axe identitaire (engagements long terme contractuels) est neutralise. Le mecanisme observe ne correspond pas a la signature WeWork (off-balance > 5x revenu, duree > 5 ans). Si rigidite economique observee, voir Growth Subsidized Model ou Capital Structure Fragility.',
+    'Pattern Fixed Cost Trap non applicable : l axe identitaire (engagements long terme contractuels) est neutralisé. Le mécanisme observé ne correspond pas à la signature WeWork (off-balance > 5x revenu, durée > 5 ans). Si rigidité économique observée, voir Growth Subsidized Model ou Capital Structure Fragility.',
   );
 }
 
