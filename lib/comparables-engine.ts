@@ -15,6 +15,7 @@
 
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
+import { dedupByCanonicalName } from './comparables-dedup';
 
 function getAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -893,8 +894,18 @@ export async function findComparables(
   stageAligned.sort((a, b) => b.similarity - a.similarity);
   longitudinal.sort((a, b) => b.similarity - a.similarity);
 
-  const topComparables = stageAligned.slice(0, topN);
-  const topComparablesLongitudinal = longitudinal.slice(0, Math.min(3, topN));
+  // Dedup canonique avant slice : le corpus historical_companies peut
+  // contenir plusieurs lignes pour une meme societe (Pasqal vs Pasqal SAS,
+  // accents inegaux, suffixes legaux). Sans cette dedup, deux variantes
+  // scorant similairement remontaient ensemble dans le top 5 et la note
+  // affichait deux fois la meme entreprise avec le meme score. Le tri
+  // amont garantit que la premiere occurrence d une cle canonique est
+  // celle a la plus haute similarity.
+  const stageAlignedDedup = dedupByCanonicalName(stageAligned);
+  const longitudinalDedup = dedupByCanonicalName(longitudinal);
+
+  const topComparables = stageAlignedDedup.slice(0, topN);
+  const topComparablesLongitudinal = longitudinalDedup.slice(0, Math.min(3, topN));
 
   // Distribution des outcomes sur le topN stage_aligned uniquement
   const outcomeDistribution = {
@@ -918,9 +929,12 @@ export async function findComparables(
     }
   }
 
-  // Cas le plus proche en succes et en echec sur stage_aligned uniquement
-  const successCases = stageAligned.filter((c) => c.outcome.startsWith('success'));
-  const failCases = stageAligned.filter((c) => c.outcome.startsWith('fail'));
+  // Cas le plus proche en succes et en echec sur stage_aligned dedupique.
+  // On filtre sur stageAlignedDedup pour eviter qu une variante doublonnee
+  // (Pasqal vs Pasqal SAS) ne soit pickee comme closestSuccess alors qu une
+  // autre societe scorerait juste derriere.
+  const successCases = stageAlignedDedup.filter((c) => c.outcome.startsWith('success'));
+  const failCases = stageAlignedDedup.filter((c) => c.outcome.startsWith('fail'));
   const closestSuccess = successCases.length > 0 ? successCases[0] : null;
   const closestFailure = failCases.length > 0 ? failCases[0] : null;
 
