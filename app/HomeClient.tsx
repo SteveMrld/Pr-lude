@@ -7,6 +7,7 @@ import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
 import PipelinePreview from './components/PipelinePreview';
+import { PipelineToilePanel } from './components/PipelineToilePanel';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import {
   requestNotificationPermissionSilent,
@@ -3590,6 +3591,12 @@ export default function HomeClient({
                     { id: 'ic-pack',     label: 'Pack IC',           picto: 'pack-ic' },
                   ],
                 },
+                {
+                  label: 'Fabrique',
+                  tabs: [
+                    { id: 'pipeline-toile', label: 'Pipeline', picto: 'pipeline' },
+                  ],
+                },
               ];
               const currentGroup = tabGroups.find(g => g.tabs.some(t => t.id === activeTab));
 
@@ -5860,6 +5867,10 @@ export default function HomeClient({
                   analysisId={savedAnalysisId || null}
                   canEditReferenceCalls={Boolean(authEnabled && savedAnalysisId && userRole !== 'observer')}
                 />
+              )}
+
+              {activeTab === 'pipeline-toile' && (
+                <PipelineToilePanel engineStates={engineStates} />
               )}
 
               {/* PRINT MODE : note d investissement complete (sections 1, 1.5,
