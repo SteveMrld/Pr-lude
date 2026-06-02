@@ -9,6 +9,7 @@ import PipelineProgress from './components/PipelineProgress';
 import PipelinePreview from './components/PipelinePreview';
 import { PipelineToilePanel } from './components/PipelineToilePanel';
 import { buildEngineOutputsFromResult } from '../lib/pipeline-toile/result-mapping';
+import { TabPane } from './components/TabPane';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import {
   requestNotificationPermissionSilent,
@@ -374,6 +375,23 @@ export default function HomeClient({
     }
   }, []);
   const [activeTab, setActiveTab] = useState('synthesis');
+  // Keep-alive lazy des onglets : tout onglet visite au moins une
+  // fois reste monte dans le DOM et bascule entre actif et inactif
+  // via TabPane. Resout la racine du flash au switch (re-fetch et
+  // loading state interne au remount, cf TrajectoryView et
+  // ReferenceCallNotesPanel). Initialise avec l onglet par defaut.
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(
+    () => new Set(['synthesis']),
+  );
+  const selectTab = useCallback((tabId: string) => {
+    setMountedTabs((prev) => {
+      if (prev.has(tabId)) return prev;
+      const next = new Set(prev);
+      next.add(tabId);
+      return next;
+    });
+    setActiveTab(tabId);
+  }, []);
   // Onglet actif sur la landing page : permet de presenter le
   // contenu en sections separees plutot qu en un long scroll. Quatre
   // onglets : vision (pourquoi + pour qui), method (les 4 temps et
@@ -1358,6 +1376,7 @@ export default function HomeClient({
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
     setEngineOutputs({});
     setActiveTab('synthesis');
+    setMountedTabs(new Set(['synthesis']));
     if (inputRef.current) inputRef.current.value = '';
   }
 
@@ -2929,7 +2948,7 @@ export default function HomeClient({
                   trompeur sur mobile : on s attend a voir la vue d abord. */}
               <button
                 onClick={() => {
-                  setActiveTab('ic-pack');
+                  selectTab('ic-pack');
                   // Scroll vers la zone de contenu apres le rendu React
                   setTimeout(() => {
                     const el = document.querySelector('.ic-pack');
@@ -3655,7 +3674,7 @@ export default function HomeClient({
                           <button
                             key={t.id}
                             className={`sidebar-tab ${activeTab === t.id ? 'active' : ''}`}
-                            onClick={() => setActiveTab(t.id)}
+                            onClick={() => selectTab(t.id)}
                             aria-current={activeTab === t.id ? 'page' : undefined}
                           >
                             {t.picto && (
@@ -3680,7 +3699,7 @@ export default function HomeClient({
                       <select
                         className="dashboard-mobile-select"
                         value={activeTab}
-                        onChange={(e) => setActiveTab(e.target.value)}
+                        onChange={(e) => selectTab(e.target.value)}
                         aria-label="Naviguer entre les sections d&apos;analyse"
                       >
                         {tabGroups.map(group => (
@@ -3693,8 +3712,11 @@ export default function HomeClient({
                       </select>
                     </div>
 
-                    {/* Tab content */}
-              {(activeTab === 'synthesis' || printMode) && (
+                    {/* Tab content. Chaque onglet est wrappe dans un TabPane qui
+                        implemente le keep-alive lazy : un onglet visite une fois
+                        reste monte et bascule via display: none, pas de remount,
+                        pas de re-fetch interne, pas de flash au switch. */}
+              <TabPane tabId="synthesis" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   {/* Alerte de desaccord motive : affiche en haut de la
                       synthese quand le moteur d orchestration a estime que
@@ -3814,9 +3836,9 @@ export default function HomeClient({
                     </div>
                   </div>
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'dimensions' || printMode) && (
+              <TabPane tabId="dimensions" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Probabilités de succès par dimension
@@ -3929,9 +3951,9 @@ export default function HomeClient({
                     ))}
                   </div>
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'financial' || printMode) && (
+              <TabPane tabId="financial" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Cohérence financière · Sept tests structurés
@@ -4059,9 +4081,9 @@ export default function HomeClient({
                     </>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'risksplan' || printMode) && (
+              <TabPane tabId="risksplan" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Cartographie des risques · Trois axes
@@ -4158,9 +4180,9 @@ export default function HomeClient({
                     </div>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'blindspots' || printMode) && (
+              <TabPane tabId="blindspots" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 14 }}>
                     Sept angles morts du métier VC européen
@@ -4181,9 +4203,10 @@ export default function HomeClient({
                     ))}
                   </div>
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'aveuglement' || printMode) && result.blindspotAnalysis && (
+              <TabPane tabId="aveuglement" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
+                {result.blindspotAnalysis && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Vigilance critique · Dix patterns d'erreur de jugement VC
@@ -4269,9 +4292,11 @@ export default function HomeClient({
                     </div>
                   )}
                 </div>
-              )}
+                )}
+              </TabPane>
 
-              {(activeTab === 'singularite' || printMode) && result.contrarianAnalysis && (
+              <TabPane tabId="singularite" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
+                {result.contrarianAnalysis && (
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Singularités contrariennes · Dix signaux contrariens à évaluer
@@ -4364,8 +4389,10 @@ export default function HomeClient({
                   )}
                 </div>
               )}
+              </TabPane>
 
-              {(activeTab === 'narrative' || printMode) && (() => {
+              <TabPane tabId="narrative" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
+                {(() => {
                 const ndr = result.narrativeDrift;
                 const ndv = result.relevanceMatrix?.verdicts?.narrativeDrift;
                 if (!ndr && !ndv) return null;
@@ -4578,9 +4605,11 @@ export default function HomeClient({
                     )}
                   </div>
                 );
-              })()}
+                })()}
+              </TabPane>
 
-              {(activeTab === 'fragility' || printMode) && (() => {
+              <TabPane tabId="fragility" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
+                {(() => {
                 const fsr = result.fragiliteStructurelle;
                 const fsv = result.relevanceMatrix?.verdicts?.fragiliteStructurelle;
                 if (!fsr && !fsv) return null;
@@ -4833,13 +4862,16 @@ export default function HomeClient({
                     )}
                   </div>
                 );
-              })()}
+                })()}
+              </TabPane>
 
-              {(activeTab === 'trajectory' || printMode) && savedAnalysisId && (
-                <TrajectoryView analysisId={savedAnalysisId} />
-              )}
+              <TabPane tabId="trajectory" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
+                {savedAnalysisId && (
+                  <TrajectoryView analysisId={savedAnalysisId} />
+                )}
+              </TabPane>
 
-              {(activeTab === 'team' || printMode) && (
+              <TabPane tabId="team" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   {(() => {
                     // Helper : affiche le score s il est defini, sinon
@@ -5005,9 +5037,9 @@ export default function HomeClient({
                     </>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'verified' || printMode) && (
+              <TabPane tabId="verified" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                     Données vérifiées par sources publiques
@@ -5270,9 +5302,9 @@ export default function HomeClient({
                     </div>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'market' || printMode) && (
+              <TabPane tabId="market" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <div className="kv-grid" style={{ marginBottom: 22 }}>
                     <div className="kv-item">
@@ -5374,9 +5406,9 @@ export default function HomeClient({
                     </>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'macro' || printMode) && (
+              <TabPane tabId="macro" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   {/* Si tous les champs macro sont vides ou null, afficher un
                       message unique plutot que des en-tetes vides. Le moteur
@@ -5510,9 +5542,9 @@ export default function HomeClient({
                     </>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'pattern' || printMode) && (
+              <TabPane tabId="pattern" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <div className="archetype-badge">
                     {ARCHETYPE_LABELS[result.patternMatching?.archetypeDominant]}
@@ -5671,9 +5703,9 @@ export default function HomeClient({
                     </div>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'refchecks' || printMode) && (
+              <TabPane tabId="refchecks" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   {!result.referenceChecks ? (
                     <p style={{ opacity: 0.7, fontStyle: 'italic' }}>
@@ -5866,9 +5898,9 @@ export default function HomeClient({
                     </>
                   )}
                 </div>
-              )}
+              </TabPane>
 
-              {(activeTab === 'instruction' || printMode) && (
+              <TabPane tabId="instruction" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <h3>Questions à instruire avant décision</h3>
                   <ol className="questions-list" style={{ marginTop: 12 }}>
@@ -5895,9 +5927,9 @@ export default function HomeClient({
                     ))}
                   </ul>
                 </div>
-              )}
+              </TabPane>
 
-              {activeTab === 'ic-pack' && (
+              <TabPane tabId="ic-pack" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs} noPrint>
                 <IcPackView
                   result={result}
                   filename={result?.meta?.filename}
@@ -5911,14 +5943,14 @@ export default function HomeClient({
                   analysisId={savedAnalysisId || null}
                   canEditReferenceCalls={Boolean(authEnabled && savedAnalysisId && userRole !== 'observer')}
                 />
-              )}
+              </TabPane>
 
-              {activeTab === 'pipeline-toile' && (
+              <TabPane tabId="pipeline-toile" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs} noPrint>
                 <PipelineToilePanel
                   engineStates={engineStates}
                   engineOutputs={engineOutputs}
                 />
-              )}
+              </TabPane>
 
               {/* PRINT MODE : note d investissement complete (sections 1, 1.5,
                   1.6, 1.7 valorisation, 1.8 indicateurs deal type, 2, 3)
