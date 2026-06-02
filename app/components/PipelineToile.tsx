@@ -20,6 +20,7 @@
 // session.
 // ============================================================
 
+import type React from 'react';
 import type { LayoutNode, ToileLayout } from '../../lib/pipeline-toile/layout';
 
 export type ToileNodeState = 'idle' | 'running' | 'done' | 'error';
@@ -36,6 +37,20 @@ export interface PipelineToileProps {
   nodeWidth?: number;
   /** Hauteur d un rectangle noeud. Defaut 36. */
   nodeHeight?: number;
+  /**
+   * Callback invoque au clic sur un noeud. Si fourni, les noeuds
+   * deviennent interactifs : curseur pointer, role bouton, focus
+   * clavier. Sans ce callback, la toile reste une planche
+   * d auscultation passive.
+   */
+  onNodeClick?: (engineId: string) => void;
+  /**
+   * Id du moteur selectionne dans le drill-down. Le noeud
+   * correspondant porte un cerne hairline ocre sans glow, lisible
+   * en impression. Aucun decor flottant : on reste dans la
+   * planche.
+   */
+  selectedId?: string | null;
 }
 
 const DEFAULT_NODE_WIDTH = 148;
@@ -46,6 +61,8 @@ export function PipelineToile({
   states,
   nodeWidth = DEFAULT_NODE_WIDTH,
   nodeHeight = DEFAULT_NODE_HEIGHT,
+  onNodeClick,
+  selectedId,
 }: PipelineToileProps) {
   const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
 
@@ -109,6 +126,8 @@ export function PipelineToile({
                 state={state}
                 width={nodeWidth}
                 height={nodeHeight}
+                onClick={onNodeClick}
+                selected={selectedId === node.id}
               />
             );
           })}
@@ -203,18 +222,43 @@ function ToileNode({
   state,
   width,
   height,
+  onClick,
+  selected,
 }: {
   node: LayoutNode;
   state: ToileNodeState;
   width: number;
   height: number;
+  onClick?: (engineId: string) => void;
+  selected?: boolean;
 }) {
   const style = styleForState(state);
   const x = node.x - width / 2;
   const y = node.y - height / 2;
+  const interactive = typeof onClick === 'function';
+
+  const handleClick = interactive
+    ? () => onClick!(node.id)
+    : undefined;
+  const handleKey = interactive
+    ? (e: React.KeyboardEvent<SVGGElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick!(node.id);
+        }
+      }
+    : undefined;
 
   return (
-    <g className={style.className}>
+    <g
+      className={`${style.className} ${interactive ? 'pipeline-toile-node-interactive' : ''}`}
+      onClick={handleClick}
+      onKeyDown={handleKey}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? `Drill-down ${node.label}` : undefined}
+      style={interactive ? { cursor: 'pointer' } : undefined}
+    >
       <rect
         x={x}
         y={y}
@@ -228,6 +272,26 @@ function ToileNode({
         strokeOpacity={style.strokeOpacity}
         strokeWidth={style.strokeWidth}
       />
+      {/*
+        Cerne de selection : une seconde frame hairline ocre
+        decalee de 3px vers l exterieur, sans fill, sans glow.
+        Lisible imprime, n alourdit pas la planche. On ne le
+        peint que sur le noeud actif du drill-down.
+      */}
+      {selected && (
+        <rect
+          x={x - 3}
+          y={y - 3}
+          width={width + 6}
+          height={height + 6}
+          rx={4}
+          ry={4}
+          fill="none"
+          stroke="var(--ocre-brule)"
+          strokeOpacity={1}
+          strokeWidth={1}
+        />
+      )}
       <text
         x={node.x}
         y={node.y}
@@ -237,7 +301,7 @@ function ToileNode({
         fontSize={11.5}
         fill={style.textColor}
         fillOpacity={style.textOpacity}
-        style={{ letterSpacing: '-0.005em' }}
+        style={{ letterSpacing: '-0.005em', pointerEvents: 'none' }}
       >
         {node.label}
       </text>

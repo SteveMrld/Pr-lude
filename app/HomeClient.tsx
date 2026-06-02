@@ -8,6 +8,7 @@ import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
 import PipelinePreview from './components/PipelinePreview';
 import { PipelineToilePanel } from './components/PipelineToilePanel';
+import { buildEngineOutputsFromResult } from '../lib/pipeline-toile/result-mapping';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
 import {
   requestNotificationPermissionSilent,
@@ -292,6 +293,14 @@ export default function HomeClient({
   const [engineStates, setEngineStates] = useState<Record<string, EngineState>>(
     Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }]))
   );
+  // Sortie integrale de chaque moteur, indexee par engineId. Alimentee
+  // en live par engine-done.output (SSE existant, lecture seule) et
+  // derivee du result final au chargement d une analyse archivee. Sert
+  // au drill-down de la toile : on lit la matiere deja en memoire, on
+  // ne fait aucun fetch supplementaire et on ne touche pas a la
+  // production du flux serveur. Un moteur absent de la table est
+  // simplement non drill-downable, ce que la toile signale sobrement.
+  const [engineOutputs, setEngineOutputs] = useState<Record<string, any>>({});
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   // Gating doux du pre-scan : si verdict Bloc 0 knockout sans force,
@@ -638,6 +647,10 @@ export default function HomeClient({
             }
           });
           setEngineStates(restored);
+          // Derivation des outputs moteur depuis le result_json complet :
+          // permet au drill-down de la toile de fonctionner sur une
+          // analyse archivee sans nouveau fetch ni re-execution.
+          setEngineOutputs(buildEngineOutputsFromResult(data.analysis.resultJson));
 
           // Auto-ouverture de la zone Data Room si l URL contient action=dd.
           // Permet d arriver depuis /history -> bouton "Lancer DD" et
@@ -979,6 +992,7 @@ export default function HomeClient({
     setSavedAnalysisId(null);
     setPipelineStartTime(Date.now());
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
+    setEngineOutputs({});
     // Reset du verdict pre-scan capture sur fresh run uniquement. En
     // cas de force apres knockout, on doit conserver le verdict
     // d origine pour que la requete au serveur puisse le reinjecter.
@@ -1134,6 +1148,14 @@ export default function HomeClient({
                     : prev[data.engine]?.durationMs,
                 }
               }));
+              // Capture la sortie integrale du moteur pour le drill-down
+              // de la toile. Le payload existe deja dans le SSE (cf
+              // sendDone dans /api/analyze/route.ts), on le memorise
+              // simplement cote client. Lecture seule, aucune
+              // modification du flux serveur.
+              if (data.output !== undefined && typeof data.engine === 'string') {
+                setEngineOutputs(prev => ({ ...prev, [data.engine]: data.output }));
+              }
               // Capture l output integral du pre-scan a la volee. En cas
               // de knockout suivi d un override partner, le second appel
               // a /api/analyze renverra ce payload tel quel pour
@@ -1143,6 +1165,14 @@ export default function HomeClient({
               }
             } else if (eventType === 'complete') {
               setResult(data);
+              // Boucle aussi engineOutputs depuis le result final : les
+              // moteurs non traces par le SSE (saas-metrics,
+              // industrial-metrics, benchmarks) deviennent
+              // drill-downable a posteriori, sans nouveau fetch.
+              setEngineOutputs(prev => ({
+                ...buildEngineOutputsFromResult(data),
+                ...prev,
+              }));
               receivedTerminal = true;
 
               // Notification systeme et titre d onglet "termine" pour
@@ -1326,6 +1356,7 @@ export default function HomeClient({
     setPrescanKnockout(null);
     priorPreScanRef.current = null;
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
+    setEngineOutputs({});
     setActiveTab('synthesis');
     if (inputRef.current) inputRef.current.value = '';
   }
@@ -1482,8 +1513,20 @@ export default function HomeClient({
                     : prev[data.engine]?.durationMs,
                 }
               }));
+              // Meme capture que pour le run Bloc 1 : on memorise la
+              // sortie integrale pour le drill-down de la toile.
+              if (data.output !== undefined && typeof data.engine === 'string') {
+                setEngineOutputs(prev => ({ ...prev, [data.engine]: data.output }));
+              }
             } else if (eventType === 'complete') {
               setResult(data.result);
+              // Apres DD approfondie : on rederive les outputs Bloc 1
+              // (inchanges) et on ramene les outputs Bloc 2 nouvellement
+              // produits depuis le resultJson recompose.
+              setEngineOutputs(prev => ({
+                ...prev,
+                ...buildEngineOutputsFromResult(data.result),
+              }));
               setDdDeepenOpen(false);
               setDdDeepenFiles([]);
               receivedTerminal = true;
@@ -2441,6 +2484,7 @@ export default function HomeClient({
                   setAnalyzing(false);
                   setFiles([]);
                   setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
+                  setEngineOutputs({});
                 }}
                 style={{
                   padding: '6px 14px',
@@ -5870,7 +5914,10 @@ export default function HomeClient({
               )}
 
               {activeTab === 'pipeline-toile' && (
-                <PipelineToilePanel engineStates={engineStates} />
+                <PipelineToilePanel
+                  engineStates={engineStates}
+                  engineOutputs={engineOutputs}
+                />
               )}
 
               {/* PRINT MODE : note d investissement complete (sections 1, 1.5,

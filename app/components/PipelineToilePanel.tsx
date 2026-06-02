@@ -11,6 +11,14 @@
 // la toile est une vue complementaire, en plan etendu, qui rend
 // lisible le graphe de dependances au-dela de la liste lineaire.
 //
+// Drill-down (session 3) : un clic sur un noeud ouvre un panneau
+// lateral PipelineToileDrillDown qui affiche la sortie integrale
+// du moteur via le registry de renderers (orchestrate, fragility,
+// market en renderers types, generique pour le reste). La
+// matiere est prise sur engineOutputs alimente cote HomeClient
+// par engine-done.output (live) et par la derivation du
+// result_json (analyses archivees). Aucun nouveau fetch.
+//
 // Modes :
 //   - run en cours dans la session : la toile s anime au fil
 //     des engine-start / engine-done.
@@ -18,13 +26,13 @@
 //     (sauf untraced silencieux et noeuds d un sous-pipeline non
 //     pertinent).
 //   - analyse archivee chargee depuis l historique : tous les
-//     noeuds en idle, une mention sobre rappelle que la vue live
-//     n est disponible que pendant l instruction. Pas de plantage,
-//     pas de promesse fausse.
+//     noeuds en idle (etats), mais les outputs sont restores
+//     depuis le result_json donc le drill-down fonctionne.
 // ============================================================
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { PipelineToile, type ToileNodeState } from './PipelineToile';
+import { PipelineToileDrillDown } from './PipelineToileDrillDown';
 import { layoutTopology } from '../../lib/pipeline-toile/layout';
 import { buildToileStates } from '../../lib/pipeline-toile/states-adapter';
 import { DEP_DRIVEN_TOPOLOGY } from '../../lib/engines/pipeline-topology';
@@ -38,17 +46,35 @@ interface EngineStateLike {
 
 interface PipelineToilePanelProps {
   engineStates: Record<string, EngineStateLike>;
+  /**
+   * Sortie integrale par moteur, alimentee cote HomeClient. En
+   * live, chaque engine-done.output enrichit ce dictionnaire ;
+   * sur une analyse archivee, il est derive du result_json au
+   * chargement. Absent sur l ecran d entree, ce qui est attendu.
+   */
+  engineOutputs?: Record<string, unknown>;
 }
 
-export function PipelineToilePanel({ engineStates }: PipelineToilePanelProps) {
+export function PipelineToilePanel({
+  engineStates,
+  engineOutputs,
+}: PipelineToilePanelProps) {
   const layout = useMemo(() => layoutTopology(DEP_DRIVEN_TOPOLOGY), []);
   const states = useMemo(() => buildToileStates(engineStates), [engineStates]);
 
-  // Detection mode : si aucun noeud trace n est en running/done/
-  // error, on est soit avant le premier engine-start de la session,
-  // soit sur une analyse archivee rechargee. Dans les deux cas, on
-  // affiche la mention sobre. Pendant et apres un run, elle
-  // disparait.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Index des noeuds layout pour resoudre le label affiche dans
+  // l en-tete du drill-down. Le layout porte deja les labels
+  // editorialises, on les preserve.
+  const nodeById = useMemo(() => {
+    const map = new Map<string, { id: string; label: string }>();
+    for (const n of layout.nodes) {
+      map.set(n.id, { id: n.id, label: n.label });
+    }
+    return map;
+  }, [layout]);
+
   const hasLiveSignal = useMemo(() => {
     for (const id of Object.keys(states)) {
       const s = states[id];
@@ -56,6 +82,23 @@ export function PipelineToilePanel({ engineStates }: PipelineToilePanelProps) {
     }
     return false;
   }, [states]);
+
+  const hasAnyOutput = useMemo(() => {
+    if (!engineOutputs) return false;
+    for (const v of Object.values(engineOutputs)) {
+      if (v !== undefined && v !== null) return true;
+    }
+    return false;
+  }, [engineOutputs]);
+
+  const handleNodeClick = (engineId: string) => {
+    setSelectedId((prev) => (prev === engineId ? null : engineId));
+  };
+
+  const selectedNode = selectedId ? nodeById.get(selectedId) ?? null : null;
+  const selectedState = selectedId ? (engineStates[selectedId] ?? null) : null;
+  const selectedOutput =
+    selectedId && engineOutputs ? (engineOutputs[selectedId] ?? null) : null;
 
   return (
     <div className="pipeline-toile-panel">
@@ -65,29 +108,55 @@ export function PipelineToilePanel({ engineStates }: PipelineToilePanelProps) {
         <p className="pipeline-toile-lede">
           Planche d auscultation du pipeline. Chaque cartouche est un moteur,
           chaque filet une dependance reelle. Pendant l instruction, les
-          cartouches s allument au fil des engine-start et engine-done. La
-          lecture n est pas chronologique, elle est causale : on remonte les
-          fleches pour voir d ou un moteur tire ses entrees.
+          cartouches s allument au fil des engine-start et engine-done. Un
+          clic sur un moteur ouvre sa sortie dans le panneau lateral : on
+          inspecte sans quitter la planche.
         </p>
       </header>
 
-      <PipelineToile layout={layout} states={states} />
+      <div className="pipeline-toile-layout">
+        <div className="pipeline-toile-canvas">
+          <PipelineToile
+            layout={layout}
+            states={states}
+            onNodeClick={handleNodeClick}
+            selectedId={selectedId}
+          />
 
-      <footer className="pipeline-toile-footer">
-        <Legend />
-        {!hasLiveSignal && (
-          <p className="pipeline-toile-archive-note">
-            Vue live disponible pendant l instruction. Sur une analyse
-            archivee, la toile reste neutre : le replay des etats moteur
-            depuis la persistance arrivera dans une session ulterieure.
-          </p>
-        )}
-      </footer>
+          <footer className="pipeline-toile-footer">
+            <Legend />
+            {!hasLiveSignal && !hasAnyOutput && (
+              <p className="pipeline-toile-archive-note">
+                Vue live disponible pendant l instruction. Sur une analyse
+                archivee sans sortie en memoire, la toile reste neutre.
+              </p>
+            )}
+            {!hasLiveSignal && hasAnyOutput && (
+              <p className="pipeline-toile-archive-note">
+                Analyse archivee. Les etats moteur ne sont pas rejoues, mais
+                les sorties restent consultables : cliquer un noeud ouvre la
+                matiere correspondante.
+              </p>
+            )}
+          </footer>
+        </div>
+
+        <div className="pipeline-toile-aside">
+          {selectedNode && (
+            <PipelineToileDrillDown
+              node={selectedNode}
+              state={selectedState}
+              output={selectedOutput}
+              onClose={() => setSelectedId(null)}
+            />
+          )}
+        </div>
+      </div>
 
       <style jsx>{`
         .pipeline-toile-panel {
           padding: 36px 32px 56px;
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
         }
         .pipeline-toile-header {
@@ -116,6 +185,23 @@ export function PipelineToilePanel({ engineStates }: PipelineToilePanelProps) {
           color: var(--ink-soft);
           max-width: 640px;
           margin: 0;
+        }
+        .pipeline-toile-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 24px;
+          align-items: start;
+        }
+        @media (min-width: 1100px) {
+          .pipeline-toile-layout {
+            grid-template-columns: minmax(0, 1fr) 420px;
+          }
+        }
+        .pipeline-toile-canvas {
+          min-width: 0;
+        }
+        .pipeline-toile-aside {
+          min-width: 0;
         }
         .pipeline-toile-footer {
           margin-top: 28px;
