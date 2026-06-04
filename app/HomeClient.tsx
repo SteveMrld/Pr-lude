@@ -1141,104 +1141,147 @@ export default function HomeClient({
           }
           if (!eventType || !dataStr) continue;
 
+          let data: any;
           try {
-            const data = JSON.parse(dataStr);
+            data = JSON.parse(dataStr);
+          } catch (e) {
+            console.error('[SSE] JSON parse failed for', eventType, ':', e);
+            continue;
+          }
 
-            if (eventType === 'analysis-created') {
-              // Premier event emis par le serveur des la creation de
-              // la ligne en base. On capture l id immediatement pour
-              // permettre un fallback polling si la connexion SSE
-              // coupe avant la fin du pipeline. Sans ce capture, une
-              // coupure laissait le pipeline orphelin cote client.
+          // Chaque handler est isole dans son propre try/catch : une
+          // exception synchrone dans la mise a jour de l etat moteur,
+          // dans la decoration des outputs ou dans la notification
+          // ne doit jamais casser la boucle de lecture du stream,
+          // ni empecher les events suivants d etre traites, ni laisser
+          // receivedTerminal a false. La regression a l affichage live
+          // a montre qu un seul handler en faute pouvait masquer toute
+          // la progression. Les handlers terminaux (complete, error,
+          // prescan-knockout) posent receivedTerminal en TETE pour que
+          // le flag soit toujours pose meme si une mise a jour d etat
+          // echoue par la suite.
+          if (eventType === 'analysis-created') {
+            try {
               if (typeof data?.analysisId === 'string' && data.analysisId.length > 0) {
                 pendingAnalysisId = data.analysisId;
                 setSavedAnalysisId(data.analysisId);
               }
-            } else if (eventType === 'engine-start') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: { status: 'running', startedAt: Date.now() }
-              }));
-            } else if (eventType === 'engine-done') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: {
-                  ...prev[data.engine],
-                  status: 'done',
-                  completedAt: Date.now(),
-                  // Si le serveur a envoye la duree, on la garde
-                  // explicitement pour eviter les decalages dus a la
-                  // latence reseau (Date.now du client != now serveur).
-                  durationMs: typeof data.durationMs === 'number'
-                    ? data.durationMs
-                    : prev[data.engine]?.durationMs,
+            } catch (e) {
+              console.error('[SSE] analysis-created handler failed:', e);
+            }
+          } else if (eventType === 'engine-start') {
+            try {
+              const engineId = typeof data?.engine === 'string' && data.engine.length > 0
+                ? data.engine
+                : null;
+              if (engineId) {
+                setEngineStates(prev => ({
+                  ...prev,
+                  [engineId]: { status: 'running', startedAt: Date.now() }
+                }));
+              }
+            } catch (e) {
+              console.error('[SSE] engine-start handler failed for', data?.engine, ':', e);
+            }
+          } else if (eventType === 'engine-done') {
+            try {
+              const engineId = typeof data?.engine === 'string' && data.engine.length > 0
+                ? data.engine
+                : null;
+              if (engineId) {
+                const explicitDuration = typeof data?.durationMs === 'number'
+                  ? data.durationMs
+                  : null;
+                setEngineStates(prev => ({
+                  ...prev,
+                  [engineId]: {
+                    ...(prev[engineId] || {}),
+                    status: 'done',
+                    completedAt: Date.now(),
+                    // Si le serveur a envoye la duree, on la garde
+                    // explicitement pour eviter les decalages dus a la
+                    // latence reseau (Date.now du client != now serveur).
+                    durationMs: explicitDuration ?? prev[engineId]?.durationMs,
+                  }
+                }));
+                // Capture la sortie integrale du moteur pour le drill-down
+                // de la toile. Le payload existe deja dans le SSE (cf
+                // sendDone dans /api/analyze/route.ts), on le memorise
+                // simplement cote client. Lecture seule, aucune
+                // modification du flux serveur.
+                if (data.output !== undefined) {
+                  setEngineOutputs(prev => ({ ...prev, [engineId]: data.output }));
                 }
-              }));
-              // Capture la sortie integrale du moteur pour le drill-down
-              // de la toile. Le payload existe deja dans le SSE (cf
-              // sendDone dans /api/analyze/route.ts), on le memorise
-              // simplement cote client. Lecture seule, aucune
-              // modification du flux serveur.
-              if (data.output !== undefined && typeof data.engine === 'string') {
-                setEngineOutputs(prev => ({ ...prev, [data.engine]: data.output }));
+                // Capture l output integral du pre-scan a la volee. En cas
+                // de knockout suivi d un override partner, le second appel
+                // a /api/analyze renverra ce payload tel quel pour
+                // economiser un re-trigger inutile du moteur.
+                if (engineId === 'prescan' && data.output) {
+                  priorPreScanRef.current = data.output;
+                }
               }
-              // Capture l output integral du pre-scan a la volee. En cas
-              // de knockout suivi d un override partner, le second appel
-              // a /api/analyze renverra ce payload tel quel pour
-              // economiser un re-trigger inutile du moteur.
-              if (data.engine === 'prescan' && data.output) {
-                priorPreScanRef.current = data.output;
-              }
-            } else if (eventType === 'complete') {
+            } catch (e) {
+              console.error('[SSE] engine-done handler failed for', data?.engine, ':', e);
+            }
+          } else if (eventType === 'complete') {
+            // Pose terminal en TETE : meme si setResult ou la derivation
+            // des outputs echoue, la boucle saura sortir proprement et
+            // le finally setAnalyzing(false). C est ce qui distingue
+            // un complete malformatte d une coupure reseau.
+            receivedTerminal = true;
+            // Derivation des outputs hors updater React. Si la fonction
+            // jette pour cause de result malformatte, on log et on garde
+            // la prev sans tuer le rendu.
+            let derivedOutputs: Record<string, unknown> = {};
+            try {
+              derivedOutputs = buildEngineOutputsFromResult(data);
+            } catch (e) {
+              console.error('[SSE] buildEngineOutputsFromResult failed:', e);
+            }
+            try {
               setResult(data);
               // Boucle aussi engineOutputs depuis le result final : les
               // moteurs non traces par le SSE (saas-metrics,
               // industrial-metrics, benchmarks) deviennent
               // drill-downable a posteriori, sans nouveau fetch.
-              setEngineOutputs(prev => ({
-                ...buildEngineOutputsFromResult(data),
-                ...prev,
-              }));
-              receivedTerminal = true;
+              setEngineOutputs(prev => ({ ...derivedOutputs, ...prev }));
+            } catch (e) {
+              console.error('[SSE] complete handler state update failed:', e);
+            }
 
-              // Notification systeme et titre d onglet "termine" pour
-              // alerter le partner qui a quitte l onglet pendant les
-              // 10 minutes du pipeline. La notif systeme ne se
-              // declenche que si l onglet est en background.
-              try {
-                const co = data?.extraction?.companyName || 'Dossier';
-                const verdict = data?.recommendation?.verdict || null;
-                notifyPipelineComplete({ companyName: co, verdict });
-                setTabTitleAttention('done', co);
-              } catch {
-                // Silencieux : pas de notif n est pas un blocant
-              }
+            // Notification systeme et titre d onglet "termine" pour
+            // alerter le partner qui a quitte l onglet pendant les
+            // 10 minutes du pipeline. La notif systeme ne se
+            // declenche que si l onglet est en background.
+            try {
+              const co = data?.extraction?.companyName || 'Dossier';
+              const verdict = data?.recommendation?.verdict || null;
+              notifyPipelineComplete({ companyName: co, verdict });
+              setTabTitleAttention('done', co);
+            } catch (e) {
+              console.error('[SSE] complete notification failed:', e);
+            }
 
-              // Persistance : depuis la refonte, le serveur persiste
-              // l analyse cote serveur juste avant d emettre ce
-              // complete event. Si la persistence cote serveur a
-              // reussi, data._persisted contient l id deja persiste
-              // et on l adopte directement sans rappeler /api/analyses.
-              // Cela rend la persistence robuste a la deconnexion
-              // SSE : meme si le client coupe avant ce point, l
-              // analyse est en base et apparait dans Historique.
-              //
-              // Fallback : si _persisted est absent ou saved=false
-              // (env de dev sans persistence, ou erreur cote serveur),
-              // on retombe sur l ancien comportement client-side qui
-              // appelle /api/analyses pour persister.
+            // Persistance : depuis la refonte, le serveur persiste
+            // l analyse cote serveur juste avant d emettre ce
+            // complete event. Si la persistence cote serveur a
+            // reussi, data._persisted contient l id deja persiste
+            // et on l adopte directement sans rappeler /api/analyses.
+            // Cela rend la persistence robuste a la deconnexion
+            // SSE : meme si le client coupe avant ce point, l
+            // analyse est en base et apparait dans Historique.
+            //
+            // Fallback : si _persisted est absent ou saved=false
+            // (env de dev sans persistence, ou erreur cote serveur),
+            // on retombe sur l ancien comportement client-side qui
+            // appelle /api/analyses pour persister.
+            try {
               if (data?._persisted?.saved && data._persisted.id) {
                 setSavedAnalysisId(data._persisted.id);
-                // Mise a jour du garde-fou de re-run : on associe l id
-                // d analyse persistee au hash stocke en localStorage juste
-                // avant le pipeline. Ainsi, si l utilisateur relance le
-                // meme dossier, on pourra le rediriger vers l analyse
-                // existante au lieu de tout recalculer.
                 try {
                   const recentRunsRaw = localStorage.getItem('prelude_recent_runs') || '[]';
                   const recentRuns: Array<{ hash: string; analysisId: string | null; companyName: string; ts: number }> = JSON.parse(recentRunsRaw);
                   if (recentRuns.length > 0 && !recentRuns[0].analysisId) {
-                    // L entree la plus recente sans analysisId est celle qu on vient de creer
                     recentRuns[0].analysisId = data._persisted.id;
                     if (data?.extraction?.companyName) {
                       recentRuns[0].companyName = data.extraction.companyName;
@@ -1257,38 +1300,37 @@ export default function HomeClient({
                   pipelineDurationMs,
                 });
               }
-            } else if (eventType === 'prescan-knockout') {
-              // Gating doux du pre-scan : le verdict Bloc 0 est knockout
-              // et le pipeline complet n a pas tourne pour economiser les
-              // credits LLM. On stocke le verdict pre-scan pour affichage,
-              // on flag prescanKnockout pour que l UI propose le bouton
-              // 'Lancer l analyse complete malgre tout' qui repostera la
-              // meme analyse avec forcePrescan=true.
+            } catch (e) {
+              console.error('[SSE] complete persistence path failed:', e);
+            }
+          } else if (eventType === 'prescan-knockout') {
+            // Pose terminal en TETE : voir commentaire sur complete.
+            receivedTerminal = true;
+            try {
               setPrescanKnockout({
-                summary: data.summary,
-                failedTests: data.failedTests || [],
-                score: data.score,
-                totalTests: data.totalTests,
+                summary: data?.summary,
+                failedTests: Array.isArray(data?.failedTests) ? data.failedTests : [],
+                score: data?.score,
+                totalTests: data?.totalTests,
               });
-              receivedTerminal = true;
-
               // Notification : meme apres knockout, le partner doit savoir
               // que le triage est termine et qu il y a une decision a
-              // prendre (lire la synthese du knockout, decider de forcer
-              // ou pas).
-              try {
-                const co = files[0]?.name?.replace(/\.[^.]+$/, '') || 'Dossier';
-                notifyPipelineComplete({ companyName: co, isPrescanKnockout: true });
-                setTabTitleAttention('knockout', co);
-              } catch {
-                // Silencieux
-              }
-            } else if (eventType === 'error') {
-              setError(data.message);
-              receivedTerminal = true;
+              // prendre.
+              const co = files[0]?.name?.replace(/\.[^.]+$/, '') || 'Dossier';
+              notifyPipelineComplete({ companyName: co, isPrescanKnockout: true });
+              setTabTitleAttention('knockout', co);
+            } catch (e) {
+              console.error('[SSE] prescan-knockout handler failed:', e);
             }
-          } catch (e) {
-            console.error('Parse error:', e);
+          } else if (eventType === 'error') {
+            // Pose terminal en TETE : un error event doit toujours sortir
+            // proprement la boucle, meme si setError jette.
+            receivedTerminal = true;
+            try {
+              setError(typeof data?.message === 'string' ? data.message : 'Erreur pipeline');
+            } catch (e) {
+              console.error('[SSE] error handler failed:', e);
+            }
           }
         }
       }
@@ -1520,49 +1562,86 @@ export default function HomeClient({
           }
           if (!eventType || !dataStr) continue;
 
+          let data: any;
           try {
-            const data = JSON.parse(dataStr);
+            data = JSON.parse(dataStr);
+          } catch (e) {
+            console.error('[SSE-DD] JSON parse failed for', eventType, ':', e);
+            continue;
+          }
 
-            if (eventType === 'engine-start') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: { status: 'running', startedAt: Date.now() }
-              }));
-            } else if (eventType === 'engine-done') {
-              setEngineStates(prev => ({
-                ...prev,
-                [data.engine]: {
-                  ...prev[data.engine],
-                  status: 'done',
-                  completedAt: Date.now(),
-                  durationMs: typeof data.durationMs === 'number'
-                    ? data.durationMs
-                    : prev[data.engine]?.durationMs,
-                }
-              }));
-              // Meme capture que pour le run Bloc 1 : on memorise la
-              // sortie integrale pour le drill-down de la toile.
-              if (data.output !== undefined && typeof data.engine === 'string') {
-                setEngineOutputs(prev => ({ ...prev, [data.engine]: data.output }));
+          // Meme discipline defensive que sur la boucle SSE principale :
+          // un handler en faute (state updater qui jette, decoration
+          // d output malformatte, payload de complete inattendu) ne
+          // doit jamais casser la boucle de lecture ni laisser le flag
+          // terminal a false.
+          if (eventType === 'engine-start') {
+            try {
+              const engineId = typeof data?.engine === 'string' && data.engine.length > 0
+                ? data.engine
+                : null;
+              if (engineId) {
+                setEngineStates(prev => ({
+                  ...prev,
+                  [engineId]: { status: 'running', startedAt: Date.now() }
+                }));
               }
-            } else if (eventType === 'complete') {
-              setResult(data.result);
+            } catch (e) {
+              console.error('[SSE-DD] engine-start handler failed for', data?.engine, ':', e);
+            }
+          } else if (eventType === 'engine-done') {
+            try {
+              const engineId = typeof data?.engine === 'string' && data.engine.length > 0
+                ? data.engine
+                : null;
+              if (engineId) {
+                const explicitDuration = typeof data?.durationMs === 'number'
+                  ? data.durationMs
+                  : null;
+                setEngineStates(prev => ({
+                  ...prev,
+                  [engineId]: {
+                    ...(prev[engineId] || {}),
+                    status: 'done',
+                    completedAt: Date.now(),
+                    durationMs: explicitDuration ?? prev[engineId]?.durationMs,
+                  }
+                }));
+                // Meme capture que pour le run Bloc 1 : on memorise la
+                // sortie integrale pour le drill-down de la toile.
+                if (data.output !== undefined) {
+                  setEngineOutputs(prev => ({ ...prev, [engineId]: data.output }));
+                }
+              }
+            } catch (e) {
+              console.error('[SSE-DD] engine-done handler failed for', data?.engine, ':', e);
+            }
+          } else if (eventType === 'complete') {
+            receivedTerminal = true;
+            let derivedOutputs: Record<string, unknown> = {};
+            try {
+              derivedOutputs = buildEngineOutputsFromResult(data?.result);
+            } catch (e) {
+              console.error('[SSE-DD] buildEngineOutputsFromResult failed:', e);
+            }
+            try {
+              setResult(data?.result);
               // Apres DD approfondie : on rederive les outputs Bloc 1
               // (inchanges) et on ramene les outputs Bloc 2 nouvellement
               // produits depuis le resultJson recompose.
-              setEngineOutputs(prev => ({
-                ...prev,
-                ...buildEngineOutputsFromResult(data.result),
-              }));
+              setEngineOutputs(prev => ({ ...prev, ...derivedOutputs }));
               setDdDeepenOpen(false);
               setDdDeepenFiles([]);
-              receivedTerminal = true;
-            } else if (eventType === 'error') {
-              setDdDeepenError(data.error || 'Erreur pipeline DD approfondie');
-              receivedTerminal = true;
+            } catch (e) {
+              console.error('[SSE-DD] complete handler state update failed:', e);
             }
-          } catch (e) {
-            console.error('Parse error:', e);
+          } else if (eventType === 'error') {
+            receivedTerminal = true;
+            try {
+              setDdDeepenError(typeof data?.error === 'string' ? data.error : 'Erreur pipeline DD approfondie');
+            } catch (e) {
+              console.error('[SSE-DD] error handler failed:', e);
+            }
           }
         }
       }
