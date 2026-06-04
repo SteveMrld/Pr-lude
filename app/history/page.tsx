@@ -17,6 +17,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { BackLink } from '@/app/components/BackLink';
 
 interface AnalysisSummary {
   id: string;
@@ -203,6 +204,9 @@ export default function HistoryPage() {
   if (enabled === false) {
     return (
       <main style={{ padding: '40px 32px', maxWidth: 980, margin: '0 auto' }}>
+        <div style={{ marginBottom: 20 }}>
+          <BackLink href="/" label="Accueil" />
+        </div>
         <h1 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 500, marginBottom: 16 }}>
           Historique des analyses
         </h1>
@@ -233,6 +237,9 @@ export default function HistoryPage() {
 
   return (
     <main style={{ padding: '32px 24px 80px', maxWidth: 1180, margin: '0 auto' }}>
+      <div style={{ marginBottom: 20 }}>
+        <BackLink href="/" label="Accueil" />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{
