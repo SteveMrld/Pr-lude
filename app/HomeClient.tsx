@@ -1149,6 +1149,16 @@ export default function HomeClient({
             continue;
           }
 
+          // Log visible (pas error) sur chaque event recu, pour qu une
+          // regression future puisse etre diagnostiquee depuis la
+          // console DevTools sans rebuilder. Concis : type + engine ou
+          // analysisId si pertinent.
+          console.log(
+            '[SSE]',
+            eventType,
+            data?.engine || data?.analysisId || '',
+          );
+
           // Chaque handler est isole dans son propre try/catch : une
           // exception synchrone dans la mise a jour de l etat moteur,
           // dans la decoration des outputs ou dans la notification
@@ -1744,9 +1754,9 @@ export default function HomeClient({
               <div className="header-org">{orgName}</div>
               {userEmail && <div className="header-user">{userEmail}</div>}
               <div className="header-actions">
-                <Link className="header-action" href="/portfolio" prefetch>Portefeuille</Link>
-                <Link className="header-action" href="/history" prefetch>Historique</Link>
-                <Link className="header-action" href="/settings" prefetch>Réglages</Link>
+                <Link className="header-action" href="/portfolio" prefetch={false}>Portefeuille</Link>
+                <Link className="header-action" href="/history" prefetch={false}>Historique</Link>
+                <Link className="header-action" href="/settings" prefetch={false}>Réglages</Link>
                 <button
                   className="header-action"
                   onClick={async () => {
@@ -1780,9 +1790,9 @@ export default function HomeClient({
             <div className="header-org">{orgName}</div>
             {userEmail && <div className="header-user">{userEmail}</div>}
             <div className="header-actions">
-              <Link className="header-action" href="/portfolio" prefetch>Portefeuille</Link>
-              <Link className="header-action" href="/history" prefetch>Historique</Link>
-              <Link className="header-action" href="/settings" prefetch>Réglages</Link>
+              <Link className="header-action" href="/portfolio" prefetch={false}>Portefeuille</Link>
+              <Link className="header-action" href="/history" prefetch={false}>Historique</Link>
+              <Link className="header-action" href="/settings" prefetch={false}>Réglages</Link>
               <button
                 className="header-action"
                 onClick={async () => {
@@ -1799,7 +1809,7 @@ export default function HomeClient({
         ) : (
           <div className="header-identity">
             <div className="header-actions">
-              <Link className="header-action" href="/history" prefetch>Historique</Link>
+              <Link className="header-action" href="/history" prefetch={false}>Historique</Link>
               <ThemeToggle />
             </div>
           </div>
@@ -1930,7 +1940,7 @@ export default function HomeClient({
                           <span>Dernière analyse <strong>{formatRelativeDate(fundStats.lastAnalyzedAt)}</strong></span>
                         </div>
                       )}
-                      <Link href="/portfolio" className="hero-card-link" prefetch>
+                      <Link href="/portfolio" className="hero-card-link" prefetch={false}>
                         <span>Voir le portefeuille</span>
                         <Picto name="arrow-right" size={14} />
                       </Link>
@@ -3120,7 +3130,7 @@ export default function HomeClient({
                   visuel discret quand l analyse en cours a ete persistee */}
               <Link
                 href="/history"
-                prefetch
+                prefetch={false}
                 style={{
                   padding: '8px 18px',
                   fontSize: 12,
