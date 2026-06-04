@@ -681,15 +681,15 @@ function computeRevenuePerEmployee(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet | null,
 ): IndicatorResult {
-  const label = 'Revenue par employe';
+  const label = 'Revenue par employé';
   const benchmark = benchmarks?.revenuePerEmployee;
   if (!fd || !benchmark) {
     return {
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
       rationale: !benchmarks
-        ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifie). Capital efficiency neutralisee.'
-        : 'Indicateur non applicable ou donnees BP absentes.',
+        ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifié). Capital efficiency neutralisée.'
+        : 'Indicateur non applicable ou données BP absentes.',
       dataConfidence: 'absent',
     };
   }
@@ -703,8 +703,8 @@ function computeRevenuePerEmployee(
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
       rationale: revenue == null
-        ? 'Revenue annee courante absent du BP.'
-        : 'Headcount annee courante absent du BP. Donnee critique pour evaluer la capital efficiency.',
+        ? 'Revenue année courante absent du BP.'
+        : 'Headcount année courante absent du BP. Donnée critique pour évaluer la capital efficiency.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
     };
@@ -714,7 +714,7 @@ function computeRevenuePerEmployee(
   return {
     key: 'revenuePerEmployee', label, value: Math.round(value), unit: 'EUR/FTE',
     verdict: classifyValue(value, benchmark),
-    rationale: `Revenue ${formatEur(revenue)} / ${headcount} ETP = ${formatEur(value)} par employe.`,
+    rationale: `Revenue ${formatEur(revenue)} / ${headcount} ETP = ${formatEur(value)} par employé.`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
   };
@@ -1176,8 +1176,8 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
     }
   } else if (applicableCount === 0) {
     warnings.push(useIndustrialSet
-      ? 'Aucun indicateur industriel calculable : la plupart des indicateurs (carnet de commandes, cycle commercial, working capital, capex projet) requierent une extraction LLM dediee ou des donnees DD non presentes dans le BP standard.'
-      : 'Aucun indicateur calculable : le BP fourni ne contient pas les donnees structurees necessaires (revenue, marge brute, headcount, EBITDA, unit economics).');
+      ? 'Aucun indicateur industriel calculable : la plupart des indicateurs (carnet de commandes, cycle commercial, working capital, capex projet) requièrent une extraction LLM dédiée ou des données DD non présentes dans le BP standard.'
+      : 'Aucun indicateur calculable : le BP fourni ne contient pas les données structurées nécessaires (revenue, marge brute, headcount, EBITDA, unit economics).');
   } else if (applicableCount <= 2) {
     warnings.push(`Seuls ${applicableCount} indicateurs applicables. Le score d execution est moins robuste qu une evaluation complete.`);
   }
@@ -1212,8 +1212,8 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
 function buildSynthesis(indicators: IndicatorResult[], applicableCount: number, score: number, useIndustrialSet: boolean = false): string {
   if (applicableCount === 0) {
     return useIndustrialSet
-      ? 'Aucun indicateur industriel calculable a partir du BP standard. Les indicateurs cibles pour ce modele economique (marge unite, cycle commercial, carnet de commandes, working capital, capex par projet, capacite industrielle, taux de gain appels d offres) sont a extraire en DD ou via une iteration ulterieure du moteur. Le BP SaaS classique n est pas le bon cadre d analyse pour ce dossier.'
-      : 'Aucun indicateur applicable : le BP est trop incomplet pour evaluer la sante economique du dossier. Les sept indicateurs canoniques (Burn multiple, Rule of 40, NDR, Magic Number, Payback CAC, Marge brute, Revenue par employe) requierent des donnees structurees absentes ici. Etape obligatoire en DD : recuperer un BP detaille du fondateur.';
+      ? 'Aucun indicateur industriel calculable à partir du BP standard. Les indicateurs cibles pour ce modèle économique (marge unité, cycle commercial, carnet de commandes, working capital, capex par projet, capacité industrielle, taux de gain appels d offres) sont à extraire en DD ou via une itération ultérieure du moteur. Le BP SaaS classique n est pas le bon cadre d analyse pour ce dossier.'
+      : 'Aucun indicateur applicable : le BP est trop incomplet pour évaluer la santé économique du dossier. Les sept indicateurs canoniques (Burn multiple, Rule of 40, NDR, Magic Number, Payback CAC, Marge brute, Revenue par employé) requièrent des données structurées absentes ici. Étape obligatoire en DD : récupérer un BP détaillé du fondateur.';
   }
 
   const best = indicators.filter((i) => i.verdict === 'best-in-class').length;

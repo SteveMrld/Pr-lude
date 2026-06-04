@@ -1004,16 +1004,16 @@ function collectWarnings(
   const warnings: string[] = [];
 
   if (!range) {
-    warnings.push('Fourchette non calculee : inputs insuffisants. Le partner doit collecter le BP / l ARR avant de proceder a la negociation.');
+    warnings.push('Fourchette non calculée : inputs insuffisants. Le partner doit collecter le BP / l ARR avant de procéder à la négociation.');
     return warnings;
   }
 
   if (applicableMethods.length === 1) {
-    warnings.push('Une seule methode applicable. La fourchette est moins robuste qu une consolidation a 2-3 methodes. Considerer comme indicative.');
+    warnings.push('Une seule méthode applicable. La fourchette est moins robuste qu une consolidation à 2-3 méthodes. Considérer comme indicative.');
   }
 
   if (range.max / range.min > 4) {
-    warnings.push(`La fourchette est tres large (rapport max/min ${Math.round(range.max / range.min * 10) / 10}). Le pricing depend fortement de signaux qualitatifs non chiffrables.`);
+    warnings.push(`La fourchette est très large (rapport max/min ${Math.round(range.max / range.min * 10) / 10}). Le pricing dépend fortement de signaux qualitatifs non chiffrables.`);
   }
 
   // Le warning "aucun BP" se base maintenant sur la presence reelle
@@ -1023,7 +1023,7 @@ function collectWarnings(
   const hasUsableBp = !!input.financialData?.hasBP
     && (input.financialData.revenueProjection || []).length > 0;
   if (!hasUsableBp) {
-    warnings.push('Aucun BP ou pas de donnees financieres exploitables. Les multiples sectoriels n ont pas pu etre appliques. La fourchette est basee uniquement sur les methodes qualitatives (Berkus / Scorecard ou VC inverse).');
+    warnings.push('Aucun BP ou pas de données financières exploitables. Les multiples sectoriels n ont pas pu être appliqués. La fourchette est basée uniquement sur les méthodes qualitatives (Berkus / Scorecard ou VC inverse).');
   }
 
   return warnings;

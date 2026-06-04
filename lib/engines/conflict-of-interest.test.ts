@@ -237,7 +237,7 @@ console.log('\n=== Test 12 : buildBlock contient ALERTE GOUVERNANCE ===');
   const block = buildConflictOfInterestBlock(flags);
   checkTrue('mentionne ALERTE GOUVERNANCE', block.includes('ALERTE GOUVERNANCE'));
   checkTrue('mentionne Self-deal', block.includes('Self-deal'));
-  checkTrue('mentionne severite haute', block.toLowerCase().includes('severite haute'));
+  checkTrue('mentionne severite haute', block.toLowerCase().includes('sévérité haute'));
 }
 
 console.log(`\n${passed + failed}/${passed + failed} : ${passed}/${passed + failed} tests passes`);

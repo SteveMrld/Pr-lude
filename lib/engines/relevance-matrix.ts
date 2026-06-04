@@ -1411,7 +1411,7 @@ function buildGrowthSubsidizedVerdict(maturity: NarrativeMaturity, businessModel
       applicable: 'none',
       weight: 0,
       scope: [],
-      rationale: 'Hors-scope : modele projet ou contrat-public, la marge unitaire n est pas la metrique pertinente.',
+      rationale: 'Hors-scope : modèle projet ou contrat-public, la marge unitaire n est pas la métrique pertinente.',
     };
   }
   if (isLateSeriesAOrAbove(maturity)) {
@@ -1495,7 +1495,7 @@ function buildFixedCostTrapVerdict(maturity: NarrativeMaturity, productionChain:
       applicable: 'none',
       weight: 0,
       scope: [],
-      rationale: 'Hors-scope : modele projet ou contrat-public, structure de couts intrinsequement consubstantielle au business.',
+      rationale: 'Hors-scope : modèle projet ou contrat-public, structure de coûts intrinsèquement consubstantielle au business.',
     };
   }
   if (maturity === 'series-b' || maturity === 'series-c' || maturity === 'series-d' || maturity === 'growth' || maturity === 'pre-ipo') {
@@ -1563,7 +1563,7 @@ function buildCommoditizationDriftVerdict(maturity: NarrativeMaturity, productio
       applicable: 'none',
       weight: 0,
       scope: [],
-      rationale: 'Hors-scope : modele physique, valeur produite necessite presence operationnelle terrain non automatisable a court terme.',
+      rationale: 'Hors-scope : modèle physique, valeur produite nécessite présence opérationnelle terrain non automatisable à court terme.',
     };
   }
   if (businessModel === 'project-based' || businessModel === 'contract-b2g') {
@@ -1627,7 +1627,7 @@ function buildScaleMirageRiskVerdict(maturity: NarrativeMaturity, productionChai
       applicable: 'none',
       weight: 0,
       scope: [],
-      rationale: 'Hors-scope : pure software sans capex industriel. Le pattern reste activable manuellement si data centers proprietaires significatifs.',
+      rationale: 'Hors-scope : pure software sans capex industriel. Le pattern reste activable manuellement si data centers propriétaires significatifs.',
     };
   }
   if (isLateSeriesAOrAbove(maturity)) {

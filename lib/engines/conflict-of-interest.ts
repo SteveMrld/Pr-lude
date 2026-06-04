@@ -141,7 +141,7 @@ export function detectConflictsOfInterest(
           kind: 'self-deal',
           severity: 'high',
           matchedEntity: inv,
-          rationale: `Le fonds ${fundName} apparait comme investisseur du tour (${inv}). Le partner qui ouvre cette note auto-instruit son propre deal. Toute lecture du dossier doit prendre en compte cet alignement direct d interet.`,
+          rationale: `Le fonds ${fundName} apparaît comme investisseur du tour (${inv}). Le partner qui ouvre cette note auto-instruit son propre deal. Toute lecture du dossier doit prendre en compte cet alignement direct d intérêt.`,
         });
       }
     }
@@ -156,7 +156,7 @@ export function detectConflictsOfInterest(
           kind: 'portfolio-followon',
           severity: 'medium',
           matchedEntity: p,
-          rationale: `${companyName} figure deja au portfolio du fonds (entree ${p}). Le tour analyse est un follow-on. Risque structurel de biais positif lie a l historique connu des founders et a la pression de defendre l investissement initial.`,
+          rationale: `${companyName} figure déjà au portfolio du fonds (entrée ${p}). Le tour analysé est un follow-on. Risque structurel de biais positif lié à l historique connu des founders et à la pression de défendre l investissement initial.`,
         });
         break; // un seul flag follow-on suffit
       }
@@ -173,7 +173,7 @@ export function detectConflictsOfInterest(
             kind: 'syndicate-regular',
             severity: 'low',
             matchedEntity: inv,
-            rationale: `${inv} est un co-investisseur regulier du fonds. La proximite ne disqualifie pas le dossier mais le partner doit savoir que la decision n est pas independante des relations de syndication etablies.`,
+            rationale: `${inv} est un co-investisseur régulier du fonds. La proximité ne disqualifie pas le dossier mais le partner doit savoir que la décision n est pas indépendante des relations de syndication établies.`,
           });
           seen.add(canonicalize(inv));
         }
@@ -199,12 +199,12 @@ export function detectConflictsOfInterest(
     }
     for (const c of candidates) {
       if (sharesIdentityRoot(c.name, userIdentity)) {
-        const sourceLabel = c.source === 'founders' ? 'liste des fondateurs' : 'liste des boardMembers et advisors';
+        const sourceLabel = c.source === 'founders' ? 'liste des fondateurs' : 'liste des board members et advisors';
         flags.push({
           kind: 'board-insider',
           severity: 'high',
           matchedEntity: `${c.name} - ${c.role}`,
-          rationale: `${userIdentity} figure dans la ${sourceLabel} du dossier (${c.name}, ${c.role}). Le partner qui ouvre cette note est partie prenante directe de la societe analysee. Le conflit de gouvernance est structurel : la decision d investissement ne peut pas etre independante d une fonction executive ou d advisory dans la societe cible.`,
+          rationale: `${userIdentity} figure dans la ${sourceLabel} du dossier (${c.name}, ${c.role}). Le partner qui ouvre cette note est partie prenante directe de la société analysée. Le conflit de gouvernance est structurel : la décision d investissement ne peut pas être indépendante d une fonction exécutive ou d advisory dans la société cible.`,
         });
         break;
       }
@@ -231,29 +231,29 @@ export function buildConflictOfInterestBlock(flags: ConflictOfInterestFlag[]): s
   for (const f of flags) byKind[f.kind].push(f);
 
   const lines: string[] = [];
-  lines.push('# ALERTE GOUVERNANCE · CONFLITS D INTERET DETECTES');
+  lines.push('# ALERTE GOUVERNANCE · CONFLITS D INTÉRÊT DÉTECTÉS');
   lines.push('');
   if (byKind['self-deal'].length > 0) {
-    lines.push('## Self-deal (severite haute)');
+    lines.push('## Self-deal (sévérité haute)');
     for (const f of byKind['self-deal']) lines.push(`- ${f.rationale}`);
     lines.push('');
   }
   if (byKind['board-insider'].length > 0) {
-    lines.push('## Board insider (severite haute)');
+    lines.push('## Board insider (sévérité haute)');
     for (const f of byKind['board-insider']) lines.push(`- ${f.rationale}`);
     lines.push('');
   }
   if (byKind['portfolio-followon'].length > 0) {
-    lines.push('## Follow-on portfolio (severite moyenne)');
+    lines.push('## Follow-on portfolio (sévérité moyenne)');
     for (const f of byKind['portfolio-followon']) lines.push(`- ${f.rationale}`);
     lines.push('');
   }
   if (byKind['syndicate-regular'].length > 0) {
-    lines.push('## Syndicate regular (severite faible)');
+    lines.push('## Syndicate regular (sévérité faible)');
     for (const f of byKind['syndicate-regular']) lines.push(`- ${f.rationale}`);
     lines.push('');
   }
-  lines.push('Ces alertes ne disqualifient pas mecaniquement le dossier. Elles signalent que la lecture du partner doit etre filtree par la conscience de la position d interet du fonds.');
+  lines.push('Ces alertes ne disqualifient pas mécaniquement le dossier. Elles signalent que la lecture du partner doit être filtrée par la conscience de la position d intérêt du fonds.');
   lines.push('');
   return lines.join('\n');
 }
