@@ -33,6 +33,7 @@
 // ============================================================
 
 import { getSupabaseServerClient, getSupabaseAdminClient } from './supabase/server';
+import { normalizeStringsRecursive } from './normalize-punctuation';
 
 // ============================================================
 // MODE SOLO : UUID admin par defaut
@@ -350,6 +351,20 @@ function computeHasBloc2(resultJson: any): boolean {
 }
 
 /**
+ * Filtre final applique a result_json juste avant ecriture en base.
+ * Walk recursif qui elimine em-dashes (—) et en-dashes (–) residuels
+ * en sortie de pipeline (LLM majoritairement, plus rares concatenations
+ * statiques). La regle est implementee dans normalizeStringsRecursive
+ * et reste idempotente, donc une eventuelle double application en
+ * amont ne pose aucun probleme. Toute sortie persistee est garantie
+ * sans tiret long quelle que soit la source du contenu.
+ */
+function normalizeResultJsonForPersistence(resultJson: any): any {
+  if (!resultJson || typeof resultJson !== 'object') return resultJson;
+  return normalizeStringsRecursive(resultJson);
+}
+
+/**
  * Met a jour le result_json d une analyse existante, sans creer une
  * nouvelle ligne. Utilise quand on cree une nouvelle version : le snapshot
  * historique est insere dans analyses_versions, et le live de la table
@@ -382,7 +397,7 @@ export async function updateAnalysisLive(
         blindspot_score: input.blindspotScore,
         contrarian_score: input.contrarianScore,
         coherence_score: input.coherenceScore,
-        result_json: input.resultJson,
+        result_json: normalizeResultJsonForPersistence(input.resultJson),
         has_bloc2: computeHasBloc2(input.resultJson),
         source_text: input.sourceText,
         source_filename: input.sourceFilename,
@@ -443,7 +458,7 @@ export async function saveAnalysis(
         blindspot_score: input.blindspotScore,
         contrarian_score: input.contrarianScore,
         coherence_score: input.coherenceScore,
-        result_json: input.resultJson,
+        result_json: normalizeResultJsonForPersistence(input.resultJson),
         has_bloc2: computeHasBloc2(input.resultJson),
         source_text: input.sourceText,
         source_filename: input.sourceFilename,
@@ -624,7 +639,7 @@ export async function markAnalysisCompleted(
         blindspot_score: input.blindspotScore,
         contrarian_score: input.contrarianScore,
         coherence_score: input.coherenceScore,
-        result_json: input.resultJson,
+        result_json: normalizeResultJsonForPersistence(input.resultJson),
         has_bloc2: computeHasBloc2(input.resultJson),
         source_text: input.sourceText,
         source_filename: input.sourceFilename,
