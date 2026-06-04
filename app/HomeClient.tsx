@@ -4572,11 +4572,11 @@ export default function HomeClient({
                     {/* Counter-archetype : situe le dossier dans une trajectoire historique. */}
                     {ndr.counterArchetype?.closest && ndr.counterArchetype.closest !== 'non determine' && (
                       <div style={{ marginBottom: 18, padding: 14, border: '1px solid var(--hairline)', background: 'var(--surface)' }}>
-                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Archetype le plus proche</div>
+                        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Archétype de pattern le plus proche</div>
                         <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 500, marginBottom: 6 }}>
                           {ndr.counterArchetype.closest}
                           <span style={{ fontSize: 12, opacity: 0.7, marginLeft: 8, fontWeight: 400 }}>
-                            {ndr.counterArchetype.direction === 'derive-confirmee' ? 'trajectoire de derive confirmee' : 'trajectoire saine'}
+                            {ndr.counterArchetype.direction === 'derive-confirmee' ? 'trajectoire de dérive confirmée' : 'trajectoire saine'}
                           </span>
                         </div>
                         {ndr.counterArchetype.rationale && (
@@ -4833,9 +4833,9 @@ export default function HomeClient({
                             )}
                             {p.counterArchetype?.closest && p.counterArchetype.closest !== 'non determine' && (
                               <div style={{ fontSize: 12, marginBottom: 6, opacity: 0.85 }}>
-                                <strong style={{ fontWeight: 500 }}>Archetype proche :</strong> {p.counterArchetype.closest}
+                                <strong style={{ fontWeight: 500 }}>Archétype de pattern proche :</strong> {p.counterArchetype.closest}
                                 <span style={{ opacity: 0.7, marginLeft: 4 }}>
-                                  ({p.counterArchetype.direction === 'derive-confirmee' ? 'derive confirmee' : 'trajectoire saine'})
+                                  ({p.counterArchetype.direction === 'derive-confirmee' ? 'dérive confirmée' : 'trajectoire saine'})
                                 </span>
                               </div>
                             )}

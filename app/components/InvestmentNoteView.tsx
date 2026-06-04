@@ -2553,7 +2553,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     dossier dans une trajectoire historique. */}
                 {nd.counterArchetype?.closest && nd.counterArchetype.closest !== 'non determine' && (
                   <p className="note-paragraph" style={{ marginTop: 8 }}>
-                    <strong>Archétype le plus proche :</strong> {nd.counterArchetype.closest}
+                    <strong>Archétype de pattern le plus proche :</strong> {nd.counterArchetype.closest}
                     {nd.counterArchetype.direction === 'derive-confirmee' ? ' (trajectoire de dérive confirmée)' : ' (trajectoire saine)'}
                     {nd.counterArchetype.rationale ? '. ' + nd.counterArchetype.rationale : '.'}
                   </p>
@@ -2861,7 +2861,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                           )}
                           {p.counterArchetype?.closest && p.counterArchetype.closest !== 'non determine' && (
                             <div style={{ fontSize: 13, marginBottom: 4, opacity: 0.85 }}>
-                              <span style={{ fontWeight: 500 }}>Archétype proche :</span> {p.counterArchetype.closest}
+                              <span style={{ fontWeight: 500 }}>Archétype de pattern proche :</span> {p.counterArchetype.closest}
                               {p.counterArchetype.direction === 'derive-confirmee' ? ' (trajectoire de dérive confirmée)' : ' (trajectoire saine)'}
                             </div>
                           )}
