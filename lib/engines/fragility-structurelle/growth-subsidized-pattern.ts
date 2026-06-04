@@ -47,6 +47,13 @@ import {
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  type ArchetypeAxis,
+} from '../archetype-selector';
+
+const ARCHETYPE_AXIS: ArchetypeAxis = 'growth-subsidized';
 
 const PATTERN_ID: PatternId = 'growth-subsidized-model';
 
@@ -130,31 +137,14 @@ sous-modules :
   passage à accélérer vers le breakeven. Indicateur d engagement durable
   dans le modèle subventionné.
 
-# COUNTER-ARCHÉTYPES
-
-Identifie le counter-archétype le plus proche et explique en deux phrases :
-
-Patterns confirmés (effondrement) : Casper (DTC matelas, contribution margin
-négative documentée jusqu à la dépréciation post-IPO 2020), MoviePass (places
-de cinéma vendues sous le prix d achat structurel), Quibi (1,75 milliard
-d engagements contenus sans business model viable), WeWork sur axe unit
-economics (locations sous-pricées vs coût réel), Cazoo (vente véhicules
-sub-marge avec retour quasi-nul), Fast (checkout startup brûlant 10 millions
-par mois sans path), Zume (pizza in van, coûte production très au-dessus du
-prix vente).
-
-Counter-archétypes sains : Atlassian (gross margin >= 80%, CAC efficient),
-Datadog (unit economics SaaS classique, contribution margin saine), Adyen
-(commission paiement avec marge transparente et stable), Booking (commission
-only, pas de stock), Stripe (ratio LTV/CAC élevé avec switching costs),
-Spotify (streaming avec marges streaming >= 25% et croissantes).
+__ARCHETYPE_BLOCK__
 
 La distinction n est pas le simple fait de brûler du capital pour grandir.
 C est de brûler du capital ET de créer de la valeur sub-zéro à chaque
-transaction. Atlassian a brûlé du capital en early days mais avec marges
-unitaires saines. Casper a brûlé du capital ET vendait des matelas sous
-contribution margin, ce qui rendait l entreprise incapable d atteindre la
-rentabilité par le scale.
+transaction. Une entreprise saine peut avoir brûlé du capital en early days
+mais avec marges unitaires positives. Un dérapage Growth Subsidized brûle du
+capital ET vend sous contribution margin, ce qui rend la rentabilité
+inaccessible par le scale.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -449,6 +439,11 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
+function buildSystemPrompt(assetClass: string): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
+}
+
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   // Pre-evaluation
   const check = isApplicable(input.extraction, input.financialData);
@@ -456,9 +451,10 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
-  // Appel LLM
+  // Appel LLM avec selecteur d archetype gate par asset_class
+  const assetClass = input.assetClass ?? 'unclassified';
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -470,6 +466,16 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   // insuffisante)
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
+
+  // Decoration cross-class : prefixe la clause obligatoire si le LLM a
+  // choisi un archetype hors meme asset_class.
+  if (raw.counterArchetype) {
+    raw.counterArchetype = decorateCounterArchetype(
+      raw.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+    );
+  }
 
   const output = llmOutputToPatternOutput(raw);
 
@@ -508,4 +514,6 @@ export const _internal = {
   llmOutputToPatternOutput,
   isApplicable,
   SYSTEM_PROMPT,
+  buildSystemPrompt,
+  ARCHETYPE_AXIS,
 };

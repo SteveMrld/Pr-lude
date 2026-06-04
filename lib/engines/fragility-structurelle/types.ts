@@ -118,6 +118,12 @@ export interface PatternInput {
    *  sectorielle ne couvre pas le secteur du dossier ou que la
    *  fiche est perimee. */
   sectoralContext?: SectoralContext | null;
+
+  /** Asset class normalise du dossier (matrix.assetClass). Sert au
+   *  selecteur central d archetypes pour ne proposer au LLM que des
+   *  archetypes proches sectoriellement. Fallback 'unclassified' si
+   *  la matrice n a pas tranche. Voir lib/engines/archetype-selector. */
+  assetClass?: string;
 }
 
 // ============================================================

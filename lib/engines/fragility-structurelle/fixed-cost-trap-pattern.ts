@@ -49,6 +49,13 @@ import {
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  type ArchetypeAxis,
+} from '../archetype-selector';
+
+const ARCHETYPE_AXIS: ArchetypeAxis = 'fixed-cost-trap';
 
 const PATTERN_ID: PatternId = 'fixed-cost-trap';
 
@@ -135,39 +142,15 @@ Trois sous-modules :
   Uber sur les véhicules. Discipline de modèle articulée explicitement dans
   le pitch et alignée sur l exécution.
 
-# COUNTER-ARCHETYPES
-
-Identifie le counter-archetype le plus proche et explique en deux phrases :
-
-Patterns confirmés (effondrement ou near-death) : WeWork avant 2019 47
-milliards d engagements pour 1,8 milliard de revenu run-rate 3 milliards
-loyers permanents, Compass entre 2019 et 2022 4500 agents en salarié direct
-face cycle immobilier résidentiel valorisation 23Md à 800M, Quibi 2020 1,75
-milliard contenus annulés après 6 mois, MoviePass 2017-2019 places sous prix
-d achat structurel, Peloton 2021-2023 capex usine plus stocks plus payroll
-ingénierie face à demande divisée par 3, Cazoo 2019-2023 stocks voitures
-plus entrepôts delisting et restructuration, AOL post-2002 data centers et
-personnel infrastructure dial-up obsolète, Helio 2008 infrastructure télécom
-fixe MVNO en perte.
-
-Counter-archetypes sains : Airbnb asset-light explicitement sans propriété
-immobilière sans stock, Booking commission only sans stock hôtelier,
-Spotify engagements minimum garantis labels qui scalent avec revenu,
-Netflix engagements production massifs avec ROI mesuré et flexibilité
-cancellation et internationalisation amortissant coût fixe par marché,
-Uber post-2019 réduction massive coûts fixes via automation et fermeture
-marchés non rentables, Salesforce engagements data center importants alignés
-sur contrats clients long terme et garantis ratio off-balance dans le décile
-bas SaaS sectoriel.
+__ARCHETYPE_BLOCK__
 
 La distinction fondamentale n est jamais le simple fait d avoir des coûts
 fixes. C est l alignement entre la nature long terme des engagements et la
 prévisibilité long terme du revenu, plus la capacité documentée à réduire
-le burn quand cet alignement déraille. Salesforce a des engagements long
-terme alignés sur des contrats client long terme. WeWork avait des
-engagements long terme alignés sur des occupations courtes au choix du
-membre. La même structure peut être saine ou trap selon ce que le revenu
-sous-jacent permet de soutenir.
+le burn quand cet alignement déraille. Une même structure de coûts peut
+être saine ou trap selon ce que le revenu sous-jacent permet de soutenir
+et selon que les engagements sont adossés à des contrats clients longs ou
+à des occupations courtes au choix de l usager.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -524,14 +507,20 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
+function buildSystemPrompt(assetClass: string): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
+}
+
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
+  const assetClass = input.assetClass ?? 'unclassified';
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -540,6 +529,14 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
+
+  if (raw.counterArchetype) {
+    raw.counterArchetype = decorateCounterArchetype(
+      raw.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+    );
+  }
 
   const output = llmOutputToPatternOutput(raw);
 

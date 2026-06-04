@@ -904,6 +904,7 @@ export async function POST(req: NextRequest) {
                     pitchText: narrativeDriftPitchText,
                     fundNote: fundDimensionalNotes?.market || null,
                     sectoralContext,
+                    assetClass: relevanceMatrix.assetClass,
                   });
                   sendDone('narrative-drift', r);
                   return r;

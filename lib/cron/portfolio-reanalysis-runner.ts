@@ -146,6 +146,7 @@ export async function runAutoReanalysis(
             }
           : null,
         sectoralContext,
+        assetClass: previousResult.relevanceMatrix?.assetClass,
       });
     } catch (err: any) {
       console.warn(

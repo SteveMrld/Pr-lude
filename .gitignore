@@ -13,3 +13,11 @@ tsconfig.tsbuildinfo
 # le harnais sont commites, les sorties JSON ne le sont pas.
 scripts/calibration-output/
 scripts/sectoral-init-output/
+scripts/audit-output/
+
+# Fichiers temporaires laisses par editeur sur un fichier source.
+*.ts.tmp.*
+
+# Script local de positionnement de cle API. Ne doit jamais etre
+# commite : il manipule un secret en clair.
+scripts/setkey-server.ts

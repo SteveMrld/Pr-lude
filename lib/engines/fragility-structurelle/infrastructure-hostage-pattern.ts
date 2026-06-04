@@ -49,8 +49,14 @@ import {
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  type ArchetypeAxis,
+} from '../archetype-selector';
 
 const PATTERN_ID: PatternId = 'infrastructure-hostage';
+const ARCHETYPE_AXIS: ArchetypeAxis = 'infrastructure-hostage';
 
 // ============================================================
 // PROMPT
@@ -137,35 +143,14 @@ le mitigant majeur. Trois sous-modules :
   captifs. La portabilité architecturale est un mitigant majeur même en
   l absence de plan explicite.
 
-# COUNTER-ARCHETYPES
-
-Identifie le counter-archetype le plus proche et explique en deux phrases :
-
-Patterns confirmés (squeeze marqué ou effondrement) : Jasper et Copy.ai en
-2023 squeezes par OpenAI baisse prix 80% plus intégration ChatGPT, Replika
-2023 policy changes OpenAI sur apps relations, première génération wrappers
-GPT pure-play sans value-add métier disparue, Zynga avant 2014 captive de
-Facebook viralité, MoviePass dépendance prix cinémas, apps mobiles avant ATT
-iOS divisées ROAS par 3, Snap Lens 2017 hardware dépendance, Pinterest
-trafic divisé par 2 algo Google 2023.
-
-Counter-archetypes sains : Salesforce qui a construit ses propres infras et
-abstractions sur plusieurs décennies multi-cloud capable, Snowflake
-architecturée multi-cloud par construction dès le jour un peut basculer AWS
-Azure GCP au niveau du compte client, Stripe qui dépend des banques mais
-avec redondance massive et plus de cinq processeurs en parallèle, Anthropic
-et OpenAI qui dépendent de Nvidia mais avec contrats long-terme et plans
-documentés TPU AMD silicon propriétaire, GitLab portable par construction
-déployable on-premises chez le client, Datadog qui agrège plus de 500
-intégrations avec un cœur produit qui ne dépend d aucune spécifique, Adyen
-détenteur de licences bancaires européennes propres opérant ses propres rails.
+__ARCHETYPE_BLOCK__
 
 La distinction n est jamais le simple fait de dépendre d un fournisseur. C est
 l asymétrie, l absence de plan de sortie et l absence de différenciation
-au-dessus du fournisseur. Snowflake dépend d AWS plus qu une PME française
-typique mais Snowflake n est pas Infrastructure Hostage parce que la
-dépendance est diversifiée, contractualisée, et la valeur produite est
-spécifiquement au-dessus de l infrastructure.
+au-dessus du fournisseur. Une dépendance diversifiée, contractualisée et
+adossée à une valeur produite spécifiquement au-dessus de l infrastructure
+n est pas Infrastructure Hostage, même si la concentration nominale paraît
+élevée.
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -485,14 +470,20 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
+function buildSystemPrompt(assetClass: string): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
+}
+
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
+  const assetClass = input.assetClass ?? 'unclassified';
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -501,6 +492,14 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
+
+  if (raw.counterArchetype) {
+    raw.counterArchetype = decorateCounterArchetype(
+      raw.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+    );
+  }
 
   const output = llmOutputToPatternOutput(raw);
 
@@ -536,6 +535,8 @@ export const _internal = {
   isApplicable,
   extractStackSnapshot,
   SYSTEM_PROMPT,
+  buildSystemPrompt,
+  ARCHETYPE_AXIS,
   KNOWN_VENDORS,
   PORTABILITY_KEYWORDS,
 };

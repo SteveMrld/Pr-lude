@@ -28,6 +28,13 @@ import {
   buildSectoralPromptBlock,
   type SectoralContext,
 } from './sectoral-injection';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  type ArchetypeAxis,
+} from './archetype-selector';
+
+const ARCHETYPE_AXIS: ArchetypeAxis = 'narrative-drift';
 
 // ============================================================
 // TYPES DE SORTIE
@@ -200,28 +207,7 @@ Deux sous-modules :
   Apple a multiplie les verticales sans desespoir, Amazon idem, Microsoft sous
   Nadella idem. Sans cette jonction obligatoire, status='not-applicable'.
 
-# COUNTER-ARCHETYPES
-
-Tu dois identifier le counter-archetype le plus proche du dossier analyse. Cela
-sert de garde-fou contre la projection hative d un cas pedagogique :
-
-Archetypes confirmes (drift documente) : Theranos (refus structure de chiffres,
-moralisation extreme), WeWork (passage real estate puis community puis
-consciousness), FTX (substitution exchange par infrastructure), Quibi
-(substitution video platform par content revolution), Nikola (revendications
-techniques non etayees), Cazoo (scale industriel sans validation P&L), Fast
-checkout (multiplication features sans rentabilite), MoviePass (modele
-subventionne).
-
-Counter-archetypes sains (vraie sobriete) : Stripe (precision systematique meme
-en parlant de mission), Datadog (chiffres financiers et techniques denses),
-Snowflake (rigueur S-1 reference), Atlassian (sobriete narrative durable),
-Adyen (constance financiere), HubSpot (changement de KPIs justifie strategique
-ment), Amazon (discours historiquement concret), Nvidia (technique au coeur de
-toute communication).
-
-Tu nommes le counter-archetype le plus proche et tu expliques en deux phrases
-pourquoi le profil narratif s en rapproche, en citant des elements concrets.
+__ARCHETYPE_BLOCK__
 
 # FORMAT JSON OBLIGATOIRE
 
@@ -308,6 +294,17 @@ export interface NarrativeDriftInput {
   } | null;
   fundNote?: string | null;
   sectoralContext?: SectoralContext | null;
+  /** Asset class normalise du dossier (matrix.assetClass). Sert au
+   *  selecteur central d archetypes pour ne proposer au LLM que des
+   *  archetypes proches sectoriellement, avec clause cross-class
+   *  obligatoire si fallback. Fallback 'unclassified' si non fourni.
+   *  Voir lib/engines/archetype-selector. */
+  assetClass?: string;
+}
+
+function buildSystemPrompt(assetClass: string): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
 }
 
 export async function analyzeNarrativeDrift(
@@ -352,15 +349,33 @@ export async function analyzeNarrativeDrift(
   // ETAPE 3 : Construction du user prompt
   const userPrompt = buildUserPrompt(input, metrics);
 
-  // ETAPE 4 : Appel LLM
+  // ETAPE 4 : Appel LLM avec selecteur d archetype gate par asset_class
   // callClaude(systemPrompt, userPrompt, maxTokens, model, options)
+  const assetClass = input.assetClass ?? 'unclassified';
   const rawResponse = await callClaude(
-    SYSTEM_PROMPT,
+    buildSystemPrompt(assetClass),
     userPrompt,
     4000,
   );
 
   const parsed = parseJSON<NarrativeDriftAnalysisOutput>(rawResponse);
+
+  // Decoration cross-class : si le LLM a choisi un nom hors meme asset
+  // class, on prefixe la clause obligatoire au rationale du
+  // counterArchetype. Garantit la conformite editoriale meme si le
+  // modele oublie la consigne du prompt.
+  if (parsed.counterArchetype) {
+    const decorated = decorateCounterArchetype(
+      parsed.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+    );
+    parsed.counterArchetype = {
+      closest: decorated.closest,
+      direction: decorated.direction === 'derive-confirmee' ? 'derive-confirmee' : 'sain',
+      rationale: decorated.rationale,
+    };
+  }
 
   // ETAPE 5 : Injection des metriques objectives (le LLM ne peut pas les
   // alterer, elles sont calculees mecaniquement en amont).
