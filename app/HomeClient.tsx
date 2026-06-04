@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import HistoricalComparables from './components/HistoricalComparables';
 import RadarDimensions from './components/RadarDimensions';
@@ -1664,9 +1665,9 @@ export default function HomeClient({
               <div className="header-org">{orgName}</div>
               {userEmail && <div className="header-user">{userEmail}</div>}
               <div className="header-actions">
-                <a className="header-action" href="/portfolio">Portefeuille</a>
-                <a className="header-action" href="/history">Historique</a>
-                <a className="header-action" href="/settings">Réglages</a>
+                <Link className="header-action" href="/portfolio" prefetch>Portefeuille</Link>
+                <Link className="header-action" href="/history" prefetch>Historique</Link>
+                <Link className="header-action" href="/settings" prefetch>Réglages</Link>
                 <button
                   className="header-action"
                   onClick={async () => {
@@ -1700,9 +1701,9 @@ export default function HomeClient({
             <div className="header-org">{orgName}</div>
             {userEmail && <div className="header-user">{userEmail}</div>}
             <div className="header-actions">
-              <a className="header-action" href="/portfolio">Portefeuille</a>
-              <a className="header-action" href="/history">Historique</a>
-              <a className="header-action" href="/settings">Réglages</a>
+              <Link className="header-action" href="/portfolio" prefetch>Portefeuille</Link>
+              <Link className="header-action" href="/history" prefetch>Historique</Link>
+              <Link className="header-action" href="/settings" prefetch>Réglages</Link>
               <button
                 className="header-action"
                 onClick={async () => {
@@ -1719,7 +1720,7 @@ export default function HomeClient({
         ) : (
           <div className="header-identity">
             <div className="header-actions">
-              <a className="header-action" href="/history">Historique</a>
+              <Link className="header-action" href="/history" prefetch>Historique</Link>
               <ThemeToggle />
             </div>
           </div>
@@ -1850,10 +1851,10 @@ export default function HomeClient({
                           <span>Dernière analyse <strong>{formatRelativeDate(fundStats.lastAnalyzedAt)}</strong></span>
                         </div>
                       )}
-                      <a href="/portfolio" className="hero-card-link">
+                      <Link href="/portfolio" className="hero-card-link" prefetch>
                         <span>Voir le portefeuille</span>
                         <Picto name="arrow-right" size={14} />
-                      </a>
+                      </Link>
                     </div>
                   ) : (
                     <PipelinePreview />
@@ -3038,8 +3039,9 @@ export default function HomeClient({
               )}
               {/* Lien vers l historique des analyses sauvegardees + indicateur
                   visuel discret quand l analyse en cours a ete persistee */}
-              <a
+              <Link
                 href="/history"
+                prefetch
                 style={{
                   padding: '8px 18px',
                   fontSize: 12,
@@ -3055,7 +3057,7 @@ export default function HomeClient({
                 title="Voir l historique des analyses"
               >
                 Historique
-              </a>
+              </Link>
               {savedAnalysisId && (
                 <span style={{
                   marginLeft: 12,
