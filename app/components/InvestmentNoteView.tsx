@@ -5,6 +5,7 @@ import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
 import PortfolioPositionChart from './PortfolioPositionChart';
+import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralSpiderChart } from './sectoral';
 import {
   DIMENSION_KEYS,
@@ -3197,6 +3198,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               </ul>
             )}
           </>
+        )}
+
+        {(r as any).structurationEntree && (
+          <StructurationEntreeSection
+            structuration={(r as any).structurationEntree}
+            variant="note"
+          />
         )}
 
         {/* ============================================================

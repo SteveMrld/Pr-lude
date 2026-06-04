@@ -18,6 +18,7 @@ import {
   bindTabTitleRestore,
 } from '@/lib/pipeline-notifier';
 import IcPackView from './components/IcPackView';
+import StructurationEntreeSection from './components/StructurationEntreeSection';
 import { TrajectoryView } from './components/TrajectoryView';
 import { TrackSelector, type AnalysisTrack } from './components/TrackSelector';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
@@ -291,6 +292,12 @@ export default function HomeClient({
   const [ddDeepenAnalyzing, setDdDeepenAnalyzing] = useState<boolean>(false);
   const [ddDeepenError, setDdDeepenError] = useState<string | null>(null);
   const ddDeepenInputRef = useRef<HTMLInputElement | null>(null);
+  // BLOC 3 - Structuration a l entree (module a la demande, read-only
+  // sur le pipeline). Declenche via le bandeau "Etape suivante", appelle
+  // /api/analyses/[id]/structuration et merge structurationEntree dans
+  // le result. Independant du DD : peut tourner avant ou apres.
+  const [structurationLoading, setStructurationLoading] = useState<boolean>(false);
+  const [structurationError, setStructurationError] = useState<string | null>(null);
   const [engineStates, setEngineStates] = useState<Record<string, EngineState>>(
     Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }]))
   );
@@ -1569,6 +1576,41 @@ export default function HomeClient({
       if (wakeLock) {
         try { await wakeLock.release(); } catch (_e) {}
       }
+    }
+  }
+
+  // Bloc 3 : declenche le moteur Structuration a l entree sur le
+  // result_json deja persiste. Aucun upload, aucune dependance Bloc 2.
+  // L analyse archivee est consommee telle quelle, l output merge sous
+  // result.structurationEntree et la note se rafraichit en place.
+  async function requestStructuration() {
+    if (!savedAnalysisId) {
+      setStructurationError('Analyse non sauvegardee. Impossible de produire la recommandation de structuration.');
+      return;
+    }
+    setStructurationLoading(true);
+    setStructurationError(null);
+    try {
+      const response = await fetch(`/api/analyses/${savedAnalysisId}/structuration`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setStructurationError(data?.error || 'Erreur lors du calcul de la recommandation de structuration.');
+        return;
+      }
+      // Merge dans le result en place : la note et le pack IC vont
+      // rendre la nouvelle section sans rechargement.
+      if (data?.result) {
+        setResult(data.result);
+      } else if (data?.structuration) {
+        setResult((prev: any) => prev ? { ...prev, structurationEntree: data.structuration } : prev);
+      }
+    } catch (e: any) {
+      setStructurationError(e?.message || 'Erreur reseau lors de l appel structuration.');
+    } finally {
+      setStructurationLoading(false);
     }
   }
 
@@ -3604,6 +3646,70 @@ export default function HomeClient({
               );
             })()}
 
+            {/* BANDEAU STRUCTURATION A L ENTREE (Bloc 3, module a la demande).
+                Independant de la DD : peut tourner avant ou apres. Read-only
+                sur le result_json deja persiste, aucun upload requis. */}
+            {(() => {
+              const verdict = result.finalRecommendation?.verdict;
+              const hasStructuration = !!result.structurationEntree;
+              const canStructure = !!savedAnalysisId
+                && verdict
+                && verdict !== 'refuser'
+                && !hasStructuration;
+              if (!canStructure) return null;
+              return (
+                <div style={{
+                  marginTop: 12,
+                  marginBottom: 32,
+                  padding: '20px 28px',
+                  background: 'linear-gradient(135deg, rgba(80, 107, 58, 0.07) 0%, rgba(80, 107, 58, 0.02) 100%)',
+                  borderLeft: '3px solid #506b3a',
+                  borderRadius: 2,
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#506b3a',
+                    fontWeight: 600,
+                    marginBottom: 8,
+                  }}>
+                    Module à la demande
+                  </div>
+                  <div style={{
+                    fontFamily: 'var(--serif)',
+                    fontSize: 22,
+                    fontWeight: 500,
+                    marginBottom: 10,
+                    lineHeight: 1.25,
+                  }}>
+                    Recommander la structuration à l&apos;entrée
+                  </div>
+                  <div style={{
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: 'var(--ink-soft)',
+                    marginBottom: 18,
+                    maxWidth: 720,
+                  }}>
+                    Six rubriques de term sheet (gouvernance, clauses protectrices, tranching milestones, préférence et anti-dilution, droits d&apos;information, cadrage scénarios de sortie) dérivées des drivers décisifs, des risques majeurs et des comparables identifiés par l&apos;instruction. Chaque recommandation est rattachée à un signal précis du dossier.
+                  </div>
+                  {structurationError && (
+                    <div style={{ fontSize: 13, color: 'var(--rouge-cardinal)', marginBottom: 14 }}>{structurationError}</div>
+                  )}
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => { void requestStructuration(); }}
+                    disabled={structurationLoading}
+                  >
+                    {structurationLoading
+                      ? 'Génération en cours...'
+                      : 'Générer la recommandation de structuration →'}
+                  </button>
+                </div>
+              );
+            })()}
+
             {/* Dashboard navigation - sidebar sticky desktop, dropdown mobile.
                 Les 14 dimensions d analyse sont regroupees en 4 sections
                 semantiques pour clarifier la hierarchie de lecture :
@@ -4177,6 +4283,15 @@ export default function HomeClient({
                   ) : (
                     <div style={{ fontSize: 13, opacity: 0.6, fontStyle: 'italic' }}>
                       Plan de chantiers non applicable pour ce verdict (réservé aux verdicts "investir avec conditions" et "approfondir").
+                    </div>
+                  )}
+
+                  {result.structurationEntree && (
+                    <div style={{ marginTop: 36 }}>
+                      <StructurationEntreeSection
+                        structuration={result.structurationEntree}
+                        variant="dashboard"
+                      />
                     </div>
                   )}
                 </div>

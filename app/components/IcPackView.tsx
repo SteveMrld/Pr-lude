@@ -23,6 +23,7 @@ import {
   type IcDecision,
 } from '@/lib/ic-decision-types';
 import ReferenceCallNotesPanel from './ReferenceCallNotesPanel';
+import StructurationEntreeSection from './StructurationEntreeSection';
 
 export type WorkflowHistoryItem = {
   fromStage: string | null;
@@ -529,6 +530,13 @@ export default function IcPackView({
             </div>
           </div>
         ) : null}
+
+        {(result as any).structurationEntree && (
+          <StructurationEntreeSection
+            structuration={(result as any).structurationEntree}
+            variant="ic"
+          />
+        )}
 
         <div className="ic-block">
           <h3 className="ic-block-title">Agenda du comité (60 minutes)</h3>
