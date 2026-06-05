@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import HistoricalComparables from './components/HistoricalComparables';
@@ -1185,10 +1186,22 @@ export default function HomeClient({
                 ? data.engine
                 : null;
               if (engineId) {
-                setEngineStates(prev => ({
-                  ...prev,
-                  [engineId]: { status: 'running', startedAt: Date.now() }
-                }));
+                // flushSync force le commit synchrone hors de l auto-batching
+                // React 18. Sans ce flush, plusieurs setEngineStates emis dans
+                // la meme boucle for (events arrives ensemble dans un chunk
+                // reader.read, cas typique du batch parallele Bloc 1 ou du
+                // tail SSE bufferise) sont regroupes en un seul render qui ne
+                // montre que l etat final. Le bandeau et la vue pipeline
+                // sautent alors directement au dashboard sans progression
+                // intermediaire. flushSync garantit qu une transition
+                // d engine produit son propre paint, meme bunchee avec
+                // d autres dans le meme tick.
+                flushSync(() => {
+                  setEngineStates(prev => ({
+                    ...prev,
+                    [engineId]: { status: 'running', startedAt: Date.now() }
+                  }));
+                });
               }
             } catch (e) {
               console.error('[SSE] engine-start handler failed for', data?.engine, ':', e);
@@ -1202,23 +1215,31 @@ export default function HomeClient({
                 const explicitDuration = typeof data?.durationMs === 'number'
                   ? data.durationMs
                   : null;
-                setEngineStates(prev => ({
-                  ...prev,
-                  [engineId]: {
-                    ...(prev[engineId] || {}),
-                    status: 'done',
-                    completedAt: Date.now(),
-                    // Si le serveur a envoye la duree, on la garde
-                    // explicitement pour eviter les decalages dus a la
-                    // latence reseau (Date.now du client != now serveur).
-                    durationMs: explicitDuration ?? prev[engineId]?.durationMs,
-                  }
-                }));
+                // Voir engine-start : flushSync pour casser l auto-batching
+                // sur les transitions live. Le bandeau et la vue pipeline
+                // reflechissent ainsi chaque engine-done individuellement.
+                flushSync(() => {
+                  setEngineStates(prev => ({
+                    ...prev,
+                    [engineId]: {
+                      ...(prev[engineId] || {}),
+                      status: 'done',
+                      completedAt: Date.now(),
+                      // Si le serveur a envoye la duree, on la garde
+                      // explicitement pour eviter les decalages dus a la
+                      // latence reseau (Date.now du client != now serveur).
+                      durationMs: explicitDuration ?? prev[engineId]?.durationMs,
+                    }
+                  }));
+                });
                 // Capture la sortie integrale du moteur pour le drill-down
                 // de la toile. Le payload existe deja dans le SSE (cf
                 // sendDone dans /api/analyze/route.ts), on le memorise
                 // simplement cote client. Lecture seule, aucune
-                // modification du flux serveur.
+                // modification du flux serveur. Hors flushSync : ce state
+                // n alimente que le drill-down de la toile (onglet
+                // Fabrique non monte pendant le run), aucun besoin de
+                // commit synchrone, on laisse le batching naturel.
                 if (data.output !== undefined) {
                   setEngineOutputs(prev => ({ ...prev, [engineId]: data.output }));
                 }
@@ -1591,10 +1612,18 @@ export default function HomeClient({
                 ? data.engine
                 : null;
               if (engineId) {
-                setEngineStates(prev => ({
-                  ...prev,
-                  [engineId]: { status: 'running', startedAt: Date.now() }
-                }));
+                // flushSync casse l auto-batching React 18, voir commentaire
+                // detaille dans la boucle SSE principale. Symetrie exacte
+                // sur la DD approfondie pour la meme raison structurelle :
+                // les moteurs Bloc 2 (ledger, dd-financial, cap-table,
+                // dd-contractual, dd-technical) tournent en parallele et
+                // leurs sendDone peuvent arriver bunchees.
+                flushSync(() => {
+                  setEngineStates(prev => ({
+                    ...prev,
+                    [engineId]: { status: 'running', startedAt: Date.now() }
+                  }));
+                });
               }
             } catch (e) {
               console.error('[SSE-DD] engine-start handler failed for', data?.engine, ':', e);
@@ -1608,17 +1637,20 @@ export default function HomeClient({
                 const explicitDuration = typeof data?.durationMs === 'number'
                   ? data.durationMs
                   : null;
-                setEngineStates(prev => ({
-                  ...prev,
-                  [engineId]: {
-                    ...(prev[engineId] || {}),
-                    status: 'done',
-                    completedAt: Date.now(),
-                    durationMs: explicitDuration ?? prev[engineId]?.durationMs,
-                  }
-                }));
+                flushSync(() => {
+                  setEngineStates(prev => ({
+                    ...prev,
+                    [engineId]: {
+                      ...(prev[engineId] || {}),
+                      status: 'done',
+                      completedAt: Date.now(),
+                      durationMs: explicitDuration ?? prev[engineId]?.durationMs,
+                    }
+                  }));
+                });
                 // Meme capture que pour le run Bloc 1 : on memorise la
-                // sortie integrale pour le drill-down de la toile.
+                // sortie integrale pour le drill-down de la toile. Hors
+                // flushSync pour les memes raisons que sur le run Bloc 1.
                 if (data.output !== undefined) {
                   setEngineOutputs(prev => ({ ...prev, [engineId]: data.output }));
                 }
