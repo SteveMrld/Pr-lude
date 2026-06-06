@@ -2,6 +2,14 @@
 // Utilisé par les moteurs pour enrichir l'analyse avec des faits vérifiables
 // avant de passer à Claude pour synthèse.
 
+import {
+  disambiguateGithub,
+  disambiguatePublications,
+  disambiguateWikipedia,
+  type DisambiguationDecision,
+  type FounderDisambiguationContext,
+} from './disambiguation';
+
 export interface OpenAlexAuthor {
   id: string;
   display_name: string;
@@ -19,6 +27,7 @@ export interface OpenAlexWork {
   year: number;
   cited_by: number;
   venue: string;
+  concepts?: string[];
 }
 
 export interface GitHubUser {
@@ -250,6 +259,16 @@ export async function searchOpenAlexAuthor(name: string, affiliationHint?: strin
   };
 }
 
+function mapOpenAlexWork(w: any): OpenAlexWork {
+  return {
+    title: w.title || '',
+    year: w.publication_year || 0,
+    cited_by: w.cited_by_count || 0,
+    venue: w.primary_location?.source?.display_name || '',
+    concepts: (w.concepts || []).slice(0, 6).map((c: any) => c.display_name).filter(Boolean),
+  };
+}
+
 export async function getOpenAlexRecentWorks(authorId: string, n: number = 5): Promise<OpenAlexWork[]> {
   const authorShort = authorId?.split('/').pop();
   if (!authorShort) return [];
@@ -258,12 +277,22 @@ export async function getOpenAlexRecentWorks(authorId: string, n: number = 5): P
   if (!r || !r.ok) return [];
   const data = await r.json();
   const works = data?.results || [];
-  return works.map((w: any) => ({
-    title: w.title || '',
-    year: w.publication_year || 0,
-    cited_by: w.cited_by_count || 0,
-    venue: w.primary_location?.source?.display_name || '',
-  }));
+  return works.map(mapOpenAlexWork);
+}
+
+// Pour la desambiguisation, on doit verifier si l auteur OpenAlex agrege
+// des publications hors de la fenetre active du fondateur (cas Platypus
+// ou des publis de 1863 sont attribuees a un fondateur ne en 1976). On
+// recupere donc en complement les publications les plus anciennes.
+export async function getOpenAlexOldestWorks(authorId: string, n: number = 5): Promise<OpenAlexWork[]> {
+  const authorShort = authorId?.split('/').pop();
+  if (!authorShort) return [];
+  const url = `https://api.openalex.org/works?filter=author.id:${authorShort}&sort=publication_year:asc&per_page=${n}`;
+  const r = await fetchWithTimeout(url, { headers: HEADERS });
+  if (!r || !r.ok) return [];
+  const data = await r.json();
+  const works = data?.results || [];
+  return works.map(mapOpenAlexWork);
 }
 
 // ============================================================
@@ -459,12 +488,25 @@ export interface FounderRealData {
     wikipedia_present: boolean;
     recent_arxiv_count: number;
   };
-  // Scores objectifs basés sur les faits
+  // Scores objectifs basés sur les faits. Un score a null signifie
+  // 'non evaluable' apres echec de desambiguisation (homonymie non
+  // levee, source incoherente avec le profil du fondateur). Un score
+  // chiffre a 0 reste un score chiffre : l absence de signal vs la
+  // presence d un signal non desambiguable sont distinctes.
   objectiveScores: {
-    scientific_signature: number;
-    technical_signature: number;
-    public_presence: number;
-    recent_activity: number;
+    scientific_signature: number | null;
+    technical_signature: number | null;
+    public_presence: number | null;
+    recent_activity: number | null;
+  };
+  // Trace de desambiguisation par source. Sert au team-engine et a l UI
+  // pour expliquer pourquoi un score est tombe a null (non evaluable) :
+  // publications hors fenetre temporelle, profil GitHub hors-champ, etc.
+  disambiguation?: {
+    openalex?: { decision: DisambiguationDecision; rationale: string; rejected: Array<{ label: string; reason: string }> };
+    github?: { decision: DisambiguationDecision; rationale: string };
+    wikipedia?: { decision: DisambiguationDecision; rationale: string };
+    arxiv?: { decision: DisambiguationDecision; rationale: string; rejected: Array<{ label: string; reason: string }> };
   };
   // Type de profil estime a partir du background. Sert a calibrer
   // l interpretation des scores objectifs : un profil business/industriel
@@ -488,7 +530,17 @@ export async function gatherFounderRealData(
   name: string,
   affiliationHint?: string,
   opts?: FetcherOpts,
+  disambiguationContext?: Omit<FounderDisambiguationContext, 'name'>,
 ): Promise<FounderRealData> {
+  // Contexte de desambiguisation : fenetre temporelle plausible + secteur
+  // dossier. Si non passe, fallback sur exclusion conservatrice 50 ans.
+  const dctx: FounderDisambiguationContext = {
+    name,
+    sector: disambiguationContext?.sector,
+    subSector: disambiguationContext?.subSector,
+    birthYear: disambiguationContext?.birthYear,
+    ageHint: disambiguationContext?.ageHint,
+  };
   const queriedSources: string[] = [];
   if (isSourceEnabled('openalex')) queriedSources.push('openalex');
   if (isSourceEnabled('github')) queriedSources.push('github');
@@ -627,44 +679,157 @@ export async function gatherFounderRealData(
     'team', budgetMs, mainCollection, fallback, opts,
   );
 
-  if (openalex && openalex.works_count > 0) {
-    result.openalex = openalex;
-    result.sourcesFound.push('openalex');
-    if (openalex.id) {
-      result.recentPublications = await trackedSource<OpenAlexWork[]>(
+  // Trace de desambiguisation : sera renseignee au fil des sources.
+  result.disambiguation = {};
+
+  // ============================================================
+  // DESAMBIGUISATION OPENALEX
+  // ------------------------------------------------------------
+  // Si l auteur OpenAlex existe mais agrege des publications hors de
+  // la fenetre active plausible du fondateur (cas Platypus : 1863 et
+  // 1974 attribuees a un fondateur de 50 ans), on rejette le match :
+  // sourcesFound n integre pas openalex, scientific_signature passe
+  // a null (non evaluable). Un faux match est pire qu une absence.
+  // ============================================================
+  if (openalex && openalex.works_count > 0 && openalex.id) {
+    const [recentPubs, oldestPubs] = await Promise.all([
+      trackedSource<OpenAlexWork[]>(
         'team', 'openalex',
-        () => cached(`openalex:works:${openalex.id}:3`,
-          () => getOpenAlexRecentWorks(openalex.id, 3).catch(() => [])),
+        () => cached(`openalex:works:${openalex.id}:5`,
+          () => getOpenAlexRecentWorks(openalex.id, 5).catch(() => [])),
         (r) => r.length === 0,
         [],
         opts,
-      );
+      ),
+      cached(`openalex:oldest:${openalex.id}:5`,
+        () => getOpenAlexOldestWorks(openalex.id, 5).catch(() => [] as OpenAlexWork[])),
+    ]);
+
+    const corpus: OpenAlexWork[] = [...recentPubs];
+    const seenTitles = new Set(recentPubs.map((p) => p.title));
+    for (const op of oldestPubs) {
+      if (!seenTitles.has(op.title)) corpus.push(op);
+    }
+    // Concepts auteur ajoutes pour soutenir la porte domaine quand
+    // les publications individuelles n ont pas de concepts.
+    const dctxWithConcepts: FounderDisambiguationContext = dctx;
+    const corpusWithAuthorConcepts = corpus.map((p) => ({
+      ...p,
+      concepts: (p.concepts && p.concepts.length > 0) ? p.concepts : openalex.top_concepts,
+    }));
+
+    const disamb = disambiguatePublications(corpusWithAuthorConcepts, dctxWithConcepts);
+
+    if (disamb.decision === 'evaluable') {
+      result.openalex = openalex;
+      result.sourcesFound.push('openalex');
+      result.recentPublications = recentPubs;
+    } else {
+      // Echec ferme : on conserve la trace mais on n integre pas openalex
+      // dans sourcesFound. Le score scientifique sera null (non evaluable).
+      result.disambiguation.openalex = {
+        decision: disamb.decision,
+        rationale: disamb.rationale,
+        rejected: disamb.rejected.slice(0, 6).map((r) => ({
+          label: `${r.item.title?.slice(0, 80) || '(sans titre)'} (${r.item.year || '?'})`,
+          reason: r.reason,
+        })),
+      };
     }
   }
 
+  // ============================================================
+  // DESAMBIGUISATION GITHUB
+  // ------------------------------------------------------------
+  // GitHub n a pas de porte temporelle pure (compte cree forcement
+  // apres 2008). On applique uniquement la porte de coherence de
+  // domaine : un profil dont la bio + les repos top tombent sur un
+  // marqueur hors-champ flagrant est rejete.
+  // ============================================================
   if (github) {
-    result.github = github;
-    result.sourcesFound.push('github');
-    if (github.login) {
-      result.topRepos = await trackedSource<GitHubRepo[]>(
-        'team', 'github',
-        () => cached(`github:repos:${github.login}:3`,
-          () => getGitHubTopRepos(github.login, 3).catch(() => [])),
-        (r) => r.length === 0,
-        [],
-        opts,
-      );
+    const topRepos = github.login
+      ? await trackedSource<GitHubRepo[]>(
+          'team', 'github',
+          () => cached(`github:repos:${github.login}:3`,
+            () => getGitHubTopRepos(github.login, 3).catch(() => [])),
+          (r) => r.length === 0,
+          [],
+          opts,
+        )
+      : [];
+
+    const ghDisamb = disambiguateGithub(
+      {
+        bio: github.bio,
+        company: github.company,
+        topRepoNames: topRepos.map((r) => r.name),
+        topRepoDescriptions: topRepos.map((r) => r.description || ''),
+      },
+      dctx,
+    );
+
+    if (ghDisamb.decision === 'evaluable') {
+      result.github = github;
+      result.sourcesFound.push('github');
+      result.topRepos = topRepos;
+    } else {
+      result.disambiguation.github = {
+        decision: ghDisamb.decision,
+        rationale: ghDisamb.rationale,
+      };
     }
   }
 
+  // ============================================================
+  // DESAMBIGUISATION WIKIPEDIA
+  // ------------------------------------------------------------
+  // L extract Wikipedia contient souvent l annee de naissance ou les
+  // dates de vie d une figure historique. On extrait toutes les annees
+  // de l extract et on applique la porte temporelle sur la plus ancienne.
+  // Si elle precede la fenetre plausible du fondateur, on rejette le
+  // match : c est tres probablement un homonyme historique.
+  // ============================================================
   if (wikipedia) {
-    result.wikipedia = wikipedia;
-    result.sourcesFound.push('wikipedia');
+    const wkDisamb = disambiguateWikipedia(wikipedia.extract, wikipedia.title, dctx);
+    if (wkDisamb.decision === 'evaluable') {
+      result.wikipedia = wikipedia;
+      result.sourcesFound.push('wikipedia');
+    } else {
+      result.disambiguation.wikipedia = {
+        decision: wkDisamb.decision,
+        rationale: wkDisamb.rationale,
+      };
+    }
   }
 
+  // ============================================================
+  // DESAMBIGUISATION ARXIV
+  // ------------------------------------------------------------
+  // arXiv n existe que depuis 1991, donc la porte temporelle classique
+  // (fenetre adulte du fondateur) reste pertinente : un preprint
+  // anterieur a la fenetre est suspect. La porte de coherence de
+  // domaine s applique sur le titre.
+  // ============================================================
   if (arxiv && arxiv.length > 0) {
-    result.arxivRecent = arxiv;
-    result.sourcesFound.push('arxiv');
+    const arxivPubs = arxiv.map((p) => ({
+      year: parseInt((p.published || '').slice(0, 4), 10) || 0,
+      title: p.title,
+      venue: 'arXiv',
+    }));
+    const axDisamb = disambiguatePublications(arxivPubs, dctx);
+    if (axDisamb.decision === 'evaluable') {
+      result.arxivRecent = arxiv;
+      result.sourcesFound.push('arxiv');
+    } else {
+      result.disambiguation.arxiv = {
+        decision: axDisamb.decision,
+        rationale: axDisamb.rationale,
+        rejected: axDisamb.rejected.slice(0, 6).map((r) => ({
+          label: `${r.item.title?.slice(0, 80) || '(sans titre)'} (${r.item.year || '?'})`,
+          reason: r.reason,
+        })),
+      };
+    }
   }
 
   // Faits vérifiables consolidés
@@ -685,34 +850,65 @@ export async function gatherFounderRealData(
     recent_arxiv_count: (result.arxivRecent || []).length,
   };
 
-  // Scores objectifs basés sur les chiffres
+  // Scores objectifs bases sur les chiffres. Quand la desambiguisation
+  // d une source a echoue, le score correspondant passe a null (non
+  // evaluable) plutot que de produire un chiffre affichable comme
+  // objectif. C est l echec ferme par defaut : un faux match est pire
+  // qu une absence de match.
   const v = result.verifiableFacts;
-  let scientific = 0;
-  if (v.openalex_h_index >= 25 || v.openalex_citations >= 5000) scientific = 95;
-  else if (v.openalex_h_index >= 15 || v.openalex_citations >= 1500) scientific = 80;
-  else if (v.openalex_h_index >= 8 || v.openalex_citations >= 500) scientific = 65;
-  else if (v.openalex_h_index >= 3 || v.openalex_citations >= 100) scientific = 45;
-  else if (v.openalex_h_index > 0) scientific = 25;
+  const openalexDisambiguated = result.disambiguation?.openalex?.decision === 'insufficient_disambiguation';
+  const githubDisambiguated = result.disambiguation?.github?.decision === 'insufficient_disambiguation';
+  const arxivDisambiguated = result.disambiguation?.arxiv?.decision === 'insufficient_disambiguation';
+  const wikipediaDisambiguated = result.disambiguation?.wikipedia?.decision === 'insufficient_disambiguation';
 
-  let technical = 0;
-  if (v.github_followers >= 5000 || v.top_github_repo_stars >= 10000) technical = 95;
-  else if (v.github_followers >= 1000 || v.top_github_repo_stars >= 2000) technical = 80;
-  else if (v.github_followers >= 200 || v.top_github_repo_stars >= 300) technical = 60;
-  else if (v.github_followers >= 30 || v.top_github_repo_stars >= 30) technical = 35;
-  else if (v.github_followers > 0 || v.github_repos > 0) technical = 15;
+  let scientific: number | null;
+  if (openalexDisambiguated) {
+    scientific = null;
+  } else {
+    scientific = 0;
+    if (v.openalex_h_index >= 25 || v.openalex_citations >= 5000) scientific = 95;
+    else if (v.openalex_h_index >= 15 || v.openalex_citations >= 1500) scientific = 80;
+    else if (v.openalex_h_index >= 8 || v.openalex_citations >= 500) scientific = 65;
+    else if (v.openalex_h_index >= 3 || v.openalex_citations >= 100) scientific = 45;
+    else if (v.openalex_h_index > 0) scientific = 25;
+  }
 
-  let publicPresence = 0;
+  let technical: number | null;
+  if (githubDisambiguated) {
+    technical = null;
+  } else {
+    technical = 0;
+    if (v.github_followers >= 5000 || v.top_github_repo_stars >= 10000) technical = 95;
+    else if (v.github_followers >= 1000 || v.top_github_repo_stars >= 2000) technical = 80;
+    else if (v.github_followers >= 200 || v.top_github_repo_stars >= 300) technical = 60;
+    else if (v.github_followers >= 30 || v.top_github_repo_stars >= 30) technical = 35;
+    else if (v.github_followers > 0 || v.github_repos > 0) technical = 15;
+  }
+
+  let publicPresence: number | null;
   const sourcesCount = result.sourcesFound.length;
+  // public_presence agrege wikipedia et le nombre de sources confirmees.
+  // Si wikipedia est non-evaluable, on degrade le score mais on ne le
+  // passe pas a null (les autres sources comptent encore).
+  publicPresence = 0;
   if (v.wikipedia_present && sourcesCount >= 3) publicPresence = 90;
   else if (sourcesCount >= 3) publicPresence = 65;
   else if (sourcesCount === 2) publicPresence = 40;
   else if (sourcesCount === 1) publicPresence = 20;
+  if (wikipediaDisambiguated && publicPresence === 0 && sourcesCount === 0) {
+    publicPresence = null;
+  }
 
-  const recentCount = v.recent_arxiv_count + (result.recentPublications?.length || 0);
-  let recentActivity = 0;
-  if (recentCount >= 5) recentActivity = 95;
-  else if (recentCount >= 3) recentActivity = 75;
-  else if (recentCount >= 1) recentActivity = 50;
+  let recentActivity: number | null;
+  if (arxivDisambiguated && openalexDisambiguated) {
+    recentActivity = null;
+  } else {
+    const recentCount = v.recent_arxiv_count + (result.recentPublications?.length || 0);
+    recentActivity = 0;
+    if (recentCount >= 5) recentActivity = 95;
+    else if (recentCount >= 3) recentActivity = 75;
+    else if (recentCount >= 1) recentActivity = 50;
+  }
 
   result.objectiveScores = {
     scientific_signature: scientific,
@@ -723,9 +919,9 @@ export async function gatherFounderRealData(
 
   // Signaux profil
   const profileSignals: string[] = [];
-  if (scientific >= 60) profileSignals.push('scientifique');
-  if (technical >= 60) profileSignals.push('technique');
-  if (publicPresence >= 60) profileSignals.push('public');
+  if (scientific !== null && scientific >= 60) profileSignals.push('scientifique');
+  if (technical !== null && technical >= 60) profileSignals.push('technique');
+  if (publicPresence !== null && publicPresence >= 60) profileSignals.push('public');
   result.profileSignals = profileSignals;
 
   // ============================================================
@@ -771,12 +967,21 @@ export async function gatherFounderRealData(
 
       // Pour les profils business_industrial, on remappe technical_signature
       // sur le score brevets (plus pertinent que GitHub) et public_presence
-      // sur le score Pappers (plus pertinent que Wikipedia).
+      // sur le score Pappers (plus pertinent que Wikipedia). Si la valeur
+      // de base est null (non evaluable), on prend directement le score
+      // sectoriel : la source brevets/registre est plus fiable que GitHub
+      // ici, donc elle peut remplir le trou.
       if (profileType === 'business_industrial') {
+        const baseTech = result.objectiveScores.technical_signature;
+        const basePub = result.objectiveScores.public_presence;
         result.objectiveScores = {
           ...result.objectiveScores,
-          technical_signature: Math.max(result.objectiveScores.technical_signature, sectorial.sectorialScores.patents_signature),
-          public_presence: Math.max(result.objectiveScores.public_presence, sectorial.sectorialScores.registry_depth),
+          technical_signature: baseTech === null
+            ? sectorial.sectorialScores.patents_signature
+            : Math.max(baseTech, sectorial.sectorialScores.patents_signature),
+          public_presence: basePub === null
+            ? sectorial.sectorialScores.registry_depth
+            : Math.max(basePub, sectorial.sectorialScores.registry_depth),
         };
         // Mise a jour du rationale d applicabilite : ces scores sont
         // maintenant pertinents grace a EPO + Pappers

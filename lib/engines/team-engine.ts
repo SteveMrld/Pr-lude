@@ -118,6 +118,14 @@ RÈGLES STRICTES :
 
 5. Si profileType = 'unknown' : applique les scores avec prudence et signale l'incertitude dans la rationale.
 
+6. Si un score est explicitement "non-evaluable" (apparait comme "Sci non-evaluable" plutot que "Sci X/100") : cela signifie que la source a renvoye un candidat mais que la desambiguisation a echoue (homonymie non levee, publications hors fenetre temporelle du fondateur, profil hors-champ). Tu NE DOIS PAS :
+   - convertir ce verdict en score chiffre (0/100 ou 25/100) dans ton analyse,
+   - en deduire un red flag d absence d expertise.
+   Tu DOIS :
+   - mentionner dans le rationale du fondateur concerne que cette source est "non desambiguable" et explicite la raison (extrait du bloc "Desambiguisation" si present),
+   - signaler dans gaps que la verification publique de ce volet reste a faire en DD via d autres sources (LinkedIn, presse, contacts directs),
+   - traiter le fondateur comme 'partially-evaluable' si UNE seule source est non desambiguable, et 'non-evaluable' si TOUTES les sources le sont.
+
 EXEMPLE NÉGATIF À NE PAS REPRODUIRE :
 Pour un CTO hardware de 60 ans avec 20 ans d'expérience industrielle, écrire "score scientifique 0/100, score technique 0/100, score Wikipedia 0/100 → fondateur non-évaluable, red flag critique" est une ERREUR de calibration. Pour ce profil, ces scores ne sont pas pertinents et leur faiblesse n'apporte aucune information.
 
@@ -391,8 +399,20 @@ export async function analyzeTeam(
     // passait qu un mot-cle d affiliation, ce qui empechait la calibration
     // des scores objectifs pour les profils non-academiques.
     const hint = `${founder.role || ''} ${founder.background || ''}`.trim() || undefined;
+    // Contexte de desambiguisation : secteur du dossier + extraction d age
+    // depuis le background si possible. Sans ces signaux, le fallback
+    // conservateur 50 ans s applique (exclusion de toute publication
+    // anterieure a aujourd hui - 50 ans).
+    const ageMatch = (founder.background || '').match(/(\b\d{2})\s*ans\b/i);
+    const birthMatch = (founder.background || '').match(/n[ée]\s*en\s*(\d{4})/i);
+    const disambiguationContext = {
+      sector: extraction.sector,
+      subSector: extraction.subSector,
+      ageHint: ageMatch ? parseInt(ageMatch[1], 10) : undefined,
+      birthYear: birthMatch ? parseInt(birthMatch[1], 10) : undefined,
+    };
     return await Promise.race([
-      gatherFounderRealData(founder.name, hint),
+      gatherFounderRealData(founder.name, hint, undefined, disambiguationContext),
       new Promise<FounderRealData>((resolve) => setTimeout(() => resolve({
         name: founder.name,
         sourcesQueried: ['timeout'],
@@ -483,9 +503,23 @@ export async function analyzeTeam(
       s += `(${rd.sectorialScores.rationale})\n`;
     }
     if (rd.objectiveScores) {
-      s += `Scores objectifs : Sci ${rd.objectiveScores.scientific_signature}/100, Tech ${rd.objectiveScores.technical_signature}/100, Public ${rd.objectiveScores.public_presence}/100, Activité ${rd.objectiveScores.recent_activity}/100\n`;
+      const fmt = (v: number | null | undefined, label: string) =>
+        v === null ? `${label} non-evaluable` : `${label} ${v ?? 0}/100`;
+      s += `Scores objectifs : ${fmt(rd.objectiveScores.scientific_signature, 'Sci')}, ${fmt(rd.objectiveScores.technical_signature, 'Tech')}, ${fmt(rd.objectiveScores.public_presence, 'Public')}, ${fmt(rd.objectiveScores.recent_activity, 'Activite')}\n`;
     } else {
       s += `(Sources externes désactivées : analyse basée sur le pitch deck uniquement)\n`;
+    }
+    if (rd.disambiguation && Object.keys(rd.disambiguation).length > 0) {
+      s += `Desambiguisation :\n`;
+      for (const [src, disamb] of Object.entries(rd.disambiguation as any)) {
+        const d = disamb as { decision: string; rationale: string; rejected?: Array<{ label: string; reason: string }> };
+        s += `  - ${src} : ${d.decision} (${d.rationale})\n`;
+        if (d.rejected && d.rejected.length > 0) {
+          d.rejected.slice(0, 3).forEach((r) => {
+            s += `    * rejete : ${r.label} -- ${r.reason}\n`;
+          });
+        }
+      }
     }
     return s;
   }).join('\n');

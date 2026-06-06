@@ -5310,13 +5310,18 @@ export default function HomeClient({
                           const insufficientData = noSourceData && allScoresZero;
 
                           // Helper : rend le score si applicable et sourcable.
+                          // value === null signifie 'non evaluable' apres echec
+                          // de desambiguisation (homonymie non levee, publications
+                          // hors fenetre temporelle, etc.) : c est distinct de
+                          // 'Non applicable' (source non pertinente pour le profil)
+                          // et de 'Donnees insuffisantes' (rien retourne).
                           const renderScore = (
                             label: string,
-                            value: number | undefined,
+                            value: number | null | undefined,
                             applicable: boolean | undefined,
+                            disambigRationale?: string,
                           ) => {
                             const isApplicable = applicable !== false;
-                            // Cas 1 : source non pertinente pour le profil
                             if (!isApplicable) {
                               return (
                                 <div className="kv-item">
@@ -5336,7 +5341,25 @@ export default function HomeClient({
                                 </div>
                               );
                             }
-                            // Cas 2 : applicable mais aucune donnee disponible
+                            if (value === null) {
+                              return (
+                                <div className="kv-item">
+                                  <div className="kv-key">{label}</div>
+                                  <div
+                                    className="kv-val"
+                                    style={{
+                                      fontStyle: 'italic',
+                                      color: 'var(--ink-tertiary)',
+                                      fontSize: 13,
+                                      fontFamily: 'inherit',
+                                    }}
+                                    title={disambigRationale || 'Source candidate retournee mais desambiguisation impossible (homonymie probable).'}
+                                  >
+                                    Non evaluable
+                                  </div>
+                                </div>
+                              );
+                            }
                             if (insufficientData) {
                               return (
                                 <div className="kv-item">
@@ -5356,7 +5379,6 @@ export default function HomeClient({
                                 </div>
                               );
                             }
-                            // Cas 3 : score normal
                             return (
                               <div className="kv-item">
                                 <div className="kv-key">{label}</div>
@@ -5366,10 +5388,10 @@ export default function HomeClient({
                           };
                           return (
                             <>
-                              {renderScore('Score scientifique (objectif)', rd.objectiveScores?.scientific_signature, apl?.scientific_applicable)}
-                              {renderScore('Score technique (objectif)', rd.objectiveScores?.technical_signature, apl?.technical_applicable)}
-                              {renderScore('Présence publique', rd.objectiveScores?.public_presence, apl?.public_applicable)}
-                              {renderScore('Activité récente', rd.objectiveScores?.recent_activity, apl?.recent_applicable)}
+                              {renderScore('Score scientifique (objectif)', rd.objectiveScores?.scientific_signature, apl?.scientific_applicable, rd.disambiguation?.openalex?.rationale)}
+                              {renderScore('Score technique (objectif)', rd.objectiveScores?.technical_signature, apl?.technical_applicable, rd.disambiguation?.github?.rationale)}
+                              {renderScore('Présence publique', rd.objectiveScores?.public_presence, apl?.public_applicable, rd.disambiguation?.wikipedia?.rationale)}
+                              {renderScore('Activité récente', rd.objectiveScores?.recent_activity, apl?.recent_applicable, rd.disambiguation?.arxiv?.rationale)}
                             </>
                           );
                         })()}
