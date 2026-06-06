@@ -35,7 +35,29 @@
 
 import { normalizeFrText } from './text-normalize';
 
-export interface VerifiedComparable {
+/**
+ * Outcome verifie d une entreprise du corpus. Source unique de
+ * verite, jamais inferee par un LLM. Chaque valeur doit etre
+ * triangulable par une source primaire (cotation publique stable,
+ * communique officiel de liquidation, Chapter 11, repricing trade-
+ * press triangule).
+ *
+ * - success : trajectoire delivree, cote stable ou tender triangule
+ * - failure : liquidation, defunct, fraude, Chapter 11 sans relance
+ * - ongoing : actif mais trajectoire non concluante, valuation indeterminee
+ * - contested : valuation effondree, repricing massif, restructuration
+ *   sans liquidation
+ */
+export type ComparableOutcome = 'success' | 'failure' | 'ongoing' | 'contested';
+
+/**
+ * Stade structurel du comparable. Sert au declenchement de la clause
+ * de cadrage cross-echelle quand le dossier est early stage et que
+ * le comparable cite est mature.
+ */
+export type ComparableStade = 'startup' | 'scaleup' | 'mature';
+
+interface RawVerifiedComparable {
   name: string;
   founded: number;
   founders?: string;
@@ -43,23 +65,15 @@ export interface VerifiedComparable {
   keyMilestones: string;
   currentStatus: string;
   notes?: string;
-  /**
-   * Si true, le comparable a des chiffres flagges en quarantaine
-   * volume 3 (audit Steve) ou des valuations 2025-2026 fragiles.
-   * Le LLM peut citer la fiche mais doit eviter les chiffres
-   * marques "verifier IR" ou similaires, et inviter le lecteur a
-   * verifier source primaire avant diffusion.
-   */
   needsExternalCheck?: boolean;
-  /**
-   * Annee du dernier datapoint chiffre verifie pour cette fiche
-   * (typiquement la derniere levee ou la derniere valorisation
-   * triangulee). Optionnel, sert au front-office a juger la fraicheur
-   * d un comparable cite. Format conventionnel : 'YYYY' ou 'YYYY-Qn'.
-   * Non encore retropopule sur l ensemble du corpus, surface progressive
-   * au fil des audits.
-   */
   asOf?: string;
+}
+
+export interface VerifiedComparable extends RawVerifiedComparable {
+  /** Outcome verifie, derive de OUTCOME_REGISTRY au chargement. */
+  outcome: ComparableOutcome;
+  /** Stade structurel verifie, derive de OUTCOME_REGISTRY au chargement. */
+  stade: ComparableStade;
 }
 
 /**
@@ -75,7 +89,7 @@ export interface VerifiedComparable {
  *   - notes : pieges classiques d hallucination ("ne pas confondre
  *     X avec Y", "n a jamais fait Z")
  */
-export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
+const _RAW_COMPARABLES: Record<string, RawVerifiedComparable> = {
   // ============ MARKETPLACE B2C / HOSPITALITY ============
   airbnb: {
     name: 'Airbnb',
@@ -1186,7 +1200,229 @@ export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = {
     notes: 'Ne pas confondre GMV et revenue. Verifier comptes via Pappers.',
     needsExternalCheck: true,
   },
+
+  // ============ HARDWARE DEEPTECH CAUTIONARY (Hyperloop) ============
+  hyperloopone: {
+    name: 'Hyperloop One',
+    founded: 2014,
+    founders: 'Shervin Pishevar, Brogan BamBrogan, Josh Giegel',
+    sectorAssetClass: 'hardware deeptech / transport / capex lourd / cycle long certification',
+    keyMilestones: 'Levees cumulees ~450M$ Virgin Group + DP World 2014-2022. Pivot 2022 passagers vers fret apres licenciement de plus de 50% des effectifs. Liquidation officielle decembre 2023, actifs disperses [Bloomberg + Reuters].',
+    currentStatus: 'Liquidation decembre 2023. Cas d ecole capex R&D sans business model commercialise.',
+    notes: 'Cautionary tale hardware deeptech : tubes test sans contrats commerciaux ni certification commerciale, capex sans pre-engagements industriels valides. Ne pas confondre avec Boring Company (Musk) ou Hyperloop TT (encore actif).',
+    asOf: '2023',
+  },
+  virginhyperloop: {
+    name: 'Virgin Hyperloop',
+    founded: 2014,
+    sectorAssetClass: 'hardware deeptech / transport / capex lourd / cycle long certification',
+    keyMilestones: 'Filiale issue du pivot Hyperloop One. Test passager novembre 2020. Pivot 2022 passagers vers fret. Liquidation fin 2023 dans le sillage de la maison-mere.',
+    currentStatus: 'Liquidation fin 2023.',
+    notes: 'Ne pas distinguer separement de Hyperloop One pour les chiffres de levees : meme veicule corporate apres pivot 2017.',
+    asOf: '2023',
+  },
 };
+
+// ============================================================
+// OUTCOME REGISTRY
+// ------------------------------------------------------------
+// Source unique de verite pour chaque entree du corpus. Chaque
+// outcome doit etre triangulable par une source primaire. Le code
+// au chargement assemble VERIFIED_COMPARABLES = _RAW_COMPARABLES +
+// OUTCOME_REGISTRY, et lance une exception si une clef est
+// presente d un cote sans l etre de l autre. C est le garde-fou qui
+// rend impossible d ajouter un comparable sans avoir explicitement
+// statue sur son outcome.
+//
+// Statuts a la date 2026-06-06. A reverifier annuellement.
+// ============================================================
+
+const OUTCOME_REGISTRY: Record<string, { outcome: ComparableOutcome; stade: ComparableStade }> = {
+  // marketplaces / mobility
+  airbnb: { outcome: 'success', stade: 'mature' },
+  uber: { outcome: 'success', stade: 'mature' },
+  doordash: { outcome: 'success', stade: 'mature' },
+
+  // SaaS B2B leaders
+  stripe: { outcome: 'success', stade: 'mature' },
+  figma: { outcome: 'success', stade: 'mature' },
+  notion: { outcome: 'ongoing', stade: 'scaleup' },
+  datadog: { outcome: 'success', stade: 'mature' },
+  snowflake: { outcome: 'success', stade: 'mature' },
+  zoom: { outcome: 'success', stade: 'mature' },
+  slack: { outcome: 'success', stade: 'mature' },
+  shopify: { outcome: 'success', stade: 'mature' },
+  mongodb: { outcome: 'success', stade: 'mature' },
+  twilio: { outcome: 'success', stade: 'mature' },
+  hashicorp: { outcome: 'contested', stade: 'mature' },
+  confluent: { outcome: 'success', stade: 'mature' },
+  airtable: { outcome: 'contested', stade: 'scaleup' },
+  toast: { outcome: 'success', stade: 'mature' },
+  klaviyo: { outcome: 'success', stade: 'mature' },
+  atlassian: { outcome: 'success', stade: 'mature' },
+  gitlab: { outcome: 'success', stade: 'mature' },
+  github: { outcome: 'success', stade: 'mature' },
+  vercel: { outcome: 'success', stade: 'scaleup' },
+  supabase: { outcome: 'success', stade: 'scaleup' },
+
+  // Hardware deeptech / aerospace / EV
+  spacex: { outcome: 'success', stade: 'mature' },
+  tesla: { outcome: 'success', stade: 'mature' },
+  rivian: { outcome: 'contested', stade: 'scaleup' },
+  joby: { outcome: 'ongoing', stade: 'scaleup' },
+  saildrone: { outcome: 'ongoing', stade: 'scaleup' },
+  quantumscape: { outcome: 'contested', stade: 'scaleup' },
+  formenergy: { outcome: 'ongoing', stade: 'scaleup' },
+  helion: { outcome: 'ongoing', stade: 'scaleup' },
+  anduril: { outcome: 'success', stade: 'scaleup' },
+  helsing: { outcome: 'ongoing', stade: 'scaleup' },
+  lucid: { outcome: 'contested', stade: 'mature' },
+  commonwealthfusion: { outcome: 'ongoing', stade: 'scaleup' },
+  shieldai: { outcome: 'success', stade: 'scaleup' },
+  skydio: { outcome: 'success', stade: 'scaleup' },
+  boom: { outcome: 'ongoing', stade: 'scaleup' },
+  heart: { outcome: 'contested', stade: 'scaleup' },
+
+  // AI / foundation models
+  anthropic: { outcome: 'success', stade: 'scaleup' },
+  openai: { outcome: 'success', stade: 'mature' },
+  mistral: { outcome: 'success', stade: 'scaleup' },
+  huggingface: { outcome: 'success', stade: 'scaleup' },
+  cohere: { outcome: 'success', stade: 'scaleup' },
+  stabilityai: { outcome: 'contested', stade: 'scaleup' },
+
+  // Fintech
+  coinbase: { outcome: 'success', stade: 'mature' },
+  klarna: { outcome: 'contested', stade: 'mature' },
+  nubank: { outcome: 'success', stade: 'mature' },
+  revolut: { outcome: 'success', stade: 'mature' },
+  chime: { outcome: 'contested', stade: 'scaleup' },
+  robinhood: { outcome: 'success', stade: 'mature' },
+  affirm: { outcome: 'success', stade: 'mature' },
+
+  // Biotech / Medtech / Healthtech
+  moderna: { outcome: 'success', stade: 'mature' },
+  biontech: { outcome: 'success', stade: 'mature' },
+  recursion: { outcome: 'success', stade: 'mature' },
+  insitro: { outcome: 'ongoing', stade: 'scaleup' },
+  owkin: { outcome: 'success', stade: 'scaleup' },
+  tempus: { outcome: 'success', stade: 'mature' },
+  adahealth: { outcome: 'ongoing', stade: 'scaleup' },
+  cardiologs: { outcome: 'success', stade: 'scaleup' },
+
+  // Cautionary tales (failure / contested)
+  ynsect: { outcome: 'failure', stade: 'mature' },
+  northvolt: { outcome: 'failure', stade: 'mature' },
+  wework: { outcome: 'failure', stade: 'mature' },
+  theranos: { outcome: 'failure', stade: 'mature' },
+  quibi: { outcome: 'failure', stade: 'mature' },
+  pluralsight: { outcome: 'contested', stade: 'mature' },
+  tally: { outcome: 'failure', stade: 'scaleup' },
+  better: { outcome: 'contested', stade: 'mature' },
+  jawbone: { outcome: 'failure', stade: 'mature' },
+  cazoo: { outcome: 'failure', stade: 'mature' },
+  hopin: { outcome: 'failure', stade: 'scaleup' },
+  convoy: { outcome: 'failure', stade: 'scaleup' },
+  bird: { outcome: 'failure', stade: 'mature' },
+  oliveai: { outcome: 'failure', stade: 'mature' },
+  pollen: { outcome: 'failure', stade: 'scaleup' },
+  pets: { outcome: 'failure', stade: 'mature' },
+  webvan: { outcome: 'failure', stade: 'mature' },
+  juicero: { outcome: 'failure', stade: 'scaleup' },
+  solyndra: { outcome: 'failure', stade: 'mature' },
+  magicleap: { outcome: 'contested', stade: 'scaleup' },
+  hyperloopone: { outcome: 'failure', stade: 'scaleup' },
+  virginhyperloop: { outcome: 'failure', stade: 'scaleup' },
+
+  // Licornes EU referencees
+  doctolib: { outcome: 'success', stade: 'scaleup' },
+  qonto: { outcome: 'success', stade: 'scaleup' },
+  alan: { outcome: 'success', stade: 'scaleup' },
+  spotify: { outcome: 'success', stade: 'mature' },
+  adyen: { outcome: 'success', stade: 'mature' },
+  vinted: { outcome: 'success', stade: 'mature' },
+  etsy: { outcome: 'success', stade: 'mature' },
+  contentsquare: { outcome: 'success', stade: 'scaleup' },
+  mirakl: { outcome: 'success', stade: 'scaleup' },
+  dataiku: { outcome: 'success', stade: 'scaleup' },
+  backmarket: { outcome: 'contested', stade: 'scaleup' },
+  sorare: { outcome: 'contested', stade: 'scaleup' },
+  ledger: { outcome: 'success', stade: 'scaleup' },
+  believe: { outcome: 'contested', stade: 'mature' },
+  ovhcloud: { outcome: 'success', stade: 'mature' },
+  ecovadis: { outcome: 'success', stade: 'scaleup' },
+  brevo: { outcome: 'success', stade: 'scaleup' },
+  pigment: { outcome: 'success', stade: 'scaleup' },
+  talkdesk: { outcome: 'contested', stade: 'scaleup' },
+  faire: { outcome: 'contested', stade: 'scaleup' },
+  vestiaire: { outcome: 'success', stade: 'scaleup' },
+  manomano: { outcome: 'contested', stade: 'scaleup' },
+
+  // Climate / foodtech / industrial complements
+  climeworks: { outcome: 'ongoing', stade: 'scaleup' },
+  carbonengineering: { outcome: 'success', stade: 'scaleup' },
+  sila: { outcome: 'ongoing', stade: 'scaleup' },
+  redwood: { outcome: 'success', stade: 'scaleup' },
+  verkor: { outcome: 'ongoing', stade: 'scaleup' },
+  bostondynamics: { outcome: 'success', stade: 'mature' },
+  symbotic: { outcome: 'success', stade: 'mature' },
+
+  // Climate software
+  patch: { outcome: 'ongoing', stade: 'startup' },
+  pachama: { outcome: 'ongoing', stade: 'startup' },
+  persefoni: { outcome: 'ongoing', stade: 'scaleup' },
+  plana: { outcome: 'ongoing', stade: 'startup' },
+  kayrros: { outcome: 'ongoing', stade: 'scaleup' },
+
+  // Cybersecurite
+  wiz: { outcome: 'success', stade: 'scaleup' },
+  crowdstrike: { outcome: 'success', stade: 'mature' },
+  sentinelone: { outcome: 'contested', stade: 'mature' },
+  cloudflare: { outcome: 'success', stade: 'mature' },
+  snyk: { outcome: 'contested', stade: 'scaleup' },
+  onepassword: { outcome: 'success', stade: 'scaleup' },
+  paloalto: { outcome: 'success', stade: 'mature' },
+  okta: { outcome: 'success', stade: 'mature' },
+};
+
+/**
+ * Construit le dictionnaire public VERIFIED_COMPARABLES en fusionnant
+ * les fiches RAW avec leur outcome verifie. Echec immediat si un
+ * desaccord de cles est detecte : c est la garantie qu aucun
+ * comparable n est expose sans outcome triangule, et qu aucune
+ * entree fantome ne traine dans le registry.
+ */
+export const VERIFIED_COMPARABLES: Record<string, VerifiedComparable> = (() => {
+  const result: Record<string, VerifiedComparable> = {};
+  const rawKeys = new Set(Object.keys(_RAW_COMPARABLES));
+  const registryKeys = new Set(Object.keys(OUTCOME_REGISTRY));
+
+  const missingRegistry: string[] = [];
+  rawKeys.forEach(key => {
+    if (!registryKeys.has(key)) missingRegistry.push(key);
+  });
+  const orphanRegistry: string[] = [];
+  registryKeys.forEach(key => {
+    if (!rawKeys.has(key)) orphanRegistry.push(key);
+  });
+  if (missingRegistry.length > 0 || orphanRegistry.length > 0) {
+    const lines: string[] = [];
+    if (missingRegistry.length > 0) {
+      lines.push(`Entree(s) sans outcome verifie : ${missingRegistry.join(', ')}`);
+    }
+    if (orphanRegistry.length > 0) {
+      lines.push(`Outcome verifie sans entree RAW : ${orphanRegistry.join(', ')}`);
+    }
+    throw new Error(`VERIFIED_COMPARABLES : OUTCOME_REGISTRY incomplet ou desynchronise\n  - ${lines.join('\n  - ')}`);
+  }
+
+  rawKeys.forEach(key => {
+    const raw = _RAW_COMPARABLES[key];
+    const meta = OUTCOME_REGISTRY[key];
+    result[key] = { ...raw, outcome: meta.outcome, stade: meta.stade };
+  });
+  return result;
+})();
 
 /**
  * Genere un bloc texte structure pour injection dans les prompts LLM
@@ -1327,11 +1563,26 @@ export function detectAssetClass(extraction: any): ComparablesAssetClass {
   return 'all';
 }
 
-export function buildVerifiedComparablesBlock(filterAssetClass?: ComparablesAssetClass | null): string {
+/**
+ * Stade du dossier en cours, propage du selecteur central. Utilise
+ * pour decider du cadrage cross-echelle dans le bloc injecte.
+ */
+export type DossierStade = 'startup' | 'scaleup' | 'mature';
+
+export function buildVerifiedComparablesBlock(
+  filterAssetClass?: ComparablesAssetClass | null,
+  dossierStade: DossierStade = 'startup',
+): string {
   const lines: string[] = [];
   lines.push('# BASE DE CHIFFRES VERIFIES DES COMPARABLES (NE PAS DEROGER)');
   lines.push('');
   lines.push('Tu trouves ci-dessous la base des chiffres verifies pour les comparables les plus frequemment cites. REGLE ABSOLUE : tu n utilises QUE les chiffres listes ici. Pour TOUT chiffre absent de cette base, tu OMETS plutot que d inventer. Mieux vaut "Airbnb a fait sa seed via Y Combinator avant son IPO 2020" que d inventer un montant. Un chiffre faux dans une note d instruction d un comparable connu (Airbnb, Stripe, Figma...) detruit immediatement la credibilite de l analyse devant un partner qui a co-investi dans ce comparable.');
+  lines.push('');
+  lines.push('Chaque fiche porte un champ outcome verifie (success / failure / ongoing / contested) triangule par source primaire. Cet outcome est la source UNIQUE de verite pour decider du registre dans lequel tu cites le comparable :');
+  lines.push('  - outcome=success : reference positive, trajectoire saine citable telle quelle.');
+  lines.push('  - outcome=failure : contre-exemple, cautionary tale a nommer explicitement.');
+  lines.push('  - outcome=ongoing : trajectoire non concluante, jamais cite en reference positive. Citable uniquement avec mention "trajectoire ongoing, non concluante a date".');
+  lines.push('  - outcome=contested : valuation effondree ou restructuration, jamais cite en reference positive. Citable uniquement comme contre-exemple nomme.');
   lines.push('');
   lines.push('Pour chaque comparable cite avec un chiffre, ce chiffre DOIT venir de cette base. Si tu cites un comparable qui n est PAS dans cette base, ne cite aucun chiffre precis (preferer "early stage seed", "Series A", "valuation multi-milliard", etc.).');
   lines.push('');
@@ -1354,10 +1605,24 @@ export function buildVerifiedComparablesBlock(filterAssetClass?: ComparablesAsse
     lines.push('');
   }
 
+  // Cadrage cross-echelle : si le dossier est startup et qu un
+  // comparable cite est mature (Apple supply chain, ASML, BYD, Stripe,
+  // Adyen, Netflix...), l analogie ne tient qu avec une justification
+  // explicite. Sans, le LLM doit retirer le comparable.
+  const anyMatureCandidate = keys.some(k => VERIFIED_COMPARABLES[k].stade === 'mature');
+  if (dossierStade === 'startup' && anyMatureCandidate) {
+    lines.push('# CONTRAINTE CROSS-ECHELLE OBLIGATOIRE');
+    lines.push('Le dossier est early stage. Beaucoup de comparables ci-dessous sont matures (cotation publique depuis dix ans, leader mondial, capex amorti multi-decennie). Tu n as le DROIT de citer un comparable mature face a ce dossier que si tu nommes explicitement la dimension qui justifie l analogie : pari disruptif partage, modele singulier identifie, validation long terme du meme mecanisme. A defaut, retirer le comparable au lieu de l afficher nu. La citation nue d un comparable mature face a un dossier seed pre-revenue est une faute critique a corriger.');
+    lines.push('');
+  }
+
   for (const key of keys) {
     const c = VERIFIED_COMPARABLES[key];
     const checkMark = c.needsExternalCheck ? ' [verifier via source primaire]' : '';
-    lines.push(`## ${c.name} (${c.founded}) · ${c.sectorAssetClass}${checkMark}`);
+    const isCrossScale = dossierStade === 'startup' && c.stade === 'mature';
+    const scaleTag = isCrossScale ? ' [cross-echelle]' : '';
+    lines.push(`## ${c.name} (${c.founded}) · ${c.sectorAssetClass}${checkMark}${scaleTag}`);
+    lines.push(`Outcome : ${c.outcome} · Stade : ${c.stade}`);
     if (c.founders) {
       lines.push(`Fondateurs : ${c.founders}`);
     }

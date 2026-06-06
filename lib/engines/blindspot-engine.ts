@@ -1,6 +1,7 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { findByStrate, type ExtendedCaseRecord } from '../corpus/extended-database';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
+import { stageToStade } from './archetype-selector';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { formatExtractionGeography } from './fund-context';
@@ -369,7 +370,7 @@ ${extraction.founders.map(f => `- ${f.name} (${f.role})`).join('\n')}
 - S2 : si comparables cités sont unicornes 2016-2020 sans IPO, signal comparables zombies
 - S3 : si dossier européen avec comparables US majoritaires, signal biais profondeur de marché
 
-${buildVerifiedComparablesBlock(detectAssetClass(extraction))}
+${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extraction?.fundraise?.stage))}
 
 Détecte les 10 patterns à risque collectif. Pour chaque pattern, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Effectue aussi les 3 checks systématiques S1/S2/S3 et alimente alertesCritiques + riskMap si déclenchés. Calcule le score global de vigilance. Identifie les comparables historiques pertinents en respectant la regle d asset class match ET la regle de chiffres verifies (base ci-dessus). Synthétise.
 

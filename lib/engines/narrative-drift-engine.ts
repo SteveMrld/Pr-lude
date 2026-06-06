@@ -31,7 +31,9 @@ import {
 import {
   buildArchetypePromptBlock,
   decorateCounterArchetype,
+  stageToStade,
   type ArchetypeAxis,
+  type DossierStade,
 } from './archetype-selector';
 
 const ARCHETYPE_AXIS: ArchetypeAxis = 'narrative-drift';
@@ -302,8 +304,8 @@ export interface NarrativeDriftInput {
   assetClass?: string;
 }
 
-function buildSystemPrompt(assetClass: string): string {
-  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass);
+function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass, dossierStade);
   return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
 }
 
@@ -349,26 +351,29 @@ export async function analyzeNarrativeDrift(
   // ETAPE 3 : Construction du user prompt
   const userPrompt = buildUserPrompt(input, metrics);
 
-  // ETAPE 4 : Appel LLM avec selecteur d archetype gate par asset_class
+  // ETAPE 4 : Appel LLM avec selecteur d archetype gate par asset_class et stade
   // callClaude(systemPrompt, userPrompt, maxTokens, model, options)
   const assetClass = input.assetClass ?? 'unclassified';
+  const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   const rawResponse = await callClaude(
-    buildSystemPrompt(assetClass),
+    buildSystemPrompt(assetClass, dossierStade),
     userPrompt,
     4000,
   );
 
   const parsed = parseJSON<NarrativeDriftAnalysisOutput>(rawResponse);
 
-  // Decoration cross-class : si le LLM a choisi un nom hors meme asset
-  // class, on prefixe la clause obligatoire au rationale du
-  // counterArchetype. Garantit la conformite editoriale meme si le
-  // modele oublie la consigne du prompt.
+  // Decoration cross-class / cross-echelle : si le LLM a choisi un nom
+  // hors meme asset class, on prefixe la clause cross-class obligatoire.
+  // Si le nom choisi est une boite mature face a un dossier startup, on
+  // prefixe en plus la clause de cadrage cross-echelle. Garantit la
+  // conformite editoriale meme si le modele oublie la consigne du prompt.
   if (parsed.counterArchetype) {
     const decorated = decorateCounterArchetype(
       parsed.counterArchetype as any,
       ARCHETYPE_AXIS,
       assetClass,
+      dossierStade,
     );
     parsed.counterArchetype = {
       closest: decorated.closest,

@@ -44,8 +44,16 @@ import {
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  stageToStade,
+  type ArchetypeAxis,
+  type DossierStade,
+} from '../archetype-selector';
 
 const PATTERN_ID: PatternId = 'scale-mirage-risk';
+const ARCHETYPE_AXIS: ArchetypeAxis = 'scale-mirage-risk';
 
 // ============================================================
 // PROMPT
@@ -150,40 +158,7 @@ majeur. Trois sous-modules :
   spécifique post mise en service en supposant montée en cadence
   retardée de 12 ou 24 mois.
 
-# COUNTER-ARCHETYPES
-
-Patterns confirmés (faillite, redressement ou capex dévalué) : Ynsect
-2024 600M levés usine Amiens 372M demande B2B feed insuffisante
-redressement judiciaire, Northvolt novembre 2024 gigafactories
-européennes Chapter 11 malgré 15Md levés cumulé, Britishvolt janvier 2023
-plans gigafactory UK 3,8Md livres faillite sans avoir produit cellule,
-Faraday Future 9Md promis usine automobile retards multi-anniversaires
-défaillance, Magic Leap 3,5Md levés hardware AR ventes en dessous de 1%
-projections, Lilium 2024 eVTOL allemand industrialisé avant certification
-faillite, Hyperloop One et Virgin Hyperloop tubes test sans business
-model commercialisé fermeture 2023, Electric Last Mile Solutions usines
-véhicules demande non validée Chapter 11 2022, Quirky industrialisait
-produits crowdsourced sans validation faillite 2015, Theranos hardware
-Edison machines déployées pharmacie sans validation FDA, WeWork axe
-physique 2017-2019 ouverture sites avant validation locale.
-
-Counter-archetypes sains : Tesla 2008-2012 capex Roadster mesuré premier
-véhicule produit avec Lotus en partenariat réduisant capex spécifique
-montée en cadence Model S à partir 2012 usine Fremont rachetée Toyota
-NUMMI plutôt que construite ex nihilo chaque étape industrielle validée
-par précédente, ASML capex industriel mesuré systématiquement lié à
-contrats long terme avec foundries TSMC Samsung Intel demande précède
-capacité ratio capex sur backlog dans fourchettes prudentes même en
-expansion, BYD extension industrielle Chine au rythme demande validée
-montée progressive financement par cash flow opérationnel sur quinze ans,
-Rivian cas mixte capex usine Normal Illinois mais contrat ancrage Amazon
-100000 véhicules en filet plus production R1T R1S validé environnement
-réel évite trajectoire Britishvolt, Beyond Meat avant 2022 extension
-industrielle progressive validée contrats retail successifs Whole Foods
-Walmart McDonald s, Apple supply chain capex Foxconn calibré demande
-mesurée iPhone ajustement trimestriel modèle asset-light évite Scale
-Mirage, Innovafeed contraste explicite avec Ynsect contrats ADM offtake
-sécurisé capacité ancrée dans demande contractée.
+__ARCHETYPE_BLOCK__
 
 La distinction n est jamais le simple fait de bâtir une usine. C est
 l alignement entre le capex engagé et la matière commerciale qui doit
@@ -511,14 +486,21 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
+function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass, dossierStade);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
+}
+
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
+  const assetClass = input.assetClass ?? 'unclassified';
+  const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass, dossierStade), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -527,6 +509,15 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
+
+  if (raw.counterArchetype) {
+    raw.counterArchetype = decorateCounterArchetype(
+      raw.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+      dossierStade,
+    );
+  }
 
   const output = llmOutputToPatternOutput(raw);
 

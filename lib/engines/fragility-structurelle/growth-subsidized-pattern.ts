@@ -50,7 +50,9 @@ import { buildSectoralPromptBlock } from '../sectoral-injection';
 import {
   buildArchetypePromptBlock,
   decorateCounterArchetype,
+  stageToStade,
   type ArchetypeAxis,
+  type DossierStade,
 } from '../archetype-selector';
 
 const ARCHETYPE_AXIS: ArchetypeAxis = 'growth-subsidized';
@@ -439,8 +441,8 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
-function buildSystemPrompt(assetClass: string): string {
-  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass);
+function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass, dossierStade);
   return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
 }
 
@@ -451,10 +453,11 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
-  // Appel LLM avec selecteur d archetype gate par asset_class
+  // Appel LLM avec selecteur d archetype gate par asset_class et stade
   const assetClass = input.assetClass ?? 'unclassified';
+  const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(buildSystemPrompt(assetClass), userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass, dossierStade), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -474,6 +477,7 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
       raw.counterArchetype as any,
       ARCHETYPE_AXIS,
       assetClass,
+      dossierStade,
     );
   }
 

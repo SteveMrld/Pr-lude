@@ -39,8 +39,16 @@ import {
 import { registerPattern } from './orchestrator';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  stageToStade,
+  type ArchetypeAxis,
+  type DossierStade,
+} from '../archetype-selector';
 
 const PATTERN_ID: PatternId = 'capital-structure-fragility';
+const ARCHETYPE_AXIS: ArchetypeAxis = 'capital-structure-fragility';
 
 // ============================================================
 // PROMPT
@@ -150,29 +158,7 @@ implications opérationnelles. Quatre sous-modules :
 - CLEANUP_ROUND_HISTORIQUE : présence d un recap, washout volontaire ou
   simplification dans l historique = mitigant fort.
 
-# COUNTER-ARCHETYPES
-
-Patterns confirmés (washout, recap forcé ou IPO impossible) : WeWork
-avant 2019 SoftBank avec préférences cumulées plus seniority plus super
-voting fondateur incompatible IPO sous 47Md, Quibi 2020 1,75Md préférences
-senior si fortes que common ne pouvaient récupérer rien sauf exit > 5Md,
-Cazoo 2021-2023 tours successifs preferred préférences cumulées
-supérieures à capitalisation finale, Klarna 2022 down round 46Md à 6Md
-active anti-dilution derniers entrants ramène fondateurs et early à
-résiduel, Compass 2021-2023 recaps successifs wash-down common, Magic
-Leap préférences cumulées massives sur faible traction restructurations
-successives, Theranos tours successifs préférences senior participation
-multiple sur valorisations éloignées fondamentaux.
-
-Counter-archetypes sains : Stripe structure preferred simple sur
-ensemble des tours peu de classes différenciées pas participation
-multiple pas ratchet agressif lisible une page, Adyen IPO 2018 structure
-très propre sans complexité résiduelle, Mistral tours rapides
-valorisation très élevée structure préservée fondateurs préférences
-classiques 1x non participating, Atlassian IPO 2015 common dominant peu
-de tours privés, Snowflake structure relativement propre malgré tours
-pre-IPO management évite préférences agressives, Datadog peu de
-complexité cap table fondateurs protégés sans super voting excessif.
+__ARCHETYPE_BLOCK__
 
 La distinction n est jamais le simple fait d avoir des préférences. C est
 l accumulation de plusieurs couches d asymétries qui se renforcent
@@ -513,14 +499,21 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
+function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass, dossierStade);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
+}
+
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
+  const assetClass = input.assetClass ?? 'unclassified';
+  const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass, dossierStade), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -529,6 +522,15 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
+
+  if (raw.counterArchetype) {
+    raw.counterArchetype = decorateCounterArchetype(
+      raw.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+      dossierStade,
+    );
+  }
 
   const output = llmOutputToPatternOutput(raw);
 

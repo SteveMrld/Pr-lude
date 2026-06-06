@@ -1,5 +1,6 @@
 import { callClaude, parseJSON } from './anthropic-client';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
+import { stageToStade } from './archetype-selector';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { formatExtractionGeography } from './fund-context';
@@ -214,7 +215,7 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 # RÉSUMÉ BRUT DOSSIER
 ${extraction?.rawSummary ?? '?'}
 
-${buildVerifiedComparablesBlock(detectAssetClass(extraction))}
+${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extraction?.fundraise?.stage))}
 
 Détecte les 10 signaux de singularité contrarienne. Pour chaque signal, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Calcule le score global contrarien. Identifie les comparables historiques pertinents en respectant la regle d asset class match ET la regle de chiffres verifies. Articule la recommandation contrarienne (ou son absence).
 

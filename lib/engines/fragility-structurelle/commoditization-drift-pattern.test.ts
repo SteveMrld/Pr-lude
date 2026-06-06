@@ -3,6 +3,7 @@
 import { commoditizationDriftPattern, _internal } from './commoditization-drift-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
 import { applyCentralAxisGating } from './pattern-interface';
+import { buildArchetypePromptBlock } from '../archetype-selector';
 import type { ExtractionOutput } from '../types';
 import type { PatternAnalysisOutput, PatternInput } from './types';
 
@@ -146,11 +147,20 @@ console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
   checkTrue('mentionne axe 1 nature moats', sp.toLowerCase().includes('axe 1') && sp.toLowerCase().includes('moats'));
   checkTrue('mentionne axe 2 dereliction techno', sp.toLowerCase().includes('axe 2') && sp.toLowerCase().includes('déréliction'));
   checkTrue('mentionne axe 3 reconstruire', sp.toLowerCase().includes('axe 3') && sp.toLowerCase().includes('reconstruire'));
-  checkTrue('mentionne Chegg confirme', sp.includes('Chegg'));
-  checkTrue('mentionne Stripe Salesforce sains', sp.includes('Stripe') && sp.includes('Salesforce'));
-  checkTrue('mentionne Bloomberg', sp.includes('Bloomberg'));
   checkTrue('mentionne distinction monomoats', sp.toLowerCase().includes('monomoats'));
   checkTrue('contrainte coherence', sp.includes('CONTRAINTE DE COHÉRENCE'));
+  // Les noms (Chegg confirme, Stripe Salesforce Bloomberg sains) ne
+  // sont plus hardcodes dans SYSTEM_PROMPT depuis la migration vers
+  // le selecteur central. Ils sont injectes dynamiquement via
+  // __ARCHETYPE_BLOCK__. On verifie leur presence dans les blocs
+  // gated par asset class du nom : Chegg est edtech, Bloomberg est
+  // fintech/mediatech, Stripe et Salesforce sont saas-b2b.
+  const blockSaas = buildArchetypePromptBlock('commoditization-drift', 'saas-b2b');
+  checkTrue('bloc saas-b2b mentionne Stripe et Salesforce sains', blockSaas.includes('Stripe') && blockSaas.includes('Salesforce'));
+  const blockEdtech = buildArchetypePromptBlock('commoditization-drift', 'edtech');
+  checkTrue('bloc edtech mentionne Chegg confirme', blockEdtech.includes('Chegg'));
+  const blockFintech = buildArchetypePromptBlock('commoditization-drift', 'fintech');
+  checkTrue('bloc fintech mentionne Bloomberg', blockFintech.includes('Bloomberg'));
 }
 
 console.log('\n=== Test 11 : KEYWORDS calibres ===');

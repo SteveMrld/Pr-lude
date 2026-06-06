@@ -44,8 +44,16 @@ import {
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  stageToStade,
+  type ArchetypeAxis,
+  type DossierStade,
+} from '../archetype-selector';
 
 const PATTERN_ID: PatternId = 'commoditization-drift';
+const ARCHETYPE_AXIS: ArchetypeAxis = 'commoditization-drift';
 
 // ============================================================
 // PROMPT
@@ -139,28 +147,7 @@ Mesure du plan défensif documenté. C est le mitigant majeur.
   stratégiques récentes orientées moats, recrutements explicitement
   data engineering, BD enterprise, distribution. Pas plan, exécution.
 
-# COUNTER-ARCHETYPES
-
-Patterns confirmés (érosion matérialisée) : Chegg 2022-2024 valorisation
-effondrée de 10 milliards à moins d un milliard après ChatGPT, Stack
-Overflow 2023-2025 trafic divisé par deux après GitHub Copilot et
-ChatGPT, services traduction généraliste grand public cannibalisés par
-DeepL puis LLMs, sites Q&A généralistes type Quora fonction acquisition
-connaissance basculée vers les modèles, plateformes freelance copywriting
-basique et traduction marges en compression, helpdesk niveau 1 attaqués
-par bots conversationnels et solutions intégrées CRM, génération logo
-et stock photo basique attaqués par Midjourney et DALL-E, plateformes
-tutoring généraliste segment academic standard.
-
-Counter-archetypes sains : Stripe défensibilité multi-moats indépendants
-(réseau banques + données fraude + intégrations développeurs + agréments
-bancaires + brand), Salesforce (données clients verrouillées + écosystème
-partenaires + switching costs + distribution enterprise), Bloomberg
-(données propriétaires + community + workflows trading + hardware
-terminal), Adyen (licences bancaires propres + données flux + contrats
-enterprise), verticales avec données propriétaires Clio dans le legal
-Toast dans la restauration Procore dans la construction, marketplaces
-matures Booking Airbnb Doctolib Schibsted classifieds.
+__ARCHETYPE_BLOCK__
 
 La distinction structurale n est jamais le simple fait d opérer dans une
 catégorie cognitive. C est la nature et le cumul des moats. Une agence de
@@ -456,14 +443,21 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
+function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass, dossierStade);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
+}
+
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
+  const assetClass = input.assetClass ?? 'unclassified';
+  const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass, dossierStade), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -472,6 +466,15 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
+
+  if (raw.counterArchetype) {
+    raw.counterArchetype = decorateCounterArchetype(
+      raw.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+      dossierStade,
+    );
+  }
 
   const output = llmOutputToPatternOutput(raw);
 

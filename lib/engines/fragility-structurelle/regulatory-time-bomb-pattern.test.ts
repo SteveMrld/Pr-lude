@@ -5,6 +5,7 @@
 import { regulatoryTimeBombPattern, _internal } from './regulatory-time-bomb-pattern';
 import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
 import { applyCentralAxisGating } from './pattern-interface';
+import { buildArchetypePromptBlock } from '../archetype-selector';
 import type { ExtractionOutput } from '../types';
 import type { PatternAnalysisOutput, PatternInput } from './types';
 
@@ -201,10 +202,21 @@ console.log('\n=== Test 10 : SYSTEM_PROMPT doctrinal ===');
   checkTrue('mentionne trois sous-types', sp.toLowerCase().includes('regulation_a_venir_connue') && sp.toLowerCase().includes('regulation_existante_mal_appliquee'));
   checkTrue('mentionne CCD2', sp.includes('CCD2'));
   checkTrue('mentionne AI Act', sp.includes('AI Act'));
-  checkTrue('mentionne Stripe Plaid Anthropic sains', sp.includes('Stripe') && sp.includes('Plaid') && sp.includes('Anthropic'));
-  checkTrue('mentionne Theranos FTX confirmes', sp.includes('Theranos') && sp.includes('FTX'));
   checkTrue('contrainte coherence presente', sp.includes('CONTRAINTE DE COHÉRENCE'));
   checkTrue('format JSON specifie', sp.includes('FORMAT JSON OBLIGATOIRE'));
+  // Stripe, Plaid, Anthropic, Theranos, FTX ne sont plus hardcodes
+  // dans SYSTEM_PROMPT depuis la migration vers selecteur central.
+  // Ils sont injectes via __ARCHETYPE_BLOCK__, gates par asset class.
+  // Stripe et Plaid sont fintech, FTX fintech, Theranos healthtech,
+  // Anthropic ai-generative. On verifie leur disponibilite dans le
+  // bloc de leur asset class native.
+  const blockFin = buildArchetypePromptBlock('regulatory-time-bomb', 'fintech');
+  checkTrue('bloc fintech mentionne Stripe Plaid sains', blockFin.includes('Stripe') && blockFin.includes('Plaid'));
+  checkTrue('bloc fintech mentionne FTX confirme', blockFin.includes('FTX'));
+  const blockHealth = buildArchetypePromptBlock('regulatory-time-bomb', 'healthtech');
+  checkTrue('bloc healthtech mentionne Theranos confirme', blockHealth.includes('Theranos'));
+  const blockAi = buildArchetypePromptBlock('regulatory-time-bomb', 'ai-generative');
+  checkTrue('bloc ai-generative mentionne Anthropic sain', blockAi.includes('Anthropic'));
 }
 
 console.log('\n=== Test 11 : KEYWORDS calibres ===');

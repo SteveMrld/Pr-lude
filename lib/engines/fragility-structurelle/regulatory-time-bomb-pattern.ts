@@ -49,8 +49,16 @@ import {
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
+import {
+  buildArchetypePromptBlock,
+  decorateCounterArchetype,
+  stageToStade,
+  type ArchetypeAxis,
+  type DossierStade,
+} from '../archetype-selector';
 
 const PATTERN_ID: PatternId = 'regulatory-time-bomb';
+const ARCHETYPE_AXIS: ArchetypeAxis = 'regulatory-time-bomb';
 
 // ============================================================
 // PROMPT
@@ -156,33 +164,7 @@ Mesure de la capacité réelle à absorber. Quatre sous-modules :
   CCD2 = mitigant fort. Stripe agrément établissement de paiement dès
   2017 en anticipation PSD2.
 
-# COUNTER-ARCHETYPES
-
-Patterns confirmés (sanction, faillite ou pivot imposé) : Theranos
-2015-2018 claims marketing dépassant approbations FDA enquêtes série SEC
-DOJ FDA CMS faillite et procès pénal, FTX et chaîne Celsius Voyager BlockFi
-2022-2023 opération crypto US sans qualification Securities Acts
-intensification SEC effondrements domino, Uber période AB5 californienne
-2019-2020 classification contractor contestée 200 millions Proposition 22
-accords pays par pays, Foodora et plateformes livraison européennes
-2018-2022 requalification livreurs en employés restructurations en chaîne,
-Wirecard 2020 fraude comptable plus défaillances regulatoires BaFin, N26
-sanctionné BaFin 2021 plafond imposé acquisition clients pendant deux ans,
-Direct-to-consumer genetics années 2010 face FDA contraintes de retirer
-produits.
-
-Counter-archetypes sains : Stripe anticipation PSD2 dès 2017 agrément
-établissement paiement obtenu en avance de phase évitement complet de la
-fenêtre de risque que d autres ont subi, Plaid anticipation Open Banking
-US et Europe partenariats banques avant l obligation réglementaire,
-Anthropic anticipation AI Act européen frontier model commitments
-unilatérales 2023 lab safety policy publique dialogues continus avec AI
-Office européen, Airbnb post-2018 transition compliance ville par ville
-équipes juridiques locales accords avec municipalités intégration des
-déclarations dans le produit, Klarna après 2022 obtention licence credit
-institution européenne avant CCD2 transition opérationnelle réussie,
-Adyen agrément établissement paiement obtenu en propre dès 2010
-positionnant au-dessus du régime PSP simple.
+__ARCHETYPE_BLOCK__
 
 La distinction structurale n est jamais le simple fait d opérer dans un
 secteur régulé. C est l alignement entre la trajectoire réglementaire
@@ -587,14 +569,21 @@ function isApplicable(
 // ANALYZE
 // ============================================================
 
+function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): string {
+  const block = buildArchetypePromptBlock(ARCHETYPE_AXIS, assetClass, dossierStade);
+  return SYSTEM_PROMPT.replace('__ARCHETYPE_BLOCK__', block);
+}
+
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
     return buildNotApplicableOutput(PATTERN_ID, check.rationale);
   }
 
+  const assetClass = input.assetClass ?? 'unclassified';
+  const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(SYSTEM_PROMPT, userPrompt, 4000);
+  const response = await callClaude(buildSystemPrompt(assetClass, dossierStade), userPrompt, 4000);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {
@@ -603,6 +592,15 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
 
   if (!raw.applicabilite) raw.applicabilite = check.level;
   if (!raw.applicabiliteRationale) raw.applicabiliteRationale = check.rationale;
+
+  if (raw.counterArchetype) {
+    raw.counterArchetype = decorateCounterArchetype(
+      raw.counterArchetype as any,
+      ARCHETYPE_AXIS,
+      assetClass,
+      dossierStade,
+    );
+  }
 
   const output = llmOutputToPatternOutput(raw);
 
