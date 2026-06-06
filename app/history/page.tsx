@@ -58,11 +58,14 @@ const STAGE_LABELS: Record<string, string> = {
   declined: 'Refuse',
 };
 
+// Palette identite : voir WorkflowStageBadge.tsx pour le rationnel. La
+// progression va du gris muted vers l encre puis le vert, en passant par
+// l ocre mi-ton puis ocre porteur.
 const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
   deposited: { bg: 'var(--hairline-soft)',     fg: 'var(--muted)',       border: 'var(--hairline)' },
-  in_review: { bg: 'var(--ocre-brule-soft)',   fg: 'var(--ocre-brule)',  border: 'var(--ocre-brule)' },
+  in_review: { bg: 'var(--paper-warm)',        fg: 'var(--accent-mid)',  border: 'var(--accent-mid)' },
   dd_field:  { bg: 'var(--accent-soft)',       fg: 'var(--accent)',      border: 'var(--accent)' },
-  ic_review: { bg: 'var(--violet-rare-soft)',  fg: 'var(--violet-rare)', border: 'var(--violet-rare)' },
+  ic_review: { bg: 'var(--paper-accent)',      fg: 'var(--ink)',         border: 'var(--ink)' },
   signed:    { bg: 'var(--vert-foret-soft)',   fg: 'var(--vert-foret)',  border: 'var(--vert-foret)' },
   declined:  { bg: 'var(--warn-soft)',         fg: 'var(--warn)',        border: 'var(--warn)' },
 };

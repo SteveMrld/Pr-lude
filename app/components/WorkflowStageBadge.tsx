@@ -26,11 +26,14 @@ const STAGE_LABELS: Record<string, string> = {
   declined: 'Refusé',
 };
 
+// Palette identite : muted gris, ocre mi-ton, ocre porteur, encre, vert, rouge.
+// La progression visuelle va du sobre vers le decisif : gris (entree) ->
+// ocre clair (lecture) -> ocre fort (DD) -> encre (pret IC) -> vert (signe).
 const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
   deposited: { bg: 'var(--hairline-soft)',     fg: 'var(--muted)',       border: 'var(--hairline)' },
-  in_review: { bg: 'var(--ocre-brule-soft)',   fg: 'var(--ocre-brule)',  border: 'var(--ocre-brule)' },
+  in_review: { bg: 'var(--paper-warm)',        fg: 'var(--accent-mid)',  border: 'var(--accent-mid)' },
   dd_field:  { bg: 'var(--accent-soft)',       fg: 'var(--accent)',      border: 'var(--accent)' },
-  ic_review: { bg: 'var(--violet-rare-soft)',  fg: 'var(--violet-rare)', border: 'var(--violet-rare)' },
+  ic_review: { bg: 'var(--paper-accent)',      fg: 'var(--ink)',         border: 'var(--ink)' },
   signed:    { bg: 'var(--vert-foret-soft)',   fg: 'var(--vert-foret)',  border: 'var(--vert-foret)' },
   declined:  { bg: 'var(--warn-soft)',         fg: 'var(--warn)',        border: 'var(--warn)' },
 };

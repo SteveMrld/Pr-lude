@@ -507,7 +507,7 @@ export default function LandingPage() {
         .lp-cta-primary:hover {
           background: var(--accent);
           transform: translateY(-1px);
-          box-shadow: var(--shadow-blue);
+          box-shadow: var(--shadow-warm);
         }
         .lp-cta-meta {
           font-family: var(--sans);

@@ -803,9 +803,9 @@ const styles = `
     border: 1px solid var(--ocre-brule);
   }
   .hc-pill-state {
-    background: var(--violet-rare-soft, rgba(109, 40, 217, 0.1));
-    color: var(--violet-rare);
-    border: 1px solid var(--violet-rare);
+    background: var(--paper-accent);
+    color: var(--ink);
+    border: 1px solid var(--ink);
   }
   .hc-pill-qualitative {
     background: var(--hairline-soft);

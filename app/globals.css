@@ -1,46 +1,50 @@
 :root {
-  /* PALETTE EDITORIALE - alignee sur la note d investissement (direction
-     visuelle C, FT/Bloomberg). Cf InvestmentNoteView.tsx pour la palette
-     complete sur la note. Ici on garde les noms historiques (--paper,
-     --ink, --accent) pour compatibilite avec le reste de l app, mais on
-     calibre les valeurs sur celles de la note. */
+  /* PALETTE EDITORIALE PRELUDE - identite documentee : papier creme
+     chaud, encre quasi-noire chaude, accent ocre brule porteur, vert
+     foret sobre, rouge anglais en signal critique. Pas de bleu. Pas
+     de violet. References : Le Grand Continent, The Atlantic, Economist,
+     FT (pour la rigueur typographique, pas le saumon). Anti-references :
+     Notion, Linear, esthetique SaaS clinquante.
 
-  --paper: #ffffff;             /* fond principal blanc pur */
-  --paper-accent: #f6f8fb;      /* fond bleute tres pale pour callouts et bandes */
-  --paper-warm: #fef7f4;        /* fond peche tres pale pour alertes douces */
-  --surface: #ffffff;           /* surface blanche pure */
-  --surface-deep: #f1f4f9;      /* surface bleute legerement plus foncee */
-  --ink: #0f172a;               /* encre principale, slate-900 sobre */
-  --ink-soft: #475569;          /* texte secondaire, slate-600 */
-  --muted: #64748b;             /* labels meta, slate-500 */
-  --muted-soft: #94a3b8;        /* numerotation discrete, slate-400 */
-  --hairline: #e2e8f0;           /* separateurs internes, slate-200 */
-  --hairline-soft: #f1f5f9;      /* separateurs tres legers, slate-100 */
-  --hairline-strong: #0f172a;    /* filets editoriaux */
+     Les tokens --accent et --ocre-brule pointent volontairement sur la
+     meme valeur : l ocre brule est la signature de la marque. On garde
+     les deux noms pour clarte semantique (--accent = identite visuelle,
+     --ocre-brule = signal fonctionnel approfondir / point d attention). */
 
-  --accent: #1e3a8a;            /* bleu encre profond, signature marque */
-  --accent-soft: #eff6ff;       /* bleu pale pour callouts */
-  --accent-deep: #1e293b;       /* bleu encre presque noir */
-  --accent-mid: #3b82f6;        /* bleu vif pour micro-accents */
+  --paper: #f3ecd9;             /* creme chaud type velin / papier journal long-tirage */
+  --paper-accent: #ebe2c4;      /* creme un cran plus profond pour callouts et bandes */
+  --paper-warm: #efe1c1;        /* creme ocree pour alertes douces */
+  --surface: #f6f1de;           /* surface legerement plus claire que paper */
+  --surface-deep: #e3d8b8;      /* surface plus profonde, ombrage de page */
+  --ink: #1c1a15;               /* encre quasi-noire chaude, lisibilite plomb sur papier */
+  --ink-soft: #4a4338;          /* texte secondaire */
+  --muted: #6b6354;             /* labels meta */
+  --muted-soft: #948770;        /* numerotation discrete */
+  --hairline: #d4c8a8;           /* separateurs internes sur creme */
+  --hairline-soft: #e6dcbf;      /* separateurs tres legers */
+  --hairline-strong: #1c1a15;    /* filets editoriaux */
 
-  /* Couleurs editoriales : accents fonctionnels (positif / mitige /
-     critique / neutre) qui enrichissent le langage visuel sans tomber
-     dans le SaaS clinquant. Inspirees Linear / Stripe. */
-  --rouge-anglais: #b91c1c;     /* rouge profond, drapeau rouge / refus */
-  --rouge-anglais-soft: #fef2f2;
-  --ocre-brule: #b45309;        /* ocre chaud, signal modere / approfondir */
-  --ocre-brule-soft: #fffbeb;
-  --vert-foret: #15803d;        /* vert profond, validation / investir */
-  --vert-foret-soft: #f0fdf4;
-  --violet-rare: #6d28d9;       /* violet, pour elements singuliers (singularites, IC) */
-  --violet-rare-soft: #f5f3ff;
+  --accent: #a8541d;            /* ocre brule, signature marque porteur de l identite */
+  --accent-soft: #ebe0c2;       /* creme ocree pour callouts */
+  --accent-deep: #7a3d12;       /* ocre profond pour states forts */
+  --accent-mid: #c97a3f;        /* ocre mi-ton, micro-accents */
 
-  --warn: #b91c1c;
-  --warn-soft: #fef2f2;
-  --good: #15803d;
-  --good-soft: #f0fdf4;
-  --signal: #b45309;
-  --signal-soft: #fffbeb;
+  /* Accents fonctionnels : ocre porteur, vert sobre, rouge critique.
+     L ocre fonctionnel pointe sur la meme valeur que --accent, c est
+     volontaire (signal modere = ocre = signature). */
+  --rouge-anglais: #9b2c1d;     /* rouge anglais profond, drapeau rouge / refus */
+  --rouge-anglais-soft: #ecd6cf;
+  --ocre-brule: #a8541d;        /* ocre chaud, signal modere / approfondir = accent identite */
+  --ocre-brule-soft: #ebe0c2;
+  --vert-foret: #2f5d3a;        /* vert sombre sobre, validation / investir */
+  --vert-foret-soft: #d2dcc8;
+
+  --warn: #9b2c1d;
+  --warn-soft: #ecd6cf;
+  --good: #2f5d3a;
+  --good-soft: #d2dcc8;
+  --signal: #a8541d;
+  --signal-soft: #ebe0c2;
 
   --serif: var(--font-serif), 'Charter', 'Cambria', 'Georgia', serif;
   --sans: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
@@ -59,7 +63,8 @@
   --shadow-2: 0 2px 8px rgba(29, 28, 26, 0.05), 0 1px 2px rgba(29, 28, 26, 0.04);
   --shadow-3: 0 8px 24px rgba(29, 28, 26, 0.08), 0 2px 6px rgba(29, 28, 26, 0.04);
   --shadow-4: 0 24px 48px rgba(29, 28, 26, 0.10), 0 4px 12px rgba(29, 28, 26, 0.06);
-  --shadow-blue: 0 8px 24px rgba(26, 46, 74, 0.12), 0 2px 6px rgba(26, 46, 74, 0.06);
+  /* shadow accent : ombrage chaud ocre, remplace l ancienne --shadow-blue */
+  --shadow-warm: 0 8px 24px rgba(122, 61, 18, 0.12), 0 2px 6px rgba(122, 61, 18, 0.06);
 
   /* RADII - le projet est principalement plat (look journal / editorial).
      Les radii servent uniquement aux composants UI qui ont vocation a
@@ -161,17 +166,19 @@
             var(--note-print-margin-bottom) var(--note-print-margin-side);
   }
 
-  /* Force le mode clair a l impression. */
+  /* Force la palette identite a l impression : papier creme, encre
+     quasi-noire, accent ocre. La note imprimee est toujours en mode
+     clair, meme si le mode sombre est actif a l ecran. */
   :root, :root[data-theme="dark"], :root[data-theme="system"] {
-    --paper: #ffffff;
-    --paper-accent: #f6f8fb;
-    --ink: #0f172a;
-    --ink-soft: #475569;
-    --muted: #64748b;
-    --hairline: #e2e8f0;
-    --hairline-soft: #f1f5f9;
-    --accent: #1e3a8a;
-    --accent-soft: #eff6ff;
+    --paper: #f3ecd9;
+    --paper-accent: #ebe2c4;
+    --ink: #1c1a15;
+    --ink-soft: #4a4338;
+    --muted: #6b6354;
+    --hairline: #d4c8a8;
+    --hairline-soft: #e6dcbf;
+    --accent: #a8541d;
+    --accent-soft: #ebe0c2;
   }
 
   /* Pas de coupure interne sur les unites editoriales. */
@@ -218,63 +225,57 @@
 /* ============================================================
    MODE SOMBRE
    ------------------------------------------------------------
-   Active par data-theme="dark" pose sur <html> via JS. Le toggle
-   est dans le header, persistance en localStorage (cle prelude_
-   theme : 'light' | 'dark' | 'system'). Le defaut suit la pre-
-   ference systeme via prefers-color-scheme.
-   
-   La palette inverse les valeurs de fond et d encre tout en
-   conservant les accents fonctionnels (rouge anglais, vert foret,
-   ocre brule) qui restent identifiables sur fond sombre. Le
-   bleu accent passe a une teinte legerement plus claire pour
-   garder le contraste lecteur.
-   
+   Active par data-theme="dark" pose sur <html> via JS. Toggle
+   dans le header, persistance localStorage (cle prelude_theme).
+
+   Palette sombre coherente avec l identite : fond encre chaude
+   profonde (pas de bleu nuit type Slack), ocre brule eclairci
+   pour rester lisible sur sombre, vert et rouge adoucis. La note
+   IC reste toujours en mode clair a l impression (cf @media print
+   ci-dessus).
+
    Cibles AAA WCAG sur les paires ink/paper : ratio ~14:1.
    ============================================================ */
 :root[data-theme="dark"] {
-  --paper: #0f172a;             /* fond slate-900, equivalent encre clair */
-  --paper-accent: #1e293b;      /* fond callouts, slate-800 */
-  --paper-warm: #1f1c1a;        /* fond alertes douces */
-  --surface: #131c2e;           /* surface cartes */
-  --surface-deep: #1e293b;      /* surface plus contrastee */
-  --ink: #f1f5f9;               /* encre principale, slate-100 */
-  --ink-soft: #cbd5e1;          /* texte secondaire, slate-300 */
-  --muted: #94a3b8;             /* labels meta, slate-400 */
-  --muted-soft: #64748b;        /* numerotation discrete, slate-500 */
-  --hairline: #334155;          /* separateurs internes, slate-700 */
-  --hairline-soft: #1e293b;     /* separateurs tres legers, slate-800 */
-  --hairline-strong: #f1f5f9;   /* filets editoriaux */
+  --paper: #1c1a15;             /* fond encre chaude profonde */
+  --paper-accent: #25221b;      /* fond callouts, un cran plus clair */
+  --paper-warm: #2a2520;        /* fond alertes douces */
+  --surface: #221f19;           /* surface cartes */
+  --surface-deep: #2d2920;      /* surface plus contrastee */
+  --ink: #f3ecd9;               /* encre principale, creme sur sombre */
+  --ink-soft: #d4c8a8;          /* texte secondaire */
+  --muted: #948770;             /* labels meta */
+  --muted-soft: #6b6354;        /* numerotation discrete */
+  --hairline: #3d362b;          /* separateurs internes */
+  --hairline-soft: #2a2620;     /* separateurs tres legers */
+  --hairline-strong: #f3ecd9;   /* filets editoriaux */
 
-  --accent: #93c5fd;            /* bleu clair, blue-300 (contraste sur sombre) */
-  --accent-soft: #1e3a8a;       /* bleu profond pour fonds */
-  --accent-deep: #dbeafe;       /* bleu tres clair pour highlights */
-  --accent-mid: #60a5fa;        /* bleu mid */
+  --accent: #d68a4c;            /* ocre brule eclairci pour contraste sombre */
+  --accent-soft: #3d2a18;       /* ocre tres profond pour fonds */
+  --accent-deep: #efb37a;       /* ocre clair pour highlights */
+  --accent-mid: #c97a3f;        /* ocre mi-ton */
 
-  /* Couleurs editoriales : versions adaptees au sombre, fond
-     soft passe en teinte sombre pour cohabitation. */
-  --rouge-anglais: #fca5a5;     /* rouge clair, lisible sur sombre */
-  --rouge-anglais-soft: #450a0a;
-  --ocre-brule: #fcd34d;        /* ocre clair */
-  --ocre-brule-soft: #451a03;
-  --vert-foret: #86efac;        /* vert clair */
-  --vert-foret-soft: #052e16;
-  --violet-rare: #c4b5fd;
-  --violet-rare-soft: #2e1065;
+  /* Accents fonctionnels adaptes au sombre. */
+  --rouge-anglais: #d68a7a;     /* rouge anglais adouci, lisible sur sombre */
+  --rouge-anglais-soft: #3d1a14;
+  --ocre-brule: #d68a4c;        /* ocre clair = accent */
+  --ocre-brule-soft: #3d2a18;
+  --vert-foret: #a3c4a8;        /* vert sauge clair */
+  --vert-foret-soft: #1f2e22;
 
-  --warn: #fca5a5;
-  --warn-soft: #450a0a;
-  --good: #86efac;
-  --good-soft: #052e16;
-  --signal: #fcd34d;
-  --signal-soft: #451a03;
+  --warn: #d68a7a;
+  --warn-soft: #3d1a14;
+  --good: #a3c4a8;
+  --good-soft: #1f2e22;
+  --signal: #d68a4c;
+  --signal-soft: #3d2a18;
 
-  /* Shadows attenuees en sombre : on ne veut pas un trou noir
-     mais une legere elevation par contraste de lumiere. */
+  /* Shadows attenuees en sombre. */
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30);
   --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
   --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.30);
   --shadow-4: 0 24px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-blue: 0 8px 24px rgba(96, 165, 250, 0.18), 0 2px 6px rgba(96, 165, 250, 0.10);
+  --shadow-warm: 0 8px 24px rgba(214, 138, 76, 0.18), 0 2px 6px rgba(214, 138, 76, 0.10);
 }
 
 /* Suivi de la preference systeme pour les utilisateurs qui n ont
@@ -282,36 +283,34 @@
    active le sombre uniquement si le systeme le demande. */
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"], :root:not([data-theme]) {
-    --paper: #0f172a;
-    --paper-accent: #1e293b;
-    --paper-warm: #1f1c1a;
-    --surface: #131c2e;
-    --surface-deep: #1e293b;
-    --ink: #f1f5f9;
-    --ink-soft: #cbd5e1;
-    --muted: #94a3b8;
-    --muted-soft: #64748b;
-    --hairline: #334155;
-    --hairline-soft: #1e293b;
-    --hairline-strong: #f1f5f9;
-    --accent: #93c5fd;
-    --accent-soft: #1e3a8a;
-    --accent-deep: #dbeafe;
-    --accent-mid: #60a5fa;
-    --rouge-anglais: #fca5a5;
-    --rouge-anglais-soft: #450a0a;
-    --ocre-brule: #fcd34d;
-    --ocre-brule-soft: #451a03;
-    --vert-foret: #86efac;
-    --vert-foret-soft: #052e16;
-    --violet-rare: #c4b5fd;
-    --violet-rare-soft: #2e1065;
-    --warn: #fca5a5;
-    --warn-soft: #450a0a;
-    --good: #86efac;
-    --good-soft: #052e16;
-    --signal: #fcd34d;
-    --signal-soft: #451a03;
+    --paper: #1c1a15;
+    --paper-accent: #25221b;
+    --paper-warm: #2a2520;
+    --surface: #221f19;
+    --surface-deep: #2d2920;
+    --ink: #f3ecd9;
+    --ink-soft: #d4c8a8;
+    --muted: #948770;
+    --muted-soft: #6b6354;
+    --hairline: #3d362b;
+    --hairline-soft: #2a2620;
+    --hairline-strong: #f3ecd9;
+    --accent: #d68a4c;
+    --accent-soft: #3d2a18;
+    --accent-deep: #efb37a;
+    --accent-mid: #c97a3f;
+    --rouge-anglais: #d68a7a;
+    --rouge-anglais-soft: #3d1a14;
+    --ocre-brule: #d68a4c;
+    --ocre-brule-soft: #3d2a18;
+    --vert-foret: #a3c4a8;
+    --vert-foret-soft: #1f2e22;
+    --warn: #d68a7a;
+    --warn-soft: #3d1a14;
+    --good: #a3c4a8;
+    --good-soft: #1f2e22;
+    --signal: #d68a4c;
+    --signal-soft: #3d2a18;
   }
 }
 
@@ -788,7 +787,7 @@ ul, ol { list-style: none; }
   color: var(--paper);
   border-color: var(--accent);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-blue);
+  box-shadow: var(--shadow-warm);
 }
 @media (max-width: 720px) {
   .hero-card { padding: 22px 22px 20px; }
@@ -1093,8 +1092,7 @@ ul, ol { list-style: none; }
    - la barre verticale gauche du header (4px de large)
    - le numero de categorie
    - les pastilles de pictos quand la categorie est ouverte */
-.method-cat-blue   { --cat: var(--accent);       --cat-soft: var(--accent-soft); }
-.method-cat-violet { --cat: var(--violet-rare);  --cat-soft: var(--violet-rare-soft); }
+.method-cat-ink    { --cat: var(--ink);          --cat-soft: var(--paper-accent); }
 .method-cat-amber  { --cat: var(--ocre-brule);   --cat-soft: var(--ocre-brule-soft); }
 .method-cat-green  { --cat: var(--vert-foret);   --cat-soft: var(--vert-foret-soft); }
 .method-cat-bronze { --cat: #4a3320;             --cat-soft: rgba(74, 51, 32, 0.08); }
@@ -1595,7 +1593,7 @@ ul, ol { list-style: none; }
   color: var(--accent);
   background: var(--paper);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-blue);
+  box-shadow: var(--shadow-warm);
 }
 .upload-label {
   font-family: var(--serif);
@@ -1818,7 +1816,7 @@ ul, ol { list-style: none; }
   background: var(--accent);
   border-color: var(--accent);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-blue);
+  box-shadow: var(--shadow-warm);
 }
 .btn-primary svg { transition: transform var(--motion-base); }
 .btn-primary:hover svg { transform: translateX(3px); }

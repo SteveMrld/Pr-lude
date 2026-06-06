@@ -17,8 +17,8 @@ import React from 'react';
 //   7. Top secteurs et pays : 2 colonnes liste
 //   8. Durees moyennes par stade : table
 //
-// La palette suit le design system : fond blanc, accents bleu encre,
-// couleurs semantiques par categorie de donnee.
+// La palette suit le design system Prelude : papier creme, encre quasi-noire,
+// accent ocre brule porteur, vert sombre sobre, rouge anglais critique.
 // ============================================================
 
 import Link from 'next/link';
@@ -52,13 +52,17 @@ const STAGE_LABELS: Record<string, string> = {
   declined: 'Refusé',
 };
 
+// Palette identite Prelude : creme / encre / ocre / vert sombre. Pas de bleu,
+// pas de violet. Les hex sont alignes sur les tokens CSS de globals.css
+// (les charts recharts ne peuvent pas consommer les var(--) directement en SSR,
+// d ou la duplication assumee des valeurs).
 const STAGE_COLORS: Record<string, string> = {
-  deposited: '#94a3b8',
-  in_review: '#b45309',
-  dd_field: '#1e3a8a',
-  ic_review: '#6d28d9',
-  signed: '#15803d',
-  declined: '#b91c1c',
+  deposited: '#948770',  // muted
+  in_review: '#c97a3f',  // ocre mi-ton
+  dd_field: '#a8541d',   // ocre brule porteur
+  ic_review: '#1c1a15',  // encre, decision imminente
+  signed: '#2f5d3a',     // vert foret
+  declined: '#9b2c1d',   // rouge anglais
 };
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -70,11 +74,11 @@ const VERDICT_LABELS: Record<string, string> = {
 };
 
 const VERDICT_COLORS: Record<string, string> = {
-  investir: '#15803d',
-  'investir-conditions': '#1e3a8a',
-  approfondir: '#b45309',
-  refuser: '#b91c1c',
-  autre: '#94a3b8',
+  investir: '#2f5d3a',                // vert foret
+  'investir-conditions': '#1c1a15',   // encre, decision conditionnelle
+  approfondir: '#a8541d',             // ocre brule, signal porteur
+  refuser: '#9b2c1d',                 // rouge anglais
+  autre: '#948770',                   // muted
 };
 
 function formatRelativeDate(iso: string | null): string {
@@ -187,12 +191,12 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
       {/* KPIs */}
       <section className="pf-kpis">
         <div className="pf-kpi">
-          <div className="pf-kpi-num pf-kpi-num-blue">{stats!.total}</div>
+          <div className="pf-kpi-num pf-kpi-num-ink">{stats!.total}</div>
           <div className="pf-kpi-label">Dossiers instruits</div>
           <div className="pf-kpi-sub">Sur la période</div>
         </div>
         <div className="pf-kpi">
-          <div className="pf-kpi-num pf-kpi-num-blue">{avgVelocity}</div>
+          <div className="pf-kpi-num pf-kpi-num-ink">{avgVelocity}</div>
           <div className="pf-kpi-label">Dossiers / mois</div>
           <div className="pf-kpi-sub">Moyenne sur 12 mois</div>
         </div>
@@ -202,7 +206,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           <div className="pf-kpi-sub">Conviction du fonds</div>
         </div>
         <div className="pf-kpi">
-          <div className="pf-kpi-num pf-kpi-num-violet">{stats!.avgBlindspotScore ?? '—'}{stats!.avgBlindspotScore != null && <span className="pf-kpi-unit">/100</span>}</div>
+          <div className="pf-kpi-num pf-kpi-num-deep">{stats!.avgBlindspotScore ?? '—'}{stats!.avgBlindspotScore != null && <span className="pf-kpi-unit">/100</span>}</div>
           <div className="pf-kpi-label">Risque biais</div>
           <div className="pf-kpi-sub">Vigilance critique moyen</div>
         </div>
@@ -224,37 +228,37 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         <div className="pf-chart">
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={stats!.velocity} margin={{ top: 10, right: 16, bottom: 0, left: -16 }}>
-              <CartesianGrid stroke="#f1f5f9" strokeDasharray="2 4" vertical={false} />
+              <CartesianGrid stroke="#e6dcbf" strokeDasharray="2 4" vertical={false} />
               <XAxis
                 dataKey="month"
                 tickFormatter={formatMonth}
-                tick={{ fontSize: 11, fill: '#64748b', fontFamily: 'system-ui' }}
-                axisLine={{ stroke: '#e2e8f0' }}
+                tick={{ fontSize: 11, fill: '#6b6354', fontFamily: 'system-ui' }}
+                axisLine={{ stroke: '#d4c8a8' }}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#94a3b8', fontFamily: 'system-ui' }}
+                tick={{ fontSize: 11, fill: '#948770', fontFamily: 'system-ui' }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
               />
               <Tooltip
                 contentStyle={{
-                  background: '#fff',
-                  border: '1px solid #e2e8f0',
+                  background: '#f3ecd9',
+                  border: '1px solid #d4c8a8',
                   borderRadius: 8,
                   fontSize: 12,
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
+                  boxShadow: '0 4px 12px rgba(28, 26, 21, 0.08)',
                 }}
                 labelFormatter={formatMonth}
               />
               <Line
                 type="monotone"
                 dataKey="count"
-                stroke="#1e3a8a"
+                stroke="#a8541d"
                 strokeWidth={2.5}
-                dot={{ fill: '#1e3a8a', r: 3.5 }}
-                activeDot={{ r: 5, fill: '#1e3a8a' }}
+                dot={{ fill: '#a8541d', r: 3.5 }}
+                activeDot={{ r: 5, fill: '#a8541d' }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -276,9 +280,9 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         </div>
         <div className="pf-funnel">
           {stats!.conversion.map((c, i) => {
-            const stageColor = STAGE_COLORS[c.from] || '#94a3b8';
+            const stageColor = STAGE_COLORS[c.from] || '#948770';
             const isLast = i === stats!.conversion.length - 1;
-            const finalColor = STAGE_COLORS[c.to] || '#94a3b8';
+            const finalColor = STAGE_COLORS[c.to] || '#948770';
             const finalCount = Math.round(c.total * c.rate / 100);
             return (
               <React.Fragment key={`${c.from}-${c.to}`}>
@@ -690,7 +694,7 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         .pf-cta-primary:hover {
           background: var(--accent);
           transform: translateY(-1px);
-          box-shadow: var(--shadow-blue);
+          box-shadow: var(--shadow-warm);
         }
         .pf-cta-primary svg { transition: transform var(--motion-base); }
         .pf-cta-primary:hover svg { transform: translateX(3px); }
@@ -741,9 +745,9 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
           margin-bottom: 14px;
           font-feature-settings: "lnum","tnum";
         }
-        .pf-kpi-num-blue { color: var(--accent); }
+        .pf-kpi-num-ink { color: var(--ink); }
         .pf-kpi-num-amber { color: var(--ocre-brule); }
-        .pf-kpi-num-violet { color: var(--violet-rare); }
+        .pf-kpi-num-deep { color: var(--accent-deep); }
         .pf-kpi-num-green { color: var(--vert-foret); }
         .pf-kpi-unit {
           font-size: 18px;

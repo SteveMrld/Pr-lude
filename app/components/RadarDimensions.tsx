@@ -14,19 +14,18 @@ type Props = {
   verdict?: string;
 };
 
-// Couleur du radar en fonction du verdict global. Codes couleur sobres editoriaux,
-// Recharts ne resout pas les CSS variables sur strokes/fills, il faut donner
-// des hex. On reprend les valeurs des tokens du design system (en sync avec
-// app/globals.css) :
-//   ink (#0f172a) pour neutre, vert-foret (#15803d) pour passer,
-//   warn (#b91c1c) pour refuser, ocre-brule (#b45309) pour condition.
+// Couleur du radar en fonction du verdict global. Palette identite Prelude,
+// alignee sur les tokens de globals.css. Recharts ne resout pas les CSS
+// variables sur strokes/fills, donc on duplique les hex.
+//   ink (#1c1a15) pour neutre, vert-foret (#2f5d3a) pour passer,
+//   rouge-anglais (#9b2c1d) pour refuser, ocre-brule (#a8541d) pour condition.
 function colorFromVerdict(verdict?: string): string {
-  if (!verdict) return '#0f172a';
+  if (!verdict) return '#1c1a15';
   const v = verdict.toLowerCase();
-  if (v.includes('passer') || v.includes('aller') || v.includes('go')) return '#15803d';
-  if (v.includes('refuser') || v.includes('reject') || v.includes('no-go')) return '#b91c1c';
-  if (v.includes('condition') || v.includes('hold')) return '#b45309';
-  return '#0f172a';
+  if (v.includes('passer') || v.includes('aller') || v.includes('go')) return '#2f5d3a';
+  if (v.includes('refuser') || v.includes('reject') || v.includes('no-go')) return '#9b2c1d';
+  if (v.includes('condition') || v.includes('hold')) return '#a8541d';
+  return '#1c1a15';
 }
 
 // Mapping des noms longs vers des labels courts adaptes a l affichage radar.
@@ -75,15 +74,15 @@ export default function RadarDimensions({ dimensions, verdict }: Props) {
     <div style={{ width: '100%', height: 380 }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data} margin={{ top: 28, right: 56, bottom: 28, left: 56 }}>
-          <PolarGrid stroke="#e2e8f0" />
+          <PolarGrid stroke="#d4c8a8" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fontSize: 11, fill: '#0f172a', fontFamily: 'var(--serif, Georgia, serif)' }}
+            tick={{ fontSize: 11, fill: '#1c1a15', fontFamily: 'var(--serif, Georgia, serif)' }}
           />
           <PolarRadiusAxis
             angle={90}
             domain={[0, 100]}
-            tick={{ fontSize: 9, fill: '#94a3b8' }}
+            tick={{ fontSize: 9, fill: '#948770' }}
             tickCount={5}
             axisLine={false}
           />

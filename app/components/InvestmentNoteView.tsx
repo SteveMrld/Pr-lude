@@ -317,7 +317,7 @@ function NoteSectoralMethodBlock({
           font-family: var(--serif, Georgia, serif);
           font-size: 0.88rem;
           line-height: 1.55;
-          color: var(--ink-secondary, #475569);
+          color: var(--ink-secondary, #4a4338);
           font-style: italic;
           margin: 0;
           padding: 12px 16px;
@@ -3793,25 +3793,27 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
              reproduisant les tokens globaux pour ne pas avoir a renommer
              toutes les references --paper / --ink dans le composant. */
 
-          --paper: #ffffff;
-          --paper-accent: #f6f8fb;
-          --paper-warm: #fef7f4;
-          --ink: #0f172a;
-          --ink-secondary: #475569;
-          --ink-tertiary: #64748b;
-          --ink-quaternary: #94a3b8;
-          --hairline: #e2e8f0;
-          --hairline-soft: #f1f5f9;
+          /* Palette locale alignee sur l identite Prelude : papier creme,
+             encre quasi-noire, ocre brule porteur. Pas de bleu. */
+          --paper: #f3ecd9;
+          --paper-accent: #ebe2c4;
+          --paper-warm: #efe1c1;
+          --ink: #1c1a15;
+          --ink-secondary: #4a4338;
+          --ink-tertiary: #6b6354;
+          --ink-quaternary: #948770;
+          --hairline: #d4c8a8;
+          --hairline-soft: #e6dcbf;
 
-          --accent-marque: #1e3a8a;
-          --accent-marque-soft: #eff6ff;
+          --accent-marque: #a8541d;
+          --accent-marque-soft: #ebe0c2;
 
-          --semantic-critical: #b91c1c;
-          --semantic-critical-soft: #fef2f2;
-          --semantic-warning: #b45309;
-          --semantic-warning-soft: #fffbeb;
-          --semantic-positive: #15803d;
-          --semantic-positive-soft: #f0fdf4;
+          --semantic-critical: #9b2c1d;
+          --semantic-critical-soft: #ecd6cf;
+          --semantic-warning: #a8541d;
+          --semantic-warning-soft: #ebe0c2;
+          --semantic-positive: #2f5d3a;
+          --semantic-positive-soft: #d2dcc8;
 
           max-width: 920px;
           margin: 0 auto;
