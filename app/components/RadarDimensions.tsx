@@ -14,18 +14,18 @@ type Props = {
   verdict?: string;
 };
 
-// Couleur du radar en fonction du verdict global. Palette identite Prelude,
-// alignee sur les tokens de globals.css. Recharts ne resout pas les CSS
-// variables sur strokes/fills, donc on duplique les hex.
-//   ink (#1c1a15) pour neutre, vert-foret (#2f5d3a) pour passer,
+// Couleur du radar en fonction du verdict global. Palette identite Prelude
+// (fond blanc, encre quasi-noire, accent ocre brule). Recharts ne resout pas
+// les CSS variables sur strokes/fills, donc on duplique les hex.
+//   ink (#14110d) pour neutre, vert-foret (#2f5d3a) pour passer,
 //   rouge-anglais (#9b2c1d) pour refuser, ocre-brule (#a8541d) pour condition.
 function colorFromVerdict(verdict?: string): string {
-  if (!verdict) return '#1c1a15';
+  if (!verdict) return '#14110d';
   const v = verdict.toLowerCase();
   if (v.includes('passer') || v.includes('aller') || v.includes('go')) return '#2f5d3a';
   if (v.includes('refuser') || v.includes('reject') || v.includes('no-go')) return '#9b2c1d';
   if (v.includes('condition') || v.includes('hold')) return '#a8541d';
-  return '#1c1a15';
+  return '#14110d';
 }
 
 // Mapping des noms longs vers des labels courts adaptes a l affichage radar.
@@ -74,10 +74,10 @@ export default function RadarDimensions({ dimensions, verdict }: Props) {
     <div style={{ width: '100%', height: 380 }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data} margin={{ top: 28, right: 56, bottom: 28, left: 56 }}>
-          <PolarGrid stroke="#d4c8a8" />
+          <PolarGrid stroke="#e7e0d2" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fontSize: 11, fill: '#1c1a15', fontFamily: 'var(--serif, Georgia, serif)' }}
+            tick={{ fontSize: 11, fill: '#14110d', fontFamily: 'var(--serif, Georgia, serif)' }}
           />
           <PolarRadiusAxis
             angle={90}

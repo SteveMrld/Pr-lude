@@ -3793,27 +3793,28 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
              reproduisant les tokens globaux pour ne pas avoir a renommer
              toutes les references --paper / --ink dans le composant. */
 
-          /* Palette locale alignee sur l identite Prelude : papier creme,
-             encre quasi-noire, ocre brule porteur. Pas de bleu. */
-          --paper: #f3ecd9;
-          --paper-accent: #ebe2c4;
-          --paper-warm: #efe1c1;
-          --ink: #1c1a15;
+          /* Palette locale alignee sur l identite Prelude : fond blanc franc,
+             encre quasi-noire, ocre brule en accent identite et signal
+             approfondir. Pas de bleu, pas de violet, pas de creme. */
+          --paper: #ffffff;
+          --paper-accent: #fbf4e6;
+          --paper-warm: #fbf4e6;
+          --ink: #14110d;
           --ink-secondary: #4a4338;
           --ink-tertiary: #6b6354;
           --ink-quaternary: #948770;
-          --hairline: #d4c8a8;
-          --hairline-soft: #e6dcbf;
+          --hairline: #e7e0d2;
+          --hairline-soft: #f3eee5;
 
           --accent-marque: #a8541d;
-          --accent-marque-soft: #ebe0c2;
+          --accent-marque-soft: #fbf4e6;
 
           --semantic-critical: #9b2c1d;
-          --semantic-critical-soft: #ecd6cf;
+          --semantic-critical-soft: #f3e5e0;
           --semantic-warning: #a8541d;
-          --semantic-warning-soft: #ebe0c2;
+          --semantic-warning-soft: #fbf4e6;
           --semantic-positive: #2f5d3a;
-          --semantic-positive-soft: #d2dcc8;
+          --semantic-positive-soft: #e8eee5;
 
           max-width: 920px;
           margin: 0 auto;

@@ -1,50 +1,54 @@
 :root {
-  /* PALETTE EDITORIALE PRELUDE - identite documentee : papier creme
-     chaud, encre quasi-noire chaude, accent ocre brule porteur, vert
-     foret sobre, rouge anglais en signal critique. Pas de bleu. Pas
-     de violet. References : Le Grand Continent, The Atlantic, Economist,
-     FT (pour la rigueur typographique, pas le saumon). Anti-references :
-     Notion, Linear, esthetique SaaS clinquante.
+  /* PALETTE EDITORIALE PRELUDE - fond blanc franc, encre quasi-noire,
+     accent identite unique en ocre brule. Pas de bleu, pas de violet,
+     pas de creme en fond de page. References : Le Grand Continent,
+     The Atlantic, The Economist, FT en ligne. Anti-references : Notion,
+     Linear, esthetique SaaS clinquante.
 
-     Les tokens --accent et --ocre-brule pointent volontairement sur la
-     meme valeur : l ocre brule est la signature de la marque. On garde
-     les deux noms pour clarte semantique (--accent = identite visuelle,
-     --ocre-brule = signal fonctionnel approfondir / point d attention). */
+     L ocre brule porte simultanement la signature de la marque (wordmark,
+     kickers, nav active, soulignage de liens, italique emphatique des
+     titres) et le signal semantique approfondir. La double charge est
+     assumee : l accent identite et le signal point d attention partagent
+     le meme registre. Le trio verdict (vert investir, ocre approfondir,
+     rouge refuser) reste reserve aux badges et pills, jamais en fond.
 
-  --paper: #f3ecd9;             /* creme chaud type velin / papier journal long-tirage */
-  --paper-accent: #ebe2c4;      /* creme un cran plus profond pour callouts et bandes */
-  --paper-warm: #efe1c1;        /* creme ocree pour alertes douces */
-  --surface: #f6f1de;           /* surface legerement plus claire que paper */
-  --surface-deep: #e3d8b8;      /* surface plus profonde, ombrage de page */
-  --ink: #1c1a15;               /* encre quasi-noire chaude, lisibilite plomb sur papier */
+     Les callouts (--paper-accent / --accent-soft) utilisent un lavis ocre
+     extremement pale, derive de l accent, qui tient le systeme ensemble
+     sans introduire de creme sur le papier de page. */
+
+  --paper: #ffffff;             /* fond blanc franc */
+  --paper-accent: #fbf4e6;      /* lavis ocre tres pale pour callouts editoriaux */
+  --paper-warm: #fbf4e6;        /* alias pour les alertes douces */
+  --surface: #ffffff;           /* surface egale au papier */
+  --surface-deep: #f6efe1;      /* surface stackee plus profonde, rare */
+  --ink: #14110d;               /* encre quasi-noire chaude, plomb sur papier */
   --ink-soft: #4a4338;          /* texte secondaire */
   --muted: #6b6354;             /* labels meta */
   --muted-soft: #948770;        /* numerotation discrete */
-  --hairline: #d4c8a8;           /* separateurs internes sur creme */
-  --hairline-soft: #e6dcbf;      /* separateurs tres legers */
-  --hairline-strong: #1c1a15;    /* filets editoriaux */
+  --hairline: #e7e0d2;           /* filets legers, gris chaud sur blanc */
+  --hairline-soft: #f3eee5;      /* filets quasi imperceptibles */
+  --hairline-strong: #14110d;    /* filets editoriaux forts */
 
-  --accent: #a8541d;            /* ocre brule, signature marque porteur de l identite */
-  --accent-soft: #ebe0c2;       /* creme ocree pour callouts */
+  --accent: #a8541d;            /* ocre brule, signature identite unique */
+  --accent-soft: #fbf4e6;       /* lavis ocre tres pale = paper-accent */
   --accent-deep: #7a3d12;       /* ocre profond pour states forts */
   --accent-mid: #c97a3f;        /* ocre mi-ton, micro-accents */
 
-  /* Accents fonctionnels : ocre porteur, vert sobre, rouge critique.
-     L ocre fonctionnel pointe sur la meme valeur que --accent, c est
-     volontaire (signal modere = ocre = signature). */
-  --rouge-anglais: #9b2c1d;     /* rouge anglais profond, drapeau rouge / refus */
-  --rouge-anglais-soft: #ecd6cf;
-  --ocre-brule: #a8541d;        /* ocre chaud, signal modere / approfondir = accent identite */
-  --ocre-brule-soft: #ebe0c2;
-  --vert-foret: #2f5d3a;        /* vert sombre sobre, validation / investir */
-  --vert-foret-soft: #d2dcc8;
+  /* Trio verdict semantique. L ocre approfondir partage la valeur de
+     --accent par construction. */
+  --rouge-anglais: #9b2c1d;     /* rouge anglais profond, refuser */
+  --rouge-anglais-soft: #f3e5e0;
+  --ocre-brule: #a8541d;        /* ocre brule, approfondir = accent identite */
+  --ocre-brule-soft: #fbf4e6;
+  --vert-foret: #2f5d3a;        /* vert sombre sobre, investir */
+  --vert-foret-soft: #e8eee5;
 
   --warn: #9b2c1d;
-  --warn-soft: #ecd6cf;
+  --warn-soft: #f3e5e0;
   --good: #2f5d3a;
-  --good-soft: #d2dcc8;
+  --good-soft: #e8eee5;
   --signal: #a8541d;
-  --signal-soft: #ebe0c2;
+  --signal-soft: #fbf4e6;
 
   --serif: var(--font-serif), 'Charter', 'Cambria', 'Georgia', serif;
   --sans: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
@@ -166,19 +170,19 @@
             var(--note-print-margin-bottom) var(--note-print-margin-side);
   }
 
-  /* Force la palette identite a l impression : papier creme, encre
+  /* Force la palette identite a l impression : papier blanc, encre
      quasi-noire, accent ocre. La note imprimee est toujours en mode
      clair, meme si le mode sombre est actif a l ecran. */
   :root, :root[data-theme="dark"], :root[data-theme="system"] {
-    --paper: #f3ecd9;
-    --paper-accent: #ebe2c4;
-    --ink: #1c1a15;
+    --paper: #ffffff;
+    --paper-accent: #fbf4e6;
+    --ink: #14110d;
     --ink-soft: #4a4338;
     --muted: #6b6354;
-    --hairline: #d4c8a8;
-    --hairline-soft: #e6dcbf;
+    --hairline: #e7e0d2;
+    --hairline-soft: #f3eee5;
     --accent: #a8541d;
-    --accent-soft: #ebe0c2;
+    --accent-soft: #fbf4e6;
   }
 
   /* Pas de coupure interne sur les unites editoriales. */
@@ -237,29 +241,29 @@
    Cibles AAA WCAG sur les paires ink/paper : ratio ~14:1.
    ============================================================ */
 :root[data-theme="dark"] {
-  --paper: #1c1a15;             /* fond encre chaude profonde */
-  --paper-accent: #25221b;      /* fond callouts, un cran plus clair */
-  --paper-warm: #2a2520;        /* fond alertes douces */
-  --surface: #221f19;           /* surface cartes */
-  --surface-deep: #2d2920;      /* surface plus contrastee */
-  --ink: #f3ecd9;               /* encre principale, creme sur sombre */
-  --ink-soft: #d4c8a8;          /* texte secondaire */
-  --muted: #948770;             /* labels meta */
+  --paper: #1a1612;             /* fond encre chaude profonde */
+  --paper-accent: #221d18;      /* fond callouts, un cran plus clair */
+  --paper-warm: #221d18;        /* fond alertes douces */
+  --surface: #1f1a15;           /* surface cartes */
+  --surface-deep: #2a2520;      /* surface plus contrastee */
+  --ink: #f5f5f3;               /* encre principale, blanc sur sombre */
+  --ink-soft: #d0cdc7;          /* texte secondaire */
+  --muted: #948c80;             /* labels meta */
   --muted-soft: #6b6354;        /* numerotation discrete */
-  --hairline: #3d362b;          /* separateurs internes */
-  --hairline-soft: #2a2620;     /* separateurs tres legers */
-  --hairline-strong: #f3ecd9;   /* filets editoriaux */
+  --hairline: #3a342b;          /* separateurs internes */
+  --hairline-soft: #25201b;     /* separateurs tres legers */
+  --hairline-strong: #f5f5f3;   /* filets editoriaux */
 
   --accent: #d68a4c;            /* ocre brule eclairci pour contraste sombre */
-  --accent-soft: #3d2a18;       /* ocre tres profond pour fonds */
+  --accent-soft: #2e2418;       /* ocre tres profond pour fonds */
   --accent-deep: #efb37a;       /* ocre clair pour highlights */
   --accent-mid: #c97a3f;        /* ocre mi-ton */
 
-  /* Accents fonctionnels adaptes au sombre. */
+  /* Trio verdict adapte au sombre. */
   --rouge-anglais: #d68a7a;     /* rouge anglais adouci, lisible sur sombre */
   --rouge-anglais-soft: #3d1a14;
   --ocre-brule: #d68a4c;        /* ocre clair = accent */
-  --ocre-brule-soft: #3d2a18;
+  --ocre-brule-soft: #2e2418;
   --vert-foret: #a3c4a8;        /* vert sauge clair */
   --vert-foret-soft: #1f2e22;
 
@@ -268,7 +272,7 @@
   --good: #a3c4a8;
   --good-soft: #1f2e22;
   --signal: #d68a4c;
-  --signal-soft: #3d2a18;
+  --signal-soft: #2e2418;
 
   /* Shadows attenuees en sombre. */
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30);
@@ -283,26 +287,26 @@
    active le sombre uniquement si le systeme le demande. */
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"], :root:not([data-theme]) {
-    --paper: #1c1a15;
-    --paper-accent: #25221b;
-    --paper-warm: #2a2520;
-    --surface: #221f19;
-    --surface-deep: #2d2920;
-    --ink: #f3ecd9;
-    --ink-soft: #d4c8a8;
-    --muted: #948770;
+    --paper: #1a1612;
+    --paper-accent: #221d18;
+    --paper-warm: #221d18;
+    --surface: #1f1a15;
+    --surface-deep: #2a2520;
+    --ink: #f5f5f3;
+    --ink-soft: #d0cdc7;
+    --muted: #948c80;
     --muted-soft: #6b6354;
-    --hairline: #3d362b;
-    --hairline-soft: #2a2620;
-    --hairline-strong: #f3ecd9;
+    --hairline: #3a342b;
+    --hairline-soft: #25201b;
+    --hairline-strong: #f5f5f3;
     --accent: #d68a4c;
-    --accent-soft: #3d2a18;
+    --accent-soft: #2e2418;
     --accent-deep: #efb37a;
     --accent-mid: #c97a3f;
     --rouge-anglais: #d68a7a;
     --rouge-anglais-soft: #3d1a14;
     --ocre-brule: #d68a4c;
-    --ocre-brule-soft: #3d2a18;
+    --ocre-brule-soft: #2e2418;
     --vert-foret: #a3c4a8;
     --vert-foret-soft: #1f2e22;
     --warn: #d68a7a;
@@ -310,7 +314,7 @@
     --good: #a3c4a8;
     --good-soft: #1f2e22;
     --signal: #d68a4c;
-    --signal-soft: #3d2a18;
+    --signal-soft: #2e2418;
   }
 }
 

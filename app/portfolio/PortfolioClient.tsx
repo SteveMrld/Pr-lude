@@ -52,15 +52,15 @@ const STAGE_LABELS: Record<string, string> = {
   declined: 'Refusé',
 };
 
-// Palette identite Prelude : creme / encre / ocre / vert sombre. Pas de bleu,
-// pas de violet. Les hex sont alignes sur les tokens CSS de globals.css
-// (les charts recharts ne peuvent pas consommer les var(--) directement en SSR,
-// d ou la duplication assumee des valeurs).
+// Palette identite Prelude : fond blanc, encre quasi-noire, accent ocre brule.
+// Trio verdict (vert investir, ocre approfondir, rouge refuser) reserve aux
+// pills. Les hex sont alignes sur les tokens CSS de globals.css (recharts ne
+// resout pas var(--) en SSR, d ou la duplication assumee).
 const STAGE_COLORS: Record<string, string> = {
   deposited: '#948770',  // muted
   in_review: '#c97a3f',  // ocre mi-ton
   dd_field: '#a8541d',   // ocre brule porteur
-  ic_review: '#1c1a15',  // encre, decision imminente
+  ic_review: '#14110d',  // encre, decision imminente
   signed: '#2f5d3a',     // vert foret
   declined: '#9b2c1d',   // rouge anglais
 };
@@ -75,7 +75,7 @@ const VERDICT_LABELS: Record<string, string> = {
 
 const VERDICT_COLORS: Record<string, string> = {
   investir: '#2f5d3a',                // vert foret
-  'investir-conditions': '#1c1a15',   // encre, decision conditionnelle
+  'investir-conditions': '#14110d',   // encre, decision conditionnelle
   approfondir: '#a8541d',             // ocre brule, signal porteur
   refuser: '#9b2c1d',                 // rouge anglais
   autre: '#948770',                   // muted
@@ -228,12 +228,12 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         <div className="pf-chart">
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={stats!.velocity} margin={{ top: 10, right: 16, bottom: 0, left: -16 }}>
-              <CartesianGrid stroke="#e6dcbf" strokeDasharray="2 4" vertical={false} />
+              <CartesianGrid stroke="#f3eee5" strokeDasharray="2 4" vertical={false} />
               <XAxis
                 dataKey="month"
                 tickFormatter={formatMonth}
                 tick={{ fontSize: 11, fill: '#6b6354', fontFamily: 'system-ui' }}
-                axisLine={{ stroke: '#d4c8a8' }}
+                axisLine={{ stroke: '#e7e0d2' }}
                 tickLine={false}
               />
               <YAxis
@@ -244,11 +244,11 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
               />
               <Tooltip
                 contentStyle={{
-                  background: '#f3ecd9',
-                  border: '1px solid #d4c8a8',
+                  background: '#ffffff',
+                  border: '1px solid #e7e0d2',
                   borderRadius: 8,
                   fontSize: 12,
-                  boxShadow: '0 4px 12px rgba(28, 26, 21, 0.08)',
+                  boxShadow: '0 4px 12px rgba(20, 17, 13, 0.08)',
                 }}
                 labelFormatter={formatMonth}
               />
