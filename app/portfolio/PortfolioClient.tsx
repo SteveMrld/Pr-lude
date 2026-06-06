@@ -39,8 +39,6 @@ import { CompanyLogo } from '../components/CompanyLogo';
 
 interface Props {
   stats: PortfolioStats | null;
-  orgName: string;
-  userEmail: string;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -106,7 +104,7 @@ function formatMonth(key: string): string {
   return `${labels[parseInt(m, 10) - 1]} ${y.slice(2)}`;
 }
 
-export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
+export default function PortfolioClient({ stats }: Props) {
   // Cas null (auth ou erreur Supabase)
   // Cas vide : pas encore de dossiers
   // Cas normal : on affiche tout
@@ -125,15 +123,9 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
 
   return (
     <main className="portfolio">
-      <header className="pf-header">
-        <Link href="/" className="pf-back">← Retour</Link>
-        <div className="pf-header-id">
-          <div className="pf-org">{orgName}</div>
-          <div className="pf-user">{userEmail}</div>
-        </div>
-      </header>
-
-      {/* Intro editoriale - conditionnel selon l etat */}
+      {/* Intro editoriale - conditionnel selon l etat. La nav globale
+          (wordmark, identite, deconnexion) est rendue par AppHeader
+          dans app/layout.tsx. */}
       <section className="pf-intro">
         <div className="pf-kicker">
           <span className="pf-kicker-dot"></span>
@@ -595,40 +587,6 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         .portfolio-empty p {
           color: var(--muted);
           margin-bottom: 24px;
-        }
-
-        .pf-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          padding: 22px 40px 18px;
-          border-bottom: 1px solid var(--hairline);
-          margin-bottom: 48px;
-        }
-        .pf-back {
-          font-family: var(--sans);
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.10em;
-          text-transform: uppercase;
-          color: var(--muted);
-          text-decoration: none;
-          transition: color var(--motion-fast);
-        }
-        .pf-back:hover { color: var(--accent); }
-        .pf-header-id {
-          text-align: right;
-          font-family: var(--sans);
-        }
-        .pf-org {
-          font-size: 13.5px;
-          font-weight: 600;
-          color: var(--ink);
-        }
-        .pf-user {
-          font-size: 11px;
-          color: var(--muted);
-          margin-top: 2px;
         }
 
         .pf-intro {
@@ -1097,7 +1055,6 @@ export default function PortfolioClient({ stats, orgName, userEmail }: Props) {
         }
 
         @media (max-width: 900px) {
-          .pf-header { padding: 18px 24px 14px; }
           .pf-intro { padding: 0 24px; margin-bottom: 40px; }
           .pf-kpis {
             grid-template-columns: 1fr 1fr;

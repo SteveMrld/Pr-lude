@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { Source_Serif_4, Inter } from 'next/font/google';
+import AppHeader from './components/AppHeader';
 
 // ============================================================
 // ROOT LAYOUT
@@ -125,7 +126,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <AppHeader />
+        {children}
+      </body>
     </html>
   );
 }

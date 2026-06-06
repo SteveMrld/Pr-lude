@@ -26,11 +26,5 @@ export default async function PortfolioPage() {
 
   const stats = await getPortfolioStats();
 
-  return (
-    <PortfolioClient
-      stats={stats}
-      orgName={org.name}
-      userEmail={user.email}
-    />
-  );
+  return <PortfolioClient stats={stats} />;
 }

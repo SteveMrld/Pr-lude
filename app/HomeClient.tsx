@@ -24,7 +24,6 @@ import StructurationEntreeSection from './components/StructurationEntreeSection'
 import { TrajectoryView } from './components/TrajectoryView';
 import { TrackSelector, type AnalysisTrack } from './components/TrackSelector';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
-import ThemeToggle from './components/ThemeToggle';
 import CommentsPanel from './components/CommentsPanel';
 import VersionSelector from './components/VersionSelector';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
@@ -1775,79 +1774,14 @@ export default function HomeClient({
   // ============================================================
   if (track === null && !result && files.length === 0 && !analyzing && !savedAnalysisId) {
     return (
-      <>
-        <header className="header">
-          <div>
-            <div className="brand">Prélude</div>
-            <div className="brand-meta">Plateforme d'instruction VC</div>
-          </div>
-          {authEnabled && orgName ? (
-            <div className="header-identity">
-              <div className="header-org">{orgName}</div>
-              {userEmail && <div className="header-user">{userEmail}</div>}
-              <div className="header-actions">
-                <Link className="header-action" href="/portfolio" prefetch={false}>Portefeuille</Link>
-                <Link className="header-action" href="/history" prefetch={false}>Historique</Link>
-                <Link className="header-action" href="/settings" prefetch={false}>Réglages</Link>
-                <button
-                  className="header-action"
-                  onClick={async () => {
-                    await fetch('/api/auth/logout', { method: 'POST' });
-                    window.location.href = '/login';
-                  }}
-                  aria-label="Se déconnecter"
-                >
-                  Déconnexion
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </header>
-        <main className="container">
-          <TrackSelector onSelect={setTrack} />
-        </main>
-      </>
+      <main className="container">
+        <TrackSelector onSelect={setTrack} />
+      </main>
     );
   }
 
   return (
     <>
-      <header className="header">
-        <div>
-          <div className="brand">Prélude</div>
-          <div className="brand-meta">Plateforme d'instruction VC · Analyse rigoureuse en pipeline</div>
-        </div>
-        {authEnabled && orgName ? (
-          <div className="header-identity">
-            <div className="header-org">{orgName}</div>
-            {userEmail && <div className="header-user">{userEmail}</div>}
-            <div className="header-actions">
-              <Link className="header-action" href="/portfolio" prefetch={false}>Portefeuille</Link>
-              <Link className="header-action" href="/history" prefetch={false}>Historique</Link>
-              <Link className="header-action" href="/settings" prefetch={false}>Réglages</Link>
-              <button
-                className="header-action"
-                onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' });
-                  window.location.href = '/login';
-                }}
-                aria-label="Se déconnecter"
-              >
-                Déconnexion
-              </button>
-              <ThemeToggle />
-            </div>
-          </div>
-        ) : (
-          <div className="header-identity">
-            <div className="header-actions">
-              <Link className="header-action" href="/history" prefetch={false}>Historique</Link>
-              <ThemeToggle />
-            </div>
-          </div>
-        )}
-      </header>
-
       <main className="main">
         {/* Bandeau de progression du pipeline en sticky en haut.
             S'affiche pendant le run (analyzing=true) ET reste visible

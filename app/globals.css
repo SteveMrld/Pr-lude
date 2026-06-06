@@ -428,6 +428,58 @@ ul, ol { list-style: none; }
   background: var(--accent-soft);
 }
 
+/* ============================================================
+   NAV GLOBALE - AppHeader sticky monte en tete de body par
+   app/layout.tsx. Le header reutilise les classes .header,
+   .brand, .header-identity, .header-actions deja calibrees,
+   et superpose un comportement sticky plus une nav primaire
+   au centre avec quatre entrees (Accueil, Historique,
+   Portefeuille, Reglages). Active state porte par usePathname
+   dans HeaderClient.tsx, materialise par un soulignage ocre
+   sous le libelle de l entree courante.
+   ============================================================ */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  gap: 24px;
+}
+.brand-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.brand-link:hover .brand { color: var(--accent); }
+.header-nav {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+.header-nav-link {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+.header-nav-link:hover { color: var(--accent); }
+.header-nav-link.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+@media (max-width: 880px) {
+  .app-header { flex-wrap: wrap; gap: 16px; }
+  .header-nav { order: 3; width: 100%; gap: 18px; justify-content: flex-start; }
+  .header-nav-link { font-size: 11px; letter-spacing: 0.10em; }
+}
+
 .main { max-width: 1100px; margin: 0 auto; padding: 56px 40px 80px; }
 
 /* HERO - Titre principal grand serif, paragraphe d accroche en serif body
