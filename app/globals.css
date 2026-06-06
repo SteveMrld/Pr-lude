@@ -74,6 +74,145 @@
      un canvas 24x24, alignes sur la grille editoriale. */
   --picto-stroke: 1.5;
   --picto-stroke-thick: 1.75;
+
+  /* ============================================================
+     NOTE IC - SYSTEME D ESPACEMENT ET DE RYTHME EDITORIAL
+     ------------------------------------------------------------
+     Echelle unique appliquee a tous les dossiers. Le rythme vertical
+     respecte une grille de 4px. La mesure typographique reste dans
+     l intervalle de confort 65 a 75 caracteres par ligne, l interligne
+     est augmente pour fluidifier la lecture longue, et la longueur
+     de paragraphe est plafonnee via max-width pour casser les murs.
+
+     Ces tokens sont utilises par InvestmentNoteView.tsx (vue ecran
+     et vue print/PDF) et eventuellement repris par des sous-composants
+     (PortfolioPositionChart, HistoricalComparables, OutcomeTracking).
+     Ne jamais hardcoder de valeurs en pixels dans les paragraphes ou
+     les titres de la note : passer toujours par un token.
+     ============================================================ */
+  --note-space-1: 4px;
+  --note-space-2: 8px;
+  --note-space-3: 12px;
+  --note-space-4: 16px;
+  --note-space-5: 24px;
+  --note-space-6: 32px;
+  --note-space-7: 48px;
+  --note-space-8: 64px;
+  --note-space-9: 96px;
+
+  /* TYPO note IC. Mesure dans la regle 65-75ch, interligne 1.78. */
+  --note-measure: 68ch;
+  --note-measure-wide: 78ch;
+  --note-leading: 1.78;
+  --note-leading-dark: 1.85;
+  --note-size-body: 15.5px;
+  --note-size-lede: 17px;
+  --note-size-h2: 32px;
+  --note-size-h3: 21px;
+  --note-size-h4: 10.5px;
+  --note-tracking-body: 0.005em;
+  --note-tracking-h2: -0.015em;
+  --note-tracking-h3: -0.01em;
+  --note-tracking-h4: 0.14em;
+
+  /* RYTHME VERTICAL note IC. Espaces entre titres et bloc texte
+     calques sur l echelle d espacement, pour garantir une grille
+     visuelle constante. */
+  --note-rhythm-section: var(--note-space-8);  /* entre deux sections */
+  --note-rhythm-h2: var(--note-space-6);       /* sous un H2 */
+  --note-rhythm-h3-top: var(--note-space-7);   /* au-dessus d un H3 */
+  --note-rhythm-h3-bot: var(--note-space-5);   /* sous un H3 */
+  --note-rhythm-h4-top: var(--note-space-5);   /* au-dessus d un H4 */
+  --note-rhythm-h4-bot: var(--note-space-3);   /* sous un H4 */
+  --note-rhythm-paragraph: var(--note-space-5);/* entre paragraphes */
+  --note-rhythm-card: var(--note-space-5);     /* entre cartes */
+
+  /* VERDICT EN EXERGUE. Pour les verdicts de moteurs (Fragilite,
+     Lecture du langage, Vigilance critique) et la recommandation
+     finale, plutot que noyer la conclusion dans la prose, on la
+     remonte en exergue avec un encart sobre. */
+  --note-verdict-size: 19px;
+  --note-verdict-leading: 1.5;
+  --note-verdict-weight: 600;
+  --note-verdict-padding: var(--note-space-4) var(--note-space-5);
+  --note-verdict-border: 1px solid var(--ink);
+  --note-verdict-rule: 2px solid var(--ink);
+
+  /* MARGES PRINT note IC. Reportees dans le @page print plus bas. */
+  --note-print-margin-top: 16mm;
+  --note-print-margin-bottom: 18mm;
+  --note-print-margin-side: 14mm;
+}
+
+/* ============================================================
+   PRINT / PDF note IC
+   ------------------------------------------------------------
+   Discipline editoriale a l impression et a l export PDF :
+     - pas de carte ni de section coupee entre deux pages
+     - orphelines et veuves a 3 lignes minimum
+     - titres jamais isoles en bas de page
+     - marges constantes en mm
+     - palette claire forcee meme si le mode sombre est actif a
+       l ecran, la note imprimee est toujours sur papier blanc
+   ============================================================ */
+@media print {
+  @page {
+    margin: var(--note-print-margin-top) var(--note-print-margin-side)
+            var(--note-print-margin-bottom) var(--note-print-margin-side);
+  }
+
+  /* Force le mode clair a l impression. */
+  :root, :root[data-theme="dark"], :root[data-theme="system"] {
+    --paper: #ffffff;
+    --paper-accent: #f6f8fb;
+    --ink: #0f172a;
+    --ink-soft: #475569;
+    --muted: #64748b;
+    --hairline: #e2e8f0;
+    --hairline-soft: #f1f5f9;
+    --accent: #1e3a8a;
+    --accent-soft: #eff6ff;
+  }
+
+  /* Pas de coupure interne sur les unites editoriales. */
+  .note-section,
+  .note-card,
+  .note-callout,
+  .note-verdict,
+  .pattern-card,
+  .benchmark-block,
+  .pull-quote {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Pas de titre orphelin en bas de page. */
+  .note-section-title,
+  .note-h2,
+  .note-h3,
+  .note-h4 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Orphelines / veuves : trois lignes minimum sur tout paragraphe
+     de la note. */
+  .note-paragraph,
+  .note-paragraph-wide,
+  .note-paragraph-dark,
+  .note-section-intro {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Cache les zones non editoriales a l impression. */
+  .no-print,
+  .header,
+  .header-actions,
+  .header-logout,
+  .prelude-fold > summary {
+    display: none !important;
+  }
 }
 
 /* ============================================================

@@ -4200,19 +4200,21 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         /* SECTIONS - Numérotation grand format en serif italique, titre en
            serif affirmé. Pas de fond noir : on remplace par un trait haut
-           fin et une numérotation qui descend dans la marge. */
+           fin et une numérotation qui descend dans la marge. Le rythme
+           vertical entre sections est porte par le token --note-rhythm-section,
+           defini dans globals.css. */
         .note-section {
-          margin-bottom: 64px;
+          margin-bottom: var(--note-rhythm-section);
           position: relative;
         }
         .note-section-title {
           font-family: var(--serif);
-          font-size: 32px;
+          font-size: var(--note-size-h2);
           font-weight: 600;
           line-height: 1.15;
-          letter-spacing: -0.015em;
-          padding: 0 0 14px 0;
-          margin: 0 0 32px 0;
+          letter-spacing: var(--note-tracking-h2);
+          padding: 0 0 var(--note-space-3) 0;
+          margin: 0 0 var(--note-rhythm-h2) 0;
           background: transparent;
           color: var(--ink);
           border-bottom: 1px solid var(--ink);
@@ -4224,36 +4226,52 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-weight: 400;
           font-style: italic;
           color: var(--ink-quaternary);
-          margin-right: 14px;
+          margin-right: var(--note-space-3);
           font-feature-settings: "lnum";
         }
 
-        /* H3 - Sous-section. Style "kicker" éditorial : trait court à gauche,
-           titre serif gras, espace généreux. */
+        /* INTRO DE SECTION - Sous-titre court qui ouvre la section et
+           pose l angle de lecture. Sert d ancrage de respiration sous
+           le H2 quand la prose qui suit est dense. Style serif italique
+           sobre, taille intermediaire entre H3 et body. Optionnel : ne
+           pas remplir partout, reserver aux sections charnieres. */
+        .note-section-intro {
+          font-family: var(--serif);
+          font-style: italic;
+          font-size: var(--note-size-lede);
+          font-weight: 400;
+          line-height: 1.55;
+          color: var(--ink-soft);
+          max-width: var(--note-measure);
+          margin: calc(-1 * var(--note-space-4)) 0 var(--note-rhythm-h2) 0;
+          letter-spacing: var(--note-tracking-body);
+        }
+
         /* H3 - Sous-section. Style "kicker" éditorial : un filet horizontal
            court au-dessus du titre, titre serif gras, espace généreux.
            Quand un H3 suit immédiatement un autre H3 (sans contenu intermédiaire),
-           on évite le double filet via :first-of-type. */
+           on évite le double filet via :first-of-type. Espaces calques sur
+           --note-rhythm-h3-top et --note-rhythm-h3-bot. */
         .note-h3 {
           font-family: var(--serif);
-          font-size: 21px;
+          font-size: var(--note-size-h3);
           font-weight: 600;
           line-height: 1.25;
-          margin-top: 56px;
-          margin-bottom: 20px;
+          margin-top: var(--note-rhythm-h3-top);
+          margin-bottom: var(--note-rhythm-h3-bot);
           padding-bottom: 0;
-          padding-top: 16px;
+          padding-top: var(--note-space-4);
           padding-left: 0;
           border-bottom: none;
           border-left: none;
           border-top: 1px solid var(--ink);
-          letter-spacing: -0.01em;
+          letter-spacing: var(--note-tracking-h3);
           position: relative;
         }
         /* Le premier H3 d'une section n'a pas de filet (la section a deja son
            propre titre H2 avec filet de separation). */
         .note-section > .note-h3:first-of-type {
-          margin-top: 32px;
+          margin-top: var(--note-rhythm-h2);
           padding-top: 0;
           border-top: none;
         }
@@ -4263,37 +4281,30 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            classique des publications économiques premium. */
         .note-h4 {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-          font-size: 10.5px;
+          font-size: var(--note-size-h4);
           font-weight: 700;
-          margin-top: 28px;
-          margin-bottom: 12px;
+          margin-top: var(--note-rhythm-h4-top);
+          margin-bottom: var(--note-rhythm-h4-bot);
           text-transform: uppercase;
-          letter-spacing: 0.14em;
+          letter-spacing: var(--note-tracking-h4);
           color: var(--ink-tertiary);
         }
 
-        /* PARAGRAPHES - Refonte pour aération maximale.
-           
-           Le passage d'une note dense à un livrable d'IC lisible exige :
-           - Plus d'espace inter-paragraphes (16->24px)
-           - Plus de leading inter-lignes (1.7->1.75)
-           - Pas de justification sur paragraphes longs (la justification
-             produit des "rivières" qui rendent les blocs encore plus denses)
-           - Pas de hyphens auto (idem, casse le rythme visuel)
-           
-           Le plus important : limiter la largeur de colonne (max-width 68ch
-           ~ 680px) pour respecter le confort de lecture optimal de 60-75
-           caracteres par ligne (regle typographique standard).
-        */
+        /* PARAGRAPHES - Aeration et rythme calques sur la couche tokens
+           (note-leading, note-measure, note-rhythm-paragraph). La mesure
+           reste dans le confort 65-75ch. La justification est desactivee
+           pour eviter les rivieres typographiques. Les hyphens sont en
+           manual : c est le redacteur qui decide les coupures s il en
+           veut. */
         .note-paragraph {
-          margin: 0 0 22px 0;
-          line-height: 1.78;
-          font-size: 15.5px;
+          margin: 0 0 var(--note-rhythm-paragraph) 0;
+          line-height: var(--note-leading);
+          font-size: var(--note-size-body);
           color: var(--ink);
           text-align: left;
           hyphens: manual;
-          max-width: 68ch;
-          letter-spacing: 0.005em;
+          max-width: var(--note-measure);
+          letter-spacing: var(--note-tracking-body);
         }
         .note-paragraph:last-child {
           margin-bottom: 0;
@@ -4302,30 +4313,76 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           opacity: 0.55;
           font-style: italic;
         }
-        
+
         /* PARAGRAPHE LARGE - Pour les zones de fond sombre (recommandation
            finale, résolution dialectique) ou les zones où le paragraphe
            doit s'étendre (encadrés, alertes). */
         .note-paragraph-wide {
-          max-width: none;
+          max-width: var(--note-measure-wide);
         }
-        
+
         /* PARAGRAPHE SUR FOND SOMBRE - Le bloc bleu encre de la
-           recommandation finale necessite plus d aération encore parce que
-           le contraste fort fatigue plus vite l œil. On augmente le leading
-           a 1.85 et le margin a 28px pour vraiment respirer. */
+           recommandation finale necessite plus d aeration parce que le
+           contraste fort fatigue plus vite l oeil. Leading et margin
+           majores via les tokens --note-leading-dark et un rhythm boost. */
         .note-paragraph-dark {
-          margin: 0 0 28px 0;
-          line-height: 1.85;
-          font-size: 15.5px;
+          margin: 0 0 calc(var(--note-rhythm-paragraph) + var(--note-space-1)) 0;
+          line-height: var(--note-leading-dark);
+          font-size: var(--note-size-body);
           color: #f4ede0;
           text-align: left;
           hyphens: manual;
-          max-width: 72ch;
-          letter-spacing: 0.005em;
+          max-width: var(--note-measure-wide);
+          letter-spacing: var(--note-tracking-body);
         }
         .note-paragraph-dark:last-child {
           margin-bottom: 0;
+        }
+
+        /* VERDICT EN EXERGUE - Quand un moteur rend un verdict cle
+           (Fragilite drapeau-rouge, recommandation finale, Lecture du
+           langage alerte), on remonte la conclusion plutot que de la
+           noyer en fin de prose. Encart sobre, filet noir, typo serif
+           augmentee. Utilisable seul ou suivi d une rationale courte
+           en .note-paragraph dessous.
+
+           Trois variantes selon le niveau d alerte. Le verdict est
+           toujours self-contained : il doit etre lisible meme isole
+           visuellement. */
+        .note-verdict {
+          font-family: var(--serif);
+          font-size: var(--note-verdict-size);
+          font-weight: var(--note-verdict-weight);
+          line-height: var(--note-verdict-leading);
+          color: var(--ink);
+          padding: var(--note-verdict-padding);
+          margin: var(--note-space-5) 0;
+          border-top: var(--note-verdict-rule);
+          border-bottom: 1px solid var(--ink);
+          max-width: var(--note-measure-wide);
+          letter-spacing: var(--note-tracking-body);
+        }
+        .note-verdict-label {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: var(--note-size-h4);
+          font-weight: 700;
+          letter-spacing: var(--note-tracking-h4);
+          text-transform: uppercase;
+          color: var(--muted);
+          display: block;
+          margin-bottom: var(--note-space-2);
+        }
+        .note-verdict-alert {
+          border-top-color: var(--rouge-anglais);
+          color: var(--rouge-anglais);
+        }
+        .note-verdict-attention {
+          border-top-color: var(--ocre-brule);
+          color: var(--ocre-brule);
+        }
+        .note-verdict-positive {
+          border-top-color: var(--vert-foret);
+          color: var(--vert-foret);
         }
         
         /* CHIFFRE-CLÉ - Met en valeur les nombres importants dans la prose
