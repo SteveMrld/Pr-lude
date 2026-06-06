@@ -13,7 +13,22 @@ import HomeClient from './HomeClient';
 import LandingPage from './components/LandingPage';
 import { isAuthEnabled, getCurrentUser, getCurrentOrganization } from '@/lib/auth';
 
-export default async function Home() {
+interface PageProps {
+  searchParams?: { analysis?: string; action?: string };
+}
+
+export default async function Home({ searchParams }: PageProps) {
+  // Phase 3 retro-compat : l ancienne URL /?analysis=ID&action=dd redirige
+  // vers la route canonique /dossiers/[id]?action=dd. Couvre les bookmarks
+  // d avant Phase 3 et les liens internes restes en place dans /history.
+  if (searchParams?.analysis) {
+    const action = searchParams.action;
+    const target = action
+      ? `/dossiers/${searchParams.analysis}?action=${encodeURIComponent(action)}`
+      : `/dossiers/${searchParams.analysis}`;
+    redirect(target);
+  }
+
   if (!isAuthEnabled()) {
     return <HomeClient />;
   }

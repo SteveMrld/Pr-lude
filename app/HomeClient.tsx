@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import HistoricalComparables from './components/HistoricalComparables';
 import RadarDimensions from './components/RadarDimensions';
@@ -22,8 +23,9 @@ import {
 import IcPackView from './components/IcPackView';
 import StructurationEntreeSection from './components/StructurationEntreeSection';
 import { TrajectoryView } from './components/TrajectoryView';
-import { TrackSelector, type AnalysisTrack } from './components/TrackSelector';
+import type { AnalysisTrack } from './components/TrackSelector';
 import WorkflowStageBadge from './components/WorkflowStageBadge';
+import RecentAnalyses from './components/RecentAnalyses';
 import CommentsPanel from './components/CommentsPanel';
 import VersionSelector from './components/VersionSelector';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
@@ -264,25 +266,35 @@ export default function HomeClient({
   orgName,
   authEnabled = false,
   userRole,
+  initialAnalysisId,
 }: {
   userEmail?: string;
   userId?: string;
   orgName?: string;
   authEnabled?: boolean;
   userRole?: 'admin' | 'member' | 'observer';
+  // ID d analyse fourni par la route (/pipeline/[id] ou /dossiers/[id]).
+  // Quand cette prop est definie, HomeClient charge l analyse correspondante
+  // au mount (court-circuite le selecteur de track et la zone depot) et
+  // bascule directement en mode lecture. Equivalent semantique de l ancien
+  // ?analysis= mais porte par l URL canonique de Phase 3.
+  initialAnalysisId?: string;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   /**
    * Parcours d analyse choisi par le partner. Determine quels
    * moteurs sont mobilises et la structure de la note finale.
-   * - null : sélecteur affiché, aucun choix encore fait
-   * - 'early' : pipeline historique seed et série A
+   * - 'early' : pipeline historique seed et série A (defaut)
    * - 'growth' : pipeline Phase 4 série B et au-dela, lance les
    *              moteurs de fragilité structurelle et skip les
    *              moteurs early stage non pertinents
+   *
+   * Phase 3 : le selecteur full-screen TrackSelector est supprime au
+   * profit d un toggle integre a la zone de depot. Default early pour
+   * que le partner puisse deposer immediatement sans gate prealable.
    */
-  const [track, setTrack] = useState<AnalysisTrack | null>(null);
+  const [track, setTrack] = useState<AnalysisTrack>('early');
   // DD APPROFONDIE (Bloc 2) : workflow en deux temps. Le partner
   // declenche cette phase apres avoir lu la note Bloc 1 et decide
   // que le dossier merite une instruction approfondie (verdict
@@ -603,15 +615,69 @@ export default function HomeClient({
     return () => clearInterval(interval);
   }, [analyzing, pipelineStartTime]);
 
-  // Charge automatiquement une analyse passee si l URL contient ?analysis=ID.
-  // Permet d arriver depuis /history -> bouton "Ouvrir" et restaurer la note.
-  // Quand on charge depuis l historique, on force tous les engineStates en done
-  // pour que le bandeau pipeline n affiche pas un faux 0/12 moteurs : le
-  // pipeline a forcement tourne sinon on n aurait pas de resultJson en base.
+  // ============================================================
+  // PHASE 3 - URLS CANONIQUES PAR PHASE D ANALYSE
+  // ------------------------------------------------------------
+  // Le partner doit voir trois URLs distinctes pour les trois etats
+  // d un dossier : depot sur /, run live sur /pipeline/[id], note
+  // rendue sur /dossiers/[id]. Le decoupage repose sur deux effects
+  // de routage qui mutent l URL sans casser le stream SSE en cours.
+  //
+  // analysis-created -> history.replaceState vers /pipeline/[id]
+  //   le composant n est PAS demonte, le fetch.body.getReader()
+  //   continue son stream. Le partner voit juste l URL changer dans
+  //   la barre. Pas de re-render Next, pas de cleanup parasite.
+  //
+  // complete -> router.replace vers /dossiers/[id]
+  //   navigation Next reelle, HomeClient est demonte puis remonte
+  //   par /dossiers/[id]/page.tsx avec initialAnalysisId. Au remount
+  //   le useEffect lecture analyse charge depuis /api/analyses/[id]
+  //   et bascule sur le mode note. Le state savedAnalysisId est deja
+  //   en base, aucune perte de donnee.
+  //
+  // initialAnalysisId est present : on est deja sur la route cible,
+  // les deux effects ne declenchent rien.
+  // ============================================================
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Synchronisation URL pipeline pendant le run. Au moment ou le SSE
+  // pose le savedAnalysisId via analysis-created, on bascule l URL vers
+  // /pipeline/[id] sans demonter. Le stream survit a replaceState car
+  // Next n intercepte pas l API history native.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!savedAnalysisId || !analyzing) return;
+    if (initialAnalysisId) return; // route deja fournie, pas d intervention
+    const target = `/pipeline/${savedAnalysisId}`;
+    if (window.location.pathname === target) return;
+    window.history.replaceState(null, '', target);
+  }, [savedAnalysisId, analyzing, initialAnalysisId]);
+
+  // Redirection vers /dossiers/[id] quand le run est complete. result
+  // est pose par le handler SSE complete, savedAnalysisId par
+  // analysis-created plus tot. Quand les deux sont presents et que le
+  // pipeline a fini, on quitte la route /pipeline/[id] pour la route
+  // canonique de lecture. router.replace plutot que push pour eviter
+  // un retour bouton arriere vers une URL pipeline desuete.
+  useEffect(() => {
+    if (!savedAnalysisId || !result || analyzing) return;
+    if (initialAnalysisId) return; // deja sur la route cible
+    if (!pathname || pathname.startsWith('/dossiers/')) return;
+    router.replace(`/dossiers/${savedAnalysisId}`);
+  }, [savedAnalysisId, result, analyzing, initialAnalysisId, pathname, router]);
+
+  // Charge automatiquement une analyse passee si la route fournit un ID
+  // via la prop initialAnalysisId (/dossiers/[id] ou /pipeline/[id]) ou si
+  // l URL contient encore ?analysis=ID (retro-compat des bookmarks d avant
+  // Phase 3). Quand on charge depuis l historique, on force tous les
+  // engineStates en done pour que le bandeau pipeline n affiche pas un faux
+  // 0/12 moteurs : le pipeline a forcement tourne sinon on n aurait pas de
+  // resultJson en base.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    const analysisId = url.searchParams.get('analysis');
+    const analysisId = initialAnalysisId || url.searchParams.get('analysis');
     if (!analysisId) return;
 
     setLoadingPastAnalysis(true);
@@ -988,7 +1054,7 @@ export default function HomeClient({
             );
             if (userChoice && match.analysisId) {
               // L utilisateur veut voir l analyse existante : on redirige
-              window.location.href = `/?analysis=${match.analysisId}`;
+              window.location.href = `/dossiers/${match.analysisId}`;
               return;
             }
             if (userChoice && !match.analysisId) {
@@ -1761,24 +1827,15 @@ export default function HomeClient({
   }
 
   // ============================================================
-  // SELECTEUR DE PARCOURS
+  // PHASE 3 - PLUS DE SELECTEUR DE PARCOURS EN GATE
   // ------------------------------------------------------------
-  // Avant tout, le partner doit choisir entre le parcours early
-  // stage (pipeline historique) et le parcours growth (Phase 4
-  // Fragilite Structurelle, Lecture du langage, plus moteurs
-  // marche / macro / contrarien / financier seulement). Tant que
-  // le track n est pas choisi et qu aucune analyse n est en cours
-  // ou chargee, on rend uniquement le selecteur. Une fois choisi,
-  // le track est conserve dans le state et le rendu normal de
-  // l app reprend.
+  // Le full-screen TrackSelector qui bloquait le depot a disparu.
+  // Le track est defaulte sur 'early' et la bascule early/growth
+  // vit comme un toggle integre a la zone de depot (cf composant
+  // TrackToggle plus bas, monte dans le hero). Le partner peut
+  // deposer immediatement, et basculer en growth d un clic avant
+  // d enchainer.
   // ============================================================
-  if (track === null && !result && files.length === 0 && !analyzing && !savedAnalysisId) {
-    return (
-      <main className="container">
-        <TrackSelector onSelect={setTrack} />
-      </main>
-    );
-  }
 
   return (
     <>
@@ -2383,39 +2440,32 @@ export default function HomeClient({
 
               {files.length === 0 ? (
                 <>
-                  {track && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 16,
-                      padding: '10px 16px',
-                      marginBottom: 16,
-                      background: track === 'growth' ? '#ede2c8' : '#e8f1de',
-                      borderLeft: `3px solid ${track === 'growth' ? '#7a5a1d' : '#3f4a2b'}`,
-                      fontSize: 12,
-                    }}>
-                      <span>
-                        <strong style={{ fontWeight: 600 }}>Parcours&nbsp;:&nbsp;</strong>
-                        {track === 'growth' ? 'Dossier growth (série B et au-delà)' : 'Dossier early stage (seed, série A)'}
-                      </span>
-                      <button
-                        onClick={() => setTrack(null)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          padding: 0,
-                          fontSize: 12,
-                          color: track === 'growth' ? '#7a5a1d' : '#3f4a2b',
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          fontFamily: 'inherit',
-                        }}
-                      >
-                        Changer de parcours
-                      </button>
-                    </div>
-                  )}
+                  {/* Toggle early / growth integre a la zone de depot. Defaut
+                      early. Le partner bascule en growth d un clic avant de
+                      glisser son deck. Replace l ancien selecteur full-screen
+                      qui faisait gate sur l accueil. */}
+                  <div className="track-toggle" role="radiogroup" aria-label="Parcours d analyse">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={track === 'early'}
+                      className={`track-toggle-option${track === 'early' ? ' is-active' : ''}`}
+                      onClick={() => setTrack('early')}
+                    >
+                      <span className="track-toggle-title">Early stage</span>
+                      <span className="track-toggle-sub">Seed, serie A</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={track === 'growth'}
+                      className={`track-toggle-option${track === 'growth' ? ' is-active' : ''}`}
+                      onClick={() => setTrack('growth')}
+                    >
+                      <span className="track-toggle-title">Growth</span>
+                      <span className="track-toggle-sub">Serie B et au-dela</span>
+                    </button>
+                  </div>
                   <div className={`upload-box ${dragging ? 'dragging' : ''}`}
                     onClick={() => inputRef.current?.click()}
                     onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -2459,6 +2509,7 @@ export default function HomeClient({
                       Les moteurs du Bloc 2 ne tournent que si les documents correspondants sont fournis. Un fichier non reconnu par son nom est ajouté dans &laquo; autres &raquo; et n&apos;active aucun moteur. Pour le Module 3 DD technique, plusieurs documents techniques peuvent être déposés (architecture + sécurité + RGPD séparés), ils seront tous lus en un seul appel.
                     </div>
                   </div>
+                  <RecentAnalyses />
                 </>
               ) : (
                 <>

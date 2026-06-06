@@ -731,7 +731,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
             uploader'. */}
         {analysis.verdict !== 'refuser' && !analysis.hasBloc2 && (
           <Link
-            href={`/?analysis=${analysis.id}&action=dd`}
+            href={`/dossiers/${analysis.id}?action=dd`}
             style={{
               padding: '7px 14px',
               fontSize: 11,
@@ -759,7 +759,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
           </Link>
         )}
         <Link
-          href={`/?analysis=${analysis.id}`}
+          href={`/dossiers/${analysis.id}`}
           style={{
             padding: '7px 14px',
             fontSize: 11,

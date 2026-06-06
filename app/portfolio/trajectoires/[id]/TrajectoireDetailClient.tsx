@@ -102,7 +102,7 @@ export default function TrajectoireDetailClient({ detail, orgName, userEmail }: 
           <span>{snapshots.length} analyse{snapshots.length > 1 ? 's' : ''}</span>
         </div>
 
-        <Link href={`/?analysis=${detail.analysisId}`} className="tjd-link-analysis">
+        <Link href={`/dossiers/${detail.analysisId}`} className="tjd-link-analysis">
           Ouvrir l analyse complète →
         </Link>
       </section>

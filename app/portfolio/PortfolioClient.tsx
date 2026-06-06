@@ -392,7 +392,7 @@ export default function PortfolioClient({ stats }: Props) {
                       >
                         <CompanyLogo companyName={c.name} size={20} />
                         <a
-                          href={`/?analysis=${c.id}`}
+                          href={`/dossiers/${c.id}`}
                           style={{
                             color: 'var(--ink-soft)',
                             textDecoration: 'none',
@@ -455,7 +455,7 @@ export default function PortfolioClient({ stats }: Props) {
                         <span key={c.id}>
                           {i > 0 && <span style={{ opacity: 0.4 }}> · </span>}
                           <a
-                            href={`/?analysis=${c.id}`}
+                            href={`/dossiers/${c.id}`}
                             style={{
                               color: 'var(--ink-soft)',
                               textDecoration: 'none',
@@ -506,7 +506,7 @@ export default function PortfolioClient({ stats }: Props) {
                         <span key={co.id}>
                           {i > 0 && <span style={{ opacity: 0.4 }}> · </span>}
                           <a
-                            href={`/?analysis=${co.id}`}
+                            href={`/dossiers/${co.id}`}
                             style={{
                               color: 'var(--ink-soft)',
                               textDecoration: 'none',

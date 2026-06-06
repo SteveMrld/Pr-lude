@@ -480,6 +480,196 @@ ul, ol { list-style: none; }
   .header-nav-link { font-size: 11px; letter-spacing: 0.10em; }
 }
 
+/* ============================================================
+   TOGGLE EARLY / GROWTH - replace l ancien TrackSelector fullscreen.
+   Vit integre a la zone de depot, deux pills selectionnables, ocre
+   pour la valeur active. Le partner peut basculer en growth d un
+   clic, sans gate prealable.
+   ============================================================ */
+.track-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.track-toggle-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink-soft);
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+.track-toggle-option:hover { color: var(--ink); background: var(--paper-accent); }
+.track-toggle-option.is-active {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.track-toggle-title {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+.track-toggle-option.is-active .track-toggle-title { color: var(--accent); }
+.track-toggle-sub {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================
+   DOSSIERS RECENTS - section sous le hero depot. Quatre cartes
+   editoriales avec accroche de continuite. Le partner peut
+   reprendre un dossier d un clic. Pas de chrome bruyant : sobre,
+   accent ocre reserve au verdict approfondir.
+   ============================================================ */
+.recents {
+  max-width: 1100px;
+  margin: 48px auto 0;
+  padding: 0 40px;
+}
+.recents-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.recents-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  grid-column: 1;
+  margin-bottom: 8px;
+}
+.recents-kicker-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+.recents-title {
+  grid-column: 1;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.012em;
+  margin: 0;
+}
+.recents-link {
+  grid-column: 2;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color var(--motion-fast);
+}
+.recents-link:hover { color: var(--accent); }
+.recents-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.recents-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--motion-fast), background var(--motion-fast);
+}
+.recents-card:hover {
+  border-color: var(--ink);
+  background: var(--paper-accent);
+}
+.recents-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.recents-card-sector { font-weight: 600; }
+.recents-card-name {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 0;
+}
+.recents-card-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+.recents-card-score {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.recents-card-score span {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 1px;
+}
+.recents-card-verdict {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid currentColor;
+}
+.recents-card-verdict.verdict-investir { color: var(--vert-foret); background: var(--vert-foret-soft); }
+.recents-card-verdict.verdict-investir-conditions { color: var(--ink); background: var(--paper-accent); }
+.recents-card-verdict.verdict-approfondir { color: var(--ocre-brule); background: var(--ocre-brule-soft); }
+.recents-card-verdict.verdict-refuser { color: var(--rouge-anglais); background: var(--rouge-anglais-soft); }
+@media (max-width: 880px) {
+  .recents { padding: 0 24px; }
+  .recents-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .recents-grid { grid-template-columns: 1fr; }
+}
+
 .main { max-width: 1100px; margin: 0 auto; padding: 56px 40px 80px; }
 
 /* HERO - Titre principal grand serif, paragraphe d accroche en serif body
