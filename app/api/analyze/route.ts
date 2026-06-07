@@ -59,6 +59,7 @@ import {
   isValidStoragePath,
   type DossierFileRef,
 } from '@/lib/storage/dossier-uploads';
+import { buildVersionStamp, sealVersionStamp } from '@/lib/instrumentation/version-stamp';
 
 // Vercel Pro permet jusqu a 800s par function (13 min). Avec 12+ moteurs
 // Claude dont certains prennent 60s+ chacun, on a besoin de cette marge
@@ -1232,13 +1233,38 @@ export async function POST(req: NextRequest) {
             });
           }
 
+          // ============================================================
+          // VERSION STAMP - tampon de version du run
+          // ------------------------------------------------------------
+          // Assemble en un seul endroit (lib/instrumentation/version-stamp)
+          // le SHA commit, les modeles LLM + temperatures, les hashes
+          // des prompts et configs, les hashes des entrees. Persiste
+          // sur l analyse pour qu une issue ulterieure puisse la
+          // rattacher a la version exacte qui l a produite. Lecture
+          // seule, ne change aucun comportement de moteur.
+          // ============================================================
+          const durationMs = Date.now() - startTime;
+          const versionStamp = sealVersionStamp(
+            buildVersionStamp({
+              inputs: {
+                deckBase64: pitchDeck.payload,
+                deckBytes: pitchDeck.size,
+                pitchText: null,
+                bpText: businessPlan?.payload || null,
+                additionalFiles: allFileNames.filter(n => n !== pitchDeck.name),
+              },
+            }),
+            durationMs,
+          );
+
           const result = {
             meta: {
               filename: pitchDeck.name,
               additionalFiles: allFileNames.filter(n => n !== pitchDeck.name),
               analyzedAt: new Date().toISOString(),
-              durationMs: Date.now() - startTime,
+              durationMs,
               engineDurations,
+              versionStamp,
             },
             // Flags conflit d interet calcules juste apres extraction
             // (voir bloc CONFLITS D INTERET). Vide sur les dossiers
@@ -1370,7 +1396,7 @@ export async function POST(req: NextRequest) {
                 verdict: metadata.verdict || 'approfondir',
                 resultJson: result,
                 sourceFilename: pitchDeck.name,
-                pipelineDurationMs: result.meta.durationMs,
+                pipelineDurationMs: durationMs,
                 pipelineEnginesStatus: null,
               });
               if (persistOk) {

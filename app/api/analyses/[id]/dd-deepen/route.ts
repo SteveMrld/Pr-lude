@@ -11,6 +11,7 @@ import {
   downloadDossierFile,
   isValidStoragePath,
 } from '@/lib/storage/dossier-uploads';
+import { buildVersionStamp, sealVersionStamp } from '@/lib/instrumentation/version-stamp';
 
 // ============================================================
 // ROUTE DD APPROFONDIE (Module Bloc 2)
@@ -326,6 +327,31 @@ export async function POST(
                 ...(existingResult.meta?.engineDurations || {}),
                 ...engineDurations,
               },
+              // Version stamp de la phase DD. Le stamp Bloc 1 originel
+              // reste dans existingResult.meta.versionStamp (preserve
+              // par le spread). Ici on ajoute un sous-stamp dedie a la
+              // phase DD qui capture les entrees data room et la duree
+              // de cette passe specifique.
+              ddVersionStamp: sealVersionStamp(
+                buildVersionStamp({
+                  inputs: {
+                    deckBase64: null,
+                    deckBytes: 0,
+                    pitchText: null,
+                    bpText: ledgerExtraction
+                      ? `ledger:${generalLedger?.name || ''}`
+                      : null,
+                    additionalFiles: [
+                      ...(shareholdersAgreement ? [shareholdersAgreement.name] : []),
+                      ...(statutes ? [statutes.name] : []),
+                      ...(capTable ? [capTable.name] : []),
+                      ...clientContracts.map((c) => c.name),
+                      ...technicalDocs.map((t) => t.name),
+                    ],
+                  },
+                }),
+                Object.values(engineDurations).reduce((sum, d) => sum + d, 0),
+              ),
             },
           };
 
