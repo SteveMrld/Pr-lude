@@ -51,6 +51,7 @@ import {
   markAnalysisCompleted,
   markAnalysisFailed,
   extractAnalysisMetadata,
+  getCurrentUserId,
 } from '@/lib/analysis-store';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
@@ -60,6 +61,7 @@ import {
   type DossierFileRef,
 } from '@/lib/storage/dossier-uploads';
 import { buildVersionStamp, sealVersionStamp } from '@/lib/instrumentation/version-stamp';
+import { insertPredictionRecord } from '@/lib/prediction-records-store';
 
 // Vercel Pro permet jusqu a 800s par function (13 min). Avec 12+ moteurs
 // Claude dont certains prennent 60s+ chacun, on a besoin de cette marge
@@ -1410,6 +1412,49 @@ export async function POST(req: NextRequest) {
                 severity: 'warning',
                 context: { phase: 'mark-completed', analysisId },
               });
+            }
+          }
+
+          // ============================================================
+          // PREDICTION RECORD - cliche fige pour la reconciliation
+          // ------------------------------------------------------------
+          // Pilier preuve. Persiste un snapshot immuable de la
+          // prediction qui vient d etre produite : verdict, score
+          // global, probabilite de succes, six scores de dimension,
+          // version stamp complet. Permet plus tard de calculer une
+          // courbe de calibration segmentee par version. Best-effort :
+          // si la persistance dediee est down, on log et on continue.
+          // Ne pas bloquer le complete event.
+          // ============================================================
+          if (analysisId && persistOk) {
+            try {
+              const ownerId = await getCurrentUserId();
+              if (ownerId) {
+                const reco: any = finalRecommendation || {};
+                const successProb = typeof reco.successProbability === 'number'
+                  ? reco.successProbability
+                  : null;
+                await insertPredictionRecord({
+                  analysisId,
+                  userId: ownerId,
+                  verdict: reco.verdict || 'approfondir',
+                  globalScore: typeof mechanicalScore.globalScore === 'number'
+                    ? mechanicalScore.globalScore
+                    : null,
+                  successProbability: successProb,
+                  dimensions: {
+                    team: mechanicalScore.dimensions.team.score,
+                    market: mechanicalScore.dimensions.market.score,
+                    macro: mechanicalScore.dimensions.macro.score,
+                    financial: mechanicalScore.dimensions.financial.score,
+                    contrarian: mechanicalScore.dimensions.contrarian.score,
+                    vigilance: mechanicalScore.dimensions.vigilance.score,
+                  },
+                  versionStamp,
+                });
+              }
+            } catch (predErr: any) {
+              console.warn('[api/analyze] insertPredictionRecord echec :', predErr?.message);
             }
           }
 

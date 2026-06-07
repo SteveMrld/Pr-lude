@@ -4,6 +4,9 @@ import React from 'react';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
+import PredictionSnapshot from './PredictionSnapshot';
+import MarketOutcomeEditor from './MarketOutcomeEditor';
+import CalibrationSummary from './CalibrationSummary';
 import PortfolioPositionChart from './PortfolioPositionChart';
 import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralSpiderChart } from './sectoral';
@@ -3728,9 +3731,15 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             Trace de ce qui s&apos;est réellement passé après la décision. Une mémoire
             institutionnelle d&apos;apprentissage qui, accumulée dossier après dossier,
             permettra de réconcilier ce que Prélude prédisait avec ce que les marchés
-            ont validé ou contredit.
+            ont validé ou contredit. La prédiction est figée au moment de l&apos;analyse ;
+            l&apos;issue marché se renseigne au fil du temps ; la calibration se calcule
+            quand un seuil de dossiers résolus est franchi, sans jamais mélanger des
+            prédictions produites par des versions différentes du système.
           </p>
+          <PredictionSnapshot analysisId={analysisId} />
+          <MarketOutcomeEditor analysisId={analysisId} />
           <OutcomeTracking analysisId={analysisId} />
+          <CalibrationSummary />
         </NoteSectionWrapper>
       )}
 

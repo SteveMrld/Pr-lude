@@ -97,6 +97,18 @@ function getClient(useAdmin: boolean) {
   return useAdmin ? getSupabaseAdminClient() : getSupabaseServerClient();
 }
 
+/**
+ * Expose l user_id de la requete courante. Utile aux modules qui
+ * doivent persister une ligne rattachee au meme user que l analyse
+ * en cours (cf prediction-records-store) sans avoir a dupliquer la
+ * logique de resolution solo/multi-user. Retourne null si la
+ * session est absente en mode multi-user.
+ */
+export async function getCurrentUserId(): Promise<string | null> {
+  const { userId } = await resolveUserContext();
+  return userId;
+}
+
 // ============================================================
 // TYPES
 // ============================================================
