@@ -20,7 +20,7 @@ import {
  */
 
 function getAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
@@ -163,6 +163,96 @@ export async function insertPredictionRecord(
 
   if (error) {
     console.error('[prediction-records] insert error', error);
+    return null;
+  }
+  return mapRecord(data);
+}
+
+// ============================================================
+// Ecriture - records legacy backfilles
+// ------------------------------------------------------------
+// Variante reservee au script de backfill des analyses historiques
+// (cf scripts/backfill-prediction-records.ts). Accepte un fingerprint
+// explicite plutot que de le calculer depuis un version stamp reel :
+// les analyses pre-brique-reconciliation n ont pas de stamp, et on
+// veut que le segment legacy soit strictement separable du segment
+// courant en SQL.
+//
+// La payload version_stamp est un objet libre, pas un VersionStamp
+// canonique. La couche de calibration sait segmenter sur les colonnes
+// stamp_* peu importe ce qui est dans le jsonb.
+// ============================================================
+
+export interface LegacyPredictionRecordInput {
+  analysisId: string;
+  userId: string;
+  capturedAt: string;
+  verdict: string;
+  globalScore: number | null;
+  successProbability: number | null;
+  dimensions: {
+    team: number | null;
+    market: number | null;
+    macro: number | null;
+    financial: number | null;
+    contrarian: number | null;
+    vigilance: number | null;
+  };
+  /** Stamp arbitraire serialise en jsonb. Le script backfill y met
+   *  un objet { legacy: true, backfilledAt, sourceAnalysisId, ... }. */
+  legacyStamp: Record<string, any>;
+  /** Fingerprint explicite, ecrit tel quel sur les colonnes stamp_*.
+   *  Pour le backfill, le quartet identique pour tous les records :
+   *    commitSha: 'legacy-pre-a259c0d', configsHash/enginesHash/
+   *    modelsHash: 'legacy'. L inputs_hash est differencie par
+   *    analysisId pour preserver l unicite du tuple. */
+  fingerprint: {
+    commitSha: string | null;
+    configsHash: string | null;
+    enginesHash: string | null;
+    modelsHash: string | null;
+    inputsHash: string | null;
+  };
+  /** schemaVersion du stamp. Pour les legacy, 'legacy-v1'. */
+  schemaVersion: string;
+}
+
+export async function insertLegacyPredictionRecord(
+  input: LegacyPredictionRecordInput,
+): Promise<PredictionRecord | null> {
+  const admin = getAdmin();
+  if (!admin) return null;
+
+  const payload = {
+    analysis_id: input.analysisId,
+    user_id: input.userId,
+    captured_at: input.capturedAt,
+    verdict: input.verdict,
+    global_score: input.globalScore,
+    success_probability: input.successProbability,
+    dim_team: input.dimensions.team,
+    dim_market: input.dimensions.market,
+    dim_macro: input.dimensions.macro,
+    dim_financial: input.dimensions.financial,
+    dim_contrarian: input.dimensions.contrarian,
+    dim_vigilance: input.dimensions.vigilance,
+    version_stamp: input.legacyStamp,
+    stamp_commit_sha: input.fingerprint.commitSha,
+    stamp_configs_hash: input.fingerprint.configsHash,
+    stamp_engines_hash: input.fingerprint.enginesHash,
+    stamp_models_hash: input.fingerprint.modelsHash,
+    stamp_inputs_hash: input.fingerprint.inputsHash,
+    schema_version: input.schemaVersion,
+  };
+
+  const { data, error } = await admin
+    .from('prediction_records')
+    .insert(payload)
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('[prediction-records] legacy insert error', error);
     return null;
   }
   return mapRecord(data);
