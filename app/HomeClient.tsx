@@ -1879,7 +1879,143 @@ export default function HomeClient({
           );
         })()}
 
-        {!result && !analyzing && (
+        {/* ============================================================
+            ETAT DEDIE PAGE DOSSIER SANS RESULTAT
+            ------------------------------------------------------------
+            Quand on est monte avec un initialAnalysisId (route
+            /dossiers/[id] ou /pipeline/[id]) et que la note n a pas
+            ete chargee, on n affiche PAS le hero ni la zone d upload
+            de la home : ces CTAs prendraient le partner pour le
+            scroller vers une nouvelle analyse, ce qui creerait un
+            doublon avec un analysis_id different de l URL courante.
+            On rend a la place un etat sobre qui explique la situation
+            et renvoie a l accueil. C est le fix structurel de la
+            duplication des points d entree d analyse.
+            ============================================================ */}
+        {initialAnalysisId && !result && !analyzing && (
+          <section className="dossier-empty">
+            {loadingPastAnalysis ? (
+              <div className="dossier-empty-loading">
+                <div className="dossier-empty-eyebrow">Dossier</div>
+                <div className="dossier-empty-title">Chargement de la note d&apos;instruction</div>
+                <div className="dossier-empty-pulse" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+                <p className="dossier-empty-text">
+                  Lecture du dossier depuis la base. Si l&apos;analyse est volumineuse,
+                  l&apos;affichage peut prendre quelques secondes.
+                </p>
+              </div>
+            ) : (
+              <div className="dossier-empty-card">
+                <div className="dossier-empty-eyebrow">Dossier</div>
+                <div className="dossier-empty-title">
+                  Aucune note d&apos;instruction disponible pour ce dossier
+                </div>
+                <p className="dossier-empty-text">
+                  La ligne dossier existe mais aucun pipeline complet n&apos;a produit de
+                  note exploitable. Pour démarrer une instruction sur un nouveau
+                  dossier, retourner à l&apos;accueil et déposer les documents.
+                  Relancer un pipeline depuis cette page créerait un dossier
+                  parallèle avec un identifiant différent de l&apos;URL courante,
+                  ce qui dupliquerait l&apos;entrée et masquerait la trace existante.
+                </p>
+                {error && (
+                  <div className="dossier-empty-error">
+                    <div className="dossier-empty-error-label">Détail technique</div>
+                    <div className="dossier-empty-error-msg">{error}</div>
+                  </div>
+                )}
+                <div className="dossier-empty-actions">
+                  <a href="/" className="btn btn-primary">Retour à l&apos;accueil</a>
+                  <a href="/history" className="btn">Voir l&apos;historique</a>
+                </div>
+              </div>
+            )}
+            <style jsx>{`
+              .dossier-empty {
+                max-width: 720px;
+                margin: 80px auto 60px;
+                padding: 0 24px;
+              }
+              .dossier-empty-eyebrow {
+                font-family: var(--sans);
+                font-size: 11px;
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+                color: var(--muted, #6b6657);
+                margin-bottom: 10px;
+              }
+              .dossier-empty-title {
+                font-family: var(--serif, Georgia, serif);
+                font-size: 28px;
+                line-height: 1.25;
+                font-weight: 700;
+                color: var(--ink, #14110d);
+                margin-bottom: 20px;
+              }
+              .dossier-empty-text {
+                font-family: var(--serif, Georgia, serif);
+                font-size: 16px;
+                line-height: 1.65;
+                color: var(--ink, #14110d);
+                margin: 0 0 24px 0;
+              }
+              .dossier-empty-error {
+                margin: 24px 0;
+                padding: 14px 16px;
+                background: rgba(180, 120, 50, 0.06);
+                border-left: 3px solid var(--ocre-brule, #b47832);
+                border-radius: 3px;
+              }
+              .dossier-empty-error-label {
+                font-family: var(--sans);
+                font-size: 10px;
+                letter-spacing: 0.10em;
+                text-transform: uppercase;
+                color: var(--ocre-brule, #b47832);
+                margin-bottom: 4px;
+                font-weight: 700;
+              }
+              .dossier-empty-error-msg {
+                font-family: var(--mono, ui-monospace);
+                font-size: 13px;
+                color: var(--ink, #14110d);
+              }
+              .dossier-empty-actions {
+                display: flex;
+                gap: 12px;
+                margin-top: 28px;
+                flex-wrap: wrap;
+              }
+              .dossier-empty-loading {
+                text-align: center;
+                padding: 40px 24px;
+              }
+              .dossier-empty-pulse {
+                display: inline-flex;
+                gap: 8px;
+                margin: 24px 0;
+              }
+              .dossier-empty-pulse span {
+                display: block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: var(--ocre-brule, #b47832);
+                animation: pulse 1.2s ease-in-out infinite;
+              }
+              .dossier-empty-pulse span:nth-child(2) { animation-delay: 0.2s; }
+              .dossier-empty-pulse span:nth-child(3) { animation-delay: 0.4s; }
+              @keyframes pulse {
+                0%, 100% { opacity: 0.3; transform: scale(0.8); }
+                50% { opacity: 1; transform: scale(1.2); }
+              }
+            `}</style>
+          </section>
+        )}
+
+        {!result && !analyzing && !initialAnalysisId && (
           <>
             {/* HERO - refonte sobre :
                 - Un seul titre fort, ton editorial Le Grand Continent
