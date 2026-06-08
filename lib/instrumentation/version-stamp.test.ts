@@ -155,6 +155,75 @@ function check(label: string, cond: boolean) {
   check('commitSha string ou null', sha === null || /^[0-9a-f]{8,40}$/.test(sha));
 }
 
+// ============================================================
+// 9. runMode frozen entre dans configsHash, asOf n entre pas
+// ------------------------------------------------------------
+// Le segment corpus doit etre etanche : un re-run frozen sur un
+// deck identique a un run live doit produire un configsHash
+// distinct, sans quoi la couche de calibration melangerait les
+// deux segments. asOf est provenance pure, sans effet sur le
+// hash : deux re-runs frozen pris a des dates differentes du
+// meme deck restent dans le meme segment de calibration.
+// ============================================================
+{
+  const fixedDate = '2026-06-07T12:00:00.000Z';
+  const baseInputs = { deckBase64: 'XYZ', deckBytes: 3, pitchText: null, bpText: null };
+
+  const live = buildVersionStamp({ inputs: baseInputs, capturedAt: fixedDate });
+  const frozen = buildVersionStamp({
+    inputs: baseInputs,
+    capturedAt: fixedDate,
+    runMode: { frozen: true, asOf: '2024-09-15' },
+  });
+  const fpLive = fingerprintStamp(live);
+  const fpFrozen = fingerprintStamp(frozen);
+
+  check('Frozen change configsHash', fpLive.configsHash !== fpFrozen.configsHash);
+  check('Frozen ne change pas enginesHash', fpLive.enginesHash === fpFrozen.enginesHash);
+  check('Frozen ne change pas inputsHash', fpLive.inputsHash === fpFrozen.inputsHash);
+  check('Frozen ne change pas modelsHash', fpLive.modelsHash === fpFrozen.modelsHash);
+
+  // Deux frozen avec asOf differents -> meme configsHash. asOf n est
+  // pas dans le hash.
+  const frozenA = buildVersionStamp({
+    inputs: baseInputs,
+    capturedAt: fixedDate,
+    runMode: { frozen: true, asOf: '2024-09-15' },
+  });
+  const frozenB = buildVersionStamp({
+    inputs: baseInputs,
+    capturedAt: fixedDate,
+    runMode: { frozen: true, asOf: '2025-03-01' },
+  });
+  check('asOf seul ne change pas configsHash',
+    fingerprintStamp(frozenA).configsHash === fingerprintStamp(frozenB).configsHash);
+
+  // Stamp top-level expose runMode pour debug et persistance dans
+  // prediction_record.version_stamp.
+  check('runMode.frozen reflete l input', frozen.runMode.frozen === true);
+  check('runMode.asOf reflete l input', frozen.runMode.asOf === '2024-09-15');
+  check('Defaut runMode.frozen=false', live.runMode.frozen === false);
+  check('Defaut runMode.asOf=null', live.runMode.asOf === null);
+
+  // webSearchEnabled effectif : frozen=true force false meme si
+  // ENABLE_WEB_SEARCH=true. Test en mutant temporairement l env var.
+  const savedEnv = process.env.ENABLE_WEB_SEARCH;
+  process.env.ENABLE_WEB_SEARCH = 'true';
+  const live2 = buildVersionStamp({ inputs: baseInputs, capturedAt: fixedDate });
+  const frozen2 = buildVersionStamp({
+    inputs: baseInputs,
+    capturedAt: fixedDate,
+    runMode: { frozen: true, asOf: null },
+  });
+  check('Live respecte ENABLE_WEB_SEARCH=true', live2.webSearchEnabled === true);
+  check('Frozen force webSearchEnabled=false', frozen2.webSearchEnabled === false);
+  if (savedEnv === undefined) {
+    delete process.env.ENABLE_WEB_SEARCH;
+  } else {
+    process.env.ENABLE_WEB_SEARCH = savedEnv;
+  }
+}
+
 console.log(`\n=== version-stamp ===`);
 console.log(`pass ${pass} / fail ${fail}`);
 if (fail > 0) process.exit(1);

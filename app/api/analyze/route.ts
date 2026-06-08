@@ -147,6 +147,24 @@ export async function POST(req: NextRequest) {
     const forceNarrativeDriftFlag = body?.forceNarrativeDrift === true || body?.forceNarrativeDrift === '1';
     const forceFragilityFlag = body?.forceFragility === true || body?.forceFragility === '1';
 
+    // ============================================================
+    // MODE GELE : run sans ouverture reseau (corpus ingestion)
+    // ------------------------------------------------------------
+    // frozen=true coupe en dur le web search dans les quatre moteurs
+    // concernes (team, market, financial-coherence, macro), surpasse
+    // ENABLE_WEB_SEARCH, et entre dans le fingerprint via version-stamp
+    // pour former un segment de calibration etanche. Defaut false :
+    // aucun changement pour le flux courant.
+    //
+    // asOf est la date de provenance du deck. Ne contraint pas l API
+    // web search a des resultats historiques, c est purement
+    // informatif. La prevention de fuite vient de frozen.
+    // ============================================================
+    const frozen = body?.frozen === true || body?.frozen === 'true';
+    const asOfRaw = typeof body?.asOf === 'string' ? body.asOf.trim() : '';
+    const asOf = /^\d{4}-\d{2}-\d{2}$/.test(asOfRaw) ? asOfRaw : null;
+    const runOptions = { frozen };
+
     // Download des fichiers depuis Storage en parallele. C est le
     // seul moment ou le serveur manipule les octets : ensuite c est
     // du base64 en memoire passe aux moteurs LLM. Pas d ecriture
@@ -343,6 +361,8 @@ export async function POST(req: NextRequest) {
         mimeType: r.mimeType,
         size: r.size,
       })),
+      frozen,
+      asOf,
     });
 
     // Streaming SSE
@@ -668,13 +688,13 @@ export async function POST(req: NextRequest) {
           // skipped, sans appel LLM. Voir lib/engines/skipped-outputs.ts.
           const teamPromise = (track === 'growth'
             ? Promise.resolve(buildSkippedTeamOutput())
-            : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team)
+            : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team, runOptions)
           ).then(r => { sendDone('team', r); return r; });
 
-          const marketPromise = analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix, sectoralContext)
+          const marketPromise = analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix, sectoralContext, runOptions)
             .then(r => { sendDone('market', r); return r; });
 
-          const macroPromise = analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix, sectoralContext)
+          const macroPromise = analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix, sectoralContext, runOptions)
             .then(r => { sendDone('macro', r); return r; });
 
           const financialDataPromise = extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction)
@@ -864,6 +884,7 @@ export async function POST(req: NextRequest) {
               // applicables avant l appel LLM, voir
               // lib/engines/financial-coherence-archetype.ts.
               relevanceMatrix,
+              runOptions,
             });
             sendDone('financial-coherence', r);
             return r;
@@ -1255,6 +1276,10 @@ export async function POST(req: NextRequest) {
                 bpText: businessPlan?.payload || null,
                 additionalFiles: allFileNames.filter(n => n !== pitchDeck.name),
               },
+              // Mode de run capture dans le stamp. frozen entre dans le
+              // configsHash via runMode (cf version-stamp.ts), asOf reste
+              // top-level comme provenance pure sans participation au hash.
+              runMode: { frozen, asOf },
             }),
             durationMs,
           );

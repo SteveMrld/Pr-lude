@@ -41,6 +41,42 @@ interface CallClaudeOptions {
   maxWebSearches?: number;
 }
 
+// ============================================================
+// MODE DE RUN PARTAGE PAR LES MOTEURS
+// ------------------------------------------------------------
+// Type d options propage de la route /api/analyze vers chaque
+// moteur qui a besoin de connaitre le mode de run. Aujourd hui
+// un seul flag : frozen, qui coupe en dur le web search pour
+// les re-runs corpus (eviter toute fuite de l outcome connu).
+//
+// asOf n entre pas dans ce type : il vit dans le version stamp
+// et la ligne analyses comme provenance pure, sans effet sur les
+// appels LLM ou les outils web. La prevention de fuite vient
+// exclusivement de frozen, pas de la date.
+// ============================================================
+
+export interface EngineRunOptions {
+  /** Coupe le web_search en dur sur ce run, surpassant ENABLE_WEB_SEARCH. */
+  frozen?: boolean;
+}
+
+/**
+ * Compose les options finales d un appel callClaude en partant des
+ * options propres au moteur (typiquement maxWebSearches), en y
+ * incorporant le mode de run. Si frozen=true, l appelant force
+ * enableWebSearch:false meme si ENABLE_WEB_SEARCH=true ou si le
+ * moteur voulait laisser le defaut. Le frozen prevaut sur tout.
+ */
+export function applyRunOptions(
+  baseOptions: CallClaudeOptions,
+  runOptions: EngineRunOptions | undefined,
+): CallClaudeOptions {
+  if (runOptions?.frozen === true) {
+    return { ...baseOptions, enableWebSearch: false };
+  }
+  return baseOptions;
+}
+
 // Helper appel texte simple, avec option web_search natif.
 //
 // IMPORTANT : le defaut est MODEL (Sonnet 4.6) parce que la majorite des

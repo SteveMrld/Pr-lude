@@ -20,7 +20,7 @@
 // identique au comportement historique.
 // ============================================================
 
-import { callClaude, parseJSON } from './anthropic-client';
+import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock } from './fund-context';
@@ -208,6 +208,8 @@ interface AnalyzeFinancialCoherenceArgs {
    *  retombe sur archetype 'unclassified' avec tests universels
    *  uniquement et warning explicite remonte. */
   relevanceMatrix?: RelevanceMatrix | null;
+  /** Mode de run. frozen=true coupe le web search. */
+  runOptions?: EngineRunOptions;
 }
 
 export async function analyzeFinancialCoherence(
@@ -217,6 +219,7 @@ export async function analyzeFinancialCoherence(
   arg3?: BenchmarkPositioning | null,
   arg4?: string | null,
   arg5?: RelevanceMatrix | null,
+  arg6?: EngineRunOptions,
 ): Promise<FinancialCoherenceOutput> {
   // Compatibilite ascendante : la signature historique positionnelle
   // (extraction, financialData, market, benchmarks, fundNote) reste
@@ -228,6 +231,7 @@ export async function analyzeFinancialCoherence(
   let benchmarks: BenchmarkPositioning | null | undefined;
   let fundNote: string | null | undefined;
   let relevanceMatrix: RelevanceMatrix | null | undefined;
+  let runOptions: EngineRunOptions | undefined;
   if (arg0 && typeof arg0 === 'object' && 'extraction' in arg0) {
     extraction = arg0.extraction;
     financialData = arg0.financialData;
@@ -235,6 +239,7 @@ export async function analyzeFinancialCoherence(
     benchmarks = arg0.benchmarks;
     fundNote = arg0.fundNote;
     relevanceMatrix = arg0.relevanceMatrix;
+    runOptions = arg0.runOptions;
   } else {
     extraction = arg0 as ExtractionOutput;
     financialData = arg1 as FinancialDataExtraction;
@@ -242,6 +247,7 @@ export async function analyzeFinancialCoherence(
     benchmarks = arg3;
     fundNote = arg4;
     relevanceMatrix = arg5;
+    runOptions = arg6;
   }
 
   // Calcul deterministe de l archetype et des tests applicables.
@@ -272,12 +278,15 @@ export async function analyzeFinancialCoherence(
   // Appel LLM. Le LLM ne note QUE les tests applicables. La validation
   // de l output (presence des tests attendus, absence des tests
   // neutralises) est faite cote code lors de la recombinaison.
+  // Mode frozen (runOptions) coupe en dur le web search, surpasse
+  // ENABLE_WEB_SEARCH. Indispensable pour les re-runs corpus ou la
+  // moindre fuite sur un dossier exit/fail connu pollue le segment.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     7000,
     undefined,
-    { maxWebSearches: 3 },
+    applyRunOptions({ maxWebSearches: 3 }, runOptions),
   );
   const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse);
 

@@ -1,4 +1,4 @@
-import { callClaude, parseJSON } from './anthropic-client';
+import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
 import { gatherMacroRealData, gatherImfWeoSnapshot, type MacroSnapshot, type ImfWeoSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -185,6 +185,7 @@ export async function analyzeMacro(
   fundNote?: string | null,
   relevanceMatrix?: RelevanceMatrix | null,
   sectoralContext?: SectoralContext | null,
+  runOptions?: EngineRunOptions,
 ): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot; weoData?: ImfWeoSnapshot }> {
   // ÉTAPE 1 : Récupération des indicateurs macro réels du pays (timeout 8s pour éviter de bloquer le pipeline)
   const realData = await Promise.race([
@@ -443,13 +444,14 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
 
   // Niveau 2.A : web search active sur 2 recherches max (le moteur Macro
   // a deja beaucoup de donnees structurees, on cherche juste a verifier
-  // les nouveautes)
+  // les nouveautes). Mode frozen (runOptions) coupe en dur, surpasse
+  // ENABLE_WEB_SEARCH.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
     undefined,
-    { maxWebSearches: 2 },
+    applyRunOptions({ maxWebSearches: 2 }, runOptions),
   );
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
 

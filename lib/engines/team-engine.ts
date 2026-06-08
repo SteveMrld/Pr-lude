@@ -1,4 +1,4 @@
-import { callClaude, parseJSON } from './anthropic-client';
+import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -390,6 +390,7 @@ export async function analyzeTeam(
   extraction: ExtractionOutput,
   benchmarks?: BenchmarkPositioning | null,
   fundNote?: string | null,
+  runOptions?: EngineRunOptions,
 ): Promise<TeamAnalysisOutput & { realData?: FounderRealData[] }> {
   // ÉTAPE 1 : Récupération de data réelle pour chaque fondateur (timeout 8s par fondateur)
   const realDataPromises = (extraction.founders || []).map(async (founder) => {
@@ -566,13 +567,14 @@ Intègre dans ton analyse :
   // Niveau 2.A : web search active. Le moteur Equipe est le plus
   // critique pour la verification fondateurs, donc max_uses=4 (2-3 par
   // fondateur en general). Pour controler les couts/latence, on peut
-  // desactiver via ENABLE_WEB_SEARCH=false sur Vercel.
+  // desactiver via ENABLE_WEB_SEARCH=false sur Vercel. Mode frozen
+  // (runOptions) coupe en dur, surpasse ENABLE_WEB_SEARCH.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     8000,
     undefined, // model par defaut
-    { maxWebSearches: 4 },
+    applyRunOptions({ maxWebSearches: 4 }, runOptions),
   );
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 

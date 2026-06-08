@@ -524,6 +524,18 @@ export interface CreatePendingAnalysisInput {
     mimeType: string;
     size: number;
   }>;
+  /**
+   * Mode gele (corpus ingestion, replay deterministe). false par defaut.
+   * Le flag est aussi propage aux moteurs et au version stamp ; on le
+   * persiste sur la ligne analyses pour permettre de filtrer le bassin
+   * corpus sans rejoindre prediction_records.
+   */
+  frozen?: boolean;
+  /**
+   * Date de provenance du deck (ISO date YYYY-MM-DD). Pour le flux courant,
+   * absente. Pour le corpus, c est la date de reception du dossier.
+   */
+  asOf?: string | null;
 }
 
 /**
@@ -557,6 +569,12 @@ export async function createPendingAnalysis(
         started_at: now,
         source_filename: input.sourceFilename || null,
         uploaded_files: input.uploadedFiles || [],
+        // Provenance corpus. Defauts inoffensifs pour le flux courant :
+        // frozen=false (web search inchange), as_of=null (pas de date
+        // de reception). La migration reference_dossiers ajoute ces
+        // deux colonnes en NOT NULL DEFAULT false / NULL.
+        frozen: input.frozen === true,
+        as_of: input.asOf || null,
       })
       .select('id')
       .single();

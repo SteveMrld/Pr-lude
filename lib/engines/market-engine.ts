@@ -1,4 +1,4 @@
-import { callClaude, parseJSON } from './anthropic-client';
+import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -314,6 +314,7 @@ export async function analyzeMarket(
   fundNote?: string | null,
   relevanceMatrix?: RelevanceMatrix | null,
   sectoralContext?: SectoralContext | null,
+  runOptions?: EngineRunOptions,
 ): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
   // ÉTAPE 1 : Récupération de data réelle
   // Mots-clés à utiliser pour interroger les sources
@@ -508,13 +509,14 @@ ${relevanceBlock}
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.${buildFundNoteBlock(fundNote, 'marché')}`;
 
   // Niveau 2.A v2 : web search active sur 4 recherches max (1-2 dediees
-  // au sizing TAM/SAM/SOM + 2-3 pour concurrents/dynamique)
+  // au sizing TAM/SAM/SOM + 2-3 pour concurrents/dynamique). Mode frozen
+  // (runOptions) coupe en dur, surpasse ENABLE_WEB_SEARCH.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
     undefined,
-    { maxWebSearches: 4 },
+    applyRunOptions({ maxWebSearches: 4 }, runOptions),
   );
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 

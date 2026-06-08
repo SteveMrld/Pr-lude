@@ -94,6 +94,20 @@ export interface InputFingerprint {
   additionalFiles: string[];
 }
 
+/**
+ * Mode de run, capture par le stamp pour rendre les segments de
+ * calibration etanches. frozen=true marque un run avec web search
+ * coupe en dur (corpus ingestion, replays deterministes), et entre
+ * dans le fingerprint via configs.runMode. asOf est purement
+ * provenance : date a laquelle le deck a ete recu, ne contraint
+ * pas l API web search a des resultats historiques, n entre pas
+ * dans le hash.
+ */
+export interface RunMode {
+  frozen: boolean;
+  asOf: string | null;
+}
+
 export interface VersionStamp {
   schemaVersion: string;
   capturedAt: string;
@@ -120,6 +134,7 @@ export interface VersionStamp {
   engines: Record<string, EngineFingerprint>;
   inputs: InputFingerprint;
   webSearchEnabled: boolean;
+  runMode: RunMode;
 }
 
 // ============================================================
@@ -316,7 +331,13 @@ export function getEngineFingerprints(): Record<string, EngineFingerprint> {
 // lisibilite humaine sans aller relire le code.
 // ============================================================
 
-function getConfigFingerprints(): Record<string, ConfigFingerprint> {
+function getConfigFingerprints(runMode: RunMode): Record<string, ConfigFingerprint> {
+  // Seul frozen entre dans le hash : asOf est provenance pure et
+  // n alimente pas le fingerprint. Si demain on veut segmenter aussi
+  // par date de capture, c est une ligne a ajouter ici, pas une
+  // refonte. Le choix actuel garde le segment corpus stable a travers
+  // les decks pris a des dates differentes.
+  const runModeForHash = { frozen: runMode.frozen };
   return {
     dimensionWeights: {
       hash: canonicalHash(DIMENSION_WEIGHTS),
@@ -329,6 +350,10 @@ function getConfigFingerprints(): Record<string, ConfigFingerprint> {
     comparablesMatching: {
       hash: canonicalHash(MATCHING_CONFIG),
       value: MATCHING_CONFIG,
+    },
+    runMode: {
+      hash: canonicalHash(runModeForHash),
+      value: runModeForHash,
     },
   };
 }
@@ -374,6 +399,12 @@ export interface BuildStampOptions {
   inputs: BuildStampInputs;
   /** Override l horodatage de capture (utile aux tests deterministes). */
   capturedAt?: string;
+  /**
+   * Mode de run. Defaut : frozen=false, asOf=null (run courant). Pour
+   * une ingestion corpus, l appelant fournit explicitement frozen=true
+   * et la date de reception du deck.
+   */
+  runMode?: Partial<RunMode>;
 }
 
 /**
@@ -383,6 +414,15 @@ export interface BuildStampOptions {
  * (Vercel runtime), avec sentinels 'unreadable' / null.
  */
 export function buildVersionStamp(opts: BuildStampOptions): VersionStamp {
+  const runMode: RunMode = {
+    frozen: opts.runMode?.frozen === true,
+    asOf: opts.runMode?.asOf ?? null,
+  };
+  // Web search effectif : frozen=true coupe en dur l indicateur, meme
+  // si ENABLE_WEB_SEARCH=true sur Vercel. Garantit que le stamp d un
+  // run corpus reflete la realite (pas d ouverture reseau) et que le
+  // hash configs (qui contient runMode.frozen) etanche le segment.
+  const webSearchEnabled = !runMode.frozen && isWebSearchEnabled();
   return {
     schemaVersion: VERSION_STAMP_SCHEMA,
     capturedAt: opts.capturedAt || new Date().toISOString(),
@@ -396,10 +436,11 @@ export function buildVersionStamp(opts: BuildStampOptions): VersionStamp {
       fast: FAST_MODEL,
       defaultTemperature: 'api-default',
     },
-    configs: getConfigFingerprints(),
+    configs: getConfigFingerprints(runMode),
     engines: getEngineFingerprints(),
     inputs: fingerprintInputs(opts.inputs),
-    webSearchEnabled: isWebSearchEnabled(),
+    webSearchEnabled,
+    runMode,
   };
 }
 
