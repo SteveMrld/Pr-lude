@@ -3,6 +3,7 @@
 // et les Route Handlers pour brancher la logique d acces.
 
 import { getSupabaseServerClient, getSupabaseAdminClient } from '@/lib/supabase/server';
+import { warnOnFlagFallback } from '@/lib/env-flags';
 
 /**
  * Feature flag global. Si ENABLE_AUTH est false (ou absent), Prelude
@@ -13,7 +14,9 @@ import { getSupabaseServerClient, getSupabaseAdminClient } from '@/lib/supabase/
  * Supabase tranquillement, puis on flip ENABLE_AUTH=true sur Vercel.
  */
 export function isAuthEnabled(): boolean {
-  return process.env.ENABLE_AUTH === 'true';
+  const enabled = process.env.ENABLE_AUTH === 'true';
+  if (!enabled) warnOnFlagFallback('ENABLE_AUTH');
+  return enabled;
 }
 
 export interface CurrentUser {

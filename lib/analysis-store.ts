@@ -34,6 +34,7 @@
 
 import { getSupabaseServerClient, getSupabaseAdminClient } from './supabase/server';
 import { normalizeStringsRecursive } from './normalize-punctuation';
+import { warnOnFlagFallback } from './env-flags';
 
 // ============================================================
 // MODE SOLO : UUID admin par defaut
@@ -55,7 +56,9 @@ function getSoloUserId(): string {
 }
 
 function isAuthEnabled(): boolean {
-  return process.env.ENABLE_AUTH === 'true';
+  const enabled = process.env.ENABLE_AUTH === 'true';
+  if (!enabled) warnOnFlagFallback('ENABLE_AUTH');
+  return enabled;
 }
 
 /**
@@ -224,7 +227,9 @@ export interface ListAnalysesFilters {
  * tant que les variables Supabase ne sont pas configurees en prod.
  */
 export function isPersistenceEnabled(): boolean {
-  return process.env.ENABLE_PERSISTENCE === 'true';
+  const enabled = process.env.ENABLE_PERSISTENCE === 'true';
+  if (!enabled) warnOnFlagFallback('ENABLE_PERSISTENCE');
+  return enabled;
 }
 
 // ============================================================
