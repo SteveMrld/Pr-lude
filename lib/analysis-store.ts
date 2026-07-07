@@ -727,6 +727,109 @@ export async function markAnalysisFailed(
   }
 }
 
+// ============================================================
+// CLEANUP DES ANALYSES ORPHELINES
+// ------------------------------------------------------------
+// Le pipeline cree une ligne en status='running' au demarrage et
+// pose un statut terminal (completed ou failed) en sortie. Si le
+// runtime meurt entre les deux (timeout Vercel 800s, kill process,
+// exception non catchee, deconnexion Supabase lors du markFailed),
+// la ligne reste indefiniment en 'running'. Un cron quotidien
+// balaie ces orphelins et les bascule en 'failed' avec un message
+// explicite. Sans ce nettoyage, l Historique s empoisonne de
+// dossiers fantomes que rien ne clot.
+// ============================================================
+
+export interface StaleRunningRow {
+  id: string;
+  userId: string;
+  companyName: string;
+  startedAt: string | null;
+  updatedAt: string;
+}
+
+/**
+ * Balaie toutes les analyses coincees en status='running' dont le
+ * dernier updated_at est plus ancien que thresholdMinutes. Retourne
+ * la liste avant bascule pour permettre le logging cote appelant.
+ * Passe par le client admin (service_role) parce que le cron n a
+ * pas de contexte user.
+ */
+export async function listStaleRunningAnalyses(
+  thresholdMinutes: number,
+): Promise<StaleRunningRow[]> {
+  if (!isPersistenceEnabled()) return [];
+  try {
+    const supabase = getSupabaseAdminClient();
+    const cutoff = new Date(Date.now() - thresholdMinutes * 60_000).toISOString();
+    const { data, error } = await supabase
+      .from('analyses')
+      .select('id, user_id, company_name, started_at, updated_at')
+      .eq('status', 'running')
+      .lt('updated_at', cutoff)
+      .order('updated_at', { ascending: true })
+      .limit(500);
+    if (error) {
+      console.error('[analysis-store] listStaleRunningAnalyses erreur :', error);
+      return [];
+    }
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      userId: row.user_id,
+      companyName: row.company_name || '(sans nom)',
+      startedAt: row.started_at || null,
+      updatedAt: row.updated_at,
+    }));
+  } catch (err) {
+    console.error('[analysis-store] listStaleRunningAnalyses exception :', err);
+    return [];
+  }
+}
+
+/**
+ * Bascule en 'failed' toutes les analyses running dont updated_at
+ * est anterieur au seuil. Utilise pour le cron cleanup-stale-running.
+ * Retourne le nombre de lignes basculees. Message d erreur explicite
+ * pour differencier ces failures des erreurs metier.
+ */
+export async function markStaleRunningAsFailed(
+  thresholdMinutes: number,
+): Promise<{ swept: number; ids: string[] }> {
+  if (!isPersistenceEnabled()) return { swept: 0, ids: [] };
+  const stale = await listStaleRunningAnalyses(thresholdMinutes);
+  if (stale.length === 0) return { swept: 0, ids: [] };
+  const message =
+    `Analyse coincee en running depuis plus de ${thresholdMinutes} minutes, ` +
+    'basculee automatiquement en failed par le cron cleanup-stale-running. ' +
+    'Le pipeline a probablement subi un timeout runtime (Vercel 800s) ou ' +
+    'un kill process, sans possibilite de poser le statut terminal.';
+  try {
+    const supabase = getSupabaseAdminClient();
+    const nowIso = new Date().toISOString();
+    const cutoff = new Date(Date.now() - thresholdMinutes * 60_000).toISOString();
+    const { data, error } = await supabase
+      .from('analyses')
+      .update({
+        status: 'failed',
+        error_message: message.slice(0, 2000),
+        completed_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('status', 'running')
+      .lt('updated_at', cutoff)
+      .select('id');
+    if (error) {
+      console.error('[analysis-store] markStaleRunningAsFailed erreur :', error);
+      return { swept: 0, ids: [] };
+    }
+    const ids = (data || []).map((row: any) => row.id).filter(Boolean);
+    return { swept: ids.length, ids };
+  } catch (err) {
+    console.error('[analysis-store] markStaleRunningAsFailed exception :', err);
+    return { swept: 0, ids: [] };
+  }
+}
+
 /**
  * Lecture legere pour le polling cote client : retourne status,
  * progress, companyName et verdict sans charger result_json.

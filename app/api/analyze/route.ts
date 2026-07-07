@@ -1589,16 +1589,28 @@ export async function POST(req: NextRequest) {
       try {
         const { releaseJobSlot } = await import('@/lib/rate-limit');
         await releaseJobSlot(jobId);
-      } catch {}
+      } catch (releaseErr) {
+        // On log mais on continue : le slot sera de toute facon
+        // purge au prochain acquireJobSlot par MAX_JOB_AGE_MS.
+        console.warn('[api/analyze] releaseJobSlot echec en catch top-level :', releaseErr);
+      }
     }
     // Si la ligne d analyse a ete creee avant l erreur, on la
     // bascule en status='failed' pour qu elle n apparaisse pas
     // indefiniment comme 'running' dans Historique. Le client
     // peut lire le message via /api/analyses/[id]/run-status.
+    // Si markAnalysisFailed lui-meme echoue, le cron cleanup-stale-running
+    // rattrape la ligne apres le seuil (30 min), mais on log pour
+    // que l incident soit visible dans les logs Vercel.
     if (analysisId) {
       try {
         await markAnalysisFailed(analysisId, error?.message || 'Erreur avant pipeline');
-      } catch {}
+      } catch (markErr) {
+        console.error(
+          '[api/analyze] markAnalysisFailed echec en catch top-level, cleanup cron rattrapera :',
+          markErr,
+        );
+      }
     }
     return new Response(JSON.stringify({ error: error.message || 'Erreur', analysisId }), { status: 500 });
   }
