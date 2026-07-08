@@ -2,13 +2,50 @@ import Anthropic from '@anthropic-ai/sdk';
 
 let _client: Anthropic | null = null;
 
+// ============================================================
+// TIMEOUT ET RETRY : politique du client Anthropic
+// ------------------------------------------------------------
+// Les defaults du SDK @anthropic-ai/sdk sont trop permissifs pour
+// une fonction Vercel serverless avec maxDuration = 800s. Sans
+// override, le SDK utilise timeout = 10 min et maxRetries = 2, ce
+// qui signifie qu un seul appel Claude qui coince peut consommer
+// jusqu a 30 minutes de wall-clock : 10 min tentative initiale,
+// 10 min retry 1, 10 min retry 2. En parallele sur 6 moteurs qui
+// timeoutent tous en meme temps sur un incident Anthropic, on
+// depasse le mur des 800s en trois vagues et on recolte un
+// Vercel Runtime Timeout Error opaque qui laisse la ligne
+// analyses en 'running' fantome.
+//
+// Preuve empirique : run Food Pilot du 7 juillet 2026, patterns
+// dans les logs Vercel "11.9s x3" puis "61s x3" sur les appels
+// api.anthropic.com. Ce sont les reprises silencieuses du SDK qui
+// empilent le temps jusqu au mur, pas un moteur unique qui hang.
+//
+// Politique retenue :
+//   - timeout par appel = 60_000 ms (60s). Suffisant pour Sonnet
+//     4.6 sur nos prompts en regime nominal (mesure : 20-40s).
+//     Un appel qui depasse 60s est un signal d incident cote
+//     Anthropic ou de web_search bloque sur un upstream lent,
+//     mieux vaut abandonner que persister.
+//   - maxRetries = 0. On coupe toute reprise silencieuse. Une
+//     erreur Claude remonte immediatement au moteur qui la loggue
+//     et retourne un output degrade. La seule redondance
+//     autorisee dans le pipeline reste le retry loop explicite
+//     d orchestrate (limite a 2 tentatives), qui absorbe les 529
+//     transitoires Anthropic sur ce seul moteur critique.
+// ============================================================
+
 export function getClient(): Anthropic {
   if (_client) return _client;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY manquante. Configurer dans Vercel Settings > Environment Variables.');
   }
-  _client = new Anthropic({ apiKey });
+  _client = new Anthropic({
+    apiKey,
+    timeout: 60_000,
+    maxRetries: 0,
+  });
   return _client;
 }
 

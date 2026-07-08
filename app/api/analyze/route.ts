@@ -1143,7 +1143,14 @@ export async function POST(req: NextRequest) {
           });
 
           const orchestratePromise = (async () => {
-            const maxRetries = 2;
+            // 2 tentatives max sur orchestrate (attempt=0 puis attempt=1).
+            // Reduit du 3 historique a 2 pour ne pas ampiler la latence
+            // en incident Anthropic : depuis que le SDK a maxRetries=0,
+            // orchestrate est le seul moteur qui conserve une redondance
+            // pour absorber les 529 transitoires. Un cumul superieur a
+            // 2 essais ne fait plus que rallonger le mur sans changer
+            // la probabilite de succes en cas d incident structurel.
+            const maxRetries = 1;
             let lastError: any = null;
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
               try {
