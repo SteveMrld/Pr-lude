@@ -377,9 +377,22 @@ export async function POST(req: NextRequest) {
         const engineStartedAt: Record<string, number> = {};
         const engineDurations: Record<string, number> = {};
 
+        // send() est safe contre un controller deja ferme : quand le
+        // budget global du run est arme et que la sortie propre a deja
+        // close() le stream, les moteurs en cours de convergence peuvent
+        // continuer d appeler sendDone en arriere-plan (leurs promesses
+        // resolvent apres notre bascule vers l abort). controller.enqueue
+        // throw dans ce cas, ce qui produisait des unhandled rejections
+        // qui polluaient les logs Vercel sans aider au diagnostic. On
+        // avale silencieusement : le client a deja recu l event
+        // run-budget-exhausted, il sait que le run est fini.
         function send(eventType: string, data: any) {
           const message = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
+          try {
+            controller.enqueue(encoder.encode(message));
+          } catch {
+            // controller closed apres budget exhausted ou disconnect client
+          }
         }
 
         function sendStart(engine: string, label: string) {
@@ -387,7 +400,16 @@ export async function POST(req: NextRequest) {
           send('engine-start', { engine, label });
         }
 
+        // sendDone idempotent : le wrapper withEngineDeadline peut
+        // emettre un engine-done(null) sur deadline, puis la promesse
+        // sous-jacente peut finir par resoudre plus tard et essayer
+        // d emettre un engine-done(result) reel. On garde la premiere
+        // emission (la seule dont le client tient compte pour son etat
+        // pipeline) et on ignore les suivantes.
+        const sentDone = new Set<string>();
         function sendDone(engine: string, output: any) {
+          if (sentDone.has(engine)) return;
+          sentDone.add(engine);
           const startedAt = engineStartedAt[engine];
           const durationMs = startedAt != null ? Date.now() - startedAt : null;
           if (durationMs != null) engineDurations[engine] = durationMs;
@@ -443,6 +465,100 @@ export async function POST(req: NextRequest) {
             // Connection closed, on arrete le heartbeat
           }
         }, 15000);
+
+        // ============================================================
+        // TROIS GARDES DE TEMPS DU PIPELINE, DU PLUS FIN AU PLUS LARGE
+        // ------------------------------------------------------------
+        // Ces trois seuils se cumulent et couvrent chacun une classe de
+        // defaillance distincte. Aucun n est optionnel, aucun ne se
+        // substitue aux deux autres.
+        //
+        //   1. SDK Anthropic : timeout 60s par appel, maxRetries 0.
+        //      Pose en axis 1 dans lib/engines/anthropic-client.ts.
+        //      Coupe court a un appel individuel qui traine, empeche
+        //      les reprises silencieuses du SDK (11.9s x3 puis 61s x3
+        //      observes sur Food Pilot du 7 juillet 2026).
+        //
+        //   2. Par moteur : deadline 120s. Chaque moteur du pipeline
+        //      est enveloppe dans withEngineDeadline qui, au trigger,
+        //      logue 'deadline-exceeded' dans error_logs, emet
+        //      sendDone(engine, null) au client et resoud la promesse
+        //      sur null. Les autres moteurs continuent. Downstream
+        //      accepte le null (orchestrate a son fallback degrade,
+        //      les moteurs conditionnels ont deja le pattern).
+        //      Budget nominal d un moteur Sonnet 4.6 = 20-60s, la
+        //      deadline 120s laisse deux tentatives SDK dans le pire
+        //      des cas avant abandon propre.
+        //
+        //   3. Budget global du run : 600s. AbortController arme des
+        //      l entree du stream, budgetPromise rejette a l abort.
+        //      Race le Promise.all central et orchestrate. Marge de
+        //      200s avant le mur Vercel 800s pour la sortie propre :
+        //      markAnalysisFailed lisible, event 'run-budget-exhausted'
+        //      au client, close du stream. Sans ce budget, un incident
+        //      Anthropic durable laissait courir jusqu au mur 800s
+        //      puis Vercel tuait en Runtime Timeout Error opaque.
+        // ============================================================
+        const ENGINE_DEADLINE_MS = 120_000;
+        const RUN_BUDGET_MS = 600_000;
+
+        const budgetAbort = new AbortController();
+        const budgetTimer = setTimeout(() => {
+          budgetAbort.abort();
+        }, RUN_BUDGET_MS);
+
+        // Promesse qui rejette a l abort, race le Promise.all central et
+        // orchestrate. Le message est un tag reconnu par le catch general
+        // pour distinguer le budget exhausted d une erreur Anthropic
+        // ordinaire et construire le userMessage adapte.
+        const budgetPromise: Promise<never> = new Promise((_, reject) => {
+          budgetAbort.signal.addEventListener('abort', () => {
+            reject(new Error(`PIPELINE_BUDGET_EXHAUSTED:${RUN_BUDGET_MS}`));
+          }, { once: true });
+        });
+
+        // Wrapper deadline par moteur. Au trigger : log
+        // 'deadline-exceeded' dans error_logs avec le nom du moteur,
+        // sendDone(engine, null) pour maintenir Promise.all vivant et
+        // signaler au client que ce moteur specifique a echoue proprement,
+        // puis resolve sur null. La promesse sous-jacente continue de
+        // vivre mais son sendDone eventuel sera avale par l idempotence
+        // de sentDone. Ne s applique pas a orchestrate qui a sa propre
+        // logique de retry controle (2 tentatives max, cf axis 1).
+        function withEngineDeadline<T>(engine: string, work: Promise<T>): Promise<T | null> {
+          return new Promise((resolve) => {
+            let settled = false;
+            const timer = setTimeout(() => {
+              if (settled) return;
+              settled = true;
+              logException(`pipeline.${engine}`, new Error('deadline-exceeded'), {
+                severity: 'warning',
+                context: { engine, deadlineMs: ENGINE_DEADLINE_MS },
+              });
+              try { sendDone(engine, null); } catch { /* controller closed */ }
+              resolve(null);
+            }, ENGINE_DEADLINE_MS);
+            work.then(
+              (v) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve(v);
+              },
+              (err) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                logException(`pipeline.${engine}`, err, {
+                  severity: 'warning',
+                  context: { engine, phase: 'engine-error' },
+                });
+                try { sendDone(engine, null); } catch { /* controller closed */ }
+                resolve(null);
+              },
+            );
+          });
+        }
 
         try {
           // Premier event : l id de l analyse cree a t0. Le client
@@ -1036,6 +1152,12 @@ export async function POST(req: NextRequest) {
           // duree dominante est typiquement causal (qui attend pattern)
           // ou fragility/financial-coherence selon le profil du dossier.
           // ============================================================
+          // Chaque promesse est enveloppee par withEngineDeadline (120s
+          // max, fallback null loggue). La convergence Promise.all reste
+          // donc vivante meme si un moteur particulier depasse sa
+          // deadline : Promise.all voit un null a sa place. En surcouche,
+          // race contre budgetPromise (600s) pour couper court a un
+          // enchainement de deadlines qui saturerait quand meme le mur.
           const [
             team,
             market,
@@ -1054,24 +1176,27 @@ export async function POST(req: NextRequest) {
             fragiliteStructurelle,
             causalReversal,
             referenceChecks,
-          ] = await Promise.all([
-            teamPromise,
-            marketPromise,
-            macroPromise,
-            financialDataPromise,
-            saasMetricsPromise,
-            industrialMetricsPromise,
-            benchmarksPromise,
-            patternPromise,
-            blindspotPromise,
-            contrarianPromise,
-            financialCoherencePromise,
-            techClaimPromise,
-            executionFrictionPromise,
-            narrativeDriftPromise,
-            fragilityPromise,
-            causalPromise,
-            referenceChecksPromise,
+          ] = await Promise.race([
+            Promise.all([
+              withEngineDeadline('team', teamPromise),
+              withEngineDeadline('market', marketPromise),
+              withEngineDeadline('macro', macroPromise),
+              withEngineDeadline('financial-extraction', financialDataPromise),
+              withEngineDeadline('saas-metrics', saasMetricsPromise),
+              withEngineDeadline('industrial-metrics', industrialMetricsPromise),
+              withEngineDeadline('benchmarks', benchmarksPromise),
+              withEngineDeadline('pattern', patternPromise),
+              withEngineDeadline('blindspot', blindspotPromise),
+              withEngineDeadline('contrarian', contrarianPromise),
+              withEngineDeadline('financial-coherence', financialCoherencePromise),
+              withEngineDeadline('tech-claim', techClaimPromise),
+              withEngineDeadline('execution-friction', executionFrictionPromise),
+              withEngineDeadline('narrative-drift', narrativeDriftPromise),
+              withEngineDeadline('fragility-structurelle', fragilityPromise),
+              withEngineDeadline('causal', causalPromise),
+              withEngineDeadline('reference-checks', referenceChecksPromise),
+            ]),
+            budgetPromise,
           ]);
 
           // ============================================================
@@ -1195,7 +1320,16 @@ export async function POST(req: NextRequest) {
             };
           })();
 
-          const finalRecommendation = await orchestratePromise.then(r => {
+          // Race orchestrate contre le budget global. Meme si orchestrate
+          // a son propre retry loop (2 tentatives depuis axis 1), un
+          // incident Anthropic prolonge peut le faire depasser le budget
+          // residuel apres la convergence des 16 autres moteurs. Le
+          // catch general produira alors la note partielle avec les 16
+          // premiers aboutis mais sans synthese finale.
+          const finalRecommendation = await Promise.race([
+            orchestratePromise,
+            budgetPromise,
+          ]).then(r => {
             sendDone('orchestrate', r);
             return r;
           });
@@ -1533,6 +1667,8 @@ export async function POST(req: NextRequest) {
               pitchDeckName: pitchDeck.name,
               hasBP: !!businessPlan,
               forcePrescan,
+              budgetExhausted: /^PIPELINE_BUDGET_EXHAUSTED/.test(String(error.message || '')),
+              enginesCompleted: Object.keys(engineDurations),
             },
           });
 
@@ -1543,7 +1679,30 @@ export async function POST(req: NextRequest) {
           // qu il peut lever lui-meme en deux clics.
           let userMessage = error.message || 'Erreur pipeline';
           const rawMessage = String(error.message || '');
-          if (rawMessage.includes('specified API usage limits')) {
+          if (/^PIPELINE_BUDGET_EXHAUSTED/.test(rawMessage)) {
+            // Sortie propre sur budget global expire (600s). On produit
+            // une note partielle horodatee listant les moteurs qui ont
+            // eu le temps d aboutir, pour que le partner sache exactement
+            // ou le pipeline a coupe et puisse relancer en connaissance
+            // de cause. Sans ce message dedie, le user voyait un tag
+            // technique opaque.
+            const completed = Object.keys(engineDurations);
+            const budgetSeconds = Math.round(RUN_BUDGET_MS / 1000);
+            const nowIso = new Date().toISOString();
+            userMessage = completed.length === 0
+              ? `Budget de temps du run epuise (${budgetSeconds}s) avant qu aucun moteur n aboutisse a ${nowIso}. Signe fort d incident Anthropic ou de web_search bloque sur un upstream lent. Patiente cinq minutes et relance. Si le probleme persiste, verifie https://status.anthropic.com.`
+              : `Budget de temps du run epuise (${budgetSeconds}s) a ${nowIso}. ${completed.length} moteur(s) abouti(s) : ${completed.join(', ')}. Les moteurs restants n ont pas eu le temps de resoudre. Relance le dossier pour obtenir une note complete. Si l incident se reproduit, verifie https://status.anthropic.com.`;
+            // Emet un event dedie pour que le client puisse afficher un
+            // bandeau specifique (note partielle) plutot que la banniere
+            // rouge classique. Le champ enginesCompleted permet au client
+            // de rendre l etat exact du pipeline au moment du kill.
+            send('run-budget-exhausted', {
+              budgetMs: RUN_BUDGET_MS,
+              enginesCompleted: completed,
+              enginesCompletedCount: completed.length,
+              exhaustedAt: nowIso,
+            });
+          } else if (rawMessage.includes('specified API usage limits')) {
             userMessage = 'Limite de consommation Anthropic atteinte. La cle API a un plafond mensuel configure dans la console Anthropic. Pour relancer immediatement les analyses, va sur https://console.anthropic.com/settings/limits et augmente ou supprime le Spend limit. Tu peux aussi consulter ta consommation reelle sur https://console.anthropic.com/settings/usage. La limite se reset automatiquement le 1er du mois suivant.';
           } else if (rawMessage.includes('rate_limit_error') || rawMessage.includes('rate_limit_exceeded')) {
             userMessage = 'Limite de requetes par minute Anthropic temporairement saturee (rafale d analyses simultanees). Patiente une minute et relance. Si le probleme persiste, augmente ton tier dans https://console.anthropic.com/settings/limits.';
@@ -1569,6 +1728,11 @@ export async function POST(req: NextRequest) {
           });
         } finally {
           clearInterval(heartbeatInterval);
+          // Desarmement du timer budget global : evite qu il fire en
+          // arriere-plan apres la fin nominale du run et que le SDK
+          // Anthropic recoive un abort spurieux sur un run reussi
+          // suivant qui partagerait le meme worker Vercel.
+          clearTimeout(budgetTimer);
           // Liberation du slot rate-limit. Async fire-and-forget pour
           // ne pas retarder la fermeture du stream. Le cleanup au pire
           // des cas se fait par la purge MAX_JOB_AGE_MS au prochain
@@ -1577,7 +1741,7 @@ export async function POST(req: NextRequest) {
             const { releaseJobSlot } = await import('@/lib/rate-limit');
             releaseJobSlot(jobId).catch(() => {});
           }
-          controller.close();
+          try { controller.close(); } catch { /* deja close */ }
         }
       },
     });
