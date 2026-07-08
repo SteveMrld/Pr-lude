@@ -564,17 +564,25 @@ Intègre dans ton analyse :
 - L'insight propriétaire dans tacitExpertise du fondateur concerné
 - Le founder commitment et la team chemistry dans collectiveAntiFragility et redFlags/greenFlags${buildFundNoteBlock(fundNote, 'équipe')}`;
 
-  // Niveau 2.A : web search active. Le moteur Equipe est le plus
-  // critique pour la verification fondateurs, donc max_uses=4 (2-3 par
-  // fondateur en general). Pour controler les couts/latence, on peut
-  // desactiver via ENABLE_WEB_SEARCH=false sur Vercel. Mode frozen
-  // (runOptions) coupe en dur, surpasse ENABLE_WEB_SEARCH.
+  // Niveau 2.A : web search active. maxWebSearches=1 dans la route
+  // analyze (chemin critique utilisateur, budget de temps strict) :
+  // reduit du 4 historique parce que chaque hop web_search enchaine
+  // en cascade des upstreams externes (OpenAlex, GitHub, LinkedIn)
+  // qui allongent la latence de l appel Anthropic entier. Sur un
+  // incident upstream, un multi-hop pouvait saturer le budget moteur
+  // de 120s a lui seul (cf axis 2 refonte timeout pipeline). Un hop
+  // unique suffit pour verifier un fondateur : profil LinkedIn ou
+  // publication academique, l essentiel du signal se trouve dans le
+  // premier resultat. Les moteurs sectoriels du cron gardent leurs
+  // max_uses eleves (regenerator.ts, milestone-detection-runner.ts)
+  // parce qu ils tournent hors chemin critique et beneficient du
+  // multi-hop pour croiser plusieurs sources.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     8000,
     undefined, // model par defaut
-    applyRunOptions({ maxWebSearches: 4 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1 }, runOptions),
   );
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 

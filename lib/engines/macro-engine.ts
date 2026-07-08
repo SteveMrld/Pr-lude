@@ -442,16 +442,19 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
   - Tendances de financement VC du secteur sur les 6 derniers mois
 2 recherches max. Privilegier les donnees pre-2026 deja dans le contexte.${buildFundNoteBlock(fundNote, 'macro')}`;
 
-  // Niveau 2.A : web search active sur 2 recherches max (le moteur Macro
-  // a deja beaucoup de donnees structurees, on cherche juste a verifier
-  // les nouveautes). Mode frozen (runOptions) coupe en dur, surpasse
+  // Niveau 2.A : web search active. maxWebSearches=1 dans la route
+  // analyze (reduction du 2 historique) : la refonte timeout pipeline
+  // impose un budget de temps strict, le moteur Macro consomme deja
+  // beaucoup de donnees structurees en input via sectoralContext donc
+  // un hop unique de verification suffit sans degradation notable de
+  // la qualite. Mode frozen (runOptions) coupe en dur, surpasse
   // ENABLE_WEB_SEARCH.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
     undefined,
-    applyRunOptions({ maxWebSearches: 2 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1 }, runOptions),
   );
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
 

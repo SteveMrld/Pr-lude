@@ -281,12 +281,17 @@ export async function analyzeFinancialCoherence(
   // Mode frozen (runOptions) coupe en dur le web search, surpasse
   // ENABLE_WEB_SEARCH. Indispensable pour les re-runs corpus ou la
   // moindre fuite sur un dossier exit/fail connu pollue le segment.
+  //
+  // maxWebSearches=1 dans la route analyze (reduction du 3 historique)
+  // pour respecter le budget de temps du run 600s : les benchmarks
+  // sectoriels de cadrage sont deja injectes en input via la matrice
+  // et les fiches sectorielles, un hop unique de verification suffit.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     7000,
     undefined,
-    applyRunOptions({ maxWebSearches: 3 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1 }, runOptions),
   );
   const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse);
 

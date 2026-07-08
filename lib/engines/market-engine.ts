@@ -508,15 +508,19 @@ ${relevanceBlock}
 
 Croise déclaré et vérifié pour produire l'analyse au format JSON structuré demandé.${buildFundNoteBlock(fundNote, 'marché')}`;
 
-  // Niveau 2.A v2 : web search active sur 4 recherches max (1-2 dediees
-  // au sizing TAM/SAM/SOM + 2-3 pour concurrents/dynamique). Mode frozen
-  // (runOptions) coupe en dur, surpasse ENABLE_WEB_SEARCH.
+  // Niveau 2.A v2 : web search active. maxWebSearches=1 dans la route
+  // analyze (reduction du 4 historique) : un multi-hop TAM+concurrents
+  // enchainait quatre appels externes en cascade et pouvait saturer le
+  // budget moteur 120s a lui seul sur upstream lent. Un hop unique
+  // suffit pour situer le marche ; les benchmarks precis sont deja
+  // agreges dans les fiches sectorielles servies par sectoralContext.
+  // Mode frozen (runOptions) coupe en dur, surpasse ENABLE_WEB_SEARCH.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
     undefined,
-    applyRunOptions({ maxWebSearches: 4 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1 }, runOptions),
   );
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 
