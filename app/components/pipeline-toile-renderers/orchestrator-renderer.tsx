@@ -52,16 +52,25 @@ export function OrchestratorRenderer({ output }: ToileRendererProps) {
   return (
     <div>
       {degraded && (
-        <Section title="Mode degrade">
+        <Section title="Synthese narrative indisponible">
           <Prose>
             <p>
-              La synthese finale a ete produite en mode degrade : l orchestrateur
-              n a pas pu agreger tous les moteurs. Les scores et le verdict
-              ci-dessous sont indicatifs.
+              Le score global et le verdict affiches ci-dessous sont ceux
+              calcules mecaniquement sur les 16 moteurs Bloc 1 qui ont abouti,
+              selon la formule et les ponderations documentees dans le score
+              calculator. Ils sont veridiques et opposables, pas indicatifs.
+            </p>
+            <p>
+              Ce qui manque dans cette note : la mise en recit du retournement
+              causal, la resolution dialectique blindspots / contrarien
+              argumentee, les decision drivers, les conditions cles et le plan
+              de chantiers. L orchestrateur LLM final a echoue apres plusieurs
+              tentatives, typiquement sur une surcharge Anthropic transitoire.
+              Relancer l analyse pour completer la note.
             </p>
             {degradedReason && (
               <p style={{ fontStyle: 'italic', color: 'var(--muted)' }}>
-                Cause : {degradedReason}
+                Cause technique : {degradedReason}
               </p>
             )}
           </Prose>

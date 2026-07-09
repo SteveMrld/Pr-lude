@@ -1298,19 +1298,38 @@ export async function POST(req: NextRequest) {
                 }
               }
             }
-            // Fallback minimal : on construit une recommandation degradee
-            // pour ne pas perdre le pipeline. Le partner verra qu il y a
-            // eu un probleme et pourra relancer ulterieurement.
+            // Fallback conforme a la doctrine : quand orchestrate echoue,
+            // on n invente pas un verdict 'A reinstruire' avec globalScore
+            // null. Le mechanicalScore est deja calcule a partir des 16
+            // moteurs Bloc 1 qui ont abouti, il est LA source de verite
+            // du score et du verdict (cf commentaire route ligne 1219-1221
+            // et documentation dans lib/engines/score-calculator.ts). Ce
+            // qui manque quand orchestrate echoue, c est la mise en recit :
+            // narratif de retournement causal, resolution dialectique
+            // blindspots/contrarien, decision drivers, plan de chantiers.
+            // Le flag degraded=true signale a l UI qu il faut afficher le
+            // bandeau "synthese narrative indisponible" sans salir le
+            // score. Avant ce fix, un 529 sur orchestrate annihilait le
+            // travail des 16 moteurs et affichait score 0 verdict inventes.
             await logException('pipeline.orchestrate', lastError, {
               severity: 'error',
-              context: { attempts: maxRetries + 1, fallback: 'degraded' },
+              context: {
+                attempts: maxRetries + 1,
+                fallback: 'degraded-mechanical',
+                mechanicalScore: mechanicalScore.globalScore,
+                mechanicalVerdict: mechanicalScore.verdict,
+              },
             });
             return {
-              verdict: 'A reinstruire',
+              verdict: mechanicalScore.verdict,
               successProbability: null,
               failureProbability: null,
-              globalScore: null,
-              argumentation: 'La synthèse finale n\'a pas pu être produite (échec du moteur d\'orchestration après plusieurs tentatives). Les moteurs Bloc 1 précédents ont néanmoins tourné et leurs résultats sont consultables dans le dashboard. Pour obtenir un verdict complet, relancer l\'analyse sur ce dossier (la plupart des échecs sont transitoires : 529 Anthropic, timeout réseau, surcharge LLM).',
+              globalScore: mechanicalScore.globalScore,
+              argumentation:
+                `La synthese narrative finale n a pas pu etre produite (echec du moteur d orchestration apres plusieurs tentatives, cause probable : surcharge transitoire Anthropic 529). ` +
+                `Le score global affiche (${mechanicalScore.globalScore}/100) et le verdict (${mechanicalScore.verdict}) sont ceux calcules mecaniquement a partir des 16 moteurs Bloc 1 qui ont abouti, selon la formule et les ponderations documentees dans lib/engines/score-calculator.ts. ` +
+                `Ce qui manque dans cette note : la mise en recit du retournement causal, la resolution dialectique blindspots / contrarien argumentee, les decision drivers, les conditions cles et le plan de chantiers. ` +
+                `Pour completer la note, relancer l analyse sur ce dossier ; la plupart des echecs d orchestrate sont transitoires.`,
               keyConditions: [],
               blindspotsVsContrarian: null,
               computedScoreBreakdown: null,
