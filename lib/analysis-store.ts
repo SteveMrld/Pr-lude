@@ -246,18 +246,35 @@ export function extractAnalysisMetadata(result: any): Partial<SaveAnalysisInput>
   const contrarian = result?.contrarianSingularity || {};
   const coherence = result?.financialCoherence || {};
   const reco = result?.finalRecommendation || {};
+  // mechanicalScore est la source de verite du score et du verdict,
+  // calculee deterministe a partir des 16 moteurs Bloc 1 (cf brique 2
+  // fix orchestrate fallback). Persiste desormais en top-level du
+  // result par la route analyze. Sert de fallback dur au cas ou
+  // finalRecommendation aurait un globalScore null (echec orchestrate
+  // sur un ancien run persiste avant brique 1, ou tout chemin
+  // downstream qui court-circuiterait le fallback conforme).
+  const mech = result?.mechanicalScore || {};
 
   // Le verdict canonique : on prefere le verdict de la recommandation
-  // finale, sinon on tombe sur le verdict du moteur principal
+  // finale s il est renseigne, sinon on tombe sur le verdict mecanique,
+  // sinon sur la valeur par defaut. L ordre garantit qu on n ecrase
+  // jamais un verdict LLM valide, mais qu on ne persiste jamais un
+  // 'approfondir' par defaut alors que mechanicalScore avait deja
+  // derive un verdict propre.
   const verdict =
     reco?.verdict ||
     reco?.recommendation ||
+    mech?.verdict ||
     'approfondir';
 
-  // Score global : pondere de plusieurs sources possibles
+  // Score global : preference finalRecommendation, fallback
+  // mechanicalScore, sinon null. Le fallback couvre le cas d un
+  // finalRecommendation degrade dont on aurait perdu la connexion
+  // au mechanicalScore (protection en profondeur).
   const globalScore =
     reco?.globalScore ??
     reco?.confidence ??
+    (typeof mech?.globalScore === 'number' ? mech.globalScore : null) ??
     null;
 
   // Conversion sure du montant si present

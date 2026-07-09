@@ -1471,6 +1471,17 @@ export async function POST(req: NextRequest) {
             financialCoherence,
             techClaimCoherence,
             executionFriction,
+            // Score mecanique persiste en top-level. Source de verite
+            // pour le globalScore et le verdict, calculee sur les 16
+            // moteurs Bloc 1 (cf lib/engines/score-calculator.ts). Le
+            // stocker ici permet a extractAnalysisMetadata et a toute
+            // re-hydratation cote client de retrouver les valeurs
+            // veridiques meme quand finalRecommendation est degrade
+            // (echec orchestrate). Avant ce fix, mechanicalScore
+            // n existait qu en scope local de la route, il etait perdu
+            // au moment de la persistance quand orchestrate fallback,
+            // et l analyste se retrouvait avec score 0 verdict invente.
+            mechanicalScore,
             // Bloc 2 (Data Room) : volontairement non execute ici. Sera
             // peuple par /api/analyses/[id]/dd-deepen quand le VC declenche
             // la DD approfondie. Les champs ledgerExtraction, ddFinancial,
