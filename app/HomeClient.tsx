@@ -3140,15 +3140,26 @@ export default function HomeClient({
               )}
               {/* Bouton export PDF : active printMode qui rend toutes les sections
                   (dashboard analytique + note d investissement) simultanement,
-                  puis envoie le HTML rendu a la route serveur /api/export-pdf
-                  qui genere le PDF avec Puppeteer. Plus fiable que window.print()
-                  qui produit des PDF corrompus selon le navigateur (Chrome desktop
-                  generait des fichiers 0 octets, Android coupait au bout de 4 pages). */}
+                  puis tente la route serveur /api/export-pdf (Puppeteer + Chromium
+                  Sparticuz) avec retry backoff [0s, 3s, 8s] pour absorber les
+                  incidents transitoires du service upstream. Si les trois tentatives
+                  echouent, bascule automatiquement sur window.print() qui honore
+                  les regles @media print de globals.css. Le bouton produit donc
+                  toujours un rendu imprimable, jamais un ecran d erreur. Le vrai
+                  message d erreur serveur (champ detail de la reponse 500) est
+                  logue en console pour le diagnostic, pas affiche brut a
+                  l analyste. */}
               <button
                 onClick={async () => {
                   setPrintMode(true);
                   // Attendre que React rende toutes les sections en printMode
                   await new Promise((r) => setTimeout(r, 800));
+
+                  // Trace du dernier detail serveur pour l ajouter au message
+                  // d erreur final si le fallback lui-meme casse. Sans cette
+                  // capture, le partner voyait un message generique et le
+                  // diagnostic serveur se perdait au telegraph.
+                  let lastServerDetail: string | null = null;
 
                   try {
                     // Recuperer le HTML rendu de la zone de contenu principale
@@ -3175,39 +3186,135 @@ export default function HomeClient({
                     }
                     const css = cssRules.join('\n');
 
-                    // Appel a la route serveur
                     const companyName = result?.extraction?.companyName || 'analyse';
                     const fileName = `prelude-${String(companyName).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;
 
-                    const res = await fetch('/api/export-pdf', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        html,
-                        css,
-                        title: `Prelude · ${companyName}`,
-                        fileName,
-                      }),
-                    });
+                    // Retry avec backoff exponentiel sur le service PDF serveur.
+                    // Trois tentatives : immediate, +3s, +8s. Le service depend
+                    // d un Chromium telecharge au runtime depuis GitHub Releases
+                    // Sparticuz ; cet upstream peut saturer, retourner un 5xx
+                    // transitoire ou avoir un cold start plus long qu attendu.
+                    // Les backoffs croissants absorbent la majorite des
+                    // incidents sans faire poireauter le partner sur un
+                    // service durablement en panne.
+                    const backoffs = [0, 3000, 8000];
+                    let succeeded = false;
 
-                    if (!res.ok) {
-                      const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
-                      throw new Error(errorData.error || `HTTP ${res.status}`);
+                    for (let attempt = 0; attempt < backoffs.length; attempt++) {
+                      if (backoffs[attempt] > 0) {
+                        console.warn(
+                          `[export-pdf] backoff ${backoffs[attempt] / 1000}s avant tentative ${attempt + 1}/${backoffs.length}`,
+                        );
+                        await new Promise((r) => setTimeout(r, backoffs[attempt]));
+                      }
+                      try {
+                        const res = await fetch('/api/export-pdf', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            html,
+                            css,
+                            title: `Prelude · ${companyName}`,
+                            fileName,
+                          }),
+                        });
+
+                        if (res.ok) {
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = fileName;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                          succeeded = true;
+                          console.info(
+                            `[export-pdf] genere par le serveur a la tentative ${attempt + 1}/${backoffs.length}`,
+                          );
+                          break;
+                        }
+
+                        // Lit prioritairement le champ detail (vrai message
+                        // d exception cote serveur) plutot que error (tag
+                        // generique "PDF generation failed"). Cle pour
+                        // remonter la cause reelle au diagnostic.
+                        const errorData = await res
+                          .json()
+                          .catch(() => ({ detail: `HTTP ${res.status}` }));
+                        lastServerDetail =
+                          errorData.detail || errorData.error || `HTTP ${res.status}`;
+                        console.warn(
+                          `[export-pdf] tentative ${attempt + 1}/${backoffs.length} echec (${res.status}): ${lastServerDetail}`,
+                        );
+                      } catch (fetchErr: any) {
+                        lastServerDetail =
+                          fetchErr?.message || 'reseau indisponible';
+                        console.warn(
+                          `[export-pdf] tentative ${attempt + 1}/${backoffs.length} exception reseau: ${lastServerDetail}`,
+                        );
+                      }
                     }
 
-                    // Telecharger le PDF
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                    if (succeeded) return;
+
+                    // Fallback automatique : impression navigateur. window.print()
+                    // honore les regles @media print deja definies dans
+                    // globals.css (palette forcee papier creme + encre profonde,
+                    // page-break-inside avoid sur les blocs editoriaux critiques,
+                    // sections .no-print masquees). Le partner obtient un PDF
+                    // fidele a la note affichee en choisissant "Enregistrer au
+                    // format PDF" comme destination dans le dialog navigateur.
+                    // Aucune dependance ajoutee. Le bouton produit toujours un
+                    // rendu imprimable, jamais un ecran d erreur.
+                    console.error(
+                      `[export-pdf] serveur en echec apres ${backoffs.length} tentatives. Cause: ${lastServerDetail}. Bascule sur window.print().`,
+                    );
+
+                    // Petit bandeau info non bloquant pour que le partner
+                    // comprenne pourquoi le dialog print s ouvre. Rendu en
+                    // palette Prelude (encre profonde sur lavis ocre pour
+                    // rester dans la ligne editoriale du produit).
+                    const banner = document.createElement('div');
+                    banner.textContent =
+                      'Impression navigateur : choisis « Enregistrer au format PDF » comme destination.';
+                    banner.style.cssText =
+                      'position:fixed;top:24px;left:50%;transform:translateX(-50%);' +
+                      'background:#14110d;color:#fbf4e6;padding:14px 24px;' +
+                      "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" +
+                      'font-size:13px;letter-spacing:0.02em;line-height:1.5;' +
+                      'border-left:3px solid #a8541d;border-radius:2px;z-index:99999;' +
+                      'box-shadow:0 4px 24px rgba(20,17,13,0.2);max-width:520px;';
+                    document.body.appendChild(banner);
+                    await new Promise((r) => setTimeout(r, 1400));
+                    try {
+                      banner.remove();
+                    } catch {
+                      // banner deja retire ou detache, ignore
+                    }
+
+                    // window.print() est bloquant tant que le user n a pas
+                    // valide ou annule le dialog. setPrintMode(false) tourne
+                    // dans le finally uniquement quand le dialog est ferme,
+                    // ce qui garantit que la mise en page etendue est bien
+                    // celle utilisee pour l impression.
+                    window.print();
                   } catch (err: any) {
-                    console.error('Export PDF echec:', err);
-                    alert('Echec export PDF : ' + (err?.message || 'erreur inconnue'));
+                    // Crash cote client (typiquement zone de contenu absente
+                    // ou permission bloquee). Message clair au partner avec
+                    // le detail serveur si disponible pour reconstitution.
+                    console.error('[export-pdf] echec cote client:', err);
+                    alert(
+                      `Echec de l export PDF.\n\n` +
+                        `Cote navigateur : ${err?.message || 'erreur inconnue'}\n` +
+                        (lastServerDetail
+                          ? `Cote serveur : ${lastServerDetail}\n\n`
+                          : '\n') +
+                        `Reessayer dans quelques instants. Si le probleme persiste, ` +
+                        `utiliser Impression du navigateur (Ctrl+P / Cmd+P) et ` +
+                        `choisir "Enregistrer au format PDF".`,
+                    );
                   } finally {
                     setPrintMode(false);
                   }
