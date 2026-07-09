@@ -2208,7 +2208,310 @@ ul, ol { list-style: none; }
 .section-good { border-left: 3px solid var(--good); }
 .section-accent { border-left: 3px solid var(--accent); }
 
-/* RECOMMANDATION HERO */
+/* ============================================================
+   TETE DE NOTE D INSTRUCTION (NoteSynthesisHeader)
+   ------------------------------------------------------------
+   Piece structurante de la note vue par un partner. Ligne
+   editoriale Prelude : papier creme, encre profonde, accents
+   ocre brule et vert foret. Verdict et score en cartouche
+   editorial, jauge SVG sur seuils, forces / vigilance en deux
+   colonnes, prose serree ou bandeau mode restreint.
+   ============================================================ */
+
+.note-syn {
+  background: var(--paper);
+  color: var(--ink);
+  padding: 44px 48px 40px;
+  margin-bottom: 32px;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: var(--sans);
+  box-shadow: 0 1px 0 rgba(20, 17, 13, 0.02);
+}
+
+/* A. Cartouche identite */
+.note-syn-id {
+  margin-bottom: 8px;
+}
+.note-syn-context {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink);
+  opacity: 0.62;
+  letter-spacing: 0.01em;
+  margin-bottom: 8px;
+}
+.note-syn-company {
+  font-family: var(--serif);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0 0 10px 0;
+}
+.note-syn-round {
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0.55;
+  margin-bottom: 4px;
+}
+
+.note-syn-rule {
+  border: none;
+  border-top: 1px solid var(--hairline);
+  margin: 24px 0 28px;
+}
+
+/* Petit sur-titre editorial reutilise partout dans la synthese. */
+.note-syn-eyebrow {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: 0.55;
+  margin-bottom: 10px;
+}
+
+/* B. Verdict et score */
+.note-syn-verdict-block {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 40px;
+  align-items: start;
+  margin-bottom: 32px;
+}
+.note-syn-verdict-side {
+  min-width: 0;
+}
+.note-syn-verdict {
+  font-family: var(--serif);
+  font-size: 52px;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.note-syn-verdict.verdict-investir {
+  color: var(--vert-foret);
+}
+.note-syn-verdict.verdict-conditions {
+  color: var(--vert-foret);
+  font-style: italic;
+  font-weight: 400;
+}
+.note-syn-verdict.verdict-approfondir {
+  color: var(--ocre-brule);
+}
+.note-syn-verdict.verdict-refuser {
+  color: var(--ink);
+  font-style: italic;
+  opacity: 0.85;
+}
+.note-syn-verdict.verdict-neutre {
+  color: var(--ink);
+}
+
+.note-syn-gauge-side {
+  min-width: 0;
+}
+.note-syn-score-num {
+  font-family: var(--serif);
+  font-size: 40px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-top: 6px;
+  letter-spacing: -0.01em;
+}
+.note-syn-score-slash {
+  font-size: 20px;
+  opacity: 0.55;
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+/* C. Valorisation */
+.note-syn-valuation {
+  margin-bottom: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline-soft);
+}
+
+/* D. Forces / Vigilance */
+.note-syn-forces-risks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline-soft);
+}
+.note-syn-col {
+  min-width: 0;
+}
+.note-syn-eyebrow.forces-eyebrow {
+  color: var(--vert-foret);
+  opacity: 0.85;
+}
+.note-syn-eyebrow.risks-eyebrow {
+  color: var(--ocre-brule);
+  opacity: 0.85;
+}
+.note-syn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.note-syn-list li {
+  padding: 14px 0 14px 18px;
+  border-bottom: 1px solid var(--hairline-soft);
+  position: relative;
+}
+.note-syn-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.note-syn-list li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ocre-brule);
+  opacity: 0.7;
+}
+.note-syn-col-forces .note-syn-list li::before {
+  color: var(--vert-foret);
+}
+.note-syn-item-title {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.35;
+  margin-bottom: 5px;
+  letter-spacing: -0.005em;
+}
+.note-syn-item-body {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  opacity: 0.78;
+}
+.note-syn-empty {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink);
+  opacity: 0.5;
+  padding: 12px 0;
+}
+
+/* E. Argumentation en prose */
+.note-syn-prose {
+  padding-top: 28px;
+  border-top: 1px solid var(--hairline-soft);
+  max-width: 78ch;
+}
+.note-syn-prose p {
+  font-family: var(--serif);
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: var(--ink);
+  margin: 0 0 16px 0;
+  letter-spacing: 0.003em;
+}
+.note-syn-prose p:last-child {
+  margin-bottom: 0;
+}
+.note-syn-prose .num-key {
+  font-feature-settings: "lnum", "tnum";
+  font-weight: 600;
+  padding: 1px 4px;
+  background: var(--paper-accent);
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+/* F. Bandeau mode restreint */
+.note-syn-degraded {
+  margin-top: 28px;
+  padding: 22px 26px;
+  background: var(--paper-accent);
+  border-left: 2px solid var(--ocre-brule);
+  border-radius: 2px;
+}
+.note-syn-eyebrow.degraded-eyebrow {
+  color: var(--ocre-brule);
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+.note-syn-degraded p {
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+  opacity: 0.86;
+  margin: 0 0 12px 0;
+}
+.note-syn-degraded p:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive : sur mobile, empile verdict et jauge, forces et vigilance. */
+@media (max-width: 720px) {
+  .note-syn {
+    padding: 28px 24px;
+    max-width: 100%;
+  }
+  .note-syn-company {
+    font-size: 30px;
+  }
+  .note-syn-verdict {
+    font-size: 40px;
+  }
+  .note-syn-verdict-block,
+  .note-syn-forces-risks {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .note-syn-score-num {
+    font-size: 32px;
+  }
+}
+
+/* Impression / PDF : forcer les couleurs, casser les ombres,
+   preserver la mise en page grille et les seuils SVG. */
+@media print {
+  .note-syn {
+    box-shadow: none;
+    border: none;
+    padding: 0 0 24px;
+    max-width: 100%;
+  }
+  .note-syn-verdict-block {
+    page-break-inside: avoid;
+  }
+  .note-syn-forces-risks {
+    page-break-inside: avoid;
+  }
+}
+
+/* RECOMMANDATION HERO (ancien bloc, en cours de deprecation)
+   Conserve pour les blocs qui suivent la nouvelle tete : audit
+   score, dialectique, decision drivers, conditions cles. Sera
+   nettoye dans les briques suivantes de la refonte note. */
 .reco-card {
   background: var(--accent); color: white; padding: 32px;
   margin-bottom: 16px;

@@ -28,6 +28,7 @@ import WorkflowStageBadge from './components/WorkflowStageBadge';
 import RecentAnalyses from './components/RecentAnalyses';
 import CommentsPanel from './components/CommentsPanel';
 import VersionSelector from './components/VersionSelector';
+import { NoteSynthesisHeader } from './components/NoteSynthesisHeader';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import { ENGINE_PICTOS } from './components/Pictos';
 import { Picto } from './components/Picto';
@@ -3550,76 +3551,23 @@ export default function HomeClient({
               );
             })()}
 
-            {/* Recommandation hero enrichie */}
+            {/* ============================================================
+                 TETE DE NOTE (brique note-redesign 1)
+                 Composant dedie qui gere l identite, le verdict, la
+                 jauge de score sur seuils, la valorisation, les trois
+                 forces majeures, les trois signaux de vigilance et
+                 l argumentation. En mode degrade, masque l argumentation
+                 et affiche un bandeau neutre sans mots techniques.
+                 Le reste du hero legacy (audit score, dialectique,
+                 drivers, conditions) reste inline sous la tete pour
+                 les briques suivantes de la refonte note.
+                 ============================================================ */}
+            <NoteSynthesisHeader result={result} />
+
+            {/* Bloc legacy conserve pour l audit score, la dialectique,
+                les decision drivers et les conditions cles. A raffiner
+                dans les prochaines briques de la refonte note. */}
             <div className="reco-card">
-              <div className="small-caps" style={{ opacity: 0.7, marginBottom: 8 }}>Recommandation finale du pipeline</div>
-              <div className="reco-verdict">{result.finalRecommendation?.verdict || '—'}</div>
-
-              {/* Probabilités chiffrées success/failure */}
-              {result.finalRecommendation?.successProbability !== undefined && (
-                <div style={{ display: 'flex', gap: 32, marginTop: 20, marginBottom: 24, flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 200px' }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>Probabilité de succès</div>
-                    <div style={{ fontSize: 42, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1 }}>
-                      {result.finalRecommendation.successProbability}<span style={{ fontSize: 20, opacity: 0.7 }}>%</span>
-                    </div>
-                  </div>
-                  <div style={{ flex: '1 1 200px' }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 }}>Probabilité d'échec</div>
-                    <div style={{ fontSize: 42, fontFamily: 'var(--serif)', fontWeight: 500, lineHeight: 1, opacity: 0.85 }}>
-                      {result.finalRecommendation.failureProbability}<span style={{ fontSize: 20, opacity: 0.7 }}>%</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Jauge avec seuils */}
-              {result.finalRecommendation?.investmentThreshold && (
-                <div style={{ marginBottom: 24 }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8 }}>
-                    Score global · Seuils de décision
-                  </div>
-                  <div style={{ position: 'relative', height: 32, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
-                    {/* Seuils marqués */}
-                    {[
-                      { v: result.finalRecommendation.investmentThreshold.thresholdToInvestigate, label: 'Approfondir' },
-                      { v: result.finalRecommendation.investmentThreshold.thresholdToCondition, label: 'Conditions' },
-                      { v: result.finalRecommendation.investmentThreshold.thresholdToInvest, label: 'Investir' },
-                    ].map((t, i) => (
-                      <div key={i} style={{
-                        position: 'absolute', left: `${t.v}%`, top: 0, height: '100%',
-                        borderLeft: '1px dashed rgba(255,255,255,0.3)',
-                      }}>
-                        <div style={{ position: 'absolute', top: -16, left: 4, fontSize: 10, opacity: 0.6 }}>
-                          {t.v}
-                        </div>
-                      </div>
-                    ))}
-                    {/* Niveau actuel */}
-                    <div style={{
-                      position: 'absolute', left: 0, top: 0, height: '100%',
-                      width: `${result.finalRecommendation.investmentThreshold.currentLevel || result.finalRecommendation.globalScore}%`,
-                      background: 'rgba(255,255,255,0.25)',
-                    }} />
-                    {/* Pointer */}
-                    <div style={{
-                      position: 'absolute',
-                      left: `${result.finalRecommendation.investmentThreshold.currentLevel || result.finalRecommendation.globalScore}%`,
-                      top: 0, height: '100%', width: 3, background: '#fff',
-                      transform: 'translateX(-1px)',
-                    }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, opacity: 0.5, marginTop: 6 }}>
-                    <span>0</span><span>50</span><span>100</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="reco-score">
-                <div className="reco-score-num">{result.finalRecommendation?.globalScore || 0}</div>
-                <div className="reco-score-label">Score global / 100</div>
-              </div>
-
               {/* Score auditable : delta entre jugement LLM et calcul mecanique
                   des dimensions ponderees + ajustement blindspots/contrarian.
                   Le seuil de l alerte est adapte a l archetype du dossier
@@ -3692,72 +3640,8 @@ export default function HomeClient({
                 );
               })()}
 
-              {/* Recommandation finale - prose dense decoupee en paragraphes
-                  courts (3 phrases chacun) avec chiffres mis en valeur.
-                  Sans cette refonte, la prose etait un mur de 12 lignes
-                  illisible sur mobile et peu engageant en general. */}
-              <div className="reco-arg-aerated">
-                {splitIntoParagraphs(result.finalRecommendation?.argumentation, 3).map((p, i) => (
-                  <p key={i} className="reco-arg-para">{enrichProse(p)}</p>
-                ))}
-              </div>
-
-              {/* Top 3 risques critiques - hierarchisation : on remonte
-                  les patterns à risque haute intensite + alertes
-                  critiques pour qu un VC voie l essentiel sans deplier
-                  10 sections. Sur UP&CHARGE le 6,3:1 prix/substitut etait
-                  noye page 4 ; ce bloc le remonte au-dessus du fold. */}
-              {(() => {
-                const topRisks: Array<{ label: string; intensity: number; evidence: string }> = [];
-                // 1. Patterns de vigilance critique haute intensite (>= 70)
-                const patterns = result.blindspotAnalysis?.patterns || {};
-                Object.values(patterns).forEach((p: any) => {
-                  if (p?.detected && (p.intensity || 0) >= 70) {
-                    topRisks.push({
-                      label: p.patternName || 'Pattern à risque',
-                      intensity: p.intensity || 0,
-                      evidence: (p.evidence || '').slice(0, 220),
-                    });
-                  }
-                });
-                // 2. Alertes critiques bruts si pas assez de patterns
-                if (topRisks.length < 3) {
-                  const alertes = result.blindspotAnalysis?.alertesCritiques || [];
-                  for (const a of alertes.slice(0, 3 - topRisks.length)) {
-                    topRisks.push({
-                      label: 'Alerte critique',
-                      intensity: 80,
-                      evidence: typeof a === 'string' ? a.slice(0, 220) : '',
-                    });
-                  }
-                }
-                // Tri par intensite decroissante, top 3
-                topRisks.sort((a, b) => b.intensity - a.intensity);
-                const top = topRisks.slice(0, 3);
-                if (top.length === 0) return null;
-                return (
-                  <div style={{
-                    marginTop: 24, padding: '20px 24px',
-                    background: 'rgba(220, 80, 60, 0.06)',
-                    borderLeft: '2px solid rgba(220, 80, 60, 0.5)',
-                  }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8, marginBottom: 14 }}>
-                      Risques critiques · Top {top.length}
-                    </div>
-                    {top.map((r, i) => (
-                      <div key={i} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: i < top.length - 1 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500 }}>{r.label}</span>
-                          <span style={{ fontSize: 11, opacity: 0.7 }}>intensité {r.intensity}/100</span>
-                        </div>
-                        <div style={{ fontSize: 12, lineHeight: 1.55, opacity: 0.88 }}>
-                          {r.evidence}{r.evidence.length >= 220 ? '…' : ''}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
+              {/* Argumentation et top 3 risques : desormais rendus dans
+                  NoteSynthesisHeader plus haut. Ne pas duppliquer ici. */}
 
               {/* Tension dialectique blindspots/contrarian - prose decoupee
                   en paragraphes courts pour respiration visuelle */}
