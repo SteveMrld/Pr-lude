@@ -1268,16 +1268,67 @@ export async function POST(req: NextRequest) {
           });
 
           const orchestratePromise = (async () => {
-            // 2 tentatives max sur orchestrate (attempt=0 puis attempt=1).
-            // Reduit du 3 historique a 2 pour ne pas ampiler la latence
-            // en incident Anthropic : depuis que le SDK a maxRetries=0,
-            // orchestrate est le seul moteur qui conserve une redondance
-            // pour absorber les 529 transitoires. Un cumul superieur a
-            // 2 essais ne fait plus que rallonger le mur sans changer
-            // la probabilite de succes en cas d incident structurel.
-            const maxRetries = 1;
+            // ============================================================
+            // RETRY POLICY 529 REFONDUE (brique 3)
+            // ------------------------------------------------------------
+            // Anthropic recommande sur overloaded_error un backoff long
+            // (au moins 5-30s) avec jitter. L ancien backoff de 2s puis
+            // 5s etait du retry cosmetique : si l API etait saturee a T,
+            // elle l etait encore a T+2s dans 90 % des cas. Constat prod
+            // du 8 juillet 2026 : dossier tourne en 17/17 moteurs,
+            // orchestrate echoue en 529 sur ses 2 tentatives separees
+            // par 2s, verdict tombe a "A Reinstruire" score 0.
+            //
+            // Nouvelle politique :
+            //   - 3 tentatives max (attempt=0, 1, 2).
+            //   - Backoffs de base [5s, 15s, 30s] entre tentatives.
+            //   - Jitter uniforme +/- 25% sur chaque backoff pour eviter
+            //     le thundering herd si plusieurs analyses lancees en
+            //     parallele hittent le meme incident Anthropic.
+            //   - Cible uniquement les codes 529 / overloaded_error /
+            //     rate_limit_error. Sur toute autre erreur (400 payload
+            //     invalide, 401 auth, 500 bug moteur, timeout SDK 60s)
+            //     on abandonne immediatement : rejouer ne changera pas
+            //     la cause. Le fallback conforme brique 1 injecte alors
+            //     le mechanicalScore et la note reste utilisable.
+            //   - Borne par le budget global du run : avant chaque
+            //     backoff, on verifie qu il reste au moins backoffMs +
+            //     tentative_estimee_60s + marge_sortie_30s avant le mur.
+            //     Sinon on abandonne pour laisser le temps a la sortie
+            //     propre d ecrire markAnalysisCompleted et de fermer.
+            // ============================================================
+            const RETRY_BACKOFFS_MS = [5_000, 15_000, 30_000];
+            const MAX_ATTEMPTS = 3;
+            const JITTER_RATIO = 0.25;
+            const ORCHESTRATE_ATTEMPT_ESTIMATE_MS = 60_000;
+            const EXIT_MARGIN_MS = 30_000;
+
+            function isRetryableAnthropicOverload(err: any): boolean {
+              const msg = String(err?.message || '').toLowerCase();
+              const status = err?.status ?? err?.statusCode;
+              if (status === 529) return true;
+              if (status === 429) return true;
+              return (
+                msg.includes('overloaded_error') ||
+                msg.includes('rate_limit_error') ||
+                msg.includes('rate_limit_exceeded') ||
+                msg.includes('529') ||
+                msg.includes('overloaded')
+              );
+            }
+
+            function computeBackoffMs(attemptIndex: number): number {
+              const base = RETRY_BACKOFFS_MS[attemptIndex] || 30_000;
+              const jitter = base * JITTER_RATIO * (Math.random() * 2 - 1);
+              return Math.max(1_000, Math.round(base + jitter));
+            }
+
+            function budgetRemainingMs(): number {
+              return RUN_BUDGET_MS - (Date.now() - startTime);
+            }
+
             let lastError: any = null;
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
               try {
                 const result = await orchestrateFinalRecommendation(
                   extraction, team, market, macro, patternMatching, causalReversal,
@@ -1290,12 +1341,51 @@ export async function POST(req: NextRequest) {
                 return result;
               } catch (err: any) {
                 lastError = err;
-                console.warn(`[orchestrate] attempt ${attempt + 1}/${maxRetries + 1} failed:`, err?.message);
-                if (attempt < maxRetries) {
-                  // Backoff : 2s puis 5s
-                  const backoffMs = attempt === 0 ? 2000 : 5000;
-                  await new Promise(resolve => setTimeout(resolve, backoffMs));
+                const retryable = isRetryableAnthropicOverload(err);
+                console.warn(
+                  `[orchestrate] attempt ${attempt + 1}/${MAX_ATTEMPTS} failed (retryable=${retryable}):`,
+                  err?.message,
+                );
+
+                // Erreur non-retryable : abandon immediat. Le fallback
+                // conforme brique 1 injectera le mechanicalScore. Rejouer
+                // sur un 400/401/500 ou sur un timeout SDK ne changerait
+                // pas la cause.
+                if (!retryable) {
+                  console.warn('[orchestrate] non-retryable error, abandon immediat');
+                  break;
                 }
+
+                // Derniere tentative : pas de backoff, on sort.
+                if (attempt >= MAX_ATTEMPTS - 1) break;
+
+                const backoffMs = computeBackoffMs(attempt);
+                const remaining = budgetRemainingMs();
+                const needed = backoffMs + ORCHESTRATE_ATTEMPT_ESTIMATE_MS + EXIT_MARGIN_MS;
+
+                // Bornage par le budget global : si le backoff plus la
+                // prochaine tentative plus la marge de sortie propre
+                // depassent le budget restant, on abandonne. Laisse le
+                // temps a markAnalysisCompleted et au close du stream
+                // de tourner avant le mur Vercel 800s.
+                if (needed > remaining) {
+                  console.warn(
+                    `[orchestrate] budget insuffisant pour backoff+tentative (need=${needed}ms remain=${remaining}ms), abandon`,
+                  );
+                  break;
+                }
+
+                // Verifie aussi que le budget global n a pas ete abort
+                // entretemps (race avec budgetPromise).
+                if (budgetAbort.signal.aborted) {
+                  console.warn('[orchestrate] budget global abort detecte pendant retry, abandon');
+                  break;
+                }
+
+                console.warn(
+                  `[orchestrate] backoff ${backoffMs}ms avant tentative ${attempt + 2}/${MAX_ATTEMPTS}`,
+                );
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
               }
             }
             // Fallback conforme a la doctrine : quand orchestrate echoue,
@@ -1314,10 +1404,12 @@ export async function POST(req: NextRequest) {
             await logException('pipeline.orchestrate', lastError, {
               severity: 'error',
               context: {
-                attempts: maxRetries + 1,
+                maxAttempts: MAX_ATTEMPTS,
                 fallback: 'degraded-mechanical',
                 mechanicalScore: mechanicalScore.globalScore,
                 mechanicalVerdict: mechanicalScore.verdict,
+                retryable: isRetryableAnthropicOverload(lastError),
+                budgetRemainingMs: budgetRemainingMs(),
               },
             });
             return {
