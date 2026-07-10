@@ -57,7 +57,7 @@ export type SectionKind =
 // sans jamais evoquer un incident.
 const FALLBACK_COPY: Record<SectionKind, string> = {
   'orchestrator':
-    'La synthèse narrative finale n’a pas été produite pour ce dossier dans ce run. Le score et le verdict restent véridiques et opposables, fondés sur les moteurs d’instruction qui ont abouti. La mise en récit complète — rétournement causal, résolution dialectique, drivers, chantiers — sera reprise en DD Bloc 2.',
+    'La synthèse narrative finale n’a pas été produite pour ce dossier dans ce run. Le score et le verdict restent véridiques et opposables, fondés sur les moteurs d’instruction qui ont abouti. La mise en récit complète, retournement causal, résolution dialectique, drivers et chantiers, sera reprise en DD Bloc 2.',
   'narrative-drift':
     'Cette dimension n’a pas pu être instruite dans ce run. À reprendre en DD Bloc 2.',
   'fragility-structurelle':
