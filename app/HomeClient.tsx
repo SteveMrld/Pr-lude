@@ -1024,15 +1024,18 @@ export default function HomeClient({
 
     // GARDE-FOU CONTRE LES RE-RUNS ACCIDENTELS
     // ----------------------------------------------------------
-    // Une analyse Bloc 1 complete coute environ 2,50 USD de credits
-    // Anthropic. Tester un meme dossier 5 fois dans la nuit (cas
-    // typique en developpement ou QA) brule 12,50 USD pour rien
-    // si le code ne change pas significativement. Le garde-fou
-    // calcule un hash SHA-256 du PDF principal et le compare aux
-    // hashs des analyses lancees dans les 7 derniers jours stockes
-    // en localStorage. En cas de match, popup de confirmation qui
-    // propose au choix de voir l analyse existante (gratuit) ou
-    // de relancer quand meme (paye 2,50 USD).
+    // Une analyse Bloc 1 complete coute de l ordre de 2,50 USD de
+    // credits. Le garde-fou calcule un hash SHA-256 du PDF principal
+    // et le compare aux hashs des analyses lancees dans les 7
+    // derniers jours stockes en localStorage. En cas de match, un
+    // confirm natif alerte l utilisateur du cout avant relance.
+    //
+    // Cablage confirm() aligne sur le reflexe utilisateur : OK
+    // porte l action attendue (relancer, puisque l utilisateur vient
+    // de cliquer Analyser), Annuler ferme sans rien faire. Le
+    // libelle du bouton dans le message decrit exactement ce que
+    // fait le clic. Le shortcut historique "voir l existante" reste
+    // accessible via l onglet Historique, pas dans ce popup.
     if (!opts.skipDuplicateCheck && typeof window !== 'undefined') {
       try {
         const pitchPdf = files.find(f => f.type.includes('pdf') || f.name.toLowerCase().endsWith('.pdf'));
@@ -1050,20 +1053,18 @@ export default function HomeClient({
           const match = fresh.find(r => r.hash === hashHex);
           if (match) {
             const ageHours = Math.floor((now - match.ts) / (60 * 60 * 1000));
-            const ageStr = ageHours < 1 ? 'moins d une heure' : ageHours < 24 ? `${ageHours} heures` : `${Math.floor(ageHours / 24)} jours`;
+            const ageStr = ageHours < 1 ? 'moins d’une heure' : ageHours < 24 ? `${ageHours} heures` : `${Math.floor(ageHours / 24)} jours`;
+            const label = match.companyName || 'sans nom';
             const userChoice = window.confirm(
-              `Ce dossier a deja ete analyse il y a ${ageStr} (${match.companyName || 'sans nom'}).\n\nLe pipeline complet coute environ 2,50 USD de credits Anthropic. Tu peux :\n\n- OK : voir l analyse existante (gratuit, instantane)\n- Annuler : relancer le pipeline complet (paye 2,50 USD)`
+              `Ce dossier a déjà été analysé il y a ${ageStr} (${label}). Le pipeline complet coûte de l’ordre de 2,50 USD.\n\nOK : relancer l’analyse\nAnnuler : ne rien faire`
             );
-            if (userChoice && match.analysisId) {
-              // L utilisateur veut voir l analyse existante : on redirige
-              window.location.href = `/dossiers/${match.analysisId}`;
+            if (!userChoice) {
+              // Annuler : on stoppe sans rien faire. Aucune
+              // redirection, aucune persistance de hash. L utilisateur
+              // reste sur la page d entree avec ses fichiers uploades.
               return;
             }
-            if (userChoice && !match.analysisId) {
-              // Hash connu mais pas d id d analyse persistee (cas degenere) :
-              // on continue le pipeline normalement.
-            }
-            // Si l utilisateur a cliqué Annuler, il veut relancer : on continue.
+            // OK : on poursuit vers le pipeline (relance).
           }
           // Memoire du hash pour la prochaine fois : on stocke avant
           // meme la fin du pipeline pour couvrir les cas d echec en
