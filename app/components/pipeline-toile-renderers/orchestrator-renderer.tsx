@@ -26,11 +26,16 @@ import {
   formatPercent,
   splitParagraphs,
 } from './format';
+import {
+  sanitizeNarrative,
+  sanitizeNarrativeList,
+  sectionFallbackCopy,
+} from '@/lib/note/section-fallback';
 
 export function OrchestratorRenderer({ output }: ToileRendererProps) {
   if (!isPlainObject(output)) {
     return (
-      <EmptyState message="La synthese finale n est pas disponible pour cette analyse. Le moteur d orchestration n a soit pas tourne, soit echoue avant production." />
+      <EmptyState message={sectionFallbackCopy('orchestrator')} />
     );
   }
 
@@ -39,42 +44,38 @@ export function OrchestratorRenderer({ output }: ToileRendererProps) {
   const globalScore = o.globalScore;
   const successProbability = o.successProbability;
   const failureProbability = o.failureProbability;
-  const argumentation = isNonEmptyString(o.argumentation) ? o.argumentation : null;
-  const keyConditions = isNonEmptyArray(o.keyConditions) ? o.keyConditions : null;
-  const decisionDrivers = isNonEmptyArray(o.decisionDrivers) ? o.decisionDrivers : null;
+  const rawArgumentation = isNonEmptyString(o.argumentation) ? o.argumentation : null;
+  const argumentation = rawArgumentation
+    ? sanitizeNarrative(rawArgumentation, 'orchestrator')
+    : null;
+  const keyConditions = isNonEmptyArray(o.keyConditions)
+    ? sanitizeNarrativeList(o.keyConditions, 'orchestrator')
+    : null;
+  const decisionDrivers = isNonEmptyArray(o.decisionDrivers)
+    ? sanitizeNarrativeList(o.decisionDrivers, 'orchestrator')
+    : null;
   const dialectical = isPlainObject(o.blindspotsVsContrarian)
     ? o.blindspotsVsContrarian
     : null;
   const threshold = isPlainObject(o.investmentThreshold) ? o.investmentThreshold : null;
   const degraded = o.degraded === true;
-  const degradedReason = isNonEmptyString(o.degradedReason) ? o.degradedReason : null;
 
   return (
     <div>
       {degraded && (
-        <Section title="Synthese narrative indisponible">
-          <Prose>
-            <p>
-              Le score global et le verdict affiches ci-dessous sont ceux
-              calcules mecaniquement sur les 16 moteurs Bloc 1 qui ont abouti,
-              selon la formule et les ponderations documentees dans le score
-              calculator. Ils sont veridiques et opposables, pas indicatifs.
-            </p>
-            <p>
-              Ce qui manque dans cette note : la mise en recit du retournement
-              causal, la resolution dialectique blindspots / contrarien
-              argumentee, les decision drivers, les conditions cles et le plan
-              de chantiers. L orchestrateur LLM final a echoue apres plusieurs
-              tentatives, typiquement sur une surcharge Anthropic transitoire.
-              Relancer l analyse pour completer la note.
-            </p>
-            {degradedReason && (
-              <p style={{ fontStyle: 'italic', color: 'var(--muted)' }}>
-                Cause technique : {degradedReason}
-              </p>
-            )}
-          </Prose>
-        </Section>
+        <p
+          style={{
+            fontFamily: 'var(--serif)',
+            fontSize: 14,
+            lineHeight: 1.6,
+            color: 'var(--muted, #5c5348)',
+            marginBottom: 18,
+            paddingBottom: 12,
+            borderBottom: '1px solid var(--paper-accent, #e8dfcc)',
+          }}
+        >
+          {sectionFallbackCopy('orchestrator')}
+        </p>
       )}
 
       <Section title="Verdict">
@@ -128,7 +129,10 @@ export function OrchestratorRenderer({ output }: ToileRendererProps) {
           {isNonEmptyString(dialectical.resolution) && (
             <div style={{ marginTop: 14 }}>
               <Prose>
-                {splitParagraphs(dialectical.resolution as string, 2).map((p, i) => (
+                {splitParagraphs(
+                  sanitizeNarrative(dialectical.resolution, 'orchestrator'),
+                  2,
+                ).map((p, i) => (
                   <p key={i}>{p}</p>
                 ))}
               </Prose>
@@ -162,15 +166,15 @@ export function OrchestratorRenderer({ output }: ToileRendererProps) {
         </Section>
       )}
 
-      {decisionDrivers && (
+      {decisionDrivers && decisionDrivers.length > 0 && (
         <Section title="Decision drivers">
-          <BulletList items={decisionDrivers.map((d) => (typeof d === 'string' ? d : JSON.stringify(d)))} />
+          <BulletList items={decisionDrivers} />
         </Section>
       )}
 
-      {keyConditions && (
+      {keyConditions && keyConditions.length > 0 && (
         <Section title="Conditions cles">
-          <BulletList items={keyConditions.map((c) => (typeof c === 'string' ? c : JSON.stringify(c)))} />
+          <BulletList items={keyConditions} />
         </Section>
       )}
     </div>

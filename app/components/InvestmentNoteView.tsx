@@ -2,6 +2,12 @@
 
 import React from 'react';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
+import {
+  sectionFallbackCopy,
+  sanitizeNarrative,
+  sanitizeNarrativeList,
+  looksLikeFailureCopy,
+} from '@/lib/note/section-fallback';
 import HistoricalComparables from './HistoricalComparables';
 import OutcomeTracking from './OutcomeTracking';
 import PredictionSnapshot from './PredictionSnapshot';
@@ -2215,23 +2221,37 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         </div>
 
         {/* Argumentation reco - prose dense decoupee en paragraphes
-            courts (3 phrases) avec chiffres-cles mis en valeur. */}
-        <div style={{ marginTop: 18 }}>
-          {splitIntoParagraphs(reco.argumentation, 3).map((p, i) => (
-            <p key={i} className="note-paragraph">{enrichProse(p)}</p>
-          ))}
-        </div>
+            courts. Passe par sanitizeNarrative (module unifie
+            lib/note/section-fallback) qui, en cas de contenu
+            d echec technique brut, remplace integralement par la
+            copie neutre editoriale sans mention d incident. */}
+        {(() => {
+          const rawArgumentation = typeof reco.argumentation === 'string' ? reco.argumentation : '';
+          const isDegradedArgumentation = looksLikeFailureCopy(rawArgumentation);
+          const cleanArgumentation = sanitizeNarrative(rawArgumentation, 'orchestrator');
+          return (
+            <>
+              <div style={{ marginTop: 18 }}>
+                {splitIntoParagraphs(cleanArgumentation, 3).map((p, i) => (
+                  <p key={i} className="note-paragraph">{enrichProse(p)}</p>
+                ))}
+              </div>
 
-        {/* Pull quote 1 : extrait de l'argumentation du verdict, mis en
-            exergue comme dans un article FT. Utilise la première phrase si
-            assez impactante, sinon la résolution dialectique. */}
-        {reco.argumentation && firstSentence(reco.argumentation, 200).length > 50 && (
-          <blockquote className="pull-quote">
-            <span className="pull-quote-mark" aria-hidden="true">«</span>
-            {firstSentence(reco.argumentation, 200)}
-            <span className="pull-quote-mark" aria-hidden="true">»</span>
-          </blockquote>
-        )}
+              {/* Pull-quote seulement sur argumentation legitime.
+                  Un etat d echec ne doit jamais etre mis en exergue
+                  typographique. */}
+              {!isDegradedArgumentation
+                && cleanArgumentation
+                && firstSentence(cleanArgumentation, 200).length > 50 && (
+                <blockquote className="pull-quote">
+                  <span className="pull-quote-mark" aria-hidden="true">«</span>
+                  {firstSentence(cleanArgumentation, 200)}
+                  <span className="pull-quote-mark" aria-hidden="true">»</span>
+                </blockquote>
+              )}
+            </>
+          );
+        })()}
 
         {/* Sous-section The case for : ce qui rend ce dossier potentiellement
             exceptionnel. Consomme syntheseSingularite + signaux contrariens
@@ -2393,7 +2413,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <span className="verdict-value">{reco.blindspotsVsContrarian.tensionResolved}</span>
               </div>
             </div>
-            {splitIntoParagraphs(reco.blindspotsVsContrarian.resolution, 3).map((p, i) => (
+            {splitIntoParagraphs(
+              sanitizeNarrative(reco.blindspotsVsContrarian.resolution, 'orchestrator'),
+              3,
+            ).map((p, i) => (
               <p key={i} className="note-paragraph">{enrichProse(p)}</p>
             ))}
           </>
@@ -2419,12 +2442,12 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               </p>
             )}
 
-            {/* Cas 2 : moteur lance mais pas de payload (echec LLM
-                non-bloquant cote pipeline). Transparence pour le
-                partner : on dit que la lecture n a pas pu etre produite. */}
+            {/* Cas 2 : moteur lance mais pas de payload. On route
+                sur la copie neutre unifiee du module section-fallback :
+                aucune fuite technique, positionnement en DD Bloc 2. */}
             {!nd && ndVerdict && ndVerdict.applicable !== 'none' && (
               <p className="note-paragraph" style={{ opacity: 0.75 }}>
-                Lecture du langage indisponible pour ce dossier (incident transitoire). La matrice de pertinence avait pourtant retenu le moteur : {ndVerdict.rationale.toLowerCase()}
+                {sectionFallbackCopy('narrative-drift')}
               </p>
             )}
 
@@ -2733,10 +2756,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               </p>
             )}
 
-            {/* Cas 2 : moteur lance mais payload null (echec global). */}
+            {/* Cas 2 : moteur lance mais payload null. Copie neutre
+                unifiee, meme regle que pour Lecture du langage. */}
             {!fs && fsVerdicts && Object.values(fsVerdicts).some((v: any) => v.applicable !== 'none') && (
               <p className="note-paragraph" style={{ opacity: 0.75 }}>
-                Lecture de fragilité structurelle indisponible pour ce dossier (incident transitoire). Au moins un pattern était pourtant retenu par la matrice. Relancer l&apos;analyse pour reproduire.
+                {sectionFallbackCopy('fragility-structurelle')}
               </p>
             )}
 
@@ -3076,11 +3100,16 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         )}
 
         <h3 className="note-h3">Facteurs décisifs</h3>
-        {reco.decisionDrivers?.length > 0 ? (
-          <ol className="ordered-list">
-            {(reco.decisionDrivers || []).map((d: string, i: number) => <li key={i}>{d}</li>)}
-          </ol>
-        ) : <p className="note-paragraph muted">Décision drivers non disponibles.</p>}
+        {(() => {
+          const drivers = sanitizeNarrativeList(reco.decisionDrivers, 'orchestrator');
+          return drivers.length > 0 ? (
+            <ol className="ordered-list">
+              {drivers.map((d, i) => <li key={i}>{d}</li>)}
+            </ol>
+          ) : (
+            <p className="note-paragraph muted">{sectionFallbackCopy('orchestrator')}</p>
+          );
+        })()}
 
         {pm?.internationalBenchmarks?.length > 0 && (
           <>
@@ -3164,14 +3193,17 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </tbody>
         </table>
 
-        {reco.keyConditions?.length > 0 && (
-          <>
-            <h3 className="note-h3">Conditions clés avant signature</h3>
-            <ol className="ordered-list">
-              {(reco.keyConditions || []).map((c: string, i: number) => <li key={i}>{c}</li>)}
-            </ol>
-          </>
-        )}
+        {(() => {
+          const conditions = sanitizeNarrativeList(reco.keyConditions, 'orchestrator');
+          return conditions.length > 0 && (
+            <>
+              <h3 className="note-h3">Conditions clés avant signature</h3>
+              <ol className="ordered-list">
+                {conditions.map((c, i) => <li key={i}>{c}</li>)}
+              </ol>
+            </>
+          );
+        })()}
 
         {reco.structuringPlan && (
           <>

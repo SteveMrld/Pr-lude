@@ -1412,17 +1412,22 @@ export async function POST(req: NextRequest) {
                 budgetRemainingMs: budgetRemainingMs(),
               },
             });
+            // Fallback conforme doctrine. Aucun texte narratif genere
+            // ici : la copie editoriale visible cote partner est
+            // exclusivement gouvernee par lib/note/section-fallback,
+            // module unifie applique cote rendu. On laisse argumentation
+            // et keyConditions vides pour que les composants routent
+            // sur la copie neutre sans risque de fuite technique.
+            // degradedReason reste rempli pour la telemetry uniquement,
+            // il n est jamais rendu directement au partner.
             return {
               verdict: mechanicalScore.verdict,
               successProbability: null,
               failureProbability: null,
               globalScore: mechanicalScore.globalScore,
-              argumentation:
-                `La synthese narrative finale n a pas pu etre produite (echec du moteur d orchestration apres plusieurs tentatives, cause probable : surcharge transitoire Anthropic 529). ` +
-                `Le score global affiche (${mechanicalScore.globalScore}/100) et le verdict (${mechanicalScore.verdict}) sont ceux calcules mecaniquement a partir des 16 moteurs Bloc 1 qui ont abouti, selon la formule et les ponderations documentees dans lib/engines/score-calculator.ts. ` +
-                `Ce qui manque dans cette note : la mise en recit du retournement causal, la resolution dialectique blindspots / contrarien argumentee, les decision drivers, les conditions cles et le plan de chantiers. ` +
-                `Pour completer la note, relancer l analyse sur ce dossier ; la plupart des echecs d orchestrate sont transitoires.`,
+              argumentation: '',
               keyConditions: [],
+              decisionDrivers: [],
               blindspotsVsContrarian: null,
               computedScoreBreakdown: null,
               investmentThreshold: null,

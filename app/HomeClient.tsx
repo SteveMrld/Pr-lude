@@ -30,6 +30,7 @@ import CommentsPanel from './components/CommentsPanel';
 import VersionSelector from './components/VersionSelector';
 import { NoteSynthesisHeader } from './components/NoteSynthesisHeader';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
+import { sectionFallbackCopy } from '@/lib/note/section-fallback';
 import { ENGINE_PICTOS } from './components/Pictos';
 import { Picto } from './components/Picto';
 import {
@@ -4763,15 +4764,17 @@ export default function HomeClient({
                   );
                 }
 
-                // Cas moteur lance mais payload null : incident transitoire.
+                // Cas moteur lance mais payload null. Copie neutre
+                // unifiee via module section-fallback : aucune
+                // mention technique, positionnement en DD Bloc 2.
                 if (!ndr) {
                   return (
                     <div style={{ padding: '28px 32px' }}>
                       <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                         Lecture du langage
                       </h3>
-                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ocre-brule, #a04040)', fontSize: 13, opacity: 0.85 }}>
-                        Lecture indisponible (incident transitoire). Le moteur etait pourtant retenu par la matrice ({ndv?.rationale?.toLowerCase() || 'verdict applicable'}). Relancer l analyse pour reproduire.
+                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--paper-accent, #e8dfcc)', fontSize: 13, opacity: 0.85 }}>
+                        {sectionFallbackCopy('narrative-drift')}
                       </div>
                     </div>
                   );
@@ -4979,15 +4982,16 @@ export default function HomeClient({
                   );
                 }
 
-                // Cas moteur lance mais payload null
+                // Cas moteur lance mais payload null. Meme regle
+                // que pour Lecture du langage : copie neutre unifiee.
                 if (!fsr) {
                   return (
                     <div style={{ padding: '28px 32px' }}>
                       <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
                         Fragilité structurelle
                       </h3>
-                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--ocre-brule, #a04040)', fontSize: 13, opacity: 0.85 }}>
-                        Lecture indisponible (incident transitoire). Au moins un pattern etait pourtant retenu par la matrice. Relancer l analyse pour reproduire.
+                      <div style={{ padding: '14px 18px', background: 'var(--surface)', borderLeft: '3px solid var(--paper-accent, #e8dfcc)', fontSize: 13, opacity: 0.85 }}>
+                        {sectionFallbackCopy('fragility-structurelle')}
                       </div>
                     </div>
                   );

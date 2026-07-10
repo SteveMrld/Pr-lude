@@ -26,6 +26,7 @@ import {
   formatScore,
   splitParagraphs,
 } from './format';
+import { sectionFallbackCopy, sanitizeNarrative } from '@/lib/note/section-fallback';
 
 const PATTERN_LABELS: Record<string, string> = {
   'growth-subsidized': 'Croissance subventionnee',
@@ -46,7 +47,7 @@ const SEVERITE_TONE: Record<string, string> = {
 export function FragilityRenderer({ output }: ToileRendererProps) {
   if (!isPlainObject(output)) {
     return (
-      <EmptyState message="Le moteur Fragilite structurelle n a pas produit de sortie sur cette analyse. Soit la matrice de pertinence l a desactive, soit l execution a echoue." />
+      <EmptyState message={sectionFallbackCopy('fragility-structurelle')} />
     );
   }
 

@@ -10,13 +10,13 @@
 // ocre brule (approfondir) et vert foret (investir), typographie
 // serif Charter facon revue.
 //
-// Aucun message d erreur technique ne fuite au partner. Quand
-// l orchestrateur LLM final n a pas pu produire la mise en recit
-// (mode degraded, cf refonte fallback orchestrate briques 1/2/3),
-// on remplace l argumentation par un bandeau neutre "mode
-// restreint" qui explique en francais editorial ce qui manque
-// et suggere de relancer. Aucune trace de "529", "Anthropic",
-// "orchestrate" ni "surcharge LLM" dans le rendu partner.
+// Aucun message d echec technique ne fuite au partner. Quand la
+// mise en recit finale n a pas ete produite, l argumentation est
+// remplacee par une copie neutre issue du module unifie
+// lib/note/section-fallback : "cette dimension n a pas pu etre
+// instruite dans ce run, a reprendre en DD Bloc 2". Aucune trace
+// de "529", "Anthropic", "orchestrate", "orchestrateur", "LLM",
+// "incident transitoire" ni "relancer l analyse" dans le rendu.
 //
 // Les forces et les risques sont extraits automatiquement des
 // moteurs disponibles dans le resultJson : green flags equipe,
@@ -27,6 +27,11 @@
 
 import React from 'react';
 import { splitIntoParagraphs, enrichProse } from '@/lib/note-typography';
+import {
+  sanitizeNarrative,
+  sectionFallbackCopy,
+  looksLikeFailureCopy,
+} from '@/lib/note/section-fallback';
 
 // ============================================================
 // TYPES SUCCINCTS
@@ -532,14 +537,19 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
   const valuationRange = valuation?.recommendedRange;
   const valuationConfidence = valuation?.confidence;
 
-  // Argumentation : masquee entierement en mode degrade pour ne
-  // pas exposer au partner les mentions techniques (529, Anthropic,
-  // orchestrate, LLM). Le bandeau neutre en aval prend le relais
-  // avec une formulation editoriale.
-  const argumentation =
-    !degraded && typeof reco.argumentation === 'string' && reco.argumentation.trim()
-      ? reco.argumentation
-      : null;
+  // Argumentation : passe par sanitizeNarrative (module unifie
+  // lib/note/section-fallback) en ceinture-et-bretelles. Meme si
+  // un futur moteur oubliait d assainir, aucun terme technique
+  // (529, Anthropic, orchestrate, LLM) ne pourrait atteindre le
+  // rendu partner. En mode degrade explicite, on renvoie null pour
+  // laisser la ligne editoriale unifiee prendre le relais en aval.
+  const argumentation = (() => {
+    if (degraded) return null;
+    if (typeof reco.argumentation !== 'string') return null;
+    if (looksLikeFailureCopy(reco.argumentation)) return null;
+    const cleaned = sanitizeNarrative(reco.argumentation, 'orchestrator');
+    return cleaned && cleaned.trim() ? cleaned : null;
+  })();
 
   return (
     <article className="note-syn">
@@ -635,24 +645,13 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
         </section>
       )}
 
-      {/* F. BANDEAU MODE RESTREINT (uniquement en mode degrade) */}
+      {/* F. LIGNE NEUTRE DE FALLBACK (uniquement en mode degrade).
+          Copie unifiee via lib/note/section-fallback : aucune fuite
+          technique, aucune mise en exergue de l echec, positionnement
+          naturel de la reprise en DD Bloc 2. */}
       {degraded && (
         <aside className="note-syn-degraded">
-          <div className="note-syn-eyebrow degraded-eyebrow">
-            Note completee en mode restreint
-          </div>
-          <p>
-            Le score et le verdict affiches ci-dessus sont ceux calcules mecaniquement
-            a partir des seize moteurs d analyse qui ont abouti, selon la formule et
-            les ponderations documentees dans le score calculator. Ils sont veridiques
-            et opposables.
-          </p>
-          <p>
-            La mise en recit finale — retournement causal, resolution dialectique
-            entre vigilance et singularite, decision drivers et plan de chantiers —
-            n a pas ete produite pour cette instance. Relancer l analyse sur ce
-            dossier pour obtenir la note complete.
-          </p>
+          <p>{sectionFallbackCopy('orchestrator')}</p>
         </aside>
       )}
     </article>
