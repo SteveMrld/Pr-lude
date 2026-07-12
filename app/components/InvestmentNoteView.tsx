@@ -15,7 +15,7 @@ import MarketOutcomeEditor from './MarketOutcomeEditor';
 import CalibrationSummary from './CalibrationSummary';
 import PortfolioPositionChart from './PortfolioPositionChart';
 import StructurationEntreeSection from './StructurationEntreeSection';
-import { SectoralSpiderChart } from './sectoral';
+import { SectoralRadar } from './note/SectoralRadar';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -220,122 +220,6 @@ function NoteSectionWrapper({
       </h2>
       {children}
     </section>
-  );
-}
-
-// ============================================================
-// NoteSectoralMethodBlock
-// ------------------------------------------------------------
-// Mini SectoralSpiderChart inject en tete de la section
-// methodologique de la note. Le libelle pose le secteur primaire
-// et la date de la fiche, en sous-titre les secteurs secondaires
-// s ils existent. Lien cliquable vers la fiche complete dans le
-// dashboard partner (/portfolio/secteurs/[slug]). Les quatre cas
-// limites doctrinaux sont relayes au composant SectoralSpiderChart
-// via la prop mode. Pour les modes sans rendu graphique (unknown,
-// expired, no_brief), une mention textuelle sobre tient lieu de
-// trace methodologique.
-// ============================================================
-function NoteSectoralMethodBlock({
-  sectoral,
-}: {
-  sectoral: import('@/lib/engines/sectoral-injection').SectoralContext | null | undefined;
-}) {
-  // Pas de contexte du tout : on n affiche rien, le pipeline a
-  // tourne sans resolution sectorielle (cas legacy ou erreur en
-  // amont).
-  if (!sectoral) return null;
-
-  // Mode unknown_sector : mention textuelle, pas de chart.
-  if (sectoral.mode === 'unknown_sector') {
-    return (
-      <div className="note-sectoral-method" data-testid="note-sectoral-unknown">
-        <p className="note-sectoral-method-mention">
-          Secteur emergent non couvert par la matrice sectorielle Prelude. La
-          lecture sectorielle a ete suspendue pour ce dossier ; l analyse s
-          appuie sur le seul contenu du pitch et sur la doctrine generale
-          des moteurs.
-        </p>
-      </div>
-    );
-  }
-
-  // Mode expired : fiche perimee, mention explicite.
-  if (sectoral.mode === 'expired') {
-    return (
-      <div className="note-sectoral-method" data-testid="note-sectoral-expired">
-        <p className="note-sectoral-method-mention">
-          {sectoral.methodologyNote}
-        </p>
-      </div>
-    );
-  }
-
-  // Mode no_brief : secteur reconnu mais aucune fiche persistee.
-  if (sectoral.mode === 'no_brief') {
-    return (
-      <div className="note-sectoral-method" data-testid="note-sectoral-no-brief">
-        <p className="note-sectoral-method-mention">
-          {sectoral.methodologyNote}
-        </p>
-      </div>
-    );
-  }
-
-  // Mode applied (fresh ou stale) : on rend le mini chart.
-  const primary = sectoral.primary;
-  if (!primary) return null;
-
-  const SECTORS = SECTORAL_SECTORS;
-  const sectorLabel =
-    SECTORS.find((s) => s.slug === primary.brief.sector_slug)?.label
-    ?? primary.brief.sector_slug;
-
-  const secondaryLabels = sectoral.secondaries
-    .map((s) =>
-      SECTORS.find((sd) => sd.slug === s.brief.sector_slug)?.label
-      ?? s.brief.sector_slug,
-    )
-    .filter(Boolean);
-
-  const subtitle = secondaryLabels.length > 0
-    ? `Secteurs secondaires : ${secondaryLabels.join(' et ')}`
-    : undefined;
-
-  const mode: import('./sectoral').SectoralRenderMode = primary.freshness === 'stale'
-    ? 'stale'
-    : 'fresh';
-
-  return (
-    <div className="note-sectoral-method" data-testid="note-sectoral-applied">
-      <SectoralSpiderChart
-        brief={primary.brief}
-        sectorLabel={`Secteur primaire : ${sectorLabel}`}
-        mode={mode}
-        size={150}
-        subtitle={subtitle}
-        href={`/portfolio/secteurs/${primary.brief.sector_slug}`}
-      />
-      <style jsx>{`
-        .note-sectoral-method {
-          margin: 16px 0 20px;
-          display: flex;
-          justify-content: center;
-        }
-        .note-sectoral-method-mention {
-          font-family: var(--serif, Georgia, serif);
-          font-size: 0.88rem;
-          line-height: 1.55;
-          color: var(--ink-secondary, #4a4338);
-          font-style: italic;
-          margin: 0;
-          padding: 12px 16px;
-          background: #fef7f4;
-          border-left: 3px solid #9C5A2A;
-          max-width: 760px;
-        }
-      `}</style>
-    </div>
   );
 }
 
@@ -3777,13 +3661,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
       {/* SECTION SOURCES & METHODOLOGY - Documentation des références externes
           consolidées par les moteurs Prélude. Montre la rigueur méthodologique
-          de la note. Le mini SectoralSpiderChart en tête expose la fiche
-          sectorielle qui a effectivement encadré la lecture du dossier, avec
-          lien vers la fiche complète et mention des secteurs secondaires si
-          le dossier est multi-sectoriel. */}
+          de la note. Le SectoralRadar en tête expose la fiche sectorielle qui
+          a effectivement encadré la lecture du dossier, avec caption éditoriale
+          au-dessus, lien vers la fiche complète et mention des secteurs
+          secondaires si le dossier est multi-sectoriel. */}
       <section className="note-sources" id="engine-section-sources">
         <h4 className="note-h4">Sources et méthodologie</h4>
-        <NoteSectoralMethodBlock sectoral={sectoral} />
+        <SectoralRadar sectoral={sectoral} />
         <p className="note-sources-intro">
           Cette note s'appuie sur l'analyse du dossier déposé et sur un corpus de bornes externes consolidées trimestriellement.
         </p>

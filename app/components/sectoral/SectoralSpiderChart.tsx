@@ -419,6 +419,24 @@ function ChartStyles(): React.ReactElement {
       .sectoral-empty p {
         margin: 0;
       }
+      @media print {
+        .sectoral-spider-wrap {
+          break-inside: avoid;
+          page-break-inside: avoid;
+          background: ${PALETTE.cream};
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .sectoral-spider-svg :global(svg) {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          max-width: 100%;
+          height: auto;
+        }
+        .sectoral-spider-toggle {
+          display: none;
+        }
+      }
     `}</style>
   );
 }

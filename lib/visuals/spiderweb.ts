@@ -10,6 +10,18 @@
 // sur creme, lignes fines, interpolation strictement lineaire,
 // aucun effet decoratif gratuit.
 //
+// Regles structurelles :
+//
+//   - Le titre et le sous-titre ne sont JAMAIS emis dans le SVG.
+//     Ils appartiennent a la caption semantique du composant hote,
+//     posee au-dessus du radar. Le SVG ne rend que la geometrie.
+//   - Les libellés d axes sont dimensionnes et decoupes pour tenir
+//     dans le viewBox : la marge est calculee a partir du plus long
+//     libellé et l alignement suit le quadrant du sommet.
+//   - Un axe sans donnee est neutralise a mi-echelle avec un style
+//     distinct (pointille grise, marque n/e). Il est exclu du calcul
+//     d aire et ne penalise pas le dossier.
+//
 // Toute extension future passe par ce module. Les composants
 // React qui consomment du SVG inline doivent appeler les
 // fonctions exportees plutot que de redefinir les constantes
@@ -58,7 +70,8 @@ export interface DimensionData {
   // Libelle affiche sur l axe (ex : "Intensite capitalistique").
   label: string;
   // Score sur l echelle 0 a 100. null = donnee manquante : la
-  // branche est rendue en pointille clair sans valeur affichee.
+  // branche est neutralisee a mi-echelle avec la marque n/e et
+  // exclue du calcul d aire du polygone principal.
   score: number | null;
   // Confidence facultative, sert au rendu degrade.
   confidence?: 'high' | 'medium' | 'low' | 'data_missing';
@@ -66,6 +79,10 @@ export interface DimensionData {
 
 export interface SpiderChartData {
   dimensions: DimensionData[];
+  // Titre et sous-titre : conserves dans l API pour compatibilite
+  // et pour peupler l attribut aria-label du SVG, mais JAMAIS
+  // emis comme texte visible dans le SVG. L emission textuelle
+  // appartient a la caption du composant hote.
   title?: string;
   subtitle?: string;
 }
@@ -240,23 +257,163 @@ function formatNumber(value: number): string {
   return Number.isInteger(value) ? value.toString() : value.toFixed(3);
 }
 
-function pointsAttribute(points: Array<Point2D | null>): string {
-  // Pour le rendu de polygone : si une mesure est manquante
-  // (point null), on tombe sur le centre relatif. Cette branche
-  // est en realite traitee en amont, mais la fonction reste
-  // defensive.
+function pointsAttribute(points: Point2D[]): string {
   return points
-    .filter((p): p is Point2D => p !== null)
     .map((p) => `${formatNumber(p.x)},${formatNumber(p.y)}`)
     .join(' ');
 }
 
-interface RenderedAxis {
+// ------------------------------------------------------------
+// TAILLE DE POLICE ADAPTATIVE
+// ------------------------------------------------------------
+// La police des libelles d axes s ajuste a la taille du canvas
+// pour rester lisible sans deborder. Formule empirique calibree
+// sur le mini chart 150 px et la fiche pleine 480 px.
+function computeAxisFontSize(size: number): number {
+  // 150 -> 7, 240 -> 9, 320 -> 10, 480 -> 11, 720 -> 11
+  const target = Math.round(size / 44);
+  return Math.max(7, Math.min(11, target));
+}
+
+// Approximation empirique de la largeur d un caractere serif a
+// la taille de police donnee. Suffisant pour calibrer les marges
+// et decider d un wrap ; pas de precision pixel-parfaite requise.
+function estimateCharWidth(fontSize: number): number {
+  return fontSize * 0.55;
+}
+
+// ------------------------------------------------------------
+// WRAP ET TRONCATURE DES LIBELLES
+// ------------------------------------------------------------
+// Un libellé qui deborde la marge disponible est d abord decoupe
+// sur deux lignes au boundary d espace le plus equilibre, puis
+// tronque avec ellipsis si le decoupage n a pas suffi. Le libellé
+// integral reste accessible via le <title> enfant du <text>.
+export interface WrappedLabel {
+  lines: string[];
+  truncated: boolean;
+}
+
+export function wrapLabelToFit(
+  label: string,
+  maxCharsPerLine: number,
+): WrappedLabel {
+  if (maxCharsPerLine < 3) {
+    return { lines: [label.slice(0, Math.max(1, maxCharsPerLine))], truncated: true };
+  }
+  if (label.length <= maxCharsPerLine) {
+    return { lines: [label], truncated: false };
+  }
+  const words = label.split(/\s+/).filter(Boolean);
+  if (words.length === 1) {
+    return {
+      lines: [label.slice(0, maxCharsPerLine - 1) + '…'],
+      truncated: true,
+    };
+  }
+  // Cherche le point de coupure qui equilibre au mieux deux
+  // lignes tenant chacune sous maxCharsPerLine.
+  let bestIdx = -1;
+  let bestDiff = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const l1 = words.slice(0, i).join(' ');
+    const l2 = words.slice(i).join(' ');
+    if (l1.length <= maxCharsPerLine && l2.length <= maxCharsPerLine) {
+      const diff = Math.abs(l1.length - l2.length);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+  }
+  if (bestIdx > 0) {
+    return {
+      lines: [
+        words.slice(0, bestIdx).join(' '),
+        words.slice(bestIdx).join(' '),
+      ],
+      truncated: false,
+    };
+  }
+  // Aucun decoupage propre : tronque la deuxieme ligne.
+  // Cherche le premier mot qui, avec le premier, tient sous la
+  // limite ; sinon tronque le premier mot.
+  const first = words[0];
+  const rest = words.slice(1).join(' ');
+  const l1 = first.length <= maxCharsPerLine ? first : first.slice(0, maxCharsPerLine - 1) + '…';
+  const l2 = rest.length <= maxCharsPerLine
+    ? rest
+    : rest.slice(0, Math.max(0, maxCharsPerLine - 1)) + '…';
+  return { lines: [l1, l2], truncated: true };
+}
+
+interface AxisGeometry {
   vertex: Point2D;
   labelPosition: Point2D;
   alignment: LabelAlignment;
   angle: number;
   dimension: DimensionData;
+  // Nombre max de caracteres par ligne calcule a partir de la
+  // marge libre entre le labelPosition et le bord du viewBox le
+  // plus proche dans la direction du texte.
+  maxCharsPerLine: number;
+  fontSize: number;
+}
+
+// ------------------------------------------------------------
+// GEOMETRIE : radius adaptatif et calcul des marges labels
+// ------------------------------------------------------------
+// Le rayon du polygone est fixe a une fraction reservee du canvas
+// (60% du demi-cote). Le reste (~40%) est reserve aux libellés,
+// avec padding radial et wrap sur deux lignes si necessaire.
+function computePolygonRadius(size: number): number {
+  return Math.round((size / 2) * 0.6);
+}
+
+function computeLabelPadding(size: number): number {
+  return Math.max(6, Math.round(size / 40));
+}
+
+function computeMaxCharsForAxis(
+  angle: number,
+  labelPosition: Point2D,
+  alignment: LabelAlignment,
+  size: number,
+  fontSize: number,
+  safeMargin: number,
+): number {
+  const charWidth = estimateCharWidth(fontSize);
+  // Distance disponible du labelPosition jusqu au bord du viewBox
+  // dans la direction ou le texte s etend (fonction de textAnchor).
+  const dxRightAvail = size - safeMargin - labelPosition.x;
+  const dxLeftAvail = labelPosition.x - safeMargin;
+  const dyTopAvail = labelPosition.y - safeMargin;
+  const dyBottomAvail = size - safeMargin - labelPosition.y;
+
+  let horizontalBudget: number;
+  if (alignment.textAnchor === 'start') {
+    horizontalBudget = dxRightAvail;
+  } else if (alignment.textAnchor === 'end') {
+    horizontalBudget = dxLeftAvail;
+  } else {
+    // middle : le texte s etend a droite ET a gauche du labelPos.
+    horizontalBudget = 2 * Math.min(dxRightAvail, dxLeftAvail);
+  }
+
+  // Contrainte verticale : le libelle peut etre wrap sur deux
+  // lignes. Verifier qu il reste au moins 2 * fontSize dans la
+  // direction ou le texte s empile.
+  const verticalStackSpace = alignment.dominantBaseline === 'hanging'
+    ? dyBottomAvail
+    : alignment.dominantBaseline === 'auto'
+      ? dyTopAvail
+      : Math.min(dyTopAvail, dyBottomAvail) * 2;
+  const canWrapTwoLines = verticalStackSpace >= 2 * fontSize;
+
+  // On accepte deux lignes : multiplier le budget effectif par 2.
+  const effectiveBudget = canWrapTwoLines ? horizontalBudget * 2 : horizontalBudget;
+  void angle; // conserve la signature pour extensions futures
+  return Math.max(3, Math.floor(effectiveBudget / charWidth));
 }
 
 function buildAxes(
@@ -264,21 +421,35 @@ function buildAxes(
   center: Point2D,
   radius: number,
   labelPadding: number,
-): RenderedAxis[] {
+  size: number,
+  fontSize: number,
+): AxisGeometry[] {
   const n = dimensions.length;
   const startAngle = -Math.PI / 2;
   const step = (2 * Math.PI) / n;
-  const axes: RenderedAxis[] = [];
+  const safeMargin = 4;
+  const axes: AxisGeometry[] = [];
   for (let i = 0; i < n; i++) {
     const angle = startAngle + i * step;
     const vertex = radialToCartesian(radius, angle, center);
     const labelPos = axisLabelPosition(vertex, center, labelPadding);
+    const alignment = labelAlignmentForAngle(angle);
+    const maxChars = computeMaxCharsForAxis(
+      angle,
+      labelPos,
+      alignment,
+      size,
+      fontSize,
+      safeMargin,
+    );
     axes.push({
       vertex,
       labelPosition: labelPos,
-      alignment: labelAlignmentForAngle(angle),
+      alignment,
       angle,
       dimension: dimensions[i],
+      maxCharsPerLine: maxChars,
+      fontSize,
     });
   }
   return axes;
@@ -300,7 +471,7 @@ function renderConcentricRings(center: Point2D, radius: number): string {
     .join('');
 }
 
-function renderRadialAxes(axes: RenderedAxis[], center: Point2D): string {
+function renderRadialAxes(axes: AxisGeometry[], center: Point2D): string {
   // Lignes radiales du centre vers chaque sommet. Trait plein
   // sepia opacite 0.3.
   return axes
@@ -313,17 +484,46 @@ function renderRadialAxes(axes: RenderedAxis[], center: Point2D): string {
     .join('');
 }
 
-function renderAxisLabels(axes: RenderedAxis[]): string {
+function renderAxisLabels(axes: AxisGeometry[]): string {
   return axes
     .map((a) => {
-      const { labelPosition, alignment, dimension } = a;
-      const safeLabel = escapeXml(dimension.label);
+      const { labelPosition, alignment, dimension, maxCharsPerLine, fontSize } = a;
+      const wrapped = wrapLabelToFit(dimension.label, maxCharsPerLine);
+      const lineHeight = fontSize * 1.1;
+      // Ancrage vertical du bloc multi-ligne : on centre la pile
+      // sur labelPosition en fonction de dominantBaseline.
+      let firstLineDy = 0;
+      if (wrapped.lines.length > 1) {
+        if (alignment.dominantBaseline === 'middle') {
+          // Empile symetriquement autour du labelPosition.
+          firstLineDy = -((wrapped.lines.length - 1) * lineHeight) / 2;
+        } else if (alignment.dominantBaseline === 'auto') {
+          // Text sits above labelPosition. Recule d autant de
+          // lignes qu il y en a au dessus de la ligne de base.
+          firstLineDy = -(wrapped.lines.length - 1) * lineHeight;
+        }
+        // hanging : premiere ligne au labelPosition, lignes
+        // suivantes descendent. Rien a faire.
+      }
+
+      const tspans = wrapped.lines
+        .map((line, idx) => {
+          const dy = idx === 0 ? firstLineDy : lineHeight;
+          const dyAttr = dy === 0 ? '' : ` dy="${formatNumber(dy)}"`;
+          return `<tspan x="${formatNumber(labelPosition.x)}"${dyAttr}>${escapeXml(line)}</tspan>`;
+        })
+        .join('');
+
+      const safeFullLabel = escapeXml(dimension.label);
       return (
         `<text x="${formatNumber(labelPosition.x)}" y="${formatNumber(labelPosition.y)}" ` +
         `text-anchor="${alignment.textAnchor}" ` +
         `dominant-baseline="${alignment.dominantBaseline}" ` +
-        `font-family='${TYPOGRAPHY.serif}' font-size="${TYPOGRAPHY.axisLabelSize}" ` +
-        `fill="${PALETTE.encre}">${safeLabel}</text>`
+        `font-family='${TYPOGRAPHY.serif}' font-size="${fontSize}" ` +
+        `fill="${PALETTE.encre}">` +
+        `<title>${safeFullLabel}</title>` +
+        tspans +
+        `</text>`
       );
     })
     .join('');
@@ -338,65 +538,111 @@ interface PolygonStyle {
 }
 
 function renderPolygon(
-  axes: RenderedAxis[],
+  axes: AxisGeometry[],
   data: DimensionData[],
   center: Point2D,
   style: PolygonStyle,
 ): string {
-  // Construit le polygone des mesures. Les points manquants sont
-  // rendus en pointille sur la branche correspondante : on trace
-  // le polygone connectant uniquement les points presents, et on
-  // ajoute des segments en pointille pour les branches absentes.
-  const points: Array<Point2D | null> = axes.map((a, idx) =>
-    measurePointOnAxis(a.vertex, center, data[idx]?.score ?? null),
-  );
-
-  const hasMissing = points.some((p) => p === null);
-  const polygonPoints = pointsAttribute(points);
-  const dasharray = style.dashed ? ' stroke-dasharray="4 3"' : '';
-
-  let svg = '';
-
-  if (!hasMissing) {
-    svg += (
-      `<polygon points="${polygonPoints}" ` +
-      `fill="${style.stroke}" fill-opacity="${style.fillOpacity}" ` +
-      `stroke="${style.stroke}" stroke-width="${style.strokeWidth}" ` +
-      `stroke-opacity="${style.strokeOpacity}"${dasharray} />`
-    );
-  } else {
-    // Cas degraded : on trace une polyline sur les points
-    // presents en pleins, et on ajoute des segments pointilles
-    // depuis le centre vers les axes ou la donnee manque, pour
-    // visualiser explicitement l absence.
-    svg += (
-      `<polyline points="${polygonPoints}" ` +
-      `fill="${style.stroke}" fill-opacity="${Math.max(0, style.fillOpacity - 0.04)}" ` +
-      `stroke="${style.stroke}" stroke-width="${style.strokeWidth}" ` +
-      `stroke-opacity="${style.strokeOpacity}"${dasharray} />`
-    );
-    for (let i = 0; i < points.length; i++) {
-      if (points[i] === null) {
-        const v = axes[i].vertex;
-        svg += (
-          `<line x1="${formatNumber(center.x)}" y1="${formatNumber(center.y)}" ` +
-          `x2="${formatNumber(v.x)}" y2="${formatNumber(v.y)}" ` +
-          `stroke="${PALETTE.sepia}" stroke-width="0.5" stroke-opacity="0.4" ` +
-          `stroke-dasharray="1 4" />`
-        );
-      }
+  // Construit le polygone d aire. Les axes data_missing sont
+  // exclus du calcul d aire (doctrine : neutre, pas zero). Le
+  // polygone est trace comme s ils n existaient pas, les axes
+  // presents forment un polygone reduit. Sur les axes manquants,
+  // un marqueur separe a mi-echelle est rendu par ailleurs.
+  const presentIndices: number[] = [];
+  const presentPoints: Point2D[] = [];
+  for (let i = 0; i < axes.length; i++) {
+    const score = data[i]?.score ?? null;
+    if (score === null) continue;
+    const pt = measurePointOnAxis(axes[i].vertex, center, score);
+    if (pt) {
+      presentIndices.push(i);
+      presentPoints.push(pt);
     }
   }
 
+  if (presentPoints.length < 3) {
+    // Trop peu de points presents pour former un polygone d aire.
+    // On rend les points isoles uniquement.
+    let svg = '';
+    for (const p of presentPoints) {
+      svg += (
+        `<circle cx="${formatNumber(p.x)}" cy="${formatNumber(p.y)}" r="3" ` +
+        `fill="${style.stroke}" />`
+      );
+    }
+    return svg;
+  }
+
+  const dasharray = style.dashed ? ' stroke-dasharray="4 3"' : '';
+  const polygonPoints = pointsAttribute(presentPoints);
+
+  let svg = (
+    `<polygon points="${polygonPoints}" ` +
+    `fill="${style.stroke}" fill-opacity="${style.fillOpacity}" ` +
+    `stroke="${style.stroke}" stroke-width="${style.strokeWidth}" ` +
+    `stroke-opacity="${style.strokeOpacity}"${dasharray} />`
+  );
+
   // Points de mesure aux sommets pleins.
-  for (const p of points) {
-    if (p === null) continue;
+  for (const p of presentPoints) {
     svg += (
       `<circle cx="${formatNumber(p.x)}" cy="${formatNumber(p.y)}" r="3" ` +
       `fill="${style.stroke}" />`
     );
   }
 
+  return svg;
+}
+
+// ------------------------------------------------------------
+// RENDU DES AXES NEUTRALISES (data_missing)
+// ------------------------------------------------------------
+// Sur les axes ou la donnee est absente, on trace :
+//   - un segment pointille grise du centre au point mi-echelle
+//   - un cercle grise vide a la mi-echelle
+//   - une marque "n/e" (non evaluable) posee pres du sommet
+// L axe n est pas inclus dans le polygone d aire, ce qui respecte
+// la doctrine absent egale suivi pas penalite.
+function renderNeutralAxes(
+  axes: AxisGeometry[],
+  data: DimensionData[],
+  center: Point2D,
+): string {
+  let svg = '';
+  for (let i = 0; i < axes.length; i++) {
+    const score = data[i]?.score ?? null;
+    if (score !== null) continue;
+    const axis = axes[i];
+    const midPoint = measurePointOnAxis(axis.vertex, center, 50);
+    if (!midPoint) continue;
+
+    // Segment pointille centre -> mi-echelle.
+    svg += (
+      `<line x1="${formatNumber(center.x)}" y1="${formatNumber(center.y)}" ` +
+      `x2="${formatNumber(midPoint.x)}" y2="${formatNumber(midPoint.y)}" ` +
+      `stroke="${PALETTE.sepia}" stroke-width="1" stroke-opacity="0.5" ` +
+      `stroke-dasharray="1 4" />`
+    );
+
+    // Cercle vide grise a la mi-echelle.
+    svg += (
+      `<circle cx="${formatNumber(midPoint.x)}" cy="${formatNumber(midPoint.y)}" r="3" ` +
+      `fill="${PALETTE.cream}" stroke="${PALETTE.sepia}" stroke-width="1" ` +
+      `stroke-opacity="0.6" />`
+    );
+
+    // Marque "n/e" pres du sommet (entre mi-echelle et sommet).
+    const marker = measurePointOnAxis(axis.vertex, center, 72);
+    if (marker) {
+      svg += (
+        `<text x="${formatNumber(marker.x)}" y="${formatNumber(marker.y)}" ` +
+        `text-anchor="middle" dominant-baseline="middle" ` +
+        `font-family='${TYPOGRAPHY.grotesqueCondensed}' ` +
+        `font-size="${TYPOGRAPHY.graduationSize}" ` +
+        `fill="${PALETTE.sepia}" fill-opacity="0.7">n/e</text>`
+      );
+    }
+  }
   return svg;
 }
 
@@ -417,38 +663,6 @@ function renderGraduations(center: Point2D, radius: number): string {
       );
     })
     .join('');
-}
-
-function renderHeader(
-  data: SpiderChartData,
-  center: Point2D,
-  size: number,
-): string {
-  if (!data.title && !data.subtitle) return '';
-  let svg = '';
-  const topMargin = 24;
-  if (data.title) {
-    svg += (
-      `<text x="${formatNumber(center.x)}" y="${formatNumber(topMargin)}" ` +
-      `text-anchor="middle" dominant-baseline="hanging" ` +
-      `font-family='${TYPOGRAPHY.serif}' font-size="${TYPOGRAPHY.titleSize}" ` +
-      `fill="${PALETTE.encre}">${escapeXml(data.title)}</text>`
-    );
-  }
-  if (data.subtitle) {
-    const yOffset = data.title ? topMargin + TYPOGRAPHY.titleSize + 4 : topMargin;
-    svg += (
-      `<text x="${formatNumber(center.x)}" y="${formatNumber(yOffset)}" ` +
-      `text-anchor="middle" dominant-baseline="hanging" ` +
-      `font-family='${TYPOGRAPHY.grotesqueCondensed}' ` +
-      `font-size="${TYPOGRAPHY.subtitleSize}" ` +
-      `fill="${PALETTE.sepia}">${escapeXml(data.subtitle)}</text>`
-    );
-  }
-  // size est explicitement passe pour permettre l ajustement
-  // futur de la marge basse selon la taille totale.
-  void size;
-  return svg;
 }
 
 function renderLegend(
@@ -497,12 +711,16 @@ function renderLegend(
 // externe. Le SVG produit est embarquable tel quel dans une
 // page web ou dans la generation PDF de la note d instruction.
 //
-// Le parametre data porte les huit dimensions standardisees
-// dans l ordre attendu de l octogone (rotation calee sur la
-// verticale, premier sommet au nord). En mode 'overlay' ou
-// 'temporal', le parametre options.secondary doit etre homogene
-// en nombre de dimensions avec data.dimensions, sans quoi le
-// rendu echoue.
+// Regle non negociable : le SVG ne contient PAS de titre ni de
+// sous-titre visibles. La caption editoriale est rendue par le
+// composant hote au-dessus du radar. data.title alimente
+// uniquement l attribut aria-label pour l accessibilite.
+//
+// Le parametre data porte les dimensions dans l ordre attendu
+// du polygone (rotation calee sur la verticale, premier sommet
+// au nord). En mode 'overlay' ou 'temporal', le parametre
+// options.secondary doit etre homogene en nombre de dimensions
+// avec data.dimensions, sans quoi le rendu echoue.
 export function renderSpiderChart(
   data: SpiderChartData,
   options: SpiderChartOptions = {},
@@ -531,12 +749,11 @@ export function renderSpiderChart(
   }
 
   const center: Point2D = { x: size / 2, y: size / 2 };
-  // Marge laissee pour les labels d axes : on reserve un cinquieme
-  // du cote pour la typographie radiale.
-  const radius = size / 2 - size * 0.18;
-  const labelPadding = 18;
+  const radius = computePolygonRadius(size);
+  const labelPadding = computeLabelPadding(size);
+  const fontSize = computeAxisFontSize(size);
 
-  const axes = buildAxes(data.dimensions, center, radius, labelPadding);
+  const axes = buildAxes(data.dimensions, center, radius, labelPadding, size, fontSize);
 
   let body = '';
   // Fond creme pour garantir le rendu hors-contexte (note PDF,
@@ -544,11 +761,16 @@ export function renderSpiderChart(
   // ecrase par un wrapper, mais l autonomie est preservee.
   body += `<rect x="0" y="0" width="${size}" height="${size}" fill="${PALETTE.cream}" />`;
 
-  body += renderHeader(data, center, size);
   body += renderConcentricRings(center, radius);
   body += renderRadialAxes(axes, center);
   body += renderGraduations(center, radius);
   body += renderAxisLabels(axes);
+
+  // Marqueurs neutres pour les axes data_missing du polygone
+  // primaire. Le secondaire n en a pas besoin : les fiches
+  // sectorielles secondaires ne sont trace que si toutes les
+  // dimensions sont presentes.
+  body += renderNeutralAxes(axes, data.dimensions, center);
 
   // Le polygone secondaire (si present) se dessine d abord pour
   // que le primaire reste lisible au-dessus.

@@ -367,11 +367,14 @@ console.log('\n=== Test 11 : data_missing branch ===');
   });
   const data = briefToSpiderData(brief);
   const svg = renderSpiderChart(data, { mode: 'single', size: 480 });
-  // Quand au moins une dimension manque, le module trace une polyline
-  // au lieu d un polygon plein et ajoute un segment radial pointille
-  // sur la branche manquante.
-  checkTrue('polyline presente pour data_missing', /<polyline /.test(svg));
-  checkTrue('au moins un trait pointille marginal', /stroke-dasharray="1 4"/.test(svg));
+  // Regle doctrinale : un axe non evaluable est neutralise a
+  // mi-echelle avec style distinct (pointille grise, marque n/e)
+  // et exclu du calcul d aire du polygone principal. Le polygone
+  // continue d etre trace sur les axes presents, sans effondrement
+  // vers zero sur l axe manquant.
+  checkTrue('polygone d aire trace sur axes presents', /<polygon /.test(svg));
+  checkTrue('trait radial pointille marquant la neutralisation', /stroke-dasharray="1 4"/.test(svg));
+  checkTrue('marque n/e presente pour l axe non evaluable', />n\/e</.test(svg));
 }
 
 // ============================================================

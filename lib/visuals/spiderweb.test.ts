@@ -18,10 +18,10 @@ import {
   labelAlignmentForAngle,
   axisLabelPosition,
   measurePointOnAxis,
+  wrapLabelToFit,
   renderSpiderChart,
   renderEngineMap,
   renderEngineAnimation,
-  type DimensionData,
   type SpiderChartData,
 } from './spiderweb';
 
@@ -273,11 +273,24 @@ console.log('\n=== Test 7 : renderSpiderChart mode single ===');
   checkTrue('svg commence par <svg', svg.startsWith('<svg'));
   checkTrue('svg termine par </svg>', svg.endsWith('</svg>'));
   checkTrue('svg contient un polygone', svg.includes('<polygon '));
-  checkTrue('svg contient le titre', svg.includes('Fintech'));
-  checkTrue('svg contient le sous-titre', svg.includes('Fiche du 2026-Q2'));
+  // Le titre n est PAS rendu comme texte visible dans le SVG,
+  // il vit uniquement dans l attribut aria-label pour l accessibilite
+  // (regle doctrinale : la caption editoriale appartient au composant
+  // hote au-dessus du radar, jamais dans la zone de trace).
+  checkTrue('svg expose le titre en aria-label uniquement',
+    svg.includes('aria-label="Fintech"'));
+  checkTrue('svg ne rend aucun element <text> pour le titre',
+    !new RegExp(`<text[^>]*>[^<]*Fintech`).test(svg)
+    && !svg.includes('>Fintech<'));
+  checkTrue('svg ne rend pas le sous-titre',
+    !svg.includes('Fiche du 2026-Q2'));
   checkTrue('svg utilise palette ocre brule', svg.includes(PALETTE.ocreBrule));
   checkTrue('svg utilise palette creme en fond', svg.includes(PALETTE.cream));
-  checkTrue('svg contient les huit labels', HUIT_DIMENSIONS.every((label) => svg.includes(label)));
+  // Les labels d axes sont wrap sur deux lignes via tspan quand
+  // ils depassent la marge disponible : on verifie leur presence
+  // en fragments plutot qu en chaine unique.
+  checkTrue('svg contient un tooltip <title> par axe pour le libellé complet',
+    HUIT_DIMENSIONS.every((label) => svg.includes(`<title>${label}</title>`)));
   checkTrue('svg contient les cercles concentriques', (svg.match(/<circle /g) ?? []).length >= 8);
   checkTrue('svg contient les graduations 25 50 75 100',
     svg.includes('>25<') && svg.includes('>50<') && svg.includes('>75<') && svg.includes('>100<'));
@@ -291,20 +304,29 @@ console.log('\n=== Test 7 : renderSpiderChart mode single ===');
 
 console.log('\n=== Test 8 : renderSpiderChart dimension manquante ===');
 {
-  // Une des huit dimensions a un score null.
+  // Une des huit dimensions a un score null : doctrine "absent
+  // egale suivi, pas penalite". L axe est neutralise a mi-echelle
+  // avec style distinct (pointille grise, marque n/e) et exclu du
+  // calcul d aire du polygone principal.
   const data = mockData([60, null, 50, 30, 80, 40, 65, 55]);
   const svg = renderSpiderChart(data, { mode: 'single' });
 
-  // En mode degraded : on rend une polyline (pas un polygon
-  // strict) plus des segments pointilles sur l axe manquant.
-  checkTrue('mode degraded contient polyline', svg.includes('<polyline '));
-  // Cercle de mesure du sommet manquant absent : on doit avoir
-  // un point de mesure de moins que de dimensions.
-  // Compte de circles de mesure (r="3").
+  // Le polygone d aire est rendu sur les sept axes presents,
+  // pas de "polyline" defensive : on evite tout effet visuel de
+  // reduction d aire vers zero sur l axe manquant.
+  checkTrue('polygone d aire rendu sur les axes presents', svg.includes('<polygon '));
+
+  // Sept points de mesure primaires + un cercle neutre a mi-echelle
+  // pour l axe manquant : total huit cercles de rayon 3.
   const measureDots = (svg.match(/r="3"/g) ?? []).length;
-  check('sept points de mesure rendus, le huitieme omis', measureDots, 7);
-  // Branche pointillee : un segment avec stroke-dasharray "1 4".
-  checkTrue('branche pointillee pour dimension manquante', svg.includes('stroke-dasharray="1 4"'));
+  check('sept points primaires plus un marqueur neutre', measureDots, 8);
+
+  // Marque n/e posee pres du sommet de l axe manquant.
+  checkTrue('marque n/e presente sur l axe non evaluable', svg.includes('>n/e<'));
+
+  // Segment pointille centre -> mi-echelle sur l axe manquant.
+  checkTrue('branche pointillee neutre pour axe manquant',
+    svg.includes('stroke-dasharray="1 4"'));
 }
 
 // ============================================================
@@ -456,6 +478,62 @@ console.log('\n=== Test 15 : taille personnalisee ===');
   checkTrue('size 150 width attribute', svgSmall.includes('width="150"'));
   const svgLarge = renderSpiderChart(data, { size: 720 });
   checkTrue('size 720 viewBox', svgLarge.includes('viewBox="0 0 720 720"'));
+}
+
+// ============================================================
+// Test 15b : wrapLabelToFit
+// ============================================================
+
+console.log('\n=== Test 15b : wrapLabelToFit ===');
+{
+  // Libelle qui tient sur une ligne : rien a faire.
+  const short = wrapLabelToFit('Fintech', 20);
+  check('court : une ligne', short.lines.length, 1);
+  check('court : contenu preserve', short.lines[0], 'Fintech');
+  check('court : non tronque', short.truncated, false);
+
+  // Libelle multi-mots qui deborde : coupe au boundary equilibre.
+  const wrapped = wrapLabelToFit('Concentration concurrentielle', 15);
+  check('long : deux lignes', wrapped.lines.length, 2);
+  check('long : premiere ligne', wrapped.lines[0], 'Concentration');
+  check('long : deuxieme ligne', wrapped.lines[1], 'concurrentielle');
+  check('long : non tronque', wrapped.truncated, false);
+
+  // Libelle mono-mot qui deborde : troncature avec ellipsis.
+  const mono = wrapLabelToFit('Interconnectivite', 10);
+  check('mono : une ligne', mono.lines.length, 1);
+  check('mono : tronque', mono.truncated, true);
+  checkTrue('mono : contient ellipsis', mono.lines[0].endsWith('…'));
+
+  // Libelle multi-mots dont la deuxieme partie deborde encore :
+  // truncation en fallback.
+  const overflow = wrapLabelToFit('Vulnerabilite narrative sectorielle', 8);
+  checkTrue('overflow : au moins une ligne', overflow.lines.length >= 1);
+}
+
+// ============================================================
+// Test 15c : radar 480 : aucun libellé ne deborde du viewBox
+// ============================================================
+
+console.log('\n=== Test 15c : viewBox contient tous les libellés ===');
+{
+  const data = mockData([60, 75, 50, 30, 80, 40, 65, 55]);
+  const svg = renderSpiderChart(data, { size: 480 });
+  // Extrait toutes les positions x des tspans et verifie qu elles
+  // restent dans la viewBox [0, 480]. Chaque tspan porte un x
+  // absolu par construction (voir renderAxisLabels).
+  const tspanXs: number[] = [];
+  const tspanRe = /<tspan x="([^"]+)"/g;
+  let mTspan: RegExpExecArray | null;
+  while ((mTspan = tspanRe.exec(svg)) !== null) {
+    tspanXs.push(parseFloat(mTspan[1]));
+  }
+  checkTrue('au moins 8 tspans (huit axes)', tspanXs.length >= 8);
+  checkTrue('toutes les positions x >= 0', tspanXs.every((x) => x >= 0));
+  checkTrue('toutes les positions x <= 480', tspanXs.every((x) => x <= 480));
+  // Chaque libellé complet accessible via <title> pour hover.
+  const titleCount = (svg.match(/<title>/g) ?? []).length;
+  check('un <title> par axe', titleCount, 8);
 }
 
 // ============================================================
