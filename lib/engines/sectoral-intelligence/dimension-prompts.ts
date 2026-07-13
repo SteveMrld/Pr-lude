@@ -72,122 +72,122 @@ interface DimensionPromptSpec {
 const DIMENSION_SPECS: Record<DimensionKey, DimensionPromptSpec> = {
   intensite_capitalistique: {
     definition:
-      'Combien de capital initial et recurrent un acteur du secteur doit bruler avant d atteindre un palier de soutenabilite economique.',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : asset-light, payback inferieur a douze mois, marges contributives elevees des le premier client (ex : SaaS B2B horizontal pur).
-- 20 a 40 : capital modere, payback douze a trente-six mois (ex : marketplaces verticales matures).
-- 40 a 60 : capital significatif, capex recurrent (ex : hardware grand public).
-- 60 a 80 : intensite capitalistique elevee, payback cinq a dix ans (ex : biotech therapeutique, semiconducteurs).
-- 80 a 100 : intensite extreme, payback superieur a dix ans, capex massif perenne (ex : energie nucleaire, batteries grande echelle).`,
+      'Combien de capital initial et récurrent un acteur du secteur doit brûler avant d\'atteindre un palier de soutenabilité économique.',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : asset-light, payback inférieur à douze mois, marges contributives élevées dès le premier client (ex : SaaS B2B horizontal pur).
+- 20 à 40 : capital modéré, payback douze à trente-six mois (ex : marketplaces verticales matures).
+- 40 à 60 : capital significatif, capex récurrent (ex : hardware grand public).
+- 60 à 80 : intensité capitalistique élevée, payback cinq à dix ans (ex : biotech thérapeutique, semiconducteurs).
+- 80 à 100 : intensité extrême, payback supérieur à dix ans, capex massif pérenne (ex : énergie nucléaire, batteries grande échelle).`,
     sources: `Sources prescrites :
-- World Bank (intensite capitalistique sectorielle, indicateurs structurels).
+- World Bank (intensité capitalistique sectorielle, indicateurs structurels).
 - OECD (Capital Intensity Indicators par secteur).
-- Comptes consolides des acteurs cotes du secteur via SEC Edgar et Euronext disclosures.
-- Etudes McKinsey, BCG, Bain accessibles publiquement.`,
+- Comptes consolidés des acteurs cotés du secteur via SEC Edgar et Euronext disclosures.
+- Études McKinsey, BCG, Bain accessibles publiquement.`,
   },
   pression_reglementaire: {
     definition:
-      'Densite du corpus reglementaire en vigueur, velocite du changement attendu sous vingt-quatre mois, agressivite historique des regulateurs sectoriels.',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : reglementation faible, stable, previsible (ex : SaaS horizontal en Europe).
-- 20 a 40 : corpus modere, evolutions rares (ex : commerce B2B classique).
-- 40 a 60 : corpus dense mais stable, regulateurs presents non agressifs (ex : adtech).
-- 60 a 80 : corpus dense en mutation, regulateurs actifs (ex : sante, fintech).
-- 80 a 100 : corpus extreme, mutation rapide, regulateurs agressifs (ex : crypto, IA generative en zone UE post-AI Act, defense).`,
+      'Densité du corpus réglementaire en vigueur, vélocité du changement attendu sous vingt-quatre mois, agressivité historique des régulateurs sectoriels.',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : réglementation faible, stable, prévisible (ex : SaaS horizontal en Europe).
+- 20 à 40 : corpus modéré, évolutions rares (ex : commerce B2B classique).
+- 40 à 60 : corpus dense mais stable, régulateurs présents non agressifs (ex : adtech).
+- 60 à 80 : corpus dense en mutation, régulateurs actifs (ex : santé, fintech).
+- 80 à 100 : corpus extrême, mutation rapide, régulateurs agressifs (ex : crypto, IA générative en zone UE post-AI Act, défense).`,
     sources: `Sources prescrites :
-- EUR-Lex (corpus reglementaire europeen).
-- Federal Register (corpus reglementaire americain).
+- EUR-Lex (corpus réglementaire européen).
+- Federal Register (corpus réglementaire américain).
 - ACPR, AMF, FCA, BCE pour les domaines financiers.
-- OpenAlex pour la litterature academique recente en economie politique sectorielle.`,
+- OpenAlex pour la littérature académique récente en économie politique sectorielle.`,
   },
   velocite_technologique: {
     definition:
-      'Demi-vie des stacks technologiques de reference du secteur, rythme de publication academique et open source, probabilite d une rupture technologique majeure sous vingt-quatre mois.',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : stack stable depuis dix ans, peu de publications, pas de rupture en vue (ex : agroalimentaire industriel).
-- 20 a 40 : stack stable cinq a dix ans (ex : retail tech).
-- 40 a 60 : stack qui evolue par paliers de trois a cinq ans (ex : cybersecurite enterprise).
-- 60 a 80 : rythme rapide, stacks renouveles tous les deux a trois ans (ex : cloud infrastructure).
-- 80 a 100 : reinvention permanente, demi-vie inferieure a dix-huit mois (ex : IA generative depuis 2022).`,
+      'Demi-vie des stacks technologiques de référence du secteur, rythme de publication académique et open source, probabilité d\'une rupture technologique majeure sous vingt-quatre mois.',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : stack stable depuis dix ans, peu de publications, pas de rupture en vue (ex : agroalimentaire industriel).
+- 20 à 40 : stack stable cinq à dix ans (ex : retail tech).
+- 40 à 60 : stack qui évolue par paliers de trois à cinq ans (ex : cybersécurité enterprise).
+- 60 à 80 : rythme rapide, stacks renouvelés tous les deux à trois ans (ex : cloud infrastructure).
+- 80 à 100 : réinvention permanente, demi-vie inférieure à dix-huit mois (ex : IA générative depuis 2022).`,
     sources: `Sources prescrites :
-- OpenAlex (taux de publication par domaine, evolution sur trois ans).
-- Arxiv (preprints recents, indicateurs de rythme).
-- GitHub (activite open source mesuree en commits et stars sur les depots de reference sectoriels).
+- OpenAlex (taux de publication par domaine, évolution sur trois ans).
+- Arxiv (preprints récents, indicateurs de rythme).
+- GitHub (activité open source mesurée en commits et stars sur les dépôts de référence sectoriels).
 - Preprints des laboratoires industriels (Google DeepMind, Meta FAIR, Anthropic, INRIA, MIT CSAIL).`,
   },
   concentration_concurrentielle: {
     definition:
-      'Part de marche captee par les trois premiers acteurs du secteur, capacite historique d un nouvel entrant a emerger malgre cette concentration.',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : atomise, mille acteurs sans dominant, newcomers emergent regulierement (ex : SaaS verticaux).
-- 20 a 40 : concurrence active, top 3 capte 20-40% (ex : fintech embedded).
-- 40 a 60 : concurrence stable, top 3 capte 40-60% (ex : retail food europe).
-- 60 a 80 : tendance oligopolistique, top 3 capte 60-80%, emergence rare (ex : cloud infrastructure).
-- 80 a 100 : oligopole verrouille, top 3 capte plus de 80%, derniere emergence significative remonte a plus de cinq ans (ex : semi-conducteurs avances, agroalimentaire mondial).`,
+      'Part de marché captée par les trois premiers acteurs du secteur, capacité historique d\'un nouvel entrant à émerger malgré cette concentration.',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : atomisé, mille acteurs sans dominant, newcomers émergent régulièrement (ex : SaaS verticaux).
+- 20 à 40 : concurrence active, top 3 capte 20-40% (ex : fintech embedded).
+- 40 à 60 : concurrence stable, top 3 capte 40-60% (ex : retail food europe).
+- 60 à 80 : tendance oligopolistique, top 3 capte 60-80%, émergence rare (ex : cloud infrastructure).
+- 80 à 100 : oligopole verrouillé, top 3 capte plus de 80%, dernière émergence significative remonte à plus de cinq ans (ex : semi-conducteurs avancés, agroalimentaire mondial).`,
     sources: `Sources prescrites :
 - Rapports sectoriels OCDE et IMF sur la concentration.
-- Agregats Crunchbase et Dealroom sur la structure des levees du secteur.
-- Analyses de banques d affaires (Goldman, Morgan Stanley, BNP Paribas Exane) accessibles publiquement.`,
+- Agrégats Crunchbase et Dealroom sur la structure des levées du secteur.
+- Analyses de banques d'affaires (Goldman, Morgan Stanley, BNP Paribas Exane) accessibles publiquement.`,
   },
   cyclicite_macroeconomique: {
     definition:
-      'Sensibilite du chiffre d affaires et des marges du secteur aux cycles macro principaux (taux directeurs, croissance du PIB, inflation, prix de l energie).',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : acyclique, depenses defensives, contrats long-terme stables (ex : sante critique, defense).
-- 20 a 40 : faible cyclicite (ex : SaaS B2B mission critical).
-- 40 a 60 : cyclicite moderee (ex : commerce B2B).
-- 60 a 80 : cyclicite forte (ex : foodtech consumer, mobilite).
-- 80 a 100 : cyclicite extreme, procyclique sur taux ou matieres premieres (ex : proptech, automobile, construction).`,
+      'Sensibilité du chiffre d\'affaires et des marges du secteur aux cycles macro principaux (taux directeurs, croissance du PIB, inflation, prix de l\'énergie).',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : acyclique, dépenses défensives, contrats long-terme stables (ex : santé critique, défense).
+- 20 à 40 : faible cyclicité (ex : SaaS B2B mission critical).
+- 40 à 60 : cyclicité modérée (ex : commerce B2B).
+- 60 à 80 : cyclicité forte (ex : foodtech consumer, mobilité).
+- 80 à 100 : cyclicité extrême, procyclique sur taux ou matières premières (ex : proptech, automobile, construction).`,
     sources: `Sources prescrites :
 - FMI World Economic Outlook (publications trimestrielles).
 - Banque de France (notes de conjoncture sectorielles).
 - ECB Economic Bulletin.
-- BCE Statistical Data Warehouse pour les series longues sectorielles.`,
+- BCE Statistical Data Warehouse pour les séries longues sectorielles.`,
   },
   exposition_geopolitique: {
     definition:
-      'Dependance du secteur a des chaines d approvisionnement, des marches finaux, ou des intrants critiques sous controle de puissances etatiques hostiles ou rivales.',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : chaines diversifiees, intrants fongibles, marches finaux multiples (ex : SaaS B2B local europeen).
-- 20 a 40 : dependances limitees, alternatives accessibles (ex : retail tech europe).
-- 40 a 60 : dependances reelles mais diversifiables (ex : agritech).
-- 60 a 80 : dependances structurelles a un acteur etatique (ex : batteries dependantes du lithium chinois).
-- 80 a 100 : intrants critiques concentres sur un acteur etatique hostile ou rival, sans alternative court-terme (ex : semi-conducteurs avances Taiwan, terres rares Chine, certains pans defense).`,
+      'Dépendance du secteur à des chaînes d\'approvisionnement, des marchés finaux, ou des intrants critiques sous contrôle de puissances étatiques hostiles ou rivales.',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : chaînes diversifiées, intrants fongibles, marchés finaux multiples (ex : SaaS B2B local européen).
+- 20 à 40 : dépendances limitées, alternatives accessibles (ex : retail tech europe).
+- 40 à 60 : dépendances réelles mais diversifiables (ex : agritech).
+- 60 à 80 : dépendances structurelles à un acteur étatique (ex : batteries dépendantes du lithium chinois).
+- 80 à 100 : intrants critiques concentrés sur un acteur étatique hostile ou rival, sans alternative court-terme (ex : semi-conducteurs avancés Taïwan, terres rares Chine, certains pans défense).`,
     sources: `Sources prescrites :
-- Think tanks specialises : Bruegel, IFRI, CFR, ECFR, RUSI.
+- Think tanks spécialisés : Bruegel, IFRI, CFR, ECFR, RUSI.
 - Indices de risque pays Coface et Allianz Trade.
-- Publications Commission europeenne (DG Trade, DG Industry).
-- Web search ciblee sur les evenements geopolitiques des douze derniers mois affectant le secteur.`,
+- Publications Commission européenne (DG Trade, DG Industry).
+- Web search ciblée sur les événements géopolitiques des douze derniers mois affectant le secteur.`,
   },
   tension_capital_talent: {
     definition:
-      'Rarete et cout du talent critique au secteur, retention moyenne sur trois ans.',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : talent abondant, formation massive en cours, cout stable (ex : developpeurs back classique).
-- 20 a 40 : talent disponible, salaires moderement croissants (ex : SaaS B2B classique).
-- 40 a 60 : tension moderee sur certains profils (ex : product managers seniors).
-- 60 a 80 : tension aigue, surenchere salariale (ex : ingenieurs cloud infrastructure 2018-2022).
-- 80 a 100 : penurie extreme, retention basse, surenchere a sept chiffres (ex : top chercheurs IA generative, ingenieurs batterie cellules, chirurgiens robotique).`,
+      'Rareté et coût du talent critique au secteur, rétention moyenne sur trois ans.',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : talent abondant, formation massive en cours, coût stable (ex : développeurs back classique).
+- 20 à 40 : talent disponible, salaires modérément croissants (ex : SaaS B2B classique).
+- 40 à 60 : tension modérée sur certains profils (ex : product managers seniors).
+- 60 à 80 : tension aiguë, surenchère salariale (ex : ingénieurs cloud infrastructure 2018-2022).
+- 80 à 100 : pénurie extrême, rétention basse, surenchère à sept chiffres (ex : top chercheurs IA générative, ingénieurs batterie cellules, chirurgiens robotique).`,
     sources: `Sources prescrites :
-- OpenAlex pour la mobilite des auteurs academiques par domaine.
+- OpenAlex pour la mobilité des auteurs académiques par domaine.
 - Rapports LinkedIn Economic Graph accessibles publiquement.
-- Barometres salariaux Glassdoor, Hired, levels.fyi.
-- Web search ciblee pour les fuites de talent recentes et les surencheres documentees.`,
+- Baromètres salariaux Glassdoor, Hired, levels.fyi.
+- Web search ciblée pour les fuites de talent récentes et les surenchères documentées.`,
   },
   vulnerabilite_narrative_sectorielle: {
     definition:
-      'Dependance du secteur a un narratif dominant susceptible de s effondrer, fragilite du re-pricing qui suivrait cet effondrement.',
-    scaleAnchors: `Echelle 0 a 100 :
-- 0 a 20 : narratif diversifie, plusieurs recits coexistent, robustesse forte (ex : SaaS B2B horizontal historique).
-- 20 a 40 : recit dominant existe mais coexiste avec d autres (ex : cybersecurite).
-- 40 a 60 : recit central porte une part importante du capital, alternative envisageable (ex : commerce e-commerce 2020).
-- 60 a 80 : recit dominant majeur, son ebranlement produirait un repricing significatif (ex : crypto 2024).
-- 80 a 100 : un seul recit dominant porte l integralite du capital et de l attention, son effondrement produirait un re-pricing massif et indifferencie (ex : foodtech 2021 sur "future of meat", crypto 2021 sur "infrastructure financiere du futur", IA generative 2024 sur "transformation economique massive").`,
+      'Dépendance du secteur à un narratif dominant susceptible de s\'effondrer, fragilité du re-pricing qui suivrait cet effondrement.',
+    scaleAnchors: `Échelle 0 à 100 :
+- 0 à 20 : narratif diversifié, plusieurs récits coexistent, robustesse forte (ex : SaaS B2B horizontal historique).
+- 20 à 40 : récit dominant existe mais coexiste avec d'autres (ex : cybersécurité).
+- 40 à 60 : récit central porte une part importante du capital, alternative envisageable (ex : commerce e-commerce 2020).
+- 60 à 80 : récit dominant majeur, son ébranlement produirait un repricing significatif (ex : crypto 2024).
+- 80 à 100 : un seul récit dominant porte l'intégralité du capital et de l'attention, son effondrement produirait un re-pricing massif et indifférencié (ex : foodtech 2021 sur "future of meat", crypto 2021 sur "infrastructure financière du futur", IA générative 2024 sur "transformation économique massive").`,
     sources: `Sources prescrites :
-- Etudes Pitchbook et CB Insights sur la concentration du discours d investissement.
-- Couverture media sectorielle (Financial Times, Bloomberg, The Economist) analysee qualitativement.
-- Lettres d investisseurs publiees (a16z, Sequoia, Index, Atomico) qui revelent les recits dominants.
-- Web search ciblee sur les recits sectoriels effondres historiquement comme controle (cleantech 2008-2012, mobile 2014, AR 2016).`,
+- Études Pitchbook et CB Insights sur la concentration du discours d'investissement.
+- Couverture média sectorielle (Financial Times, Bloomberg, The Economist) analysée qualitativement.
+- Lettres d'investisseurs publiées (a16z, Sequoia, Index, Atomico) qui révèlent les récits dominants.
+- Web search ciblée sur les récits sectoriels effondrés historiquement comme contrôle (cleantech 2008-2012, mobile 2014, AR 2016).`,
   },
 };
 
