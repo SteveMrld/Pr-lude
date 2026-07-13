@@ -196,13 +196,13 @@ export interface SectorDefinition {
 export const SECTORS: ReadonlyArray<SectorDefinition> = [
   {
     slug: 'logiciel-entreprise-horizontal',
-    label: 'Logiciel d entreprise horizontal',
+    label: "Logiciel d'entreprise horizontal",
     perimeter_brief:
       'SaaS B2B horizontal couvrant productivity, collaboration, dev tools, ERP, CRM, ITSM, HR tech. Hors verticalisations sectorielles, hors IA appliquee.',
   },
   {
     slug: 'ia-appliquee',
-    label: 'IA appliquee et infrastructure d apprentissage',
+    label: "IA appliquée et infrastructure d'apprentissage",
     perimeter_brief:
       'Modeles fondation, infrastructure MLOps, applications verticales d IA generative, agents autonomes, plus la couche compute (GPU cloud, accelerateurs).',
   },
@@ -214,19 +214,19 @@ export const SECTORS: ReadonlyArray<SectorDefinition> = [
   },
   {
     slug: 'sante-biotech',
-    label: 'Sante et biotech',
+    label: 'Santé et biotech',
     perimeter_brief:
       'Medtech, digital health, biotech therapeutique, diagnostic, dispositifs medicaux, drug discovery assistee. Hors wellness consumer pur.',
   },
   {
     slug: 'climat-energie',
-    label: 'Climat et energie',
+    label: 'Climat et énergie',
     perimeter_brief:
       'Renouvelables, stockage, hydrogene, captation carbone, efficacite energetique, batteries, climate adaptation. Hors mobilite (categorie distincte).',
   },
   {
     slug: 'mobilite-logistique',
-    label: 'Mobilite et logistique',
+    label: 'Mobilité et logistique',
     perimeter_brief:
       'Transport, supply chain, last mile, vehicules electriques, autonomes, fret, logistique B2B. Hors moteurs energetiques amont (climat).',
   },
@@ -250,7 +250,7 @@ export const SECTORS: ReadonlyArray<SectorDefinition> = [
   },
   {
     slug: 'cybersecurite-defense',
-    label: 'Cybersecurite et defense',
+    label: 'Cybersécurité et défense',
     perimeter_brief:
       'Cybersecurite enterprise, securite cloud, identite, defense tech dual-use, ISR, drones militaires, souverainete numerique.',
   },
@@ -268,7 +268,7 @@ export const SECTORS: ReadonlyArray<SectorDefinition> = [
   },
   {
     slug: 'education-future-of-work',
-    label: 'Education et future of work',
+    label: 'Éducation et future of work',
     perimeter_brief:
       'Edtech K-12 et supeerieur, formation continue, certification, marketplaces de talent, outils RH avances, future of work platforms.',
   },
