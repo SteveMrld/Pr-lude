@@ -401,10 +401,31 @@ console.log('\n=== Test 12 : data_missing exclu de l editorial ===');
 
 console.log('\n=== Test 13 : invariants SVG ===');
 {
+  const size = 150;
   const brief = makeBrief('fintech');
-  const svg = renderSpiderChart(briefToSpiderData(brief), { mode: 'single', size: 150 });
-  checkTrue('svg viewBox 150', /viewBox="0 0 150 150"/.test(svg));
-  checkTrue('svg width 150', /width="150"/.test(svg));
+  const svg = renderSpiderChart(briefToSpiderData(brief), { mode: 'single', size });
+  // Le viewBox est dimensionne dynamiquement pour reserver la place
+  // des libelles des huit dimensions. Voir spiderweb.ts:461 :
+  //   viewWidth  = max(size, round(leftMargin + rightMargin))
+  //   viewHeight = max(size, round(topMargin + bottomMargin))
+  // Le plancher size est le seul invariant garanti sur la largeur ;
+  // la valeur observee depend de la longueur des libelles courants.
+  // On verifie le format, le plancher et la coherence entre l'attribut
+  // width et le viewBox, sans figer une largeur qui casserait au
+  // prochain ajout de dimension ou re-accentuation de libelle.
+  const viewBoxMatch = svg.match(/viewBox="0 0 (\d+) (\d+)"/);
+  checkTrue('svg viewBox format 0 0 W H', viewBoxMatch !== null);
+  const viewWidth = viewBoxMatch ? Number(viewBoxMatch[1]) : NaN;
+  const viewHeight = viewBoxMatch ? Number(viewBoxMatch[2]) : NaN;
+  checkTrue('svg viewBox width >= plancher size', viewWidth >= size);
+  checkTrue('svg viewBox height egale size (invariant strict)', viewHeight === size);
+
+  const widthAttrMatch = svg.match(/\bwidth="(\d+)"/);
+  checkTrue('svg attribut width numerique', widthAttrMatch !== null);
+  const widthAttr = widthAttrMatch ? Number(widthAttrMatch[1]) : NaN;
+  checkTrue('svg width >= plancher size', widthAttr >= size);
+  checkTrue('svg width coherent avec viewBox width', widthAttr === viewWidth);
+
   // Les huit axes du polygone reguliers produisent huit labels de texte
   // (un par dimension). Le SVG contient aussi du texte titre/legende
   // mais ici on n a ni titre ni subtitle, juste les huit axes plus
