@@ -15,6 +15,7 @@ import MarketOutcomeEditor from './MarketOutcomeEditor';
 import CalibrationSummary from './CalibrationSummary';
 import PortfolioPositionChart from './PortfolioPositionChart';
 import SectionFallbackLine from './SectionFallbackLine';
+import { renderFactors } from '@/lib/engines/relevance-matrix-factors';
 import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralRadar } from './note/SectoralRadar';
 import {
@@ -1695,25 +1696,25 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     {
                       label: 'Exposition supply chain',
                       value: r.relevanceMatrix.supplyChainExposureFactors?.length > 0
-                        ? `${r.relevanceMatrix.supplyChainExposure} (${r.relevanceMatrix.supplyChainExposureFactors.join(', ')})`
+                        ? `${r.relevanceMatrix.supplyChainExposure} (${renderFactors(r.relevanceMatrix.supplyChainExposureFactors)})`
                         : r.relevanceMatrix.supplyChainExposure,
                     },
                     {
                       label: 'Exposition géopolitique',
                       value: r.relevanceMatrix.geopoliticalExposureFactors?.length > 0
-                        ? `${r.relevanceMatrix.geopoliticalExposure} (${r.relevanceMatrix.geopoliticalExposureFactors.join(', ')})`
+                        ? `${r.relevanceMatrix.geopoliticalExposure} (${renderFactors(r.relevanceMatrix.geopoliticalExposureFactors)})`
                         : r.relevanceMatrix.geopoliticalExposure,
                     },
                     {
                       label: 'Sensibilité macro',
                       value: r.relevanceMatrix.macroSensitivityFactors?.length > 0
-                        ? `${r.relevanceMatrix.macroSensitivity} (${r.relevanceMatrix.macroSensitivityFactors.join(', ')})`
+                        ? `${r.relevanceMatrix.macroSensitivity} (${renderFactors(r.relevanceMatrix.macroSensitivityFactors)})`
                         : r.relevanceMatrix.macroSensitivity,
                     },
                     {
                       label: 'Reproductibilité numérique',
                       value: r.relevanceMatrix.digitalReproducibilityFactors?.length > 0
-                        ? `${r.relevanceMatrix.digitalReproducibility} (${r.relevanceMatrix.digitalReproducibilityFactors.join(', ')})`
+                        ? `${r.relevanceMatrix.digitalReproducibility} (${renderFactors(r.relevanceMatrix.digitalReproducibilityFactors)})`
                         : r.relevanceMatrix.digitalReproducibility,
                     },
                   ].map((row, i) => (

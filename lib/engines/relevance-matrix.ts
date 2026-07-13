@@ -812,11 +812,11 @@ function detectProductionChain(text: string): ProductionChain {
 function detectSupplyChainExposure(text: string): { level: ExposureLevel; factors: string[] } {
   const factors: string[] = [];
 
-  if (containsAny(text, SEMICONDUCTOR_KEYWORDS)) factors.push('semi-conducteurs');
-  if (containsAny(text, STRATEGIC_MATERIALS_KEYWORDS)) factors.push('materiaux strategiques');
-  if (containsAny(text, ENERGY_FOSSIL_KEYWORDS)) factors.push('intensite energetique fossile');
-  if (containsAny(text, MARITIME_LOGISTICS_KEYWORDS)) factors.push('logistique maritime longue');
-  if (containsAny(text, EXPORT_CONTROLS_KEYWORDS)) factors.push('soumission export controls');
+  if (containsAny(text, SEMICONDUCTOR_KEYWORDS)) factors.push('supply:semiconductors');
+  if (containsAny(text, STRATEGIC_MATERIALS_KEYWORDS)) factors.push('supply:strategic-materials');
+  if (containsAny(text, ENERGY_FOSSIL_KEYWORDS)) factors.push('supply:fossil-energy-intensity');
+  if (containsAny(text, MARITIME_LOGISTICS_KEYWORDS)) factors.push('supply:long-maritime-logistics');
+  if (containsAny(text, EXPORT_CONTROLS_KEYWORDS)) factors.push('supply:export-controls-submission');
 
   if (factors.length >= 2) return { level: 'high', factors };
   if (factors.length === 1) return { level: 'medium', factors };
@@ -832,13 +832,13 @@ function detectSupplyChainExposure(text: string): { level: ExposureLevel; factor
 function detectMacroSensitivity(text: string, businessModel: BusinessModel): { level: ExposureLevel; factors: string[] } {
   const factors: string[] = [];
 
-  if (containsAny(text, CONSUMER_DISCRETIONARY_KEYWORDS)) factors.push('consommation discretionnaire');
-  if (containsAny(text, RATE_SENSITIVE_KEYWORDS)) factors.push('sensibilite taux d interet');
+  if (containsAny(text, CONSUMER_DISCRETIONARY_KEYWORDS)) factors.push('macro:consumer-discretionary');
+  if (containsAny(text, RATE_SENSITIVE_KEYWORDS)) factors.push('macro:interest-rate-sensitivity');
   if (businessModel === 'consumer-subscription' || businessModel === 'marketplace') {
-    factors.push('dependance volume B2C');
+    factors.push('macro:b2c-volume-dependency');
   }
   if (containsAny(text, ['retail', 'consumer', 'b2c'])) {
-    if (!factors.includes('dependance volume B2C')) factors.push('exposition consumer');
+    if (!factors.includes('macro:b2c-volume-dependency')) factors.push('macro:consumer-exposure');
   }
 
   if (factors.length >= 2) return { level: 'high', factors };
@@ -855,19 +855,20 @@ function detectMacroSensitivity(text: string, businessModel: BusinessModel): { l
 function detectGeopoliticalExposure(text: string, supplyChain: { level: ExposureLevel; factors: string[] }): { level: ExposureLevel; factors: string[] } {
   const factors: string[] = [];
 
-  // Supply chain critique reporte une partie de l exposition geo
-  if (supplyChain.factors.includes('semi-conducteurs')) factors.push('chaine semi-conducteurs');
-  if (supplyChain.factors.includes('materiaux strategiques')) factors.push('materiaux strategiques');
-  if (supplyChain.factors.includes('intensite energetique fossile')) factors.push('exposition prix energie');
-  if (supplyChain.factors.includes('logistique maritime longue')) factors.push('routes commerciales sensibles');
-  if (supplyChain.factors.includes('soumission export controls')) factors.push('export controls');
+  // Supply chain critique reporte une partie de l exposition geo.
+  // Les includes matchent sur les codes stables emis par supply.
+  if (supplyChain.factors.includes('supply:semiconductors')) factors.push('geo:semiconductors-chain');
+  if (supplyChain.factors.includes('supply:strategic-materials')) factors.push('geo:strategic-materials');
+  if (supplyChain.factors.includes('supply:fossil-energy-intensity')) factors.push('geo:energy-price-exposure');
+  if (supplyChain.factors.includes('supply:long-maritime-logistics')) factors.push('geo:sensitive-trade-routes');
+  if (supplyChain.factors.includes('supply:export-controls-submission')) factors.push('geo:export-controls');
 
   // Presence ou marches dans zones a risque
-  if (containsAny(text, HIGH_RISK_GEOGRAPHIES_KEYWORDS)) factors.push('presence zones a risque pays');
+  if (containsAny(text, HIGH_RISK_GEOGRAPHIES_KEYWORDS)) factors.push('geo:high-risk-country-presence');
 
   // Defense / dual-use
   if (containsAny(text, ['defense', 'défense', 'military', 'militaire', 'dual-use'])) {
-    if (!factors.includes('export controls')) factors.push('secteur defense');
+    if (!factors.includes('geo:export-controls')) factors.push('geo:defense-sector');
   }
 
   if (factors.length >= 2) return { level: 'high', factors };
@@ -886,58 +887,59 @@ function detectDigitalReproducibility(text: string, productionChain: ProductionC
 
   // Plancher : produit physique = low
   if (productionChain === 'hardware-physical') {
-    factors.push('produit hardware physique');
+    factors.push('reproducibility:hardware-product');
     return { level: 'low', factors };
   }
   if (productionChain === 'infrastructure-physical') {
-    factors.push('infrastructure physique non duplicable par logiciel');
+    factors.push('reproducibility:non-duplicable-physical-infra');
     return { level: 'low', factors };
   }
   if (productionChain === 'wet-biotech') {
-    factors.push('biotech humide non duplicable par logiciel');
+    factors.push('reproducibility:non-duplicable-wet-biotech');
     return { level: 'low', factors };
   }
   if (productionChain === 'regulated-service') {
-    factors.push('service regule a barriere humaine');
+    factors.push('reproducibility:human-regulated-service');
     return { level: 'low', factors };
   }
 
-  // Si pure software, on regarde les protections
+  // Si pure software, on regarde les protections. Les codes des
+  // protections sont emis dans le meme namespace reproducibility.
   const protections: string[] = [];
   if (containsAny(text, ['donnees proprietaires', 'données propriétaires', 'proprietary data', 'data moat'])) {
-    protections.push('donnees proprietaires');
+    protections.push('reproducibility:proprietary-data');
   }
   if (containsAny(text, ['regulation', 'agrement', 'agrément', 'license bancaire', 'licence bancaire', 'orias', 'acpr', 'cnil'])) {
-    protections.push('barriere reglementaire');
+    protections.push('reproducibility:regulatory-barrier');
   }
   if (containsAny(text, ['network effect', 'effet de reseau', 'effet de réseau', 'two-sided'])) {
-    protections.push('network effect');
+    protections.push('reproducibility:network-effect');
   }
   if (containsAny(text, ['fine-tuning custom', 'fine tuning', 'modele entraine', 'modèle entrainé', 'modele entraîné'])) {
-    protections.push('modele entraine custom');
+    protections.push('reproducibility:custom-trained-model');
   }
   if (containsAny(text, ['integration profonde', 'intégration profonde', 'workflow critique', 'core process', 'erp', 'systemes legacy'])) {
-    protections.push('integration profonde dans workflows clients');
+    protections.push('reproducibility:deep-workflow-integration');
   }
 
   if (productionChain === 'pure-software') {
     if (protections.length >= 2) {
       factors.push(...protections);
-      factors.push('software protege par barrieres non triviales');
+      factors.push('reproducibility:software-protected');
       return { level: 'medium', factors };
     }
-    factors.push('software pur sans protection significative detectee');
+    factors.push('reproducibility:no-significant-protection');
     return { level: 'high', factors };
   }
 
   // Content media : duplicable en partie (le code), pas le contenu original
   if (productionChain === 'content-media') {
-    factors.push('couche distribution duplicable, contenu original protege par droit d auteur');
+    factors.push('reproducibility:content-distribution-duplicable');
     return { level: 'medium', factors };
   }
 
   // Fallback prudent
-  factors.push('chaine de production indeterminee');
+  factors.push('reproducibility:undetermined-production-chain');
   return { level: 'medium', factors };
 }
 

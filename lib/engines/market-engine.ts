@@ -5,6 +5,7 @@ import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, MarketAnalysisOutput } from './types';
 import type { RelevanceMatrix } from './relevance-matrix';
+import { renderFactor, renderFactors } from './relevance-matrix-factors';
 import {
   buildSectoralPromptBlock,
   type SectoralContext,
@@ -466,7 +467,7 @@ Criteres structurels detectes :
 - Asset class : ${relevanceMatrix.assetClass}
 - Modele business : ${relevanceMatrix.businessModel}
 - Chaine de production : ${relevanceMatrix.productionChain}
-- Reproductibilite numerique : ${relevanceMatrix.digitalReproducibility}${relevanceMatrix.digitalReproducibilityFactors.length > 0 ? ` (${relevanceMatrix.digitalReproducibilityFactors.join(', ')})` : ''}
+- Reproductibilite numerique : ${relevanceMatrix.digitalReproducibility}${relevanceMatrix.digitalReproducibilityFactors.length > 0 ? ` (${renderFactors(relevanceMatrix.digitalReproducibilityFactors)})` : ''}
 
 Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc, tu remplis le champ JSON avec les valeurs neutres specifiees dans la section RESPECT DU VERDICT, sans inventer une evaluation generique.
 `
@@ -597,12 +598,18 @@ export function applyMarketVerdictPostProcessing(
   if (!relevanceMatrix) return merged;
 
   if (relevanceMatrix.verdicts.marketAiReplicability.applicable === 'none' && merged.defensibility) {
+    // Les factors codes emis par la matrice sont rendus en libelles
+    // francais accentues au point d ecriture dans la sortie market :
+    // reasoning et protectingFactors sont des champs d affichage, ils
+    // n ont pas vocation a porter les codes machine. Le mapping code
+    // vers libelle est pris en charge par relevance-matrix-factors.
     const factors = relevanceMatrix.digitalReproducibilityFactors;
+    const factorLabels = factors.map(renderFactor);
     (merged.defensibility as any).aiReplicability = {
       verdict: 'protected',
       timeToReplicate: 'non applicable',
-      reasoning: `Produit hors software pur : la reproduction par IA n est pas une menace pertinente pour ce dossier. ${factors.join('. ')}.`,
-      protectingFactors: factors.length > 0 ? factors : ['chaine de production physique ou regulee non duplicable par logiciel'],
+      reasoning: `Produit hors software pur : la reproduction par IA n est pas une menace pertinente pour ce dossier. ${factorLabels.join('. ')}.`,
+      protectingFactors: factorLabels.length > 0 ? factorLabels : ['chaine de production physique ou regulee non duplicable par logiciel'],
       replicableComponents: [],
     };
   }

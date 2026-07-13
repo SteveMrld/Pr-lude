@@ -283,7 +283,7 @@ const dtcMatrix = makeMatrix({
   productionChain: 'hardware-physical',
   businessModel: 'unitary-sale',
   macroSensitivity: 'high',
-  macroSensitivityFactors: ['consommation discretionnaire', 'exposition consumer'],
+  macroSensitivityFactors: ['macro:consumer-discretionary', 'macro:consumer-exposure'],
 });
 // Cas frontiere : hardware-physical + unitary-sale + signal B2C =>
 // archetype B (hardware) prend la main parce que hardware-physical
@@ -300,7 +300,7 @@ const dtcSoftMatrix = makeMatrix({
   productionChain: 'pure-software',
   businessModel: 'unitary-sale',
   macroSensitivity: 'high',
-  macroSensitivityFactors: ['consommation discretionnaire'],
+  macroSensitivityFactors: ['macro:consumer-discretionary'],
 });
 check('DTC pur (pas de hardware) => archetype F', deriveArchetype(dtcSoftMatrix).archetype, 'F-consumer-dtc');
 check('F applicableTests = TOUS', getApplicableTests('F-consumer-dtc'), ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']);
@@ -349,11 +349,11 @@ const platypusFullMatrix = makeMatrix({
   productionChain: 'hardware-physical',
   businessModel: 'unitary-sale',
   supplyChainExposure: 'high',
-  supplyChainExposureFactors: ['semi-conducteurs', 'materiaux strategiques'],
+  supplyChainExposureFactors: ['supply:semiconductors', 'supply:strategic-materials'],
   geopoliticalExposure: 'high',
-  geopoliticalExposureFactors: ['chaine semi-conducteurs', 'materiaux strategiques'],
+  geopoliticalExposureFactors: ['geo:semiconductors-chain', 'geo:strategic-materials'],
   digitalReproducibility: 'low',
-  digitalReproducibilityFactors: ['produit hardware physique'],
+  digitalReproducibilityFactors: ['reproducibility:hardware-product'],
 });
 const platypusFullResult = deriveArchetype(platypusFullMatrix);
 check('Platypus matrice complete => archetype B', platypusFullResult.archetype, 'B-hardware-deeptech');

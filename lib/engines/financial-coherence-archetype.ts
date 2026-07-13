@@ -223,12 +223,19 @@ export function deriveArchetype(matrix: RelevanceMatrix | null | undefined): {
 
   // Archetype F : DTC consumer. unitary-sale combine a une audience
   // explicitement B2C. Le moteur lui-meme detecte l audience via la
-  // matrice (macroSensitivityFactors contient 'consommation
-  // discretionnaire' typiquement, et businessModel arbitre).
+  // matrice (macroSensitivityFactors contient le code
+  // 'macro:consumer-discretionary' typiquement, et businessModel
+  // arbitre). Depuis le decouplage des tags de facteurs, on matche
+  // sur les codes stables ; les analyses persistees avant cette
+  // refonte contiennent encore les anciennes chaines ASCII et ne
+  // matcheront plus cette branche, mais leur archetype est deja
+  // persiste avec la fiche financiere donc l impact est nul sur le
+  // dossier historique. Un backfill est le seul chemin pour re-
+  // deriver l archetype d un ancien dossier.
   if (businessModel === 'unitary-sale'
-    && (matrix.macroSensitivityFactors.includes('consommation discretionnaire')
-      || matrix.macroSensitivityFactors.includes('dependance volume B2C')
-      || matrix.macroSensitivityFactors.includes('exposition consumer'))) {
+    && (matrix.macroSensitivityFactors.includes('macro:consumer-discretionary')
+      || matrix.macroSensitivityFactors.includes('macro:b2c-volume-dependency')
+      || matrix.macroSensitivityFactors.includes('macro:consumer-exposure'))) {
     return {
       archetype: 'F-consumer-dtc',
       rationale: `businessModel=unitary-sale + signaux B2C explicites : DTC consumer. Tous les tests T1-T7 applicables avec seuils consumer (CAC critique, marge brute 30-50%).`,

@@ -5,6 +5,7 @@ import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, MacroAnalysisOutput } from './types';
 import type { RelevanceMatrix } from './relevance-matrix';
+import { renderFactors } from './relevance-matrix-factors';
 import {
   buildSectoralPromptBlock,
   type SectoralContext,
@@ -399,9 +400,9 @@ Criteres structurels detectes :
 - Asset class : ${relevanceMatrix.assetClass}
 - Modele business : ${relevanceMatrix.businessModel}
 - Chaine de production : ${relevanceMatrix.productionChain}
-- Exposition supply chain : ${relevanceMatrix.supplyChainExposure}${relevanceMatrix.supplyChainExposureFactors.length > 0 ? ` (${relevanceMatrix.supplyChainExposureFactors.join(', ')})` : ''}
-- Exposition geopolitique : ${relevanceMatrix.geopoliticalExposure}${relevanceMatrix.geopoliticalExposureFactors.length > 0 ? ` (${relevanceMatrix.geopoliticalExposureFactors.join(', ')})` : ''}
-- Sensibilite macro : ${relevanceMatrix.macroSensitivity}${relevanceMatrix.macroSensitivityFactors.length > 0 ? ` (${relevanceMatrix.macroSensitivityFactors.join(', ')})` : ''}
+- Exposition supply chain : ${relevanceMatrix.supplyChainExposure}${relevanceMatrix.supplyChainExposureFactors.length > 0 ? ` (${renderFactors(relevanceMatrix.supplyChainExposureFactors)})` : ''}
+- Exposition geopolitique : ${relevanceMatrix.geopoliticalExposure}${relevanceMatrix.geopoliticalExposureFactors.length > 0 ? ` (${renderFactors(relevanceMatrix.geopoliticalExposureFactors)})` : ''}
+- Sensibilite macro : ${relevanceMatrix.macroSensitivity}${relevanceMatrix.macroSensitivityFactors.length > 0 ? ` (${renderFactors(relevanceMatrix.macroSensitivityFactors)})` : ''}
 
 Tu adaptes ta reponse au verdict ci-dessus. Si applicable=none sur un sous-bloc, tu remplis le champ JSON avec une phrase courte qui acte la non-applicabilite, sans inventer un commentaire generique.
 `
