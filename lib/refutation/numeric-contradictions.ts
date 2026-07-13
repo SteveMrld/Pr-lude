@@ -227,7 +227,23 @@ const METRIC_CATALOG: Record<FinancialMetric, MetricConfig> = {
     key: 'grossMargin',
     proseRegex: /marge\s+brute|gross\s+margin/i,
     tableField: 'grossMarginProjection',
-    tableConverter: v => v * 100,   // ratio 0.72 -> 72 points
+    // CONVENTION DE STOCKAGE Prelude : la marge brute est stockee
+    // dans grossMarginProjection[].value en POURCENTAGE ENTIER
+    // (avec eventuelles decimales), pas en ratio decimal. Verifie
+    // sur les 13 dossiers du corpus ayant une marge non-vide
+    // (Alliance Marine 35.2, Braincube 71, Compagnie des Alpes
+    // 91.1, Humanava 73.3, JM Bruneau 53, Mistral AI 60, OOGarden
+    // 33, Redcats 59.3, SG SiC 12.3, Smart&co 45.6, Technicis
+    // 51.3, Tratel 42.3, ZargesTubesca 49) : toutes les valeurs
+    // sont > 1 et coherentes avec un pourcentage entier. Aucun
+    // dossier ne stocke en ratio [0, 1].
+    // Le convertisseur est donc l identite : v ressort directement
+    // en points de %. La V3 supposait a tort v * 100 et
+    // sur-multipliait, generant un faux positif Bruneau (5300
+    // points vs 53 points en prose) qui a permis de decouvrir
+    // l erreur de convention. Ne pas remettre v * 100 sans avoir
+    // reverifie sur au moins dix dossiers.
+    tableConverter: v => v,
     unitPatternSource: PERCENT_UNIT_PATTERN,
     unitConverter: percentUnitConverter,
     unit: 'percentage_points',

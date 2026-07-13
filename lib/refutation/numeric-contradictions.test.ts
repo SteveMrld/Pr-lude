@@ -109,37 +109,39 @@ console.log('\n[Suite 4] OPEX et FCF (metriques monetaires ajoutees)');
 // ============================================================
 console.log('\n[Suite 5] Marge brute : comparaison en points de %');
 {
-  // Table 0.72 (72 points), prose "72 %" : coherent (0 diff)
+  // Convention Prelude verifiee sur 13 dossiers : la table stocke
+  // la marge brute en POURCENTAGE ENTIER (72 = 72 %), pas en ratio.
+  // Prose "72 %" = 72 points, coherent avec table 72.
   const rj = {
-    financialData: { grossMarginProjection: [{ year: '2024', value: 0.72, source: 'bp' }] },
+    financialData: { grossMarginProjection: [{ year: '2024', value: 72, source: 'bp' }] },
     extraction: { rawSummary: 'Marge brute de 72 % en 2024A.' },
   };
   const c = detectNumericContradictions(rj);
-  check(c.length === 0, `72% prose = 0.72 table : 0 contradiction (normalisation OK)`);
+  check(c.length === 0, `table 72 vs prose 72 % : 0 contradiction`);
 }
 {
-  // Table 0.72 (72 points), prose "72,5 %" : diff 0.5 point -> sous seuil abs=1
+  // Prose 72,5 % vs table 72 : diff 0,5 point sous seuil abs=1
   const rj = {
-    financialData: { grossMarginProjection: [{ year: '2024', value: 0.72, source: 'bp' }] },
+    financialData: { grossMarginProjection: [{ year: '2024', value: 72, source: 'bp' }] },
     extraction: { rawSummary: 'Marge brute de 72,5 % en 2024A.' },
   };
   const c = detectNumericContradictions(rj);
-  check(c.length === 0, `72,5% vs 72 : diff 0,5 pt sous seuil abs=1 pt : 0`);
+  check(c.length === 0, `72,5 % vs 72 : diff 0,5 pt sous seuil abs=1 pt : 0`);
 }
 {
-  // Table 0.72, prose "80 %" : diff 8 points > seuil, rel 10% > 3% -> signale
+  // Prose 80 % vs table 72 : diff 8 points > seuil abs, rel 10 % > 3 % -> signale
   const rj = {
-    financialData: { grossMarginProjection: [{ year: '2024', value: 0.72, source: 'bp' }] },
+    financialData: { grossMarginProjection: [{ year: '2024', value: 72, source: 'bp' }] },
     extraction: { rawSummary: 'Marge brute de 80 % en 2024A.' },
   };
   const c = detectNumericContradictions(rj);
-  check(c.length === 1 && c[0].unit === 'percentage_points', `80% vs 72% : 1 contradiction (8 pts, 10% rel)`);
+  check(c.length === 1 && c[0].unit === 'percentage_points', `80 % vs 72 : 1 contradiction (8 pts, 10 % rel)`);
 }
 {
   // Marge sans % explicite en prose : NON matche (pas de faux
-  // positif sur "0,72" qui pourrait etre 72% ou 0,72%).
+  // positif sur "0,72" qui pourrait etre 72 % ou 0,72 %).
   const rj = {
-    financialData: { grossMarginProjection: [{ year: '2024', value: 0.72, source: 'bp' }] },
+    financialData: { grossMarginProjection: [{ year: '2024', value: 72, source: 'bp' }] },
     extraction: { rawSummary: 'Marge brute de 0,72 en 2024A.' },
   };
   const c = detectNumericContradictions(rj);
@@ -148,7 +150,7 @@ console.log('\n[Suite 5] Marge brute : comparaison en points de %');
 {
   // Marge, mismatch qualifier
   const rj = {
-    financialData: { grossMarginProjection: [{ year: '2024', value: 0.72, source: 'bp' }] },
+    financialData: { grossMarginProjection: [{ year: '2024', value: 72, source: 'bp' }] },
     extraction: { rawSummary: 'Marge brute de 80 % en 2024B.' },
   };
   const c = detectNumericContradictions(rj);
@@ -451,11 +453,12 @@ console.log('\n[Suite 11] Vraies contradictions preservees');
   check(c.length === 1, `vraie contradiction EBITDA 250 vs 305 sans marqueur : 1 (preservee)`);
 }
 {
-  // Cas Bruneau grossMargin table 53 vs prose "53 %" : bug amont
-  // pipeline, la table stocke 53 en % entier au lieu du ratio.
-  // Aucun marqueur de recadrage dans la prose ("marge brute
-  // groupe (gross margin) est de 53,0% en 2011"). Le detecteur
-  // doit signaler ce cas.
+  // Cas Bruneau grossMargin : table 53 (convention Prelude
+  // verifiee sur 13 dossiers : POURCENTAGE ENTIER) vs prose "53 %".
+  // Apres correction du convertisseur (tableConverter = identite),
+  // les deux cotes valent 53 points, aucune contradiction.
+  // Ce test verrouille la convention : si un jour on remet le
+  // v * 100 par erreur, ce test tombera KO immediatement.
   const rj = {
     financialData: {
       grossMarginProjection: [{ year: '2011', value: 53, source: 'deck' }],
@@ -463,7 +466,7 @@ console.log('\n[Suite 11] Vraies contradictions preservees');
     },
   };
   const c = detectNumericContradictions(rj);
-  check(c.length === 1, `marge brute Bruneau (bug qualite table) : 1 contradiction (signal legitime bug amont)`);
+  check(c.length === 0, `marge brute Bruneau : 0 contradiction (convention pourcentage entier verrouillee)`);
 }
 {
   // Chiffre d affaires 2024 sans qualificatif : contradiction
