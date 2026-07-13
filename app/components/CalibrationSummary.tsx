@@ -56,6 +56,9 @@ interface Summary {
   minResolvedPerSegment: number;
   anyCalibrable: boolean;
   segments: Segment[];
+  /** True si toutes les issues resolues portent le marqueur
+   *  ILLUSTRATIF. Sert au bandeau editorial de tete de rapport. */
+  illustrativeMode?: boolean;
 }
 
 function shortHash(h: string | null): string {
@@ -118,6 +121,27 @@ export default function CalibrationSummary({ printMode = false }: CalibrationSum
 
   return (
     <div className="cs">
+      {/* Bandeau editorial illustratif. Affiche quand toutes les
+          issues resolues qui alimentent le calcul portent le
+          marqueur pose par scripts/seed-illustrative-outcomes. Sans
+          ce bandeau, un partner qui lit la note pourrait interpreter
+          les metriques comme la calibration reelle du fonds sur des
+          resolutions marche verifiees, ce qui serait mensonger tant
+          que les vraies issues n ont pas ete saisies. Visible en
+          vue web ET en print pour couvrir la presentation
+          investisseur cote ecran comme cote PDF. */}
+      {summary.illustrativeMode && (
+        <div className="cs-illustrative-banner">
+          <div className="cs-illustrative-eyebrow">Démonstration de calibration</div>
+          <p className="cs-illustrative-text">
+            Les issues ci-dessous sont synthétiques et ne représentent pas des résolutions marché
+            réelles. La méthodologie et le moteur de calibration sont ceux qui tourneront sur les
+            résolutions à venir : seules les issues sont simulées, pour illustrer la lecture de la
+            boucle prédiction contre réalité que Prélude produira dossier après dossier.
+          </p>
+        </div>
+      )}
+
       <div className="cs-header">
         <h4 className="cs-title">Calibration du fonds</h4>
         <span className="cs-counts">
@@ -246,6 +270,38 @@ const styles = `
     color: var(--muted);
     font-style: italic;
     font-size: 13px;
+  }
+  .cs-illustrative-banner {
+    margin: 0 0 18px 0;
+    padding: 12px 16px;
+    background: #fef7f4;
+    border-left: 3px solid #9c5a2a;
+    border-radius: 2px;
+  }
+  .cs-illustrative-eyebrow {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #9c5a2a;
+    margin-bottom: 6px;
+  }
+  .cs-illustrative-text {
+    font-family: var(--serif);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink, #2b2b2b);
+    margin: 0;
+    font-style: italic;
+  }
+  @media print {
+    .cs-illustrative-banner {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
   }
   .cs-header {
     display: flex;

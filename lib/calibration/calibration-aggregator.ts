@@ -39,7 +39,24 @@ export interface CalibrationSummary extends CalibrationReport {
   analysesWithPrediction: number;
   /** Nombre d outcomes saisis (alive + exit + fail + flat). */
   outcomesRecorded: number;
+  /**
+   * True si toutes les issues resolues (exit / fail) portent le
+   * marqueur ILLUSTRATIF pose par scripts/seed-illustrative-outcomes.
+   * Sert au CalibrationSummary UI pour afficher un bandeau
+   * "demonstration sur jeu illustratif" en tete du rapport, aussi
+   * bien en vue web qu en print. Faux si au moins une issue reelle
+   * co-existe avec les issues illustratives : dans ce cas le
+   * bandeau serait mensonger.
+   */
+  illustrativeMode: boolean;
 }
+
+// Marqueur canonique. Doit rester strictement identique a
+// scripts/seed-illustrative-outcomes.ts. Un ecart de casse ou
+// d encodage casserait la detection du mode illustratif sans
+// erreur visible.
+export const ILLUSTRATIVE_OUTCOME_SOURCE =
+  'ILLUSTRATIF — données synthétiques de démonstration, non issues de résolutions marché réelles';
 
 /**
  * Selectionne le record le plus recent par analysis_id. Les records
@@ -108,10 +125,22 @@ export async function buildCalibrationSummary(
     bins: opts.bins,
   });
 
+  // Detection du mode illustratif. On regarde uniquement les
+  // outcomes resolus (exit / fail) puisque ce sont les seuls qui
+  // alimentent effectivement la calibration : marquer alive / flat
+  // comme illustratif n a pas d effet sur le rapport. Si au moins
+  // un outcome resolu est reel (source differente du marqueur), on
+  // sort du mode illustratif : le bandeau serait mensonger.
+  const resolvedOutcomes = outcomes.filter(o => marketOutcomeToBinary(o.marketOutcome) !== null);
+  const illustrativeMode =
+    resolvedOutcomes.length > 0
+    && resolvedOutcomes.every(o => o.source === ILLUSTRATIVE_OUTCOME_SOURCE);
+
   return {
     ...report,
     predictionsLogged: predictionsConsidered,
     analysesWithPrediction: latestByAnalysis.length,
     outcomesRecorded: outcomes.length,
+    illustrativeMode,
   };
 }

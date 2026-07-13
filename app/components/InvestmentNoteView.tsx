@@ -3697,16 +3697,19 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             quand un seuil de dossiers résolus est franchi, sans jamais mélanger des
             prédictions produites par des versions différentes du système.
           </p>
-          {/* En rendu fige (printMode), on court-circuite les quatre
-              sous-composants de la section 6 vers une ligne neutre
-              unique. Le contenu de la section 6 (prediction loguee,
-              issue marche, suivi, calibration) est vivant, saisi dans
-              le temps, il n a pas sa place dans une note d instruction
-              exportee comme un document fige. En rendu live, les
-              composants s affichent normalement pour permettre la
-              saisie et la lecture. */}
+          {/* Section 6 en print : seul le CalibrationSummary est
+              rendu. Les trois autres sous-composants
+              (PredictionSnapshot, MarketOutcomeEditor, OutcomeTracking)
+              sont des surfaces de saisie / lecture vivante qui n ont
+              pas de sens dans un document fige exporte. Le
+              CalibrationSummary, lui, est un rapport agrege qui a
+              sa place dans la note et porte son propre bandeau
+              illustratif si applicable. Le composant gere lui-meme
+              son fallback quand la calibration est indisponible.
+              En rendu live (vue web note interactive ou dashboard),
+              les quatre composants s affichent tous. */}
           {printMode ? (
-            <SectionFallbackLine kind="suivi-reconciliation" />
+            <CalibrationSummary printMode={printMode} />
           ) : (
             <>
               <PredictionSnapshot analysisId={analysisId} printMode={printMode} />
