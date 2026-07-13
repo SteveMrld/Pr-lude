@@ -452,19 +452,19 @@ console.log('\n=== Test 2 : computeFreshness ===');
 
     // Macro doit injecter cyclicite, geopolitique, reglementaire.
     const macroBlock = buildSectoralPromptBlock(ctx, 'macro');
-    checkTrue('macro mentionne Cyclicite', /Cyclicite/.test(macroBlock));
-    checkTrue('macro mentionne Exposition geopolitique', /Exposition geopolitique/.test(macroBlock));
-    checkTrue('macro mentionne Pression reglementaire', /Pression reglementaire/.test(macroBlock));
-    checkTrue('macro ne mentionne pas Vulnerabilite narrative', !/Vulnerabilite narrative/.test(macroBlock));
+    checkTrue('macro mentionne Cyclicite', /Cyclicité/.test(macroBlock));
+    checkTrue('macro mentionne Exposition geopolitique', /Exposition géopolitique/.test(macroBlock));
+    checkTrue('macro mentionne Pression reglementaire', /Pression réglementaire/.test(macroBlock));
+    checkTrue('macro ne mentionne pas Vulnerabilite narrative', !/Vulnérabilité narrative/.test(macroBlock));
 
     // Blindspot doit injecter concentration et velocite.
     const blindspotBlock = buildSectoralPromptBlock(ctx, 'blindspot');
     checkTrue('blindspot mentionne Concentration', /Concentration concurrentielle/.test(blindspotBlock));
-    checkTrue('blindspot mentionne Velocite', /Velocite technologique/.test(blindspotBlock));
+    checkTrue('blindspot mentionne Velocite', /Vélocité technologique/.test(blindspotBlock));
 
     // Contrarian doit injecter velocite, concentration, intensite.
     const contrarianBlock = buildSectoralPromptBlock(ctx, 'contrarian');
-    checkTrue('contrarian mentionne Intensite capitalistique', /Intensite capitalistique/.test(contrarianBlock));
+    checkTrue('contrarian mentionne Intensite capitalistique', /Intensité capitalistique/.test(contrarianBlock));
 
     // Market doit injecter concentration + resume narratif commun.
     const marketBlock = buildSectoralPromptBlock(ctx, 'market');
@@ -479,7 +479,7 @@ console.log('\n=== Test 2 : computeFreshness ===');
 
     // Narrative drift doit injecter vulnerabilite narrative.
     const narrativeBlock = buildSectoralPromptBlock(ctx, 'narrative-drift');
-    checkTrue('narrative-drift mentionne Vulnerabilite narrative', /Vulnerabilite narrative/.test(narrativeBlock));
+    checkTrue('narrative-drift mentionne Vulnerabilite narrative', /Vulnérabilité narrative/.test(narrativeBlock));
     checkTrue('narrative-drift porte le resume editorial', /Resume editorial sectoriel/.test(narrativeBlock));
   }
 

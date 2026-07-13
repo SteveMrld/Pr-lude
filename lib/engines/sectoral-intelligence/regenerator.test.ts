@@ -183,7 +183,7 @@ console.log('\n=== Test 2 : estimateCostUsd ===');
 console.log('\n=== Test 3 : prompts ===');
 {
   const sysIntensite = buildDimensionSystemPrompt('intensite_capitalistique');
-  checkTrue('system intensite contient definition', sysIntensite.includes('palier de soutenabilite'));
+  checkTrue('system intensite contient definition', sysIntensite.includes('palier de soutenabilité'));
   checkTrue('system intensite mentionne World Bank', sysIntensite.includes('World Bank'));
   checkTrue('system intensite mentionne JSON schema', sysIntensite.includes('Schema JSON strict'));
   checkTrue('system intensite proscrit em-dashes', sysIntensite.includes('Pas d em-dashes'));

@@ -215,7 +215,7 @@ console.log('\n=== Test 5 : overlay editorial divergences ===');
     secondaryLabel: 'Logiciel',
   });
   checkTrue('mentionne divergences', /divergence|divergences/i.test(text));
-  checkTrue('nomme l intensite capitalistique', /intensite capitalistique/i.test(text));
+  checkTrue('nomme l intensite capitalistique', /intensité capitalistique/i.test(text));
   checkTrue('nomme Climat ou Logiciel', /Climat|Logiciel/.test(text));
 }
 
@@ -284,8 +284,8 @@ console.log('\n=== Test 7 : temporal editorial mouvement ===');
   const text = buildTemporalEditorial(current, previous, {
     sectorLabel: 'IA appliquee',
   });
-  checkTrue('mentionne velocite (attendue)', /velocite/i.test(text));
-  checkTrue('mentionne intensite (surprenante)', /intensite/i.test(text));
+  checkTrue('mentionne velocite (attendue)', /vélocité/i.test(text));
+  checkTrue('mentionne intensite (surprenante)', /intensité/i.test(text));
   checkTrue('marque evolutions inattendues', /inattendue/i.test(text));
   checkTrue('marque evolutions attendues', /attendue/i.test(text));
 }
@@ -392,7 +392,7 @@ console.log('\n=== Test 12 : data_missing exclu de l editorial ===');
   // Intensite est null cote primary -> exclu. Les autres sept dimensions
   // sont egales a 50, donc convergence sur les sept restantes.
   checkTrue('mentionne convergence', /convergent|convergence/i.test(text));
-  checkTrue('ne nomme pas intensite (exclue car data_missing)', !/intensite capitalistique/i.test(text));
+  checkTrue('ne nomme pas intensite (exclue car data_missing)', !/intensité capitalistique/i.test(text));
 }
 
 // ============================================================
