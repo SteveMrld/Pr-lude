@@ -96,6 +96,47 @@ interface Props {
 }
 
 /**
+ * Formateur locale fr-FR pour la table de profil financier de la
+ * Section 1. La chaine ".toString()" par defaut de JS emet le
+ * separateur decimal en point, ce qui rend "1.198" comme mille
+ * cent quatre-vingt-dix-huit aux yeux d un lecteur europeen alors
+ * que la valeur source vaut un virgule cent quatre-vingt-dix-huit
+ * (en millions d euros dans cette table). Cette fonction preserve
+ * la precision source, aucun arrondi, aucune normalisation du
+ * nombre de decimales : on ne change que le separateur.
+ *
+ * Cas limites geres :
+ *   - number normal : 1.198 -> "1,198", 2.16 -> "2,16"
+ *   - negatif : -0.599 -> "-0,599"
+ *   - entier : 95 -> "95" (pas de virgule ajoutee)
+ *   - >= mille : 1234.567 -> "1 234,567" (separateur de milliers
+ *     insecable pose par Number.toLocaleString('fr-FR'))
+ *   - null / undefined / NaN / non-numerique : "—" (tiret cadratin,
+ *     coherent avec la ligne neutre deja utilisee dans la note pour
+ *     l absence de valeur).
+ */
+function formatFrNumber(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = typeof v === 'number' ? v : parseFloat(String(v));
+  if (!Number.isFinite(n)) return '—';
+  const raw = n.toString();
+  const negative = raw.startsWith('-');
+  const abs = negative ? raw.slice(1) : raw;
+  const dotIdx = abs.indexOf('.');
+  const intStr = dotIdx >= 0 ? abs.slice(0, dotIdx) : abs;
+  const decStr = dotIdx >= 0 ? abs.slice(dotIdx + 1) : null;
+  // toLocaleString avec fr-FR et maximumFractionDigits=0 formate la
+  // partie entiere seule ; la partie decimale est reappondue avec
+  // virgule pour garantir preservation stricte de la precision
+  // source (2.16 reste "2,16" et n est pas etendu en "2,160").
+  const intFormatted = Number(intStr).toLocaleString('fr-FR', {
+    useGrouping: true,
+    maximumFractionDigits: 0,
+  });
+  return (negative ? '-' : '') + intFormatted + (decStr !== null ? ',' + decStr : '');
+}
+
+/**
  * Section repliable utilisee en mode compact. Utilise <details> natif HTML
  * pour rester accessible et leger. defaultOpen=false en compactMode,
  * defaultOpen=true sinon.
@@ -1085,24 +1126,24 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <tbody>
                 <tr>
                   <td className="row-label">CA (M€)</td>
-                  {(fd.revenueProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                  {(fd.revenueProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
                 </tr>
                 {fd.grossMarginProjection?.length > 0 && (
                   <tr>
                     <td className="row-label">Marge brute (%)</td>
-                    {(fd.grossMarginProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                    {(fd.grossMarginProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
                   </tr>
                 )}
                 {fd.ebitdaProjection?.length > 0 && (
                   <tr>
                     <td className="row-label">EBITDA (M€)</td>
-                    {(fd.ebitdaProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                    {(fd.ebitdaProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
                   </tr>
                 )}
                 {fd.fcfProjection?.length > 0 && (
                   <tr>
                     <td className="row-label">Free Cash Flow (M€)</td>
-                    {(fd.fcfProjection || []).map((r: any, i: number) => <td key={i}>{r.value}</td>)}
+                    {(fd.fcfProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
                   </tr>
                 )}
               </tbody>
