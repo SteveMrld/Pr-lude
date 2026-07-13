@@ -346,5 +346,165 @@ console.log('\n[Suite 9] Faux positifs bloques');
 }
 
 // ============================================================
+// SUITE 10 - Heuristique de contexte V3 (recadrage)
+// ------------------------------------------------------------
+// Un cas par classe de faux positifs du repassage V2, tire des
+// vrais dossiers. Plus un cas garde essentiel : vraie
+// contradiction sans marqueur -> toujours signalee.
+// ============================================================
+console.log('\n[Suite 10] Heuristique de contexte : recadrage');
+
+{
+  // Classe "ajuste / retraite" : HEI EBITDA 2014 ajuste
+  const rj = {
+    financialData: {
+      ebitdaProjection: [{ year: '2014', value: 2.182, source: 'deck' }],
+      rawNotes: 'EBITDA ajusté 2014 (retraitement 50% salaires dirigeants + frais direction) : 2,573 M€.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `EBITDA ajusté 2014 (HEI) : 0 contradiction (marqueur "ajusté" exclut)`);
+}
+{
+  // Classe "pro-forma" : Tratel EBITDA pro-forma
+  const rj = {
+    financialData: {
+      ebitdaProjection: [{ year: '2012', value: 5.5, source: 'deck' }],
+      rawNotes: 'EBITDA ajusté après retraitements pro-forma (PwC VDD) : 7,6 M€ en 2012.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `EBITDA pro-forma (Tratel) : 0 contradiction (marqueurs "ajusté", "pro-forma", "retraitement")`);
+}
+{
+  // Classe "IFRS" : Bruneau EBITDA IFRS
+  const rj = {
+    financialData: {
+      ebitdaProjection: [{ year: '2013', value: 27.6, source: 'deck' }],
+      rawNotes: 'EBITDA IFRS 2013-2016 sont : 25,6 M€ en 2013.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `EBITDA IFRS (Bruneau) : 0 contradiction (marqueur "IFRS")`);
+}
+{
+  // Classe "perimetre geographique" : Bruneau CA France
+  const rj = {
+    financialData: {
+      revenueProjection: [{ year: '2013', value: 296, source: 'deck' }],
+      rawNotes: 'Chiffre d\'affaires France (Bruneau+Maxiburo) : 224,8 M€ en 2013.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `CA France sous-composante (Bruneau) : 0 contradiction (marqueur "France")`);
+}
+{
+  // Classe "composant inclus" : Bemersive FCF inclut investissement
+  const rj = {
+    financialData: {
+      fcfProjection: [{ year: '2019', value: 1.419, source: 'deck' }],
+      rawNotes: 'FCF 2019 inclut un investissement initial de 1 500 K€.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `FCF inclut investissement (Bemersive) : 0 contradiction (marqueur "inclut")`);
+}
+{
+  // Classe "hors X" : Bruneau FCF hors CIT
+  const rj = {
+    financialData: {
+      fcfProjection: [{ year: '2014', value: 2.2, source: 'deck' }],
+      rawNotes: 'FCF 2014 ajusté (hors paiement CIT exceptionnel de 9,8 M€).',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `FCF hors CIT (Bruneau) : 0 contradiction (marqueurs "ajusté", "hors")`);
+}
+{
+  // Classe "consolide vs standalone" : Alliance Marine EBITDA total
+  const rj = {
+    financialData: {
+      ebitdaProjection: [{ year: '2020', value: 10, source: 'deck' }],
+      rawNotes: 'EBITDA total incluant les acquisitions BP atteint 17,3 M€ en 2020.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `EBITDA post-acquisitions (Alliance Marine) : 0 contradiction (marqueur "incluant")`);
+}
+
+// ============================================================
+// SUITE 11 - Garde essentielle : vraie contradiction sans marqueur
+// ------------------------------------------------------------
+// Le filtre ne doit PAS rendre sourd aux vraies contradictions.
+// Meme metrique, meme periode, meme qualifier, aucun marqueur de
+// recadrage, valeurs divergentes -> toujours signale.
+// ============================================================
+console.log('\n[Suite 11] Vraies contradictions preservees');
+{
+  // Rien qui ressemble a un marqueur, juste deux valeurs qui
+  // divergent
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'bp' }] },
+    extraction: { rawSummary: 'EBITDA de 250 k€ en 2024A.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `vraie contradiction EBITDA 250 vs 305 sans marqueur : 1 (preservee)`);
+}
+{
+  // Cas Bruneau grossMargin table 53 vs prose "53 %" : bug amont
+  // pipeline, la table stocke 53 en % entier au lieu du ratio.
+  // Aucun marqueur de recadrage dans la prose ("marge brute
+  // groupe (gross margin) est de 53,0% en 2011"). Le detecteur
+  // doit signaler ce cas.
+  const rj = {
+    financialData: {
+      grossMarginProjection: [{ year: '2011', value: 53, source: 'deck' }],
+      rawNotes: 'La marge brute groupe (gross margin) est de 53,0% en 2011.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `marge brute Bruneau (bug qualite table) : 1 contradiction (signal legitime bug amont)`);
+}
+{
+  // Chiffre d affaires 2024 sans qualificatif : contradiction
+  // preservee.
+  const rj = {
+    financialData: { revenueProjection: [{ year: '2024', value: 1.6, source: 'bp' }] },
+    extraction: { rawSummary: 'Chiffre d\'affaires 2024A de 2 000 k€.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `revenue 2000 vs 1600 sans marqueur : 1 (preservee)`);
+}
+
+// ============================================================
+// SUITE 12 - Bornage phrase : marqueur d une AUTRE phrase ne
+// filtre pas la mention courante
+// ============================================================
+console.log('\n[Suite 12] Bornage phrase');
+{
+  // Marqueur "ajuste" dans une phrase separee : ne doit PAS
+  // exclure la mention de la phrase precedente.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'bp' }] },
+    extraction: {
+      rawSummary: 'EBITDA de 250 k€ en 2024A. Il existe aussi un EBITDA ajusté pour reference.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `marqueur "ajuste" dans phrase suivante : contradiction preservee (borne au point)`);
+}
+{
+  // Meme test avec point-virgule
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'bp' }] },
+    extraction: {
+      rawSummary: 'EBITDA de 250 k€ en 2024A ; par ailleurs un EBITDA ajusté existe pour reference.',
+    },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `marqueur "ajuste" apres point-virgule : contradiction preservee`);
+}
+
+// ============================================================
 console.log(`\nResultats : ${pass} pass, ${fail} fail`);
 process.exit(fail > 0 ? 1 : 0);

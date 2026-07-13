@@ -27,9 +27,17 @@
 //   Axes de comparaison : table-vs-prose (V1) + prose-vs-prose
 //     entre champs distincts (V2), avec meme discipline qualifier.
 //
-// Cas volontairement NON couverts en V2 :
+// V3 : heuristique de contexte pour eliminer la classe de faux
+// positifs revelee par le repassage corpus V2 : les mentions
+// chiffrees portant un qualificatif de recadrage (ajuste,
+// pro-forma, IFRS, France, inclut, ...) ne designent pas la
+// meme grandeur que le chiffre standard de la table. On les
+// retire du bassin de comparaison. Fenetre bornee a la phrase
+// courante pour eviter d avaler un marqueur d une autre phrase.
+//
+// Cas volontairement NON couverts en V3 :
 //   - Divergences table-vs-table (rare, souvent construit par le
-//     pipeline lui-meme). V3.
+//     pipeline lui-meme).
 //   - Metriques hors du catalogue (ARR, LTV, CAC, marge nette,
 //     churn). Chaque metrique ajoutee ouvre une classe de faux
 //     positifs a valider. Extension incrementale.
@@ -38,11 +46,19 @@
 //     Prose-vs-prose reste possible avec meme qualifier E ou F.
 //   - Nombres sans unite explicite (ex "300 clients", "10 sessions"),
 //     ou headcount sans unite ETP/personnes explicite.
-//   - Periodes non-annuelles (Q1, mensuel, semestriel). V3.
+//   - Periodes non-annuelles (Q1, mensuel, semestriel).
 //   - Deduplication des paires de contradictions qui pointent
 //     sur la meme divergence via deux triangles differents
 //     (table-vs-prose1 + table-vs-prose2 + prose1-vs-prose2).
-//     On rend les 3 en V2, l analyste voit toutes les aretes.
+//     On rend les 3 aretes, l analyste voit toutes.
+//   - Marqueurs de recadrage tres frequents en francais courant
+//     comme "hors" ou "dont" produiront quelques faux negatifs
+//     sur des mentions legitimes. Accepte doctrinaire : mieux
+//     vaut rater qu inventer.
+//   - Bugs de qualite du pipeline en amont (ex : table stockant
+//     une marge en % entier au lieu du ratio decimal). Le
+//     detecteur revele ces bugs comme divergences, ce qui est
+//     un signal utile ; on ne les filtre pas.
 // ============================================================
 
 // ============================================================
@@ -315,6 +331,112 @@ function buildRegexes(metric: FinancialMetric): { A: RegExp; B: RegExp } {
   return { A, B };
 }
 
+// ============================================================
+// Heuristique de contexte : dictionnaire de recadrage
+// ------------------------------------------------------------
+// Marqueurs qui, s ils apparaissent dans le voisinage d une
+// mention chiffree extraite de la prose, indiquent que ce
+// chiffre est une VARIANTE (ajustee, pro-forma, sous-composante,
+// referentiel comptable different) et pas la metrique standard.
+// La mention est alors retiree du bassin de comparaison.
+//
+// Quatre familles :
+//   1. Ajustement et retraitement
+//   2. Referentiel comptable
+//   3. Perimetre geographique (liste explicite de pays majeurs +
+//      motif generique CA suivi d un pays capitalise)
+//   4. Composant inclus ou exclu
+//
+// Compilation en une seule regex OR pour un test rapide.
+// Casse indifferente. Bornes de mot \b partout pour eviter les
+// sous-chaines accidentelles (ex "hors" dans "horsain").
+// ============================================================
+// Bornes de mot Unicode-aware. Le \b de JavaScript est ASCII pur
+// et echoue apres "é" ou "è" ("ajusté" suivi d espace : \b entre
+// e-accentue (non-word) et espace (non-word) = pas de boundary).
+// On remplace par des lookarounds sur \p{L} (toute lettre Unicode)
+// avec le flag u sur la regex compilee.
+const NLB = '(?<![\\p{L}])';    // borne avant : le char precedent n est pas une lettre
+const NLA = '(?![\\p{L}])';     // borne apres : le char suivant n est pas une lettre
+
+const FRAMING_MARKERS_SOURCE =
+  // Famille 1 : ajustement / retraitement
+  NLB + 'ajust[eé]e?s?' + NLA +
+  '|' + NLB + 'retrait[eé]e?s?' + NLA +
+  '|' + NLB + 'pro[- ]?forma' + NLA +
+  '|' + NLB + 'normalis[eé]e?s?' + NLA +
+  '|' + NLB + 'standalone' + NLA +
+  '|' + NLB + 'consolid[eé]e?s?' + NLA +
+  '|hors\\s+acquisitions?' +
+  '|post[- ]?acquisitions?' +
+  '|' + NLB + 'retraitement' + NLA +
+  // Famille 2 : referentiel comptable
+  '|' + NLB + 'IFRS' + NLA +
+  '|' + NLB + 'GAAP' + NLA +
+  '|' + NLB + 'statutory' + NLA +
+  '|' + NLB + 'r[eé]glementaire' + NLA +
+  '|' + NLB + 'combin[eé]e?s?' + NLA +
+  '|comptes?\\s+sociaux' +
+  // Famille 3 : perimetre geographique (pays majeurs + generique CA + XX)
+  '|' + NLB + '(?:France|Belgique|Espagne|Allemagne|Italie|Portugal|Suisse|Luxembourg|Pays-Bas|Royaume-Uni|Autriche|Pologne|Gr[eè]ce|Irlande|Danemark|Su[eè]de|Norv[eè]ge|Finlande|USA|Etats-Unis|Chine|Inde|Japon|Br[eé]sil|Cor[eé]e|Turquie|Maroc|Alg[eé]rie|Tunisie|Australie|Canada|Mexique|Europe|monde|international)' + NLA +
+  '|' + NLB + 'CA\\s+[A-Z][a-z\\u00c0-\\u017f]+' +
+  // Famille 4 : composant inclus ou exclu
+  '|' + NLB + 'inclut' + NLA +
+  '|' + NLB + 'incluant' + NLA +
+  '|' + NLB + 'hors' + NLA +
+  '|' + NLB + 'y\\s+compris' + NLA +
+  '|' + NLB + 'dont' + NLA +
+  '|' + NLB + 'avant' + NLA +
+  '|' + NLB + 'apr[eè]s' + NLA;
+const FRAMING_REGEX = new RegExp(FRAMING_MARKERS_SOURCE, 'iu');
+
+// Fenetre de contexte de +/- 60 caracteres, bornee a la phrase
+// courante. Ponctuation forte qui coupe : "." ";" et retour ligne.
+// On ne franchit PAS ces separateurs pour rattacher un marqueur
+// a un chiffre. Bornage conservateur documente en tete du module.
+const CONTEXT_RADIUS = 60;
+const SENTENCE_BOUNDARIES = new Set<string>(['.', ';', '\n', '\r']);
+
+function extractSentenceWindow(
+  text: string,
+  matchStart: number,
+  matchEnd: number,
+): string {
+  const lowerBound = Math.max(0, matchStart - CONTEXT_RADIUS);
+  const upperBound = Math.min(text.length, matchEnd + CONTEXT_RADIUS);
+
+  // Chercher la borne gauche : dernier separateur avant matchStart,
+  // borne par lowerBound.
+  let start = lowerBound;
+  for (let i = matchStart - 1; i >= lowerBound; i--) {
+    if (SENTENCE_BOUNDARIES.has(text[i])) {
+      start = i + 1;
+      break;
+    }
+  }
+
+  // Chercher la borne droite : premier separateur apres matchEnd,
+  // borne par upperBound.
+  let end = upperBound;
+  for (let i = matchEnd; i < upperBound; i++) {
+    if (SENTENCE_BOUNDARIES.has(text[i])) {
+      end = i;
+      break;
+    }
+  }
+
+  return text.substring(start, end);
+}
+
+function hasFramingMarker(
+  text: string,
+  matchStart: number,
+  matchEnd: number,
+): boolean {
+  const window = extractSentenceWindow(text, matchStart, matchEnd);
+  return FRAMING_REGEX.test(window);
+}
+
 function extractFromProse(
   text: string,
   metric: FinancialMetric,
@@ -357,11 +479,13 @@ function extractFromProse(
   // Pattern A groups : 1=metric, 2=year, 3=qualifier?, 4=number, 5=unit
   A.lastIndex = 0;
   while ((m = A.exec(text)) !== null) {
+    if (hasFramingMarker(text, m.index, m.index + m[0].length)) continue;
     push(m[4], m[5], m[2], m[3], m[0]);
   }
   // Pattern B groups : 1=metric, 2=number, 3=unit, 4=year, 5=qualifier?
   B.lastIndex = 0;
   while ((m = B.exec(text)) !== null) {
+    if (hasFramingMarker(text, m.index, m.index + m[0].length)) continue;
     push(m[2], m[3], m[4], m[5], m[0]);
   }
 
