@@ -1099,11 +1099,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         )}
       </section>
 
-      {/* Bloc 2 - Project description (collapsible en mode compact) */}
+      {/* Bloc 2 - Project description (collapsible en mode compact).
+          La H3 Produit a ete retiree : elle rendait e.productDescription
+          qui est le meme champ que le cartouche ACTIVITE du cover.
+          Doublon verbatim par identite de champ. La section conserve
+          Modele economique, Hypotheses economiques, Opportunite de
+          marche et les blocs analytiques associes, tous distincts. */}
       <NoteSectionWrapper number="2." title="Projet proposé" compactMode={compactMode} collapseInCompact={true} sectionId="section-2">
-        <h3 className="note-h3">Produit</h3>
-        <p className="note-paragraph">{enrichProse(e.productDescription) || '—'}</p>
-
         <h3 className="note-h3">Modèle économique</h3>
         <p className="note-paragraph">{enrichProse(e.businessModel) || '—'}</p>
 
