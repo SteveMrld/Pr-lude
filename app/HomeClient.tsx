@@ -4034,8 +4034,27 @@ export default function HomeClient({
                     ))}
                   </aside>
 
-                  {/* CONTENU : panneaux conditionnels */}
+                  {/* CONTENU : panneaux conditionnels.
+                      En printMode, on court-circuite le rendu des onglets
+                      dashboard vers une composition print unique : seule
+                      la note d instruction (InvestmentNoteView) est
+                      rendue dans .dashboard-content, avec l identite
+                      societe canonique dans son cover cartouche et le
+                      verdict rendu une seule fois. Cette bascule est
+                      structurale : aucun masquage CSS, on choisit ce
+                      qu on compose. La vue web a onglets (viewMode
+                      dashboard, !printMode) est intacte, seul le rendu
+                      fige est concerne. */}
                   <div className="dashboard-content">
+                    {printMode ? (
+                      <InvestmentNoteView
+                        result={result}
+                        analysisId={savedAnalysisId || undefined}
+                        compactMode={false}
+                        printMode={true}
+                      />
+                    ) : (
+                      <>
                     {/* MOBILE NAV : dropdown natif au-dessus du contenu, visible < 1024px */}
                     <div className="dashboard-mobile-nav">
                       <div className="dashboard-mobile-context">
@@ -6366,19 +6385,13 @@ export default function HomeClient({
                 />
               </TabPane>
 
-              {/* PRINT MODE : note d investissement complete (sections 1, 1.5,
-                  1.6, 1.7 valorisation, 1.8 indicateurs deal type, 2, 3)
-                  rendue a la suite des onglets dashboard pour que l export
-                  PDF contienne tout. CRUCIAL : ce bloc doit rester DANS
-                  .dashboard-content puisque c est le selecteur que la
-                  fonction d export PDF capture. Place precedemment hors
-                  du wrapper, la note etait silencieusement absente du PDF
-                  meme si correctement rendue dans le DOM. */}
-              {printMode && (
-                <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
-                  <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={false} printMode={true} />
-                </div>
-              )}
+              {/* Le bloc historique {printMode && <InvestmentNoteView ...>}
+                  a ete retire : la composition print est desormais gouvernee
+                  par le ternaire top-level en tete de .dashboard-content.
+                  En printMode, on ne rend plus les onglets du tout, donc
+                  aucune note dupliquee, aucune concatenation dashboard+note. */}
+                      </>
+                    )}
                   </div>
                 </div>
               );

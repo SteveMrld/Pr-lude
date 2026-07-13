@@ -889,38 +889,18 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         );
       })()}
 
-      {/* Bloc 1 - Société */}
+      {/* Bloc 1 - Société.
+          La table d identite en labels anglais (Company / Sector /
+          Activity / Geography / Deal type / Deal context) a ete
+          retiree : les memes champs sont deja servis en francais
+          par le cartouche du cover (ENTITE / SECTEUR / GEOGRAPHIE /
+          TOUR / MONTANT / ACTIVITE, voir plus haut dans ce fichier).
+          La source de verite pour l identite societe est le cover
+          cartouche, la section 1 ne re-emet que le contenu a valeur
+          ajoutee : historique, equipe dirigeante, profil financier,
+          produit, modele economique, hypotheses economiques. */}
       <section className="note-section" id="engine-section-extraction">
         <h2 className="note-section-title"><span className="note-section-num">1.</span> Société</h2>
-
-        <table className="note-table">
-          <tbody>
-            <tr>
-              <td className="note-label">Company</td>
-              <td className="note-value bold">{e.companyName || '—'}</td>
-            </tr>
-            <tr>
-              <td className="note-label">Sector</td>
-              <td className="note-value">{joinNonEmpty([e.sector, e.subSector], ' · ')}</td>
-            </tr>
-            <tr>
-              <td className="note-label">Activity</td>
-              <td className="note-value">{e.productDescription || '—'}</td>
-            </tr>
-            <tr>
-              <td className="note-label">Geography</td>
-              <td className="note-value">{joinNonEmpty([e.geographicHub, e.country], ', ')}</td>
-            </tr>
-            <tr>
-              <td className="note-label">Deal type</td>
-              <td className="note-value">{joinNonEmpty([e.fundraise?.stage, e.fundraise?.amount || (e.fundraise?.stage ? 'montant non précisé' : null)], ' · ', 'non renseigné')}</td>
-            </tr>
-            <tr>
-              <td className="note-label">Deal context</td>
-              <td className="note-value">{e.marketPitch || '—'}</td>
-            </tr>
-          </tbody>
-        </table>
 
         {/* ============================================================
             BLOC 1 - NOTE D INSTRUCTION (screening / deal qualification)
@@ -1369,13 +1349,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         <h3 className="note-h3" id="engine-section-orchestrate">Recommandation</h3>
         <div className="verdict-box">
-          {/* Verdict comme titre principal du bloc, pas comme une ligne
-              parmi d autres. C est la conclusion narrative de l instruction
-              Bloc 1, elle merite un traitement typographique distinct. */}
-          <div className="verdict-headline">
-            <div className="verdict-headline-label">Verdict de l&apos;instruction préalable</div>
-            <div className="verdict-headline-value">{reco.verdict || '—'}</div>
-          </div>
+          {/* Le bandeau verdict-headline (Verdict de l instruction prealable
+              + valeur "Approfondir") a ete retire : le verdict est deja
+              porte en gros dans le cover cartouche (note-cover-verdict).
+              Ici la Section 3 conserve uniquement la decomposition
+              analytique (barre de position 45/60/75, decomposition par
+              dimension, poids, contribution) qui apporte l explication
+              du score sans repeter le verdict d accroche. */}
 
           {/* BLOC 1 : SCORE D ATTRACTIVITE STRUCTURELLE
               Le partner doit comprendre que ce chiffre est la note d
