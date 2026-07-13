@@ -14,6 +14,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import SectionFallbackLine from './SectionFallbackLine';
 
 interface RealizedOutcome {
   id: string;
@@ -105,7 +106,14 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function OutcomeTracking({ analysisId }: { analysisId: string }) {
+export default function OutcomeTracking({
+  analysisId,
+  printMode = false,
+}: {
+  analysisId: string;
+  /** Rendu fige pour export PDF : jamais de spinner, ligne neutre a la place. */
+  printMode?: boolean;
+}) {
   const [outcome, setOutcome] = useState<RealizedOutcome | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -272,6 +280,12 @@ export default function OutcomeTracking({ analysisId }: { analysisId: string }) 
     }
   };
 
+  // Rendu fige (printMode / export PDF) : jamais de spinner. Le suivi
+  // est un journal vivant, dans la note imprimee on rend la ligne
+  // neutre section 6.
+  if (printMode && (loading || error)) {
+    return <SectionFallbackLine kind="suivi-reconciliation" />;
+  }
   if (loading) {
     return <div className="ot-loading">Chargement du suivi...</div>;
   }

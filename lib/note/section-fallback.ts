@@ -47,6 +47,20 @@ export type SectionKind =
   | 'tech-claim'
   | 'execution-friction'
   | 'reference-checks'
+  // Sections rendues dans la note d instruction avec un titre statique
+  // mais dont le corps peut etre vide au moment du rendu fige. La copie
+  // doctrinale associee reste factuelle, sans imperatif technique.
+  | 'portfolio'
+  | 'comparables'
+  | 'suivi-reconciliation'
+  | 'green-flags'
+  | 'red-flags'
+  | 'patterns-transversaux'
+  | 'benchmark-retrospectif'
+  | 'questions-instruire'
+  | 'operateurs-lift'
+  | 'proxies-calculer'
+  | 'section-generic'
   | 'default';
 
 // Copie neutre par section. Voix editoriale Le Grand Continent :
@@ -84,6 +98,33 @@ const FALLBACK_COPY: Record<SectionKind, string> = {
     'Cette dimension n’a pas pu être instruite dans ce run. À reprendre en DD Bloc 2.',
   'reference-checks':
     'Cette dimension n’a pas pu être instruite dans ce run. À reprendre en DD Bloc 2.',
+  // Sections dont l absence de contenu dans un rendu fige n a rien a
+  // voir avec un echec moteur : soit la donnee n existe pas encore
+  // (portfolio a moins de deux dossiers, section 6 avant saisie), soit
+  // la brique est volontairement masquee (comparables faux, chantier
+  // moteur separe). Copie neutre courte, aucun imperatif.
+  'portfolio':
+    'Section non renseignée dans cette version de la note.',
+  'comparables':
+    'Comparables sectoriels en cours de consolidation.',
+  'suivi-reconciliation':
+    'Section non renseignée dans cette version de la note.',
+  'green-flags':
+    'Aucun signal positif consolidé à ce stade de l’instruction.',
+  'red-flags':
+    'Aucun signal d’alerte consolidé à ce stade de l’instruction.',
+  'patterns-transversaux':
+    'Aucun pattern transversal remonté à ce stade de l’instruction.',
+  'benchmark-retrospectif':
+    'Benchmark rétrospectif non renseigné pour ce dossier.',
+  'questions-instruire':
+    'Aucune question d’instruction n’a été formalisée à ce stade.',
+  'operateurs-lift':
+    'Aucun opérateur lift-the-hood recommandé à ce stade.',
+  'proxies-calculer':
+    'Aucun proxy à calculer n’a été remonté par le retournement causal.',
+  'section-generic':
+    'Section non renseignée dans cette version de la note.',
   'default':
     'Cette dimension n’a pas pu être instruite dans ce run. À reprendre en DD Bloc 2.',
 };
@@ -105,6 +146,17 @@ const FALLBACK_TITLE: Record<SectionKind, string> = {
   'tech-claim': 'Revendications techniques',
   'execution-friction': 'Friction d’exécution',
   'reference-checks': 'Reference checks',
+  'portfolio': 'Positionnement portfolio',
+  'comparables': 'Comparables historiques',
+  'suivi-reconciliation': 'Suivi & réconciliation',
+  'green-flags': 'Green flags',
+  'red-flags': 'Red flags',
+  'patterns-transversaux': 'Patterns transversaux',
+  'benchmark-retrospectif': 'Benchmark rétrospectif',
+  'questions-instruire': 'Questions à instruire',
+  'operateurs-lift': 'Opérateurs lift-the-hood',
+  'proxies-calculer': 'Proxies à calculer',
+  'section-generic': 'Section',
   'default': 'Section',
 };
 

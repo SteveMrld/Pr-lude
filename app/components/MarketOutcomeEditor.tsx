@@ -15,6 +15,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import SectionFallbackLine from './SectionFallbackLine';
 
 type MarketOutcome = 'alive' | 'exit' | 'fail' | 'flat';
 
@@ -57,7 +58,14 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function MarketOutcomeEditor({ analysisId }: { analysisId: string }) {
+export default function MarketOutcomeEditor({
+  analysisId,
+  printMode = false,
+}: {
+  analysisId: string;
+  /** Rendu fige pour export PDF : jamais de spinner, ligne neutre a la place. */
+  printMode?: boolean;
+}) {
   const [outcome, setOutcome] = useState<AnalysisOutcome | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'auth' | 'error'>('loading');
   const [editing, setEditing] = useState(false);
@@ -89,6 +97,12 @@ export default function MarketOutcomeEditor({ analysisId }: { analysisId: string
   }, [analysisId]);
 
   if (state === 'auth') return null;
+  // Rendu fige (printMode / export PDF) : jamais de spinner. L issue
+  // marche est un elemet vivant (saisie dans le temps), donc en note
+  // imprimee on rend la ligne neutre section 6.
+  if (printMode && (state === 'loading' || state === 'error' || !outcome)) {
+    return <SectionFallbackLine kind="suivi-reconciliation" />;
+  }
   if (state === 'loading') {
     return <p className="moe-loading">Chargement de l&apos;issue marché...</p>;
   }

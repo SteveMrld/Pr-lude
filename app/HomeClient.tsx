@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import InvestmentNoteView from './components/InvestmentNoteView';
 import HistoricalComparables from './components/HistoricalComparables';
+import SectionFallbackLine from './components/SectionFallbackLine';
 import RadarDimensions from './components/RadarDimensions';
 import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
@@ -3451,6 +3452,7 @@ export default function HomeClient({
                 result={result}
                 analysisId={savedAnalysisId || undefined}
                 compactMode={compactNoteMode}
+                printMode={false}
                 onDeepenDDClick={() => {
                   setDdDeepenOpen(true);
                   setDdDeepenError(null);
@@ -5284,15 +5286,23 @@ export default function HomeClient({
                   <div className="flags-row">
                     <div className="flag-col green">
                       <div className="flag-title green">Green flags</div>
-                      <ul className="flag-list">
-                        {(result.team?.greenFlags || []).map((f: string, i: number) => <li key={i}>{f}</li>)}
-                      </ul>
+                      {(result.team?.greenFlags || []).length > 0 ? (
+                        <ul className="flag-list">
+                          {(result.team?.greenFlags || []).map((f: string, i: number) => <li key={i}>{f}</li>)}
+                        </ul>
+                      ) : (
+                        <SectionFallbackLine kind="green-flags" />
+                      )}
                     </div>
                     <div className="flag-col red">
                       <div className="flag-title red">Red flags</div>
-                      <ul className="flag-list">
-                        {(result.team?.redFlags || []).map((f: string, i: number) => <li key={i}>{f}</li>)}
-                      </ul>
+                      {(result.team?.redFlags || []).length > 0 ? (
+                        <ul className="flag-list">
+                          {(result.team?.redFlags || []).map((f: string, i: number) => <li key={i}>{f}</li>)}
+                        </ul>
+                      ) : (
+                        <SectionFallbackLine kind="red-flags" />
+                      )}
                     </div>
                   </div>
 
@@ -5969,11 +5979,15 @@ export default function HomeClient({
                   })}
 
                   <h3>Patterns transversaux identifiés</h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {(result.patternMatching?.matchingPatterns || []).map((p: string, i: number) => (
-                      <span key={i} className="pattern-pill" style={{ fontSize: 12, padding: '4px 12px' }}>{p}</span>
-                    ))}
-                  </div>
+                  {(result.patternMatching?.matchingPatterns || []).length > 0 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {(result.patternMatching?.matchingPatterns || []).map((p: string, i: number) => (
+                        <span key={i} className="pattern-pill" style={{ fontSize: 12, padding: '4px 12px' }}>{p}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <SectionFallbackLine kind="patterns-transversaux" />
+                  )}
 
                   {result.patternMatching?.internationalBenchmarks?.length > 0 && (
                     <>
@@ -6054,15 +6068,26 @@ export default function HomeClient({
                       comparables sont sectoraux ou mixtes. Pour les comparables
                       de pattern pur, le moteur retourne null et on cache la
                       ligne pour eviter d afficher 'Score moyen : /100'.
-                      Le comparableScopeWarning rendu en dessous explique pourquoi. */}
-                  {typeof result.patternMatching?.retrospectiveBenchmark?.averageScore === 'number' && (
-                    <p><strong>Score moyen des comparables :</strong> {result.patternMatching.retrospectiveBenchmark.averageScore}/100</p>
-                  )}
-                  {result.patternMatching?.retrospectiveBenchmark?.successRate && (
-                    <p>{result.patternMatching.retrospectiveBenchmark.successRate}</p>
-                  )}
-                  {result.patternMatching?.retrospectiveBenchmark?.insights && (
-                    <p>{result.patternMatching.retrospectiveBenchmark.insights}</p>
+                      Le comparableScopeWarning rendu en dessous explique pourquoi.
+                      Si aucun des trois sous-champs (score moyen, taux de succes,
+                      insights) n est renseigne, on rend la ligne neutre plutot
+                      qu un titre nu suivi seulement du bandeau de mise en garde. */}
+                  {(typeof result.patternMatching?.retrospectiveBenchmark?.averageScore === 'number'
+                    || result.patternMatching?.retrospectiveBenchmark?.successRate
+                    || result.patternMatching?.retrospectiveBenchmark?.insights) ? (
+                    <>
+                      {typeof result.patternMatching?.retrospectiveBenchmark?.averageScore === 'number' && (
+                        <p><strong>Score moyen des comparables :</strong> {result.patternMatching.retrospectiveBenchmark.averageScore}/100</p>
+                      )}
+                      {result.patternMatching?.retrospectiveBenchmark?.successRate && (
+                        <p>{result.patternMatching.retrospectiveBenchmark.successRate}</p>
+                      )}
+                      {result.patternMatching?.retrospectiveBenchmark?.insights && (
+                        <p>{result.patternMatching.retrospectiveBenchmark.insights}</p>
+                      )}
+                    </>
+                  ) : (
+                    <SectionFallbackLine kind="benchmark-retrospectif" />
                   )}
                   {result.patternMatching?.retrospectiveBenchmark?.comparableScopeWarning && (
                     <div style={{
@@ -6280,29 +6305,41 @@ export default function HomeClient({
               <TabPane tabId="instruction" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 <div style={{ padding: '28px 32px' }}>
                   <h3>Questions à instruire avant décision</h3>
-                  <ol className="questions-list" style={{ marginTop: 12 }}>
-                    {(result.causalReversal?.questionsToInvestigate || []).map((q: string, i: number) => (
-                      <li key={i}>{q}</li>
-                    ))}
-                  </ol>
+                  {(result.causalReversal?.questionsToInvestigate || []).length > 0 ? (
+                    <ol className="questions-list" style={{ marginTop: 12 }}>
+                      {(result.causalReversal?.questionsToInvestigate || []).map((q: string, i: number) => (
+                        <li key={i}>{q}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <SectionFallbackLine kind="questions-instruire" />
+                  )}
 
                   <h3>Opérateurs lift-the-hood recommandés</h3>
-                  <div className="op-list" style={{ marginTop: 12 }}>
-                    {(result.causalReversal?.recommendedOperators || []).map((o: any, i: number) => (
-                      <div className="op-card" key={i}>
-                        <div className="op-profil">{o.profile}</div>
-                        <div className="op-mission">{o.mission}</div>
-                        <div className="op-duration">Durée estimée : {o.estimatedDuration}</div>
-                      </div>
-                    ))}
-                  </div>
+                  {(result.causalReversal?.recommendedOperators || []).length > 0 ? (
+                    <div className="op-list" style={{ marginTop: 12 }}>
+                      {(result.causalReversal?.recommendedOperators || []).map((o: any, i: number) => (
+                        <div className="op-card" key={i}>
+                          <div className="op-profil">{o.profile}</div>
+                          <div className="op-mission">{o.mission}</div>
+                          <div className="op-duration">Durée estimée : {o.estimatedDuration}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <SectionFallbackLine kind="operateurs-lift" />
+                  )}
 
                   <h3>Proxies à calculer</h3>
-                  <ul className="flag-list">
-                    {(result.causalReversal?.proxiesToCalculate || []).map((p: string, i: number) => (
-                      <li key={i}>{p}</li>
-                    ))}
-                  </ul>
+                  {(result.causalReversal?.proxiesToCalculate || []).length > 0 ? (
+                    <ul className="flag-list">
+                      {(result.causalReversal?.proxiesToCalculate || []).map((p: string, i: number) => (
+                        <li key={i}>{p}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <SectionFallbackLine kind="proxies-calculer" />
+                  )}
                 </div>
               </TabPane>
 
@@ -6339,7 +6376,7 @@ export default function HomeClient({
                   meme si correctement rendue dans le DOM. */}
               {printMode && (
                 <div style={{ pageBreakBefore: 'always', marginTop: 48 }}>
-                  <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={false} />
+                  <InvestmentNoteView result={result} analysisId={savedAnalysisId || undefined} compactMode={false} printMode={true} />
                 </div>
               )}
                   </div>

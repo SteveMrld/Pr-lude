@@ -14,6 +14,7 @@ import PredictionSnapshot from './PredictionSnapshot';
 import MarketOutcomeEditor from './MarketOutcomeEditor';
 import CalibrationSummary from './CalibrationSummary';
 import PortfolioPositionChart from './PortfolioPositionChart';
+import SectionFallbackLine from './SectionFallbackLine';
 import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralRadar } from './note/SectoralRadar';
 import {
@@ -75,6 +76,14 @@ interface Props {
    * compactMode={false} (defaut).
    */
   compactMode?: boolean;
+  /**
+   * Rendu fige pour export PDF. Impose la doctrine "aucun etat non
+   * resolu au rendu" : tout spinner asynchrone est remplace par la
+   * ligne neutre de la section correspondante. Propage a chaque
+   * composant asynchrone monte dans la note (Portfolio, Prediction,
+   * Outcome, Calibration).
+   */
+  printMode?: boolean;
   /**
    * Callback appele quand le partner clique sur le bandeau "Passer en DD
    * approfondie". Si fourni, le bandeau apparait en haut de la section
@@ -385,7 +394,7 @@ function NoteSectoralAnnex({
   );
 }
 
-export default function InvestmentNoteView({ result, analysisId, compactMode = false, onDeepenDDClick }: Props) {
+export default function InvestmentNoteView({ result, analysisId, compactMode = false, printMode = false, onDeepenDDClick }: Props) {
   const r = result;
   const e = r.extraction || {};
   const t = r.team || {};
@@ -1614,7 +1623,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <span className="verdict-block-num" aria-hidden="true">1.6</span>
                 <span className="verdict-block-title">Positionnement dans le portfolio</span>
               </div>
-              <PortfolioPositionChart currentScore={reco.globalScore} printMode={false} />
+              <PortfolioPositionChart currentScore={reco.globalScore} printMode={printMode} />
             </div>
           )}
 
@@ -3652,10 +3661,24 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             quand un seuil de dossiers résolus est franchi, sans jamais mélanger des
             prédictions produites par des versions différentes du système.
           </p>
-          <PredictionSnapshot analysisId={analysisId} />
-          <MarketOutcomeEditor analysisId={analysisId} />
-          <OutcomeTracking analysisId={analysisId} />
-          <CalibrationSummary />
+          {/* En rendu fige (printMode), on court-circuite les quatre
+              sous-composants de la section 6 vers une ligne neutre
+              unique. Le contenu de la section 6 (prediction loguee,
+              issue marche, suivi, calibration) est vivant, saisi dans
+              le temps, il n a pas sa place dans une note d instruction
+              exportee comme un document fige. En rendu live, les
+              composants s affichent normalement pour permettre la
+              saisie et la lecture. */}
+          {printMode ? (
+            <SectionFallbackLine kind="suivi-reconciliation" />
+          ) : (
+            <>
+              <PredictionSnapshot analysisId={analysisId} printMode={printMode} />
+              <MarketOutcomeEditor analysisId={analysisId} printMode={printMode} />
+              <OutcomeTracking analysisId={analysisId} printMode={printMode} />
+              <CalibrationSummary printMode={printMode} />
+            </>
+          )}
         </NoteSectionWrapper>
       )}
 

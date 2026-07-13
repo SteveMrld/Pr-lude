@@ -197,6 +197,25 @@
     break-inside: avoid;
   }
 
+  /* Ceinture et bretelles doctrinaux : aucun etat non resolu ne doit
+     survivre a l impression. Meme si un composant echappait au
+     court-circuit printMode cote React, les libelles de chargement
+     et de recherche asynchrone sont masques par CSS a l export PDF.
+     Les composants qui ont un vrai printMode montent deja la ligne
+     neutre SectionFallbackLine a la place ; cette regle est un
+     dernier rempart pour les cas non encore refactor. */
+  .cs-loading,
+  .ps-loading,
+  .moe-loading,
+  .ot-loading,
+  .hc-loading,
+  .hc-region-loading,
+  .cs-error,
+  .ps-error,
+  .moe-error {
+    display: none !important;
+  }
+
   /* Pas de titre orphelin en bas de page. */
   .note-section-title,
   .note-h2,

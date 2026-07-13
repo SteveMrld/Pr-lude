@@ -15,6 +15,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import SectionFallbackLine from './SectionFallbackLine';
 
 interface PredictionRecord {
   id: string;
@@ -69,7 +70,14 @@ function formatScore(v: number | null): string {
   return Math.round(v).toString();
 }
 
-export default function PredictionSnapshot({ analysisId }: { analysisId: string }) {
+export default function PredictionSnapshot({
+  analysisId,
+  printMode = false,
+}: {
+  analysisId: string;
+  /** Rendu fige pour export PDF : jamais de spinner, ligne neutre a la place. */
+  printMode?: boolean;
+}) {
   const [latest, setLatest] = useState<PredictionRecord | null>(null);
   const [historyCount, setHistoryCount] = useState(0);
   const [state, setState] = useState<'loading' | 'ready' | 'auth' | 'empty' | 'error'>('loading');
@@ -107,6 +115,12 @@ export default function PredictionSnapshot({ analysisId }: { analysisId: string 
   }, [analysisId]);
 
   if (state === 'auth') return null;
+  // Rendu fige (printMode / export PDF) : jamais de spinner, ligne neutre
+  // section 6 a la place. La prediction loguee n a de sens que dans
+  // l instance vivante ou le partner peut la lire/completer.
+  if (printMode && (state === 'loading' || state === 'error' || state === 'empty')) {
+    return <SectionFallbackLine kind="suivi-reconciliation" />;
+  }
   if (state === 'loading') {
     return <p className="ps-loading">Chargement de la prédiction loguée...</p>;
   }

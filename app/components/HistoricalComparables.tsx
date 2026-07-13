@@ -10,9 +10,23 @@
 // Inspiration : moteur de comparables historiques.
 // Repond a la question editoriale : "ce dossier ressemble a quels
 // cas passes du marche europeen ?".
+//
+// MASQUAGE TEMPORAIRE (flag MASK_COMPARABLES). Le hard filter par
+// classe d actif ne mord pas, les scores sortent tous a 100%, et
+// des dossiers saas-b2b francais 1,6 M EUR sont mis en similarite
+// contre Adyen, Wise, OpenAI ou Zalando. Un comparable absent est
+// honnete, un comparable faux detruit la credibilite de la note.
+// Le composant retourne uniquement la ligne neutre "Comparables
+// sectoriels en cours de consolidation." tant que la reparation du
+// moteur n a pas ete livree. Chantier moteur trace separement.
+// Pour re-activer : passer MASK_COMPARABLES a false apres avoir
+// livre le fix du hard filter.
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import SectionFallbackLine from './SectionFallbackLine';
+
+const MASK_COMPARABLES = true;
 
 interface NarrativeSpecificity {
   tags: string[];
@@ -162,6 +176,21 @@ const PATTERN_LABELS: Record<string, { label: string; color: string; tone: strin
 };
 
 export default function HistoricalComparables({ analysisId }: Props) {
+  // Masquage force tant que le hard filter du moteur n a pas ete
+  // repare. Voir bloc de commentaire en tete de fichier.
+  if (MASK_COMPARABLES) {
+    return <SectionFallbackLine kind="comparables" marginTop={4} marginBottom={4} />;
+  }
+
+  return <ComparablesRealRender analysisId={analysisId} />;
+}
+
+// Composant interne qui contient l implementation reelle. Isole du
+// composant expose pour que le short-circuit de masquage ne casse
+// pas les hooks (regle des hooks React : jamais conditionnellement).
+// Quand MASK_COMPARABLES passera a false, le rendu real reprendra
+// sans modification.
+function ComparablesRealRender({ analysisId }: Props) {
   const [data, setData] = useState<ComparablesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

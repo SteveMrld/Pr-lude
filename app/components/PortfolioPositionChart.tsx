@@ -16,11 +16,12 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import SectionFallbackLine from './SectionFallbackLine';
 
 interface Props {
   /** Score du dossier en cours, 0-100 */
   currentScore: number;
-  /** Mode print pour l export PDF (palette ajustee) */
+  /** Mode print pour l export PDF (palette ajustee + interdit spinner) */
   printMode?: boolean;
 }
 
@@ -126,6 +127,12 @@ export default function PortfolioPositionChart({ currentScore, printMode = false
   }, [scores, currentScore]);
 
   if (loading) {
+    // Rendu fige (printMode / export PDF) : jamais de spinner. On rend
+    // la ligne neutre "Section non renseignee dans cette version de la
+    // note." plutot que l etat de chargement transitoire.
+    if (printMode) {
+      return <SectionFallbackLine kind="portfolio" />;
+    }
     return (
       <div style={{ padding: '20px 0', fontSize: 12, color: 'var(--muted)' }}>
         Chargement de la distribution du portfolio...

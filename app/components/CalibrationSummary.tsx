@@ -13,6 +13,7 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
+import SectionFallbackLine from './SectionFallbackLine';
 
 interface SegmentKey {
   commitSha: string | null;
@@ -66,7 +67,12 @@ function pct(v: number): string {
   return `${(v * 100).toFixed(0)}%`;
 }
 
-export default function CalibrationSummary() {
+interface CalibrationSummaryProps {
+  /** Rendu fige pour export PDF : jamais de spinner, ligne neutre a la place. */
+  printMode?: boolean;
+}
+
+export default function CalibrationSummary({ printMode = false }: CalibrationSummaryProps = {}) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'auth' | 'error'>('loading');
 
@@ -97,6 +103,12 @@ export default function CalibrationSummary() {
   }, []);
 
   if (state === 'auth') return null;
+  // Rendu fige (printMode / export PDF) : jamais de spinner ni de message
+  // d erreur brut. Ligne neutre section 6 a la place, quel que soit
+  // l etat interne. Preserve la doctrine "aucun etat non resolu au rendu".
+  if (printMode && (state === 'loading' || state === 'error' || !summary)) {
+    return <SectionFallbackLine kind="suivi-reconciliation" />;
+  }
   if (state === 'loading') {
     return <p className="cs-loading">Chargement de la calibration...</p>;
   }
