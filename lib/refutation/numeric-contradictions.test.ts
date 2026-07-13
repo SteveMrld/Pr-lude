@@ -22,25 +22,15 @@ function check(cond: boolean, label: string) {
 }
 
 // ============================================================
-// SUITE 1 - Cas positif TOLSON (contradiction connue EBITDA 2024)
+// SUITE 1 - Cas TOLSON reclasse : 293k€/2024B prose vs 305k€
+// table source="deck+bp" (ambigu). Deux series distinctes du
+// meme exercice comptable, aucune contradiction signalee en V1.1.
 // ============================================================
-console.log('\n[Suite 1] TOLSON : EBITDA 2024 293 k€ prose vs 305 k€ table');
+console.log('\n[Suite 1] TOLSON : 2024B prose vs table source=deck+bp (mismatch qualifier -> non signale)');
 {
   const tolson = JSON.parse(readFileSync(join(__dirname, 'fixtures/tolson.fixture.json'), 'utf-8'));
   const contradictions = detectNumericContradictions(tolson);
-  check(contradictions.length === 1, `TOLSON : exactement 1 contradiction (obtenu ${contradictions.length})`);
-  if (contradictions.length >= 1) {
-    const c = contradictions[0];
-    check(c.metric === 'ebitda', `TOLSON : metric = ebitda (obtenu ${c.metric})`);
-    check(c.period === '2024', `TOLSON : period = 2024 (obtenu ${c.period})`);
-    check(c.table.valueKeur === 305, `TOLSON : table = 305 k€ (obtenu ${c.table.valueKeur})`);
-    check(c.prose.valueKeur === 293, `TOLSON : prose = 293 k€ (obtenu ${c.prose.valueKeur})`);
-    check(c.absoluteDeltaKeur === 12, `TOLSON : delta absolu = 12 k€ (obtenu ${c.absoluteDeltaKeur})`);
-    check(Math.abs(c.relativeDelta - 12 / 305) < 1e-9, `TOLSON : delta relatif ~ 3.93%`);
-    check(c.table.location === 'financialData.ebitdaProjection[3]', `TOLSON : location table pointe l index 3`);
-    check(c.prose.location === 'extraction.rawSummary', `TOLSON : location prose = extraction.rawSummary`);
-    check(/EBITDA/i.test(c.prose.rawSnippet), `TOLSON : snippet prose contient EBITDA`);
-  }
+  check(contradictions.length === 0, `TOLSON : 0 contradiction (obtenu ${contradictions.length})`);
 }
 
 // ============================================================
@@ -211,6 +201,119 @@ console.log('\n[Suite 9] Separateur de milliers');
   };
   const c = detectNumericContradictions(withSpaces);
   check(c.length === 0, `"1 600 k€" parse en 1600 k€ = 1,6 M€ table : 0 contradiction`);
+}
+
+// ============================================================
+// SUITE 10 - Matrice qualifier de periode vs source table
+// ------------------------------------------------------------
+// V1.1 : la regle de compatibilite qualifier / source empeche
+// les faux positifs actual contre budget qui sont normaux dans
+// un dossier VC francais.
+// ============================================================
+console.log('\n[Suite 10] Qualifier prose vs source table');
+
+{
+  // Prose 2024B (Budget), table source="bp" (Actual attendu).
+  // Mismatch : NON signale.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'bp' }] },
+    extraction: { rawSummary: 'EBITDA de 293 k€ (18,3 %) en 2024B.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `2024B prose vs source=bp (attendu A) : 0 contradiction (mismatch qualifier)`);
+}
+{
+  // Prose 2024A (Actual), table source="deck" (Budget attendu).
+  // Mismatch : NON signale.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.5, source: 'deck' }] },
+    extraction: { rawSummary: 'EBITDA de 305 k€ en 2024A.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `2024A prose vs source=deck (attendu B) : 0 contradiction`);
+}
+{
+  // Prose 2024B (Budget), table source="deck" (Budget). Match B/B,
+  // valeurs divergentes : SIGNALE.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.6, source: 'deck' }] },
+    extraction: { rawSummary: 'EBITDA de 400 k€ en 2024B.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `2024B prose vs source=deck (attendu B), valeurs 400 vs 600 : 1 contradiction (vraie)`);
+  if (c[0]) {
+    check(c[0].prose.qualifier === 'B', `qualifier prose = B remonte`);
+    check(c[0].table.sourceTag === 'deck', `sourceTag table = deck remonte`);
+  }
+}
+{
+  // Prose 2024A (Actual), table source="bp" (Actual). Match A/A,
+  // valeurs divergentes : SIGNALE.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'bp' }] },
+    extraction: { rawSummary: 'EBITDA de 250 k€ en 2024A.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `2024A prose vs source=bp (attendu A), valeurs 250 vs 305 : 1 contradiction`);
+  if (c[0]) check(c[0].prose.qualifier === 'A', `qualifier prose = A remonte`);
+}
+{
+  // Aucun qualifier des deux cotes (prose sans suffixe, table
+  // source vide), valeurs divergentes : SIGNALE.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305 }] },
+    extraction: { rawSummary: 'EBITDA de 250 k€ en 2024.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `prose sans quali + table sans source : 1 contradiction (comparaison V1)`);
+}
+{
+  // Prose 2024E (Estime), table source quelconque. Pas de mapping
+  // E : NON signale.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'bp' }] },
+    extraction: { rawSummary: 'EBITDA de 500 k€ en 2024E.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `2024E prose (Estime) : 0 contradiction (pas de mapping E cote source)`);
+}
+{
+  // Prose 2024F (Forecast) : idem NON signale.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'bp' }] },
+    extraction: { rawSummary: 'EBITDA de 500 k€ en 2024F.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `2024F prose (Forecast) : 0 contradiction`);
+}
+{
+  // Prose 2024b (minuscule) doit se normaliser en B.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.6, source: 'deck' }] },
+    extraction: { rawSummary: 'EBITDA de 400 k€ en 2024b.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1 && c[0].prose.qualifier === 'B', `minuscule "2024b" normalise en B`);
+}
+{
+  // Prose sans quali, table source ambigue "deck+bp".
+  // Sans qualifier prose, on compare quand meme : SIGNALE.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'deck+bp' }] },
+    extraction: { rawSummary: 'EBITDA de 500 k€ en 2024.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 1, `prose sans quali + table source ambigue : 1 contradiction (regle V1 preservee)`);
+}
+{
+  // Prose AVEC quali B, table source ambigue "deck+bp".
+  // Prose qualifiee mais table ambigue : NON signale.
+  const rj = {
+    financialData: { ebitdaProjection: [{ year: '2024', value: 0.305, source: 'deck+bp' }] },
+    extraction: { rawSummary: 'EBITDA de 500 k€ en 2024B.' },
+  };
+  const c = detectNumericContradictions(rj);
+  check(c.length === 0, `prose qualifiee + table source ambigue "deck+bp" : 0 contradiction (le cas TOLSON)`);
 }
 
 // ============================================================

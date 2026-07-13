@@ -14,7 +14,18 @@
 // donc etroits, avec doubles gardes de proximite (annee proche
 // du couple valeur+unite, precede de "en " ou "(").
 //
-// Cas volontairement NON couverts en V1 :
+// V1.1 : prise en compte du qualifier de periode (A/B/E/F) pour
+// eliminer la classe de faux positifs actual contre budget. Un
+// dossier VC francais expose systematiquement Actual (BP) et
+// Budget (deck) cote a cote sur la meme annee : ce n est PAS
+// une contradiction, ce sont deux series distinctes du meme
+// exercice. On extrait le qualifier de la prose ("2024B", "2024A",
+// "2024E", "2024F") et on infere un qualifier equivalent depuis
+// le champ source de la table row ("bp" -> "A", "deck" -> "B",
+// mixte ou absent -> null). Regle : ne signale que si les deux
+// qualifiers matchent (ou si les deux sont null).
+//
+// Cas volontairement NON couverts en V1.1 :
 //   - Divergences prose-vs-prose (deux passages narratifs
 //     contradictoires sans reference table). Introduira un
 //     double comptage sans dedup solide. V2.
@@ -27,11 +38,9 @@
 //   - Marges en % (les tables stockent en decimal 0.183, la prose
 //     en pourcent 18,3 %). Facteur de conversion additionnel a
 //     valider. V2.
-//   - Divergences dues a la distinction actual vs budget vs
-//     forecast qui portent le meme label (ex TOLSON 2024A vs
-//     2024B). Traitees comme contradictions ordinaires en V1 car
-//     la period brute est identique. Nuance a introduire une fois
-//     qu on aura un canal de qualification (source=deck vs source=bp).
+//   - Prose portant qualifier E (estime) ou F (forecast) : pas de
+//     mapping cote source table, on ne signale jamais. Correct par
+//     defaut (safe), extension V2 apres observation du corpus.
 //   - Champs prose au-dela de extraction.rawSummary
 //     (financialData.rawNotes, preScan.*, finalRecommendation.*).
 //     financialData.rawNotes peut mentionner explicitement DEUX
@@ -79,12 +88,20 @@ const METRIC_CATALOG: Record<FinancialMetric, MetricProbe> = {
   },
 };
 
+// Qualifier de periode : A = Actual (realise), B = Budget
+// (previsionnel), E = Estime, F = Forecast. null si absent
+// (prose sans suffixe apres l annee) ou non inferable (table row
+// avec source ambigue).
+export type PeriodQualifier = 'A' | 'B' | 'E' | 'F' | null;
+
 export interface MetricObservation {
   metric: FinancialMetric;
-  period: string;         // annee "2024"
-  valueKeur: number;      // normalisee en kilo-euros
-  location: string;       // chemin JSON dans result_json
-  rawSnippet: string;     // extrait source, tronque
+  period: string;             // annee "2024"
+  qualifier: PeriodQualifier; // suffixe A/B/E/F, null si absent
+  valueKeur: number;          // normalisee en kilo-euros
+  location: string;           // chemin JSON dans result_json
+  rawSnippet: string;         // extrait source, tronque
+  sourceTag?: string;         // table only : "bp"|"deck"|"deck+bp"|...
 }
 
 export interface NumericContradiction {
@@ -132,15 +149,34 @@ function extractFromTable(resultJson: any, metric: FinancialMetric): MetricObser
     if (!/^20\d{2}$/.test(year)) continue;
     const v = typeof row.value === 'number' ? row.value : null;
     if (v === null || !Number.isFinite(v)) continue;
+    const source = typeof row.source === 'string' ? row.source : '';
     out.push({
       metric,
       period: year,
+      qualifier: null,       // table rows n encodent pas A/B directement
       valueKeur: v * 1000,   // convention table = M€
       location: `financialData.${field}[${i}]`,
       rawSnippet: JSON.stringify(row),
+      sourceTag: source,
     });
   }
   return out;
+}
+
+// Mapping conservateur source table -> qualifier attendu :
+// "bp"   -> Actual  (BP contient typiquement les series realisees)
+// "deck" -> Budget  (deck marketing porte typiquement le prev)
+// "deck+bp", "bp+deck", autres, absent -> null (ambigu, on ne
+// deduit rien). Volontairement strict pour eviter les fausses
+// equivalences ; ces cas ambigus se traduisent, dans la regle
+// de comparaison, par un non-signalement si la prose porte un
+// qualifier explicite.
+function expectedQualifierFromSource(source: string | undefined): PeriodQualifier {
+  if (!source) return null;
+  const s = source.trim().toLowerCase();
+  if (s === 'bp') return 'A';
+  if (s === 'deck') return 'B';
+  return null;
 }
 
 // ============================================================
@@ -158,31 +194,35 @@ function extractFromTable(resultJson: any, metric: FinancialMetric): MetricObser
 
 const UNIT_ALT = "(?:k€|M€|k\\s*€|M\\s*€|k\\s*eur|M\\s*eur|milliers\\s+d[’']euros|millions\\s+d[’']euros)";
 const NUM_ALT = "(\\d[\\d\\s\\u00a0.,]{0,15})";
-const YEAR_ALT = "(20\\d{2})";
+// Annee + qualifier optionnel colle a l annee : "2024", "2024A",
+// "2024B", "2024E", "2024F", casse indifferente. Le (?!\\d) evite
+// de capturer "2024" au sein de "20240" par erreur.
+const YEAR_QUALIFIED = "(20\\d{2})([ABEFabef])?(?!\\d)";
 
 function buildRegexes(metric: FinancialMetric): { A: RegExp; B: RegExp } {
   const mSrc = METRIC_CATALOG[metric].proseRegex.source;
-  // Note : on n'utilise PAS de \b apres l'annee car la prose peut
-  // ecrire "2024B" (budget), "2024E" (estime), "2024A" (actual) ;
-  // \b requiert une transition word/non-word, absente entre '4' et
-  // 'B' qui sont tous deux word-chars. On borne avec (?!\d) pour
-  // ne pas capturer 20240 par erreur, mais autoriser 2024B.
-  const YEAR_END = `${YEAR_ALT}(?!\\d)`;
   // A : metric ANNEE ... nombre unite. Fenetre 8 chars entre le
   // mot-cle metric et l annee, pour capturer "chiffre d'affaires
   // 2024 est estime a X M€" (1 char de separation) tout en
   // rejetant "EBITDA de 293 k€ (18,3 %) en 2024" (22 chars, cet
   // ordre-la est traite par le pattern B).
   const A = new RegExp(
-    `(${mSrc})[^.\\n]{0,8}?\\b${YEAR_END}[^.\\n]{0,60}?${NUM_ALT}\\s*(${UNIT_ALT})`,
+    `(${mSrc})[^.\\n]{0,8}?\\b${YEAR_QUALIFIED}[^.\\n]{0,60}?${NUM_ALT}\\s*(${UNIT_ALT})`,
     'gi'
   );
   // B : metric ... nombre unite (en |()annee (annee apres unite)
   const B = new RegExp(
-    `(${mSrc})[^.\\n]{0,60}?${NUM_ALT}\\s*(${UNIT_ALT})[^.\\n]{0,25}?(?:en\\s+|\\()${YEAR_END}`,
+    `(${mSrc})[^.\\n]{0,60}?${NUM_ALT}\\s*(${UNIT_ALT})[^.\\n]{0,25}?(?:en\\s+|\\()${YEAR_QUALIFIED}`,
     'gi'
   );
   return { A, B };
+}
+
+function normalizeQualifier(raw: string | undefined): PeriodQualifier {
+  if (!raw) return null;
+  const u = raw.toUpperCase();
+  if (u === 'A' || u === 'B' || u === 'E' || u === 'F') return u;
+  return null;
 }
 
 function extractFromProse(text: string, metric: FinancialMetric, location: string): MetricObservation[] {
@@ -191,18 +231,26 @@ function extractFromProse(text: string, metric: FinancialMetric, location: strin
   const out: MetricObservation[] = [];
   const seen = new Set<string>();
 
-  const push = (numStr: string, unitStr: string, yearStr: string, matchText: string) => {
+  const push = (
+    numStr: string,
+    unitStr: string,
+    yearStr: string,
+    qualifierRaw: string | undefined,
+    matchText: string,
+  ) => {
     const num = parseFrenchNumber(numStr);
     if (!Number.isFinite(num)) return;
     const mult = unitMultiplierToKeur(unitStr);
     if (mult === null) return;
     const valueKeur = num * mult;
-    const key = `${yearStr}|${valueKeur}|${matchText.slice(0, 40)}`;
+    const qualifier = normalizeQualifier(qualifierRaw);
+    const key = `${yearStr}|${qualifier ?? ''}|${valueKeur}|${matchText.slice(0, 40)}`;
     if (seen.has(key)) return;
     seen.add(key);
     out.push({
       metric,
       period: yearStr,
+      qualifier,
       valueKeur,
       location,
       rawSnippet: matchText.slice(0, 200),
@@ -210,13 +258,15 @@ function extractFromProse(text: string, metric: FinancialMetric, location: strin
   };
 
   let m: RegExpExecArray | null;
+  // Pattern A groups : 1=metric, 2=year, 3=qualifier?, 4=number, 5=unit
   A.lastIndex = 0;
   while ((m = A.exec(text)) !== null) {
-    push(m[3], m[4], m[2], m[0]);
+    push(m[4], m[5], m[2], m[3], m[0]);
   }
+  // Pattern B groups : 1=metric, 2=number, 3=unit, 4=year, 5=qualifier?
   B.lastIndex = 0;
   while ((m = B.exec(text)) !== null) {
-    push(m[2], m[3], m[4], m[0]);
+    push(m[2], m[3], m[4], m[5], m[0]);
   }
 
   return out;
@@ -251,16 +301,28 @@ export function detectNumericContradictions(resultJson: any): NumericContradicti
     }
     if (proseObs.length === 0) continue;
 
-    // Dedupe cote prose : meme (period, valueKeur) plusieurs fois
-    // dans le meme snippet ne compte qu une fois.
+    // Dedupe cote prose : meme (period, qualifier, valueKeur)
+    // plusieurs fois dans le meme snippet ne compte qu une fois.
     const proseSeen = new Set<string>();
     for (const pObs of proseObs) {
-      const dkey = `${pObs.period}|${pObs.valueKeur}`;
+      const dkey = `${pObs.period}|${pObs.qualifier ?? ''}|${pObs.valueKeur}`;
       if (proseSeen.has(dkey)) continue;
       proseSeen.add(dkey);
 
       const tObs = tableObs.find(t => t.period === pObs.period);
       if (!tObs) continue;
+
+      // Regle de compatibilite qualifier :
+      //  - prose sans qualifier : on compare (comportement V1)
+      //  - prose avec qualifier : on ne compare QUE si le qualifier
+      //    infere depuis table.sourceTag matche exactement. Sinon
+      //    ce sont deux series distinctes du meme exercice
+      //    (actual vs budget), on ne signale pas.
+      if (pObs.qualifier !== null) {
+        const tableQualifier = expectedQualifierFromSource(tObs.sourceTag);
+        if (tableQualifier === null || tableQualifier !== pObs.qualifier) continue;
+      }
+
       const absDelta = Math.abs(tObs.valueKeur - pObs.valueKeur);
       const denom = Math.max(Math.abs(tObs.valueKeur), Math.abs(pObs.valueKeur));
       const relDelta = denom > 0 ? absDelta / denom : 0;
