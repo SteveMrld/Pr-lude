@@ -881,9 +881,21 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <div className="note-cover-footer">
               <span>
                 Lecture détaillée ci-dessous · 6 sections principales
-                {r.meta?.durationMs && ` · analysée en ${Math.round(r.meta.durationMs / 1000)}s`}
+                {/* Duree d analyse retiree du rendu fige : "analysee en Ns"
+                    est de la telemetrie interne. Un partner qui lit la note
+                    exportee n a pas a savoir combien de secondes le pipeline
+                    a pris. En vue web, on la conserve : c est un signal utile
+                    de traçabilite pour l analyste qui navigue le dashboard. */}
+                {!printMode && r.meta?.durationMs && ` · analysée en ${Math.round(r.meta.durationMs / 1000)}s`}
               </span>
-              <a href="#section-3" className="note-cover-jump">Aller à la thèse d&apos;investissement →</a>
+              {/* Lien d ancrage vers section-3 : sert de raccourci de
+                  navigation en vue web (viewMode note interactif ou
+                  dashboard). Sans objet dans un PDF fige ou "cliquer sur
+                  un lien" n a aucun sens et trahit l origine applicative
+                  du document. Retire en printMode. */}
+              {!printMode && (
+                <a href="#section-3" className="note-cover-jump">Aller à la thèse d&apos;investissement →</a>
+              )}
             </div>
           </section>
         );
