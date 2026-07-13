@@ -374,21 +374,125 @@ function computeLabelPadding(size: number): number {
   return Math.max(6, Math.round(size / 40));
 }
 
+// ------------------------------------------------------------
+// CANVAS DIMENSIONNE AUX LIBELLES
+// ------------------------------------------------------------
+// Doctrine : le polygone conserve la taille prescrite, c est le
+// viewBox global qui s elargit pour reserver la place des
+// libelles. Chaque cote (est, ouest, nord, sud) mesure la
+// largeur du plus long libelle qui s etend dans cette direction
+// et reserve autant de marge exterieure au polygone. Aucun
+// libelle ne peut donc deborder du viewBox, meme si l estimation
+// caracteres devait etre approximative.
+interface CanvasDimensions {
+  viewWidth: number;
+  viewHeight: number;
+  center: Point2D;
+  polygonRadius: number;
+  labelPadding: number;
+  fontSize: number;
+}
+
+// Buffer serif : les glyphes accentues (é, à, œ) et les majuscules
+// depassent l estimation charWidth calee sur des minuscules
+// standard. Le facteur 1.2 absorbe cette variabilite sans devenir
+// gourmand en espace au point d ecraser le polygone visuellement.
+const SERIF_WIDTH_BUFFER = 1.2;
+const CANVAS_SAFE_MARGIN = 6;
+
+function computeCanvas(
+  size: number,
+  dimensions: DimensionData[],
+): CanvasDimensions {
+  const polygonRadius = computePolygonRadius(size);
+  const labelPadding = computeLabelPadding(size);
+  const fontSize = computeAxisFontSize(size);
+  const charWidth = estimateCharWidth(fontSize);
+  const twoLineHeight = fontSize * 2.4;
+
+  const n = dimensions.length;
+  const startAngle = -Math.PI / 2;
+  const step = (2 * Math.PI) / n;
+
+  let maxLeftExtra = 0;
+  let maxRightExtra = 0;
+  let maxTopExtra = 0;
+  let maxBottomExtra = 0;
+
+  for (let i = 0; i < n; i++) {
+    const angle = startAngle + i * step;
+    const alignment = labelAlignmentForAngle(angle);
+    const labelWidth = dimensions[i].label.length * charWidth * SERIF_WIDTH_BUFFER;
+
+    if (alignment.textAnchor === 'start') {
+      // Le texte s etend a droite du labelPosition.
+      maxRightExtra = Math.max(maxRightExtra, labelWidth);
+    } else if (alignment.textAnchor === 'end') {
+      // Le texte s etend a gauche du labelPosition.
+      maxLeftExtra = Math.max(maxLeftExtra, labelWidth);
+    } else {
+      // middle : le texte s etend symetriquement de chaque cote.
+      const half = labelWidth / 2;
+      maxLeftExtra = Math.max(maxLeftExtra, half);
+      maxRightExtra = Math.max(maxRightExtra, half);
+    }
+
+    if (alignment.dominantBaseline === 'auto') {
+      // Empile vers le haut, reserve la hauteur d un wrap sur deux
+      // lignes pour absorber Intensite capitalistique et consorts.
+      maxTopExtra = Math.max(maxTopExtra, twoLineHeight);
+    } else if (alignment.dominantBaseline === 'hanging') {
+      maxBottomExtra = Math.max(maxBottomExtra, twoLineHeight);
+    } else {
+      const half = twoLineHeight / 2;
+      maxTopExtra = Math.max(maxTopExtra, half);
+      maxBottomExtra = Math.max(maxBottomExtra, half);
+    }
+  }
+
+  const leftMargin = polygonRadius + labelPadding + maxLeftExtra + CANVAS_SAFE_MARGIN;
+  const rightMargin = polygonRadius + labelPadding + maxRightExtra + CANVAS_SAFE_MARGIN;
+  const topMargin = polygonRadius + labelPadding + maxTopExtra + CANVAS_SAFE_MARGIN;
+  const bottomMargin = polygonRadius + labelPadding + maxBottomExtra + CANVAS_SAFE_MARGIN;
+
+  // Plancher : le viewBox ne rapetisse jamais sous size × size, meme
+  // si les libelles etaient exceptionnellement courts. Garantit une
+  // aire de dessin stable pour les autres modes du langage visuel.
+  const viewWidth = Math.max(size, Math.round(leftMargin + rightMargin));
+  const viewHeight = Math.max(size, Math.round(topMargin + bottomMargin));
+  // Recentre si le plancher a change la geometrie : on garde le
+  // polygone au milieu du canvas resultant.
+  const center: Point2D = {
+    x: viewWidth / 2,
+    y: viewHeight / 2,
+  };
+
+  return {
+    viewWidth,
+    viewHeight,
+    center,
+    polygonRadius,
+    labelPadding,
+    fontSize,
+  };
+}
+
 function computeMaxCharsForAxis(
   angle: number,
   labelPosition: Point2D,
   alignment: LabelAlignment,
-  size: number,
+  viewWidth: number,
+  viewHeight: number,
   fontSize: number,
   safeMargin: number,
 ): number {
   const charWidth = estimateCharWidth(fontSize);
   // Distance disponible du labelPosition jusqu au bord du viewBox
   // dans la direction ou le texte s etend (fonction de textAnchor).
-  const dxRightAvail = size - safeMargin - labelPosition.x;
+  const dxRightAvail = viewWidth - safeMargin - labelPosition.x;
   const dxLeftAvail = labelPosition.x - safeMargin;
   const dyTopAvail = labelPosition.y - safeMargin;
-  const dyBottomAvail = size - safeMargin - labelPosition.y;
+  const dyBottomAvail = viewHeight - safeMargin - labelPosition.y;
 
   let horizontalBudget: number;
   if (alignment.textAnchor === 'start') {
@@ -421,13 +525,14 @@ function buildAxes(
   center: Point2D,
   radius: number,
   labelPadding: number,
-  size: number,
+  viewWidth: number,
+  viewHeight: number,
   fontSize: number,
 ): AxisGeometry[] {
   const n = dimensions.length;
   const startAngle = -Math.PI / 2;
   const step = (2 * Math.PI) / n;
-  const safeMargin = 4;
+  const safeMargin = CANVAS_SAFE_MARGIN;
   const axes: AxisGeometry[] = [];
   for (let i = 0; i < n; i++) {
     const angle = startAngle + i * step;
@@ -438,7 +543,8 @@ function buildAxes(
       angle,
       labelPos,
       alignment,
-      size,
+      viewWidth,
+      viewHeight,
       fontSize,
       safeMargin,
     );
@@ -668,12 +774,13 @@ function renderGraduations(center: Point2D, radius: number): string {
 function renderLegend(
   primaryLabel: string | undefined,
   secondaryLabel: string | undefined,
-  size: number,
+  viewWidth: number,
+  viewHeight: number,
   secondaryDashed: boolean,
 ): string {
   if (!primaryLabel && !secondaryLabel) return '';
-  const baseY = size - 24;
-  const baseX = size - 16;
+  const baseY = viewHeight - 24;
+  const baseX = viewWidth - 16;
   let svg = '';
   const items: Array<{ label: string; color: string; dashed: boolean }> = [];
   if (primaryLabel) items.push({ label: primaryLabel, color: PALETTE.ocreBrule, dashed: false });
@@ -748,22 +855,32 @@ export function renderSpiderChart(
     }
   }
 
-  const center: Point2D = { x: size / 2, y: size / 2 };
-  const radius = computePolygonRadius(size);
-  const labelPadding = computeLabelPadding(size);
-  const fontSize = computeAxisFontSize(size);
+  // Calcul du canvas : le polygone garde sa taille (fonction de
+  // size), le viewBox s elargit pour reserver la place des libelles
+  // sur chaque cote. Aucun libelle ne peut donc deborder, meme les
+  // plus longs (Concentration concurrentielle, Tension capital-talent).
+  const canvas = computeCanvas(size, data.dimensions);
+  const { viewWidth, viewHeight, center, polygonRadius, labelPadding, fontSize } = canvas;
 
-  const axes = buildAxes(data.dimensions, center, radius, labelPadding, size, fontSize);
+  const axes = buildAxes(
+    data.dimensions,
+    center,
+    polygonRadius,
+    labelPadding,
+    viewWidth,
+    viewHeight,
+    fontSize,
+  );
 
   let body = '';
   // Fond creme pour garantir le rendu hors-contexte (note PDF,
   // image isolee). En contexte applicatif le fond peut etre
   // ecrase par un wrapper, mais l autonomie est preservee.
-  body += `<rect x="0" y="0" width="${size}" height="${size}" fill="${PALETTE.cream}" />`;
+  body += `<rect x="0" y="0" width="${formatNumber(viewWidth)}" height="${formatNumber(viewHeight)}" fill="${PALETTE.cream}" />`;
 
-  body += renderConcentricRings(center, radius);
+  body += renderConcentricRings(center, polygonRadius);
   body += renderRadialAxes(axes, center);
-  body += renderGraduations(center, radius);
+  body += renderGraduations(center, polygonRadius);
   body += renderAxisLabels(axes);
 
   // Marqueurs neutres pour les axes data_missing du polygone
@@ -799,12 +916,18 @@ export function renderSpiderChart(
   // Legende uniquement pour les modes comparatifs.
   if (mode !== 'single') {
     const secondaryDashed = mode === 'temporal';
-    body += renderLegend(options.primaryLabel, options.secondaryLabel, size, secondaryDashed);
+    body += renderLegend(options.primaryLabel, options.secondaryLabel, viewWidth, viewHeight, secondaryDashed);
   }
 
+  // overflow="visible" est une ceinture supplementaire : si un jour
+  // le calcul de canvas etait sous-dimensionne (nouvelle langue,
+  // police plus large), le texte deborderait visuellement plutot
+  // que d etre clippe silencieusement au bord du viewBox.
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" ` +
-    `viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" ` +
+    `viewBox="0 0 ${formatNumber(viewWidth)} ${formatNumber(viewHeight)}" ` +
+    `width="${formatNumber(viewWidth)}" height="${formatNumber(viewHeight)}" ` +
+    `overflow="visible" ` +
     `role="img" aria-label="${escapeXml(data.title ?? 'spider chart')}">` +
     body +
     `</svg>`

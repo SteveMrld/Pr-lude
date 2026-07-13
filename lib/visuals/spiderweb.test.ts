@@ -444,8 +444,16 @@ console.log('\n=== Test 13 : SVG parseable ===');
   // Open tags = close tags + self-closing.
   check('balance ouvrants vs fermants et self-closing',
     openTags.length, closeTags.length + selfClosing);
-  // viewBox correct
-  checkTrue('viewBox 0 0 480 480', svg.includes('viewBox="0 0 480 480"'));
+  // viewBox origine 0 0, largeur et hauteur superieures ou egales
+  // a size (le canvas s elargit pour reserver la place des libelles).
+  const viewBoxMatch = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  checkTrue('viewBox present origine 0 0', viewBoxMatch !== null);
+  if (viewBoxMatch) {
+    const vw = parseFloat(viewBoxMatch[1]);
+    const vh = parseFloat(viewBoxMatch[2]);
+    checkTrue('viewBox largeur >= 480', vw >= 480);
+    checkTrue('viewBox hauteur >= 480', vh >= 480);
+  }
   // role img pour accessibilite
   checkTrue('role img present', svg.includes('role="img"'));
   // aria-label pose
@@ -474,10 +482,32 @@ console.log('\n=== Test 15 : taille personnalisee ===');
 {
   const data = mockData([10, 20, 30, 40, 50, 60, 70, 80]);
   const svgSmall = renderSpiderChart(data, { size: 150 });
-  checkTrue('size 150 viewBox', svgSmall.includes('viewBox="0 0 150 150"'));
-  checkTrue('size 150 width attribute', svgSmall.includes('width="150"'));
+  const vbSmall = svgSmall.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  checkTrue('size 150 viewBox present', vbSmall !== null);
+  if (vbSmall) {
+    const w = parseFloat(vbSmall[1]);
+    const h = parseFloat(vbSmall[2]);
+    // Plancher : le viewBox ne peut jamais retrecir en dessous de
+    // size, quel que soit le calcul des marges.
+    checkTrue('size 150 viewBox largeur >= 150', w >= 150);
+    checkTrue('size 150 viewBox hauteur >= 150', h >= 150);
+    // Le width attribute reflete la largeur reelle du viewBox et
+    // non plus le size demande, puisque le canvas peut avoir grandi.
+    checkTrue(
+      'size 150 width attribute coherent avec viewBox',
+      svgSmall.includes(`width="${vbSmall[1]}"`),
+    );
+  }
+
   const svgLarge = renderSpiderChart(data, { size: 720 });
-  checkTrue('size 720 viewBox', svgLarge.includes('viewBox="0 0 720 720"'));
+  const vbLarge = svgLarge.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  checkTrue('size 720 viewBox present', vbLarge !== null);
+  if (vbLarge) {
+    const w = parseFloat(vbLarge[1]);
+    const h = parseFloat(vbLarge[2]);
+    checkTrue('size 720 viewBox largeur >= 720', w >= 720);
+    checkTrue('size 720 viewBox hauteur >= 720', h >= 720);
+  }
 }
 
 // ============================================================
@@ -519,9 +549,12 @@ console.log('\n=== Test 15c : viewBox contient tous les libellés ===');
 {
   const data = mockData([60, 75, 50, 30, 80, 40, 65, 55]);
   const svg = renderSpiderChart(data, { size: 480 });
-  // Extrait toutes les positions x des tspans et verifie qu elles
-  // restent dans la viewBox [0, 480]. Chaque tspan porte un x
-  // absolu par construction (voir renderAxisLabels).
+  // Le viewBox est desormais dimensionne dynamiquement pour reserver
+  // la place des libelles les plus longs (cf computeCanvas). On lit
+  // sa taille reelle et on verifie qu aucun tspan ne deborde.
+  const vbMatch = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  checkTrue('viewBox present', vbMatch !== null);
+  const viewWidth = vbMatch ? parseFloat(vbMatch[1]) : 480;
   const tspanXs: number[] = [];
   const tspanRe = /<tspan x="([^"]+)"/g;
   let mTspan: RegExpExecArray | null;
@@ -530,7 +563,50 @@ console.log('\n=== Test 15c : viewBox contient tous les libellés ===');
   }
   checkTrue('au moins 8 tspans (huit axes)', tspanXs.length >= 8);
   checkTrue('toutes les positions x >= 0', tspanXs.every((x) => x >= 0));
-  checkTrue('toutes les positions x <= 480', tspanXs.every((x) => x <= 480));
+  checkTrue(
+    'toutes les positions x <= viewWidth',
+    tspanXs.every((x) => x <= viewWidth),
+  );
+  // Verification stricte anti-clipping : chaque libelle rendu, avec
+  // son textAnchor et sa largeur estimee, doit tenir entierement dans
+  // le viewBox. C est le critere d acceptation du fix TOLSON.
+  const axisPatternRe = /<text x="([^"]+)" y="[^"]+" text-anchor="([^"]+)"[^>]*>(?:<title>[^<]*<\/title>)?(<tspan[^>]*>[^<]*<\/tspan>(?:<tspan[^>]*>[^<]*<\/tspan>)*)<\/text>/g;
+  let axisMatch: RegExpExecArray | null;
+  const overflowedLabels: string[] = [];
+  while ((axisMatch = axisPatternRe.exec(svg)) !== null) {
+    const anchorX = parseFloat(axisMatch[1]);
+    const anchor = axisMatch[2];
+    const tspanBlock = axisMatch[3];
+    const lineRe = /<tspan[^>]*>([^<]*)<\/tspan>/g;
+    let lineMatch: RegExpExecArray | null;
+    const CHAR_WIDTH = 11 * 0.55 * 1.2; // buffer serif applique
+    while ((lineMatch = lineRe.exec(tspanBlock)) !== null) {
+      const text = lineMatch[1];
+      const estWidth = text.length * CHAR_WIDTH;
+      let leftEdge: number;
+      let rightEdge: number;
+      if (anchor === 'start') {
+        leftEdge = anchorX;
+        rightEdge = anchorX + estWidth;
+      } else if (anchor === 'end') {
+        leftEdge = anchorX - estWidth;
+        rightEdge = anchorX;
+      } else {
+        leftEdge = anchorX - estWidth / 2;
+        rightEdge = anchorX + estWidth / 2;
+      }
+      if (leftEdge < 0 || rightEdge > viewWidth) {
+        overflowedLabels.push(`"${text}" [${leftEdge.toFixed(1)}, ${rightEdge.toFixed(1)}] hors [0, ${viewWidth}]`);
+      }
+    }
+  }
+  checkTrue(
+    'aucun libelle ne deborde du viewBox (anti-clipping TOLSON)',
+    overflowedLabels.length === 0,
+  );
+  if (overflowedLabels.length > 0) {
+    console.log('    overflows:', overflowedLabels.join(' | '));
+  }
   // Chaque libellé complet accessible via <title> pour hover.
   const titleCount = (svg.match(/<title>/g) ?? []).length;
   check('un <title> par axe', titleCount, 8);
