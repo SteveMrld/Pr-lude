@@ -5224,7 +5224,7 @@ export default function HomeClient({
 
               <TabPane tabId="trajectory" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
                 {savedAnalysisId && (
-                  <TrajectoryView analysisId={savedAnalysisId} />
+                  <TrajectoryView analysisId={savedAnalysisId} printMode={printMode} />
                 )}
               </TabPane>
 

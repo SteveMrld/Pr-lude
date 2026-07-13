@@ -19,9 +19,12 @@ import type {
   TrajectorySnapshot,
   TrajectorySummary,
 } from '@/lib/engines/trajectory';
+import SectionFallbackLine from './SectionFallbackLine';
 
 interface TrajectoryViewProps {
   analysisId: string;
+  /** Rendu fige pour export PDF : jamais de spinner, ligne neutre a la place. */
+  printMode?: boolean;
 }
 
 const VERDICT_BG: Record<string, { bg: string; ink: string; label: string }> = {
@@ -31,7 +34,7 @@ const VERDICT_BG: Record<string, { bg: string; ink: string; label: string }> = {
   'volatilite': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Volatilité (signaux contradictoires)' },
 };
 
-export function TrajectoryView({ analysisId }: TrajectoryViewProps) {
+export function TrajectoryView({ analysisId, printMode = false }: TrajectoryViewProps) {
   const [summary, setSummary] = useState<TrajectorySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +65,16 @@ export function TrajectoryView({ analysisId }: TrajectoryViewProps) {
     return () => { cancelled = true; };
   }, [analysisId]);
 
+  // Rendu fige (printMode / export PDF) : jamais de spinner ni de
+  // message d erreur brut. Ligne neutre trajectoire a la place, quel
+  // que soit l etat interne. Doctrine "aucun etat non resolu au
+  // rendu fige" partagee avec les cinq autres composants async.
+  if (printMode && (loading || error)) {
+    return <SectionFallbackLine kind="trajectory" marginTop={12} marginBottom={12} />;
+  }
   if (loading) {
     return (
-      <div style={{ padding: '28px 32px', fontSize: 13, opacity: 0.65 }}>
+      <div className="tv-loading" style={{ padding: '28px 32px', fontSize: 13, opacity: 0.65 }}>
         Chargement de la trajectoire du dossier...
       </div>
     );
@@ -72,7 +82,7 @@ export function TrajectoryView({ analysisId }: TrajectoryViewProps) {
 
   if (error) {
     return (
-      <div style={{ padding: '28px 32px' }}>
+      <div className="tv-error" style={{ padding: '28px 32px' }}>
         <h3 style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
           Trajectoire
         </h3>

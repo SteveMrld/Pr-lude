@@ -60,6 +60,7 @@ export type SectionKind =
   | 'questions-instruire'
   | 'operateurs-lift'
   | 'proxies-calculer'
+  | 'trajectory'
   | 'section-generic'
   | 'default';
 
@@ -123,6 +124,8 @@ const FALLBACK_COPY: Record<SectionKind, string> = {
     'Aucun opérateur lift-the-hood recommandé à ce stade.',
   'proxies-calculer':
     'Aucun proxy à calculer n’a été remonté par le retournement causal.',
+  'trajectory':
+    'Trajectoire du dossier non renseignée dans cette version de la note.',
   'section-generic':
     'Section non renseignée dans cette version de la note.',
   'default':
@@ -156,6 +159,7 @@ const FALLBACK_TITLE: Record<SectionKind, string> = {
   'questions-instruire': 'Questions à instruire',
   'operateurs-lift': 'Opérateurs lift-the-hood',
   'proxies-calculer': 'Proxies à calculer',
+  'trajectory': 'Trajectoire',
   'section-generic': 'Section',
   'default': 'Section',
 };
