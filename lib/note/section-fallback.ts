@@ -30,6 +30,7 @@
 // Tout ajout de section instructible doit passer par ici. Si un
 // composant emet une chaine d echec sans utiliser ce module, c est
 // un bug de discipline a corriger, pas une exception a autoriser.
+//
 // ============================================================
 
 export type SectionKind =
