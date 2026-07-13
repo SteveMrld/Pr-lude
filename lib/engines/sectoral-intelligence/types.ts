@@ -39,17 +39,23 @@ export const DIMENSION_KEYS: ReadonlyArray<DimensionKey> = [
   'vulnerabilite_narrative_sectorielle',
 ] as const;
 
-// Libelles d affichage pour la spider chart, prose serif. Restent
-// homogenes en longueur pour ne pas casser l alignement radial.
+// Libelles d affichage pour la spider chart et l annexe sectorielle,
+// prose serif. Restent homogenes en longueur pour ne pas casser
+// l alignement radial. Les cles DimensionKey restent en ASCII
+// snake_case pour rester adherentes aux cles JSONB Supabase, mais
+// les valeurs affichees portent les accents francais canoniques :
+// une note editoriale en francais ne peut pas rendre "Vulnerabilite
+// narrative" alors que le corps du dossier utilise les accents
+// correctement partout ailleurs.
 export const DIMENSION_LABELS: Record<DimensionKey, string> = {
-  intensite_capitalistique: 'Intensite capitalistique',
-  pression_reglementaire: 'Pression reglementaire',
-  velocite_technologique: 'Velocite technologique',
+  intensite_capitalistique: 'Intensité capitalistique',
+  pression_reglementaire: 'Pression réglementaire',
+  velocite_technologique: 'Vélocité technologique',
   concentration_concurrentielle: 'Concentration concurrentielle',
-  cyclicite_macroeconomique: 'Cyclicite macro',
-  exposition_geopolitique: 'Exposition geopolitique',
+  cyclicite_macroeconomique: 'Cyclicité macro',
+  exposition_geopolitique: 'Exposition géopolitique',
   tension_capital_talent: 'Tension capital-talent',
-  vulnerabilite_narrative_sectorielle: 'Vulnerabilite narrative',
+  vulnerabilite_narrative_sectorielle: 'Vulnérabilité narrative',
 };
 
 // ------------------------------------------------------------
