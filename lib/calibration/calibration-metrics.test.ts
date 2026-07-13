@@ -11,8 +11,13 @@ import {
   computeCalibrationFromMixed,
   DEFAULT_MIN_RESOLVED_PER_SEGMENT,
   type CalibrationInput,
+  type CalibrationInputMaybeResolved,
   type StampFingerprintKey,
 } from './calibration-metrics';
+import {
+  type MarketOutcome,
+  marketOutcomeToBinary,
+} from '../analysis-outcomes-taxonomy';
 
 let pass = 0;
 let fail = 0;
@@ -292,6 +297,82 @@ console.log('\n[Suite 6] Edge cases');
   } else {
     check(false, 'tout succes : devrait etre calibrable a 12');
   }
+}
+
+// ============================================================
+// SUITE 7 - Integration taxonomie enrichie (alive_thriving, alive_flat)
+// ------------------------------------------------------------
+// Verifie que le pipeline complet marketOutcomeToBinary +
+// computeCalibrationFromMixed traite correctement les nouveaux
+// etats : alive_thriving compte comme succes resolu, alive_flat
+// est exclu du discriminant tout en restant present dans la liste
+// des outcomes (tracable).
+// ============================================================
+console.log('\n[Suite 7] Taxonomie enrichie via mapping puis compute');
+{
+  // Construction directe via marketOutcomeToBinary, comme le fait
+  // calibration-aggregator en prod.
+  const make = (outcome: MarketOutcome, predicted: number, stamp: StampFingerprintKey = STAMP_V1): CalibrationInputMaybeResolved => {
+    return { predicted, observed: marketOutcomeToBinary(outcome), stampFingerprint: stamp };
+  };
+  const inputs: CalibrationInputMaybeResolved[] = [
+    // 1 alive_thriving haut : compte comme succes
+    make('alive_thriving', 0.85),
+    // 1 exit haut : compte comme succes
+    make('exit', 0.9),
+    // 1 fail bas : compte comme echec
+    make('fail', 0.1),
+    // 1 alive_flat : DOIT etre exclu du calcul (mais present dans les inputs)
+    make('alive_flat', 0.5),
+    // 1 alive legacy : DOIT aussi etre exclu par prudence
+    make('alive', 0.5),
+    // 1 flat legacy : DOIT etre exclu
+    make('flat', 0.5),
+  ];
+  const r = computeCalibrationFromMixed(inputs, { minResolvedPerSegment: 3 });
+  check(r.totalResolved === 3, 'taxonomie enrichie : totalResolved = 3 (exit + alive_thriving + fail)');
+  check(r.totalUnresolved === 3, 'taxonomie enrichie : totalUnresolved = 3 (alive_flat + alive + flat)');
+  check(r.segments.length === 1, 'taxonomie enrichie : un seul segment');
+  const seg = r.segments[0];
+  check(seg.calibrable === true, 'taxonomie enrichie : calibrable a partir de 3 avec seuil abaisse');
+  if (seg.calibrable === true) {
+    // Deux classes presentes (2 succes vs 1 echec), discriminant defini
+    check(seg.discrimination >= 0 && seg.discrimination <= 1, 'discriminant defini');
+    // Les succes ont proba > les echecs, discriminant devrait etre eleve
+    check(seg.discrimination > 0.5, 'discriminant > 0.5 (succes predits plus haut que echecs)');
+  }
+}
+
+{
+  // Bassin exclusivement alive_thriving : compte comme succes uniquement
+  const inputs: CalibrationInputMaybeResolved[] = [];
+  for (let i = 0; i < 12; i++) {
+    inputs.push({
+      predicted: 0.8,
+      observed: marketOutcomeToBinary('alive_thriving'),
+      stampFingerprint: STAMP_V1,
+    });
+  }
+  const r = computeCalibrationFromMixed(inputs);
+  check(r.totalResolved === 12, 'alive_thriving seul : totalResolved = 12');
+  check(r.segments[0].calibrable === true, 'alive_thriving seul : calibrable au seuil defaut');
+}
+
+{
+  // Bassin exclusivement alive_flat : rien de resolu, aucun segment
+  const inputs: CalibrationInputMaybeResolved[] = [];
+  for (let i = 0; i < 12; i++) {
+    inputs.push({
+      predicted: 0.5,
+      observed: marketOutcomeToBinary('alive_flat'),
+      stampFingerprint: STAMP_V1,
+    });
+  }
+  const r = computeCalibrationFromMixed(inputs);
+  check(r.totalResolved === 0, 'alive_flat seul : totalResolved = 0');
+  check(r.totalUnresolved === 12, 'alive_flat seul : totalUnresolved = 12 (traces mais exclus)');
+  check(r.segments.length === 0, 'alive_flat seul : aucun segment (rien a calibrer)');
+  check(r.anyCalibrable === false, 'alive_flat seul : anyCalibrable false');
 }
 
 // ============================================================

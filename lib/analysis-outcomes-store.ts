@@ -1,20 +1,33 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
+import {
+  type MarketOutcome,
+  MARKET_OUTCOME_VALUES,
+  marketOutcomeToBinary,
+  isResolvedOutcome,
+} from './analysis-outcomes-taxonomy';
 
 /**
  * Pilier preuve, brique reconciliation et calibration.
  * --------------------------------------------------
- * Issue de marche reelle d un dossier (alive / exit / fail / flat),
- * decouplee de la decision du fonds (qui vit dans realized_outcomes).
- * Cette table est ce qui permet de cloturer la boucle prediction
- * vs realite : un dossier resolu (exit ou fail) est calibrable.
+ * Issue de marche reelle d un dossier, decouplee de la decision
+ * du fonds (qui vit dans realized_outcomes). Cette table cloture
+ * la boucle prediction vs realite : un dossier resolu (exit,
+ * alive_thriving ou fail) est calibrable.
  *
- * Taxonomie volontairement simple et extensible : quatre etats
- * initiaux qui couvrent l espace observable. De nouveaux etats
- * peuvent etre ajoutes par migration sans casser le code parce que
- * la couche calibration mappe explicitement chaque etat vers le
- * binaire succes/echec et ignore les etats inconnus.
+ * La taxonomie (six etats dont deux legacy) et le mapping vers
+ * observed sont definis dans analysis-outcomes-taxonomy.ts, module
+ * pur importable partout. Ici on ne fait que le CRUD Supabase.
  */
+
+// Re-export de la taxonomie pour ne pas casser les consommateurs
+// existants qui importent depuis ce module.
+export {
+  type MarketOutcome,
+  MARKET_OUTCOME_VALUES,
+  marketOutcomeToBinary,
+  isResolvedOutcome,
+};
 
 function getAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,10 +39,6 @@ function getAdmin() {
 // ============================================================
 // Types
 // ============================================================
-
-export type MarketOutcome = 'alive' | 'exit' | 'fail' | 'flat';
-
-export const MARKET_OUTCOME_VALUES: MarketOutcome[] = ['alive', 'exit', 'fail', 'flat'];
 
 export interface AnalysisOutcome {
   id: string;
@@ -157,31 +166,5 @@ export async function listAnalysisOutcomes(
   return data.map(mapOutcome);
 }
 
-// ============================================================
-// Mapping issue -> binaire succes/echec pour calibration
-// ------------------------------------------------------------
-// On ne calibre que sur les dossiers explicitement resolus dans
-// un sens ou dans l autre. Alive et flat sont incompletement
-// resolus et sont exclus de l agregation : on ne sait pas encore
-// si l investissement etait bon, donc on ne dit rien.
-//
-// 'exit' -> succes (1.0)
-// 'fail' -> echec (0.0)
-// 'alive' -> non resolu (null, exclu)
-// 'flat' -> non resolu (null, exclu)
-//
-// Extensible : si demain on ajoute 'shutdown_voluntary' ou
-// 'pivot_success', il suffit de l ajouter ici. Un etat non mappe
-// est traite comme non-resolu (null).
-// ============================================================
-
-export function marketOutcomeToBinary(outcome: MarketOutcome): 0 | 1 | null {
-  if (outcome === 'exit') return 1;
-  if (outcome === 'fail') return 0;
-  // alive, flat : non resolus
-  return null;
-}
-
-export function isResolvedOutcome(outcome: MarketOutcome): boolean {
-  return marketOutcomeToBinary(outcome) !== null;
-}
+// Mapping issue -> binaire, isResolvedOutcome : re-exportes ci-dessus
+// depuis analysis-outcomes-taxonomy.ts.

@@ -23,9 +23,9 @@
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { type MarketOutcome, MARKET_OUTCOME_VALUES } from '../lib/analysis-outcomes-taxonomy';
 
-type MarketOutcome = 'alive' | 'exit' | 'fail' | 'flat';
-const MARKET_OUTCOMES: MarketOutcome[] = ['alive', 'exit', 'fail', 'flat'];
+const MARKET_OUTCOMES: MarketOutcome[] = MARKET_OUTCOME_VALUES;
 
 // ============================================================
 // PARSING ARGUMENTS

@@ -16,8 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import SectionFallbackLine from './SectionFallbackLine';
-
-type MarketOutcome = 'alive' | 'exit' | 'fail' | 'flat';
+import { type MarketOutcome } from '../../lib/analysis-outcomes-taxonomy';
 
 interface AnalysisOutcome {
   id: string;
@@ -29,28 +28,36 @@ interface AnalysisOutcome {
 }
 
 const OUTCOME_LABELS: Record<MarketOutcome, string> = {
-  alive: 'En vie',
   exit: 'Sortie (IPO / M&A)',
+  alive_thriving: 'Vivante et en croissance',
   fail: 'Échec (dissolution, dépôt de bilan)',
-  flat: 'À plat (zombie)',
+  alive_flat: 'Vivante mais atone',
+  alive: 'En vie (legacy)',
+  flat: 'À plat (legacy)',
 };
 
 const OUTCOME_COLORS: Record<MarketOutcome, string> = {
-  alive: 'var(--muted, #6e6c66)',
   exit: 'var(--vert-foret, #1f5f3f)',
+  alive_thriving: 'var(--vert-foret, #1f5f3f)',
   fail: 'var(--warn, #b14842)',
+  alive_flat: 'var(--ocre-brule, #b47832)',
+  alive: 'var(--muted, #6e6c66)',
   flat: 'var(--ocre-brule, #b47832)',
 };
 
 const OUTCOME_DESCRIPTIONS: Record<MarketOutcome, string> = {
-  alive:
-    "La société opère sans événement de sortie ni de faillite. Statut non résolu : n'entre pas dans la calibration.",
   exit:
     "IPO, acquisition complète, ou tout événement de sortie qui matérialise une issue positive. Entre dans la calibration comme succès.",
+  alive_thriving:
+    "Société active et en croissance saine plusieurs années après instruction, sans événement de sortie formel. Entre dans la calibration comme succès nuancé.",
   fail:
     "Dépôt de bilan, dissolution, shutdown. Issue négative. Entre dans la calibration comme échec.",
+  alive_flat:
+    "Société active mais atone, sans croissance ni échec. Statut neutre : traçable mais exclu du calcul discriminant.",
+  alive:
+    "État legacy avant enrichissement de la taxonomie. Préférer alive_thriving ou alive_flat. Traité comme non résolu.",
   flat:
-    "Société qui opère sans croissance ni mort : zombie. Statut non résolu : n'entre pas dans la calibration.",
+    "État legacy équivalent à alive_flat. Préférer alive_flat pour les nouvelles saisies.",
 };
 
 function formatDate(iso: string): string {
@@ -192,11 +199,11 @@ function Form({ outcome, onCancel }: { outcome: AnalysisOutcome | null; onCancel
       <div className="moe-form-row">
         <label className="moe-label">
           Issue
-          <select name="marketOutcome" defaultValue={outcome?.marketOutcome || 'alive'} required>
-            <option value="alive">En vie</option>
+          <select name="marketOutcome" defaultValue={outcome?.marketOutcome || 'alive_flat'} required>
             <option value="exit">Sortie (IPO / M&amp;A)</option>
+            <option value="alive_thriving">Vivante et en croissance</option>
             <option value="fail">Échec (dissolution, dépôt de bilan)</option>
-            <option value="flat">À plat (zombie)</option>
+            <option value="alive_flat">Vivante mais atone</option>
           </select>
         </label>
         <label className="moe-label">
