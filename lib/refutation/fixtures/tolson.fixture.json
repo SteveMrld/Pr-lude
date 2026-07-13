@@ -1,0 +1,21 @@
+{
+  "_note": "Fixture minimaliste extraite du result_json reel de TOLSON bb8e6d7f-0dbc-4009-8343-49a72c9c41b6. Ne contient que les champs pertinents pour le test de detection de contradictions chiffrees.",
+  "financialData": {
+    "ebitdaProjection": [
+      { "year": "2021", "value": 0.177, "source": "bp" },
+      { "year": "2022", "value": 0.126, "source": "bp" },
+      { "year": "2023", "value": 0.191, "source": "bp" },
+      { "year": "2024", "value": 0.305, "source": "deck+bp" },
+      { "year": "2025", "value": 0.499, "source": "bp" },
+      { "year": "2026", "value": 0.915, "source": "bp" }
+    ],
+    "revenueProjection": [
+      { "year": "2024", "value": 1.6, "source": "deck" },
+      { "year": "2026", "value": 2.75, "source": "deck" }
+    ]
+  },
+  "extraction": {
+    "companyName": "TOLSON",
+    "rawSummary": "TOLSON, fondée en 2011 par Thierry de Cassan, est une plateforme d'intelligence collective destinée aux grandes entreprises. Le chiffre d'affaires 2024 est estimé à 1,6 M€ (CAGR ~22 % depuis 2017), avec un EBITDA de 293 k€ (18,3 %) en 2024B projeté à 915 k€ (33,3 %) en 2026, porté par la scalabilité du modèle communautaire."
+  }
+}
