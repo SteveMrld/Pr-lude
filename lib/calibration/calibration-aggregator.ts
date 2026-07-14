@@ -13,6 +13,11 @@ import {
   type CalibrationReport,
   type CalibrationInputMaybeResolved,
 } from './calibration-metrics';
+import {
+  applyCorpusSelectionRule,
+  type SelectionAudit,
+  type SelectionCandidate,
+} from './corpus-selection';
 
 /**
  * Agregateur de calibration. Lit les predictions et les outcomes
@@ -49,6 +54,13 @@ export interface CalibrationSummary extends CalibrationReport {
    * bandeau serait mensonger.
    */
   illustrativeMode: boolean;
+  /**
+   * Audit de la regle de selection deterministe applique aux
+   * outcomes reels (non illustratifs) portant un prediction_record.
+   * Le UI et les exports en salle de due diligence rendent ce audit
+   * via renderAuditPlain pour prouver l honnetete de la selection.
+   */
+  selectionAudit: SelectionAudit;
 }
 
 // Marqueur canonique. Doit rester strictement identique a
@@ -93,11 +105,40 @@ export async function buildCalibrationSummary(
   const outcomeByAnalysis = new Map<string, AnalysisOutcome>();
   for (const o of outcomes) outcomeByAnalysis.set(o.analysisId, o);
 
+  // Applique la regle de selection deterministe. Seuls les
+  // outcomes reels (non illustratifs) portant un prediction_record
+  // constituent les candidats. Le marqueur illustratif fabrique un
+  // discriminant hors regle pour la demo, il est traite a part
+  // dans les inputs. Voir doctrine dans corpus-selection.ts.
+  const candidates: SelectionCandidate[] = [];
+  for (const rec of latestByAnalysis) {
+    const outcomeRow = outcomeByAnalysis.get(rec.analysisId);
+    if (!outcomeRow) continue;
+    if (outcomeRow.source === ILLUSTRATIVE_OUTCOME_SOURCE) continue;
+    candidates.push({
+      analysisId: rec.analysisId,
+      companyName: null,
+      marketOutcome: outcomeRow.marketOutcome,
+      reliability: outcomeRow.reliability,
+    });
+  }
+  const selectionAudit = applyCorpusSelectionRule(candidates);
+  const includedAnalysisIds = new Set(
+    selectionAudit.decisions.filter(d => d.included).map(d => d.analysisId),
+  );
+
   // Convertit chaque prediction en input de calibration. La
   // probabilite predite est successProbability/100 (ramene en
   // [0, 1]). Si successProbability est null (pipeline degrade),
   // le record est exclu : on ne peut pas calibrer une prediction
   // qui n a pas de probabilite.
+  //
+  // Regle de selection appliquee : un outcome reel n alimente le
+  // discriminant que si applyCorpusSelectionRule l a inclus. Un
+  // outcome exclu (fiabilite moyenne ou manquante) laisse observed
+  // a null, la prediction reste en base et visible mais ne compte
+  // pas dans le calcul. Les outcomes illustratifs continuent
+  // d alimenter le discriminant comme avant (mode demo).
   const inputs: CalibrationInputMaybeResolved[] = [];
   let predictionsConsidered = 0;
   for (const rec of latestByAnalysis) {
@@ -107,7 +148,14 @@ export async function buildCalibrationSummary(
     predictionsConsidered++;
     const predicted = Math.max(0, Math.min(1, rec.successProbability / 100));
     const outcomeRow = outcomeByAnalysis.get(rec.analysisId);
-    const observed = outcomeRow ? marketOutcomeToBinary(outcomeRow.marketOutcome) : null;
+    let observed: 0 | 1 | null = null;
+    if (outcomeRow) {
+      if (outcomeRow.source === ILLUSTRATIVE_OUTCOME_SOURCE) {
+        observed = marketOutcomeToBinary(outcomeRow.marketOutcome);
+      } else if (includedAnalysisIds.has(rec.analysisId)) {
+        observed = marketOutcomeToBinary(outcomeRow.marketOutcome);
+      }
+    }
     inputs.push({
       predicted,
       observed,
@@ -142,5 +190,6 @@ export async function buildCalibrationSummary(
     analysesWithPrediction: latestByAnalysis.length,
     outcomesRecorded: outcomes.length,
     illustrativeMode,
+    selectionAudit,
   };
 }

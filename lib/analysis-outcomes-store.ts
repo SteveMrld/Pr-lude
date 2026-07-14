@@ -6,6 +6,7 @@ import {
   marketOutcomeToBinary,
   isResolvedOutcome,
 } from './analysis-outcomes-taxonomy';
+import { type Reliability, isReliability } from './calibration/corpus-selection';
 
 /**
  * Pilier preuve, brique reconciliation et calibration.
@@ -49,6 +50,9 @@ export interface AnalysisOutcome {
   source: string;
   sourceUrl: string | null;
   sourceNotes: string | null;
+  /** Niveau de fiabilite structure. null si non renseigne (traite
+   *  comme reliability-missing par la regle de selection). */
+  reliability: Reliability | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +65,7 @@ export interface AnalysisOutcomeInput {
   source?: string;
   sourceUrl?: string | null;
   sourceNotes?: string | null;
+  reliability?: Reliability | null;
 }
 
 // ============================================================
@@ -77,6 +82,7 @@ function mapOutcome(row: any): AnalysisOutcome {
     source: row.source || 'manual',
     sourceUrl: row.source_url,
     sourceNotes: row.source_notes,
+    reliability: isReliability(row.reliability) ? row.reliability : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -118,6 +124,7 @@ export async function upsertAnalysisOutcome(
     source: input.source || 'manual',
     source_url: input.sourceUrl ?? null,
     source_notes: input.sourceNotes ?? null,
+    reliability: input.reliability ?? null,
   };
   const { data, error } = await admin
     .from('analysis_outcomes')
