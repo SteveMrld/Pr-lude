@@ -1,0 +1,27 @@
+{
+  "_note": "Fixture minimaliste TOLSON pour verdict-signal-contradictions. Extraite du result_json reel de TOLSON bb8e6d7f-0dbc-4009-8343-49a72c9c41b6. Contient uniquement les champs necessaires au test : verdict de reproductibilite (relevanceMatrix.digitalReproducibility=high avec rationale), et les quatre marqueurs de moat non technique (churn 12% sur 3 ans, 40 grands comptes, fondation 2011, membres presents depuis 2018).",
+  "relevanceMatrix": {
+    "digitalReproducibility": "high",
+    "digitalReproducibilityFactors": ["software pur sans protection significative détectée"],
+    "verdicts": {
+      "marketAiReplicability": {
+        "scope": ["code", "interface", "workflow"],
+        "weight": 1,
+        "rationale": "Produit à forte reproductibilité numérique : un solo founder avec assistance IA peut reproduire les composants techniques en quelques mois.",
+        "applicable": "full"
+      }
+    }
+  },
+  "extraction": {
+    "companyName": "TOLSON",
+    "yearFounded": 2011,
+    "traction": {
+      "customers": "40 entreprises clientes dont 36 avec un chiffre d'affaires de plusieurs milliards d'euros",
+      "metrics": [
+        "Taux de churn de ~12 % sur 3 ans",
+        "+50 % de croissance du nombre d'entreprises clientes sur les 3 dernières années",
+        "15 membres présents depuis 2018"
+      ]
+    }
+  }
+}
