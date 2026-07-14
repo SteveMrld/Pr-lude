@@ -26,6 +26,7 @@ import {
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { computeTopRisks } from '@/lib/compute-top-risks';
+import { aggregateRefutations } from '@/lib/refutation/aggregator';
 import {
   buildTrajectoryRenderContext,
   buildPatternDeltaAnnotation,
@@ -753,6 +754,68 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 {b.citations.join(' · ')}
               </p>
             )}
+          </section>
+        );
+      })()}
+
+      {/* ============================================================
+          CARTOUCHE DE REFUTATION
+          ------------------------------------------------------------
+          Points de vigilance internes leves par le refutation layer.
+          Trois familles agregees, contradictions chiffrees, verdict
+          contre signal, label contre calcul. Purement additif :
+          calcule au rendu a partir du result_json existant, aucun
+          score modifie, aucun snapshot reecrit. Silencieux si aucune
+          contradiction n est detectee. Meme grammaire visuelle que
+          les bandeaux gouvernance et trajectoire au dessus, palette
+          ocre neutre pour ne pas concurrencer les alertes graves.
+          ============================================================ */}
+      {(() => {
+        const refutations = aggregateRefutations(r as any, {
+          sourceFilename: (r as any)?.meta?.sourceFilename ?? null,
+          asOf: (r as any)?.meta?.asOf ?? null,
+        });
+        if (refutations.length === 0) return null;
+        const familyLabels: Record<string, string> = {
+          'numeric': 'Chiffres divergents',
+          'verdict-signal': 'Verdict contre signal',
+          'label-calc': 'Libelle contre base de calcul',
+        };
+        return (
+          <section
+            aria-label="Points de vigilance internes"
+            style={{
+              margin: '12px 0 16px',
+              padding: '14px 18px',
+              borderLeft: '3px solid #6b5b3a',
+              background: 'rgba(107, 91, 58, 0.05)',
+              fontFamily: 'var(--serif)',
+            }}
+          >
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 8 }}>
+              Points de vigilance internes · {refutations.length} contradiction{refutations.length > 1 ? 's' : ''} detectee{refutations.length > 1 ? 's' : ''}
+            </div>
+            <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, marginBottom: 10, fontStyle: 'italic', opacity: 0.75 }}>
+              Le pipeline signale ici des tensions entre plusieurs elements du dossier, releves automatiquement. Ce ne sont pas des verdicts, ce sont des points a interroger en lecture.
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {refutations.map((rf, i) => (
+                <li key={i} style={{ marginBottom: i < refutations.length - 1 ? 12 : 0, paddingBottom: i < refutations.length - 1 ? 12 : 0, borderBottom: i < refutations.length - 1 ? '1px dashed rgba(107, 91, 58, 0.25)' : 'none' }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 4, opacity: 0.85 }}>
+                    {familyLabels[rf.family] || rf.family}
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
+                    <span style={{ fontWeight: 600 }}>Ce qui est affirme :</span> {rf.claim}
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
+                    <span style={{ fontWeight: 600 }}>Ce qui le contredit :</span> {rf.contradiction}
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.85 }}>
+                    <span style={{ fontWeight: 600 }}>Nature de la tension :</span> {rf.tension}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </section>
         );
       })()}
