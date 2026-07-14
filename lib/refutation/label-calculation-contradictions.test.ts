@@ -1,0 +1,308 @@
+// ============================================================
+// Tests deterministes label-calculation-contradictions.ts (V1)
+// ------------------------------------------------------------
+// Suite 1 : TOLSON, cas positif obligatoire, doit signaler
+//           ruleOf40 et revenuePerEmployee.
+// Suite 2 : cas negatifs, coherence label-calcul, silencieux.
+// Suite 3 : cas de garde, refYear indeductible, silencieux.
+// Suite 4 : detection refYear par cascades, priorite verifiee.
+// Suite 5 : detection baseYear, cross-check revenueProjection.
+// ============================================================
+
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import {
+  detectLabelCalculationContradictions,
+  detectDossierRefYear,
+  FORWARD_QUALIFIER_REGEX,
+} from './label-calculation-contradictions';
+
+let pass = 0;
+let fail = 0;
+function check(cond: boolean, label: string) {
+  if (cond) { pass++; console.log(`  OK  ${label}`); }
+  else { fail++; console.error(`  KO  ${label}`); }
+}
+
+// ============================================================
+// SUITE 1 - Cas positif obligatoire : TOLSON
+// ============================================================
+
+console.log('\n[Suite 1] TOLSON : ruleOf40 + revenuePerEmployee signales');
+{
+  const tolson = JSON.parse(readFileSync(join(__dirname, 'fixtures/tolson-label-calc.fixture.json'), 'utf-8'));
+  const cs = detectLabelCalculationContradictions(tolson, {
+    nowYear: 2026,
+    sourceFilename: 'TOLSON (codename Project Tagora) - Information Memorandum - 2024.11.25 - vF.pdf',
+  });
+  check(cs.length === 2, `TOLSON signale 2 contradictions (obtenu ${cs.length})`);
+  const keys = cs.map(c => c.indicatorKey).sort();
+  check(keys.includes('ruleOf40'), '  ruleOf40 signale');
+  check(keys.includes('revenuePerEmployee'), '  revenuePerEmployee signale');
+  for (const c of cs) {
+    check(c.dossierRefYear === 2024, `  ${c.indicatorKey} : refYear=2024 (detecte via 2024A dans rawNotes)`);
+    check(c.baseYearOfCalculation === 2026, `  ${c.indicatorKey} : baseYear=2026`);
+    check(c.yearsForward === 2, `  ${c.indicatorKey} : 2 ans forward`);
+  }
+}
+
+// ============================================================
+// SUITE 2 - Cas negatifs, coherence label-calcul
+// ============================================================
+
+console.log('\n[Suite 2] Cas negatifs, silencieux');
+
+{
+  // Label deja qualifie forward, silencieux
+  const rj = {
+    financialData: {
+      revenueProjection: [{ year: '2024', value: 1.0 }, { year: '2026', value: 3.0 }],
+      rawNotes: 'EBITDA 2024A confirme, projection 2026E ambitieuse.',
+    },
+    extraction: { rawSummary: 'Deck 2024.' },
+    indicators: {
+      indicators: [
+        {
+          key: 'ruleOf40', label: 'Rule of 40 (forward 2026)', value: 100, unit: '%', verdict: 'best-in-class',
+          rationale: 'Base projection 2026 : croissance 200% + marge 10% = 210%.',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'label "Rule of 40 (forward 2026)" : silencieux, qualification presente');
+}
+
+{
+  // Rationale contient "projete" : silencieux
+  const rj = {
+    financialData: {
+      revenueProjection: [{ year: '2024', value: 1.0 }, { year: '2026', value: 3.0 }],
+      rawNotes: '2024A vs 2026E documentes.',
+    },
+    indicators: {
+      indicators: [
+        {
+          key: 'revenuePerEmployee', label: 'Revenue par employé', value: 200000, unit: 'EUR/FTE', verdict: 'sain',
+          rationale: 'Revenue projete 3M€ / 15 ETP = 200k€ par employe.',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'rationale contient "projete" : silencieux');
+}
+
+{
+  // baseYear == refYear, coherent
+  const rj = {
+    financialData: {
+      revenueProjection: [{ year: '2024', value: 1.6 }],
+      rawNotes: 'Chiffres 2024A.',
+    },
+    indicators: {
+      indicators: [
+        { key: 'ruleOf40', label: 'Rule of 40', value: 50, unit: '%', verdict: 'sain', rationale: 'YoY + Marge = 50%.' },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2024 });
+  check(cs.length === 0, 'baseYear==refYear==2024 : silencieux');
+}
+
+{
+  // Indicateur non applicable, silencieux
+  const rj = {
+    financialData: {
+      revenueProjection: [{ year: '2024', value: 1.0 }, { year: '2026', value: 3.0 }],
+      rawNotes: '2024A.',
+    },
+    indicators: {
+      indicators: [
+        { key: 'ruleOf40', label: 'Rule of 40', value: null, unit: '%', verdict: 'non-applicable', rationale: 'donnees absentes' },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'indicateur non-applicable : silencieux');
+}
+
+{
+  // Indicateur pas dans TARGETED_KEYS (grossMargin) : silencieux meme si baseYear > refYear
+  const rj = {
+    financialData: {
+      revenueProjection: [{ year: '2024', value: 1.0 }, { year: '2026', value: 3.0 }],
+      rawNotes: '2024A.',
+    },
+    indicators: {
+      indicators: [
+        { key: 'grossMargin', label: 'Marge brute', value: 95, unit: '%', verdict: 'best-in-class', rationale: 'Marge 95%.' },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'grossMargin hors TARGETED_KEYS V1 : silencieux');
+}
+
+// ============================================================
+// SUITE 3 - Cas de garde
+// ============================================================
+
+console.log('\n[Suite 3] Cas de garde');
+
+{
+  // Aucune reference annee detectable, silencieux meme si projection future
+  const rj = {
+    financialData: {
+      revenueProjection: [{ year: '2026', value: 3.0 }],
+      rawNotes: 'Chiffres sans qualifier',
+    },
+    indicators: {
+      indicators: [
+        { key: 'ruleOf40', label: 'Rule of 40', value: 50, unit: '%', verdict: 'sain', rationale: 'YoY + Marge = 50%.' },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'refYear indeductible : silencieux (pas d invention)');
+}
+
+{
+  check(detectLabelCalculationContradictions(null, { nowYear: 2026 }).length === 0, 'null : silencieux');
+  check(detectLabelCalculationContradictions(undefined as any, { nowYear: 2026 }).length === 0, 'undefined : silencieux');
+  check(detectLabelCalculationContradictions({}, { nowYear: 2026 }).length === 0, 'objet vide : silencieux');
+  check(detectLabelCalculationContradictions('string' as any, { nowYear: 2026 }).length === 0, 'type primitif : silencieux');
+}
+
+{
+  // indicators absent, silencieux
+  const rj = { financialData: { revenueProjection: [{ year: '2024', value: 1 }], rawNotes: '2024A' } };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'indicators absent : silencieux');
+}
+
+// ============================================================
+// SUITE 4 - Detection refYear par cascade
+// ============================================================
+
+console.log('\n[Suite 4] Detection refYear par cascade');
+
+{
+  // Priorite override
+  const rj = { financialData: { rawNotes: '2024A' }, extraction: { rawSummary: '' } };
+  const y = detectDossierRefYear(rj, { refYearOverride: 2019 });
+  check(y === 2019, 'override en priorite (2019)');
+}
+
+{
+  // as_of prioritaire sur rawNotes
+  const rj = { financialData: { rawNotes: '2024A' } };
+  const y = detectDossierRefYear(rj, { asOf: '2022-06-15' });
+  check(y === 2022, 'as_of prioritaire sur rawNotes (2022)');
+}
+
+{
+  // rawNotes maxA
+  const rj = { financialData: { rawNotes: '2020A 2021A 2022A 2023A 2024A 2025E 2026E' } };
+  const y = detectDossierRefYear(rj, {});
+  check(y === 2024, 'rawNotes max A = 2024');
+}
+
+{
+  // rawNotes contient A et B, max des deux
+  const rj = { financialData: { rawNotes: 'EBITDA 2024B budget 2023A actual' } };
+  const y = detectDossierRefYear(rj, {});
+  check(y === 2024, 'rawNotes A + B, max = 2024B');
+}
+
+{
+  // source_filename YYYY.MM.DD
+  const rj = {};
+  const y = detectDossierRefYear(rj, { sourceFilename: 'Deck - 2023.11.25 - vF.pdf' });
+  check(y === 2023, 'source_filename date pattern extrait 2023');
+}
+
+{
+  // Aucun signal
+  const rj = { extraction: { rawSummary: 'texte sans annee qualifiee' } };
+  const y = detectDossierRefYear(rj, {});
+  check(y === null, 'aucun signal : null');
+}
+
+// ============================================================
+// SUITE 5 - Detection baseYear via revenueProjection
+// ============================================================
+
+console.log('\n[Suite 5] Detection baseYear cross-check revenueProjection');
+
+{
+  // Rationale contient revenu 2,75M€, match projection 2026 (2.75)
+  const rj = {
+    financialData: {
+      revenueProjection: [
+        { year: '2024', value: 1.6 },
+        { year: '2026', value: 2.75 },
+      ],
+      rawNotes: '2024A confirme.',
+    },
+    indicators: {
+      indicators: [
+        {
+          key: 'revenuePerEmployee', label: 'Revenue par employé', value: 152778, unit: 'EUR/FTE',
+          verdict: 'rouge', rationale: 'Revenue 2,75M€ / 18 ETP = 153k€ par employé.',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 1, 'revenue 2,75M€ dans rationale => baseYear 2026 via cross-check');
+  check(cs[0]?.baseYearOfCalculation === 2026, '  baseYear correct');
+}
+
+{
+  // Rationale sans revenu absolu, fallback min(nowYear, maxProjection)
+  const rj = {
+    financialData: {
+      revenueProjection: [
+        { year: '2024', value: 1.6 },
+        { year: '2028', value: 5.0 },
+      ],
+      rawNotes: '2024A.',
+    },
+    indicators: {
+      indicators: [
+        { key: 'ruleOf40', label: 'Rule of 40', value: 60, unit: '%', verdict: 'best-in-class', rationale: 'YoY + Marge = 60%.' },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 1, 'fallback : baseYear = min(2026, 2028) = 2026');
+  check(cs[0]?.baseYearOfCalculation === 2026, '  baseYear = 2026');
+}
+
+// ============================================================
+// SUITE 6 - Regex de qualification
+// ============================================================
+
+console.log('\n[Suite 6] FORWARD_QUALIFIER_REGEX');
+
+{
+  check(FORWARD_QUALIFIER_REGEX.test('projete'), 'projete match');
+  check(FORWARD_QUALIFIER_REGEX.test('projeté'), 'projeté (accent) match');
+  check(FORWARD_QUALIFIER_REGEX.test('estime'), 'estime match');
+  check(FORWARD_QUALIFIER_REGEX.test('forecast'), 'forecast match');
+  check(FORWARD_QUALIFIER_REGEX.test('previsionnel'), 'previsionnel match');
+  check(FORWARD_QUALIFIER_REGEX.test('cible 2026'), 'cible match');
+  check(FORWARD_QUALIFIER_REGEX.test('2026E'), '2026E qualifier match');
+  check(FORWARD_QUALIFIER_REGEX.test('2025F'), '2025F qualifier match');
+  check(!FORWARD_QUALIFIER_REGEX.test('Rule of 40'), 'Rule of 40 seul : pas de qualifier');
+  check(!FORWARD_QUALIFIER_REGEX.test('Revenue par employé'), 'Revenue par employé : pas de qualifier');
+  check(!FORWARD_QUALIFIER_REGEX.test('annee courante'), 'annee courante : pas de qualifier forward');
+}
+
+// ============================================================
+// SORTIE
+// ============================================================
+
+console.log(`\n${pass} pass, ${fail} fail`);
+process.exit(fail === 0 ? 0 : 1);
