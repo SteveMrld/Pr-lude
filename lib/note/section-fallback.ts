@@ -81,7 +81,7 @@ const FALLBACK_COPY: Record<SectionKind, string> = {
   'team':
     'Cette dimension n’a pas pu être instruite dans ce run. À reprendre en DD Bloc 2.',
   'market':
-    'Cette dimension n’a pas pu être instruite dans ce run. À reprendre en DD Bloc 2.',
+    'L’analyse de marché n’a pas été instruite dans ce run. L’intensité du besoin, la structure de défensabilité, le test de réplicabilité IA et le dimensionnement TAM/SAM/SOM seront repris en DD Bloc 2. Le verdict et le score conservent leur valeur, appuyés sur les moteurs déterministes qui ont abouti.',
   'macro':
     'Cette dimension n’a pas pu être instruite dans ce run. À reprendre en DD Bloc 2.',
   'pattern':
@@ -166,12 +166,37 @@ const FALLBACK_TITLE: Record<SectionKind, string> = {
 };
 
 /**
+ * Options d enrichissement du fallback. Le point d entree
+ * enginesStatus est laisse ici pour un branchement futur : quand
+ * pipeline_engines_status sera lu cote UI, la copie pourra
+ * preciser la cause (timeout, empty_output, failed) sans casser
+ * les appelants actuels. Non consomme aujourd hui, cf brique 3
+ * (feat orchestrator releve de statut par moteur, d797252) qui
+ * expose la donnee en base sans encore l afficher.
+ */
+export interface SectionFallbackOptions {
+  /** Snapshot de EngineStatusRecorder pour ce dossier, ou null. */
+  enginesStatus?: Record<string, any> | null;
+  /** Cle moteur dans le snapshot pour retrouver l entree (ex
+   *  'market', 'narrativeDrift'). Doit correspondre a une cle
+   *  de pipeline_engines_status. */
+  engineKey?: string;
+}
+
+/**
  * Retourne la copie neutre de fallback pour une section donnee.
  * La copie ne mentionne jamais de cause technique, ne demande
  * jamais de relancer l analyse, et positionne naturellement la
  * reprise en DD Bloc 2. Une seule source pour tout le rendu.
+ *
+ * opts.enginesStatus est le point d entree futur pour enrichir
+ * la copie avec la cause precise (timeout, empty_output). Non
+ * consomme aujourd hui.
  */
-export function sectionFallbackCopy(kind: SectionKind = 'default'): string {
+export function sectionFallbackCopy(
+  kind: SectionKind = 'default',
+  _opts: SectionFallbackOptions = {},
+): string {
   return FALLBACK_COPY[kind] ?? FALLBACK_COPY['default'];
 }
 

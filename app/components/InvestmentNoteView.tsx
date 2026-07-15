@@ -967,26 +967,32 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         </div>
 
         <h3 className="note-h3">Historique</h3>
-        {compactMode ? (
-          <details>
-            <summary style={{
-              cursor: 'pointer',
-              fontFamily: 'var(--serif, Georgia, serif)',
-              fontSize: 13,
-              fontStyle: 'italic',
-              opacity: 0.75,
-              padding: '4px 0',
-              listStyle: 'none',
-              userSelect: 'none',
-            }}>
-              <span style={{ marginRight: 6, fontSize: 10 }}>▸</span>
-              Afficher la trajectoire de l&apos;entreprise
-            </summary>
-            <p className="note-paragraph" style={{ marginTop: 8 }}>{enrichProse(e.rawSummary) || '—'}</p>
-          </details>
-        ) : (
-          <p className="note-paragraph">{enrichProse(e.rawSummary) || '—'}</p>
-        )}
+        {(() => {
+          const summary = enrichProse(e.rawSummary);
+          if (!summary) {
+            return <SectionFallbackLine kind="section-generic" enginesStatus={(r as any)?.pipelineEnginesStatus ?? null} engineKey="extraction" />;
+          }
+          return compactMode ? (
+            <details>
+              <summary style={{
+                cursor: 'pointer',
+                fontFamily: 'var(--serif, Georgia, serif)',
+                fontSize: 13,
+                fontStyle: 'italic',
+                opacity: 0.75,
+                padding: '4px 0',
+                listStyle: 'none',
+                userSelect: 'none',
+              }}>
+                <span style={{ marginRight: 6, fontSize: 10 }}>▸</span>
+                Afficher la trajectoire de l&apos;entreprise
+              </summary>
+              <p className="note-paragraph" style={{ marginTop: 8 }}>{summary}</p>
+            </details>
+          ) : (
+            <p className="note-paragraph">{summary}</p>
+          );
+        })()}
 
         <h3 className="note-h3" id="engine-section-team">Équipe dirigeante</h3>
         {(() => {
@@ -1162,7 +1168,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           marche et les blocs analytiques associes, tous distincts. */}
       <NoteSectionWrapper number="2." title="Projet proposé" compactMode={compactMode} collapseInCompact={true} sectionId="section-2">
         <h3 className="note-h3">Modèle économique</h3>
-        <p className="note-paragraph">{enrichProse(e.businessModel) || '—'}</p>
+        {(() => {
+          const businessModel = enrichProse(e.businessModel);
+          if (!businessModel) {
+            return <SectionFallbackLine kind="section-generic" enginesStatus={(r as any)?.pipelineEnginesStatus ?? null} engineKey="extraction" />;
+          }
+          return <p className="note-paragraph">{businessModel}</p>;
+        })()}
 
         {fd?.unitEconomics && (fd.unitEconomics.estimatedCAC !== '' || fd.unitEconomics.averageContractValue !== '') && (
           <>
@@ -1190,10 +1202,34 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         )}
 
         <h3 className="note-h3" id="engine-section-market">Opportunité de marché</h3>
-        <p className="note-paragraph">{enrichProse(m.needIntensity?.rationale) || '—'}</p>
-        {m.defensibility?.moats?.length > 0 && (
-          <p className="note-paragraph"><strong>Moats identifiés :</strong> {m.defensibility.moats.join(' · ')}</p>
-        )}
+        {(() => {
+          // Contrat de rendu : le titre reste, le corps ne peut plus etre
+          // vide. Si le moteur marche n a rien produit (result_json.market
+          // null ou objet vide), on rend la declaration d absence
+          // specifique du kind 'market' plutot qu un tiret. Cas TOLSON
+          // bb8e6d7f rendu observable, plus jamais silencieux. Point
+          // d entree enginesStatus + engineKey='market' branche pour
+          // enrichissement futur avec la cause (timeout, empty_output).
+          const needRationale = enrichProse(m.needIntensity?.rationale);
+          const hasMoats = !!(m.defensibility?.moats?.length > 0);
+          const hasAiRepl = !!m.defensibility?.aiReplicability;
+          const hasSizing = !!m.marketSizing;
+          const hasCompetitive = !!(m.competitiveMatrix?.dimensions?.length > 0);
+          const hasAnyMarketContent = !!needRationale || hasMoats || hasAiRepl || hasSizing || hasCompetitive;
+          if (!hasAnyMarketContent) {
+            return <SectionFallbackLine kind="market" enginesStatus={(r as any)?.pipelineEnginesStatus ?? null} engineKey="market" />;
+          }
+          return (
+            <>
+              {needRationale ? (
+                <p className="note-paragraph">{needRationale}</p>
+              ) : null}
+              {hasMoats ? (
+                <p className="note-paragraph"><strong>Moats identifiés :</strong> {m.defensibility.moats.join(' · ')}</p>
+              ) : null}
+            </>
+          );
+        })()}
 
         {/* TEST AI REPLICABILITY - introduit en reponse a l ere IA generative.
             Pose la question : un solo founder + Cursor + Claude Code pourrait-il

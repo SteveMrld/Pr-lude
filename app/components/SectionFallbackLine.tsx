@@ -36,6 +36,14 @@ interface Props {
    */
   marginTop?: number;
   marginBottom?: number;
+  /**
+   * Point d entree futur pour enrichir la copie avec la cause
+   * precise du gap (timeout, empty_output, failed) a partir de
+   * pipeline_engines_status. Non consomme aujourd hui, propage
+   * simplement a sectionFallbackCopy pour reservation d API.
+   */
+  enginesStatus?: Record<string, any> | null;
+  engineKey?: string;
 }
 
 export default function SectionFallbackLine({
@@ -43,8 +51,10 @@ export default function SectionFallbackLine({
   copy,
   marginTop = 6,
   marginBottom = 12,
+  enginesStatus = null,
+  engineKey,
 }: Props) {
-  const text = copy ?? sectionFallbackCopy(kind);
+  const text = copy ?? sectionFallbackCopy(kind, { enginesStatus, engineKey });
   return (
     <p
       className="section-fallback-line"
