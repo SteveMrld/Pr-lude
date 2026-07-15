@@ -479,6 +479,35 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
     day: 'numeric', month: 'long', year: 'numeric'
   });
 
+  // ============================================================
+  // PROVENANCE DU RUN, pour la tracabilite d un PDF telecharge.
+  // ------------------------------------------------------------
+  // Un PDF exporte de la note ne portait aucun identifiant machine-
+  // lisible du run source : deux exports d un meme dossier ne se
+  // distinguaient que par la date affichee en toutes lettres. En due
+  // diligence, cela empeche de reconstituer quel run a produit
+  // quelle version de la note. On pose desormais analysisId et
+  // commitSha en data-attributes sur le container racine et en clair
+  // dans un cartouche de pied de page, avant le colophon confidentiel.
+  // Le statut du run est derive de pipelineEnginesStatus quand
+  // disponible (doctrine brique 4 : on ne declare pas ce qu on
+  // ignore, si null on affiche un tiret).
+  // ============================================================
+  const runCommitSha: string = (r as any)?.meta?.versionStamp?.app?.commitSha ?? '';
+  const runCommitShaShort: string = runCommitSha ? runCommitSha.slice(0, 7) : '';
+  const runAnalyzedAtIso: string = (r as any)?.meta?.analyzedAt ?? '';
+  const runScore: number | null = (r as any)?.mechanicalScore?.globalScore ?? null;
+  const runStatusDerived: string = (() => {
+    if (!pipelineEnginesStatus || typeof pipelineEnginesStatus !== 'object') return '—';
+    const gapStatuses = new Set(['failed', 'failed-upstream', 'timeout', 'empty_output']);
+    let hasGap = false;
+    for (const entry of Object.values(pipelineEnginesStatus)) {
+      const st = (entry as any)?.status;
+      if (typeof st === 'string' && gapStatuses.has(st)) { hasGap = true; break; }
+    }
+    return hasGap ? 'completed_with_gaps' : 'completed';
+  })();
+
   // Fallback de re-calcul du moteur valuation pour les analyses anterieures
   // au deploiement de la section 1.7. Le moteur est deterministe et ne fait
   // aucun appel LLM, on peut donc le rejouer cote client a la volee a partir
@@ -600,7 +629,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   };
 
   return (
-    <div className="investment-note">
+    <div
+      className="investment-note"
+      data-analysis-id={analysisId || ''}
+      data-commit-sha={runCommitSha || ''}
+    >
       {/* TABLE DES MATIERES FLOTTANTE
           Sticky a droite sur desktop, donne une vue d ensemble des
           sections de la note et permet le saut direct via ancres. Cachee
@@ -3888,6 +3921,41 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           mais accessible pour audit doctrinal. */}
       <NoteSectoralAnnex sectoral={sectoral} />
 
+      {/* CARTOUCHE DE PROVENANCE DU RUN. Rend explicite quel run a
+          produit ce document, pour qu un PDF telecharge nomme sa
+          source sans equivoque. Cinq champs, en clair et en monospace :
+          analysisId (uuid complet, cle primaire base), commitSha court
+          (sha1 7 caracteres, identifie la version du code), analyzedAt
+          (ISO horodate le moment de l analyse, distinct de la date de
+          consultation), score global (rappel), status du run derive de
+          pipelineEnginesStatus quand disponible. Absent (tiret) si la
+          donnee n a pas ete tracee, doctrine brique 4. */}
+      <div className="note-run-provenance" aria-label="Provenance du run">
+        <div className="note-run-provenance-title">Provenance du run</div>
+        <dl className="note-run-provenance-list">
+          <div className="note-run-provenance-row">
+            <dt>analysisId</dt>
+            <dd className="mono">{analysisId || '—'}</dd>
+          </div>
+          <div className="note-run-provenance-row">
+            <dt>commitSha</dt>
+            <dd className="mono">{runCommitShaShort || '—'}</dd>
+          </div>
+          <div className="note-run-provenance-row">
+            <dt>analyzedAt</dt>
+            <dd className="mono">{runAnalyzedAtIso || '—'}</dd>
+          </div>
+          <div className="note-run-provenance-row">
+            <dt>score</dt>
+            <dd className="mono">{runScore != null ? `${runScore}/100` : '—'}</dd>
+          </div>
+          <div className="note-run-provenance-row">
+            <dt>status</dt>
+            <dd className="mono">{runStatusDerived}</dd>
+          </div>
+        </dl>
+      </div>
+
       <div className="note-footer">
         <div>Note préparée par Prélude · Plateforme d'instruction VC européenne</div>
         <div>Document confidentiel · Usage strictement interne au Comité d'Investissement</div>
@@ -6595,6 +6663,58 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         }
         .note-sources-detail {
           color: var(--ink-secondary);
+        }
+
+        /* CARTOUCHE DE PROVENANCE - Bloc technique pose avant le colophon.
+           Rend visibles les cinq champs qui nomment le run source d un
+           PDF telecharge. Style monospace pour les valeurs afin de
+           distinguer immediatement les identifiants machine des valeurs
+           editoriales de la note. Fond legerement teinte pour separer
+           visuellement du corps sans crier. */
+        .note-run-provenance {
+          margin-top: 40px;
+          padding: 14px 18px;
+          background: var(--hairline-soft);
+          border: 1px solid var(--hairline);
+          border-radius: 6px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .note-run-provenance-title {
+          font-size: 9.5px;
+          font-weight: 600;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--ink-tertiary);
+          margin-bottom: 8px;
+        }
+        .note-run-provenance-list {
+          margin: 0;
+          padding: 0;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+        .note-run-provenance-row {
+          display: grid;
+          grid-template-columns: 110px 1fr;
+          gap: 12px;
+          font-size: 11px;
+          line-height: 1.5;
+        }
+        .note-run-provenance-row dt {
+          font-weight: 500;
+          color: var(--ink-tertiary);
+          letter-spacing: 0.04em;
+        }
+        .note-run-provenance-row dd {
+          margin: 0;
+          color: var(--ink);
+        }
+        .note-run-provenance-row .mono {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: 10.5px;
+          letter-spacing: 0;
+          word-break: break-all;
         }
 
         /* COLOPHON - Footer stylé comme un colophon d'article. Filet horizontal,
