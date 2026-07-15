@@ -66,7 +66,21 @@ export interface EngineStatusEntry {
    *  Somme du temps d attente sur les dependances plus le temps
    *  d execution reel. Conservee pour compatibilite ascendante. */
   durationMs: number;
-  /** Nombre de tentatives. 1 par defaut, superieur si retry. */
+  /** Nombre de tentatives au niveau du moteur (une invocation
+   *  callClaude = un attempt). Ne reflete PAS les reprises internes
+   *  du SDK Anthropic. Le SDK @anthropic-ai/sdk retry en interne
+   *  jusqu a maxRetries fois (actuellement 1) sur 429/529/timeout
+   *  reseau, mais ne remonte pas ce compteur au caller : numRetries
+   *  est calcule dans node_modules/@anthropic-ai/sdk/src/core.ts:600
+   *  puis rebase en backoff, jamais expose dans la response. Un
+   *  attempts=1 dans un moteur peut donc correspondre a 1 ou 2
+   *  appels HTTP reels vers api.anthropic.com. Pour les vrais
+   *  compteurs par tentative, il faut soit patcher fetch, soit lire
+   *  les logs SDK debug (ANTHROPIC_LOG=debug), soit inferer via
+   *  executionDurationMs (>60_000ms suggere qu une reprise SDK a
+   *  eu lieu). Les moteurs qui font leur propre boucle de retry
+   *  explicite (orchestrator, reference-checks, reference-aggregation)
+   *  peuvent en revanche incrementer attempts a la main. */
   attempts: number;
   /** Message d erreur brut si status failed ou timeout. Pour
    *  failed-upstream, message structure nommant la ou les

@@ -475,33 +475,44 @@ export async function POST(req: NextRequest) {
         // defaillance distincte. Aucun n est optionnel, aucun ne se
         // substitue aux deux autres.
         //
-        //   1. SDK Anthropic : timeout 60s par appel, maxRetries 0.
-        //      Pose en axis 1 dans lib/engines/anthropic-client.ts.
-        //      Coupe court a un appel individuel qui traine, empeche
-        //      les reprises silencieuses du SDK (11.9s x3 puis 61s x3
-        //      observes sur Food Pilot du 7 juillet 2026).
+        //   1. SDK Anthropic : timeout 60s par appel, maxRetries 1.
+        //      Pose dans lib/engines/anthropic-client.ts. Chaque
+        //      tentative est bornee a 60s, une reprise unique absorbe
+        //      les incidents transitoires (429/529, timeout SDK
+        //      isole). Pire cas par tentative-chain :
+        //      60 + backoff SDK (~500ms) + 60 = ~120.5s.
         //
-        //   2. Par moteur : deadline 120s. Chaque moteur du pipeline
+        //   2. Par moteur : deadline 200s. Chaque moteur du pipeline
         //      est enveloppe dans withEngineDeadline qui, au trigger,
         //      logue 'deadline-exceeded' dans error_logs, emet
         //      sendDone(engine, null) au client et resoud la promesse
         //      sur null. Les autres moteurs continuent. Downstream
         //      accepte le null (orchestrate a son fallback degrade,
         //      les moteurs conditionnels ont deja le pattern).
-        //      Budget nominal d un moteur Sonnet 4.6 = 20-60s, la
-        //      deadline 120s laisse deux tentatives SDK dans le pire
-        //      des cas avant abandon propre.
+        //      200s contient les 120.5s SDK worst case + 80s de slack
+        //      pour le pre-processing (gatherFounderRealData 8s par
+        //      founder cap, sectoral context, JSON parse et sanitize
+        //      Unicode). Marge doublee par rapport a l ancien 120s
+        //      qui neutralisait la reprise en la coupant en plein
+        //      backoff.
         //
         //   3. Budget global du run : 600s. AbortController arme des
         //      l entree du stream, budgetPromise rejette a l abort.
         //      Race le Promise.all central et orchestrate. Marge de
         //      200s avant le mur Vercel 800s pour la sortie propre :
         //      markAnalysisFailed lisible, event 'run-budget-exhausted'
-        //      au client, close du stream. Sans ce budget, un incident
-        //      Anthropic durable laissait courir jusqu au mur 800s
-        //      puis Vercel tuait en Runtime Timeout Error opaque.
+        //      au client, close du stream. Chaine critique serie
+        //      (layer 1 -> pattern -> causal -> refChecks -> orchestrate)
+        //      dans le worst case pathologique de retry sur chaque
+        //      maillon = 121 x 5 = 605s, 5s au-dessus du budget. Dans
+        //      ce cas exceptionnel (probabilite ~10^-8 vu la base rate
+        //      de timeout observee sur le corpus), budgetPromise fire
+        //      cleanly avec markAnalysisFailed avant tout Runtime
+        //      Timeout Error opaque. L orchestrateur a en plus sa
+        //      propre garde budgetRemainingMs() qui l empeche de
+        //      scheduler un retry si le budget residuel ne suffit pas.
         // ============================================================
-        const ENGINE_DEADLINE_MS = 120_000;
+        const ENGINE_DEADLINE_MS = 200_000;
         const RUN_BUDGET_MS = 600_000;
 
         const budgetAbort = new AbortController();

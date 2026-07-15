@@ -5,15 +5,13 @@ let _client: Anthropic | null = null;
 // ============================================================
 // TIMEOUT ET RETRY : politique du client Anthropic
 // ------------------------------------------------------------
-// Les defaults du SDK @anthropic-ai/sdk sont trop permissifs pour
-// une fonction Vercel serverless avec maxDuration = 800s. Sans
-// override, le SDK utilise timeout = 10 min et maxRetries = 2, ce
-// qui signifie qu un seul appel Claude qui coince peut consommer
-// jusqu a 30 minutes de wall-clock : 10 min tentative initiale,
-// 10 min retry 1, 10 min retry 2. En parallele sur 6 moteurs qui
-// timeoutent tous en meme temps sur un incident Anthropic, on
-// depasse le mur des 800s en trois vagues et on recolte un
-// Vercel Runtime Timeout Error opaque qui laisse la ligne
+// Les defaults du SDK @anthropic-ai/sdk sont timeout = 10 min et
+// maxRetries = 2. En l etat, un appel Claude qui coince peut
+// consommer jusqu a 30 minutes de wall-clock : 10 min tentative
+// initiale, 10 min retry 1, 10 min retry 2. En parallele sur 6
+// moteurs qui timeoutent tous en meme temps sur un incident
+// Anthropic, on depasse le mur Vercel des 800s en trois vagues et
+// on recolte un Runtime Timeout Error opaque qui laisse la ligne
 // analyses en 'running' fantome.
 //
 // Preuve empirique : run Food Pilot du 7 juillet 2026, patterns
@@ -21,18 +19,59 @@ let _client: Anthropic | null = null;
 // api.anthropic.com. Ce sont les reprises silencieuses du SDK qui
 // empilent le temps jusqu au mur, pas un moteur unique qui hang.
 //
-// Politique retenue :
+// Reponse initiale (commit 66f8235 du 8 juillet 2026) : maxRetries
+// force a 0, toute reprise silencieuse coupee. Politique stricte,
+// justifiee tant que le budget par tentative etait celui du SDK
+// (10 min chacune). Mais avec maxRetries=0, un incident SDK
+// authentique et unique detruit tout le moteur : cas In Haircare
+// du 15 juillet, team a echoue sur un "Request timed out." unique
+// et a fait perdre 42% du score final (cinq dimensions passees en
+// neutre 50 par cascade).
+//
+// Politique retenue apres audit In Haircare (deux plafonds bornent
+// desormais la reprise) :
+//
 //   - timeout par appel = 60_000 ms (60s). Suffisant pour Sonnet
 //     4.6 sur nos prompts en regime nominal (mesure : 20-40s).
 //     Un appel qui depasse 60s est un signal d incident cote
 //     Anthropic ou de web_search bloque sur un upstream lent,
-//     mieux vaut abandonner que persister.
-//   - maxRetries = 0. On coupe toute reprise silencieuse. Une
-//     erreur Claude remonte immediatement au moteur qui la loggue
-//     et retourne un output degrade. La seule redondance
-//     autorisee dans le pipeline reste le retry loop explicite
-//     d orchestrate (limite a 2 tentatives), qui absorbe les 529
-//     transitoires Anthropic sur ce seul moteur critique.
+//     mieux vaut abandonner cette tentative que persister.
+//
+//   - maxRetries = 1. Une reprise unique, autorisee parce que le
+//     timeout par tentative est desormais borne a 60s (pas 10 min
+//     comme au defaut SDK). Pire cas par moteur :
+//     60s + backoff SDK (~500ms) + 60s = ~120.5s.
+//     Contenu par la deadline externe ENGINE_DEADLINE_MS=200_000
+//     (fichier route.ts) qui laisse 80s de slack pour le
+//     pre-processing (gatherFounderRealData 8s par founder,
+//     sectoral context, JSON parse, sanitize).
+//
+//   Ce que la reprise couvre : un timeout SDK isole ou un 429/529
+//   transitoire sur une seule tentative. Anthropic sert typiquement
+//   la seconde tentative en 20-40s meme apres un premier echec.
+//   Sur le corpus des 28 dossiers, un seul run a eu un moteur
+//   Bloc 1 en echec ("Request timed out."). Le retry unique aurait
+//   sauve ce cas.
+//
+//   Ce que la reprise NE couvre PAS : un incident Anthropic
+//   prolonge qui persiste sur les deux tentatives. Dans ce cas, le
+//   moteur echoue proprement en failed avec le message SDK,
+//   l orchestrateur recoit un output null et applique son
+//   fallback degrade (mechanicalScore sur les moteurs aboutis).
+//
+//   Budget global : la reprise unique n empile pas comme dans le
+//   bug Food Pilot. Chaine critique serie (layer 1 -> pattern ->
+//   causal -> refChecks -> orchestrate), 5 maillons a 121s worst
+//   case = 605s. Marginal 5s au-dessus de RUN_BUDGET_MS=600_000
+//   (route.ts) dans le worst case pathologique (probabilite ~10^-8
+//   vu la base rate observee), et dans ce cas le budgetPromise
+//   fire markAnalysisFailed avant tout Vercel Runtime Error.
+//
+//   Le retry loop explicite d orchestrate (2 tentatives via
+//   route.ts MAX_ATTEMPTS) reste en place pour les 529 avec
+//   backoff jitter cible sur ce moteur critique unique, avec
+//   check budgetRemainingMs qui empeche son declenchement si le
+//   budget residuel ne suffit pas.
 // ============================================================
 
 export function getClient(): Anthropic {
@@ -44,7 +83,7 @@ export function getClient(): Anthropic {
   _client = new Anthropic({
     apiKey,
     timeout: 60_000,
-    maxRetries: 0,
+    maxRetries: 1,
   });
   return _client;
 }
