@@ -201,6 +201,15 @@ export interface SaveAnalysisInput {
   sourcePages?: number | null;
   pipelineDurationMs?: number | null;
   pipelineEnginesStatus?: any;
+  /** Statut de run derive du releve per-moteur. Par defaut
+   *  'completed' pour retrocompatibilite. 'completed_with_gaps'
+   *  est ecrit quand au moins un moteur est failed / timeout /
+   *  empty_output. Le pipeline_engines_status transporte le
+   *  detail moteur par moteur. */
+  runStatus?: 'completed' | 'completed_with_gaps';
+  /** Message d erreur consolide, liste les moteurs defaillants
+   *  par statut. null si le run est proprement completed. */
+  runErrorMessage?: string | null;
 }
 
 /**
@@ -698,9 +707,9 @@ export async function markAnalysisCompleted(
         source_pages: input.sourcePages,
         pipeline_duration_ms: input.pipelineDurationMs,
         pipeline_engines_status: input.pipelineEnginesStatus,
-        status: 'completed',
+        status: input.runStatus || 'completed',
         completed_at: new Date().toISOString(),
-        error_message: null,
+        error_message: input.runErrorMessage ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', analysisId);

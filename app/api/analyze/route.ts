@@ -53,6 +53,7 @@ import {
   extractAnalysisMetadata,
   getCurrentUserId,
 } from '@/lib/analysis-store';
+import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
 import {
@@ -525,7 +526,17 @@ export async function POST(req: NextRequest) {
         // vivre mais son sendDone eventuel sera avale par l idempotence
         // de sentDone. Ne s applique pas a orchestrate qui a sa propre
         // logique de retry controle (2 tentatives max, cf axis 1).
-        function withEngineDeadline<T>(engine: string, work: Promise<T>): Promise<T | null> {
+        // Recorder d instrumentation. Capture status, duree, tentatives
+        // et message d erreur par moteur. Renseigne par withEngineDeadline
+        // au fil du run, puis finalise sur le result_json apres le
+        // pipeline pour detecter les empty_output silencieux (le cas
+        // TOLSON : moteur qui a repondu sans erreur mais sortant null).
+        // Persiste en analyses.pipeline_engines_status et derive le
+        // status de run (completed vs completed_with_gaps).
+        const enginesRecorder = new EngineStatusRecorder();
+
+        function withEngineDeadline<T>(engine: string, resultKey: string | null, work: Promise<T>): Promise<T | null> {
+          if (resultKey) enginesRecorder.markStart(resultKey);
           return new Promise((resolve) => {
             let settled = false;
             const timer = setTimeout(() => {
@@ -536,6 +547,7 @@ export async function POST(req: NextRequest) {
                 context: { engine, deadlineMs: ENGINE_DEADLINE_MS },
               });
               try { sendDone(engine, null); } catch { /* controller closed */ }
+              if (resultKey) enginesRecorder.record({ engine: resultKey, status: 'timeout', attempts: 1, errorMessage: 'deadline-exceeded' });
               resolve(null);
             }, ENGINE_DEADLINE_MS);
             work.then(
@@ -543,6 +555,7 @@ export async function POST(req: NextRequest) {
                 if (settled) return;
                 settled = true;
                 clearTimeout(timer);
+                if (resultKey) enginesRecorder.record({ engine: resultKey, status: 'ok', attempts: 1 });
                 resolve(v);
               },
               (err) => {
@@ -554,6 +567,7 @@ export async function POST(req: NextRequest) {
                   context: { engine, phase: 'engine-error' },
                 });
                 try { sendDone(engine, null); } catch { /* controller closed */ }
+                if (resultKey) enginesRecorder.record({ engine: resultKey, status: 'failed', attempts: 1, errorMessage: String(err?.message || err) });
                 resolve(null);
               },
             );
@@ -1178,23 +1192,23 @@ export async function POST(req: NextRequest) {
             referenceChecks,
           ] = await Promise.race([
             Promise.all([
-              withEngineDeadline('team', teamPromise),
-              withEngineDeadline('market', marketPromise),
-              withEngineDeadline('macro', macroPromise),
-              withEngineDeadline('financial-extraction', financialDataPromise),
-              withEngineDeadline('saas-metrics', saasMetricsPromise),
-              withEngineDeadline('industrial-metrics', industrialMetricsPromise),
-              withEngineDeadline('benchmarks', benchmarksPromise),
-              withEngineDeadline('pattern', patternPromise),
-              withEngineDeadline('blindspot', blindspotPromise),
-              withEngineDeadline('contrarian', contrarianPromise),
-              withEngineDeadline('financial-coherence', financialCoherencePromise),
-              withEngineDeadline('tech-claim', techClaimPromise),
-              withEngineDeadline('execution-friction', executionFrictionPromise),
-              withEngineDeadline('narrative-drift', narrativeDriftPromise),
-              withEngineDeadline('fragility-structurelle', fragilityPromise),
-              withEngineDeadline('causal', causalPromise),
-              withEngineDeadline('reference-checks', referenceChecksPromise),
+              withEngineDeadline('team', 'team', teamPromise),
+              withEngineDeadline('market', 'market', marketPromise),
+              withEngineDeadline('macro', 'macro', macroPromise),
+              withEngineDeadline('financial-extraction', 'financialData', financialDataPromise),
+              withEngineDeadline('saas-metrics', 'saasMetrics', saasMetricsPromise),
+              withEngineDeadline('industrial-metrics', 'industrialMetrics', industrialMetricsPromise),
+              withEngineDeadline('benchmarks', null, benchmarksPromise),
+              withEngineDeadline('pattern', 'patternMatching', patternPromise),
+              withEngineDeadline('blindspot', 'blindspotAnalysis', blindspotPromise),
+              withEngineDeadline('contrarian', 'contrarianAnalysis', contrarianPromise),
+              withEngineDeadline('financial-coherence', 'financialCoherence', financialCoherencePromise),
+              withEngineDeadline('tech-claim', 'techClaimCoherence', techClaimPromise),
+              withEngineDeadline('execution-friction', 'executionFriction', executionFrictionPromise),
+              withEngineDeadline('narrative-drift', 'narrativeDrift', narrativeDriftPromise),
+              withEngineDeadline('fragility-structurelle', 'fragiliteStructurelle', fragilityPromise),
+              withEngineDeadline('causal', 'causalReversal', causalPromise),
+              withEngineDeadline('reference-checks', 'referenceChecks', referenceChecksPromise),
             ]),
             budgetPromise,
           ]);
@@ -1681,6 +1695,39 @@ export async function POST(req: NextRequest) {
           // quand meme le complete au client avec le payload complet.
           // Le client peut afficher le resultat meme sans persistance.
           // ============================================================
+          // Finalise le releve per-moteur en confrontant le result final
+          // aux contrats minimaux. Les moteurs failed / timeout deja
+          // enregistres gardent leur statut ; les autres deviennent ok,
+          // empty_output ou skipped_not_applicable selon le sortant.
+          // Cette etape rend visibles les moteurs qui ont repondu sans
+          // erreur mais sans contenu recevable (cas TOLSON).
+          enginesRecorder.finalizeFromResult(result as any, {
+            preScan: 'preScan',
+            extraction: 'extraction',
+            team: 'team',
+            market: 'market',
+            macro: 'macro',
+            financialData: 'financialData',
+            saasMetrics: 'saasMetrics',
+            industrialMetrics: 'industrialMetrics',
+            patternMatching: 'patternMatching',
+            blindspotAnalysis: 'blindspotAnalysis',
+            contrarianAnalysis: 'contrarianAnalysis',
+            financialCoherence: 'financialCoherence',
+            techClaimCoherence: 'techClaimCoherence',
+            executionFriction: 'executionFriction',
+            narrativeDrift: 'narrativeDrift',
+            fragiliteStructurelle: 'fragiliteStructurelle',
+            causalReversal: 'causalReversal',
+            referenceChecks: 'referenceChecks',
+            finalRecommendation: 'finalRecommendation',
+            indicators: 'indicators',
+            valuation: 'valuation',
+          });
+          const runStatus = enginesRecorder.computeRunStatus();
+          const runErrorMsg = enginesRecorder.computeErrorMessage();
+          const enginesStatusSnapshot = enginesRecorder.snapshot();
+
           let persistOk = false;
           if (analysisId) {
             try {
@@ -1692,7 +1739,9 @@ export async function POST(req: NextRequest) {
                 resultJson: result,
                 sourceFilename: pitchDeck.name,
                 pipelineDurationMs: durationMs,
-                pipelineEnginesStatus: null,
+                pipelineEnginesStatus: enginesStatusSnapshot,
+                runStatus,
+                runErrorMessage: runErrorMsg,
               });
               if (persistOk) {
                 console.log(`[api/analyze] analyse ${analysisId} marquee completed`);
