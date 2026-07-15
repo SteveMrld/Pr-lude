@@ -516,12 +516,15 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
   // suffit pour situer le marche ; les benchmarks precis sont deja
   // agreges dans les fiches sectorielles servies par sectoralContext.
   // Mode frozen (runOptions) coupe en dur, surpasse ENABLE_WEB_SEARCH.
+  // timeout 150s + maxRetries 0 : p50 market observe 94s wall, p90 129s.
+  // Meme regime que team : le web_search cote serveur Anthropic partage
+  // le budget SDK, un depassement a 150s trahit du structurel.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
     undefined,
-    applyRunOptions({ maxWebSearches: 1 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 

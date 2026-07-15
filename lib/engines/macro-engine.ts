@@ -450,12 +450,15 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
   // un hop unique de verification suffit sans degradation notable de
   // la qualite. Mode frozen (runOptions) coupe en dur, surpasse
   // ENABLE_WEB_SEARCH.
+  // timeout 150s + maxRetries 0 : p50 macro observe 50s wall, p90 68s.
+  // Moins dense en web_search que team/market mais la meme politique
+  // s applique par coherence entre les moteurs a recherche active.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
     undefined,
-    applyRunOptions({ maxWebSearches: 1 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
 

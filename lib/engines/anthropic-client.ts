@@ -115,6 +115,21 @@ interface CallClaudeOptions {
   enableWebSearch?: boolean;
   /** Limite le nombre de recherches web par appel. Defaut : 3 */
   maxWebSearches?: number;
+  /** Override du timeout SDK pour cet appel uniquement, en ms. Defaut :
+   *  suit celui du client (60_000). Utilise par les moteurs a web search
+   *  actif (team, market, macro, financial-coherence) qui ont un p50 wall
+   *  clock au-dessus de 60s en regime nominal parce que les hops
+   *  web_search cote serveur Anthropic consomment le meme budget que la
+   *  generation. Passe en second argument de messages.create qui l accepte
+   *  au niveau request. */
+  timeout?: number;
+  /** Override du maxRetries SDK pour cet appel uniquement. Defaut : suit
+   *  celui du client (1). Utilise conjointement avec timeout pour les
+   *  moteurs a web search actif ou le retry est structurellement inutile :
+   *  un moteur avec p50=105s qui timeout a 150s a besoin de plus que 150s,
+   *  pas d une reprise a l identique. Passer 0 remplace deux echecs longs
+   *  par un echec unique et un fallback propre. */
+  maxRetries?: number;
 }
 
 // ============================================================
@@ -218,7 +233,17 @@ export async function callClaude(
     ];
   }
 
-  const response = await client.messages.create(requestParams);
+  // Options SDK per-request : timeout et maxRetries peuvent etre overrides
+  // sans toucher au client partage. Le SDK accepte les deux via le second
+  // argument de messages.create (@anthropic-ai/sdk/src/core.ts:303-304 pour
+  // timeout, meme mecanisme pour maxRetries). Non passes = defauts client.
+  const sdkOptions: { timeout?: number; maxRetries?: number } = {};
+  if (options.timeout !== undefined) sdkOptions.timeout = options.timeout;
+  if (options.maxRetries !== undefined) sdkOptions.maxRetries = options.maxRetries;
+  const hasSdkOptions = Object.keys(sdkOptions).length > 0;
+  const response = hasSdkOptions
+    ? await client.messages.create(requestParams, sdkOptions)
+    : await client.messages.create(requestParams);
 
   // En presence de web_search, la reponse peut contenir plusieurs blocs :
   // tool_use (recherches), tool_result (resultats), text (reponse finale).
@@ -319,7 +344,14 @@ export async function callClaudeWithUsage(
     ];
   }
 
-  const response = await client.messages.create(requestParams);
+  // Meme override per-request que callClaude : timeout et maxRetries.
+  const sdkOptions: { timeout?: number; maxRetries?: number } = {};
+  if (options.timeout !== undefined) sdkOptions.timeout = options.timeout;
+  if (options.maxRetries !== undefined) sdkOptions.maxRetries = options.maxRetries;
+  const hasSdkOptions = Object.keys(sdkOptions).length > 0;
+  const response = hasSdkOptions
+    ? await client.messages.create(requestParams, sdkOptions)
+    : await client.messages.create(requestParams);
 
   const textBlocks = response.content.filter((c) => c.type === 'text');
   if (textBlocks.length === 0) {

@@ -577,12 +577,18 @@ Intègre dans ton analyse :
   // max_uses eleves (regenerator.ts, milestone-detection-runner.ts)
   // parce qu ils tournent hors chemin critique et beneficient du
   // multi-hop pour croiser plusieurs sources.
+  // timeout 150s + maxRetries 0 : p50 team observe 105s wall, p90 143s.
+  // Le web_search cote serveur Anthropic consomme le meme budget que la
+  // generation dans le meme roundtrip HTTP, donc le timeout SDK plafonne
+  // l ensemble. Retry desactive parce qu un depassement a 150s signale du
+  // structurel (upstream web_search bloque, incident tool), pas du
+  // transitoire : deux tentatives longues echoueraient identiquement.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     8000,
     undefined, // model par defaut
-    applyRunOptions({ maxWebSearches: 1 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 

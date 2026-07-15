@@ -286,12 +286,15 @@ export async function analyzeFinancialCoherence(
   // pour respecter le budget de temps du run 600s : les benchmarks
   // sectoriels de cadrage sont deja injectes en input via la matrice
   // et les fiches sectorielles, un hop unique de verification suffit.
+  // timeout 150s + maxRetries 0 : quatrieme moteur a web search actif,
+  // meme politique que team/market/macro. Retry SDK desactive pour eviter
+  // qu un blocage web_search structurel ne consomme deux fois le budget.
   const rawResponse = await callClaude(
     SYSTEM_PROMPT,
     userPrompt,
     7000,
     undefined,
-    applyRunOptions({ maxWebSearches: 1 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
   const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse);
 
