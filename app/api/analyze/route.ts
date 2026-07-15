@@ -54,7 +54,7 @@ import {
   getCurrentUserId,
 } from '@/lib/analysis-store';
 import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
-import { deriveDossierReferenceYear } from '@/lib/analysis/reference-year';
+import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
 import {
@@ -1279,7 +1279,7 @@ export async function POST(req: NextRequest) {
           // aucun fallback filename ou narrative. Si le document ne
           // qualifie aucun exercice, refYear=null et les indicateurs
           // deviendront non-applicable avec motif explicite.
-          const dossierRefYear = deriveDossierReferenceYear(
+          const refYearResolution = deriveDossierReferenceYearWithReason(
             { extraction, financialData } as any,
           );
           const indicators = computeIndicators({
@@ -1289,7 +1289,8 @@ export async function POST(req: NextRequest) {
             saasMetrics,
             industrialMetrics,
             relevanceMatrix,
-            referenceYear: dossierRefYear,
+            referenceYear: refYearResolution.year,
+            referenceYearRejectionDetail: refYearResolution.rejectionDetail,
           });
 
           const orchestratePromise = (async () => {

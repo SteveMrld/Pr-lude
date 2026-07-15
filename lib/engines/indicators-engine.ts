@@ -1211,6 +1211,10 @@ interface IndicatorsInput {
    * l horloge systeme. Si null, les indicateurs deviennent
    * non-applicable avec motif explicite, ils ne devinent pas. */
   referenceYear: number | null;
+  /** Motif de rejet de referenceYear si null, propage depuis la
+   *  primitive. Injecte dans le rationale des indicateurs pour
+   *  que la note d instruction dise pourquoi elle ne calcule pas. */
+  referenceYearRejectionDetail?: string | null;
 }
 
 export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
@@ -1353,6 +1357,15 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   // a ete calibre il y a plus de 12 mois, on emet UN warning sobre. Le
   // partner doit savoir que les seuils ne sont pas alignes sur la photo
   // marche du trimestre courant, sans noyer la note dans des disclaimers.
+  // Signal G3 : annee de reference absente. Injecte le motif expose
+  // par la primitive dans les warnings pour que la note dise pourquoi
+  // les indicateurs qui dependent d une base temporelle sont
+  // non-applicable. Silencieux si refYear est presente (rien a
+  // expliquer, tout va bien).
+  if (refYear === null && input.referenceYearRejectionDetail) {
+    warnings.push(`Annee de reference du dossier non derivable : ${input.referenceYearRejectionDetail} Les indicateurs qui dependent d une base temporelle (Rule of 40, marge brute, revenue par employe, burn multiple) sont non-applicable jusqu a ce que le moteur d extraction financiere renseigne financialData.lastActualYear avec citation.`);
+  }
+
   if (benchmarks && applicableCount > 0 && refYear !== null) {
     // Fraicheur benchmark ancree sur l annee de reference du dossier
     // (mi-annee conventionnelle), jamais sur l horloge du run. Sans

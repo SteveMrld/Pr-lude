@@ -5,7 +5,11 @@
 // evidence textuelle. Aucun fallback. Suite reduite mais stricte.
 // ============================================================
 
-import { deriveDossierReferenceYear } from './reference-year';
+import {
+  deriveDossierReferenceYear,
+  deriveDossierReferenceYearWithReason,
+  MAX_GAP_YEARS,
+} from './reference-year';
 
 let pass = 0, fail = 0;
 function check(cond: boolean, label: string) {
@@ -144,11 +148,8 @@ function maxYearInProjection(proj: any[]): number | null {
 }
 
 {
-  // Cas anormal simule : refYear tres ancien vs projections modernes.
-  // Avec la nouvelle primitive stricte, ce cas ne peut pas se produire
-  // via la primitive elle-meme (elle rejette les evidences vides). Mais
-  // on garde la garde pour se premunir d une future regle plus laxiste
-  // qui tenterait d inferer 2013 sur un dossier 2021-2026.
+  // Cas anormal 2013 vs projections 2021-2026 : la primitive rejette
+  // au runtime, elle ne se contente pas d etre signalee par un test.
   const suspect = {
     financialData: {
       lastActualYear: 2013,
@@ -161,13 +162,88 @@ function maxYearInProjection(proj: any[]): number | null {
     },
   };
   const y = deriveDossierReferenceYear(suspect);
-  const maxProj = maxYearInProjection(suspect.financialData.revenueProjection);
-  const gap = maxProj !== null && y !== null ? maxProj - y : null;
-  // Le test doit signaler : gap > 3 => anomalie
-  check(gap !== null && gap > 3, `refYear ${y} vs max projection ${maxProj} : ecart ${gap} > 3 declenche la garde de vraisemblance`);
-  // La primitive rend la valeur car l evidence est presente, la GARDE
-  // est un contrat editorial verifie par ce test, pas par la primitive.
-  check(y === 2013, 'primitive rend la valeur, la responsabilite d evidence honnete est doctrinale (LLM instruit de ne pas mentir)');
+  check(y === null, 'primitive REJETTE lastActualYear=2013 face a projections 2021-2026 (garde runtime)');
+  const res = deriveDossierReferenceYearWithReason(suspect);
+  check(res.rejectionReason === 'implausible-vs-projections', 'motif de rejet = implausible-vs-projections');
+  check(res.rejectionDetail !== null && res.rejectionDetail.includes('13 ans'), 'motif detail cite l ecart 13 ans');
+}
+
+{
+  // Cas conforme a la garde : ecart = 3 exactement (pile sur seuil)
+  const okBoundary = {
+    financialData: {
+      lastActualYear: 2023,
+      lastActualYearEvidence: 'clos 2023',
+      revenueProjection: [
+        { year: '2023', value: 1 },
+        { year: '2026', value: 2.5 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(okBoundary);
+  check(y === 2023, `ecart pile sur seuil (${MAX_GAP_YEARS} ans) : accepte`);
+}
+
+{
+  // Cas au-dela du seuil de 1 : ecart = 4
+  const overBoundary = {
+    financialData: {
+      lastActualYear: 2022,
+      lastActualYearEvidence: 'clos 2022',
+      revenueProjection: [
+        { year: '2022', value: 1 },
+        { year: '2026', value: 3 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(overBoundary);
+  check(y === null, 'ecart 4 ans > seuil : rejete');
+  const res = deriveDossierReferenceYearWithReason(overBoundary);
+  check(res.rejectionReason === 'implausible-vs-projections', 'motif = implausible-vs-projections');
+}
+
+// ============================================================
+// SUITE 6 - Exposition du motif de rejet
+// ============================================================
+
+console.log('\n[Suite 6] Exposition du motif de rejet');
+
+{
+  const r = deriveDossierReferenceYearWithReason(null);
+  check(r.rejectionReason === 'no-dossier', 'no-dossier');
+  check(r.rejectionDetail !== null, '  detail expose');
+}
+
+{
+  const r = deriveDossierReferenceYearWithReason({});
+  check(r.rejectionReason === 'no-financial-data', 'no-financial-data');
+}
+
+{
+  const r = deriveDossierReferenceYearWithReason({ financialData: {} });
+  check(r.rejectionReason === 'last-actual-year-absent', 'last-actual-year-absent');
+}
+
+{
+  const r = deriveDossierReferenceYearWithReason({ financialData: { lastActualYear: 1999, lastActualYearEvidence: 'x' } });
+  check(r.rejectionReason === 'last-actual-year-out-of-bounds', 'last-actual-year-out-of-bounds');
+}
+
+{
+  const r = deriveDossierReferenceYearWithReason({ financialData: { lastActualYear: 2024 } });
+  check(r.rejectionReason === 'evidence-absent', 'evidence-absent');
+}
+
+{
+  const r = deriveDossierReferenceYearWithReason({ financialData: { lastActualYear: 2024, lastActualYearEvidence: '   ' } });
+  check(r.rejectionReason === 'evidence-empty', 'evidence-empty');
+}
+
+{
+  const r = deriveDossierReferenceYearWithReason({
+    financialData: { lastActualYear: 2024, lastActualYearEvidence: 'clos 2024', revenueProjection: [{ year: '2024', value: 1 }] },
+  });
+  check(r.year === 2024 && r.rejectionReason === null, 'valeur acceptee : year rempli, rejectionReason null');
 }
 
 console.log(`\n${pass} pass, ${fail} fail`);

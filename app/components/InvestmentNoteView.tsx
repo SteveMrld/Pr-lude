@@ -27,7 +27,7 @@ import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { computeTopRisks } from '@/lib/compute-top-risks';
 import { aggregateRefutations } from '@/lib/refutation/aggregator';
-import { deriveDossierReferenceYear } from '@/lib/analysis/reference-year';
+import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import {
   buildTrajectoryRenderContext,
   buildPatternDeltaAnnotation,
@@ -524,8 +524,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
     try {
       // Annee de reference du dossier via primitive partagee.
       // Source unique : financialData.lastActualYear qualifie
-      // avec evidence. Recalcul cote client identique au run.
-      const refYear = deriveDossierReferenceYear(r);
+      // avec evidence + garde de vraisemblance. Motif de rejet
+      // propage aux warnings du moteur pour affichage editorial.
+      const refRes = deriveDossierReferenceYearWithReason(r);
       return computeIndicators({
         extraction: r.extraction,
         financial: r.financialCoherence,
@@ -533,7 +534,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         saasMetrics: r.saasMetrics,
         industrialMetrics: r.industrialMetrics,
         relevanceMatrix: r.relevanceMatrix,
-        referenceYear: refYear,
+        referenceYear: refRes.year,
+        referenceYearRejectionDetail: refRes.rejectionDetail,
       });
     } catch (err) {
       console.warn('[InvestmentNoteView] recompute indicators failed:', err);
