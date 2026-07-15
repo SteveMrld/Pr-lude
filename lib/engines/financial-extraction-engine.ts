@@ -1,7 +1,7 @@
 import { callClaudeWithPDF, callClaude, parseJSON, MODEL } from './anthropic-client';
 import type { FinancialDataExtraction, ExtractionOutput } from './types';
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction Financière de la plateforme Prélude. Ton rôle est d'extraire les données financières structurées d'un dossier (pitch deck et/ou business plan).
+export const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction Financière de la plateforme Prélude. Ton rôle est d'extraire les données financières structurées d'un dossier (pitch deck et/ou business plan).
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

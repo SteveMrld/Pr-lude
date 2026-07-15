@@ -159,13 +159,20 @@ export function resolveYearForIndicator(
   projection: Array<{ year: string | number; value: number; basis?: 'actual' | 'budget' | 'projected' | null }> | undefined,
   refYear: number | null,
 ): YearResolution | null {
-  if (refYear === null || !Number.isFinite(refYear)) return null;
   if (!Array.isArray(projection) || projection.length === 0) return null;
   const entries = projection
     .map(p => ({ y: parseInt(String(p.year), 10), basis: p.basis ?? null }))
     .filter(e => Number.isFinite(e.y))
     .sort((a, b) => a.y - b.y);
   if (entries.length === 0) return null;
+
+  // Doctrine forward brique 13. Si refYear est null (documente non
+  // qualifie d exercice actual), on ne se tait plus : on prend la
+  // premiere annee projetee disponible et on la marque isForward.
+  // Le silence est reserve au cas ou aucune projection n existe.
+  if (refYear === null || !Number.isFinite(refYear)) {
+    return { year: entries[0].y, isForward: true };
+  }
   // 1. refYear present dans la projection : retenue
   if (entries.some(e => e.y === refYear)) return { year: refYear, isForward: false };
   // 2. Plus grande annee actual disponible
@@ -723,20 +730,18 @@ function computeGrossMargin(
     };
   }
 
-  // Doctrine : si refYear est null, on ne devine pas via un fallback
-  // moyenne. La marge brute devient non-applicable avec motif
-  // explicite plus bas.
-  const resolved = refYear !== null ? resolveYearForIndicator(fd.grossMarginProjection, refYear) : null;
+  // Doctrine brique 13. resolveYearForIndicator gere seul le cas
+  // refYear null : il retourne la premiere annee projetee avec
+  // isForward=true. On ne se tait plus, on calcule forward.
+  const resolved = resolveYearForIndicator(fd.grossMarginProjection, refYear);
   let targetYear: number | null = resolved?.year ?? null;
   let isForward = resolved?.isForward ?? false;
   let value: number | null = null;
   if (targetYear !== null) {
     value = pickProjectionValueAtYear(fd.grossMarginProjection, targetYear, 1);
   }
-  if (value == null && refYear !== null) {
-    // Fallback : moyenne des projections disponibles. Actif uniquement
-    // quand refYear existe (on a alors une intention temporelle mais
-    // pas de valeur precise a la date, la moyenne est un proxy).
+  if (value == null) {
+    // Fallback : moyenne des projections disponibles.
     const values = (fd.grossMarginProjection || []).map((p) => p.value).filter((v) => !isNaN(v));
     if (values.length > 0) {
       value = values.reduce((a, b) => a + b, 0) / values.length;
@@ -744,7 +749,7 @@ function computeGrossMargin(
       isForward = false;
     }
   }
-  if (value == null && refYear !== null) {
+  if (value == null) {
     // Fallback supplementaire : unitEconomics.grossMarginPerUnit
     value = parsePercent(fd.unitEconomics?.grossMarginPerUnit);
     targetYear = null;

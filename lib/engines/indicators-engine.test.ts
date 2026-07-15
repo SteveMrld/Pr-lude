@@ -129,7 +129,9 @@ console.log('\n[Suite 2] resolveYearForIndicator');
   // refYear absent, aucun basis actual => min projection avec isForward=true
   check(resolveYearForIndicator(projNoBasis, 2023)?.year === 2022, 'refYear absent, aucun actual : min projection = 2022');
   check(resolveYearForIndicator(projNoBasis, 2023)?.isForward === true, '  isForward=true (aucun actual, projete)');
-  check(resolveYearForIndicator(projNoBasis, null) === null, 'refYear null : null');
+  // Doctrine brique 13 : refYear null + projection non vide => forward
+  const forwardNoRef = resolveYearForIndicator(projNoBasis, null);
+  check(forwardNoRef?.year === 2022 && forwardNoRef?.isForward === true, 'refYear null + projection : premiere annee, isForward=true');
   check(resolveYearForIndicator([], 2024) === null, 'projection vide : null');
   check(resolveYearForIndicator(undefined, 2024) === null, 'projection undefined : null');
 }
@@ -152,10 +154,15 @@ console.log('\n[Suite 2] resolveYearForIndicator');
 }
 
 // ============================================================
-// SUITE 3 - referenceYear=null => non-applicable
+// SUITE 3 - referenceYear=null doctrine forward (brique 13)
+// ------------------------------------------------------------
+// Un dossier sans lastActualYear derivable n est plus condamne
+// au silence : les indicateurs se calculent sur la premiere annee
+// projetee avec isForwardBase=true. Le silence est reserve au
+// cas ou aucune projection n existe.
 // ============================================================
 
-console.log('\n[Suite 3] referenceYear=null : indicateurs non-applicable, jamais chiffre devine');
+console.log('\n[Suite 3] referenceYear=null : indicateurs forward etiquetes, plus de silence');
 
 {
   const out = computeIndicators({
@@ -164,14 +171,27 @@ console.log('\n[Suite 3] referenceYear=null : indicateurs non-applicable, jamais
     financialData: makeFinancialData(),
     referenceYear: null,
   } as any);
-  for (const ind of out.indicators) {
-    if (ind.key === 'ndr' || ind.key === 'magicNumber' || ind.key === 'paybackCac') continue; // pas de dep annee
-    check(
-      ind.verdict === 'non-applicable' && ind.value === null,
-      `${ind.key} : non-applicable + value null (refYear absent)`
-    );
-    check(ind.computedForYear === null, `  ${ind.key} : computedForYear = null`);
-  }
+  // Les indicateurs qui touchent le BP sortent forward, computedForYear non null
+  const rule40 = out.indicators.find((i: any) => i.key === 'ruleOf40');
+  check(rule40?.computedForYear !== null && rule40?.computedForYear !== undefined, 'ruleOf40 : computedForYear renseigne (calcul forward)');
+  check(rule40?.isForwardBase === true, 'ruleOf40 : isForwardBase=true');
+  const rpe = out.indicators.find((i: any) => i.key === 'revenuePerEmployee');
+  check(rpe?.computedForYear !== null && rpe?.computedForYear !== undefined, 'revenuePerEmployee : computedForYear renseigne');
+  check(rpe?.isForwardBase === true, 'revenuePerEmployee : isForwardBase=true');
+}
+
+{
+  // Cas silence legitime : refYear null ET projection vide => non-applicable
+  const empty = { revenueProjection: [], grossMarginProjection: [], ebitdaProjection: [], fcfProjection: [], headcount: [], opexProjection: [], smSpend: [], rdSpend: [], extractionConfidence: 'low', rawNotes: '', unitEconomics: {}, currentRound: {} } as any;
+  const out = computeIndicators({
+    extraction: makeExtraction(),
+    financial: null,
+    financialData: empty,
+    referenceYear: null,
+  } as any);
+  const rule40 = out.indicators.find((i: any) => i.key === 'ruleOf40');
+  check(rule40?.verdict === 'non-applicable' && rule40?.value === null, 'ruleOf40 non-applicable quand aucune projection exploitable');
+  check(rule40?.computedForYear === null || rule40?.computedForYear === undefined, '  computedForYear null');
 }
 
 // ============================================================
