@@ -75,6 +75,9 @@ function mockAnalysis(
     openCommentsCount: 0,
     hasBloc2: false,
     inPortfolio: false,
+    sourceFilename: null,
+    status: null,
+    failedEnginesCount: null,
     ...opts,
   };
 }

@@ -162,6 +162,30 @@ export interface AnalysisSummary {
    * Voir supabase-in-portfolio-schema.sql.
    */
   inPortfolio: boolean;
+  /**
+   * Nom du fichier source (pitch deck) tel qu il a ete uploade. Permet
+   * de distinguer deux runs d un meme dossier dans la liste : meme
+   * companyName, meme date, mais fichier different (nouvelle version
+   * du deck). Present depuis la creation de la table, null pour les
+   * dossiers antediluviens sans source persistee.
+   */
+  sourceFilename: string | null;
+  /**
+   * Statut brut du run tel qu il figure en base : 'running', 'completed',
+   * 'completed_with_gaps', 'failed'. Rendu lisible cote UI par un helper
+   * dedie, jamais affiche brut. Un dossier en completed_with_gaps ne doit
+   * pas ressembler a un run complet dans la liste.
+   */
+  status: string | null;
+  /**
+   * Nombre de moteurs en echec pour ce run, calcule cote serveur depuis
+   * pipeline_engines_status pour eviter d envoyer le JSONB entier au
+   * client (potentiellement 50 KB par ligne x 50 lignes en liste). Somme
+   * des statuts failed, failed-upstream, timeout, empty_output. null si
+   * pipeline_engines_status est null (dossier anterieur a la brique 3) :
+   * on ne pretend pas connaitre ce qu on n a pas mesure.
+   */
+  failedEnginesCount: number | null;
 }
 
 /**
@@ -944,7 +968,7 @@ export async function listAnalyses(
         year_founded, round_type, round_amount_eur,
         verdict, verdict_confidence, global_score, blindspot_score,
         contrarian_score, coherence_score, user_notes, has_bloc2,
-        in_portfolio,
+        in_portfolio, source_filename, status, pipeline_engines_status,
         created_at, updated_at
       `)
       .eq('user_id', userId)
@@ -1326,7 +1350,36 @@ function rowToSummary(row: any): AnalysisSummary {
     openCommentsCount: 0,
     hasBloc2: row.has_bloc2 === true,
     inPortfolio: row.in_portfolio === true,
+    sourceFilename: row.source_filename ?? null,
+    status: row.status ?? null,
+    // Count deterministe cote serveur pour ne pas transporter le JSONB
+    // brut au client. Somme des statuts failed, failed-upstream, timeout,
+    // empty_output. null preserve la distinction "pas mesure" contre "zero".
+    failedEnginesCount: countFailedEngines(row.pipeline_engines_status),
   };
+}
+
+/**
+ * Compte les moteurs dont le statut denonce une lacune : failed (incident
+ * SDK reel), failed-upstream (cascade), timeout (deadline externe),
+ * empty_output (moteur a repondu null ou sans champ minimal). Doit
+ * rester coherent avec GAP_STATUSES de engine-status-recorder.ts.
+ * Retourne null si pipeline_engines_status n est pas renseigne, ce qui
+ * signifie que le run est anterieur a la brique 3 et qu on n a pas de
+ * releve fiable a exposer.
+ */
+function countFailedEngines(pipelineEnginesStatus: any): number | null {
+  if (!pipelineEnginesStatus || typeof pipelineEnginesStatus !== 'object') {
+    return null;
+  }
+  let count = 0;
+  for (const entry of Object.values(pipelineEnginesStatus)) {
+    const status = (entry as any)?.status;
+    if (status === 'failed' || status === 'failed-upstream' || status === 'timeout' || status === 'empty_output') {
+      count++;
+    }
+  }
+  return count;
 }
 
 function rowToFull(row: any): AnalysisFull {

@@ -38,6 +38,74 @@ interface AnalysisSummary {
   versionsCount: number;
   openCommentsCount: number;
   hasBloc2: boolean;
+  sourceFilename: string | null;
+  status: string | null;
+  failedEnginesCount: number | null;
+}
+
+// ============================================================
+// Rendu du status de run
+// ------------------------------------------------------------
+// Doctrine brique 4 : on n affiche rien tant qu on n a pas mesure.
+// Un dossier anterieur a la brique 3 (pipeline_engines_status null)
+// et donc failedEnginesCount null ne recoit aucun badge : la ligne
+// ne pretend pas connaitre ce qu on n a pas trace.
+//
+// Sinon :
+//   completed / null status + count 0 : mention neutre discrete
+//   completed_with_gaps                : badge ocre avec le count
+//   failed                             : badge warn rouge
+//   running                            : badge muted en cours
+// ============================================================
+function renderRunStatus(status: string | null, failedCount: number | null): {
+  label: string;
+  bg: string;
+  fg: string;
+  border: string;
+  visible: boolean;
+} | null {
+  if (failedCount === null && (status === null || status === 'completed')) {
+    return null;
+  }
+  if (status === 'running') {
+    return {
+      label: 'en cours',
+      bg: 'var(--hairline-soft)',
+      fg: 'var(--muted)',
+      border: 'var(--hairline)',
+      visible: true,
+    };
+  }
+  if (status === 'failed') {
+    return {
+      label: 'echec pipeline',
+      bg: 'var(--warn-soft)',
+      fg: 'var(--warn)',
+      border: 'var(--warn)',
+      visible: true,
+    };
+  }
+  if (status === 'completed_with_gaps') {
+    const n = failedCount ?? 0;
+    return {
+      label: n > 0 ? `${n} moteur${n > 1 ? 's' : ''} en echec` : 'run degrade',
+      bg: 'var(--ocre-brule-soft)',
+      fg: 'var(--ocre-brule)',
+      border: 'var(--ocre-brule)',
+      visible: true,
+    };
+  }
+  // completed avec un failedCount mesure a zero : mention neutre.
+  if (status === 'completed' && failedCount === 0) {
+    return {
+      label: 'complet',
+      bg: 'var(--vert-foret-soft, rgba(80, 130, 90, 0.10))',
+      fg: 'var(--vert-foret, #5a7a4a)',
+      border: 'var(--vert-foret, #5a7a4a)',
+      visible: true,
+    };
+  }
+  return null;
 }
 
 interface Stats {
@@ -636,10 +704,57 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
               ✎ {analysis.openCommentsCount}
             </span>
           )}
+          {/* Badge de statut de run. Distingue completed_with_gaps d un
+              run complet en un coup d oeil. Absent si le releve n existe
+              pas (dossier anterieur a la brique 3), doctrine brique 4. */}
+          {(() => {
+            const rs = renderRunStatus(analysis.status, analysis.failedEnginesCount);
+            if (!rs || !rs.visible) return null;
+            return (
+              <span
+                title={analysis.status || undefined}
+                style={{
+                  fontFamily: 'var(--sans)',
+                  fontSize: 9.5,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  padding: '3px 8px',
+                  background: rs.bg,
+                  color: rs.fg,
+                  border: `1px solid ${rs.border}`,
+                  borderRadius: 999,
+                  fontWeight: 700,
+                }}
+              >
+                {rs.label}
+              </span>
+            );
+          })()}
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--sans)', letterSpacing: '0.02em' }}>
           {[analysis.sector, analysis.country, analysis.yearFounded].filter(Boolean).join(' · ')}
         </div>
+        {/* Fichier source : identifie precisement quel deck a nourri ce run.
+            Deux runs d une meme entite avec deux fichiers differents sont
+            desormais distinguables sans avoir a ouvrir chaque dossier. */}
+        {analysis.sourceFilename && (
+          <div
+            title={analysis.sourceFilename}
+            style={{
+              fontSize: 10.5,
+              color: 'var(--muted-soft)',
+              fontFamily: 'var(--sans)',
+              marginTop: 3,
+              letterSpacing: '0.02em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: 420,
+            }}
+          >
+            {analysis.sourceFilename}
+          </div>
+        )}
       </div>
       <div>
         <span style={{
