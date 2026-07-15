@@ -393,9 +393,42 @@ function stripCiteTags(text: string): string {
 // est strictement identique, c est juste la facturation qui change.
 // Si le pipeline depasse 5 minutes, le cache expire et la lecture
 // repart en plein tarif sans erreur fonctionnelle.
-export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string, pdfBase64: string, maxTokens = 3000, model: string = MODEL): Promise<string> {
+// ============================================================
+// TEMPERATURE : parametre optionnel pour les moteurs d extraction
+// ------------------------------------------------------------
+// Par defaut, l API Anthropic utilise temperature=1.0 sur
+// messages.create quand rien n est passe. Convient aux moteurs
+// de jugement (team, market, macro, contrarian, blindspot,
+// fragility, narrative-drift, orchestrate) dont la variance
+// interpretative est un feature : deux runs consecutifs peuvent
+// eclairer differemment le meme dossier et le partner arbitre.
+//
+// Ne convient PAS aux moteurs d extraction structuree (extraction,
+// financial-extraction, saas-metrics, industrial-metrics, prescan)
+// dont le job est de lire un document et de produire un JSON
+// factuel. A temperature=1.0, deux extractions du meme PDF
+// divergent : lastActualYear 2023 vs 2024, revenueProjection avec
+// ou sans une annee limite, competitorsCited dans un ordre
+// different. La note d instruction devient non reproductible et
+// la calibration entre deux runs incomparable.
+//
+// Ces moteurs passent explicitement temperature=0 pour supprimer
+// le sampling stochastique. Le modele reste libre d ecrire ce qu il
+// lit mais choisit toujours le token le plus probable a chaque
+// etape, ce qui donne un output stable a partir d un input stable.
+// L API Anthropic n expose pas de seed reproductible (contrairement
+// a OpenAI) donc temperature=0 est la seule levier disponible.
+// ============================================================
+export async function callClaudeWithPDF(
+  systemPrompt: string,
+  userPrompt: string,
+  pdfBase64: string,
+  maxTokens = 3000,
+  model: string = MODEL,
+  temperature?: number,
+): Promise<string> {
   const client = getClient();
-  const response = await client.messages.create({
+  const requestParams: any = {
     model,
     max_tokens: maxTokens,
     system: systemPrompt,
@@ -410,7 +443,11 @@ export async function callClaudeWithPDF(systemPrompt: string, userPrompt: string
         { type: 'text', text: userPrompt },
       ],
     }],
-  });
+  };
+  if (temperature !== undefined) {
+    requestParams.temperature = temperature;
+  }
+  const response = await client.messages.create(requestParams);
   const textBlock = response.content.find(c => c.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {
     throw new Error('Réponse Claude vide ou invalide');

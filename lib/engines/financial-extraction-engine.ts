@@ -114,7 +114,8 @@ Pour chaque donnée extraite, source = "deck". Si une donnée typique du BP (pro
 
 Retourne uniquement le JSON.`;
 
-    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 8000, MODEL);
+    // temperature=0 : lecture chiffree d un tableau P&L, aucun jugement.
+    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 8000, MODEL, 0);
     const result = parseJSON<FinancialDataExtraction>(rawResponse);
     // Garantir que tous les champs requis existent (Claude peut omettre un champ)
     result.hasBP = false;

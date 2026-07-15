@@ -265,12 +265,16 @@ export async function runPreScan(
   // Haiku 4.5 : 5x moins cher que Sonnet, suffisamment intelligent pour
   // un triage de surface. max_tokens 2500 pour avoir la marge avec les
   // 4 tests these en plus si profil fourni.
+  // temperature=0 : triage deterministe sur six tests eliminatoires.
+  // Un dossier borderline doit tomber toujours du meme cote entre deux
+  // runs, sinon l economie du gating knockout devient stochastique.
   const rawResponse = await callClaudeWithPDF(
     systemPrompt,
     userPrompt,
     pitchDeckBase64,
     fundProfile ? 2500 : 2000,
     FAST_MODEL,
+    0,
   );
 
   const parsed = parseJSON<{

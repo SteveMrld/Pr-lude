@@ -256,7 +256,8 @@ ${bpContent.slice(0, 8000)}
 Cherche les métriques industrielles selon le format JSON spécifié : cycle commercial, taille moyenne contrat, carnet de commandes, taux de gain appels d'offres, capacité industrielle annuelle, capex moyen par projet, working capital, marge brute par unité. Si une métrique n'est pas trouvée, retourne null + absent. Tu ne devines pas, tu n'inventes pas. Pas de donnée = null.`;
 
   try {
-    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL);
+    // temperature=0 : metriques industrielles chiffrees, lecture factuelle.
+    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL, 0);
     const parsed = parseJSON<IndustrialMetricsExtraction>(rawResponse);
 
     const result: IndustrialMetricsExtraction = {

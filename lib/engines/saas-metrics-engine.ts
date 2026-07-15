@@ -399,7 +399,8 @@ ${bpContent.slice(0, 8000)}
 Cherche les métriques NDR / NRR / cohortes, Magic Number / Sales Efficiency, et les unit economics (CAC, sa base, CVR, ACV, marge brute) selon le format JSON spécifié. Sur les unit economics, sois rigoureux : si le pitch parle de leads sans donner clairement un coût par customer signé, c'est presque toujours un CAC apparent (per-lead déguisé). Si tu ne trouves rien, retourne le JSON avec valeurs nulles et une note brève. Tu ne devines rien : pas de donnée = null.`;
 
   try {
-    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL);
+    // temperature=0 : extraction NDR / Magic Number, chiffres cites dans le deck.
+    const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 2500, MODEL, 0);
     const parsed = parseJSON<SaasMetricsExtraction>(rawResponse);
 
     // Garde-fous : valider la structure et combler les champs manquants.
