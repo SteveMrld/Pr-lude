@@ -8,6 +8,7 @@
 import {
   deriveDossierReferenceYear,
   deriveDossierReferenceYearWithReason,
+  normalizeYear,
 } from './reference-year';
 
 let pass = 0, fail = 0;
@@ -274,6 +275,136 @@ console.log('\n[Suite 6] Exposition du motif de rejet');
     financialData: { lastActualYear: 2024, lastActualYearEvidence: 'clos 2024', revenueProjection: [{ year: '2024', value: 1 }] },
   });
   check(r.year === 2024 && r.rejectionReason === null, 'valeur acceptee : year rempli, rejectionReason null');
+}
+
+// ============================================================
+// SUITE 7 - Verrouillage de type sur la garde d appartenance
+// ------------------------------------------------------------
+// La garde compare lastActualYear (number) aux year des projections
+// (chaine ou number selon la source). Normalisation explicite via
+// normalizeYear() sur les deux cotes. Tests defensifs contre la
+// classe des defauts par comparaison silencieuse.
+// ============================================================
+
+console.log('\n[Suite 7] Normalisation explicite string vs number');
+
+{
+  // Fonction pure : couvre toutes les branches
+  check(normalizeYear(2024) === 2024, 'number 2024 => 2024');
+  check(normalizeYear('2024') === 2024, 'string "2024" => 2024');
+  check(normalizeYear('FY2024') === 2024, 'string "FY2024" => 2024 (fiscal year)');
+  check(normalizeYear('2024A') === 2024, 'string "2024A" (qualifier) => 2024');
+  check(normalizeYear('  2024  ') === 2024, 'string paddee => 2024');
+  check(normalizeYear('N/A') === null, 'string "N/A" non parsable => null');
+  check(normalizeYear('') === null, 'string vide => null');
+  check(normalizeYear(null) === null, 'null => null');
+  check(normalizeYear(undefined) === null, 'undefined => null');
+  check(normalizeYear({}) === null, 'objet => null');
+  check(normalizeYear(NaN) === null, 'NaN => null');
+  check(normalizeYear(1999) === null, '1999 hors plage => null');
+  check(normalizeYear(2101) === null, '2101 hors plage => null');
+  check(normalizeYear(2024.7) === 2024, 'number decimal => tronque a 2024');
+}
+
+{
+  // Projections en STRING, lastActualYear en NUMBER : comparaison
+  // doit fonctionner (cas reel corpus, year vient de la base sous
+  // forme de string, lastActualYear ecrit par le LLM en number).
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'clos 2024',
+      revenueProjection: [
+        { year: '2022', value: 1 },
+        { year: '2024', value: 2 },
+        { year: '2026', value: 3 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(rj);
+  check(y === 2024, 'year string + lastActualYear number : garde d appartenance normalise et accepte');
+}
+
+{
+  // Projections en NUMBER, lastActualYear en NUMBER : idem
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'clos 2024',
+      revenueProjection: [
+        { year: 2022, value: 1 },
+        { year: 2024, value: 2 },
+        { year: 2026, value: 3 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(rj);
+  check(y === 2024, 'year number + lastActualYear number : accepte');
+}
+
+{
+  // Projections mixtes STRING + NUMBER : les deux doivent etre reconnus
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'clos 2024',
+      revenueProjection: [
+        { year: '2022', value: 1 },
+        { year: 2024, value: 2 },
+        { year: '2026', value: 3 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(rj);
+  check(y === 2024, 'projection mixte string + number : appartenance detectee sur les deux formats');
+}
+
+{
+  // Projections avec entrees non parsables : ignorees plutot que
+  // faire echouer l appartenance en silence. lastActualYear 2024 doit
+  // etre accepte si au moins une year parsable = 2024 est presente.
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'clos 2024',
+      revenueProjection: [
+        { year: 'N/A', value: 0 },
+        { year: null, value: 0 },
+        { year: '2024', value: 2 },
+        { year: 'invalide', value: 0 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(rj);
+  check(y === 2024, 'year non parsable ignore, appartenance mesuree sur les year valides restantes');
+}
+
+{
+  // lastActualYear en STRING : accepte via normalizeYear (defense
+  // contre un LLM qui produirait accidentellement une string)
+  const rj = {
+    financialData: {
+      lastActualYear: '2024' as any,
+      lastActualYearEvidence: 'clos 2024',
+      revenueProjection: [{ year: '2024', value: 2 }],
+    },
+  };
+  const y = deriveDossierReferenceYear(rj);
+  check(y === 2024, 'lastActualYear en string "2024" : normalise et accepte');
+}
+
+{
+  // lastActualYear en type invalide : rejete
+  const rj = {
+    financialData: {
+      lastActualYear: 'invalide' as any,
+      lastActualYearEvidence: 'evidence',
+      revenueProjection: [{ year: '2024', value: 2 }],
+    },
+  };
+  const r = deriveDossierReferenceYearWithReason(rj);
+  check(r.year === null, 'lastActualYear "invalide" : rejete');
+  check(r.rejectionReason === 'last-actual-year-absent', 'motif last-actual-year-absent (non parsable)');
 }
 
 {

@@ -46,14 +46,43 @@ export interface ReferenceYearResult {
 }
 
 /**
+ * Normalise une annee brute en nombre entier borne [2000, 2100],
+ * ou null si non parsable. Contrat strict et explicit : accepte
+ * number ou string, rejette tout autre type. Sur string, exige
+ * un motif YYYY (quatre chiffres 20\d\d), tolere un prefixe court
+ * type "FY" ou un suffixe qualifier "A"/"B"/"E"/"F". Sur number,
+ * exige Number.isFinite et l entier tronque.
+ *
+ * Objectif : rendre visible la conversion pour eviter la classe de
+ * defauts par comparaison silencieuse (string vs number qui rend
+ * false partout sans qu aucun test ne le voie).
+ */
+export function normalizeYear(raw: unknown): number | null {
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) return null;
+    const y = Math.trunc(raw);
+    return y >= 2000 && y <= 2100 ? y : null;
+  }
+  if (typeof raw === 'string') {
+    const m = raw.trim().match(/(20\d{2})/);
+    if (!m) return null;
+    const y = parseInt(m[1], 10);
+    return Number.isFinite(y) && y >= 2000 && y <= 2100 ? y : null;
+  }
+  return null;
+}
+
+/**
  * Extrait les annees valides d une projection. Ignore les entrees
  * mal formees, retourne un tableau trie ou un tableau vide.
  */
 function projectionYears(projection: any): number[] {
   if (!Array.isArray(projection)) return [];
-  const years = projection
-    .map((p: any) => parseInt(String(p?.year), 10))
-    .filter((y: number) => Number.isFinite(y) && y >= 2000 && y <= 2100);
+  const years: number[] = [];
+  for (const p of projection) {
+    const y = normalizeYear(p?.year);
+    if (y !== null) years.push(y);
+  }
   years.sort((a, b) => a - b);
   return years;
 }
@@ -73,12 +102,22 @@ export function deriveDossierReferenceYearWithReason(dossier: any): ReferenceYea
   if (!fd || typeof fd !== 'object') {
     return { year: null, rejectionReason: 'no-financial-data', rejectionDetail: 'financialData absent du dossier, aucune source d annee de reference.' };
   }
-  const y = fd.lastActualYear;
-  if (typeof y !== 'number' || !Number.isFinite(y)) {
+  // lastActualYear passe par la meme normalisation que les year des
+  // projections. Contrat de type explicite sur les deux cotes de la
+  // comparaison plus bas : impossible qu une divergence string/number
+  // ne se voie qu au runtime sans etre attrapee par les tests.
+  const rawY = fd.lastActualYear;
+  if (rawY === undefined || rawY === null) {
     return { year: null, rejectionReason: 'last-actual-year-absent', rejectionDetail: 'financialData.lastActualYear non renseigne par le moteur d extraction.' };
   }
-  if (y < 2000 || y > 2100) {
-    return { year: null, rejectionReason: 'last-actual-year-out-of-bounds', rejectionDetail: `lastActualYear=${y} hors plage plausible [2000, 2100].` };
+  const y = normalizeYear(rawY);
+  if (y === null) {
+    // Non parsable ou hors plage : distingue le cas via typeof pour
+    // le motif editorial.
+    if (typeof rawY === 'number' && Number.isFinite(rawY) && (rawY < 2000 || rawY > 2100)) {
+      return { year: null, rejectionReason: 'last-actual-year-out-of-bounds', rejectionDetail: `lastActualYear=${rawY} hors plage plausible [2000, 2100].` };
+    }
+    return { year: null, rejectionReason: 'last-actual-year-absent', rejectionDetail: `lastActualYear=${JSON.stringify(rawY)} non parsable comme annee YYYY.` };
   }
   const ev = fd.lastActualYearEvidence;
   if (ev === undefined || ev === null) {
