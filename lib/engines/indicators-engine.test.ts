@@ -267,6 +267,97 @@ console.log('\n[Suite 6] Atteignabilite des trois etats');
 }
 
 // ============================================================
+// SUITE 7 - Suppression du fallback unitEconomics (brique 20)
+// ------------------------------------------------------------
+// La marge brute d entreprise ne se devine pas depuis une marge
+// incrementale par unite. Si grossMarginProjection est absente,
+// non-applicable avec motif explicite, jamais un chiffre issu
+// d une autre grandeur.
+// ============================================================
+
+console.log('\n[Suite 7] Marge brute sans grossMarginProjection : non-applicable, jamais unitEconomics');
+
+{
+  // Projection vide + unitEconomics.grossMarginPerUnit renseigne comme TOLSON
+  const fd = {
+    revenueProjection: [{ year: '2024', value: 1.6, source: 'bp' }],
+    grossMarginProjection: [],
+    ebitdaProjection: [], fcfProjection: [], opexProjection: [],
+    headcount: [{ year: '2024', value: 14, source: 'bp' }],
+    smSpend: [], rdSpend: [],
+    extractionConfidence: 'high', rawNotes: '',
+    unitEconomics: {
+      grossMarginPerUnit: '~95% de marge incrementale par nouveau client',
+      estimatedCAC: '', estimatedLTV: '', estimatedLtvCacRatio: '', averageContractValue: '',
+    },
+    currentRound: {},
+  } as any;
+  const out = computeIndicators({
+    extraction: makeExtraction(),
+    financial: null,
+    financialData: fd,
+    referenceYear: 2024,
+  } as any);
+  const gm = out.indicators.find((i: any) => i.key === 'grossMargin');
+  check(gm?.verdict === 'non-applicable', 'grossMarginProjection vide : non-applicable (branche 3 supprimee)');
+  check(gm?.value === null, '  value null malgre grossMarginPerUnit renseigne');
+  check(!!gm?.rationale?.includes('Projection de marge brute absente'), '  rationale mentionne projection absente');
+  check(!gm?.rationale?.includes('marge incrementale'), '  rationale ne cite pas la marge incrementale unitaire');
+}
+
+{
+  // Verification que le rationale n affirme jamais une moyenne
+  // quand aucune projection n existe. Projection vide + unitEco vide.
+  const fd = {
+    revenueProjection: [{ year: '2024', value: 1.6, source: 'bp' }],
+    grossMarginProjection: [],
+    ebitdaProjection: [], fcfProjection: [], opexProjection: [],
+    headcount: [], smSpend: [], rdSpend: [],
+    extractionConfidence: 'high', rawNotes: '',
+    unitEconomics: {},
+    currentRound: {},
+  } as any;
+  const out = computeIndicators({
+    extraction: makeExtraction(),
+    financial: null,
+    financialData: fd,
+    referenceYear: 2024,
+  } as any);
+  const gm = out.indicators.find((i: any) => i.key === 'grossMargin');
+  check(gm?.value === null, 'projection vide + unitEco vide : value null');
+  check(!gm?.rationale?.includes('moyenne'), '  rationale ne dit pas "moyenne" quand aucune projection');
+}
+
+{
+  // La branche 2 reste vivante sur projection avec years non parseables.
+  // Cas de bord Smart&co du corpus. On verifie que le rationale
+  // decrit honnetement la moyenne dans ce cas.
+  const fd = {
+    revenueProjection: [{ year: '2024', value: 1.0, source: 'bp' }],
+    grossMarginProjection: [
+      { year: 'NaN', value: 44.3, source: 'bp' } as any,
+      { year: 'NaN', value: 45.6, source: 'bp' } as any,
+      { year: 'invalide', value: 46.1, source: 'bp' } as any,
+    ],
+    ebitdaProjection: [], fcfProjection: [], opexProjection: [],
+    headcount: [], smSpend: [], rdSpend: [],
+    extractionConfidence: 'high', rawNotes: '',
+    unitEconomics: {},
+    currentRound: {},
+  } as any;
+  const out = computeIndicators({
+    extraction: makeExtraction(),
+    financial: null,
+    financialData: fd,
+    referenceYear: 2024,
+  } as any);
+  const gm = out.indicators.find((i: any) => i.key === 'grossMargin');
+  check(gm?.value !== null && Math.abs(gm.value - 45.3) < 0.5, `moyenne branche 2 sur years non parseables : obtenu ${gm?.value}`);
+  check(!!gm?.rationale?.includes('moyenne des projections disponibles'), '  rationale dit honnetement moyenne des projections disponibles');
+  check(gm?.computedForYear === null, '  computedForYear null (moyenne, pas d annee ponctuelle)');
+}
+
+// ============================================================
 // SUITE 5 - Aucune lecture d horloge dans le source
 // ============================================================
 

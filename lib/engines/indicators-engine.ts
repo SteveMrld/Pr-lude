@@ -767,7 +767,11 @@ function computeGrossMargin(
     value = pickProjectionValueAtYear(fd.grossMarginProjection, targetYear, 1);
   }
   if (value == null) {
-    // Fallback : moyenne des projections disponibles.
+    // Branche 2 : moyenne des valeurs de grossMarginProjection dont
+    // la year est non parseable (cas de bord observe sur le corpus).
+    // Post brique 17, resolveYearForIndicator gere la selection quand
+    // les years sont valides, donc cette branche ne se declenche que
+    // sur des projections structurellement corrompues.
     const values = (fd.grossMarginProjection || []).map((p) => p.value).filter((v) => !isNaN(v));
     if (values.length > 0) {
       value = values.reduce((a, b) => a + b, 0) / values.length;
@@ -775,20 +779,19 @@ function computeGrossMargin(
       baseState = 'unknown';
     }
   }
-  if (value == null) {
-    // Fallback supplementaire : unitEconomics.grossMarginPerUnit
-    value = parsePercent(fd.unitEconomics?.grossMarginPerUnit);
-    targetYear = null;
-    baseState = 'unknown';
-  }
+  // Brique 20. La branche unitEconomics.grossMarginPerUnit est
+  // supprimee. Une marge incrementale par unite est une contribution
+  // margin marginale sur un client N+1, elle ne se compare pas au
+  // benchmark de marge brute globale (revenue moins COGS complet).
+  // La marge brute d entreprise ne se devine pas depuis un chiffre
+  // marginal du deck. Si les branches 1 et 2 echouent, non applicable
+  // avec motif explicite.
 
   if (value == null) {
     return {
       key: 'grossMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      rationale: refYear === null
-        ? 'Annee de reference du dossier non derivable, marge brute non calculable sans base temporelle validee.'
-        : 'Marge brute non communiquee dans le BP. Donnee critique pour evaluer la viabilite unitaire : a demander en DD.',
+      rationale: 'Projection de marge brute absente du dossier (grossMarginProjection vide ou entrees non parseables). Donnee critique pour evaluer la viabilite unitaire : a demander en DD un BP portant une serie annuelle de marge brute chiffree.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: null,
