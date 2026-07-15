@@ -102,7 +102,7 @@ console.log('\n[Suite 1] Stabilite temporelle : deux horloges systeme, sortie id
   const out2027 = withMockedDate('2027-06-30T18:00:00Z', () => computeIndicators(input));
 
   // Egalite stricte des sorties. On stringifie pour comparer tous
-  // les champs y compris les nouveaux computedForYear et isForwardBase.
+  // les champs y compris les nouveaux computedForYear et baseState.
   const s2020 = JSON.stringify(out2020);
   const s2027 = JSON.stringify(out2027);
   check(s2020 === s2027, 'sortie strictement identique entre horloge 2020 et horloge 2027');
@@ -110,9 +110,10 @@ console.log('\n[Suite 1] Stabilite temporelle : deux horloges systeme, sortie id
   // Verification que le moteur calcule bien sur refYear=2024, pas 2020 ni 2027
   const rule40 = out2020.indicators.find((i: any) => i.key === 'ruleOf40');
   check(rule40?.computedForYear === 2024, `Rule of 40 calcule sur 2024 (obtenu computedForYear=${rule40?.computedForYear})`);
-  check(rule40?.isForwardBase === false, 'Rule of 40 isForwardBase=false (2024 est dans la projection, actual)');
+  check(rule40?.baseState === 'actual', 'Rule of 40 baseState=actual (2024 est dans la projection, <= refYear)');
   const rpe = out2020.indicators.find((i: any) => i.key === 'revenuePerEmployee');
   check(rpe?.computedForYear === 2024, `Revenue par employe calcule sur 2024 (obtenu ${rpe?.computedForYear})`);
+  check(rpe?.baseState === 'actual', 'Revenue par employe baseState=actual');
 }
 
 // ============================================================
@@ -122,16 +123,18 @@ console.log('\n[Suite 1] Stabilite temporelle : deux horloges systeme, sortie id
 console.log('\n[Suite 2] resolveYearForIndicator');
 
 {
-  // Projection sans basis qualifie : aucune annee actual disponible
+  // Projection sans basis qualifie
   const projNoBasis = [{ year: '2022', value: 1 }, { year: '2024', value: 2 }, { year: '2026', value: 3 }];
   check(resolveYearForIndicator(projNoBasis, 2024)?.year === 2024, 'refYear present dans projection : retenu');
-  check(resolveYearForIndicator(projNoBasis, 2024)?.isForward === false, '  isForward=false');
-  // refYear absent, aucun basis actual => min projection avec isForward=true
-  check(resolveYearForIndicator(projNoBasis, 2023)?.year === 2022, 'refYear absent, aucun actual : min projection = 2022');
-  check(resolveYearForIndicator(projNoBasis, 2023)?.isForward === true, '  isForward=true (aucun actual, projete)');
-  // Doctrine brique 13 : refYear null + projection non vide => forward
-  const forwardNoRef = resolveYearForIndicator(projNoBasis, null);
-  check(forwardNoRef?.year === 2022 && forwardNoRef?.isForward === true, 'refYear null + projection : premiere annee, isForward=true');
+  check(resolveYearForIndicator(projNoBasis, 2024)?.baseState === 'actual', '  baseState=actual (annee == refYear)');
+  // refYear=2023 absent, aucun actual : le fallback prend le premier > refYear (2024) => forward
+  const gap = resolveYearForIndicator(projNoBasis, 2023);
+  check(gap?.year === 2024, 'refYear=2023 absent, aucun actual : premier > refYear = 2024');
+  check(gap?.baseState === 'forward', '  baseState=forward (annee > refYear)');
+  // Doctrine brique 17 : refYear null => derniere annee, baseState=unknown, jamais forward
+  const nul = resolveYearForIndicator(projNoBasis, null);
+  check(nul?.year === 2026, 'refYear null + projection : derniere annee = 2026 (pas la premiere)');
+  check(nul?.baseState === 'unknown', '  baseState=unknown (jamais forward sans refYear)');
   check(resolveYearForIndicator([], 2024) === null, 'projection vide : null');
   check(resolveYearForIndicator(undefined, 2024) === null, 'projection undefined : null');
 }
@@ -144,25 +147,27 @@ console.log('\n[Suite 2] resolveYearForIndicator');
     { year: '2024', value: 2, basis: 'budget' as const },
     { year: '2025', value: 2.5, basis: 'projected' as const },
   ];
-  // refYear=2025 present : retenu directement
-  check(resolveYearForIndicator(projWithBasis, 2025)?.year === 2025, 'refYear=2025 present : retenu');
-  // refYear=2030 absent : plus grande annee actual = 2023
-  check(resolveYearForIndicator(projWithBasis, 2030)?.year === 2023, 'refYear absent : plus grande annee actual (2023) retenue');
-  check(resolveYearForIndicator(projWithBasis, 2030)?.isForward === false, '  isForward=false (actual retrouve)');
-  // refYear=2020 absent, actual disponible : max actual meme si posterieur a refYear
-  check(resolveYearForIndicator(projWithBasis, 2020)?.year === 2023, 'refYear=2020 absent : max actual (2023) meme si posterieur a refYear');
+  // refYear=2025 present : retenu directement, baseState=actual (2025 == refYear)
+  const r1 = resolveYearForIndicator(projWithBasis, 2025);
+  check(r1?.year === 2025 && r1?.baseState === 'actual', 'refYear=2025 present : baseState=actual');
+  // refYear=2030 absent : max actual = 2023, 2023 < 2030 => actual
+  const r2 = resolveYearForIndicator(projWithBasis, 2030);
+  check(r2?.year === 2023 && r2?.baseState === 'actual', 'refYear absent, max actual = 2023, <= 2030 : baseState=actual');
+  // refYear=2020 absent : max actual = 2023, 2023 > 2020 => forward
+  const r3 = resolveYearForIndicator(projWithBasis, 2020);
+  check(r3?.year === 2023 && r3?.baseState === 'forward', 'refYear=2020, max actual = 2023 > 2020 : baseState=forward');
 }
 
 // ============================================================
-// SUITE 3 - referenceYear=null doctrine forward (brique 13)
+// SUITE 3 - referenceYear=null : baseState unknown, jamais forward
 // ------------------------------------------------------------
-// Un dossier sans lastActualYear derivable n est plus condamne
-// au silence : les indicateurs se calculent sur la premiere annee
-// projetee avec isForwardBase=true. Le silence est reserve au
-// cas ou aucune projection n existe.
+// Doctrine brique 17. Quand le dossier ne qualifie pas d exercice
+// actual, on calcule sur la derniere annee documentee mais on
+// refuse d affirmer si c est realise ou projete. unknown est la
+// seule reponse honnete, forward serait une invention.
 // ============================================================
 
-console.log('\n[Suite 3] referenceYear=null : indicateurs forward etiquetes, plus de silence');
+console.log('\n[Suite 3] referenceYear=null : baseState=unknown, jamais forward');
 
 {
   const out = computeIndicators({
@@ -171,13 +176,16 @@ console.log('\n[Suite 3] referenceYear=null : indicateurs forward etiquetes, plu
     financialData: makeFinancialData(),
     referenceYear: null,
   } as any);
-  // Les indicateurs qui touchent le BP sortent forward, computedForYear non null
   const rule40 = out.indicators.find((i: any) => i.key === 'ruleOf40');
-  check(rule40?.computedForYear !== null && rule40?.computedForYear !== undefined, 'ruleOf40 : computedForYear renseigne (calcul forward)');
-  check(rule40?.isForwardBase === true, 'ruleOf40 : isForwardBase=true');
+  check(rule40?.computedForYear !== null && rule40?.computedForYear !== undefined, 'ruleOf40 : computedForYear renseigne');
+  check(rule40?.baseState === 'unknown', 'ruleOf40 : baseState=unknown (refYear absent)');
+  check(rule40?.baseState !== 'forward', 'ruleOf40 : baseState jamais forward sur refYear null');
   const rpe = out.indicators.find((i: any) => i.key === 'revenuePerEmployee');
   check(rpe?.computedForYear !== null && rpe?.computedForYear !== undefined, 'revenuePerEmployee : computedForYear renseigne');
-  check(rpe?.isForwardBase === true, 'revenuePerEmployee : isForwardBase=true');
+  check(rpe?.baseState === 'unknown', 'revenuePerEmployee : baseState=unknown');
+  check(rpe?.baseState !== 'forward', 'revenuePerEmployee : jamais forward sur refYear null');
+  // Rationale prose reflete unknown, doctrine brique 4 : declarer l absence
+  check(rule40?.rationale?.includes('non qualifiee') || rule40?.rationale?.includes('inconnu'), 'ruleOf40 rationale mentionne la base non qualifiee');
 }
 
 {
@@ -209,7 +217,7 @@ console.log('\n[Suite 4] Marqueur forward dans la donnee');
     ],
     grossMarginProjection: [], ebitdaProjection: [],
     fcfProjection: [{ year: '2026', value: 0.5, source: 'bp' }],
-    headcount: [{ year: '2026', value: 18, source: 'bp' }],
+    headcount: [{ year: '2025', value: 16, source: 'bp' }, { year: '2026', value: 18, source: 'bp' }],
     smSpend: [], rdSpend: [], opexProjection: [],
     extractionConfidence: 'high', rawNotes: '',
     unitEconomics: {} as any, currentRound: {} as any,
@@ -223,7 +231,39 @@ console.log('\n[Suite 4] Marqueur forward dans la donnee');
   } as any);
   const rpe = out.indicators.find((i: any) => i.key === 'revenuePerEmployee');
   check(rpe?.computedForYear === 2025 || rpe?.computedForYear === 2026, `Revenue par employe base > refYear (obtenu ${rpe?.computedForYear})`);
-  check(rpe?.isForwardBase === true, 'isForwardBase=true (seul du projete disponible)');
+  check(rpe?.baseState === 'forward', 'baseState=forward (seul du projete disponible, annee > refYear)');
+  check(rpe?.rationale?.includes('projetee'), 'rationale mentionne base projetee');
+}
+
+// ============================================================
+// SUITE 6 - Les trois etats de baseState sont atteignables
+// ============================================================
+
+console.log('\n[Suite 6] Atteignabilite des trois etats');
+
+{
+  // Etat actual : refYear connu, annee dans projection
+  const actual = resolveYearForIndicator(
+    [{ year: '2024', value: 1 }, { year: '2025', value: 2 }],
+    2024,
+  );
+  check(actual?.baseState === 'actual', 'etat actual atteignable');
+}
+{
+  // Etat forward : refYear connu, annee retenue > refYear
+  const forward = resolveYearForIndicator(
+    [{ year: '2025', value: 1 }, { year: '2026', value: 2 }],
+    2024,
+  );
+  check(forward?.baseState === 'forward', 'etat forward atteignable');
+}
+{
+  // Etat unknown : refYear null
+  const unk = resolveYearForIndicator(
+    [{ year: '2021', value: 1 }, { year: '2025', value: 2 }],
+    null,
+  );
+  check(unk?.baseState === 'unknown', 'etat unknown atteignable');
 }
 
 // ============================================================

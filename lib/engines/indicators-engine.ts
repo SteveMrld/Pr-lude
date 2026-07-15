@@ -81,11 +81,20 @@ export interface IndicatorResult {
    *  disponibles dans la projection. null si l indicateur n a pas
    *  ete calculable (non-applicable, absent). */
   computedForYear?: number | null;
-  /** True si l annee retenue est strictement posterieure a l annee de
-   *  reference du dossier (calcul base sur du projete faute d actual
-   *  disponible). Signal a exposer dans la note pour ne pas presenter
-   *  un chiffre forward comme un etat de sante realise. */
-  isForwardBase?: boolean;
+  /** Etat editorial de la base de calcul, tres important pour ne
+   *  pas presenter un chiffre projete comme un realise :
+   *   - 'actual'  : refYear connu, annee calculee <= refYear.
+   *   - 'forward' : refYear connu, annee calculee posterieure a
+   *                 refYear (calcul base sur du projete faute
+   *                 d actual utilisable).
+   *   - 'unknown' : refYear null, le dossier ne qualifie aucun
+   *                 exercice. On calcule sur la derniere annee
+   *                 disponible mais on refuse de pretendre savoir
+   *                 si c est realise ou projete. Un booleen ne sait
+   *                 pas s abstenir, un tri-etat oui.
+   *  undefined seulement sur les indicateurs qui ne dependent pas
+   *  d une base temporelle (NDR, Magic Number, Payback CAC). */
+  baseState?: 'actual' | 'forward' | 'unknown';
 }
 
 /**
@@ -140,20 +149,29 @@ function pickProjectionValueAtYear(
  * reference du dossier (lastActualYear) et des projections
  * disponibles avec leur basis qualifie par le document.
  *
- * Regle deterministe brique 11 :
- *   1. Si refYear est dans la projection : retenue, isForward=false.
- *   2. Sinon, plus grande annee de basis === 'actual' dans la
- *      projection : retenue, isForward=false.
- *   3. Sinon, si aucune annee actual n existe et que du projete est
- *      disponible : plus petite annee de la projection, isForward=true.
- *   4. Sinon, null : le moteur ne devine pas.
+ * Retourne un tri-etat baseState : actual, forward, ou unknown.
+ * Un booleen ne sait pas s abstenir, un tri-etat oui.
+ *
+ * Regle deterministe brique 17 :
+ *   1. Projection vide : null (silence structurel).
+ *   2. refYear null : derniere annee de projection retenue, marquee
+ *      unknown. On ne pretend pas savoir si c est realise ou projete
+ *      quand le document ne l a pas qualifie.
+ *   3. refYear present dans la projection : retenue, baseState='actual'
+ *      (annee == refYear, donc <= refYear).
+ *   4. refYear absent : preference max des annees basis='actual' si
+ *      disponible, sinon min des annees posterieures a refYear, sinon
+ *      max de la projection. Le baseState est derive de la comparaison
+ *      annee_choisie vs refYear : <= refYear => actual, > refYear =>
+ *      forward.
  *
  * Aucune lecture d horloge, aucune inference basee sur la valeur
  * numerique de l annee elle-meme.
  */
+export type BaseState = 'actual' | 'forward' | 'unknown';
 export interface YearResolution {
   year: number;
-  isForward: boolean;
+  baseState: BaseState;
 }
 export function resolveYearForIndicator(
   projection: Array<{ year: string | number; value: number; basis?: 'actual' | 'budget' | 'projected' | null }> | undefined,
@@ -166,20 +184,29 @@ export function resolveYearForIndicator(
     .sort((a, b) => a.y - b.y);
   if (entries.length === 0) return null;
 
-  // Doctrine forward brique 13. Si refYear est null (documente non
-  // qualifie d exercice actual), on ne se tait plus : on prend la
-  // premiere annee projetee disponible et on la marque isForward.
-  // Le silence est reserve au cas ou aucune projection n existe.
+  // refYear null : derniere annee, unknown. Un indicateur d execution
+  // sur la donnee la plus recente que le dossier documente, sans
+  // pretendre savoir s il s agit de realise ou de projete.
   if (refYear === null || !Number.isFinite(refYear)) {
-    return { year: entries[0].y, isForward: true };
+    return { year: entries[entries.length - 1].y, baseState: 'unknown' };
   }
-  // 1. refYear present dans la projection : retenue
-  if (entries.some(e => e.y === refYear)) return { year: refYear, isForward: false };
-  // 2. Plus grande annee actual disponible
-  const actuals = entries.filter(e => e.basis === 'actual');
-  if (actuals.length > 0) return { year: actuals[actuals.length - 1].y, isForward: false };
-  // 3. Aucun actual : plus petite annee de projection, marquee forward
-  return { year: entries[0].y, isForward: true };
+
+  // refYear connu. Selection de l annee, puis derivation du baseState
+  // par comparaison arithmetique <= refYear.
+  let chosen: number;
+  if (entries.some(e => e.y === refYear)) {
+    chosen = refYear;
+  } else {
+    const actuals = entries.filter(e => e.basis === 'actual');
+    if (actuals.length > 0) {
+      chosen = actuals[actuals.length - 1].y;
+    } else {
+      const after = entries.filter(e => e.y > refYear);
+      chosen = after.length > 0 ? after[0].y : entries[entries.length - 1].y;
+    }
+  }
+  const baseState: BaseState = chosen <= refYear ? 'actual' : 'forward';
+  return { year: chosen, baseState };
 }
 
 /**
@@ -257,7 +284,7 @@ function computeBurnMultiple(
         : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
       dataConfidence: 'absent',
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
 
@@ -272,7 +299,7 @@ function computeBurnMultiple(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
   const targetYear = resolved.year;
@@ -304,7 +331,7 @@ function computeBurnMultiple(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: targetYear,
-      isForwardBase: resolved.isForward,
+      baseState: resolved.baseState,
     };
   }
 
@@ -312,11 +339,11 @@ function computeBurnMultiple(
   return {
     key: 'burnMultiple', label, value: roundTo(value, 2), unit: benchmark.unit,
     verdict: classifyValue(value, benchmark),
-    rationale: `Burn ${formatEur(burn)} / Net New ARR ${formatEur(newArr)} = ${roundTo(value, 2)}x.`,
+    rationale: `Burn ${formatEur(burn)} / Net New ARR ${formatEur(newArr)} = ${roundTo(value, 2)}x.${baseStateSuffix(resolved.baseState)}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
     computedForYear: targetYear,
-    isForwardBase: resolved.isForward,
+    baseState: resolved.baseState,
   };
 }
 
@@ -351,7 +378,7 @@ function computeRuleOf40(
         : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
       dataConfidence: 'absent',
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
 
@@ -366,7 +393,7 @@ function computeRuleOf40(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
   const targetYear = resolved.year;
@@ -398,7 +425,7 @@ function computeRuleOf40(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: targetYear,
-      isForwardBase: resolved.isForward,
+      baseState: resolved.baseState,
     };
   }
 
@@ -406,11 +433,11 @@ function computeRuleOf40(
   return {
     key: 'ruleOf40', label, value: roundTo(value, 1), unit: '%',
     verdict: classifyValue(value, benchmark),
-    rationale: `Croissance YoY ${roundTo(growth, 1)}% + Marge ${marginType} ${roundTo(marginPct, 1)}% = ${roundTo(value, 1)}%.`,
+    rationale: `Croissance YoY ${roundTo(growth, 1)}% + Marge ${marginType} ${roundTo(marginPct, 1)}% = ${roundTo(value, 1)}%.${baseStateSuffix(resolved.baseState)}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
     computedForYear: targetYear,
-    isForwardBase: resolved.isForward,
+    baseState: resolved.baseState,
   };
 }
 
@@ -726,16 +753,15 @@ function computeGrossMargin(
         : 'Indicateur non applicable ou donnees BP absentes.',
       dataConfidence: 'absent',
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
 
-  // Doctrine brique 13. resolveYearForIndicator gere seul le cas
-  // refYear null : il retourne la premiere annee projetee avec
-  // isForward=true. On ne se tait plus, on calcule forward.
+  // Doctrine brique 17. resolveYearForIndicator gere le tri-etat.
+  // Sur refYear null, retourne derniere annee avec baseState='unknown'.
   const resolved = resolveYearForIndicator(fd.grossMarginProjection, refYear);
   let targetYear: number | null = resolved?.year ?? null;
-  let isForward = resolved?.isForward ?? false;
+  let baseState: 'actual' | 'forward' | 'unknown' = resolved?.baseState ?? 'unknown';
   let value: number | null = null;
   if (targetYear !== null) {
     value = pickProjectionValueAtYear(fd.grossMarginProjection, targetYear, 1);
@@ -746,14 +772,14 @@ function computeGrossMargin(
     if (values.length > 0) {
       value = values.reduce((a, b) => a + b, 0) / values.length;
       targetYear = null;
-      isForward = false;
+      baseState = 'unknown';
     }
   }
   if (value == null) {
     // Fallback supplementaire : unitEconomics.grossMarginPerUnit
     value = parsePercent(fd.unitEconomics?.grossMarginPerUnit);
     targetYear = null;
-    isForward = false;
+    baseState = 'unknown';
   }
 
   if (value == null) {
@@ -766,7 +792,7 @@ function computeGrossMargin(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
 
@@ -789,12 +815,12 @@ function computeGrossMargin(
     key: 'grossMargin', label, value: roundTo(value, 1), unit: '%',
     verdict: classifyValue(value, benchmark),
     rationale: targetYear !== null
-      ? `Marge brute ${roundTo(value, 1)}% pour l exercice ${targetYear}.${trajectoryNote}`
-      : `Marge brute ${roundTo(value, 1)}% (moyenne des projections disponibles).${trajectoryNote}`,
+      ? `Marge brute ${roundTo(value, 1)}% pour l exercice ${targetYear}.${trajectoryNote}${baseStateSuffix(baseState)}`
+      : `Marge brute ${roundTo(value, 1)}% (moyenne des projections disponibles).${trajectoryNote}${baseStateSuffix(baseState)}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
     computedForYear: targetYear,
-    isForwardBase: isForward,
+    baseState,
   };
 }
 
@@ -817,7 +843,7 @@ function computeRevenuePerEmployee(
         : 'Indicateur non applicable ou données BP absentes.',
       dataConfidence: 'absent',
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
 
@@ -832,7 +858,7 @@ function computeRevenuePerEmployee(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
   const targetYear = resolved.year;
@@ -849,7 +875,7 @@ function computeRevenuePerEmployee(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: targetYear,
-      isForwardBase: resolved.isForward,
+      baseState: resolved.baseState,
     };
   }
 
@@ -857,11 +883,11 @@ function computeRevenuePerEmployee(
   return {
     key: 'revenuePerEmployee', label, value: Math.round(value), unit: 'EUR/FTE',
     verdict: classifyValue(value, benchmark),
-    rationale: `Revenue ${formatEur(revenue)} / ${headcount} ETP = ${formatEur(value)} par employé (exercice ${targetYear}).`,
+    rationale: `Revenue ${formatEur(revenue)} / ${headcount} ETP = ${formatEur(value)} par employé (exercice ${targetYear}).${baseStateSuffix(resolved.baseState)}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
     computedForYear: targetYear,
-    isForwardBase: resolved.isForward,
+    baseState: resolved.baseState,
   };
 }
 
@@ -1006,7 +1032,7 @@ function computeOrderBacklog(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
 
@@ -1022,7 +1048,7 @@ function computeOrderBacklog(
       dataConfidence: 'medium',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: resolved?.year ?? null,
-      isForwardBase: resolved?.isForward ?? false,
+      baseState: resolved?.baseState ?? 'unknown',
     };
   }
 
@@ -1030,11 +1056,11 @@ function computeOrderBacklog(
   return {
     key: 'orderBacklog', label, value: roundTo(multiple, 2), unit: 'x',
     verdict: classifyValue(multiple, benchmark),
-    rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} / revenue ${formatEur(revenue)} = ${roundTo(multiple, 2)}x annualise sur exercice ${resolved!.year} (provenance ${im.orderBacklogProvenance}).`,
+    rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} / revenue ${formatEur(revenue)} = ${roundTo(multiple, 2)}x annualise sur exercice ${resolved!.year} (provenance ${im.orderBacklogProvenance}).${baseStateSuffix(resolved!.baseState)}`,
     dataConfidence: im.orderBacklogProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
     computedForYear: resolved!.year,
-    isForwardBase: resolved!.isForward,
+    baseState: resolved!.baseState,
   };
 }
 
@@ -1057,7 +1083,7 @@ function computeWorkingCapitalRatio(
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: null,
-      isForwardBase: false,
+      baseState: 'unknown',
     };
   }
 
@@ -1073,7 +1099,7 @@ function computeWorkingCapitalRatio(
       dataConfidence: 'medium',
       benchmark: thresholdsToBenchmark(benchmark),
       computedForYear: resolved?.year ?? null,
-      isForwardBase: resolved?.isForward ?? false,
+      baseState: resolved?.baseState ?? 'unknown',
     };
   }
 
@@ -1081,11 +1107,11 @@ function computeWorkingCapitalRatio(
   return {
     key: 'workingCapitalRatio', label, value: roundTo(ratio, 2), unit: 'ratio',
     verdict: classifyValue(ratio, benchmark),
-    rationale: `Working capital ${formatEur(im.workingCapitalEur)} / revenue ${formatEur(revenue)} = ${roundTo(ratio, 2)} (exercice ${resolved!.year}).`,
+    rationale: `Working capital ${formatEur(im.workingCapitalEur)} / revenue ${formatEur(revenue)} = ${roundTo(ratio, 2)} (exercice ${resolved!.year}).${baseStateSuffix(resolved!.baseState)}`,
     dataConfidence: im.workingCapitalProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
     computedForYear: resolved!.year,
-    isForwardBase: resolved!.isForward,
+    baseState: resolved!.baseState,
   };
 }
 
@@ -1167,6 +1193,17 @@ function computeTenderWinRate(im?: IndustrialMetricsExtraction | null): Indicato
 // ============================================================
 // HELPERS
 // ============================================================
+
+/**
+ * Suffixe editorial de rationale selon l etat de la base de calcul.
+ * Doctrine brique 4 : la note declare l absence, jamais un silence.
+ * Doctrine brique 17 : le tri-etat rend l ignorance dicible.
+ */
+function baseStateSuffix(bs: 'actual' | 'forward' | 'unknown' | undefined): string {
+  if (!bs || bs === 'actual') return '';
+  if (bs === 'forward') return ' Base projetee, non un realise.';
+  return ' Base non qualifiee par le document, statut d exercice inconnu.';
+}
 
 function thresholdsToBenchmark(t: IndicatorThresholds): IndicatorResult['benchmark'] {
   return {
