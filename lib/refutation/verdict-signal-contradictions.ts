@@ -226,7 +226,7 @@ function collectDurabilitySignals(rj: any, nowYear: number): DurabilitySignal[] 
     if (retention >= THRESHOLDS.minRetentionRatePercent && parsed.periodYears >= THRESHOLDS.minRetentionPeriodYears) {
       out.push({
         kind: 'long-term-retention',
-        observed: `retention ${retention.toFixed(0)}% sur ${parsed.periodYears} ans (churn ${parsed.churnPct}%)`,
+        observed: `rétention ${retention.toFixed(0)}% sur ${parsed.periodYears} ans (churn ${parsed.churnPct}%)`,
         source: cs.source,
       });
       break; // un seul signal retention suffit, evite comptages doublons
@@ -244,7 +244,7 @@ function collectDurabilitySignals(rj: any, nowYear: number): DurabilitySignal[] 
     if (n !== null && n >= THRESHOLDS.minEnterpriseCustomers) {
       out.push({
         kind: 'enterprise-base',
-        observed: `${n} grands comptes documentes`,
+        observed: `${n} grands comptes documentés`,
         source: es.source,
       });
       break;
@@ -258,7 +258,7 @@ function collectDurabilitySignals(rj: any, nowYear: number): DurabilitySignal[] 
     if (age >= THRESHOLDS.minCompanyAgeYears) {
       out.push({
         kind: 'company-age',
-        observed: `fondee en ${yf}, ${age} ans d anciennete`,
+        observed: `fondée en ${yf}, ${age} ans d'ancienneté`,
         source: 'extraction.yearFounded',
       });
     }
@@ -273,7 +273,7 @@ function collectDurabilitySignals(rj: any, nowYear: number): DurabilitySignal[] 
     if (tenure >= THRESHOLDS.minClientTenureYears) {
       out.push({
         kind: 'long-tenure-clients',
-        observed: `clients presents depuis ${y}, ${tenure} ans d adherence`,
+        observed: `clients présents depuis ${y}, ${tenure} ans d'adhérence`,
         source: 'extraction.traction.metrics',
       });
       break;
@@ -311,7 +311,7 @@ export function detectVerdictSignalContradictions(
   const signals = collectDurabilitySignals(resultJson, nowYear);
   if (signals.length < THRESHOLDS.minConcurrentSignals) return [];
 
-  const message = `Verdict de reproductibilite ${verdict.value} (${verdict.source.split('.').pop()}) contredit par ${signals.length} marqueurs de moat non technique : ${signals.map(s => s.kind).join(', ')}. Le produit peut etre techniquement reproduit, mais la duree d installation commerciale et la base de grands comptes constituent une barriere non code.`;
+  const message = `Verdict de reproductibilité ${verdict.value} (${verdict.source.split('.').pop()}) contredit par ${signals.length} marqueurs de moat non technique : ${signals.map(s => s.kind).join(', ')}. Le produit peut être techniquement reproduit, mais la durée d'installation commerciale et la base de grands comptes constituent une barrière non code.`;
 
   return [{
     ruleId: 'ai-replicability-vs-durability-signals',

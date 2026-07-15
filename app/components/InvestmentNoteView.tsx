@@ -759,68 +759,6 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       })()}
 
       {/* ============================================================
-          CARTOUCHE DE REFUTATION
-          ------------------------------------------------------------
-          Points de vigilance internes leves par le refutation layer.
-          Trois familles agregees, contradictions chiffrees, verdict
-          contre signal, label contre calcul. Purement additif :
-          calcule au rendu a partir du result_json existant, aucun
-          score modifie, aucun snapshot reecrit. Silencieux si aucune
-          contradiction n est detectee. Meme grammaire visuelle que
-          les bandeaux gouvernance et trajectoire au dessus, palette
-          ocre neutre pour ne pas concurrencer les alertes graves.
-          ============================================================ */}
-      {(() => {
-        const refutations = aggregateRefutations(r as any, {
-          sourceFilename: (r as any)?.meta?.sourceFilename ?? null,
-          asOf: (r as any)?.meta?.asOf ?? null,
-        });
-        if (refutations.length === 0) return null;
-        const familyLabels: Record<string, string> = {
-          'numeric': 'Chiffres divergents',
-          'verdict-signal': 'Verdict contre signal',
-          'label-calc': 'Libelle contre base de calcul',
-        };
-        return (
-          <section
-            aria-label="Points de vigilance internes"
-            style={{
-              margin: '12px 0 16px',
-              padding: '14px 18px',
-              borderLeft: '3px solid #6b5b3a',
-              background: 'rgba(107, 91, 58, 0.05)',
-              fontFamily: 'var(--serif)',
-            }}
-          >
-            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 8 }}>
-              Points de vigilance internes · {refutations.length} contradiction{refutations.length > 1 ? 's' : ''} detectee{refutations.length > 1 ? 's' : ''}
-            </div>
-            <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, marginBottom: 10, fontStyle: 'italic', opacity: 0.75 }}>
-              Le pipeline signale ici des tensions entre plusieurs elements du dossier, releves automatiquement. Ce ne sont pas des verdicts, ce sont des points a interroger en lecture.
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {refutations.map((rf, i) => (
-                <li key={i} style={{ marginBottom: i < refutations.length - 1 ? 12 : 0, paddingBottom: i < refutations.length - 1 ? 12 : 0, borderBottom: i < refutations.length - 1 ? '1px dashed rgba(107, 91, 58, 0.25)' : 'none' }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 4, opacity: 0.85 }}>
-                    {familyLabels[rf.family] || rf.family}
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 600 }}>Ce qui est affirme :</span> {rf.claim}
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 600 }}>Ce qui le contredit :</span> {rf.contradiction}
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.85 }}>
-                    <span style={{ fontWeight: 600 }}>Nature de la tension :</span> {rf.tension}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })()}
-
-      {/* ============================================================
           PAGE DE COUVERTURE EDITORIALE
           ------------------------------------------------------------
           Equivalent de la page 1 d un memo de fonds VC : tout ce qui
@@ -1454,6 +1392,76 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </div>
         )}
       </NoteSectionWrapper>
+
+      {/* ============================================================
+          CARTOUCHE DE REFUTATION
+          ------------------------------------------------------------
+          Points de vigilance internes leves par le refutation layer.
+          Trois familles agregees, contradictions chiffrees, verdict
+          contre signal, label contre calcul. Purement additif :
+          calcule au rendu a partir du result_json existant, aucun
+          score modifie, aucun snapshot reecrit. Silencieux si aucune
+          contradiction n est detectee.
+
+          Placement : entre la section Projet propose (fin de bloc
+          factuel) et la section Thesis d investissement (debut du
+          bloc argumentatif). Le lecteur voit d abord le verdict et
+          la carte d identite en couverture, prend connaissance des
+          faits (Societe, Projet), puis rencontre les points de
+          vigilance internes juste avant d entrer dans l argumentaire
+          de la these. C est le pivot ou le lecteur bascule du fait
+          vers l analyse, moment ou une posture critique calibree est
+          la plus utile. Le cartouche n a jamais precede le jugement.
+          ============================================================ */}
+      {(() => {
+        const refutations = aggregateRefutations(r as any, {
+          sourceFilename: (r as any)?.meta?.sourceFilename ?? null,
+          asOf: (r as any)?.meta?.asOf ?? null,
+        });
+        if (refutations.length === 0) return null;
+        const familyLabels: Record<string, string> = {
+          'numeric': 'Chiffres divergents',
+          'verdict-signal': 'Verdict contre signal',
+          'label-calc': 'Libellé contre base de calcul',
+        };
+        return (
+          <section
+            aria-label="Points de vigilance internes"
+            style={{
+              margin: '12px 0 16px',
+              padding: '14px 18px',
+              borderLeft: '3px solid #6b5b3a',
+              background: 'rgba(107, 91, 58, 0.05)',
+              fontFamily: 'var(--serif)',
+            }}
+          >
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 8 }}>
+              Points de vigilance internes · {refutations.length} contradiction{refutations.length > 1 ? 's' : ''} détectée{refutations.length > 1 ? 's' : ''}
+            </div>
+            <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, marginBottom: 10, fontStyle: 'italic', opacity: 0.75 }}>
+              Le pipeline signale ici des tensions entre plusieurs éléments du dossier, relevés automatiquement. Ce ne sont pas des verdicts, ce sont des points à interroger en lecture.
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {refutations.map((rf, i) => (
+                <li key={i} style={{ marginBottom: i < refutations.length - 1 ? 12 : 0, paddingBottom: i < refutations.length - 1 ? 12 : 0, borderBottom: i < refutations.length - 1 ? '1px dashed rgba(107, 91, 58, 0.25)' : 'none' }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 4, opacity: 0.85 }}>
+                    {familyLabels[rf.family] || rf.family}
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
+                    <span style={{ fontWeight: 600 }}>Ce qui est affirmé :</span> {rf.claim}
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
+                    <span style={{ fontWeight: 600 }}>Ce qui le contredit :</span> {rf.contradiction}
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.85 }}>
+                    <span style={{ fontWeight: 600 }}>Nature de la tension :</span> {rf.tension}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })()}
 
       {/* Bloc 3 - Due diligence */}
       <section className="note-section" id="section-3">
