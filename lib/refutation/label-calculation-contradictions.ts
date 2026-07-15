@@ -84,15 +84,18 @@ export const FORWARD_QUALIFIER_REGEX =
 
 import { deriveDossierReferenceYear } from '../analysis/reference-year';
 
+// Wrapper de compatibilite. Signature legacy conservee mais tous
+// les fallbacks (asOf, sourceFilename, refYearOverride) sont
+// desormais ignores. L annee de reference vit uniquement dans
+// financialData.lastActualYear avec evidence textuelle. Sur les
+// dossiers du corpus actuel qui n ont pas ce champ, la primitive
+// retourne null : le detecteur perdra ses declenchements sur ces
+// dossiers, ce qui est le comportement correct.
 export function detectDossierRefYear(
   rj: any,
-  meta: { asOf?: string | null; sourceFilename?: string | null; refYearOverride?: number },
+  _meta?: { asOf?: string | null; sourceFilename?: string | null; refYearOverride?: number },
 ): number | null {
-  return deriveDossierReferenceYear(rj, {
-    asOf: meta.asOf,
-    sourceFilename: meta.sourceFilename,
-    refYearOverride: meta.refYearOverride ?? null,
-  });
+  return deriveDossierReferenceYear(rj);
 }
 
 // ============================================================

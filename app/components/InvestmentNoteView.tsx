@@ -522,14 +522,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
     if (r.indicators) return r.indicators;
     if (!r.extraction) return null;
     try {
-      // Annee de reference du dossier via primitive partagee. Le
-      // recalcul cote client tombe sur la meme regle deterministe
-      // que le run serveur, aucune lecture de l horloge du
-      // navigateur.
-      const refYear = deriveDossierReferenceYear(r, {
-        asOf: r.meta?.asOf ?? null,
-        sourceFilename: r.meta?.filename ?? null,
-      });
+      // Annee de reference du dossier via primitive partagee.
+      // Source unique : financialData.lastActualYear qualifie
+      // avec evidence. Recalcul cote client identique au run.
+      const refYear = deriveDossierReferenceYear(r);
       return computeIndicators({
         extraction: r.extraction,
         financial: r.financialCoherence,

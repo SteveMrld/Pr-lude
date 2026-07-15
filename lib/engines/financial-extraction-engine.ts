@@ -9,6 +9,14 @@ Tu n'analyses pas, tu extrais. Si une donnée n'est pas présente, tu la marques
 
 Tu cites systématiquement la SOURCE de chaque donnée extraite : "deck" si elle vient du pitch deck, "bp" si elle vient du business plan, "deck+bp" si présente dans les deux. Cette traçabilité est critique pour le moteur de cohérence en aval.
 
+Tu qualifies aussi la NATURE TEMPORELLE de chaque exercice via un champ "basis" strictement doctrinal :
+- "actual" : exercice clos et RÉALISÉ, chiffres audités ou constatés (souvent noté YYYYA dans le document, ou "réalisé", "constaté", "clos").
+- "budget" : exercice EN COURS budgété, valeur cible fixée en début d'année (souvent noté YYYYB, ou "budget", "atterrissage").
+- "projected" : exercice FUTUR projeté (souvent noté YYYYE / YYYYF / YYYYP, ou "prévision", "estimation", "projection", "cible", "d'ici").
+- null : le document ne qualifie PAS l'exercice, aucune inférence n'est autorisée. Un basis null est un fait, jamais un remplissage.
+
+Règle absolue anti divination : si le document ne dit pas explicitement qu'un exercice est actual, budget ou projected, basis reste null. Ne pas deviner à partir de la date, ni du fait que l'année est passée, ni de la position dans le tableau. Un modèle qui devine est pire qu'un champ vide.
+
 Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu reconstruis les projections en lisant les lignes par catégorie.
 
 # FORMAT JSON OBLIGATOIRE
@@ -17,17 +25,19 @@ Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu r
   "hasBP": true|false,
   "fileSource": "deck"|"bp"|"both"|"none",
   "revenueProjection": [
-    { "year": "2025", "value": 0.5, "source": "bp" },
-    { "year": "2026", "value": 2.1, "source": "bp" }
+    { "year": "2023", "value": 1.5, "source": "bp", "basis": "actual" },
+    { "year": "2024", "value": 1.6, "source": "bp", "basis": "budget" },
+    { "year": "2025", "value": 2.1, "source": "bp", "basis": "projected" },
+    { "year": "2026", "value": 2.8, "source": "bp", "basis": null }
   ],
   "grossMarginProjection": [
-    { "year": "2025", "value": 65, "source": "bp" }
+    { "year": "2025", "value": 65, "source": "bp", "basis": "projected" }
   ],
   "ebitdaProjection": [
-    { "year": "2025", "value": -1.2, "source": "bp" }
+    { "year": "2025", "value": -1.2, "source": "bp", "basis": "projected" }
   ],
   "fcfProjection": [
-    { "year": "2025", "value": -1.5, "source": "bp" }
+    { "year": "2025", "value": -1.5, "source": "bp", "basis": "projected" }
   ],
   "unitEconomics": {
     "estimatedCAC": "ex: 250€ ou 'non communiqué'",
@@ -37,10 +47,10 @@ Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu r
     "grossMarginPerUnit": "ex: 70% ou 'non communiqué'"
   },
   "headcount": [
-    { "year": "2025", "value": 10, "source": "deck" }
+    { "year": "2025", "value": 10, "source": "deck", "basis": "budget" }
   ],
   "opexProjection": [
-    { "year": "2025", "value": 1.8, "source": "bp" }
+    { "year": "2025", "value": 1.8, "source": "bp", "basis": "projected" }
   ],
   "currentRound": {
     "amount": "ex: 5M€ ou 'non précisé'",
@@ -53,7 +63,9 @@ Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu r
     "targetMarketShare": "ex: 2% en 2028 ou 'non communiqué'",
     "targetCustomersByYearN": "ex: 1000 clients en 2027 ou 'non communiqué'"
   },
-  "rawNotes": "observations factuelles complémentaires sur les données financières"
+  "rawNotes": "observations factuelles complémentaires sur les données financières",
+  "lastActualYear": 2023,
+  "lastActualYearEvidence": "citation courte du document (max 200 caractères) qui prouve que l'exercice 2023 est qualifié actual : ex. \\"P&L 2023A audité par PwC\\" ou \\"clôture au 31/12/2023, chiffres définitifs\\""
 }
 
 # RÈGLES STRICTES
@@ -65,6 +77,13 @@ Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu r
 - yearFounded ou première année si projection démarre en N+1.
 - Si aucune donnée financière disponible (deck purement narratif sans chiffres), hasBP = false et toutes les listes vides.
 - Pour les ratios déclarés (LTV/CAC, etc.), citer les valeurs telles que présentées même si non recalculées.
+
+# RÈGLES BASIS ET LASTACTUALYEAR
+
+- Renseigne "basis" pour chaque entrée de projection quand le document qualifie explicitement l'exercice. Sinon null. Jamais une valeur devinée.
+- lastActualYear = max des années dont basis === "actual" dans revenueProjection. Si aucune année actual, lastActualYear = null.
+- lastActualYearEvidence : citation textuelle courte extraite du document qui atteste de la qualification actual pour cette année. Sans citation extractible, lastActualYearEvidence = null et lastActualYear = null également.
+- Un chiffre sans qualifier ne devient jamais actual par défaut, même s'il porte une année passée.
 
 Sois rigoureux. Pas d'invention. Si tu n'es pas sûr d'une donnée, mets "non communiqué".`;
 
@@ -110,6 +129,11 @@ Retourne uniquement le JSON.`;
     result.marketAssumptions = result.marketAssumptions || { tamCited: '', samCited: '', targetMarketShare: '', targetCustomersByYearN: '' };
     result.rawNotes = result.rawNotes || '';
     result.fileSource = result.revenueProjection.length > 0 || result.unitEconomics.averageContractValue !== '' ? 'deck' : 'none';
+    // lastActualYear + evidence : defaut null si absent du sortant.
+    // Contrat anti divination : le pipeline ne fabrique jamais cette
+    // valeur, il l accepte telle quelle du LLM ou reste silencieux.
+    if (result.lastActualYear === undefined) result.lastActualYear = null;
+    if (result.lastActualYearEvidence === undefined) result.lastActualYearEvidence = null;
     return result;
   }
 
@@ -150,5 +174,7 @@ Retourne uniquement le JSON structuré.`;
   result.currentRound = result.currentRound || { amount: '', runwayMonths: '', monthlyBurn: '' };
   result.marketAssumptions = result.marketAssumptions || { tamCited: '', samCited: '', targetMarketShare: '', targetCustomersByYearN: '' };
   result.rawNotes = result.rawNotes || '';
+  if (result.lastActualYear === undefined) result.lastActualYear = null;
+  if (result.lastActualYearEvidence === undefined) result.lastActualYearEvidence = null;
   return result;
 }

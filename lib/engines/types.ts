@@ -558,18 +558,33 @@ export interface DimensionProbability {
   keyRisks: string[];
 }
 
+// Basis temporel d'une projection annuelle : nature de l'exercice
+// telle que qualifiee par le document source. actual = exercice clos
+// et realise. budget = exercice en cours budgete. projected = exercice
+// futur. null = document ne qualifie pas l exercice, ne pas deviner.
+// Doctrine anti divination : un basis null est un fait, jamais une
+// occasion de fabriquer une valeur par regle.
+export type ProjectionBasis = 'actual' | 'budget' | 'projected' | null;
+
+export interface ProjectionEntry {
+  year: string;
+  value: number;
+  source: string;                    // provenance de fichier : deck / bp / deck+bp
+  basis?: ProjectionBasis;           // nature temporelle qualifiee par le document
+}
+
 // Données financières extraites (pitch deck + BP)
 export interface FinancialDataExtraction {
   hasBP: boolean; // BP dispo ou pas
   fileSource: 'deck' | 'bp' | 'both' | 'none';
   // Trajectoire revenue (millions €)
-  revenueProjection: Array<{ year: string; value: number; source: string }>;
+  revenueProjection: ProjectionEntry[];
   // Marges projetées
-  grossMarginProjection: Array<{ year: string; value: number; source: string }>; // pct
+  grossMarginProjection: ProjectionEntry[]; // pct
   // EBITDA projeté
-  ebitdaProjection: Array<{ year: string; value: number; source: string }>;
+  ebitdaProjection: ProjectionEntry[];
   // Free cash flow
-  fcfProjection: Array<{ year: string; value: number; source: string }>;
+  fcfProjection: ProjectionEntry[];
   // Hypothèses unitaires
   unitEconomics: {
     estimatedCAC: string;
@@ -579,9 +594,9 @@ export interface FinancialDataExtraction {
     grossMarginPerUnit: string;
   };
   // Hypothèses headcount
-  headcount: Array<{ year: string; value: number; source: string }>;
+  headcount: ProjectionEntry[];
   // Coûts opérationnels
-  opexProjection: Array<{ year: string; value: number; source: string }>;
+  opexProjection: ProjectionEntry[];
   // Tour actuel et runway
   currentRound: {
     amount: string;
@@ -597,6 +612,20 @@ export interface FinancialDataExtraction {
   };
   // Données brutes / commentaires
   rawNotes: string;
+  /**
+   * Derniere annee qualifiee explicitement comme actual (exercice
+   * clos et realise) par le document source. Source de verite unique
+   * de l annee de reference du dossier. null si le document ne
+   * qualifie aucun exercice comme actual : le pipeline ne devine
+   * jamais, il declare l absence.
+   */
+  lastActualYear?: number | null;
+  /**
+   * Citation courte du document justifiant lastActualYear. Sans
+   * evidence, lastActualYear reste null. Contrat editorial :
+   * l analyste et le partner peuvent verifier la source.
+   */
+  lastActualYearEvidence?: string | null;
 }
 
 // Moteur 14 : Cohérence financière (7 tests)

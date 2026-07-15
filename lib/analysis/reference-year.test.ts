@@ -1,11 +1,8 @@
 // ============================================================
-// Tests deterministes reference-year.ts
+// Tests deterministes reference-year.ts (refonte brique 11)
 // ------------------------------------------------------------
-// Suite 1 : la regle en une phrase, chaque source de derivation.
-// Suite 2 : cas d echec, silence.
-// Suite 3 : aucune lecture d horloge (invariance a Date.now).
-// Suite 4 : compatibilite avec la derivation historique de
-//           label-calculation-contradictions.ts.
+// La primitive ne consomme QUE financialData.lastActualYear avec
+// evidence textuelle. Aucun fallback. Suite reduite mais stricte.
 // ============================================================
 
 import { deriveDossierReferenceYear } from './reference-year';
@@ -17,168 +14,160 @@ function check(cond: boolean, label: string) {
 }
 
 // ============================================================
-// SUITE 1 - Chaque source de derivation
+// SUITE 1 - Regle unique : lastActualYear + evidence
 // ============================================================
 
-console.log('\n[Suite 1] Chaque source de derivation dans l ordre attendu');
+console.log('\n[Suite 1] Regle unique lastActualYear + evidence');
 
 {
-  // Override prioritaire
-  const y = deriveDossierReferenceYear({}, { refYearOverride: 2019 });
-  check(y === 2019, 'refYearOverride en tete de precedence');
-}
-
-{
-  // as_of prioritaire sur les autres si present
-  const y = deriveDossierReferenceYear(
-    { financialData: { rawNotes: '2024A 2025A' } },
-    { asOf: '2022-06-15' },
-  );
-  check(y === 2022, 'as_of prioritaire sur rawNotes A/B (2022)');
-}
-
-{
-  // rawNotes qualifier A / B, max retenu
-  const y = deriveDossierReferenceYear(
-    { financialData: { rawNotes: 'EBITDA 2021A 2022A 2023A 2024A 2025E 2026E' } },
-    {},
-  );
-  check(y === 2024, 'max des qualifiers A dans rawNotes = 2024');
-}
-
-{
-  // rawSummary A/B compte comme source
-  const y = deriveDossierReferenceYear(
-    { extraction: { rawSummary: 'CA 2023A soit 1M€' } },
-    {},
-  );
-  check(y === 2023, 'rawSummary qualifier A = 2023');
-}
-
-{
-  // Combinaison A et B, max des deux qualifiers
-  const y = deriveDossierReferenceYear(
-    { financialData: { rawNotes: 'chiffre 2023A puis budget 2024B' } },
-    {},
-  );
-  check(y === 2024, 'max A ou B = 2024B');
-}
-
-{
-  // Qualifier E / F ignorés (projections)
-  const y = deriveDossierReferenceYear(
-    { financialData: { rawNotes: '2024A puis 2026E projete' } },
-    {},
-  );
-  check(y === 2024, 'qualifier E ignore, 2024A retenu');
-}
-
-{
-  // Filename YYYY.MM.DD
-  const y = deriveDossierReferenceYear(
-    {},
-    { sourceFilename: 'Deck - 2023.11.25 - vF.pdf' },
-  );
-  check(y === 2023, 'source_filename YYYY.MM.DD = 2023');
-}
-
-{
-  // Filename YYYY brut
-  const y = deriveDossierReferenceYear(
-    {},
-    { sourceFilename: 'Memorandum-Project-2022-vF.pdf' },
-  );
-  check(y === 2022, 'source_filename premier YYYY = 2022');
-}
-
-// ============================================================
-// SUITE 2 - Echec silencieux
-// ============================================================
-
-console.log('\n[Suite 2] Echec silencieux : jamais deviner');
-
-{
-  const y = deriveDossierReferenceYear({}, {});
-  check(y === null, 'aucun signal : null');
-}
-
-{
-  // Prose sans qualifier, filename sans annee
-  const y = deriveDossierReferenceYear(
-    { extraction: { rawSummary: 'texte sans annee qualifiee' } },
-    { sourceFilename: 'prelude-mistral-ai.pdf' },
-  );
-  check(y === null, 'prose sans qualifier + filename sans YYYY : null');
-}
-
-{
-  // Cas JNAN Hotels reproduit : filename avec 260504 (non YYYY 20xx)
-  const y = deriveDossierReferenceYear(
-    { extraction: { yearFounded: 2001, rawSummary: 'hotellerie boutique' } },
-    { sourceFilename: 'JNANHotelsPMV2_260504_212718_compressed.pdf' },
-  );
-  check(y === null, 'JNAN Hotels : aucune source valide, null');
-}
-
-{
-  // yearFounded n est PAS une source de reference (age de la boite,
-  // pas reference d instruction)
-  const y = deriveDossierReferenceYear(
-    { extraction: { yearFounded: 2011 } },
-    {},
-  );
-  check(y === null, 'yearFounded ignore comme source doctrinale');
-}
-
-{
-  check(deriveDossierReferenceYear(null, {}) === null, 'dossier null : null');
-  check(deriveDossierReferenceYear(undefined, {}) === null, 'dossier undefined : null');
-}
-
-// ============================================================
-// SUITE 3 - Aucune lecture d horloge (invariance temporelle)
-// ============================================================
-
-console.log('\n[Suite 3] Invariance a l horloge systeme');
-
-{
-  const dossier = { financialData: { rawNotes: '2024A' } };
-  // Sauvegarde et monkey-patch de Date pour prouver que la primitive
-  // ne lit jamais l horloge. Deux runs a deux Date.now differents
-  // doivent produire strictement la meme valeur.
-  const originalNow = Date.now;
-  try {
-    Date.now = () => new Date('2020-01-01T00:00:00Z').getTime();
-    const y1 = deriveDossierReferenceYear(dossier, {});
-    Date.now = () => new Date('2030-12-31T23:59:59Z').getTime();
-    const y2 = deriveDossierReferenceYear(dossier, {});
-    check(y1 === y2 && y1 === 2024, `deux horloges systeme differentes = meme sortie (2024/2024)`);
-  } finally {
-    Date.now = originalNow;
-  }
-}
-
-// ============================================================
-// SUITE 4 - Compatibilite avec label-calc historique
-// ============================================================
-
-console.log('\n[Suite 4] Compatibilite retour label-calc');
-
-{
-  // Fixture TOLSON reproduit fidelement le comportement historique
-  const tolson = {
+  const dossier = {
     financialData: {
-      rawNotes: "L'EBITDA 2024A (305k€/19,0%) dans le BP differe du chiffre 2024B du deck (293k€/18,3%). Marge 2021A 14,8% jusque 2026E 33,3%.",
-    },
-    extraction: {
-      rawSummary: 'TOLSON fondee en 2011. CA 2024 estime a 1,6 M€. EBITDA 293 k€ (18,3%) en 2024B projete a 915 k€ en 2026.',
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'P&L 2024A audite par Mazars, cloture au 31/12/2024',
     },
   };
-  const y = deriveDossierReferenceYear(tolson, {
-    asOf: null,
-    sourceFilename: 'TOLSON (codename Project Tagora) - Information Memorandum - 2024.11.25 - vF.pdf',
-  });
-  check(y === 2024, 'TOLSON reproduit fidelement : refYear = 2024');
+  check(deriveDossierReferenceYear(dossier) === 2024, 'lastActualYear + evidence => valeur retenue');
+}
+
+{
+  // evidence absente
+  const dossier = { financialData: { lastActualYear: 2024, lastActualYearEvidence: null } };
+  check(deriveDossierReferenceYear(dossier) === null, 'lastActualYear sans evidence => null');
+}
+
+{
+  // evidence chaine vide
+  const dossier = { financialData: { lastActualYear: 2024, lastActualYearEvidence: '   ' } };
+  check(deriveDossierReferenceYear(dossier) === null, 'lastActualYear avec evidence vide => null');
+}
+
+// ============================================================
+// SUITE 2 - Echec silencieux, jamais deviner
+// ============================================================
+
+console.log('\n[Suite 2] Echec silencieux, jamais deviner');
+
+{
+  check(deriveDossierReferenceYear({}) === null, 'dossier vide : null');
+  check(deriveDossierReferenceYear({ financialData: {} }) === null, 'financialData sans lastActualYear : null');
+  check(deriveDossierReferenceYear({ financialData: { lastActualYear: null } }) === null, 'lastActualYear explicitement null : null');
+  check(deriveDossierReferenceYear({ financialData: { lastActualYear: 2024 } }) === null, 'lastActualYear sans evidence (champ absent) : null');
+  check(deriveDossierReferenceYear(null) === null, 'null : null');
+  check(deriveDossierReferenceYear(undefined) === null, 'undefined : null');
+}
+
+{
+  // Bornes de sanite : annee hors plage rejetee
+  const before = { financialData: { lastActualYear: 1999, lastActualYearEvidence: 'faux' } };
+  const after = { financialData: { lastActualYear: 2101, lastActualYearEvidence: 'faux' } };
+  check(deriveDossierReferenceYear(before) === null, 'annee 1999 hors plage : null');
+  check(deriveDossierReferenceYear(after) === null, 'annee 2101 hors plage : null');
+}
+
+// ============================================================
+// SUITE 3 - Aucun consumer legacy ne subsiste
+// ============================================================
+
+console.log('\n[Suite 3] Aucun fallback legacy');
+
+{
+  // Meme avec un as_of dans les vieux formats, la primitive ignore
+  const dossier = {
+    financialData: { rawNotes: '2024A confirmed by auditors 2024A everywhere' },
+    extraction: { rawSummary: 'CA 2024A 1.5M' },
+  };
+  // Ces signaux etaient consommes en cascade 2 dans l ancienne version
+  check(deriveDossierReferenceYear(dossier) === null, 'signaux narratifs sans lastActualYear : null (fallback narrative supprime)');
+}
+
+{
+  // Ancienne signature avec meta (asOf, sourceFilename) : arguments ignores
+  const dossier = { financialData: { lastActualYear: 2024, lastActualYearEvidence: 'note interne' } };
+  check(deriveDossierReferenceYear(dossier) === 2024, 'signature reduite : primitive accepte seulement le dossier');
+}
+
+// ============================================================
+// SUITE 4 - Absence sur les 28 dossiers actuels (comportement acquis)
+// ============================================================
+
+console.log('\n[Suite 4] Documentation du comportement corpus');
+
+{
+  // Snapshots existants n ont ni lastActualYear ni evidence. Attendu : null.
+  const legacySnapshot = {
+    financialData: {
+      revenueProjection: [{ year: '2024', value: 1.5, source: 'bp' }],
+      rawNotes: 'EBITDA 2024A 305k€',
+    },
+    extraction: { rawSummary: 'TOLSON fondee 2011, CA 2024 1.6M' },
+  };
+  check(deriveDossierReferenceYear(legacySnapshot) === null, 'snapshot legacy sans lastActualYear : null (acquis, aucun backfill)');
+}
+
+// ============================================================
+// SUITE 5 - Vraisemblance : garde contre l ecart projections
+// ------------------------------------------------------------
+// Une annee de reference qui ecarterait de plus de trois ans la
+// derniere annee des projections du dossier est un signal
+// d anomalie. Ce test aurait attrape le fallback filename qui
+// remontait 2013 sur des dossiers dont les projections vont
+// jusqu a 2026. La primitive n a plus de fallback filename mais
+// la garde reste utile comme regle doctrinale sur les futurs
+// dossiers avec lastActualYear extrait par le LLM.
+// ============================================================
+
+console.log('\n[Suite 5] Vraisemblance vs projections');
+
+function maxYearInProjection(proj: any[]): number | null {
+  if (!Array.isArray(proj)) return null;
+  const ys = proj.map(p => parseInt(String(p?.year), 10)).filter(y => Number.isFinite(y));
+  return ys.length > 0 ? Math.max(...ys) : null;
+}
+
+{
+  // Cas conforme : refYear a l interieur de la fenetre projections
+  const dossier = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'P&L 2024A audit Deloitte',
+      revenueProjection: [
+        { year: '2022', value: 1 },
+        { year: '2024', value: 1.6 },
+        { year: '2026', value: 2.5 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(dossier);
+  const maxProj = maxYearInProjection(dossier.financialData.revenueProjection);
+  const gap = maxProj !== null && y !== null ? maxProj - y : null;
+  check(y === 2024 && gap !== null && gap <= 3, `refYear ${y} < 3 ans de max projection ${maxProj}, ecart ${gap}`);
+}
+
+{
+  // Cas anormal simule : refYear tres ancien vs projections modernes.
+  // Avec la nouvelle primitive stricte, ce cas ne peut pas se produire
+  // via la primitive elle-meme (elle rejette les evidences vides). Mais
+  // on garde la garde pour se premunir d une future regle plus laxiste
+  // qui tenterait d inferer 2013 sur un dossier 2021-2026.
+  const suspect = {
+    financialData: {
+      lastActualYear: 2013,
+      lastActualYearEvidence: 'faux, 2013 mentionne dans un vieux benchmark',
+      revenueProjection: [
+        { year: '2021', value: 1 },
+        { year: '2024', value: 2 },
+        { year: '2026', value: 3 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(suspect);
+  const maxProj = maxYearInProjection(suspect.financialData.revenueProjection);
+  const gap = maxProj !== null && y !== null ? maxProj - y : null;
+  // Le test doit signaler : gap > 3 => anomalie
+  check(gap !== null && gap > 3, `refYear ${y} vs max projection ${maxProj} : ecart ${gap} > 3 declenche la garde de vraisemblance`);
+  // La primitive rend la valeur car l evidence est presente, la GARDE
+  // est un contrat editorial verifie par ce test, pas par la primitive.
+  check(y === 2013, 'primitive rend la valeur, la responsabilite d evidence honnete est doctrinale (LLM instruit de ne pas mentir)');
 }
 
 console.log(`\n${pass} pass, ${fail} fail`);

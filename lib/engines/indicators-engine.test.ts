@@ -84,17 +84,19 @@ console.log('\n[Suite 1] Stabilite temporelle : deux horloges systeme, sortie id
   // radicalement differentes. Le moteur ne doit consulter aucune
   // horloge : sortie strictement egale entre les deux runs.
   const OriginalDate = Date;
-  function withMockedDate<T>(iso: string, fn: () => T): T {
-    class FrozenDate extends OriginalDate {
+  const FrozenDateFactory = (iso: string) => {
+    return class FrozenDate extends OriginalDate {
       constructor(...args: any[]) {
         if (args.length === 0) { super(iso); return; }
         super(...(args as [any]));
       }
       static now() { return new OriginalDate(iso).getTime(); }
-    }
-    (globalThis as any).Date = FrozenDate;
+    };
+  };
+  const withMockedDate = <T,>(iso: string, fn: () => T): T => {
+    (globalThis as any).Date = FrozenDateFactory(iso);
     try { return fn(); } finally { (globalThis as any).Date = OriginalDate; }
-  }
+  };
 
   const out2020 = withMockedDate('2020-01-15T12:00:00Z', () => computeIndicators(input));
   const out2027 = withMockedDate('2027-06-30T18:00:00Z', () => computeIndicators(input));
@@ -120,16 +122,33 @@ console.log('\n[Suite 1] Stabilite temporelle : deux horloges systeme, sortie id
 console.log('\n[Suite 2] resolveYearForIndicator');
 
 {
-  const proj = [{ year: '2022', value: 1 }, { year: '2024', value: 2 }, { year: '2026', value: 3 }];
-  check(resolveYearForIndicator(proj, 2024)?.year === 2024, 'refYear present dans projection : retenu');
-  check(resolveYearForIndicator(proj, 2024)?.isForward === false, '  isForward=false');
-  check(resolveYearForIndicator(proj, 2023)?.year === 2022, 'refYear absent : max annee < refYear = 2022');
-  check(resolveYearForIndicator(proj, 2023)?.isForward === false, '  isForward=false (historique)');
-  check(resolveYearForIndicator(proj, 2020)?.year === 2022, 'refYear < min projection : min projection > refYear = 2022 (forward)');
-  check(resolveYearForIndicator(proj, 2020)?.isForward === true, '  isForward=true');
-  check(resolveYearForIndicator(proj, null) === null, 'refYear null : null');
+  // Projection sans basis qualifie : aucune annee actual disponible
+  const projNoBasis = [{ year: '2022', value: 1 }, { year: '2024', value: 2 }, { year: '2026', value: 3 }];
+  check(resolveYearForIndicator(projNoBasis, 2024)?.year === 2024, 'refYear present dans projection : retenu');
+  check(resolveYearForIndicator(projNoBasis, 2024)?.isForward === false, '  isForward=false');
+  // refYear absent, aucun basis actual => min projection avec isForward=true
+  check(resolveYearForIndicator(projNoBasis, 2023)?.year === 2022, 'refYear absent, aucun actual : min projection = 2022');
+  check(resolveYearForIndicator(projNoBasis, 2023)?.isForward === true, '  isForward=true (aucun actual, projete)');
+  check(resolveYearForIndicator(projNoBasis, null) === null, 'refYear null : null');
   check(resolveYearForIndicator([], 2024) === null, 'projection vide : null');
   check(resolveYearForIndicator(undefined, 2024) === null, 'projection undefined : null');
+}
+
+{
+  // Projection avec basis explicites : preference actual sur les autres
+  const projWithBasis = [
+    { year: '2022', value: 1, basis: 'actual' as const },
+    { year: '2023', value: 1.5, basis: 'actual' as const },
+    { year: '2024', value: 2, basis: 'budget' as const },
+    { year: '2025', value: 2.5, basis: 'projected' as const },
+  ];
+  // refYear=2025 present : retenu directement
+  check(resolveYearForIndicator(projWithBasis, 2025)?.year === 2025, 'refYear=2025 present : retenu');
+  // refYear=2030 absent : plus grande annee actual = 2023
+  check(resolveYearForIndicator(projWithBasis, 2030)?.year === 2023, 'refYear absent : plus grande annee actual (2023) retenue');
+  check(resolveYearForIndicator(projWithBasis, 2030)?.isForward === false, '  isForward=false (actual retrouve)');
+  // refYear=2020 absent, actual disponible : max actual meme si posterieur a refYear
+  check(resolveYearForIndicator(projWithBasis, 2020)?.year === 2023, 'refYear=2020 absent : max actual (2023) meme si posterieur a refYear');
 }
 
 // ============================================================

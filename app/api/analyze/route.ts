@@ -1273,13 +1273,14 @@ export async function POST(req: NextRequest) {
           // lib/engines/indicators-engine.ts pour la logique et
           // lib/data/indicator-benchmarks.ts pour les seuils calibres
           // OpenView / Bessemer / Pavilion 2024.
-          // Annee de reference du dossier via primitive partagee. Le
-          // moteur d indicateurs ne consulte JAMAIS l horloge systeme,
-          // les valeurs doivent rester stables entre deux runs de dates
-          // differentes sur le meme document.
+          // Annee de reference du dossier via primitive partagee. Une
+          // seule source : financialData.lastActualYear qualifie avec
+          // evidence textuelle du document. Aucune lecture d horloge,
+          // aucun fallback filename ou narrative. Si le document ne
+          // qualifie aucun exercice, refYear=null et les indicateurs
+          // deviendront non-applicable avec motif explicite.
           const dossierRefYear = deriveDossierReferenceYear(
             { extraction, financialData } as any,
-            { asOf: asOf ?? null, sourceFilename: pitchDeck.name },
           );
           const indicators = computeIndicators({
             extraction,

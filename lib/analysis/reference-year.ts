@@ -2,107 +2,48 @@
 // ANNEE DE REFERENCE DU DOSSIER
 // ------------------------------------------------------------
 // Primitive partagee, module pur, aucune I/O, aucune lecture
-// d horloge. Une note d instruction dont les chiffres dependent
-// de la date du run n est pas reproductible : deux runs a des
-// dates systeme differentes sortiraient des valeurs differentes
-// sur le meme document. Cette primitive tranche la question a
-// la source : l annee de reference est une propriete du dossier,
-// jamais du calendrier.
+// d horloge, aucune heuristique de nom de fichier, aucune
+// devinette a partir de narratives.
 //
 // Regle en une phrase :
 //
-//   L annee de reference est la premiere valeur disponible dans
-//   cet ordre : (1) as_of / frozen_as_of de la ligne analyses,
-//   (2) plus grande annee suffixee A ou B trouvee dans les
-//   narratives extraction.rawSummary et financialData.rawNotes,
-//   (3) annee extraite du source_filename via motif YYYY.MM.DD
-//   ou premier YYYY present ; sinon null, la primitive refuse
-//   de deviner.
+//   L annee de reference du dossier est financialData.lastActualYear
+//   quand le moteur d extraction financiere l a renseigne avec
+//   evidence textuelle du document, sinon null.
 //
-// Un dossier dont l annee de reference n est pas derivable est
-// un dossier a instruire manuellement, jamais un dossier a
-// calculer sur l horloge courante. C est la doctrine.
+// Refonte brique 11. La cascade precedente (as_of colonne, max A/B
+// des narratives, motif YYYY du filename) etait fondamentalement
+// cassee sur trois axes : as_of etait la date du run d ingestion et
+// non une propriete du dossier, le filename ne portait pas toujours
+// l annee du memorandum, le max A/B remontait des chiffres
+// historiques ponctuels (2013, 2014) comme reference d instruction
+// pour des dossiers dont l exercice courant etait bien plus recent.
 //
-// Cette primitive est le seul point de derivation dans le code.
-// Toute lecture de new Date().getFullYear() dans un moteur qui
-// touche aux chiffres du dossier est un bug.
+// Nouvelle doctrine : l annee de reference est une donnee du
+// document, extraite par le LLM avec citation, ou elle n existe
+// pas. Le pipeline ne l invente pas.
 // ============================================================
 
-export interface ReferenceYearMeta {
-  /** Champ analyses.as_of (ISO date ou annee) si present en base. */
-  asOf?: string | null;
-  /** Nom de fichier source du deck. */
-  sourceFilename?: string | null;
-  /** Override injectable pour tests deterministes ou configuration
-   *  exceptionnelle. Aucune consommation en production hors tests. */
-  refYearOverride?: number | null;
-}
-
-/** Regex qui capture les qualifiers de periode YYYYA / YYYYB / YYYYE / YYYYF
- *  dans les narratives. Reserve aux qualifiers A (Actual) et B (Budget)
- *  pour la derivation : E (Estimated) et F (Forecast) sont des projections
- *  et ne fondent pas une reference historique. */
-const YEAR_QUALIFIER_REGEX = /(20\d{2})\s*([ABEFP])\b/gi;
-
 /**
- * Derive l annee de reference d un dossier. Retourne null si aucun
- * signal fiable n est disponible. Ne devine jamais, ne lit jamais
- * l horloge systeme, ne consulte pas yearFounded (age de la boite,
- * pas reference d instruction).
+ * Derive l annee de reference d un dossier. Une seule source :
+ * financialData.lastActualYear, alimente par le moteur d extraction
+ * financiere quand le document qualifie explicitement un exercice
+ * comme actual. Aucune inference, aucun fallback.
  *
- * Le dossier passe en argument doit contenir extraction et
- * financialData s ils sont disponibles ; leur absence est tolere,
- * la primitive tente les autres sources.
+ * Retourne null si le champ n existe pas ou si son evidence est
+ * absente. Le pipeline doit alors declarer l absence, jamais deviner.
  */
-export function deriveDossierReferenceYear(
-  dossier: any,
-  meta: ReferenceYearMeta = {},
-): number | null {
-  // Override explicite prioritaire (tests, configuration operatoire)
-  if (meta.refYearOverride != null && Number.isFinite(meta.refYearOverride)) {
-    return meta.refYearOverride;
-  }
-
-  // 1. as_of / frozen_as_of : champ de base de donnees, formatte en
-  //    ISO date ou annee brute. Prefixe extrait sur 4 caracteres.
-  if (typeof meta.asOf === 'string') {
-    const y = parseInt(meta.asOf.slice(0, 4), 10);
-    if (Number.isFinite(y) && y >= 2000 && y <= 2100) return y;
-  }
-
-  // 2. Qualifiers de periode dans les narratives. On garde le max
-  //    parmi A et B, ce sont les seuls qualifiers qui attestent d une
-  //    grandeur observee ou budgetee, pas d une projection.
-  const notes = String(dossier?.financialData?.rawNotes || '') + ' ' +
-    String(dossier?.extraction?.rawSummary || '');
-  let maxActualYear = 0;
-  YEAR_QUALIFIER_REGEX.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = YEAR_QUALIFIER_REGEX.exec(notes)) !== null) {
-    const y = parseInt(m[1], 10);
-    const q = m[2].toUpperCase();
-    if (q === 'A' || q === 'B') {
-      if (y > maxActualYear && y >= 2000 && y <= 2100) maxActualYear = y;
-    }
-  }
-  if (maxActualYear > 0) return maxActualYear;
-
-  // 3. Nom de fichier source. Priorite au motif date ISO complete
-  //    YYYY.MM.DD (convention de nommage de memorandum), fallback
-  //    premier YYYY present. Pas plus intelligent : sortir null
-  //    plutot que deriver une annee inventee.
-  if (typeof meta.sourceFilename === 'string') {
-    const iso = meta.sourceFilename.match(/(20\d{2})[.\-_](\d{2})[.\-_](\d{2})/);
-    if (iso) {
-      const y = parseInt(iso[1], 10);
-      if (Number.isFinite(y)) return y;
-    }
-    const bare = meta.sourceFilename.match(/(20\d{2})/);
-    if (bare) {
-      const y = parseInt(bare[1], 10);
-      if (Number.isFinite(y)) return y;
-    }
-  }
-
-  return null;
+export function deriveDossierReferenceYear(dossier: any): number | null {
+  if (!dossier || typeof dossier !== 'object') return null;
+  const fd = dossier.financialData;
+  if (!fd || typeof fd !== 'object') return null;
+  const y = fd.lastActualYear;
+  if (typeof y !== 'number' || !Number.isFinite(y)) return null;
+  if (y < 2000 || y > 2100) return null;
+  // Evidence obligatoire. Sans citation extraite du document, on
+  // considere lastActualYear comme non fiable et on refuse de le
+  // consommer, quel que soit sa valeur.
+  const ev = fd.lastActualYearEvidence;
+  if (typeof ev !== 'string' || ev.trim().length === 0) return null;
+  return y;
 }

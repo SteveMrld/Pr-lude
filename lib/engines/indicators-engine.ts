@@ -137,38 +137,42 @@ function pickProjectionValueAtYear(
 
 /**
  * Resout l annee de calcul d un indicateur a partir de l annee de
- * reference du dossier et des annees disponibles dans la projection.
- * Regle deterministe :
+ * reference du dossier (lastActualYear) et des projections
+ * disponibles avec leur basis qualifie par le document.
+ *
+ * Regle deterministe brique 11 :
  *   1. Si refYear est dans la projection : retenue, isForward=false.
- *   2. Sinon, plus grande annee < refYear dans la projection :
- *      retenue, isForward=false (actual historique).
- *   3. Sinon, plus grande annee > refYear dans la projection :
- *      retenue, isForward=true (calcul sur du projete).
+ *   2. Sinon, plus grande annee de basis === 'actual' dans la
+ *      projection : retenue, isForward=false.
+ *   3. Sinon, si aucune annee actual n existe et que du projete est
+ *      disponible : plus petite annee de la projection, isForward=true.
  *   4. Sinon, null : le moteur ne devine pas.
  *
- * Aucune lecture d horloge. La date systeme n intervient jamais.
+ * Aucune lecture d horloge, aucune inference basee sur la valeur
+ * numerique de l annee elle-meme.
  */
 export interface YearResolution {
   year: number;
   isForward: boolean;
 }
 export function resolveYearForIndicator(
-  projection: Array<{ year: string | number; value: number }> | undefined,
+  projection: Array<{ year: string | number; value: number; basis?: 'actual' | 'budget' | 'projected' | null }> | undefined,
   refYear: number | null,
 ): YearResolution | null {
   if (refYear === null || !Number.isFinite(refYear)) return null;
   if (!Array.isArray(projection) || projection.length === 0) return null;
-  const years = projection
-    .map(p => parseInt(String(p.year), 10))
-    .filter(y => Number.isFinite(y))
-    .sort((a, b) => a - b);
-  if (years.length === 0) return null;
-  if (years.includes(refYear)) return { year: refYear, isForward: false };
-  const historical = years.filter(y => y < refYear);
-  if (historical.length > 0) return { year: historical[historical.length - 1], isForward: false };
-  const forward = years.filter(y => y > refYear);
-  if (forward.length > 0) return { year: forward[0], isForward: true };
-  return null;
+  const entries = projection
+    .map(p => ({ y: parseInt(String(p.year), 10), basis: p.basis ?? null }))
+    .filter(e => Number.isFinite(e.y))
+    .sort((a, b) => a.y - b.y);
+  if (entries.length === 0) return null;
+  // 1. refYear present dans la projection : retenue
+  if (entries.some(e => e.y === refYear)) return { year: refYear, isForward: false };
+  // 2. Plus grande annee actual disponible
+  const actuals = entries.filter(e => e.basis === 'actual');
+  if (actuals.length > 0) return { year: actuals[actuals.length - 1].y, isForward: false };
+  // 3. Aucun actual : plus petite annee de projection, marquee forward
+  return { year: entries[0].y, isForward: true };
 }
 
 /**

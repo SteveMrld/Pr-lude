@@ -40,7 +40,7 @@ console.log('\n[Suite 1] TOLSON : ruleOf40 + revenuePerEmployee signales');
   check(keys.includes('ruleOf40'), '  ruleOf40 signale');
   check(keys.includes('revenuePerEmployee'), '  revenuePerEmployee signale');
   for (const c of cs) {
-    check(c.dossierRefYear === 2024, `  ${c.indicatorKey} : refYear=2024 (detecte via 2024A dans rawNotes)`);
+    check(c.dossierRefYear === 2024, `  ${c.indicatorKey} : refYear=2024 (via lastActualYear)`);
     check(c.baseYearOfCalculation === 2026, `  ${c.indicatorKey} : baseYear=2026`);
     check(c.yearsForward === 2, `  ${c.indicatorKey} : 2 ans forward`);
   }
@@ -182,51 +182,50 @@ console.log('\n[Suite 3] Cas de garde');
 }
 
 // ============================================================
-// SUITE 4 - Detection refYear par cascade
+// SUITE 4 - refYear derive de lastActualYear (brique 11)
+// ------------------------------------------------------------
+// L ancienne cascade (override, as_of, rawNotes max A/B, filename)
+// est supprimee. Seule source : financialData.lastActualYear avec
+// evidence textuelle. Le wrapper detectDossierRefYear delegue et
+// ignore les meta legacy.
 // ============================================================
 
-console.log('\n[Suite 4] Detection refYear par cascade');
+console.log('\n[Suite 4] refYear depuis lastActualYear + evidence');
 
 {
-  // Priorite override
-  const rj = { financialData: { rawNotes: '2024A' }, extraction: { rawSummary: '' } };
-  const y = detectDossierRefYear(rj, { refYearOverride: 2019 });
-  check(y === 2019, 'override en priorite (2019)');
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'P&L 2024A audit Deloitte',
+    },
+  };
+  const y = detectDossierRefYear(rj);
+  check(y === 2024, 'lastActualYear + evidence => 2024');
 }
 
 {
-  // as_of prioritaire sur rawNotes
-  const rj = { financialData: { rawNotes: '2024A' } };
-  const y = detectDossierRefYear(rj, { asOf: '2022-06-15' });
-  check(y === 2022, 'as_of prioritaire sur rawNotes (2022)');
+  const rj = { financialData: { lastActualYear: 2024, lastActualYearEvidence: null } };
+  const y = detectDossierRefYear(rj);
+  check(y === null, 'lastActualYear sans evidence => null');
 }
 
 {
-  // rawNotes maxA
-  const rj = { financialData: { rawNotes: '2020A 2021A 2022A 2023A 2024A 2025E 2026E' } };
-  const y = detectDossierRefYear(rj, {});
-  check(y === 2024, 'rawNotes max A = 2024');
+  // meta legacy ignore : old options ne changent rien
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'clos 31/12/2024',
+      rawNotes: '2020A 2021A 2022A',
+    },
+  };
+  const y = detectDossierRefYear(rj, { asOf: '2019-01-01', sourceFilename: '2015.pdf', refYearOverride: 2010 });
+  check(y === 2024, 'meta legacy ignoree, seul lastActualYear compte');
 }
 
 {
-  // rawNotes contient A et B, max des deux
-  const rj = { financialData: { rawNotes: 'EBITDA 2024B budget 2023A actual' } };
-  const y = detectDossierRefYear(rj, {});
-  check(y === 2024, 'rawNotes A + B, max = 2024B');
-}
-
-{
-  // source_filename YYYY.MM.DD
-  const rj = {};
-  const y = detectDossierRefYear(rj, { sourceFilename: 'Deck - 2023.11.25 - vF.pdf' });
-  check(y === 2023, 'source_filename date pattern extrait 2023');
-}
-
-{
-  // Aucun signal
-  const rj = { extraction: { rawSummary: 'texte sans annee qualifiee' } };
-  const y = detectDossierRefYear(rj, {});
-  check(y === null, 'aucun signal : null');
+  const rj = { extraction: { rawSummary: 'aucun signal narratif utile' } };
+  const y = detectDossierRefYear(rj);
+  check(y === null, 'aucun lastActualYear : null');
 }
 
 // ============================================================
@@ -239,9 +238,11 @@ console.log('\n[Suite 5] Detection baseYear cross-check revenueProjection');
   // Rationale contient revenu 2,75M€, match projection 2026 (2.75)
   const rj = {
     financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'exercice clos 2024',
       revenueProjection: [
-        { year: '2024', value: 1.6 },
-        { year: '2026', value: 2.75 },
+        { year: '2024', value: 1.6, basis: 'actual' },
+        { year: '2026', value: 2.75, basis: 'projected' },
       ],
       rawNotes: '2024A confirme.',
     },
@@ -263,9 +264,11 @@ console.log('\n[Suite 5] Detection baseYear cross-check revenueProjection');
   // Rationale sans revenu absolu, fallback min(nowYear, maxProjection)
   const rj = {
     financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'clos 2024',
       revenueProjection: [
-        { year: '2024', value: 1.6 },
-        { year: '2028', value: 5.0 },
+        { year: '2024', value: 1.6, basis: 'actual' },
+        { year: '2028', value: 5.0, basis: 'projected' },
       ],
       rawNotes: '2024A.',
     },

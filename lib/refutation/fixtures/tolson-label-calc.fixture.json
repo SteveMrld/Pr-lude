@@ -2,13 +2,15 @@
   "_note": "Fixture pour label-calculation-contradictions. Extraite du result_json reel de TOLSON bb8e6d7f. Contient revenueProjection avec les annees 2021-2026 (dernier actual 2024A d apres rawNotes), les indicateurs ruleOf40 et revenuePerEmployee sans qualification forward, et rawNotes financial avec qualifiers 2024A / 2026E.",
   "financialData": {
     "revenueProjection": [
-      { "year": "2021", "value": 1.198, "source": "deck+bp" },
-      { "year": "2022", "value": 1.468, "source": "deck+bp" },
-      { "year": "2023", "value": 1.513, "source": "deck+bp" },
-      { "year": "2024", "value": 1.608, "source": "bp" },
-      { "year": "2025", "value": 2.16, "source": "deck+bp" },
-      { "year": "2026", "value": 2.75, "source": "deck+bp" }
+      { "year": "2021", "value": 1.198, "source": "deck+bp", "basis": "actual" },
+      { "year": "2022", "value": 1.468, "source": "deck+bp", "basis": "actual" },
+      { "year": "2023", "value": 1.513, "source": "deck+bp", "basis": "actual" },
+      { "year": "2024", "value": 1.608, "source": "bp", "basis": "actual" },
+      { "year": "2025", "value": 2.16, "source": "deck+bp", "basis": "projected" },
+      { "year": "2026", "value": 2.75, "source": "deck+bp", "basis": "projected" }
     ],
+    "lastActualYear": 2024,
+    "lastActualYearEvidence": "EBITDA 2024A dans le BP TOLSON, cloture d exercice audite",
     "rawNotes": "1. DIVERGENCE DECK VS BP : Le deck (page 38) presente le chiffre de consulting 2024 a 356k€ tandis que le BP (feuille Outputs/Management BP) retient 364k€ ; la valeur BP (364k€) est utilisee. De meme, le revenu total 2024 est de 1 600k€ dans le deck contre 1 608k€ dans le BP ; valeur BP retenue. Le resultat net 2024 est de 218k€ dans le deck contre 231k€ dans le BP ; valeur BP retenue. La position de tresorerie nette 2024 est de 430k€ dans le deck contre 497k€ dans le BP ; valeur BP retenue. 2. STRUCTURE DES REVENUS : revenus decomposes en deux segments, Communautes (abonnements) et Consulting. En 2026E, Communautes = 1 980k€ (72% du total) et Consulting = 770k€ (28%). CAGR Communautes ~26% selon le BP. 3. EBITDA : marges en progression notable de 14,8% (2021A) a 33,3% (2026E), portees par la scalabilite des communautes. L EBITDA 2024A (305k€/19,0%) dans le BP differe du chiffre 2024B du deck (293k€/18,3%)."
   },
   "extraction": {
