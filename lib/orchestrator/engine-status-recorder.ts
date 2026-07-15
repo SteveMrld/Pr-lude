@@ -12,17 +12,33 @@
 // moteur n est modifie, aucun score, aucun seuil, aucun prompt.
 // Elle rend visible ce qui etait silencieux.
 //
-// Cinq statuts distincts :
+// Six statuts distincts :
 //   ok                        moteur a produit un sortant recevable
-//   failed                    moteur a rejette (exception ou throw)
-//   timeout                   moteur n a pas repondu dans le deadline
+//   failed                    moteur a effectivement appele son LLM
+//                             et cet appel a rejete (timeout SDK,
+//                             429, 529, JSON invalide, exception)
+//   failed-upstream           moteur n a jamais appele son LLM parce
+//                             qu une de ses dependances a rejete
+//                             avant. Le releve nomme la dependance
+//                             fautive, pas le message propage
+//   timeout                   deadline externe (withEngineDeadline)
+//                             a coupe le moteur au bout de son budget
+//                             wall-clock, avant tout retour LLM
 //   skipped_not_applicable    matrice de pertinence a ecarte le moteur
 //                             (comportement voulu, jamais un defaut)
 //   empty_output              moteur a repondu sans lever d erreur
 //                             mais son sortant est null, vide, ou
 //                             sans le champ minimum attendu
 //
-// La distinction ok / empty_output est centrale. Le cas TOLSON
+// La distinction failed / failed-upstream est centrale. Sans elle,
+// un run comme In Haircare du 15 juillet affichait neuf moteurs
+// failed avec le message "Request timed out.", alors que seuls trois
+// avaient reellement appele Anthropic. Les six autres avaient herite
+// de la rejection en cascade via Promise.all, sans jamais consommer
+// un appel reseau. Le diagnostic devient net : trois incidents cote
+// Anthropic, six cascades locales.
+//
+// La distinction ok / empty_output reste centrale. Le cas TOLSON
 // (marche, narrative-drift, fragilite structurelle, decisionDrivers
 // vide) est precisement un empty_output silencieux qui a passe
 // pour ok dans l ancien systeme.
@@ -31,24 +47,44 @@
 export type EngineStatus =
   | 'ok'
   | 'failed'
+  | 'failed-upstream'
   | 'timeout'
   | 'skipped_not_applicable'
   | 'empty_output';
 
 /** Statuts consideres comme lacune (gap) qui empechent un run
  *  de sortir en completed nu. skipped_not_applicable n en fait
- *  pas partie : c est un choix doctrinal, pas un defaut. */
-export const GAP_STATUSES: readonly EngineStatus[] = ['failed', 'timeout', 'empty_output'] as const;
+ *  pas partie : c est un choix doctrinal, pas un defaut.
+ *  failed-upstream en fait partie : le moteur n a rien produit
+ *  meme si l origine du defaut est en amont. */
+export const GAP_STATUSES: readonly EngineStatus[] = ['failed', 'failed-upstream', 'timeout', 'empty_output'] as const;
 
 export interface EngineStatusEntry {
   engine: string;
   status: EngineStatus;
-  /** Duree observee entre le start et l end du moteur, en ms. */
+  /** Duree totale observee entre markStart et record, en ms.
+   *  Somme du temps d attente sur les dependances plus le temps
+   *  d execution reel. Conservee pour compatibilite ascendante. */
   durationMs: number;
   /** Nombre de tentatives. 1 par defaut, superieur si retry. */
   attempts: number;
-  /** Message d erreur brut si status failed ou timeout, sinon undefined. */
+  /** Message d erreur brut si status failed ou timeout. Pour
+   *  failed-upstream, message structure nommant la ou les
+   *  dependances fautives, jamais le message propage. */
   errorMessage?: string;
+  /** Temps ecoule entre markStart (entree du moteur dans la fenetre
+   *  pipeline) et markLLMStart (premier appel LLM effectif). Isole
+   *  l attente sur les dependances. Absent si le moteur n a jamais
+   *  atteint son appel LLM (failed-upstream, timeout amont). */
+  waitDurationMs?: number;
+  /** Temps ecoule entre markLLMStart et record. Represente le cout
+   *  reel de l execution du moteur. Zero si le moteur n a pas
+   *  appele son LLM. */
+  executionDurationMs?: number;
+  /** Pour failed-upstream, liste des cles moteurs de dependance qui
+   *  etaient en failed, failed-upstream ou timeout au moment de la
+   *  rejection en cascade. Permet de tracer la chaine de defaut. */
+  failedDependencies?: string[];
 }
 
 // ============================================================
@@ -131,42 +167,132 @@ export function isSkippedByRelevanceMatrix(value: any): boolean {
 // Recorder
 // ============================================================
 
+/** Statuts d une dependance qui la font compter comme fautive dans
+ *  la promotion failed -> failed-upstream. failed-upstream inclus
+ *  car une cascade peut elle-meme etre la seule dependance visible
+ *  quand la racine timeout est encore en cours d enregistrement. */
+const UPSTREAM_FAIL_STATUSES: ReadonlySet<EngineStatus> = new Set<EngineStatus>([
+  'failed',
+  'failed-upstream',
+  'timeout',
+]);
+
 export class EngineStatusRecorder {
   private entries: Map<string, EngineStatusEntry> = new Map();
   private startTimes: Map<string, number> = new Map();
+  private llmStartTimes: Map<string, number> = new Map();
+  private declaredDeps: Map<string, string[]> = new Map();
 
-  /** Enregistre le debut d execution d un moteur. */
-  markStart(engine: string): void {
-    this.startTimes.set(engine, Date.now());
+  /** Enregistre l entree du moteur dans la fenetre pipeline.
+   *  Idempotent : les appels suivants sont ignores. Le parametre
+   *  optionnel deps declare les cles moteurs de dependance, utilise
+   *  pour nommer la cause d une rejection en cascade. */
+  markStart(engine: string, deps?: string[]): void {
+    if (!this.startTimes.has(engine)) {
+      this.startTimes.set(engine, Date.now());
+    }
+    if (deps && deps.length > 0 && !this.declaredDeps.has(engine)) {
+      this.declaredDeps.set(engine, deps.slice());
+    }
+  }
+
+  /** Enregistre le debut effectif de l appel LLM du moteur, apres
+   *  resolution de ses dependances. Idempotent. Sa presence distingue
+   *  un moteur qui a reellement appele Anthropic d un moteur rejete
+   *  en cascade sans avoir jamais touche au reseau. */
+  markLLMStart(engine: string): void {
+    if (!this.llmStartTimes.has(engine)) {
+      this.llmStartTimes.set(engine, Date.now());
+    }
   }
 
   /** Enregistre le resultat d un moteur avec calcul automatique
-   *  de la duree si markStart a ete appelle en amont. */
-  record(entry: Omit<EngineStatusEntry, 'durationMs'> & { durationMs?: number }): void {
-    let durationMs = entry.durationMs;
-    if (durationMs === undefined) {
-      const start = this.startTimes.get(entry.engine);
-      durationMs = start ? Date.now() - start : 0;
+   *  de la duree si markStart a ete appelle en amont. Si status
+   *  est 'failed' et que markLLMStart n a jamais ete appele apres
+   *  un markStart valide, promeut automatiquement en 'failed-upstream'
+   *  et remplace errorMessage par un message structure nommant les
+   *  dependances fautives. */
+  record(entry: Omit<EngineStatusEntry, 'durationMs' | 'waitDurationMs' | 'executionDurationMs' | 'failedDependencies'> & { durationMs?: number }): void {
+    const startedAt = this.startTimes.get(entry.engine);
+    const llmStartedAt = this.llmStartTimes.get(entry.engine);
+    const now = Date.now();
+
+    let totalDurationMs = entry.durationMs;
+    if (totalDurationMs === undefined) {
+      totalDurationMs = startedAt !== undefined ? now - startedAt : 0;
     }
-    this.entries.set(entry.engine, {
+
+    let waitDurationMs: number | undefined;
+    let executionDurationMs: number | undefined;
+    if (startedAt !== undefined) {
+      if (llmStartedAt !== undefined) {
+        waitDurationMs = Math.max(0, llmStartedAt - startedAt);
+        executionDurationMs = Math.max(0, now - llmStartedAt);
+      } else {
+        waitDurationMs = totalDurationMs;
+        executionDurationMs = 0;
+      }
+    }
+
+    let status: EngineStatus = entry.status;
+    let errorMessage = entry.errorMessage;
+    let failedDependencies: string[] | undefined;
+
+    // Promotion failed -> failed-upstream : le moteur a rejette sans
+    // avoir jamais appele son LLM. Seulement si markStart a ete
+    // appele (sinon on est sur un record externe legacy dont on ne
+    // sait rien du cycle de vie).
+    if (status === 'failed' && startedAt !== undefined && llmStartedAt === undefined) {
+      status = 'failed-upstream';
+      failedDependencies = this.findFailedDependencies(entry.engine);
+      errorMessage = failedDependencies.length > 0
+        ? `dependency failed: ${failedDependencies.join(', ')}`
+        : 'dependency failed (source non identifiee dans le releve courant)';
+    }
+
+    const record: EngineStatusEntry = {
       engine: entry.engine,
-      status: entry.status,
-      durationMs,
+      status,
+      durationMs: totalDurationMs,
       attempts: entry.attempts,
-      ...(entry.errorMessage !== undefined ? { errorMessage: entry.errorMessage } : {}),
+    };
+    if (errorMessage !== undefined) record.errorMessage = errorMessage;
+    if (waitDurationMs !== undefined) record.waitDurationMs = waitDurationMs;
+    if (executionDurationMs !== undefined) record.executionDurationMs = executionDurationMs;
+    if (failedDependencies !== undefined) record.failedDependencies = failedDependencies;
+    this.entries.set(entry.engine, record);
+  }
+
+  /** Identifie parmi les dependances declarees celles qui sont
+   *  actuellement en etat d echec. Si aucune dependance n a ete
+   *  declaree au markStart, tombe sur un balayage de toutes les
+   *  entrees existantes en etat d echec. */
+  private findFailedDependencies(engine: string): string[] {
+    const declared = this.declaredDeps.get(engine);
+    const candidates = declared && declared.length > 0
+      ? declared
+      : Array.from(this.entries.keys()).filter((e) => e !== engine);
+    return candidates.filter((d) => {
+      const dep = this.entries.get(d);
+      return dep !== undefined && UPSTREAM_FAIL_STATUSES.has(dep.status);
     });
   }
 
   /** Inspecte un result_json final et complete les entrees manquantes
    *  ou marquees ok en verifiant le contrat minimal de chaque moteur.
-   *  Un moteur deja marque failed ou timeout garde son statut. Un
-   *  moteur non present est enregistre comme empty_output si son
-   *  slot dans result_json ne satisfait pas le contrat. */
+   *  Un moteur deja marque failed, failed-upstream ou timeout garde
+   *  son statut. Un moteur non present est enregistre comme
+   *  empty_output si son slot dans result_json ne satisfait pas le
+   *  contrat. */
   finalizeFromResult(result: Record<string, any>, engineToResultKey: Record<string, string>): void {
     for (const [engine, resultKey] of Object.entries(engineToResultKey)) {
       const existing = this.entries.get(engine);
-      // Ne pas ecraser un failed / timeout deja enregistre.
-      if (existing && (existing.status === 'failed' || existing.status === 'timeout')) continue;
+      // Ne pas ecraser un failed / failed-upstream / timeout deja enregistre.
+      if (existing && (
+        existing.status === 'failed'
+        || existing.status === 'failed-upstream'
+        || existing.status === 'timeout'
+      )) continue;
       const value = result[resultKey];
       if (isSkippedByRelevanceMatrix(value)) {
         this.entries.set(engine, {
@@ -221,7 +347,10 @@ export class EngineStatusRecorder {
   }
 
   /** Message d erreur consolide, liste les moteurs defaillants par
-   *  statut. Retourne null si aucune lacune. */
+   *  statut. Retourne null si aucune lacune. failed et
+   *  failed-upstream sont groupes separement pour que le releve ne
+   *  confonde pas un incident Anthropic reel avec une cascade
+   *  locale. */
   computeErrorMessage(): string | null {
     const gaps = this.gaps();
     if (gaps.length === 0) return null;
@@ -231,7 +360,7 @@ export class EngineStatusRecorder {
       byStatus[g.status].push(g.engine);
     }
     const parts: string[] = [];
-    for (const status of ['failed', 'timeout', 'empty_output'] as const) {
+    for (const status of ['failed', 'timeout', 'failed-upstream', 'empty_output'] as const) {
       if (byStatus[status]) parts.push(`${status}: ${byStatus[status].join(', ')}`);
     }
     return parts.join(' ; ');

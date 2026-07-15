@@ -536,8 +536,8 @@ export async function POST(req: NextRequest) {
         // status de run (completed vs completed_with_gaps).
         const enginesRecorder = new EngineStatusRecorder();
 
-        function withEngineDeadline<T>(engine: string, resultKey: string | null, work: Promise<T>): Promise<T | null> {
-          if (resultKey) enginesRecorder.markStart(resultKey);
+        function withEngineDeadline<T>(engine: string, resultKey: string | null, work: Promise<T>, deps?: string[]): Promise<T | null> {
+          if (resultKey) enginesRecorder.markStart(resultKey, deps);
           return new Promise((resolve) => {
             let settled = false;
             const timer = setTimeout(() => {
@@ -814,6 +814,20 @@ export async function POST(req: NextRequest) {
           sendStart('macro', 'Lecture macro et geopolitique');
           sendStart('financial-extraction', businessPlan ? 'Extraction des donnees financieres (deck + BP)' : 'Extraction des donnees financieres (deck)');
 
+          // Marqueurs LLM-start des moteurs couche 1 qui declenchent
+          // immediatement leur appel Anthropic sans attente sur d autres
+          // moteurs. Positionnes avant la construction de la promesse
+          // pour que le recorder distingue clairement un appel LLM
+          // reellement emis d une cascade heritee en aval.
+          if (track !== 'growth') enginesRecorder.markLLMStart('team');
+          enginesRecorder.markLLMStart('market');
+          enginesRecorder.markLLMStart('macro');
+          enginesRecorder.markLLMStart('financialData');
+          enginesRecorder.markLLMStart('saasMetrics');
+          if (relevanceMatrix.verdicts.indicatorsIndustrial.applicable === 'full') {
+            enginesRecorder.markLLMStart('industrialMetrics');
+          }
+
           // Moteur Equipe : skip en parcours growth, calibre early stage.
           // En growth on retourne immediatement un output neutre marque
           // skipped, sans appel LLM. Voir lib/engines/skipped-outputs.ts.
@@ -972,6 +986,7 @@ export async function POST(req: NextRequest) {
               return r;
             }
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            enginesRecorder.markLLMStart('patternMatching');
             const r = await matchPatterns(extraction, team, market, macro);
             sendDone('pattern', r);
             return r;
@@ -985,6 +1000,7 @@ export async function POST(req: NextRequest) {
               return r;
             }
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            enginesRecorder.markLLMStart('blindspotAnalysis');
             const r = await analyzeBlindspots(extraction, team, market, macro, sectoralContext);
             sendDone('blindspot', r);
             return r;
@@ -992,6 +1008,7 @@ export async function POST(req: NextRequest) {
 
           const contrarianPromise = (async () => {
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            enginesRecorder.markLLMStart('contrarianAnalysis');
             const r = await analyzeContrarian(extraction, team, market, macro, sectoralContext);
             sendDone('contrarian', r);
             return r;
@@ -1003,6 +1020,7 @@ export async function POST(req: NextRequest) {
               financialDataPromise,
               benchmarksPromise,
             ]);
+            enginesRecorder.markLLMStart('financialCoherence');
             const r = await analyzeFinancialCoherence({
               extraction,
               financialData,
@@ -1023,6 +1041,7 @@ export async function POST(req: NextRequest) {
 
           const techClaimPromise = (async () => {
             const financialData = await financialDataPromise;
+            enginesRecorder.markLLMStart('techClaimCoherence');
             try {
               const r = await analyzeTechClaimCoherence(extraction, financialData);
               sendDone('tech-claim', r);
@@ -1036,6 +1055,7 @@ export async function POST(req: NextRequest) {
 
           const executionFrictionPromise = (async () => {
             const financialData = await financialDataPromise;
+            enginesRecorder.markLLMStart('executionFriction');
             try {
               const r = await analyzeExecutionFriction(extraction, financialData ?? null, rawSummary);
               sendDone('execution-friction', r);
@@ -1053,6 +1073,7 @@ export async function POST(req: NextRequest) {
           // En cas d echec LLM, non-bloquant.
           const narrativeDriftPromise = narrativeDriftRequested
             ? (async () => {
+                enginesRecorder.markLLMStart('narrativeDrift');
                 try {
                   const r = await analyzeNarrativeDrift({
                     extraction,
@@ -1084,6 +1105,7 @@ export async function POST(req: NextRequest) {
           const fragilityPromise = fragiliteRequested
             ? (async () => {
                 const [market, financialData] = await Promise.all([marketPromise, financialDataPromise]);
+                enginesRecorder.markLLMStart('fragiliteStructurelle');
                 try {
                   const r = await analyzeFragiliteStructurelle(
                     {
@@ -1125,6 +1147,7 @@ export async function POST(req: NextRequest) {
             const [team, market, macro, pattern] = await Promise.all([
               teamPromise, marketPromise, macroPromise, patternPromise,
             ]);
+            enginesRecorder.markLLMStart('causalReversal');
             const r = await performCausalReversal(extraction, team, market, macro, pattern);
             sendDone('causal', r);
             return r;
@@ -1149,6 +1172,7 @@ export async function POST(req: NextRequest) {
             const [team, blindspot, causal] = await Promise.all([
               teamPromise, blindspotPromise, causalPromise,
             ]);
+            enginesRecorder.markLLMStart('referenceChecks');
             try {
               const r = await generateReferenceChecks(extraction, team, blindspot, causal);
               sendDone('reference-checks', r);
@@ -1193,6 +1217,10 @@ export async function POST(req: NextRequest) {
             referenceChecks,
           ] = await Promise.race([
             Promise.all([
+              // Couche 1 : moteurs qui n attendent aucun autre moteur
+              // avant leur propre appel LLM. Pas de deps declarees car
+              // une rejection reelle ici est bien un incident du moteur
+              // lui-meme, pas une cascade a promouvoir.
               withEngineDeadline('team', 'team', teamPromise),
               withEngineDeadline('market', 'market', marketPromise),
               withEngineDeadline('macro', 'macro', macroPromise),
@@ -1200,16 +1228,20 @@ export async function POST(req: NextRequest) {
               withEngineDeadline('saas-metrics', 'saasMetrics', saasMetricsPromise),
               withEngineDeadline('industrial-metrics', 'industrialMetrics', industrialMetricsPromise),
               withEngineDeadline('benchmarks', null, benchmarksPromise),
-              withEngineDeadline('pattern', 'patternMatching', patternPromise),
-              withEngineDeadline('blindspot', 'blindspotAnalysis', blindspotPromise),
-              withEngineDeadline('contrarian', 'contrarianAnalysis', contrarianPromise),
-              withEngineDeadline('financial-coherence', 'financialCoherence', financialCoherencePromise),
-              withEngineDeadline('tech-claim', 'techClaimCoherence', techClaimPromise),
-              withEngineDeadline('execution-friction', 'executionFriction', executionFrictionPromise),
+              // Couche 2 et au dela : deps declarees pour que le recorder
+              // sache nommer la dependance fautive quand un moteur rejete
+              // avant d avoir appele son propre LLM (promotion
+              // failed -> failed-upstream).
+              withEngineDeadline('pattern', 'patternMatching', patternPromise, ['team', 'market', 'macro']),
+              withEngineDeadline('blindspot', 'blindspotAnalysis', blindspotPromise, ['team', 'market', 'macro']),
+              withEngineDeadline('contrarian', 'contrarianAnalysis', contrarianPromise, ['team', 'market', 'macro']),
+              withEngineDeadline('financial-coherence', 'financialCoherence', financialCoherencePromise, ['market', 'financialData']),
+              withEngineDeadline('tech-claim', 'techClaimCoherence', techClaimPromise, ['financialData']),
+              withEngineDeadline('execution-friction', 'executionFriction', executionFrictionPromise, ['financialData']),
               withEngineDeadline('narrative-drift', 'narrativeDrift', narrativeDriftPromise),
-              withEngineDeadline('fragility-structurelle', 'fragiliteStructurelle', fragilityPromise),
-              withEngineDeadline('causal', 'causalReversal', causalPromise),
-              withEngineDeadline('reference-checks', 'referenceChecks', referenceChecksPromise),
+              withEngineDeadline('fragility-structurelle', 'fragiliteStructurelle', fragilityPromise, ['market', 'financialData']),
+              withEngineDeadline('causal', 'causalReversal', causalPromise, ['team', 'market', 'macro', 'patternMatching']),
+              withEngineDeadline('reference-checks', 'referenceChecks', referenceChecksPromise, ['team', 'blindspotAnalysis', 'causalReversal']),
             ]),
             budgetPromise,
           ]);

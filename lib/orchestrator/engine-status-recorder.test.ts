@@ -5,8 +5,10 @@
 //           skipped_not_applicable, empty_output).
 // Suite 2 : contrats minimaux par moteur, cas TOLSON.
 // Suite 3 : calcul du statut de run et du message d erreur.
-// Suite 4 : preservation d un statut failed / timeout deja
-//           enregistre lors du finalize.
+// Suite 4 : preservation d un statut failed / failed-upstream /
+//           timeout deja enregistre lors du finalize.
+// Suite 5 : promotion failed -> failed-upstream, distinction
+//           attente sur dependances contre execution reelle.
 // ============================================================
 
 import {
@@ -245,13 +247,160 @@ console.log('\n[Suite 4] Preservation d un statut failed / timeout dans finalize
 
 {
   // GAP_STATUSES est stable
-  check(GAP_STATUSES.length === 3, '3 statuts de lacune');
+  check(GAP_STATUSES.length === 4, '4 statuts de lacune');
   check((GAP_STATUSES as readonly string[]).includes('failed'), 'GAP inclut failed');
+  check((GAP_STATUSES as readonly string[]).includes('failed-upstream'), 'GAP inclut failed-upstream');
   check((GAP_STATUSES as readonly string[]).includes('timeout'), 'GAP inclut timeout');
   check((GAP_STATUSES as readonly string[]).includes('empty_output'), 'GAP inclut empty_output');
   check(!(GAP_STATUSES as readonly string[]).includes('skipped_not_applicable'), 'GAP n inclut pas skipped');
   check(!(GAP_STATUSES as readonly string[]).includes('ok'), 'GAP n inclut pas ok');
 }
 
-console.log(`\n${pass} pass, ${fail} fail`);
-process.exit(fail === 0 ? 0 : 1);
+// ============================================================
+// SUITE 5 - Promotion failed -> failed-upstream et durees
+// ============================================================
+
+console.log('\n[Suite 5] Promotion failed -> failed-upstream, distinction wait / execution');
+
+{
+  // Cas In Haircare : team appelle son LLM et timeout ; pattern
+  // depend de team, market, macro et rejete en cascade sans avoir
+  // jamais appele son LLM. Doit sortir failed-upstream, pas failed,
+  // et son errorMessage doit nommer team, jamais "Request timed out."
+  const r = new EngineStatusRecorder();
+  r.markStart('team');
+  r.markLLMStart('team');
+  r.record({ engine: 'team', status: 'failed', attempts: 1, errorMessage: 'Request timed out.', durationMs: 61000 });
+
+  r.markStart('patternMatching', ['team', 'market', 'macro']);
+  // markLLMStart JAMAIS appele : pattern attendait ses deps
+  r.record({ engine: 'patternMatching', status: 'failed', attempts: 1, errorMessage: 'Request timed out.', durationMs: 61200 });
+
+  const s = r.snapshot();
+  check(s.team?.status === 'failed', 'team reste failed (a appele son LLM)');
+  check(s.team?.errorMessage === 'Request timed out.', '  team errorMessage inchange');
+  check(s.patternMatching?.status === 'failed-upstream', 'pattern promu failed-upstream (jamais appele son LLM)');
+  check(s.patternMatching?.errorMessage === 'dependency failed: team', `  pattern errorMessage nomme team (obtenu: ${s.patternMatching?.errorMessage})`);
+  check(s.patternMatching?.failedDependencies?.length === 1 && s.patternMatching?.failedDependencies?.[0] === 'team', '  failedDependencies liste team');
+}
+
+{
+  // Plusieurs deps fautives : errorMessage les liste toutes.
+  const r = new EngineStatusRecorder();
+  r.markStart('team');
+  r.markLLMStart('team');
+  r.record({ engine: 'team', status: 'failed', attempts: 1, errorMessage: 'timeout' });
+  r.markStart('market');
+  r.markLLMStart('market');
+  r.record({ engine: 'market', status: 'failed', attempts: 1, errorMessage: '529 overloaded' });
+  r.markStart('macro');
+  r.markLLMStart('macro');
+  r.record({ engine: 'macro', status: 'ok', attempts: 1 });
+
+  r.markStart('patternMatching', ['team', 'market', 'macro']);
+  r.record({ engine: 'patternMatching', status: 'failed', attempts: 1, errorMessage: '529 overloaded' });
+
+  const s = r.snapshot();
+  check(s.patternMatching?.status === 'failed-upstream', 'cascade avec deux deps fautives');
+  check(s.patternMatching?.errorMessage === 'dependency failed: team, market', `  errorMessage cite team et market (obtenu: ${s.patternMatching?.errorMessage})`);
+  check(s.patternMatching?.failedDependencies?.length === 2, '  failedDependencies a deux entrees');
+  check(!s.patternMatching?.failedDependencies?.includes('macro'), '  macro non cite (etait ok)');
+}
+
+{
+  // markLLMStart appele => rejection n est PAS promue, meme sans succession
+  // apres. Un moteur qui a effectivement appele son LLM et vu ce dernier
+  // rejeter reste failed avec son propre message, jamais promu upstream.
+  const r = new EngineStatusRecorder();
+  r.markStart('narrativeDrift', ['extraction']);
+  r.markLLMStart('narrativeDrift');
+  r.record({ engine: 'narrativeDrift', status: 'failed', attempts: 1, errorMessage: 'Request timed out.' });
+  const s = r.snapshot();
+  check(s.narrativeDrift?.status === 'failed', 'appel LLM effectif reste failed');
+  check(s.narrativeDrift?.errorMessage === 'Request timed out.', '  errorMessage propre preserve');
+  check(s.narrativeDrift?.failedDependencies === undefined, '  aucun failedDependencies');
+}
+
+{
+  // Record externe sans markStart : comportement legacy preserve,
+  // pas de promotion. Les tests des suites 1 a 4 depensent de ca.
+  const r = new EngineStatusRecorder();
+  r.record({ engine: 'market', status: 'failed', attempts: 1, errorMessage: '529 overloaded', durationMs: 3000 });
+  const s = r.snapshot();
+  check(s.market?.status === 'failed', 'record externe sans markStart reste failed');
+  check(s.market?.errorMessage === '529 overloaded', '  errorMessage preserve');
+}
+
+{
+  // Sans markLLMStart, le fallback wait = totalDuration et execution = 0.
+  // Verification synchrone d abord.
+  const r = new EngineStatusRecorder();
+  r.markStart('patternMatching', ['team']);
+  r.record({ engine: 'patternMatching', status: 'failed', attempts: 1, errorMessage: 'x', durationMs: 500 });
+  const s = r.snapshot();
+  check(s.patternMatching?.waitDurationMs === 500, 'wait = total quand aucun LLM start (obtenu ' + s.patternMatching?.waitDurationMs + ')');
+  check(s.patternMatching?.executionDurationMs === 0, 'execution = 0 quand aucun LLM start');
+}
+
+{
+  // Sans deps declarees, la promotion utilise le balayage global des entrees.
+  const r2 = new EngineStatusRecorder();
+  r2.markStart('team');
+  r2.markLLMStart('team');
+  r2.record({ engine: 'team', status: 'failed', attempts: 1, errorMessage: 'timeout' });
+  r2.markStart('patternMatching');
+  r2.record({ engine: 'patternMatching', status: 'failed', attempts: 1, errorMessage: 'timeout' });
+  const s2 = r2.snapshot();
+  check(s2.patternMatching?.status === 'failed-upstream', 'sans deps declarees, balayage global');
+  check(s2.patternMatching?.errorMessage?.includes('team') === true, 'errorMessage nomme team via balayage (obtenu: ' + s2.patternMatching?.errorMessage + ')');
+}
+
+{
+  // finalizeFromResult preserve failed-upstream au meme titre que failed / timeout.
+  const r3 = new EngineStatusRecorder();
+  r3.markStart('patternMatching', ['team']);
+  r3.markStart('team');
+  r3.markLLMStart('team');
+  r3.record({ engine: 'team', status: 'failed', attempts: 1, errorMessage: 'timeout' });
+  r3.record({ engine: 'patternMatching', status: 'failed', attempts: 1, errorMessage: 'propage' });
+  r3.finalizeFromResult({ patternMatching: null }, { patternMatching: 'patternMatching' });
+  const s3 = r3.snapshot();
+  check(s3.patternMatching?.status === 'failed-upstream', 'finalizeFromResult n ecrase pas failed-upstream');
+}
+
+{
+  // failed-upstream compte comme lacune et computeErrorMessage le distingue de failed.
+  const r4 = new EngineStatusRecorder();
+  r4.markStart('team');
+  r4.markLLMStart('team');
+  r4.record({ engine: 'team', status: 'failed', attempts: 1, errorMessage: 'timeout' });
+  r4.markStart('patternMatching', ['team']);
+  r4.record({ engine: 'patternMatching', status: 'failed', attempts: 1, errorMessage: 'propage' });
+  check(r4.computeRunStatus() === 'completed_with_gaps', 'failed-upstream compte comme gap');
+  const msg = r4.computeErrorMessage()!;
+  check(msg.includes('failed: team'), 'message liste team en failed (obtenu: ' + msg + ')');
+  check(msg.includes('failed-upstream: patternMatching'), 'message liste pattern en failed-upstream (obtenu: ' + msg + ')');
+  const failedSegment = msg.split(';').find((s) => s.trim().startsWith('failed:'));
+  check(failedSegment !== undefined && !failedSegment.includes('patternMatching'), 'segment failed n inclut pas patternMatching');
+}
+
+// Durees mesurees : test asynchrone en fin de fichier avec setTimeout pour
+// simuler wait sur deps puis execution reelle.
+(async () => {
+  const r = new EngineStatusRecorder();
+  r.markStart('patternMatching', ['team']);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  r.markLLMStart('patternMatching');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  r.record({ engine: 'patternMatching', status: 'ok', attempts: 1 });
+  const s = r.snapshot();
+  const w = s.patternMatching?.waitDurationMs ?? -1;
+  const e = s.patternMatching?.executionDurationMs ?? -1;
+  const total = s.patternMatching?.durationMs ?? -1;
+  check(w >= 25 && w <= 80, 'wait ~30ms mesure (obtenu ' + w + ')');
+  check(e >= 15 && e <= 80, 'execution ~20ms mesure (obtenu ' + e + ')');
+  check(total >= 45, 'duration totale >= somme (obtenu ' + total + ')');
+
+  console.log(`\n${pass} pass, ${fail} fail`);
+  process.exit(fail === 0 ? 0 : 1);
+})();
