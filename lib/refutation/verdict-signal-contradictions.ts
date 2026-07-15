@@ -258,7 +258,7 @@ function collectDurabilitySignals(rj: any, nowYear: number): DurabilitySignal[] 
     if (age >= THRESHOLDS.minCompanyAgeYears) {
       out.push({
         kind: 'company-age',
-        observed: `fondée en ${yf}, ${age} ans d'ancienneté`,
+        observed: `fondée en ${yf}, ${age} ans d’ancienneté`,
         source: 'extraction.yearFounded',
       });
     }
@@ -273,7 +273,7 @@ function collectDurabilitySignals(rj: any, nowYear: number): DurabilitySignal[] 
     if (tenure >= THRESHOLDS.minClientTenureYears) {
       out.push({
         kind: 'long-tenure-clients',
-        observed: `clients présents depuis ${y}, ${tenure} ans d'adhérence`,
+        observed: `clients présents depuis ${y}, ${tenure} ans d’adhérence`,
         source: 'extraction.traction.metrics',
       });
       break;
@@ -311,7 +311,7 @@ export function detectVerdictSignalContradictions(
   const signals = collectDurabilitySignals(resultJson, nowYear);
   if (signals.length < THRESHOLDS.minConcurrentSignals) return [];
 
-  const message = `Verdict de reproductibilité ${verdict.value} (${verdict.source.split('.').pop()}) contredit par ${signals.length} marqueurs de moat non technique : ${signals.map(s => s.kind).join(', ')}. Le produit peut être techniquement reproduit, mais la durée d'installation commerciale et la base de grands comptes constituent une barrière non code.`;
+  const message = `Verdict de reproductibilité ${verdict.value} (${verdict.source.split('.').pop()}) contredit par ${signals.length} marqueurs de moat non-technique : ${signals.map(s => s.kind).join(', ')}. Le produit peut être techniquement reproduit, mais la durée d’installation commerciale et la base de grands comptes constituent une barrière non-code.`;
 
   return [{
     ruleId: 'ai-replicability-vs-durability-signals',

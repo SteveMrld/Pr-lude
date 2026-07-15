@@ -279,7 +279,7 @@ export function detectLabelCalculationContradictions(
       yearsForward,
       labelExcerpt: label,
       rationaleExcerpt: rationale.slice(0, 200),
-      message: `${label} calculé sur ${baseYear} (${yearsForward} an${yearsForward > 1 ? 's' : ''} après l'année de référence ${refYear} du dossier), sans qualification forward dans le libellé ni le rationale.`,
+      message: `${label} calculé sur ${baseYear} (${yearsForward} an${yearsForward > 1 ? 's' : ''} après l’année de référence ${refYear} du dossier), sans qualification forward dans le libellé ni le rationale.`,
     });
   }
   return out;

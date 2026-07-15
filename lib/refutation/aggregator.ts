@@ -55,8 +55,8 @@ function normalizeNumeric(c: NumericContradiction): AggregatedRefutation {
   return {
     family: 'numeric',
     ruleId: `numeric:${c.kind}:${c.metric}:${periodLabel}`,
-    claim: `${c.metric} ${periodLabel} : ${c.left.value}${unit} d'après ${leftSource}`,
-    contradiction: `Même grandeur : ${c.right.value}${unit} d'après ${rightSource}`,
+    claim: `${c.metric} ${periodLabel} : ${c.left.value}${unit} d’après ${leftSource}`,
+    contradiction: `Même grandeur : ${c.right.value}${unit} d’après ${rightSource}`,
     tension: `Deux valeurs divergentes pour la même grandeur sur la même période, écart ${c.absoluteDelta}${unit}.`,
     source: `refutation.numeric.${c.kind}`,
   };
@@ -66,7 +66,7 @@ function normalizeVerdictSignal(c: VerdictSignalContradiction): AggregatedRefuta
   const shortSource = c.verdict.source.split('.').pop() || c.verdict.source;
   const signalsStr = c.signals
     .map(s => {
-      if (s.kind === 'long-term-retention') return `rétention pluri annuelle documentée (${s.observed})`;
+      if (s.kind === 'long-term-retention') return `rétention pluriannuelle documentée (${s.observed})`;
       if (s.kind === 'enterprise-base') return `base grands comptes installée (${s.observed})`;
       if (s.kind === 'company-age') return `ancienneté significative (${s.observed})`;
       if (s.kind === 'long-tenure-clients') return `adhérence longue des clients (${s.observed})`;
@@ -77,8 +77,8 @@ function normalizeVerdictSignal(c: VerdictSignalContradiction): AggregatedRefuta
     family: 'verdict-signal',
     ruleId: `verdict-signal:${c.ruleId}`,
     claim: `Verdict de reproductibilité ${c.verdict.value} (${shortSource}) : le produit serait facile à répliquer.`,
-    contradiction: `Le dossier documente ${c.signals.length} marqueurs de moat non technique : ${signalsStr}.`,
-    tension: 'Le code est peut être reproductible, mais la durée d\'installation commerciale et la base de grands comptes constituent une barrière non code que le verdict ignore.',
+    contradiction: `Le dossier documente ${c.signals.length} marqueurs de moat non-technique : ${signalsStr}.`,
+    tension: 'Le code est peut-être reproductible, mais la durée d’installation commerciale et la base de grands comptes constituent une barrière non-code que le verdict ignore.',
     source: `refutation.verdict-signal.${c.ruleId}`,
   };
 }
@@ -88,7 +88,7 @@ function normalizeLabelCalc(c: LabelCalculationContradiction): AggregatedRefutat
     family: 'label-calc',
     ruleId: `label-calc:${c.indicatorKey}`,
     claim: `${c.indicatorLabel} présenté sans qualification temporelle.`,
-    contradiction: `Le calcul repose sur ${c.baseYearOfCalculation}, soit ${c.yearsForward} an${c.yearsForward > 1 ? 's' : ''} après l'année de référence ${c.dossierRefYear} du dossier.`,
+    contradiction: `Le calcul repose sur ${c.baseYearOfCalculation}, soit ${c.yearsForward} an${c.yearsForward > 1 ? 's' : ''} après l’année de référence ${c.dossierRefYear} du dossier.`,
     tension: 'Un chiffre projeté présenté sans étiquette forward peut être lu comme un résultat réalisé, ce qui fausse la lecture de la santé économique.',
     source: `refutation.label-calc.${c.indicatorKey}`,
   };
