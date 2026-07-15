@@ -32,7 +32,8 @@ export type ReferenceYearRejectionReason =
   | 'last-actual-year-out-of-bounds'
   | 'evidence-absent'
   | 'evidence-empty'
-  | 'implausible-vs-projections';
+  | 'year-not-in-projections'
+  | 'year-after-last-projection';
 
 export interface ReferenceYearResult {
   /** Annee retenue apres passage de la garde, ou null si rejet. */
@@ -45,21 +46,16 @@ export interface ReferenceYearResult {
 }
 
 /**
- * Seuil de vraisemblance : si lastActualYear est anterieur de plus
- * de MAX_GAP_YEARS a la derniere annee des projections, la valeur
- * est refusee. Cinq annees est un compromis (un memorandum 2024
- * peut porter des projections jusqu a 2029) ; trois annees est
- * strict et attrape le fallback filename historique (2013 sur
- * projections 2021-2026, ecart 13 > 3).
+ * Extrait les annees valides d une projection. Ignore les entrees
+ * mal formees, retourne un tableau trie ou un tableau vide.
  */
-export const MAX_GAP_YEARS = 3;
-
-function maxYearInProjection(projection: any): number | null {
-  if (!Array.isArray(projection) || projection.length === 0) return null;
+function projectionYears(projection: any): number[] {
+  if (!Array.isArray(projection)) return [];
   const years = projection
     .map((p: any) => parseInt(String(p?.year), 10))
     .filter((y: number) => Number.isFinite(y) && y >= 2000 && y <= 2100);
-  return years.length > 0 ? Math.max(...years) : null;
+  years.sort((a, b) => a - b);
+  return years;
 }
 
 /**
@@ -92,18 +88,32 @@ export function deriveDossierReferenceYearWithReason(dossier: any): ReferenceYea
     return { year: null, rejectionReason: 'evidence-empty', rejectionDetail: 'lastActualYearEvidence vide, la primitive refuse une valeur sans citation textuelle du document.' };
   }
 
-  // Garde de vraisemblance : ecart max de MAX_GAP_YEARS avec la
-  // derniere annee des projections. Un modele qui produit 2013
-  // sur un dossier dont les projections vont jusqu a 2026 est
-  // manifestement en erreur, on rejette au runtime.
-  const maxProj = maxYearInProjection(fd.revenueProjection);
-  if (maxProj !== null) {
-    const gap = maxProj - y;
-    if (gap > MAX_GAP_YEARS) {
+  // Deux gardes non numeriques, doctrinales.
+  //   1. Appartenance : lastActualYear doit figurer parmi les annees
+  //      des projections du dossier. Une annee qui n a jamais ete
+  //      chiffree par le BP ne peut pas etre l annee de reference
+  //      d execution qu on lit dessus.
+  //   2. Posteriorite : lastActualYear ne peut pas etre strictement
+  //      superieur a la derniere annee des projections. Une annee
+  //      realisee posterieure a tout ce que le dossier documente est
+  //      structurellement incoherente.
+  // Aucun seuil numerique arbitraire. Les deux conditions decoulent
+  // de la structure des donnees, pas d une doctrine d ecart.
+  const years = projectionYears(fd.revenueProjection);
+  if (years.length > 0) {
+    const maxProj = years[years.length - 1];
+    if (y > maxProj) {
       return {
         year: null,
-        rejectionReason: 'implausible-vs-projections',
-        rejectionDetail: `lastActualYear=${y} ecarte de ${gap} ans de la derniere annee des projections (${maxProj}), au-dela de la garde de vraisemblance (${MAX_GAP_YEARS} ans max).`,
+        rejectionReason: 'year-after-last-projection',
+        rejectionDetail: `lastActualYear=${y} strictement posterieur a la derniere annee des projections (${maxProj}). Une annee realisee ne peut pas depasser ce que le dossier documente.`,
+      };
+    }
+    if (!years.includes(y)) {
+      return {
+        year: null,
+        rejectionReason: 'year-not-in-projections',
+        rejectionDetail: `lastActualYear=${y} ne figure pas parmi les annees des projections du dossier (${years.join(', ')}). Une annee absente du BP ne peut pas etre annee de reference.`,
       };
     }
   }

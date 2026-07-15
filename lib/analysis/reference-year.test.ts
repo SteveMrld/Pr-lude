@@ -8,7 +8,6 @@
 import {
   deriveDossierReferenceYear,
   deriveDossierReferenceYearWithReason,
-  MAX_GAP_YEARS,
 } from './reference-year';
 
 let pass = 0, fail = 0;
@@ -149,7 +148,8 @@ function maxYearInProjection(proj: any[]): number | null {
 
 {
   // Cas anormal 2013 vs projections 2021-2026 : la primitive rejette
-  // au runtime, elle ne se contente pas d etre signalee par un test.
+  // par la garde d appartenance (2013 n est pas dans les projections),
+  // sans passer par un seuil numerique d ecart.
   const suspect = {
     financialData: {
       lastActualYear: 2013,
@@ -162,44 +162,74 @@ function maxYearInProjection(proj: any[]): number | null {
     },
   };
   const y = deriveDossierReferenceYear(suspect);
-  check(y === null, 'primitive REJETTE lastActualYear=2013 face a projections 2021-2026 (garde runtime)');
+  check(y === null, 'primitive REJETTE lastActualYear=2013 face a projections 2021-2026 (annee absente des projections)');
   const res = deriveDossierReferenceYearWithReason(suspect);
-  check(res.rejectionReason === 'implausible-vs-projections', 'motif de rejet = implausible-vs-projections');
-  check(res.rejectionDetail !== null && res.rejectionDetail.includes('13 ans'), 'motif detail cite l ecart 13 ans');
+  check(res.rejectionReason === 'year-not-in-projections', 'motif de rejet = year-not-in-projections');
+  check(res.rejectionDetail !== null && res.rejectionDetail.includes('2013'), 'motif detail cite l annee absente 2013');
 }
 
 {
-  // Cas conforme a la garde : ecart = 3 exactement (pile sur seuil)
-  const okBoundary = {
+  // BP a cinq ans : refYear=2024, projections 2021 a 2029. Ce cas
+  // etait rejete par l ancienne garde d ecart (2029 - 2024 = 5 > 3),
+  // il doit passer avec la garde d appartenance.
+  const bpFiveYears = {
     financialData: {
-      lastActualYear: 2023,
-      lastActualYearEvidence: 'clos 2023',
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'exercice 2024A audit Mazars, cloture 31/12/2024',
       revenueProjection: [
-        { year: '2023', value: 1 },
-        { year: '2026', value: 2.5 },
+        { year: '2021', value: 1.0 },
+        { year: '2022', value: 1.3 },
+        { year: '2023', value: 1.6 },
+        { year: '2024', value: 2.0 },
+        { year: '2025', value: 2.7 },
+        { year: '2026', value: 3.5 },
+        { year: '2027', value: 4.5 },
+        { year: '2028', value: 5.8 },
+        { year: '2029', value: 7.2 },
       ],
     },
   };
-  const y = deriveDossierReferenceYear(okBoundary);
-  check(y === 2023, `ecart pile sur seuil (${MAX_GAP_YEARS} ans) : accepte`);
+  const y = deriveDossierReferenceYear(bpFiveYears);
+  check(y === 2024, 'BP a 5 ans, refYear 2024 dans projections 2021-2029 : ACCEPTE (echouait avec l ancienne garde d ecart)');
 }
 
 {
-  // Cas au-dela du seuil de 1 : ecart = 4
-  const overBoundary = {
+  // Garde de posteriorite : lastActualYear apres derniere projection
+  const overshoot = {
     financialData: {
-      lastActualYear: 2022,
-      lastActualYearEvidence: 'clos 2022',
+      lastActualYear: 2027,
+      lastActualYearEvidence: 'evidence',
       revenueProjection: [
         { year: '2022', value: 1 },
+        { year: '2024', value: 2 },
         { year: '2026', value: 3 },
       ],
     },
   };
-  const y = deriveDossierReferenceYear(overBoundary);
-  check(y === null, 'ecart 4 ans > seuil : rejete');
-  const res = deriveDossierReferenceYearWithReason(overBoundary);
-  check(res.rejectionReason === 'implausible-vs-projections', 'motif = implausible-vs-projections');
+  const y = deriveDossierReferenceYear(overshoot);
+  check(y === null, 'lastActualYear 2027 posterieur a max projection 2026 : rejete');
+  const res = deriveDossierReferenceYearWithReason(overshoot);
+  check(res.rejectionReason === 'year-after-last-projection', 'motif = year-after-last-projection');
+}
+
+{
+  // Garde d appartenance : refYear entre deux projections mais pas
+  // present. Rejet malgre l ecart faible.
+  const gap = {
+    financialData: {
+      lastActualYear: 2023,
+      lastActualYearEvidence: 'evidence',
+      revenueProjection: [
+        { year: '2022', value: 1 },
+        { year: '2024', value: 2 },
+        { year: '2026', value: 3 },
+      ],
+    },
+  };
+  const y = deriveDossierReferenceYear(gap);
+  check(y === null, 'refYear 2023 absent des projections meme si ecart faible : rejete');
+  const res = deriveDossierReferenceYearWithReason(gap);
+  check(res.rejectionReason === 'year-not-in-projections', 'motif = year-not-in-projections');
 }
 
 // ============================================================
@@ -244,6 +274,17 @@ console.log('\n[Suite 6] Exposition du motif de rejet');
     financialData: { lastActualYear: 2024, lastActualYearEvidence: 'clos 2024', revenueProjection: [{ year: '2024', value: 1 }] },
   });
   check(r.year === 2024 && r.rejectionReason === null, 'valeur acceptee : year rempli, rejectionReason null');
+}
+
+{
+  // Sans revenueProjection, la primitive accepte la valeur : elle
+  // ne peut pas verifier l appartenance faute de reference. C est
+  // le contrat : les gardes sont conditionnees a la presence de
+  // projections structurees.
+  const r = deriveDossierReferenceYearWithReason({
+    financialData: { lastActualYear: 2024, lastActualYearEvidence: 'clos 2024' },
+  });
+  check(r.year === 2024, 'sans projections, la valeur passe (garde d appartenance conditionnee aux projections)');
 }
 
 console.log(`\n${pass} pass, ${fail} fail`);
