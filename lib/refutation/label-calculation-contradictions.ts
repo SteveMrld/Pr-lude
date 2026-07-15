@@ -74,62 +74,25 @@ export interface LabelCalculationContradiction {
 export const FORWARD_QUALIFIER_REGEX =
   /(?:forward|projet[eé]|projection|estim[eé]|pr[eé]vision(?:nel)?|budg[eé]t[eé]?|cible|forecast|d['’]?ici|\bfy\s*\+\s*\d\b|20\d{2}\s*[BEFP]\b|annee\s+projet|previsionnel)/i;
 
-// Reconnaitre une mention explicite d annee dans le rationale
-// avec qualifier (2024A, 2026E, 2025F, 2024B).
-const YEAR_QUALIFIER_REGEX = /(20\d{2})\s*([ABEFP])\b/gi;
-
 // ============================================================
 // Detection de l annee de reference du dossier
+// ------------------------------------------------------------
+// Delegue a la primitive partagee lib/analysis/reference-year.ts.
+// Signature de compatibilite conservee ici pour ne pas casser les
+// consommateurs, mais la logique unique vit en amont.
 // ============================================================
 
-/**
- * Ordre de precedence :
- *   1. option refYearOverride (injection test ou config)
- *   2. as_of / frozen_as_of du champ analyses (annee extraite)
- *   3. Max annee A ou B trouvee dans financialData.rawNotes ou
- *      extraction.rawSummary via YEAR_QUALIFIER_REGEX
- *   4. Annee extraite du source_filename (motif YYYY.MM.DD)
- *   5. null, la regle reste silencieuse
- */
+import { deriveDossierReferenceYear } from '../analysis/reference-year';
+
 export function detectDossierRefYear(
   rj: any,
   meta: { asOf?: string | null; sourceFilename?: string | null; refYearOverride?: number },
 ): number | null {
-  if (meta.refYearOverride && Number.isFinite(meta.refYearOverride)) return meta.refYearOverride;
-
-  if (typeof meta.asOf === 'string') {
-    const y = parseInt(meta.asOf.slice(0, 4), 10);
-    if (Number.isFinite(y) && y >= 2000 && y <= 2100) return y;
-  }
-
-  const notes = String(rj?.financialData?.rawNotes || '') + ' ' + String(rj?.extraction?.rawSummary || '');
-  let maxActualYear = 0;
-  YEAR_QUALIFIER_REGEX.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = YEAR_QUALIFIER_REGEX.exec(notes)) !== null) {
-    const y = parseInt(m[1], 10);
-    const q = m[2].toUpperCase();
-    if (q === 'A' || q === 'B') {
-      if (y > maxActualYear && y >= 2000 && y <= 2100) maxActualYear = y;
-    }
-  }
-  if (maxActualYear > 0) return maxActualYear;
-
-  if (typeof meta.sourceFilename === 'string') {
-    const fm = meta.sourceFilename.match(/(20\d{2})[.\-_](\d{2})[.\-_](\d{2})/);
-    if (fm) {
-      const y = parseInt(fm[1], 10);
-      if (Number.isFinite(y)) return y;
-    }
-    // Fallback : premiere annee 20XX presente dans le nom
-    const fm2 = meta.sourceFilename.match(/(20\d{2})/);
-    if (fm2) {
-      const y = parseInt(fm2[1], 10);
-      if (Number.isFinite(y)) return y;
-    }
-  }
-
-  return null;
+  return deriveDossierReferenceYear(rj, {
+    asOf: meta.asOf,
+    sourceFilename: meta.sourceFilename,
+    refYearOverride: meta.refYearOverride ?? null,
+  });
 }
 
 // ============================================================

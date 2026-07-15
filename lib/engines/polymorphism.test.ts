@@ -149,13 +149,17 @@ function makeExtraction(overrides: Partial<ExtractionOutput> = {}): ExtractionOu
   } as ExtractionOutput;
 }
 
+// Fixture financiere. Annee constante 2024 (independante de l horloge),
+// alignee avec TEST_REFERENCE_YEAR ci-dessous pour que le moteur
+// indicators applique son contrat sans divination temporelle.
+const TEST_REFERENCE_YEAR = 2024;
 function makeFinancialData(): FinancialDataExtraction {
   return {
-    revenueProjection: [{ year: new Date().getFullYear(), value: 1000000 }],
+    revenueProjection: [{ year: TEST_REFERENCE_YEAR, value: 1000000 }],
     grossMarginProjection: [],
     ebitdaProjection: [],
     cashBurnProjection: [],
-    headcount: [{ year: new Date().getFullYear(), value: 10 }],
+    headcount: [{ year: TEST_REFERENCE_YEAR, value: 10 }],
     smSpend: [],
     rdSpend: [],
     extractionConfidence: 'high',
@@ -329,6 +333,7 @@ console.log('\n[computeIndicators set selection]');
     extraction: ext,
     financial: null,
     financialData: makeFinancialData(),
+    referenceYear: TEST_REFERENCE_YEAR,
     relevanceMatrix: matrix,
   });
   const keys = out.indicators.map((i) => i.key);
@@ -370,6 +375,7 @@ console.log('\n[computeIndicators set selection]');
     extraction: ext,
     financial: null,
     financialData: makeFinancialData(),
+    referenceYear: TEST_REFERENCE_YEAR,
     relevanceMatrix: matrix,
   });
   const keys = out.indicators.map((i) => i.key);
@@ -393,6 +399,7 @@ console.log('\n[computeIndicators set selection]');
     extraction: ext,
     financial: null,
     financialData: makeFinancialData(),
+    referenceYear: TEST_REFERENCE_YEAR,
     // pas de relevanceMatrix : compat retro
   });
   const keys = out.indicators.map((i) => i.key);
@@ -411,6 +418,7 @@ console.log('\n[computeIndicators set selection]');
     extraction: ext,
     financial: null,
     financialData: makeFinancialData(),
+    referenceYear: TEST_REFERENCE_YEAR,
     relevanceMatrix: matrix,
   });
   const payback = out.indicators.find((i) => i.key === 'paybackCac');

@@ -54,6 +54,7 @@ import {
   getCurrentUserId,
 } from '@/lib/analysis-store';
 import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
+import { deriveDossierReferenceYear } from '@/lib/analysis/reference-year';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
 import {
@@ -1272,6 +1273,14 @@ export async function POST(req: NextRequest) {
           // lib/engines/indicators-engine.ts pour la logique et
           // lib/data/indicator-benchmarks.ts pour les seuils calibres
           // OpenView / Bessemer / Pavilion 2024.
+          // Annee de reference du dossier via primitive partagee. Le
+          // moteur d indicateurs ne consulte JAMAIS l horloge systeme,
+          // les valeurs doivent rester stables entre deux runs de dates
+          // differentes sur le meme document.
+          const dossierRefYear = deriveDossierReferenceYear(
+            { extraction, financialData } as any,
+            { asOf: asOf ?? null, sourceFilename: pitchDeck.name },
+          );
           const indicators = computeIndicators({
             extraction,
             financial: financialCoherence,
@@ -1279,6 +1288,7 @@ export async function POST(req: NextRequest) {
             saasMetrics,
             industrialMetrics,
             relevanceMatrix,
+            referenceYear: dossierRefYear,
           });
 
           const orchestratePromise = (async () => {

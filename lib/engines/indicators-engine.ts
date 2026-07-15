@@ -76,6 +76,16 @@ export interface IndicatorResult {
   };
   /** Source de la donnee : 'bp', 'pitch', 'inference', 'absent'. */
   dataConfidence: 'high' | 'medium' | 'low' | 'absent';
+  /** Annee du BP effectivement utilisee pour le calcul. Deterministe,
+   *  derivee de l annee de reference du dossier et des annees
+   *  disponibles dans la projection. null si l indicateur n a pas
+   *  ete calculable (non-applicable, absent). */
+  computedForYear?: number | null;
+  /** True si l annee retenue est strictement posterieure a l annee de
+   *  reference du dossier (calcul base sur du projete faute d actual
+   *  disponible). Signal a exposer dans la note pour ne pas presenter
+   *  un chiffre forward comme un etat de sante realise. */
+  isForwardBase?: boolean;
 }
 
 /**
@@ -123,6 +133,42 @@ function pickProjectionValueAtYear(
   const found = projection.find((p) => parseInt(String(p.year), 10) === year);
   if (!found) return null;
   return found.value * unitMultiplier;
+}
+
+/**
+ * Resout l annee de calcul d un indicateur a partir de l annee de
+ * reference du dossier et des annees disponibles dans la projection.
+ * Regle deterministe :
+ *   1. Si refYear est dans la projection : retenue, isForward=false.
+ *   2. Sinon, plus grande annee < refYear dans la projection :
+ *      retenue, isForward=false (actual historique).
+ *   3. Sinon, plus grande annee > refYear dans la projection :
+ *      retenue, isForward=true (calcul sur du projete).
+ *   4. Sinon, null : le moteur ne devine pas.
+ *
+ * Aucune lecture d horloge. La date systeme n intervient jamais.
+ */
+export interface YearResolution {
+  year: number;
+  isForward: boolean;
+}
+export function resolveYearForIndicator(
+  projection: Array<{ year: string | number; value: number }> | undefined,
+  refYear: number | null,
+): YearResolution | null {
+  if (refYear === null || !Number.isFinite(refYear)) return null;
+  if (!Array.isArray(projection) || projection.length === 0) return null;
+  const years = projection
+    .map(p => parseInt(String(p.year), 10))
+    .filter(y => Number.isFinite(y))
+    .sort((a, b) => a - b);
+  if (years.length === 0) return null;
+  if (years.includes(refYear)) return { year: refYear, isForward: false };
+  const historical = years.filter(y => y < refYear);
+  if (historical.length > 0) return { year: historical[historical.length - 1], isForward: false };
+  const forward = years.filter(y => y > refYear);
+  if (forward.length > 0) return { year: forward[0], isForward: true };
+  return null;
 }
 
 /**
@@ -187,6 +233,7 @@ function parsePercent(s: string | null | undefined): number | null {
 function computeBurnMultiple(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet | null,
+  refYear: number | null,
 ): IndicatorResult {
   const label = 'Burn multiple';
   const benchmark = benchmarks?.burnMultiple;
@@ -198,23 +245,39 @@ function computeBurnMultiple(
         ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Indicateur neutralise pour eviter un verdict cale sur des seuils logiciels decales.'
         : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
       dataConfidence: 'absent',
+      computedForYear: null,
+      isForwardBase: false,
     };
   }
 
-  const currentYear = new Date().getFullYear();
-  const newArr = computeYoYGrowthAbsolute(fd.revenueProjection, currentYear);
+  const resolved = resolveYearForIndicator(fd.revenueProjection, refYear);
+  if (!resolved) {
+    return {
+      key: 'burnMultiple', label, value: null, unit: benchmark.unit,
+      verdict: 'non-applicable',
+      rationale: refYear === null
+        ? 'Annee de reference du dossier non derivable. Indicateur non calculable sans base temporelle validee, jamais devine sur l horloge systeme.'
+        : 'Aucune annee de projection utilisable pour cet indicateur.',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: null,
+      isForwardBase: false,
+    };
+  }
+  const targetYear = resolved.year;
+  const newArr = computeYoYGrowthAbsolute(fd.revenueProjection, targetYear);
 
   // Burn proxy : -FCF si dispo, sinon -EBITDA, sinon (OPEX - revenue)
   let burn: number | null = null;
-  const fcf = pickProjectionValueAtYear(fd.fcfProjection, currentYear);
+  const fcf = pickProjectionValueAtYear(fd.fcfProjection, targetYear);
   if (fcf != null && fcf < 0) burn = -fcf;
   if (burn == null) {
-    const ebitda = pickProjectionValueAtYear(fd.ebitdaProjection, currentYear);
+    const ebitda = pickProjectionValueAtYear(fd.ebitdaProjection, targetYear);
     if (ebitda != null && ebitda < 0) burn = -ebitda;
   }
   if (burn == null) {
-    const opex = pickProjectionValueAtYear(fd.opexProjection, currentYear);
-    const rev = pickProjectionValueAtYear(fd.revenueProjection, currentYear);
+    const opex = pickProjectionValueAtYear(fd.opexProjection, targetYear);
+    const rev = pickProjectionValueAtYear(fd.revenueProjection, targetYear);
     if (opex != null && rev != null && opex > rev) burn = opex - rev;
   }
 
@@ -223,12 +286,14 @@ function computeBurnMultiple(
       key: 'burnMultiple', label, value: null, unit: benchmark.unit,
       verdict: 'non-applicable',
       rationale: newArr == null
-        ? 'Croissance revenue annuelle non calculable depuis le BP (annee courante ou precedente absente).'
+        ? `Croissance revenue annuelle non calculable depuis le BP (annee ${targetYear} ou precedente absente).`
         : newArr <= 0
         ? 'Croissance revenue annuelle nulle ou negative : le burn multiple n est pas calculable (division par zero).'
         : 'Burn (FCF, EBITDA ou OPEX - revenue) non extractible du BP.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: targetYear,
+      isForwardBase: resolved.isForward,
     };
   }
 
@@ -239,6 +304,8 @@ function computeBurnMultiple(
     rationale: `Burn ${formatEur(burn)} / Net New ARR ${formatEur(newArr)} = ${roundTo(value, 2)}x.`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
+    computedForYear: targetYear,
+    isForwardBase: resolved.isForward,
   };
 }
 
@@ -260,6 +327,7 @@ function computeYoYGrowthAbsolute(
 function computeRuleOf40(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet | null,
+  refYear: number | null,
 ): IndicatorResult {
   const label = 'Rule of 40';
   const benchmark = benchmarks?.ruleOf40;
@@ -271,22 +339,38 @@ function computeRuleOf40(
         ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Indicateur neutralise.'
         : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
       dataConfidence: 'absent',
+      computedForYear: null,
+      isForwardBase: false,
     };
   }
 
-  const currentYear = new Date().getFullYear();
-  const growth = computeYoYGrowth(fd.revenueProjection, currentYear);
-  const revenue = pickProjectionValueAtYear(fd.revenueProjection, currentYear);
+  const resolved = resolveYearForIndicator(fd.revenueProjection, refYear);
+  if (!resolved) {
+    return {
+      key: 'ruleOf40', label, value: null, unit: '%',
+      verdict: 'non-applicable',
+      rationale: refYear === null
+        ? 'Annee de reference du dossier non derivable. Indicateur non calculable sans base temporelle validee, jamais devine sur l horloge systeme.'
+        : 'Aucune annee de projection utilisable pour cet indicateur.',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: null,
+      isForwardBase: false,
+    };
+  }
+  const targetYear = resolved.year;
+  const growth = computeYoYGrowth(fd.revenueProjection, targetYear);
+  const revenue = pickProjectionValueAtYear(fd.revenueProjection, targetYear);
   let marginPct: number | null = null;
   let marginType = '';
 
-  const fcf = pickProjectionValueAtYear(fd.fcfProjection, currentYear);
+  const fcf = pickProjectionValueAtYear(fd.fcfProjection, targetYear);
   if (fcf != null && revenue && revenue > 0) {
     marginPct = (fcf / revenue) * 100;
     marginType = 'FCF';
   }
   if (marginPct == null) {
-    const ebitda = pickProjectionValueAtYear(fd.ebitdaProjection, currentYear);
+    const ebitda = pickProjectionValueAtYear(fd.ebitdaProjection, targetYear);
     if (ebitda != null && revenue && revenue > 0) {
       marginPct = (ebitda / revenue) * 100;
       marginType = 'EBITDA';
@@ -298,10 +382,12 @@ function computeRuleOf40(
       key: 'ruleOf40', label, value: null, unit: '%',
       verdict: 'non-applicable',
       rationale: growth == null
-        ? 'Croissance YoY non calculable (annee courante ou precedente absente du BP).'
+        ? `Croissance YoY non calculable (annee ${targetYear} ou precedente absente du BP).`
         : 'Marge FCF ou EBITDA non extractible du BP.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: targetYear,
+      isForwardBase: resolved.isForward,
     };
   }
 
@@ -312,6 +398,8 @@ function computeRuleOf40(
     rationale: `Croissance YoY ${roundTo(growth, 1)}% + Marge ${marginType} ${roundTo(marginPct, 1)}% = ${roundTo(value, 1)}%.`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
+    computedForYear: targetYear,
+    isForwardBase: resolved.isForward,
   };
 }
 
@@ -614,6 +702,7 @@ function computePaybackCac(
 function computeGrossMargin(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet | null,
+  refYear: number | null,
 ): IndicatorResult {
   const label = 'Marge brute';
   const benchmark = benchmarks?.grossMargin;
@@ -625,28 +714,50 @@ function computeGrossMargin(
         ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifie). Marge brute neutralisee : sera evaluee qualitativement en DD selon le secteur reel du dossier.'
         : 'Indicateur non applicable ou donnees BP absentes.',
       dataConfidence: 'absent',
+      computedForYear: null,
+      isForwardBase: false,
     };
   }
 
-  const currentYear = new Date().getFullYear();
-  let value = pickProjectionValueAtYear(fd.grossMarginProjection, currentYear, 1);
-  if (value == null) {
-    // Fallback : moyenne des projections disponibles
-    const values = (fd.grossMarginProjection || []).map((p) => p.value).filter((v) => !isNaN(v));
-    if (values.length > 0) value = values.reduce((a, b) => a + b, 0) / values.length;
+  // Doctrine : si refYear est null, on ne devine pas via un fallback
+  // moyenne. La marge brute devient non-applicable avec motif
+  // explicite plus bas.
+  const resolved = refYear !== null ? resolveYearForIndicator(fd.grossMarginProjection, refYear) : null;
+  let targetYear: number | null = resolved?.year ?? null;
+  let isForward = resolved?.isForward ?? false;
+  let value: number | null = null;
+  if (targetYear !== null) {
+    value = pickProjectionValueAtYear(fd.grossMarginProjection, targetYear, 1);
   }
-  if (value == null) {
+  if (value == null && refYear !== null) {
+    // Fallback : moyenne des projections disponibles. Actif uniquement
+    // quand refYear existe (on a alors une intention temporelle mais
+    // pas de valeur precise a la date, la moyenne est un proxy).
+    const values = (fd.grossMarginProjection || []).map((p) => p.value).filter((v) => !isNaN(v));
+    if (values.length > 0) {
+      value = values.reduce((a, b) => a + b, 0) / values.length;
+      targetYear = null;
+      isForward = false;
+    }
+  }
+  if (value == null && refYear !== null) {
     // Fallback supplementaire : unitEconomics.grossMarginPerUnit
     value = parsePercent(fd.unitEconomics?.grossMarginPerUnit);
+    targetYear = null;
+    isForward = false;
   }
 
   if (value == null) {
     return {
       key: 'grossMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      rationale: 'Marge brute non communiquee dans le BP. Donnee critique pour evaluer la viabilite unitaire : a demander en DD.',
+      rationale: refYear === null
+        ? 'Annee de reference du dossier non derivable, marge brute non calculable sans base temporelle validee.'
+        : 'Marge brute non communiquee dans le BP. Donnee critique pour evaluer la viabilite unitaire : a demander en DD.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: null,
+      isForwardBase: false,
     };
   }
 
@@ -668,9 +779,13 @@ function computeGrossMargin(
   return {
     key: 'grossMargin', label, value: roundTo(value, 1), unit: '%',
     verdict: classifyValue(value, benchmark),
-    rationale: `Marge brute ${roundTo(value, 1)}% pour l annee courante.${trajectoryNote}`,
+    rationale: targetYear !== null
+      ? `Marge brute ${roundTo(value, 1)}% pour l exercice ${targetYear}.${trajectoryNote}`
+      : `Marge brute ${roundTo(value, 1)}% (moyenne des projections disponibles).${trajectoryNote}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
+    computedForYear: targetYear,
+    isForwardBase: isForward,
   };
 }
 
@@ -680,6 +795,7 @@ function computeGrossMargin(
 function computeRevenuePerEmployee(
   fd: FinancialDataExtraction | null | undefined,
   benchmarks: IndicatorBenchmarkSet | null,
+  refYear: number | null,
 ): IndicatorResult {
   const label = 'Revenue par employé';
   const benchmark = benchmarks?.revenuePerEmployee;
@@ -691,22 +807,40 @@ function computeRevenuePerEmployee(
         ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifié). Capital efficiency neutralisée.'
         : 'Indicateur non applicable ou données BP absentes.',
       dataConfidence: 'absent',
+      computedForYear: null,
+      isForwardBase: false,
     };
   }
 
-  const currentYear = new Date().getFullYear();
-  const revenue = pickProjectionValueAtYear(fd.revenueProjection, currentYear);
-  const headcount = pickProjectionValueAtYear(fd.headcount, currentYear, 1);
+  const resolved = resolveYearForIndicator(fd.revenueProjection, refYear);
+  if (!resolved) {
+    return {
+      key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
+      verdict: 'non-applicable',
+      rationale: refYear === null
+        ? 'Année de référence du dossier non dérivable, capital efficiency non calculable sans base temporelle validée.'
+        : 'Aucune année de projection revenue utilisable.',
+      dataConfidence: 'absent',
+      benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: null,
+      isForwardBase: false,
+    };
+  }
+  const targetYear = resolved.year;
+  const revenue = pickProjectionValueAtYear(fd.revenueProjection, targetYear);
+  const headcount = pickProjectionValueAtYear(fd.headcount, targetYear, 1);
 
   if (revenue == null || headcount == null || headcount <= 0) {
     return {
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
       rationale: revenue == null
-        ? 'Revenue année courante absent du BP.'
-        : 'Headcount année courante absent du BP. Donnée critique pour évaluer la capital efficiency.',
+        ? `Revenue ${targetYear} absent du BP.`
+        : `Headcount ${targetYear} absent du BP. Donnée critique pour évaluer la capital efficiency.`,
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: targetYear,
+      isForwardBase: resolved.isForward,
     };
   }
 
@@ -714,9 +848,11 @@ function computeRevenuePerEmployee(
   return {
     key: 'revenuePerEmployee', label, value: Math.round(value), unit: 'EUR/FTE',
     verdict: classifyValue(value, benchmark),
-    rationale: `Revenue ${formatEur(revenue)} / ${headcount} ETP = ${formatEur(value)} par employé.`,
+    rationale: `Revenue ${formatEur(revenue)} / ${headcount} ETP = ${formatEur(value)} par employé (exercice ${targetYear}).`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
+    computedForYear: targetYear,
+    isForwardBase: resolved.isForward,
   };
 }
 
@@ -847,7 +983,8 @@ function computeCommercialCycle(im?: IndustrialMetricsExtraction | null): Indica
  */
 function computeOrderBacklog(
   fd: FinancialDataExtraction | null | undefined,
-  im?: IndustrialMetricsExtraction | null,
+  im: IndustrialMetricsExtraction | null | undefined,
+  refYear: number | null,
 ): IndicatorResult {
   const label = 'Carnet de commandes';
   const benchmark = INDUSTRIAL_BENCHMARKS.orderBacklog;
@@ -859,19 +996,24 @@ function computeOrderBacklog(
       rationale: 'Carnet de commandes non communique dans les documents fournis. Indicateur structurant de visibilite pour les modeles industriels : a demander en DD (somme des contrats signes ou commandes fermes / revenue annuel projete).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: null,
+      isForwardBase: false,
     };
   }
 
-  // Calcul du multiple : carnet / revenue annee courante
-  const currentYear = new Date().getFullYear();
-  const revenue = fd ? pickProjectionValueAtYear(fd.revenueProjection, currentYear) : null;
+  const resolved = fd ? resolveYearForIndicator(fd.revenueProjection, refYear) : null;
+  const revenue = resolved && fd ? pickProjectionValueAtYear(fd.revenueProjection, resolved.year) : null;
   if (revenue == null || revenue <= 0) {
     return {
       key: 'orderBacklog', label, value: null, unit: 'x',
       verdict: 'non-applicable',
-      rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} extrait, mais revenue annee courante absent du BP. Calcul du multiple impossible.`,
+      rationale: refYear === null
+        ? `Carnet de commandes ${formatEur(im.orderBacklogEur)} extrait, mais annee de reference du dossier non derivable. Multiple non calculable sans base temporelle validee.`
+        : `Carnet de commandes ${formatEur(im.orderBacklogEur)} extrait, mais revenue exercice ${resolved?.year ?? refYear} absent du BP.`,
       dataConfidence: 'medium',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: resolved?.year ?? null,
+      isForwardBase: resolved?.isForward ?? false,
     };
   }
 
@@ -879,9 +1021,11 @@ function computeOrderBacklog(
   return {
     key: 'orderBacklog', label, value: roundTo(multiple, 2), unit: 'x',
     verdict: classifyValue(multiple, benchmark),
-    rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} / revenue ${formatEur(revenue)} = ${roundTo(multiple, 2)}x annualise (provenance ${im.orderBacklogProvenance}).`,
+    rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} / revenue ${formatEur(revenue)} = ${roundTo(multiple, 2)}x annualise sur exercice ${resolved!.year} (provenance ${im.orderBacklogProvenance}).`,
     dataConfidence: im.orderBacklogProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
+    computedForYear: resolved!.year,
+    isForwardBase: resolved!.isForward,
   };
 }
 
@@ -890,7 +1034,8 @@ function computeOrderBacklog(
  */
 function computeWorkingCapitalRatio(
   fd: FinancialDataExtraction | null | undefined,
-  im?: IndustrialMetricsExtraction | null,
+  im: IndustrialMetricsExtraction | null | undefined,
+  refYear: number | null,
 ): IndicatorResult {
   const label = 'Working capital ratio';
   const benchmark = INDUSTRIAL_BENCHMARKS.workingCapitalRatio;
@@ -902,18 +1047,24 @@ function computeWorkingCapitalRatio(
       rationale: 'Working capital non extractible des documents. Critique pour les modeles industriels a cycle long : a demander en DD (besoin en fonds de roulement / revenue annuel).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: null,
+      isForwardBase: false,
     };
   }
 
-  const currentYear = new Date().getFullYear();
-  const revenue = fd ? pickProjectionValueAtYear(fd.revenueProjection, currentYear) : null;
+  const resolved = fd ? resolveYearForIndicator(fd.revenueProjection, refYear) : null;
+  const revenue = resolved && fd ? pickProjectionValueAtYear(fd.revenueProjection, resolved.year) : null;
   if (revenue == null || revenue <= 0) {
     return {
       key: 'workingCapitalRatio', label, value: null, unit: 'ratio',
       verdict: 'non-applicable',
-      rationale: `Working capital ${formatEur(im.workingCapitalEur)} extrait, mais revenue annee courante absent du BP.`,
+      rationale: refYear === null
+        ? `Working capital ${formatEur(im.workingCapitalEur)} extrait, mais annee de reference du dossier non derivable. Ratio non calculable sans base temporelle validee.`
+        : `Working capital ${formatEur(im.workingCapitalEur)} extrait, mais revenue exercice ${resolved?.year ?? refYear} absent du BP.`,
       dataConfidence: 'medium',
       benchmark: thresholdsToBenchmark(benchmark),
+      computedForYear: resolved?.year ?? null,
+      isForwardBase: resolved?.isForward ?? false,
     };
   }
 
@@ -921,9 +1072,11 @@ function computeWorkingCapitalRatio(
   return {
     key: 'workingCapitalRatio', label, value: roundTo(ratio, 2), unit: 'ratio',
     verdict: classifyValue(ratio, benchmark),
-    rationale: `Working capital ${formatEur(im.workingCapitalEur)} / revenue ${formatEur(revenue)} = ${roundTo(ratio, 2)}.`,
+    rationale: `Working capital ${formatEur(im.workingCapitalEur)} / revenue ${formatEur(revenue)} = ${roundTo(ratio, 2)} (exercice ${resolved!.year}).`,
     dataConfidence: im.workingCapitalProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
+    computedForYear: resolved!.year,
+    isForwardBase: resolved!.isForward,
   };
 }
 
@@ -1049,6 +1202,11 @@ interface IndicatorsInput {
    * le modele economique du dossier. Si absente : comportement
    * legacy avec set SaaS canonique sur tous les dossiers. */
   relevanceMatrix?: RelevanceMatrix | null | undefined;
+  /** Annee de reference du dossier, primitive partagee de
+   * lib/analysis/reference-year.ts. Le moteur ne consulte JAMAIS
+   * l horloge systeme. Si null, les indicateurs deviennent
+   * non-applicable avec motif explicite, ils ne devinent pas. */
+  referenceYear: number | null;
 }
 
 export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
@@ -1095,6 +1253,7 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   //      garde le set SaaS canonique.
   const useIndustrialSet = rm?.verdicts.indicatorsIndustrial.applicable === 'full';
   const acquisitionFunnel = rm?.acquisitionFunnel ?? null;
+  const refYear = input.referenceYear;
 
   let indicators: IndicatorResult[];
   if (useIndustrialSet) {
@@ -1107,25 +1266,25 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
     indicators = [
       computeUnitMargin(fd, im),
       computeCommercialCycle(im),
-      computeOrderBacklog(fd, im),
-      computeWorkingCapitalRatio(fd, im),
+      computeOrderBacklog(fd, im, refYear),
+      computeWorkingCapitalRatio(fd, im, refYear),
       computeProjectCapex(im),
       computeIndustrialCapacity(im),
       computeTenderWinRate(im),
-      computeRevenuePerEmployee(fd, benchmarks),
+      computeRevenuePerEmployee(fd, benchmarks, refYear),
     ];
   } else {
     // Set SaaS canonique. Payback CAC est conditionne par le funnel
     // d acquisition de la matrice : si funnel absent (B2G, projets
     // uniques), Payback est marque non-applicable explicitement.
     indicators = [
-      computeBurnMultiple(fd, benchmarks),
-      computeRuleOf40(fd, benchmarks),
+      computeBurnMultiple(fd, benchmarks, refYear),
+      computeRuleOf40(fd, benchmarks, refYear),
       computeNdr(fd, benchmarks, sm),
       computeMagicNumber(fd, benchmarks, sm),
       computePaybackCac(fd, benchmarks, sm, acquisitionFunnel),
-      computeGrossMargin(fd, benchmarks),
-      computeRevenuePerEmployee(fd, benchmarks),
+      computeGrossMargin(fd, benchmarks, refYear),
+      computeRevenuePerEmployee(fd, benchmarks, refYear),
     ];
   }
 
@@ -1190,8 +1349,13 @@ export function computeIndicators(input: IndicatorsInput): IndicatorsOutput {
   // a ete calibre il y a plus de 12 mois, on emet UN warning sobre. Le
   // partner doit savoir que les seuils ne sont pas alignes sur la photo
   // marche du trimestre courant, sans noyer la note dans des disclaimers.
-  if (benchmarks && applicableCount > 0) {
-    const months = computeBenchmarkFreshnessMonths(benchmarks.asOf);
+  if (benchmarks && applicableCount > 0 && refYear !== null) {
+    // Fraicheur benchmark ancree sur l annee de reference du dossier
+    // (mi-annee conventionnelle), jamais sur l horloge du run. Sans
+    // refYear, on n emet pas de warning fraicheur : mieux vaut se
+    // taire que produire une chaine qui varie avec l horloge.
+    const anchor = new Date(Date.UTC(refYear, 5, 28));
+    const months = computeBenchmarkFreshnessMonths(benchmarks.asOf, anchor);
     if (months !== null && months > 12) {
       warnings.push(
         `Benchmarks indicateurs calibres il y a ${months} mois (asOf ${benchmarks.asOf}, sources OpenView / Bessemer / Pavilion / Atomico). A recroiser au prochain refresh annuel.`,
