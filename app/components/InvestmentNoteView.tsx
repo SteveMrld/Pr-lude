@@ -72,6 +72,19 @@ interface Props {
    */
   analysisId?: string;
   /**
+   * Snapshot per moteur (ok / failed / timeout / empty_output /
+   * skipped_not_applicable) issu de la colonne
+   * analyses.pipeline_engines_status alimentee par la brique 3
+   * (feat orchestrator, d797252). Distinct de result_json qui ne
+   * porte que les sortants des moteurs. Propage aux SectionFallbackLine
+   * des sections a titre inconditionnel (Historique, Modele economique,
+   * Opportunite de marche) pour brancher les declarations d absence
+   * sur la cause reelle du gap. Aujourd hui le point d entree est
+   * seulement vivant : la valeur arrive au composant sans etre
+   * consommee par la copie. La brique suivante l activera.
+   */
+  pipelineEnginesStatus?: Record<string, any> | null;
+  /**
    * Mode compact : sections secondaires repliees par defaut, lecture rapide
    * pour partner presse. Le verdict, le score, la dialectique et les
    * conditions cles restent visibles. Pour export PDF, utiliser
@@ -437,7 +450,7 @@ function NoteSectoralAnnex({
   );
 }
 
-export default function InvestmentNoteView({ result, analysisId, compactMode = false, printMode = false, onDeepenDDClick }: Props) {
+export default function InvestmentNoteView({ result, analysisId, compactMode = false, printMode = false, pipelineEnginesStatus = null, onDeepenDDClick }: Props) {
   const r = result;
   const e = r.extraction || {};
   const t = r.team || {};
@@ -970,7 +983,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         {(() => {
           const summary = enrichProse(e.rawSummary);
           if (!summary) {
-            return <SectionFallbackLine kind="section-generic" enginesStatus={(r as any)?.pipelineEnginesStatus ?? null} engineKey="extraction" />;
+            return <SectionFallbackLine kind="section-generic" enginesStatus={pipelineEnginesStatus} engineKey="extraction" />;
           }
           return compactMode ? (
             <details>
@@ -1171,7 +1184,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         {(() => {
           const businessModel = enrichProse(e.businessModel);
           if (!businessModel) {
-            return <SectionFallbackLine kind="section-generic" enginesStatus={(r as any)?.pipelineEnginesStatus ?? null} engineKey="extraction" />;
+            return <SectionFallbackLine kind="section-generic" enginesStatus={pipelineEnginesStatus} engineKey="extraction" />;
           }
           return <p className="note-paragraph">{businessModel}</p>;
         })()}
@@ -1217,7 +1230,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           const hasCompetitive = !!(m.competitiveMatrix?.dimensions?.length > 0);
           const hasAnyMarketContent = !!needRationale || hasMoats || hasAiRepl || hasSizing || hasCompetitive;
           if (!hasAnyMarketContent) {
-            return <SectionFallbackLine kind="market" enginesStatus={(r as any)?.pipelineEnginesStatus ?? null} engineKey="market" />;
+            return <SectionFallbackLine kind="market" enginesStatus={pipelineEnginesStatus} engineKey="market" />;
           }
           return (
             <>

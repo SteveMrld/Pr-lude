@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 // ============================================================
 // SectionFallbackLine
 // ------------------------------------------------------------
@@ -55,9 +57,21 @@ export default function SectionFallbackLine({
   engineKey,
 }: Props) {
   const text = copy ?? sectionFallbackCopy(kind, { enginesStatus, engineKey });
+  // Data attributes discrets qui rendent le cablage observable sans
+  // alterer la copie visible. data-engines-status="present" prouve que
+  // la valeur non nulle est arrivee au composant. data-engine-status
+  // remonte le status specifique du moteur cible s il est disponible
+  // dans le snapshot. Utile a l inspecteur DOM et aux tests SSR.
+  const hasStatus = enginesStatus !== null && enginesStatus !== undefined && Object.keys(enginesStatus).length > 0;
+  const engineEntry = engineKey && hasStatus ? enginesStatus?.[engineKey] : null;
+  const engineStatusTag = engineEntry?.status ?? null;
   return (
     <p
       className="section-fallback-line"
+      data-kind={kind}
+      data-engine-key={engineKey || undefined}
+      data-engines-status={hasStatus ? 'present' : 'absent'}
+      data-engine-status={engineStatusTag || undefined}
       style={{
         marginTop,
         marginBottom,

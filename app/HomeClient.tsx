@@ -325,6 +325,13 @@ export default function HomeClient({
   // production du flux serveur. Un moteur absent de la table est
   // simplement non drill-downable, ce que la toile signale sobrement.
   const [engineOutputs, setEngineOutputs] = useState<Record<string, any>>({});
+  // Snapshot per moteur (ok / failed / timeout / empty_output /
+  // skipped_not_applicable) issu de la colonne analyses.pipeline_engines_status
+  // alimentee par la brique 3 (feat orchestrator, d797252). Distinct
+  // de result_json qui ne porte que les sortants des moteurs. Propage a
+  // InvestmentNoteView pour brancher les declarations d absence sur la
+  // cause reelle du gap plus tard (brique 4 a laisse le point d entree).
+  const [pipelineEnginesStatus, setPipelineEnginesStatus] = useState<Record<string, any> | null>(null);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   // Gating doux du pre-scan : si verdict Bloc 0 knockout sans force,
@@ -706,6 +713,12 @@ export default function HomeClient({
           // Sans ce filtre, on affichait 5 coches vertes a 0.0s pour des
           // moteurs qui n avaient jamais tourne.
           const enginesStatus = data.analysis.pipelineEnginesStatus || {};
+          // Store le snapshot pour propagation aux composants qui lisent
+          // le detail per moteur (SectionFallbackLine, indicateurs de gap).
+          // Distinct de restored (mapping vers EngineState pour la toile
+          // pipeline) : ici on garde la forme brute persistee par la
+          // brique 3 (id, status, durationMs, attempts, errorMessage).
+          setPipelineEnginesStatus(data.analysis.pipelineEnginesStatus || null);
           const engineDurations = data.analysis.resultJson?.meta?.engineDurations || {};
           const restored: Record<string, EngineState> = {};
           const rj = data.analysis.resultJson || {};
@@ -1086,6 +1099,7 @@ export default function HomeClient({
     setResult(null);
     setPrescanKnockout(null);
     setSavedAnalysisId(null);
+    setPipelineEnginesStatus(null);
     setPipelineStartTime(Date.now());
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
     setEngineOutputs({});
@@ -1522,6 +1536,7 @@ export default function HomeClient({
     setResult(null);
     setError(null);
     setPrescanKnockout(null);
+    setPipelineEnginesStatus(null);
     priorPreScanRef.current = null;
     setEngineStates(Object.fromEntries(ENGINES.map(e => [e.id, { status: 'idle' }])));
     setEngineOutputs({});
@@ -3453,6 +3468,7 @@ export default function HomeClient({
                 analysisId={savedAnalysisId || undefined}
                 compactMode={compactNoteMode}
                 printMode={false}
+                pipelineEnginesStatus={pipelineEnginesStatus}
                 onDeepenDDClick={() => {
                   setDdDeepenOpen(true);
                   setDdDeepenError(null);
@@ -4052,6 +4068,7 @@ export default function HomeClient({
                         analysisId={savedAnalysisId || undefined}
                         compactMode={false}
                         printMode={true}
+                        pipelineEnginesStatus={pipelineEnginesStatus}
                       />
                     ) : (
                       <>
