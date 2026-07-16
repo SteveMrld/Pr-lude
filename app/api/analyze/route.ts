@@ -54,6 +54,7 @@ import {
   getCurrentUserId,
 } from '@/lib/analysis-store';
 import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
+import { createEngineDeadlineWrapper } from '@/lib/orchestrator/engine-deadline';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
@@ -469,49 +470,55 @@ export async function POST(req: NextRequest) {
         }, 15000);
 
         // ============================================================
-        // TROIS GARDES DE TEMPS DU PIPELINE, DU PLUS FIN AU PLUS LARGE
+        // QUATRE GARDES DE TEMPS DU PIPELINE, DU PLUS FIN AU PLUS LARGE
         // ------------------------------------------------------------
-        // Ces trois seuils se cumulent et couvrent chacun une classe de
-        // defaillance distincte. Aucun n est optionnel, aucun ne se
-        // substitue aux deux autres.
+        // Ces quatre seuils se cumulent et couvrent chacun une classe
+        // de defaillance distincte. Aucun n est optionnel, aucun ne se
+        // substitue aux autres.
         //
-        //   1. SDK Anthropic : timeout 60s par appel, maxRetries 1.
-        //      Pose dans lib/engines/anthropic-client.ts. Chaque
-        //      tentative est bornee a 60s, une reprise unique absorbe
-        //      les incidents transitoires (429/529, timeout SDK
-        //      isole). Pire cas par tentative-chain :
-        //      60 + backoff SDK (~500ms) + 60 = ~120.5s.
+        //   1. SDK Anthropic : timeout par appel (60s defaut, 150s
+        //      pour les moteurs a recherche web via applyRunOptions),
+        //      maxRetries 1 par defaut, 0 pour les moteurs web.
+        //      Pose dans lib/engines/anthropic-client.ts. Pire cas
+        //      par tentative-chain : 150s (web, sans retry) ou
+        //      60 + backoff + 60 = ~120.5s (defaut).
         //
-        //   2. Par moteur : deadline 200s. Chaque moteur du pipeline
-        //      est enveloppe dans withEngineDeadline qui, au trigger,
-        //      logue 'deadline-exceeded' dans error_logs, emet
-        //      sendDone(engine, null) au client et resoud la promesse
-        //      sur null. Les autres moteurs continuent. Downstream
-        //      accepte le null (orchestrate a son fallback degrade,
-        //      les moteurs conditionnels ont deja le pattern).
-        //      200s contient les 120.5s SDK worst case + 80s de slack
-        //      pour le pre-processing (gatherFounderRealData 8s par
-        //      founder cap, sectoral context, JSON parse et sanitize
-        //      Unicode). Marge doublee par rapport a l ancien 120s
-        //      qui neutralisait la reprise en la coupant en plein
-        //      backoff.
+        //   2. Par moteur, attente sur les dependances (WAIT_DEADLINE_MS,
+        //      450s). Fenetre entre markStart et markLLMStart. Si le
+        //      moteur reste bloque a attendre ses deps au-dela de ce
+        //      seuil, fire 'wait-deadline-exceeded' et resoud null.
+        //      Calibration : la chaine la plus profonde (referenceChecks
+        //      qui attend team + blindspot + causal) a p90 wait ~343s
+        //      selon le corpus timeout-diag.md (team p90=143s + pattern
+        //      exec ~100s + causal exec ~100s). Marge 100s pour
+        //      absorber un retry-storm intermediaire. Fire ~150s avant
+        //      RUN_BUDGET_MS pour attribuer proprement le blocage a un
+        //      moteur nomme plutot que casser le run globalement.
         //
-        //   3. Budget global du run : 600s. AbortController arme des
-        //      l entree du stream, budgetPromise rejette a l abort.
-        //      Race le Promise.all central et orchestrate. Marge de
-        //      200s avant le mur Vercel 800s pour la sortie propre :
-        //      markAnalysisFailed lisible, event 'run-budget-exhausted'
-        //      au client, close du stream. Chaine critique serie
-        //      (layer 1 -> pattern -> causal -> refChecks -> orchestrate)
-        //      dans le worst case pathologique de retry sur chaque
-        //      maillon = 121 x 5 = 605s, 5s au-dessus du budget. Dans
-        //      ce cas exceptionnel (probabilite ~10^-8 vu la base rate
-        //      de timeout observee sur le corpus), budgetPromise fire
-        //      cleanly avec markAnalysisFailed avant tout Runtime
-        //      Timeout Error opaque. L orchestrateur a en plus sa
-        //      propre garde budgetRemainingMs() qui l empeche de
-        //      scheduler un retry si le budget residuel ne suffit pas.
+        //   3. Par moteur, execution LLM (ENGINE_DEADLINE_MS, 200s).
+        //      Fenetre armee a markLLMStart, remplace la garde attente
+        //      des que le moteur atteint son appel LLM. Contient le
+        //      worst-case SDK (150s web ou 120.5s defaut) plus slack
+        //      pre-processing (gatherFounderRealData 8s par founder,
+        //      sectoral context, sanitize Unicode).
+        //
+        //      Historique : cette deadline etait armee au construction
+        //      du wrapper (Promise.all central, meme tick sync pour les
+        //      21 moteurs). Consequence : le run entier etait borne a
+        //      200s wall-clock, la couche 3 n avait 0s pour executer,
+        //      11 moteurs sortaient en timeout pur cascade (cas 9201a046).
+        //      Deux gardes distinctes (wait + execution) alignent le
+        //      budget sur le travail reel de chaque moteur.
+        //
+        //   4. Budget global du run (RUN_BUDGET_MS, 600s).
+        //      AbortController arme des l entree du stream, budgetPromise
+        //      rejette a l abort. Race le Promise.all central et
+        //      orchestrate. Marge de 200s avant le mur Vercel 800s pour
+        //      la sortie propre : markAnalysisFailed lisible, event
+        //      'run-budget-exhausted' au client, close du stream. Garde
+        //      ultime si une pathologie echappe aux deadlines par moteur.
         // ============================================================
+        const WAIT_DEADLINE_MS = 450_000;
         const ENGINE_DEADLINE_MS = 200_000;
         const RUN_BUDGET_MS = 600_000;
 
@@ -530,14 +537,6 @@ export async function POST(req: NextRequest) {
           }, { once: true });
         });
 
-        // Wrapper deadline par moteur. Au trigger : log
-        // 'deadline-exceeded' dans error_logs avec le nom du moteur,
-        // sendDone(engine, null) pour maintenir Promise.all vivant et
-        // signaler au client que ce moteur specifique a echoue proprement,
-        // puis resolve sur null. La promesse sous-jacente continue de
-        // vivre mais son sendDone eventuel sera avale par l idempotence
-        // de sentDone. Ne s applique pas a orchestrate qui a sa propre
-        // logique de retry controle (2 tentatives max, cf axis 1).
         // Recorder d instrumentation. Capture status, duree, tentatives
         // et message d erreur par moteur. Renseigne par withEngineDeadline
         // au fil du run, puis finalise sur le result_json apres le
@@ -547,44 +546,32 @@ export async function POST(req: NextRequest) {
         // status de run (completed vs completed_with_gaps).
         const enginesRecorder = new EngineStatusRecorder();
 
-        function withEngineDeadline<T>(engine: string, resultKey: string | null, work: Promise<T>, deps?: string[]): Promise<T | null> {
-          if (resultKey) enginesRecorder.markStart(resultKey, deps);
-          return new Promise((resolve) => {
-            let settled = false;
-            const timer = setTimeout(() => {
-              if (settled) return;
-              settled = true;
-              logException(`pipeline.${engine}`, new Error('deadline-exceeded'), {
-                severity: 'warning',
-                context: { engine, deadlineMs: ENGINE_DEADLINE_MS },
-              });
-              try { sendDone(engine, null); } catch { /* controller closed */ }
-              if (resultKey) enginesRecorder.record({ engine: resultKey, status: 'timeout', attempts: 1, errorMessage: 'deadline-exceeded' });
-              resolve(null);
-            }, ENGINE_DEADLINE_MS);
-            work.then(
-              (v) => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timer);
-                if (resultKey) enginesRecorder.record({ engine: resultKey, status: 'ok', attempts: 1 });
-                resolve(v);
-              },
-              (err) => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timer);
-                logException(`pipeline.${engine}`, err, {
-                  severity: 'warning',
-                  context: { engine, phase: 'engine-error' },
-                });
-                try { sendDone(engine, null); } catch { /* controller closed */ }
-                if (resultKey) enginesRecorder.record({ engine: resultKey, status: 'failed', attempts: 1, errorMessage: String(err?.message || err) });
-                resolve(null);
-              },
-            );
-          });
-        }
+        // Wrapper deadline par moteur, deux gardes distinctes :
+        //   - WAIT_DEADLINE_MS entre markStart et markLLMStart
+        //   - ENGINE_DEADLINE_MS entre markLLMStart et completion
+        // Cf lib/orchestrator/engine-deadline.ts pour le detail du bug
+        // historique corrige (armement au construction qui bornait le
+        // run entier a ENGINE_DEADLINE_MS). Ne s applique pas a
+        // orchestrate qui a sa propre logique de retry controle
+        // (2 tentatives max, cf axis 1).
+        const withEngineDeadline = createEngineDeadlineWrapper({
+          recorder: enginesRecorder,
+          waitDeadlineMs: WAIT_DEADLINE_MS,
+          llmDeadlineMs: ENGINE_DEADLINE_MS,
+          onTimeout: (engine, reason, deadlineMs) => {
+            logException(`pipeline.${engine}`, new Error(reason), {
+              severity: 'warning',
+              context: { engine, deadlineMs, reason },
+            });
+          },
+          onDoneNull: (engine) => { sendDone(engine, null); },
+          onError: (engine, err) => {
+            logException(`pipeline.${engine}`, err as Error, {
+              severity: 'warning',
+              context: { engine, phase: 'engine-error' },
+            });
+          },
+        });
 
         try {
           // Premier event : l id de l analyse cree a t0. Le client
@@ -1202,12 +1189,15 @@ export async function POST(req: NextRequest) {
           // duree dominante est typiquement causal (qui attend pattern)
           // ou fragility/financial-coherence selon le profil du dossier.
           // ============================================================
-          // Chaque promesse est enveloppee par withEngineDeadline (120s
-          // max, fallback null loggue). La convergence Promise.all reste
-          // donc vivante meme si un moteur particulier depasse sa
-          // deadline : Promise.all voit un null a sa place. En surcouche,
-          // race contre budgetPromise (600s) pour couper court a un
-          // enchainement de deadlines qui saturerait quand meme le mur.
+          // Chaque promesse est enveloppee par withEngineDeadline (deux
+          // gardes : WAIT_DEADLINE_MS 450s pour l attente sur les deps,
+          // ENGINE_DEADLINE_MS 200s pour l execution LLM une fois
+          // markLLMStart emis, fallback null loggue dans les deux cas).
+          // La convergence Promise.all reste vivante meme si un moteur
+          // particulier depasse sa deadline : Promise.all voit un null
+          // a sa place. En surcouche, race contre budgetPromise (600s)
+          // pour couper court a un enchainement pathologique qui
+          // saturerait quand meme le mur.
           const [
             team,
             market,

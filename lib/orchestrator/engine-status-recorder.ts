@@ -196,6 +196,7 @@ export class EngineStatusRecorder {
   private startTimes: Map<string, number> = new Map();
   private llmStartTimes: Map<string, number> = new Map();
   private declaredDeps: Map<string, string[]> = new Map();
+  private llmStartListeners: Map<string, Array<() => void>> = new Map();
 
   /** Enregistre l entree du moteur dans la fenetre pipeline.
    *  Idempotent : les appels suivants sont ignores. Le parametre
@@ -213,11 +214,42 @@ export class EngineStatusRecorder {
   /** Enregistre le debut effectif de l appel LLM du moteur, apres
    *  resolution de ses dependances. Idempotent. Sa presence distingue
    *  un moteur qui a reellement appele Anthropic d un moteur rejete
-   *  en cascade sans avoir jamais touche au reseau. */
+   *  en cascade sans avoir jamais touche au reseau. Declenche les
+   *  listeners enregistres via onLLMStart pour permettre au wrapper
+   *  deadline de basculer de la garde attente a la garde execution. */
   markLLMStart(engine: string): void {
     if (!this.llmStartTimes.has(engine)) {
       this.llmStartTimes.set(engine, Date.now());
+      const listeners = this.llmStartListeners.get(engine);
+      if (listeners && listeners.length > 0) {
+        // Copie defensive : un listener peut theoriquement en ajouter
+        // un autre pendant l iteration, on n execute que ceux presents
+        // au moment du fire.
+        const snapshot = listeners.slice();
+        this.llmStartListeners.delete(engine);
+        for (const cb of snapshot) {
+          try { cb(); } catch { /* isole les faults de listener */ }
+        }
+      }
     }
+  }
+
+  /** Souscrit un callback qui sera declenche a l appel de markLLMStart
+   *  pour le moteur nomme. Si markLLMStart a deja ete appele, execute
+   *  le callback de facon synchrone immediate. Utilise par le wrapper
+   *  deadline pour basculer sa garde de wait a execution des que le
+   *  moteur atteint reellement son appel LLM. */
+  onLLMStart(engine: string, callback: () => void): void {
+    if (this.llmStartTimes.has(engine)) {
+      try { callback(); } catch { /* isole les faults de listener */ }
+      return;
+    }
+    let listeners = this.llmStartListeners.get(engine);
+    if (!listeners) {
+      listeners = [];
+      this.llmStartListeners.set(engine, listeners);
+    }
+    listeners.push(callback);
   }
 
   /** Enregistre le resultat d un moteur avec calcul automatique
