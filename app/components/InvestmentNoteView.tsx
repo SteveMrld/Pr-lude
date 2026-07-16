@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
+import { unionYears, alignSeriesToYears } from '@/lib/note/financial-table-alignment';
 import {
   sectionFallbackCopy,
   sanitizeNarrative,
@@ -1175,43 +1176,63 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           </div>
         )}
 
-        {fd && fd.revenueProjection?.length > 0 && (
-          <>
-            <h3 className="note-h3" id="engine-section-financial-extraction">Profil financier</h3>
-            <table className="note-financials-table">
-              <thead>
-                <tr>
-                  <th></th>
-                  {(fd.revenueProjection || []).map((r: any, i: number) => <th key={i}>{r.year}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="row-label">CA (M€)</td>
-                  {(fd.revenueProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
-                </tr>
-                {fd.grossMarginProjection?.length > 0 && (
+        {fd && fd.revenueProjection?.length > 0 && (() => {
+          // Alignement par annee, pas par position. Voir
+          // lib/note/financial-table-alignment.ts pour la doctrine et
+          // les tests. L en-tete est l union triee des annees de
+          // toutes les series presentes ; chaque ligne est alignee par
+          // cle annee sur cette union. Cellule absente rendue vide.
+          const years = unionYears(
+            fd.revenueProjection,
+            fd.grossMarginProjection,
+            fd.ebitdaProjection,
+            fd.fcfProjection,
+          );
+          const revenueRow = alignSeriesToYears(fd.revenueProjection, years);
+          const grossRow = alignSeriesToYears(fd.grossMarginProjection, years);
+          const ebitdaRow = alignSeriesToYears(fd.ebitdaProjection, years);
+          const fcfRow = alignSeriesToYears(fd.fcfProjection, years);
+          const hasGross = fd.grossMarginProjection?.length > 0;
+          const hasEbitda = fd.ebitdaProjection?.length > 0;
+          const hasFcf = fd.fcfProjection?.length > 0;
+          return (
+            <>
+              <h3 className="note-h3" id="engine-section-financial-extraction">Profil financier</h3>
+              <table className="note-financials-table">
+                <thead>
                   <tr>
-                    <td className="row-label">Marge brute (%)</td>
-                    {(fd.grossMarginProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
+                    <th></th>
+                    {years.map((y, i) => <th key={i}>{y}</th>)}
                   </tr>
-                )}
-                {fd.ebitdaProjection?.length > 0 && (
+                </thead>
+                <tbody>
                   <tr>
-                    <td className="row-label">EBITDA (M€)</td>
-                    {(fd.ebitdaProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
+                    <td className="row-label">CA (M€)</td>
+                    {revenueRow.map((v, i) => <td key={i}>{v != null ? formatFrNumber(v) : ''}</td>)}
                   </tr>
-                )}
-                {fd.fcfProjection?.length > 0 && (
-                  <tr>
-                    <td className="row-label">Free Cash Flow (M€)</td>
-                    {(fd.fcfProjection || []).map((r: any, i: number) => <td key={i}>{formatFrNumber(r.value)}</td>)}
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </>
-        )}
+                  {hasGross && (
+                    <tr>
+                      <td className="row-label">Marge brute (%)</td>
+                      {grossRow.map((v, i) => <td key={i}>{v != null ? formatFrNumber(v) : ''}</td>)}
+                    </tr>
+                  )}
+                  {hasEbitda && (
+                    <tr>
+                      <td className="row-label">EBITDA (M€)</td>
+                      {ebitdaRow.map((v, i) => <td key={i}>{v != null ? formatFrNumber(v) : ''}</td>)}
+                    </tr>
+                  )}
+                  {hasFcf && (
+                    <tr>
+                      <td className="row-label">Free Cash Flow (M€)</td>
+                      {fcfRow.map((v, i) => <td key={i}>{v != null ? formatFrNumber(v) : ''}</td>)}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </>
+          );
+        })()}
       </section>
 
       {/* Bloc 2 - Project description (collapsible en mode compact).
