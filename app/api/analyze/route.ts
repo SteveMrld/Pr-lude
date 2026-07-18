@@ -1114,6 +1114,7 @@ export async function POST(req: NextRequest) {
                       sectoralContext,
                     },
                     relevanceMatrix,
+                    analysisId,
                   );
                   sendDone('fragility-structurelle', r);
                   return r;

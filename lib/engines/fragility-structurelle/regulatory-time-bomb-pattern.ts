@@ -45,6 +45,7 @@ import {
   buildNotApplicableOutput,
   hasMinimalFinancialSignal,
   applyCentralAxisGating,
+  PATTERN_LLM_OPTIONS,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
@@ -583,7 +584,9 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const assetClass = input.assetClass ?? 'unclassified';
   const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   const userPrompt = buildUserPrompt(input);
-  const response = await callClaude(buildSystemPrompt(assetClass, dossierStade), userPrompt, 4000);
+  // Options fragility : 180s en une seule tentative. Cf. arithmetique
+  // et rationale dans pattern-interface.ts PATTERN_LLM_OPTIONS.
+  const response = await callClaude(buildSystemPrompt(assetClass, dossierStade), userPrompt, 4000, undefined, PATTERN_LLM_OPTIONS);
 
   const raw = parseJSON<RawLLMOutput>(response);
   if (!raw) {

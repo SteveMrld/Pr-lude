@@ -27,6 +27,46 @@ import type {
 } from './types';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 
+// ============================================================
+// OPTIONS D APPEL LLM PARTAGEES PAR LES SEPT PATTERNS
+// ------------------------------------------------------------
+// Arithmetique de la fenetre par pattern, sous ENGINE_DEADLINE_MS
+// de 200s applique au moteur agrege dans route.ts:522.
+//
+// Politique par defaut du client anthropic-client.ts:85-86 :
+//   timeout 60s, maxRetries 1. Pire cas par appel : 60s + backoff
+//   SDK (~500ms) + 60s = ~120.5s pour une seule fenetre utile de
+//   60s. Ce qui laisse 79.5s de slack seulement sur le moteur.
+//
+// Politique fragility (override per-request, sans toucher au
+// client partage) :
+//   timeout 180s, maxRetries 0. Une seule tentative de 180s
+//   remplace deux tentatives de 60s cumulees. Fenetre utile
+//   triplee (180s contre 60s) pour une duree wall-clock plus
+//   courte (180s contre 120.5s), sous ENGINE_DEADLINE_MS.
+//
+// La retentative n a rien resolu sur c50bb153 : les six timeouts
+// des 60s ont retimeout des 60s de plus. Passer a maxRetries 0
+// supprime la double peine sans perdre en couverture, puisque
+// l orchestrateur fragility isole deja les echecs par pattern
+// (orchestrator.ts:184-190, catch par patternId). Le seul retry
+// utile ici serait sur la ressource (nouvelle route Anthropic),
+// pas sur la fenetre (attendre plus longtemps).
+//
+// Ne pas migrer les autres moteurs a cette politique sans audit
+// dedie : leur latence nominale differe, leur profil retry aussi.
+// ============================================================
+
+/** Options callClaude appliquees aux sept patterns fragility. Utilisees
+ *  comme cinquieme argument de callClaude sur chacun des sept sites
+ *  d appel. Alignees sur ENGINE_DEADLINE_MS=200_000 (route.ts:522) avec
+ *  20s de slack pour le pre/post-processing (sectoral, archetype,
+ *  parseJSON, sanitize). */
+export const PATTERN_LLM_OPTIONS = Object.freeze({
+  timeout: 180_000,
+  maxRetries: 0,
+}) as { timeout: number; maxRetries: number };
+
 /**
  * Resultat de la pre-evaluation d applicabilite. Sert a decider si
  * on lance l appel LLM ou si on retourne directement un output

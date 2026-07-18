@@ -142,6 +142,7 @@ const COMBINAISONS_CONFIG: CombinaisonDiagnostique[] = [
 export async function analyzeFragiliteStructurelle(
   input: PatternInput,
   relevanceMatrix: RelevanceMatrix | null,
+  analysisId: string | null = null,
 ): Promise<FragiliteStructurelleAnalysisOutput> {
   // Recuperation des verdicts matrice. Si pas de matrice, on traite
   // tous les patterns comme partial par defaut, ce qui est un
@@ -180,15 +181,37 @@ export async function analyzeFragiliteStructurelle(
     patternsApplicables.push(patternId);
   }
 
-  // Lancement parallele des patterns applicables
+  // Lancement parallele des patterns applicables. Chaque appel est
+  // instrumente par un timer wall-clock pose autour de moduleP.analyze
+  // pour porter analyzeMs sur la sortie du pattern. Deux cas :
+  //   - succes : analyzeMs = temps reel de l appel (attente LLM plus
+  //              pre/post-processing).
+  //   - echec  : analyzeMs = temps ecoule entre l entree et l exception.
+  //              Discrimine un timeout SDK ~180s d un parse fail
+  //              instantane sans avoir a croiser error_logs.
   const resultsApplicables = await Promise.all(
     patternsApplicables.map(async (patternId) => {
       const moduleP = PATTERN_REGISTRY[patternId]!;
+      const startedAt = Date.now();
       try {
-        return await moduleP.analyze(input);
+        const r = await moduleP.analyze(input);
+        return { ...r, analyzeMs: Date.now() - startedAt };
       } catch (err) {
-        logException(`pipeline.fragility-structurelle.${patternId}`, err, { severity: 'warning' });
-        return buildNotApplicableOutput(patternId, 'Erreur lors de l analyse, pattern marque non applicable.', 'execution-error');
+        const analyzeMs = Date.now() - startedAt;
+        // analysisId propage depuis route.ts pour que la ligne
+        // error_logs soit rattachable au run par jointure directe,
+        // sans corriger la fenetre temporelle a la main. context
+        // porte analyzeMs pour tracer la nature de l echec (timeout
+        // long, parse instantane) sans lire meta.engineDurations.
+        logException(`pipeline.fragility-structurelle.${patternId}`, err, {
+          severity: 'warning',
+          analysisId,
+          context: { patternId, analyzeMs },
+        });
+        return {
+          ...buildNotApplicableOutput(patternId, 'Erreur lors de l analyse, pattern marque non applicable.', 'execution-error'),
+          analyzeMs,
+        };
       }
     }),
   );

@@ -315,6 +315,74 @@ const mockInput: PatternInput = {
   check('scale-mirage-risk cause = not-implemented', r11.patterns['scale-mirage-risk']?.nonApplicabilityCause, 'not-implemented');
 
   // ============================================================
+  // Test 12 : instrumentation par pattern, durees posees sur la
+  // sortie autant sur succes que sur echec (brief 5)
+  // ============================================================
+  console.log('\n=== Test 12 : analyzeMs pose par l orchestrateur autant sur succes que sur echec ===');
+
+  // Mock avec latence controlee : un pattern qui rend en 50ms, un
+  // pattern qui throw apres 30ms.
+  function buildDelayedModule(patternId: PatternId, delayMs: number, shouldFail = false): PatternModule {
+    return {
+      patternId,
+      isApplicable: (): PatternApplicabilityCheck => ({ level: 'full', rationale: 'ok', shouldRun: true }),
+      analyze: async (_input: PatternInput): Promise<PatternAnalysisOutput> => {
+        await new Promise((res) => setTimeout(res, delayMs));
+        if (shouldFail) throw new Error(`Delayed failure ${patternId}`);
+        return buildMockOutput(patternId, 40, 'attention');
+      },
+    };
+  }
+
+  _setRegistryForTests({
+    'growth-subsidized-model': buildDelayedModule('growth-subsidized-model', 50),
+    'infrastructure-hostage': buildDelayedModule('infrastructure-hostage', 30, true),
+  });
+
+  const r12 = await analyzeFragiliteStructurelle(mockInput, null);
+  const gs = r12.patterns['growth-subsidized-model'];
+  const ih = r12.patterns['infrastructure-hostage'];
+  checkTrue('analyzeMs pose sur pattern qui aboutit', typeof gs?.analyzeMs === 'number' && gs.analyzeMs >= 40 && gs.analyzeMs < 500);
+  checkTrue('analyzeMs pose sur pattern qui echoue', typeof ih?.analyzeMs === 'number' && ih.analyzeMs >= 20 && ih.analyzeMs < 500);
+  check('pattern echoue marque execution-error', ih?.nonApplicabilityCause, 'execution-error');
+
+  // ============================================================
+  // Test 13 : PATTERN_LLM_OPTIONS bien exportee et alignee sur
+  // la doctrine 180s / maxRetries 0 (brief 5)
+  // ============================================================
+  console.log('\n=== Test 13 : constante partagee PATTERN_LLM_OPTIONS ===');
+  const { PATTERN_LLM_OPTIONS } = await import('./pattern-interface');
+  check('PATTERN_LLM_OPTIONS.timeout = 180000', PATTERN_LLM_OPTIONS.timeout, 180_000);
+  check('PATTERN_LLM_OPTIONS.maxRetries = 0', PATTERN_LLM_OPTIONS.maxRetries, 0);
+  // Object.freeze : modification silencieuse impossible
+  try {
+    (PATTERN_LLM_OPTIONS as any).timeout = 999;
+  } catch { /* strict mode may throw */ }
+  check('PATTERN_LLM_OPTIONS.timeout inaltere apres tentative mutation', PATTERN_LLM_OPTIONS.timeout, 180_000);
+
+  // ============================================================
+  // Test 14 : les sept modules pattern passent bien PATTERN_LLM_OPTIONS
+  // en cinquieme argument de callClaude (verification par grep source)
+  // ============================================================
+  console.log('\n=== Test 14 : sept sites d appel callClaude cables sur PATTERN_LLM_OPTIONS ===');
+  const fs = await import('fs');
+  const path = await import('path');
+  const modules = [
+    'growth-subsidized-pattern.ts',
+    'infrastructure-hostage-pattern.ts',
+    'fixed-cost-trap-pattern.ts',
+    'regulatory-time-bomb-pattern.ts',
+    'commoditization-drift-pattern.ts',
+    'capital-structure-fragility-pattern.ts',
+    'scale-mirage-risk-pattern.ts',
+  ];
+  for (const m of modules) {
+    const filePath = path.join(__dirname, m);
+    const source = fs.readFileSync(filePath, 'utf-8');
+    checkTrue(`${m} : cable sur PATTERN_LLM_OPTIONS`, source.includes('PATTERN_LLM_OPTIONS)') && source.includes('await callClaude('));
+  }
+
+  // ============================================================
   // FIN
   // ============================================================
   console.log(`\n${pass}/${pass + fail} tests passes`);

@@ -266,6 +266,16 @@ export interface PatternAnalysisOutput {
    *  restent lisibles. Le rendu note doit fallback sur du string
    *  matching de applicabiliteRationale pour ces snapshots legacy. */
   nonApplicabilityCause?: NonApplicabilityCause;
+
+  /** Duree wall-clock du pattern, en ms. Mesuree autour de l appel
+   *  moduleP.analyze(input) par l orchestrateur. Sur un pattern qui
+   *  aboutit : temps reel de generation LLM plus pre/post-traitement.
+   *  Sur un pattern tombe en execution-error : temps ecoule avant
+   *  que l exception soit levee (pertinent pour discriminer un
+   *  timeout SDK d un parse fail instantane). Sur une pre-evaluation
+   *  isApplicable qui court-circuite (pattern-scope), la duree est
+   *  quasi-nulle. Optionnel pour retrocompatibilite. */
+  analyzeMs?: number;
 }
 
 // ============================================================
