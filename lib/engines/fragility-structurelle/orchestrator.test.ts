@@ -217,6 +217,102 @@ const mockInput: PatternInput = {
   const r7 = await analyzeFragiliteStructurelle(mockInput, matriceMock);
   check('matrice none -> pattern non applicable', r7.patterns['growth-subsidized-model']?.applicabilite, 'not-applicable');
   check('rationale matrice respecte', r7.patterns['growth-subsidized-model']?.applicabiliteRationale, 'Hors-scope mock');
+  check('cause = matrix', r7.patterns['growth-subsidized-model']?.nonApplicabilityCause, 'matrix');
+
+  // ============================================================
+  // Test 8 : couverture, verdict et cause quand un detecteur tombe
+  // en erreur d execution mais un autre remonte a 33 (cas c50bb153)
+  // ============================================================
+  console.log('\n=== Test 8 : six patterns en erreur, un actif a 33, attendu non-concluant ===');
+  _setRegistryForTests({
+    'growth-subsidized-model': buildMockModule('growth-subsidized-model', 33, 'attention', true),
+    'infrastructure-hostage': buildMockModule('infrastructure-hostage', 33, 'attention'),
+    'fixed-cost-trap': buildMockModule('fixed-cost-trap', 33, 'attention', true),
+    'regulatory-time-bomb': buildMockModule('regulatory-time-bomb', 33, 'attention', true),
+    'commoditization-drift': buildMockModule('commoditization-drift', 33, 'attention', true),
+    'capital-structure-fragility': buildMockModule('capital-structure-fragility', 33, 'attention', true),
+    'scale-mirage-risk': buildMockModule('scale-mirage-risk', 33, 'attention', true),
+  });
+
+  const r8 = await analyzeFragiliteStructurelle(mockInput, null);
+  check('coverage.failed = 6', r8.coverage?.failed, 6);
+  check('coverage.contributing = 1', r8.coverage?.contributing, 1);
+  check('coverage.total = 7', r8.coverage?.total, 7);
+  check('globalFragilityScore = 33', r8.globalFragilityScore, 33);
+  check('verdict force a non-concluant (etait sain)', r8.verdict, 'non-concluant');
+  check('growth-subsidized cause = execution-error', r8.patterns['growth-subsidized-model']?.nonApplicabilityCause, 'execution-error');
+  check('infrastructure-hostage actif', r8.patterns['infrastructure-hostage']?.applicabilite, 'full');
+  checkTrue('resume mentionne 6 detecteurs tombes', r8.resumeEditorial.includes('6 detecteurs sur 7'));
+  checkTrue('resume ne dit jamais aucun pattern ne remonte', !r8.resumeEditorial.includes('Aucun pattern'));
+
+  // ============================================================
+  // Test 9 : sept patterns tous en erreur, weightTotal === 0
+  // Attendu : verdict non-concluant, PAS sain 0/100
+  // ============================================================
+  console.log('\n=== Test 9 : sept patterns en erreur, attendu non-concluant et non sain 0/100 ===');
+  _setRegistryForTests({
+    'growth-subsidized-model': buildMockModule('growth-subsidized-model', 0, 'sain', true),
+    'infrastructure-hostage': buildMockModule('infrastructure-hostage', 0, 'sain', true),
+    'fixed-cost-trap': buildMockModule('fixed-cost-trap', 0, 'sain', true),
+    'regulatory-time-bomb': buildMockModule('regulatory-time-bomb', 0, 'sain', true),
+    'commoditization-drift': buildMockModule('commoditization-drift', 0, 'sain', true),
+    'capital-structure-fragility': buildMockModule('capital-structure-fragility', 0, 'sain', true),
+    'scale-mirage-risk': buildMockModule('scale-mirage-risk', 0, 'sain', true),
+  });
+
+  const r9 = await analyzeFragiliteStructurelle(mockInput, null);
+  check('coverage.failed = 7', r9.coverage?.failed, 7);
+  check('coverage.contributing = 0', r9.coverage?.contributing, 0);
+  check('globalFragilityScore = 0 (weightTotal 0)', r9.globalFragilityScore, 0);
+  check('verdict = non-concluant, jamais sain', r9.verdict, 'non-concluant');
+  checkTrue('resume mentionne non-concluant', r9.resumeEditorial.toLowerCase().includes('non-concluant'));
+
+  // ============================================================
+  // Test 10 : un pattern actif a 60 (alerte), six en erreur
+  // Attendu : alerte maintenu, un detecteur qui crie reste opposable
+  // ============================================================
+  console.log('\n=== Test 10 : un pattern a 60 avec six en erreur, attendu alerte maintenu ===');
+  _setRegistryForTests({
+    'growth-subsidized-model': buildMockModule('growth-subsidized-model', 60, 'alerte'),
+    'infrastructure-hostage': buildMockModule('infrastructure-hostage', 0, 'sain', true),
+    'fixed-cost-trap': buildMockModule('fixed-cost-trap', 0, 'sain', true),
+    'regulatory-time-bomb': buildMockModule('regulatory-time-bomb', 0, 'sain', true),
+    'commoditization-drift': buildMockModule('commoditization-drift', 0, 'sain', true),
+    'capital-structure-fragility': buildMockModule('capital-structure-fragility', 0, 'sain', true),
+    'scale-mirage-risk': buildMockModule('scale-mirage-risk', 0, 'sain', true),
+  });
+
+  const r10 = await analyzeFragiliteStructurelle(mockInput, null);
+  check('coverage.failed = 6', r10.coverage?.failed, 6);
+  check('globalFragilityScore = 60', r10.globalFragilityScore, 60);
+  check('verdict = alerte, non degrade en non-concluant', r10.verdict, 'alerte');
+  checkTrue('resume mentionne couverture partielle mais signal opposable', r10.resumeEditorial.includes('Couverture partielle'));
+
+  // ============================================================
+  // Test 11 : patterns ecartes par la matrice, aucune erreur
+  // Attendu : verdict normal (sain ici puisqu aucun pattern applicable)
+  // ============================================================
+  console.log('\n=== Test 11 : patterns ecartes doctrinalement, verdict normal ===');
+  _setRegistryForTests({
+    'growth-subsidized-model': buildMockModule('growth-subsidized-model', 70, 'alerte'),
+    'infrastructure-hostage': buildMockModule('infrastructure-hostage', 70, 'alerte'),
+  });
+
+  const matriceAllNone = {
+    verdicts: {
+      fragiliteStructurelle: {
+        'growth-subsidized-model': { applicable: 'none', weight: 0, scope: [], rationale: 'Hors-scope' },
+        'infrastructure-hostage': { applicable: 'none', weight: 0, scope: [], rationale: 'Hors-scope' },
+      },
+    },
+  } as any;
+
+  const r11 = await analyzeFragiliteStructurelle(mockInput, matriceAllNone);
+  check('coverage.failed = 0 (matrix != erreur)', r11.coverage?.failed, 0);
+  check('coverage.contributing = 0', r11.coverage?.contributing, 0);
+  check('verdict = sain (aucune erreur, aucun pattern actif)', r11.verdict, 'sain');
+  check('growth cause = matrix', r11.patterns['growth-subsidized-model']?.nonApplicabilityCause, 'matrix');
+  check('scale-mirage-risk cause = not-implemented', r11.patterns['scale-mirage-risk']?.nonApplicabilityCause, 'not-implemented');
 
   // ============================================================
   // FIN

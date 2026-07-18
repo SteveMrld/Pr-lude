@@ -473,10 +473,15 @@ const VERDICT_ORDER: Record<PatternVerdict, number> = {
   'alerte': 2,
   'drapeau-rouge': 3,
   'non-applicable': -1, // hors echelle, traite a part
+  'non-concluant': -1, // hors echelle, meme traitement que non-applicable
 };
 
 export function verdictGap(expected: PatternVerdict, actual: PatternVerdict): number {
-  if (expected === 'non-applicable' || actual === 'non-applicable') {
+  // non-applicable et non-concluant sont hors echelle : ecart 0 si
+  // egaux, 99 sinon. Ces deux etats meta n admettent pas de proximite
+  // avec les verdicts gradues (sain -> drapeau-rouge).
+  const outOfScale = (v: PatternVerdict) => v === 'non-applicable' || v === 'non-concluant';
+  if (outOfScale(expected) || outOfScale(actual)) {
     return expected === actual ? 0 : 99;
   }
   return Math.abs(VERDICT_ORDER[expected] - VERDICT_ORDER[actual]);

@@ -23,6 +23,7 @@ import type {
   PatternApplicability,
   PatternAxisAnalysis,
   PatternVerdict,
+  NonApplicabilityCause,
 } from './types';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 
@@ -71,10 +72,17 @@ export interface PatternModule {
  * par les patterns quand isApplicable.shouldRun = false, ou par
  * l orchestrateur quand la matrice declare le pattern non
  * applicable.
+ *
+ * cause distingue le trou d execution des ecartements doctrinaux :
+ * seul 'execution-error' compte comme un trou dans la couverture
+ * du moteur et peut degrader le verdict global en 'non-concluant'.
+ * Les autres causes (matrix, pattern-scope, central-axis-gating,
+ * not-implemented) sont des decisions doctrinales legitimes.
  */
 export function buildNotApplicableOutput(
   patternId: PatternId,
   rationale: string,
+  cause: NonApplicabilityCause,
 ): PatternAnalysisOutput {
   const naAxis: PatternAxisAnalysis = {
     score: 0,
@@ -105,6 +113,7 @@ export function buildNotApplicableOutput(
       sourceTags: [],
       claimsChiffres: [],
     },
+    nonApplicabilityCause: cause,
   };
 }
 
@@ -220,5 +229,6 @@ export function applyCentralAxisGating(
     globalScore: null,
     verdict: 'non-applicable',
     resumeEditorial: gatingRationale,
+    nonApplicabilityCause: 'central-axis-gating',
   };
 }

@@ -64,8 +64,50 @@ export const PATTERN_LABELS: Record<PatternId, string> = {
 /**
  * Niveaux de verdict alignes sur Narrative Drift pour homogeneite
  * UI : meme palette ocre graduee, meme logique de remontee.
+ *
+ * 'non-concluant' est un etat meta, hors de la hierarchie graduee :
+ * le moteur n a pas pu se prononcer parce que trop de detecteurs sont
+ * tombes en erreur d execution. L absence de signal ne prouve rien
+ * quand les detecteurs sont muets. Emis par l orchestrateur quand
+ * failed > 0 et que le score agrege sur les detecteurs survivants
+ * mene mecaniquement a 'sain'. Un verdict alerte, attention ou
+ * drapeau-rouge remonte par un detecteur survivant reste opposable
+ * meme sous couverture partielle : un detecteur qui crie au feu
+ * est credible quand les autres sont muets.
  */
-export type PatternVerdict = 'sain' | 'attention' | 'alerte' | 'drapeau-rouge' | 'non-applicable';
+export type PatternVerdict = 'sain' | 'attention' | 'alerte' | 'drapeau-rouge' | 'non-applicable' | 'non-concluant';
+
+/**
+ * Cause structurelle de la non-applicabilite d un pattern. Distingue
+ * le trou d execution (execution-error) des ecartements doctrinaux
+ * (matrix, pattern-scope, central-axis-gating) et de l absence en
+ * code (not-implemented). Sert au calcul de couverture du moteur et
+ * au rendu note qui doit signaler distinctement un detecteur tombe
+ * d un detecteur legitimement hors-scope.
+ *
+ *   matrix              : la matrice de pertinence declare le pattern
+ *                         hors-scope pour ce dossier (stade, secteur,
+ *                         profil business hors intention doctrinale)
+ *   not-implemented     : le pattern n est pas encore code, sa fiche
+ *                         doctrinale existe mais le module TypeScript
+ *                         n a pas encore ete ecrit
+ *   pattern-scope       : le pattern lui-meme a decide via isApplicable
+ *                         qu il n avait pas la matiere pour tourner
+ *                         (revenu absent, business model illisible)
+ *   central-axis-gating : l axe identitaire du pattern a ete neutralise
+ *                         par le LLM apres appel, verdict global force
+ *                         a non-applicable sans agregation des axes
+ *   execution-error     : exception levee pendant analyze (parse JSON,
+ *                         timeout SDK Anthropic, erreur reseau). C est
+ *                         le seul cas qui compte comme un trou dans la
+ *                         couverture du moteur.
+ */
+export type NonApplicabilityCause =
+  | 'matrix'
+  | 'not-implemented'
+  | 'pattern-scope'
+  | 'central-axis-gating'
+  | 'execution-error';
 
 /**
  * Niveaux d applicabilite alignes sur la matrice de pertinence.
@@ -217,6 +259,13 @@ export interface PatternAnalysisOutput {
     sourceTags: string[];
     claimsChiffres: string[];
   };
+
+  /** Cause de la non-applicabilite quand applicabilite ==
+   *  'not-applicable'. Optionnel pour retrocompatibilite : les
+   *  snapshots anterieurs a l ajout de ce champ n en portent pas et
+   *  restent lisibles. Le rendu note doit fallback sur du string
+   *  matching de applicabiliteRationale pour ces snapshots legacy. */
+  nonApplicabilityCause?: NonApplicabilityCause;
 }
 
 // ============================================================
@@ -263,4 +312,31 @@ export interface FragiliteStructurelleAnalysisOutput {
   /** Liste consolidee des recommandations DD issues de chaque
    *  pattern actif, deduplicees et priorisees. */
   recommandationsDD: string[];
+
+  /** Couverture du moteur sur ce dossier. Permet au rendu note et
+   *  aux consommateurs downstream de savoir combien de detecteurs
+   *  ont effectivement contribue au verdict, et combien sont tombes
+   *  en erreur d execution. Un pattern ecarte doctrinalement (matrix,
+   *  pattern-scope, central-axis-gating, not-implemented) n est pas
+   *  un trou : il ne compte pas dans failed.
+   *
+   *  Invariant : contributing + failed <= total. La difference est le
+   *  nombre de patterns ecartes doctrinalement.
+   *
+   *  Optionnel pour retrocompatibilite : les snapshots anterieurs a
+   *  l ajout de ce champ n en portent pas. Le rendu note doit alors
+   *  reconstruire la couverture via string matching de
+   *  applicabiliteRationale sur les patterns individuels. */
+  coverage?: {
+    /** Patterns qui ont retourne un globalScore non-null et qui ont
+     *  pese dans le calcul du score global. */
+    contributing: number;
+    /** Patterns tombes en erreur d execution (nonApplicabilityCause
+     *  === 'execution-error'). Ne pese pas dans le score, mais
+     *  degrade la fiabilite du verdict global. */
+    failed: number;
+    /** Nombre total de patterns du moteur (7 en l etat courant,
+     *  derive de PATTERN_IDS.length). */
+    total: number;
+  };
 }

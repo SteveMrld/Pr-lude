@@ -577,7 +577,7 @@ function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): stri
 async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
-    return buildNotApplicableOutput(PATTERN_ID, check.rationale);
+    return buildNotApplicableOutput(PATTERN_ID, check.rationale, 'pattern-scope');
   }
 
   const assetClass = input.assetClass ?? 'unclassified';

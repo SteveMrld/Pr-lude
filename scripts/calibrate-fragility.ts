@@ -180,6 +180,7 @@ const VERDICT_BADGE: Record<PatternVerdict, string> = {
   'alerte': 'alerte',
   'drapeau-rouge': 'drapeau-rouge',
   'non-applicable': 'n/a',
+  'non-concluant': 'non-concl.',
 };
 
 function buildReport(

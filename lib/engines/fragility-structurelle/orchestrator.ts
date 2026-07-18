@@ -21,6 +21,7 @@ import {
   type PatternAnalysisOutput,
   type FragiliteStructurelleAnalysisOutput,
   type PatternVerdict,
+  type NonApplicabilityCause,
 } from './types';
 import { type PatternModule, buildNotApplicableOutput } from './pattern-interface';
 import { logException } from '../../error-logger';
@@ -148,7 +149,7 @@ export async function analyzeFragiliteStructurelle(
   const matriceVerdicts = (relevanceMatrix as any)?.verdicts?.fragiliteStructurelle ?? null;
 
   const patternsApplicables: PatternId[] = [];
-  const patternsNonApplicables: Array<{ id: PatternId; rationale: string }> = [];
+  const patternsNonApplicables: Array<{ id: PatternId; rationale: string; cause: NonApplicabilityCause }> = [];
 
   for (const patternId of PATTERN_IDS) {
     const verdictMatrice = matriceVerdicts?.[patternId];
@@ -159,6 +160,7 @@ export async function analyzeFragiliteStructurelle(
       patternsNonApplicables.push({
         id: patternId,
         rationale: verdictMatrice?.rationale || 'Matrice de pertinence : non applicable sur ce dossier.',
+        cause: 'matrix',
       });
       continue;
     }
@@ -170,6 +172,7 @@ export async function analyzeFragiliteStructurelle(
       patternsNonApplicables.push({
         id: patternId,
         rationale: 'Pattern non encore implemente en code (doctrine prete dans docs/patterns/).',
+        cause: 'not-implemented',
       });
       continue;
     }
@@ -185,7 +188,7 @@ export async function analyzeFragiliteStructurelle(
         return await moduleP.analyze(input);
       } catch (err) {
         logException(`pipeline.fragility-structurelle.${patternId}`, err, { severity: 'warning' });
-        return buildNotApplicableOutput(patternId, 'Erreur lors de l analyse, pattern marque non applicable.');
+        return buildNotApplicableOutput(patternId, 'Erreur lors de l analyse, pattern marque non applicable.', 'execution-error');
       }
     }),
   );
@@ -196,7 +199,7 @@ export async function analyzeFragiliteStructurelle(
     patterns[r.patternId] = r;
   }
   for (const na of patternsNonApplicables) {
-    patterns[na.id] = buildNotApplicableOutput(na.id, na.rationale);
+    patterns[na.id] = buildNotApplicableOutput(na.id, na.rationale, na.cause);
   }
 
   // Calcul du score global pondere. Chaque pattern applicable
@@ -204,6 +207,7 @@ export async function analyzeFragiliteStructurelle(
   // si pas de matrice).
   let scoreSommePondere = 0;
   let weightTotal = 0;
+  let contributing = 0;
   for (const patternId of PATTERN_IDS) {
     const p = patterns[patternId];
     if (!p || p.applicabilite === 'not-applicable') continue;
@@ -211,22 +215,43 @@ export async function analyzeFragiliteStructurelle(
     const weight = matriceVerdicts?.[patternId]?.weight ?? 0.5;
     scoreSommePondere += p.globalScore * weight;
     weightTotal += weight;
+    contributing += 1;
   }
   const globalFragilityScore = weightTotal > 0
     ? Math.round(scoreSommePondere / weightTotal)
     : 0;
 
+  // Couverture du moteur : compte des detecteurs tombes en erreur
+  // d execution vs total. Un pattern ecarte doctrinalement (matrice,
+  // pattern-scope, central-axis-gating, not-implemented) n est pas
+  // un trou, il ne compte pas dans failed.
+  let failed = 0;
+  for (const patternId of PATTERN_IDS) {
+    const p = patterns[patternId];
+    if (p?.nonApplicabilityCause === 'execution-error') failed += 1;
+  }
+  const coverage = {
+    contributing,
+    failed,
+    total: PATTERN_IDS.length,
+  };
+
   // Detection des combinaisons diagnostiques
   const combinaisons = detectCombinaisons(patterns);
 
-  // Verdict global derive du score et des combinaisons
-  const verdict = deriveGlobalVerdict(globalFragilityScore, combinaisons);
+  // Verdict global derive du score, des combinaisons et de la
+  // couverture. Regle asymetrique : un verdict d alerte reste
+  // emettable sous couverture partielle (un detecteur qui crie au
+  // feu reste credible), mais un verdict sain exige une couverture
+  // sans trou. Si failed > 0 et que le score mene mecaniquement a
+  // sain, le verdict devient non-concluant.
+  const verdict = deriveGlobalVerdict(globalFragilityScore, combinaisons, coverage);
 
   // Recommandations DD consolidees
   const recommandationsDD = consolidateRecommandations(patterns);
 
   // Resume editorial
-  const resumeEditorial = buildResumeEditorial(patterns, combinaisons, globalFragilityScore, verdict);
+  const resumeEditorial = buildResumeEditorial(patterns, combinaisons, globalFragilityScore, verdict, coverage);
 
   return {
     patterns,
@@ -235,6 +260,7 @@ export async function analyzeFragiliteStructurelle(
     resumeEditorial,
     combinaisons,
     recommandationsDD,
+    coverage,
   };
 }
 
@@ -277,16 +303,31 @@ function detectCombinaisons(
 function deriveGlobalVerdict(
   globalScore: number,
   combinaisons: FragiliteStructurelleAnalysisOutput['combinaisons'],
+  coverage: NonNullable<FragiliteStructurelleAnalysisOutput['coverage']>,
 ): PatternVerdict {
-  // Une combinaison drapeau-rouge force le verdict drapeau-rouge
+  // Une combinaison drapeau-rouge force le verdict drapeau-rouge,
+  // meme sous couverture partielle : un signal de convergence
+  // documente reste opposable independamment des autres detecteurs.
   if (combinaisons.some((c) => c.severite === 'drapeau-rouge')) {
     return 'drapeau-rouge';
   }
   // Sinon, le score global decide
-  if (globalScore >= 75) return 'drapeau-rouge';
-  if (globalScore >= 55) return 'alerte';
-  if (globalScore >= 35) return 'attention';
-  return 'sain';
+  let base: PatternVerdict;
+  if (globalScore >= 75) base = 'drapeau-rouge';
+  else if (globalScore >= 55) base = 'alerte';
+  else if (globalScore >= 35) base = 'attention';
+  else base = 'sain';
+
+  // Regle asymetrique defendable en comite : un verdict sain
+  // requiert une couverture complete. L absence de signal ne prouve
+  // rien quand les detecteurs sont tombes. Les verdicts attention,
+  // alerte, drapeau-rouge restent emettables sous couverture
+  // partielle : un detecteur qui crie au feu reste credible quand
+  // les autres sont muets.
+  if (coverage.failed > 0 && base === 'sain') {
+    return 'non-concluant';
+  }
+  return base;
 }
 
 // ============================================================
@@ -324,10 +365,41 @@ function buildResumeEditorial(
   combinaisons: FragiliteStructurelleAnalysisOutput['combinaisons'],
   globalScore: number,
   verdict: PatternVerdict,
+  coverage: NonNullable<FragiliteStructurelleAnalysisOutput['coverage']>,
 ): string {
   const patternsActifs = PATTERN_IDS
     .map((id) => patterns[id])
     .filter((p): p is PatternAnalysisOutput => !!p && p.applicabilite !== 'not-applicable');
+
+  // Cas trou d execution : jamais affirmer qu aucun pattern ne
+  // remonte. Le silence des detecteurs tombes ne prouve rien.
+  if (coverage.failed > 0) {
+    const nActifs = patternsActifs.length;
+    const partsActifs = nActifs > 0
+      ? `${nActifs} detecteur${nActifs > 1 ? 's' : ''} a${nActifs > 1 ? 'ont' : ''} abouti`
+      : 'aucun detecteur n a abouti';
+    const partsFailed = `${coverage.failed} detecteur${coverage.failed > 1 ? 's' : ''} sur ${coverage.total} ${coverage.failed > 1 ? 'sont tombes' : 'est tombe'} en erreur d execution`;
+
+    if (verdict === 'non-concluant') {
+      return `Le moteur Fragilite Structurelle n a pas pu se prononcer sur ce dossier : ${partsFailed}, ${partsActifs} sans remonter de signal significatif. Le verdict est non-concluant : l absence de signal ne prouve rien quand les detecteurs sont muets. La lecture sera reprise en DD Bloc 2 avec les detecteurs manquants.`;
+    }
+    if (verdict === 'sain') {
+      // Filet de securite : ne devrait pas survenir sous la nouvelle
+      // regle de deriveGlobalVerdict, mais on garde le texte defensif
+      // au cas ou un consommateur reconstruirait un verdict a la main.
+      return `Le moteur Fragilite Structurelle a rendu sur couverture partielle : ${partsFailed}, ${partsActifs} sans signal a intensite d alerte. Le score global ${globalScore}/100 est calcule sur les detecteurs survivants uniquement. A recroiser en DD Bloc 2.`;
+    }
+    // Verdict alerte, attention ou drapeau-rouge : un signal remonte,
+    // il reste opposable meme sous couverture partielle.
+    const patternsRemontes = patternsActifs.filter((p) => p.globalScore !== null && p.globalScore >= 55);
+    const nomsRemontes = patternsRemontes.map((p) => p.patternId).join(', ');
+    let resume = `Le moteur Fragilite Structurelle remonte ${patternsRemontes.length} pattern${patternsRemontes.length > 1 ? 's' : ''} significatif${patternsRemontes.length > 1 ? 's' : ''} sur ce dossier : ${nomsRemontes}. Score global ${globalScore}/100, verdict ${verdict}. Couverture partielle : ${partsFailed}, le signal reste opposable mais la lecture complete sera reprise en DD Bloc 2.`;
+    if (combinaisons.length > 0) {
+      const combNoms = combinaisons.map((c) => c.nom).join(', ');
+      resume += ` Combinaisons diagnostiques detectees : ${combNoms}. Ce signal cumule merite remontee sur la couverture de la note.`;
+    }
+    return resume;
+  }
 
   if (patternsActifs.length === 0) {
     return 'Le moteur Fragilite Structurelle n a trouve aucun pattern applicable sur ce dossier. Les axes Phase 4 sont soit hors-scope (modele economique non concerne), soit en attente d implementation. La lecture early-stage du Bloc 1 reste l analyse principale.';
@@ -335,7 +407,11 @@ function buildResumeEditorial(
 
   const patternsRemontes = patternsActifs.filter((p) => p.globalScore !== null && p.globalScore >= 55);
   if (patternsRemontes.length === 0) {
-    return `Aucun pattern de fragilite structurelle ne remonte significativement sur ce dossier. Les ${patternsActifs.length} patterns actifs produisent des scores moderes (en dessous de 55), ce qui est aligne avec un dossier sain sur l axe Phase 4. Score global Fragilite : ${globalScore}/100.`;
+    const n = patternsActifs.length;
+    const partActifs = n > 1
+      ? `Les ${n} patterns actifs produisent`
+      : 'Le pattern actif produit';
+    return `Aucun pattern de fragilite structurelle ne remonte significativement sur ce dossier. ${partActifs} des scores moderes (en dessous de 55), ce qui est aligne avec un dossier sain sur l axe Phase 4. Score global Fragilite : ${globalScore}/100.`;
   }
 
   const noms = patternsRemontes.map((p) => p.patternId).join(', ');

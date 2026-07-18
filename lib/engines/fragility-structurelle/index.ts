@@ -24,6 +24,7 @@ export {
   type PatternAxisAnalysis,
   type PatternAnalysisOutput,
   type FragiliteStructurelleAnalysisOutput,
+  type NonApplicabilityCause,
 } from './types';
 
 export {

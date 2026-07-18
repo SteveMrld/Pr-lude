@@ -450,7 +450,7 @@ async function analyze(input: PatternInput): Promise<PatternAnalysisOutput> {
   // Pre-evaluation
   const check = isApplicable(input.extraction, input.financialData);
   if (!check.shouldRun) {
-    return buildNotApplicableOutput(PATTERN_ID, check.rationale);
+    return buildNotApplicableOutput(PATTERN_ID, check.rationale, 'pattern-scope');
   }
 
   // Appel LLM avec selecteur d archetype gate par asset_class et stade
