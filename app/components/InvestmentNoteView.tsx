@@ -860,7 +860,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         const failureProb = typeof reco.failureProbability === 'number'
           ? reco.failureProbability
           : null;
-        const drivers = Array.isArray(reco.decisionDrivers) ? reco.decisionDrivers.slice(0, 3) : [];
+        // Passe par sanitizeNarrativeList comme la section Facteurs
+        // decisifs L3215. Sans ce filtre, une entree polluee par un
+        // sentinel technique (529, Anthropic, incident transitoire)
+        // passe le test Array.isArray et s affiche brute sur la
+        // couverture, alors que la section corps la neutralise. Un
+        // meme trou doit produire le meme rendu dans les deux vues.
+        const drivers = sanitizeNarrativeList(reco.decisionDrivers, 'orchestrator').slice(0, 3);
         const topRisks = computeTopRisks(r, 3);
         const conditions = Array.isArray(reco.conditionsCles)
           ? reco.conditionsCles.slice(0, 3)
@@ -2879,7 +2885,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             {fs && (
               <>
                 {/* Bandeau verdict global. Palette ocre alignee sur Lecture
-                    du langage pour homogeneite visuelle. */}
+                    du langage pour homogeneite visuelle.
+                    Le verdict 'non-concluant' est emis par l orchestrateur
+                    quand des detecteurs sont tombes en erreur et que le
+                    verdict calcule serait sain : l absence de signal ne
+                    prouve rien quand les detecteurs sont muets. */}
                 {(() => {
                   const verdictColor: Record<string, { bg: string; ink: string; label: string }> = {
                     'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
@@ -2887,8 +2897,47 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
                     'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
                     'non-applicable': { bg: '#f5f0e3', ink: '#666', label: 'Non applicable' },
+                    'non-concluant': { bg: '#ece6d4', ink: '#5a5548', label: 'Non concluant' },
                   };
-                  const v = verdictColor[fs.verdict] || verdictColor['attention'];
+
+                  // Couverture du moteur. Deux sources : le bloc coverage
+                  // pose par l orchestrateur (snapshots recents), ou une
+                  // reconstruction legacy par string-matching sur
+                  // applicabiliteRationale pour les snapshots anterieurs.
+                  const legacyFailedIds: string[] = [];
+                  let contributing = 0;
+                  for (const [pid, p] of Object.entries(fs.patterns || {})) {
+                    const pp = p as any;
+                    if (!pp) continue;
+                    if (pp.applicabilite !== 'not-applicable' && pp.globalScore !== null && pp.globalScore !== undefined) {
+                      contributing += 1;
+                    }
+                    // Marqueur legacy : le catch orchestrateur posait ce
+                    // rationale fixe pour tout echec d execution avant que
+                    // le champ nonApplicabilityCause soit introduit.
+                    if (typeof pp.applicabiliteRationale === 'string' &&
+                        pp.applicabiliteRationale.includes('Erreur lors de l analyse')) {
+                      legacyFailedIds.push(pid);
+                    }
+                  }
+                  const cov = fs.coverage ?? {
+                    contributing,
+                    failed: legacyFailedIds.length,
+                    total: 7,
+                  };
+                  const hasFailed = cov.failed > 0;
+
+                  // Neutralisation defensive du verdict legacy : si le
+                  // snapshot dit sain mais que le fallback string-match
+                  // detecte des erreurs, on force l affichage vers
+                  // non-concluant au rendu. Le score reste affiche mais
+                  // encadre par la couverture. Ne modifie pas la donnee
+                  // en base, uniquement l affichage.
+                  let verdictAffiche = fs.verdict as string;
+                  if (verdictAffiche === 'sain' && hasFailed) {
+                    verdictAffiche = 'non-concluant';
+                  }
+                  const v = verdictColor[verdictAffiche] || verdictColor['attention'];
                   return (
                     <div className="verdict-box" style={{ marginBottom: 12, background: v.bg, borderColor: v.ink + '33' }}>
                       <div className="verdict-line">
@@ -2897,11 +2946,20 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       </div>
                       <div className="verdict-line">
                         <span className="verdict-label">Score de fragilité</span>
-                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>{fs.globalFragilityScore}/100</span>
+                        <span className="verdict-value" style={{ color: v.ink, fontWeight: 600 }}>
+                          {fs.globalFragilityScore}/100
+                          {hasFailed && (
+                            <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.75, fontWeight: 400 }}>
+                              (sur couverture partielle)
+                            </span>
+                          )}
+                        </span>
                       </div>
                       <div className="verdict-line">
-                        <span className="verdict-label">Patterns actifs</span>
-                        <span className="verdict-value">{Object.values(fs.patterns).filter((p: any) => p && p.applicabilite !== 'not-applicable').length} sur 7</span>
+                        <span className="verdict-label">Couverture des détecteurs</span>
+                        <span className="verdict-value">
+                          {cov.contributing} contribuant{cov.contributing > 1 ? 's' : ''}, {cov.failed} en erreur, sur {cov.total}
+                        </span>
                       </div>
                     </div>
                   );
@@ -2970,10 +3028,44 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                           </div>
                         );
                       }
+
+                      // Distinction visuelle entre trou d execution et
+                      // ecartement doctrinal. Un detecteur tombe en erreur
+                      // ne dit pas la meme chose qu un pattern legitimement
+                      // hors-scope, et la note doit le signaler pour ne pas
+                      // laisser croire a une lecture faite.
+                      //
+                      // Deux sources pour identifier l erreur d execution :
+                      //   - Champ nonApplicabilityCause (snapshots recents)
+                      //   - Fallback legacy : string match sur le rationale
+                      //     fixe pose par le catch orchestrateur avant
+                      //     l introduction du champ. Marqueur pour les
+                      //     snapshots anterieurs.
+                      const cause = (p as any)?.nonApplicabilityCause as string | undefined;
+                      const isLegacyExecError = !cause &&
+                        typeof p?.applicabiliteRationale === 'string' &&
+                        p.applicabiliteRationale.includes('Erreur lors de l analyse');
+                      const isExecError = cause === 'execution-error' || isLegacyExecError;
+
+                      if (isExecError) {
+                        return (
+                          <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13 }}>
+                            <span style={{ color: '#5a5548' }}>{label}</span>
+                            <span style={{ fontStyle: 'italic', color: '#5a5548', fontSize: 12, maxWidth: '70%', textAlign: 'right' }}>
+                              Détecteur non abouti sur ce run, à reprendre en DD Bloc 2.
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      // Non-applicabilite doctrinale (matrice, pattern-scope,
+                      // central-axis-gating, not-implemented). Le rationale
+                      // du moteur est deja neutre et informatif.
+                      const rat = p?.applicabiliteRationale?.slice(0, 80) || 'Non applicable sur ce dossier.';
                       return (
                         <div key={patternId} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--hairline)', fontSize: 13, opacity: 0.55 }}>
                           <span>{label}</span>
-                          <span style={{ fontStyle: 'italic' }}>{p?.applicabiliteRationale?.slice(0, 80) || 'non applicable'}</span>
+                          <span style={{ fontStyle: 'italic' }}>{rat}</span>
                         </div>
                       );
                     }
