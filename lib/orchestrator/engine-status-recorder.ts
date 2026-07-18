@@ -129,28 +129,70 @@ function hasAny(v: any, keys: string[]): boolean {
   return !!(v && keys.some(k => v[k] !== undefined && v[k] !== null && v[k] !== ''));
 }
 
+/** Verifie qu un champ object (non-Array) existe et porte au moins
+ *  une cle. Utile pour les moteurs qui exposent leur sortie sous
+ *  forme de Record indexe par identifiant plutot que d Array liste. */
+function hasNonEmptyObject(v: any, key: string): boolean {
+  const val = v?.[key];
+  return !!(val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0);
+}
+
 export const MINIMAL_CONTRACTS: Record<string, ContractCheck> = {
   extraction: v => hasStringField(v, 'companyName'),
   team: v => hasAny(v, ['foundersCount', 'founderMarketFit', 'systemicCoverage']),
   market: v => hasAny(v, ['perceivedSize', 'needIntensity', 'defensibility', 'realIntensity', 'saturation']),
-  macro: v => hasAny(v, ['cyclePosition', 'demandCycle', 'trends', 'regulatory']),
+  // macro : champs reels sont structuralTrends et regulatoryEnvironment.
+  // 'trends' et 'regulatory' etaient des candidats fantomes.
+  macro: v => hasAny(v, ['cyclePosition', 'demandCycle', 'structuralTrends', 'regulatoryEnvironment']),
   financialData: v => hasArrayLen(v, 'revenueProjection') || hasArrayLen(v, 'ebitdaProjection'),
   blindspotAnalysis: v => !!(v && v.patterns && typeof v.patterns === 'object' && Object.keys(v.patterns).length > 0),
   contrarianAnalysis: v => !!(v && v.signals && typeof v.signals === 'object' && Object.keys(v.signals).length > 0),
   financialCoherence: v => hasArrayLen(v, 'tests') || hasAny(v, ['globalCoherenceScore', 'archetype']),
   techClaimCoherence: v => !!(v && (v.triggers || v.tests)),
-  executionFriction: v => !!(v && (v.axes || v.overallScore !== undefined)),
-  narrativeDrift: v => hasAny(v, ['verdict', 'drift', 'kpiExtinction', 'opacity']),
-  fragiliteStructurelle: v => hasArrayLen(v, 'patterns') || hasAny(v, ['overallScore', 'combinations']),
-  patternMatching: v => hasArrayLen(v, 'comparables') || hasAny(v, ['averageScore', 'insights']),
+  // executionFriction : le score global s appelle globalScore
+  // (execution-friction-engine.ts:434-447), pas overallScore.
+  executionFriction: v => !!(v && (v.axes || v.globalScore !== undefined)),
+  narrativeDrift: v => hasAny(v, ['verdict', 'globalDriftScore', 'metriquesLexicales', 'glissementIndicateurs']),
+  // fragiliteStructurelle : la sortie expose patterns en Record (non
+  // Array), globalFragilityScore et combinaisons (francais). Les
+  // anciens candidats overallScore et combinations (anglais) sont des
+  // noms fantomes qui rendaient le contrat systematiquement false et
+  // faisaient sortir le moteur en empty_output malgre une sortie
+  // nominale complete. Cause racine de la fausse-lecture du run
+  // c50bb153. Passer par hasNonEmptyObject sur patterns pour matcher
+  // la structure Record.
+  fragiliteStructurelle: v => hasNonEmptyObject(v, 'patterns')
+    || hasAny(v, ['globalFragilityScore', 'combinaisons']),
+  // patternMatching : averageScore et insights sont imbriques sous
+  // retrospectiveBenchmark (types.ts:369-372), pas top-level.
+  // comparables reste la voie principale.
+  patternMatching: v => hasArrayLen(v, 'comparables')
+    || (v?.retrospectiveBenchmark && hasAny(v.retrospectiveBenchmark, ['averageScore', 'insights'])),
   causalReversal: v => !!(v && (v.blindspotsScores || v.reversalNarrative)),
   referenceChecks: v => !!(v && (Array.isArray(v.founderChecks) || Array.isArray(v.customerChecks))),
   finalRecommendation: v => hasStringField(v, 'verdict') && hasArrayLen(v, 'decisionDrivers'),
   indicators: v => hasArrayLen(v, 'indicators'),
   valuation: v => !!(v && (v.centralValue !== undefined || v.methods)),
   preScan: v => hasStringField(v, 'recommendation') || hasStringField(v, 'summary'),
-  saasMetrics: v => !!(v && (v.ndr !== undefined || v.magicNumber !== undefined)),
-  industrialMetrics: v => !!(v && (v.indicators || v.__skipped)),
+  // saasMetrics : ndr et magicNumber sont imbriques sous retention et
+  // salesEfficiency (saas-metrics-engine.ts:182-185), pas top-level.
+  saasMetrics: v => !!(v && (
+    (v.retention && typeof v.retention === 'object')
+    || (v.salesEfficiency && typeof v.salesEfficiency === 'object')
+  )),
+  // industrialMetrics : sortie plate a champs metriques
+  // (industrial-metrics-engine.ts:45-74), pas de champ indicators.
+  // Le marqueur __skipped reste valide pour le cas hors-scope.
+  industrialMetrics: v => !!(v && (
+    v.__skipped
+    || hasAny(v, [
+      'commercialCycleMonths',
+      'averageContractValueEur',
+      'orderBacklogEur',
+      'tenderWinRatePct',
+      'annualProductionCapacityUnits',
+    ])
+  )),
 };
 
 /** Contrat generique : non-null, non-primitif vide, non-objet vide. */

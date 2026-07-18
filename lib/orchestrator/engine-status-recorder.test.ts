@@ -139,8 +139,83 @@ console.log('\n[Suite 2] Contrats minimaux et cas TOLSON');
   check(passesMinimalContract('market', null) === false, 'contrat market : null echoue');
   check(passesMinimalContract('narrativeDrift', { verdict: 'stable' }) === true, 'contrat narrativeDrift : verdict suffit');
   check(passesMinimalContract('narrativeDrift', null) === false, 'contrat narrativeDrift : null echoue');
-  check(passesMinimalContract('fragiliteStructurelle', { patterns: [{ patternId: 'p1' }] }) === true, 'contrat fragiliteStructurelle : patterns array');
-  check(passesMinimalContract('fragiliteStructurelle', { patterns: [] }) === false, 'contrat fragiliteStructurelle : patterns vide echoue');
+  // fragiliteStructurelle : la sortie reelle expose patterns en Record
+  // indexe par PatternId, pas en Array. L ancien contrat qui exigeait
+  // Array.isArray produisait un empty_output sur toute sortie nominale
+  // (bug cause racine du run c50bb153).
+  check(passesMinimalContract('fragiliteStructurelle', {
+    patterns: { 'growth-subsidized-model': { patternId: 'growth-subsidized-model' } },
+  }) === true, 'contrat fragiliteStructurelle : patterns Record satisfait');
+  check(passesMinimalContract('fragiliteStructurelle', {
+    globalFragilityScore: 33,
+    combinaisons: [],
+  }) === true, 'contrat fragiliteStructurelle : globalFragilityScore suffit');
+  check(passesMinimalContract('fragiliteStructurelle', {
+    combinaisons: [{ nom: 'x' }],
+  }) === true, 'contrat fragiliteStructurelle : combinaisons non vide suffit');
+  check(passesMinimalContract('fragiliteStructurelle', { patterns: {} }) === false,
+    'contrat fragiliteStructurelle : patterns Record vide echoue');
+  check(passesMinimalContract('fragiliteStructurelle', null) === false,
+    'contrat fragiliteStructurelle : null echoue');
+
+  // saasMetrics : ndr et magicNumber sont imbriques sous retention et
+  // salesEfficiency (structure canonique du moteur).
+  check(passesMinimalContract('saasMetrics', {
+    retention: { ndr: 105, ndrProvenance: 'declared' },
+  }) === true, 'contrat saasMetrics : retention presente suffit');
+  check(passesMinimalContract('saasMetrics', {
+    salesEfficiency: { magicNumber: 1.2, magicNumberProvenance: 'declared' },
+  }) === true, 'contrat saasMetrics : salesEfficiency presente suffit');
+  check(passesMinimalContract('saasMetrics', { ndr: 105 }) === false,
+    'contrat saasMetrics : ndr top-level (ancien contrat) ne satisfait pas');
+  check(passesMinimalContract('saasMetrics', null) === false,
+    'contrat saasMetrics : null echoue');
+
+  // industrialMetrics : structure plate a champs metriques, pas de
+  // champ indicators. Marqueur __skipped valide pour hors-scope.
+  check(passesMinimalContract('industrialMetrics', {
+    commercialCycleMonths: 8,
+    commercialCycleProvenance: 'declared',
+  }) === true, 'contrat industrialMetrics : un champ metrique nominal suffit');
+  check(passesMinimalContract('industrialMetrics', { __skipped: true }) === true,
+    'contrat industrialMetrics : marqueur __skipped satisfait');
+  check(passesMinimalContract('industrialMetrics', { indicators: [1] }) === false,
+    'contrat industrialMetrics : champ indicators (ancien contrat) ne satisfait pas');
+  check(passesMinimalContract('industrialMetrics', {}) === false,
+    'contrat industrialMetrics : objet vide echoue');
+
+  // macro : champs reels sont structuralTrends et regulatoryEnvironment.
+  check(passesMinimalContract('macro', { structuralTrends: ['t1'] }) === true,
+    'contrat macro : structuralTrends satisfait (nouveau nom reel)');
+  check(passesMinimalContract('macro', { regulatoryEnvironment: 'stable' }) === true,
+    'contrat macro : regulatoryEnvironment satisfait');
+  check(passesMinimalContract('macro', { cyclePosition: 'mature' }) === true,
+    'contrat macro : cyclePosition (deja correct) preserve');
+
+  // patternMatching : averageScore et insights vivent sous
+  // retrospectiveBenchmark, pas top-level.
+  check(passesMinimalContract('patternMatching', {
+    retrospectiveBenchmark: { averageScore: 65, insights: 'x' },
+  }) === true, 'contrat patternMatching : retrospectiveBenchmark.averageScore satisfait');
+  check(passesMinimalContract('patternMatching', {
+    comparables: [{ caseId: 'c1' }],
+  }) === true, 'contrat patternMatching : comparables top-level (deja correct) preserve');
+
+  // executionFriction : le score global s appelle globalScore, pas
+  // overallScore. Ancien contrat testait overallScore qui n existe pas.
+  check(passesMinimalContract('executionFriction', { globalScore: 60 }) === true,
+    'contrat executionFriction : globalScore (nom reel) satisfait');
+  check(passesMinimalContract('executionFriction', { axes: [{ axis: 'x' }] }) === true,
+    'contrat executionFriction : axes (deja correct) preserve');
+
+  // narrativeDrift : verdict reste correct ; on ajoute globalDriftScore
+  // et metriquesLexicales qui existent aussi dans la sortie reelle.
+  check(passesMinimalContract('narrativeDrift', { globalDriftScore: 40 }) === true,
+    'contrat narrativeDrift : globalDriftScore satisfait');
+  check(passesMinimalContract('narrativeDrift', {
+    metriquesLexicales: { densiteConcrete: 0.4 },
+  }) === true, 'contrat narrativeDrift : metriquesLexicales satisfait');
+
   check(passesMinimalContract('finalRecommendation', { verdict: 'investir', decisionDrivers: [] }) === false, 'finalRecommendation : verdict seul insuffisant si drivers vides');
   check(passesMinimalContract('finalRecommendation', { verdict: 'investir', decisionDrivers: ['x'] }) === true, 'finalRecommendation : verdict + drivers ok');
 }
