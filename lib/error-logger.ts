@@ -50,29 +50,52 @@ export interface ErrorLogEntry {
 }
 
 /**
+ * Construit la ligne exacte remise a l insert error_logs. Isole du
+ * transport pour deux raisons : rendre le rattachement analysis_id
+ * testable sans base, et poser les gardes de coercition en un seul
+ * endroit.
+ *
+ * Les gardes ne sont pas defensives par principe. Un appelant qui se
+ * trompe de signature (arguments positionnels contre objet unique)
+ * produisait jusqu ici un entry.message undefined, donc un throw sur
+ * .slice a l interieur du try de logError, donc une ligne perdue en
+ * silence : le site de log paraissait actif et n ecrivait jamais.
+ * Coercer plutot que lever transforme cette panne muette en ligne
+ * degradee mais presente.
+ */
+export function buildErrorLogRow(entry: ErrorLogEntry): Record<string, any> {
+  const message = typeof entry?.message === 'string'
+    ? entry.message
+    : String(entry?.message ?? 'unknown error');
+  const stack = typeof entry?.stack === 'string' ? entry.stack : null;
+  return {
+    severity: entry?.severity || 'error',
+    source: typeof entry?.source === 'string' ? entry.source : 'unknown',
+    message: message.slice(0, 2000), // garde-fou taille
+    stack: stack ? stack.slice(0, 8000) : null,
+    context: entry?.context || {},
+    organization_id: entry?.organizationId || null,
+    user_id: entry?.userId || null,
+    analysis_id: entry?.analysisId || null,
+  };
+}
+
+/**
  * Insert en base + log console. Tolerant aux echecs Supabase
  * (fail open). Asynchrone, n attend pas l insert si appele dans
  * un contexte non-await (fire-and-forget).
  */
 export async function logError(entry: ErrorLogEntry): Promise<void> {
-  const consolePrefix = `[${entry.severity}][${entry.source}]`;
-  const consoleMethod = entry.severity === 'error' ? console.error : entry.severity === 'warning' ? console.warn : console.info;
-  consoleMethod(`${consolePrefix} ${entry.message}${entry.stack ? '\n' + entry.stack : ''}`);
+  const row = buildErrorLogRow(entry);
+  const consolePrefix = `[${row.severity}][${row.source}]`;
+  const consoleMethod = row.severity === 'error' ? console.error : row.severity === 'warning' ? console.warn : console.info;
+  consoleMethod(`${consolePrefix} ${row.message}${row.stack ? '\n' + row.stack : ''}`);
 
   // Persistence non bloquante. Si Supabase down ou table absente,
   // on perd l entree mais on ne fait pas planter le caller.
   try {
     const admin = getSupabaseAdminClient();
-    await admin.from('error_logs').insert({
-      severity: entry.severity,
-      source: entry.source,
-      message: entry.message.slice(0, 2000), // garde-fou taille
-      stack: entry.stack ? entry.stack.slice(0, 8000) : null,
-      context: entry.context || {},
-      organization_id: entry.organizationId || null,
-      user_id: entry.userId || null,
-      analysis_id: entry.analysisId || null,
-    });
+    await admin.from('error_logs').insert(row);
   } catch (err: any) {
     // Silencieux : ne pas cascader le probleme. La trace console
     // a deja ete posee plus haut, c est suffisant pour le debug.

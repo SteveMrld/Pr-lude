@@ -55,6 +55,7 @@ import {
 } from '@/lib/analysis-store';
 import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
 import { createEngineDeadlineWrapper } from '@/lib/orchestrator/engine-deadline';
+import { createEngineLogCallbacks } from '@/lib/orchestrator/engine-log-callbacks';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
@@ -554,23 +555,23 @@ export async function POST(req: NextRequest) {
         // run entier a ENGINE_DEADLINE_MS). Ne s applique pas a
         // orchestrate qui a sa propre logique de retry controle
         // (2 tentatives max, cf axis 1).
+        //
+        // Les deux callbacks de log sont fabriques par
+        // createEngineLogCallbacks : c est le point unique par lequel
+        // passe tout incident de moteur wrappe, donc le point unique ou
+        // poser l analysisId. Il porte les tests deterministes du
+        // rattachement, que ce fichier ne peut pas porter.
+        const engineLogCallbacks = createEngineLogCallbacks({
+          getAnalysisId: () => analysisId,
+        });
+
         const withEngineDeadline = createEngineDeadlineWrapper({
           recorder: enginesRecorder,
           waitDeadlineMs: WAIT_DEADLINE_MS,
           llmDeadlineMs: ENGINE_DEADLINE_MS,
-          onTimeout: (engine, reason, deadlineMs) => {
-            logException(`pipeline.${engine}`, new Error(reason), {
-              severity: 'warning',
-              context: { engine, deadlineMs, reason },
-            });
-          },
+          onTimeout: engineLogCallbacks.onTimeout,
           onDoneNull: (engine) => { sendDone(engine, null); },
-          onError: (engine, err) => {
-            logException(`pipeline.${engine}`, err as Error, {
-              severity: 'warning',
-              context: { engine, phase: 'engine-error' },
-            });
-          },
+          onError: engineLogCallbacks.onError,
         });
 
         try {
@@ -632,6 +633,7 @@ export async function POST(req: NextRequest) {
             } catch (err: any) {
               logException('pipeline.prescan', err, {
                 severity: 'warning',
+                analysisId,
                 context: { phase: 'prescan-bloc-0' },
               });
             }
@@ -750,7 +752,7 @@ export async function POST(req: NextRequest) {
           try {
             sectoralContext = await resolveSectoralContext(extraction);
           } catch (err: any) {
-            logException('pipeline.sectoral-injection.resolve', err, { severity: 'warning' });
+            logException('pipeline.sectoral-injection.resolve', err, { severity: 'warning', analysisId });
             sectoralContext = null;
           }
 
@@ -876,6 +878,7 @@ export async function POST(req: NextRequest) {
             } catch (err: any) {
               logException('pipeline.benchmarks', err, {
                 severity: 'warning',
+                analysisId,
                 context: { phase: 'benchmarks-deterministic' },
               });
               return null;
@@ -1045,7 +1048,7 @@ export async function POST(req: NextRequest) {
               sendDone('tech-claim', r);
               return r;
             } catch (err: any) {
-              logException('pipeline.tech-claim', err, { severity: 'warning' });
+              logException('pipeline.tech-claim', err, { severity: 'warning', analysisId });
               sendDone('tech-claim', null);
               return null;
             }
@@ -1059,7 +1062,7 @@ export async function POST(req: NextRequest) {
               sendDone('execution-friction', r);
               return r;
             } catch (err: any) {
-              logException('pipeline.execution-friction', err, { severity: 'warning' });
+              logException('pipeline.execution-friction', err, { severity: 'warning', analysisId });
               sendDone('execution-friction', null);
               return null;
             }
@@ -1083,7 +1086,7 @@ export async function POST(req: NextRequest) {
                   sendDone('narrative-drift', r);
                   return r;
                 } catch (err: any) {
-                  logException('pipeline.narrative-drift', err, { severity: 'warning' });
+                  logException('pipeline.narrative-drift', err, { severity: 'warning', analysisId });
                   sendDone('narrative-drift', null);
                   return null;
                 }
@@ -1119,7 +1122,7 @@ export async function POST(req: NextRequest) {
                   sendDone('fragility-structurelle', r);
                   return r;
                 } catch (err: any) {
-                  logException('pipeline.fragility-structurelle', err, { severity: 'warning' });
+                  logException('pipeline.fragility-structurelle', err, { severity: 'warning', analysisId });
                   sendDone('fragility-structurelle', null);
                   return null;
                 }
@@ -1177,7 +1180,7 @@ export async function POST(req: NextRequest) {
               sendDone('reference-checks', r);
               return r;
             } catch (err: any) {
-              logException('pipeline.reference-checks', err, { severity: 'warning' });
+              logException('pipeline.reference-checks', err, { severity: 'warning', analysisId });
               sendDone('reference-checks', null);
               return null;
             }
@@ -1463,6 +1466,7 @@ export async function POST(req: NextRequest) {
             // travail des 16 moteurs et affichait score 0 verdict inventes.
             await logException('pipeline.orchestrate', lastError, {
               severity: 'error',
+              analysisId,
               context: {
                 maxAttempts: MAX_ATTEMPTS,
                 fallback: 'degraded-mechanical',
@@ -1569,6 +1573,7 @@ export async function POST(req: NextRequest) {
           } catch (err: any) {
             logException('pipeline.assertion-audit', err, {
               severity: 'warning',
+              analysisId,
               context: { phase: 'post-pipeline-assertion-audit' },
             });
           }
@@ -1798,6 +1803,9 @@ export async function POST(req: NextRequest) {
               console.error('[api/analyze] persistence exception :', persistErr);
               await logException('api.analyze.persist', persistErr, {
                 severity: 'warning',
+                // Colonne et contexte. Le JSON de context n est pas
+                // joignable en SQL, seule la colonne l est.
+                analysisId,
                 context: { phase: 'mark-completed', analysisId },
               });
             }
@@ -1885,6 +1893,7 @@ export async function POST(req: NextRequest) {
           // SSE client a deja coupe.
           await logException('api.analyze.pipeline', error, {
             severity: 'error',
+            analysisId,
             context: {
               pitchDeckName: pitchDeck.name,
               hasBP: !!businessPlan,

@@ -121,6 +121,10 @@ export async function runAutoReanalysis(
           sectoralContext,
         },
         previousResult.relevanceMatrix || null,
+        // Troisieme argument aligne sur app/api/analyze/route.ts : sans
+        // lui, un echec de pattern pose sur error_logs une ligne
+        // orpheline, non joignable au dossier reanalyse.
+        analysisId,
       );
     } catch (err: any) {
       console.warn(
