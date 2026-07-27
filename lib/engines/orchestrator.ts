@@ -10,6 +10,7 @@ import type {
   OrchestratedResult
 } from './types';
 import { getRelevantPastAnnotations, formatPastAnnotationsForPrompt } from '../analysis-store';
+import type { ErrorLogEntry } from '../error-logger';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -298,6 +299,42 @@ ${recommandations.length > 0 ? '- Recommandations DD prioritaires : ' + recomman
 `;
 }
 
+/**
+ * Construit l entree error_logs de l audit anti-convergence.
+ *
+ * Extrait du site d appel pour deux raisons. La premiere est que ce
+ * site appelait logError avec des arguments positionnels contre une
+ * signature a objet unique : entry.message sortait undefined, l insert
+ * levait sur .slice et l exception etait avalee par le catch interne
+ * du logger. Le site paraissait actif et n a jamais rien ecrit en
+ * base. La seconde est qu il vit au milieu d une fonction qui exige un
+ * appel LLM complet, donc hors de portee de la suite deterministe : le
+ * builder, lui, est testable seul.
+ */
+export function buildScoreConvergenceLogEntry(params: {
+  amplitude: number;
+  dimList: string;
+  dims: Array<{ dimensionName?: string; successProbability?: number; weight?: number }>;
+  llmScore: number;
+  finalComputedScore: number;
+  verdict?: string | null;
+  analysisId?: string | null;
+}): ErrorLogEntry {
+  return {
+    severity: 'warning',
+    source: 'pipeline.orchestrator.score-convergence',
+    message: `Dimensions sur-convergentes (amplitude ${params.amplitude} points) : ${params.dimList}`,
+    analysisId: params.analysisId ?? null,
+    context: {
+      amplitude: params.amplitude,
+      dimensions: params.dims.map(d => ({ name: d.dimensionName, prob: d.successProbability, weight: d.weight })),
+      llmScore: params.llmScore,
+      finalComputedScore: params.finalComputedScore,
+      verdict: params.verdict,
+    },
+  };
+}
+
 export async function orchestrateFinalRecommendation(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
@@ -342,6 +379,12 @@ export async function orchestrateFinalRecommendation(
    * pour les dossiers sans conflit detecte (cas majoritaire).
    */
   conflictOfInterest?: ConflictOfInterestFlag[] | null,
+  /**
+   * Identifiant du run en cours. Sert uniquement a rattacher les
+   * lignes error_logs posees depuis ce moteur au dossier analyse.
+   * null en mode persistence-off, ou la ligne analyses n existe pas.
+   */
+  analysisId?: string | null,
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
   // ============================================================
@@ -637,16 +680,15 @@ Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'général
       try {
         const { logError } = await import('@/lib/error-logger').catch(() => ({ logError: null as any }));
         if (logError) {
-          await logError('pipeline.orchestrator.score-convergence', `Dimensions sur-convergentes (amplitude ${amplitude} points) : ${dimList}`, {
-            severity: 'warning',
-            context: {
-              amplitude,
-              dimensions: dims.map(d => ({ name: d.dimensionName, prob: d.successProbability, weight: d.weight })),
-              llmScore,
-              finalComputedScore,
-              verdict: recommendation.verdict,
-            },
-          });
+          await logError(buildScoreConvergenceLogEntry({
+            amplitude,
+            dimList,
+            dims,
+            llmScore,
+            finalComputedScore,
+            verdict: recommendation.verdict,
+            analysisId,
+          }));
         }
       } catch {}
     }

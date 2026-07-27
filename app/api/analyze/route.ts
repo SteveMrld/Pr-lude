@@ -1400,6 +1400,7 @@ export async function POST(req: NextRequest) {
                   narrativeDrift,
                   fragiliteStructurelle,
                   conflictOfInterest,
+                  analysisId,
                 );
                 return result;
               } catch (err: any) {
