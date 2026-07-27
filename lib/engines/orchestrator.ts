@@ -117,6 +117,18 @@ Drapeaux rouges présents MAIS signaux contrariens singuliers et forts. Founder-
 ## balanced-investigate
 Tension non résolue. Les signaux des deux côtés s'équilibrent. Décision : approfondir.
 
+# SOCLE PARTIEL - DOCTRINE
+
+Un run peut te parvenir avec une partie seulement de ses moteurs. Le bloc SOCLE D INSTRUCTION du prompt te dit lesquels ont abouti et lesquels sont indisponibles. Cette information n'est pas un avertissement technique, elle gouverne ce que tu as le droit d'écrire.
+
+Une synthèse sur socle partiel déclare son socle. Elle nomme les axes qu'elle n'a pas pu instruire, dans son argumentation, en clair, sans euphémisme et sans les reléguer en note de bas de page. Le partner qui engage plusieurs millions doit savoir ce que la plateforme a lu et ce qu'elle n'a pas lu.
+
+Une synthèse sur socle partiel ne comble pas les silences. Tu ne reconstitues pas par déduction ce qu'un moteur muet aurait dit. Tu ne transposes pas depuis un dossier comparable. Un axe non instruit reste un axe non instruit jusqu'au prochain run.
+
+Une lacune n'est jamais une absence de risque. C'est l'inversion la plus dangereuse et la plus tentante : un moteur de vigilance qui n'a pas tourné ne produit aucune alerte, et cette absence d'alerte se lit comme une bonne nouvelle si personne ne la qualifie. Ne pas avoir mesuré n'est pas avoir écarté. Toute formulation qui présenterait un silence instrumental comme un signal favorable est une faute doctrinale, pas une maladresse de style.
+
+Une synthèse sur socle partiel reste opposable. Elle assume son verdict sur ce qu'elle a lu, elle ne se réfugie pas dans un refus de conclure, et elle borne explicitement sa portée. Un verdict rendu sur socle partiel est un verdict, pas une esquisse : il engage, et il dit sur quoi il engage.
+
 # ARGUMENTATION
 
 Dense, contraignante, 5-7 phrases qui synthétisent :
@@ -336,73 +348,140 @@ export function buildScoreConvergenceLogEntry(params: {
   };
 }
 
-export async function orchestrateFinalRecommendation(
-  extraction: ExtractionOutput,
-  team: TeamAnalysisOutput,
-  market: MarketAnalysisOutput,
-  macro: MacroAnalysisOutput,
-  patternMatching: PatternMatchingOutput,
-  causalReversal: CausalReversalOutput,
-  blindspotAnalysis: BlindspotAnalysisOutput,
-  contrarianAnalysis: ContrarianAnalysisOutput,
-  fundNote?: string | null,
-  /**
-   * Score mecanique pre-calcule par lib/engines/score-calculator.ts a
-   * partir des sorties des moteurs Bloc 1. Si fourni, le LLM orchestrator
-   * recoit le score, le verdict derive et les dimensions deja calcules :
-   * il devient narrateur du verdict (argumentation, decision drivers,
-   * dialecticalResolution) au lieu de juge. Il peut signaler un desaccord
-   * motive via assessorDisagreement si son jugement structurel diverge
-   * fortement du calcul mecanique.
-   * Si non fourni (mode legacy / retro-compatibilite), l orchestrator
-   * fonctionne comme avant : LLM produit verdict + score + dimensions.
-   */
-  mechanicalScore?: import('./score-calculator').MechanicalScoreResult | null,
-  /**
-   * Sortie du moteur Lecture du langage (Narrative Drift V1). Optionnel,
-   * passe en parametre pour que l orchestrator puisse integrer la lecture
-   * du discours dans la resolution dialectique. null si moteur non
-   * applicable ou en echec.
-   */
-  narrativeDrift?: import('./narrative-drift-engine').NarrativeDriftAnalysisOutput | null,
-  /**
-   * Sortie agregee du moteur Fragilite Structurelle (Bloc Phase 4 :
-   * sept patterns). Optionnel. null si tous les patterns Phase 4 sont
-   * non applicables ou en cas d echec global du moteur.
-   */
-  fragiliteStructurelle?: import('./fragility-structurelle/types').FragiliteStructurelleAnalysisOutput | null,
-  /**
-   * Flags de conflit d interet calcules en amont par
-   * detectConflictsOfInterest. Si fourni et non vide, l orchestrateur
-   * injecte un bloc ALERTE GOUVERNANCE en tete du userPrompt pour
-   * que le LLM produise sa recommandation finale en pleine
-   * conscience de la position d interet du fonds. Vide ou absent
-   * pour les dossiers sans conflit detecte (cas majoritaire).
-   */
-  conflictOfInterest?: ConflictOfInterestFlag[] | null,
-  /**
-   * Identifiant du run en cours. Sert uniquement a rattacher les
-   * lignes error_logs posees depuis ce moteur au dossier analyse.
-   * null en mode persistence-off, ou la ligne analyses n existe pas.
-   */
-  analysisId?: string | null,
-): Promise<OrchestratedResult['finalRecommendation']> {
+// ============================================================
+// SOCLE D INSTRUCTION
+// ------------------------------------------------------------
+// Les libelles des moteurs du socle, tels qu ils sont nommes au
+// modele. Ce sont les huit sorties que le userPrompt dereference
+// inconditionnellement, donc celles dont l absence appauvrit la
+// synthese sans qu elle s en apercoive.
+//
+// narrativeDrift et fragiliteStructurelle n y figurent pas : leur
+// absence releve aussi bien de la non-applicabilite doctrinale que
+// de l echec d execution, distinction posee par de6e378, et leur
+// bloc de prompt disparait deja proprement quand ils manquent. Les
+// declarer indisponibles reviendrait a presenter un choix de
+// doctrine comme une lacune.
+// ============================================================
+export const SOCLE_ENGINE_LABELS: Record<string, string> = {
+  extraction: 'Extraction',
+  team: 'Equipe',
+  market: 'Marche',
+  macro: 'Macro et timing',
+  patternMatching: 'Pattern Matching',
+  causalReversal: 'Retournement causal',
+  blindspotAnalysis: 'Aveuglement',
+  contrarianAnalysis: 'Singularites contrariennes',
+};
 
-  // ============================================================
-  // RACINES MOTEUR PROTEGEES
-  // ------------------------------------------------------------
-  // Toutes les sorties moteur dereferencees plus bas passent par E.
-  // Une racine null y devient un objet vide, donc chaque
-  // interpolation retombe sur le repli qu elle declarait deja au
-  // lieu de lever. Cf lib/engines/engine-roots.ts pour la trace de
-  // l incident qui a impose cette mecanique.
-  //
-  // Un moteur ajoute au prompt se protege en entrant dans cet objet.
-  // narrativeDrift, fragiliteStructurelle, mechanicalScore et
-  // conflictOfInterest n y entrent pas volontairement : ils
-  // gouvernent des ternaires de presence, et un objet vide etant
-  // truthy, les y faire passer construirait un bloc sur du vide.
-  // ============================================================
+export interface EngineAvailability {
+  /** Libelles des moteurs ayant produit une sortie exploitable. */
+  available: string[];
+  /** Libelles des moteurs absents sur ce run. */
+  missing: string[];
+  /** Cles techniques des moteurs absents, pour la telemetry. */
+  missingKeys: string[];
+}
+
+/**
+ * Etablit quels moteurs du socle ont abouti sur ce run.
+ *
+ * A appeler sur les racines BRUTES, jamais sur la sortie de
+ * protectEngineRoots : celle-ci a deja remplace les absents par des
+ * objets vides et ne peut plus les distinguer des presents.
+ *
+ * Un objet vide compte comme absent. Un moteur qui a repondu sans
+ * aucun champ n a rien instruit, et le contrat minimal du recorder
+ * le classe deja empty_output cote instrumentation.
+ */
+export function computeEngineAvailability(roots: Record<string, any>): EngineAvailability {
+  const available: string[] = [];
+  const missing: string[] = [];
+  const missingKeys: string[] = [];
+
+  for (const key of Object.keys(SOCLE_ENGINE_LABELS)) {
+    if (!(key in roots)) continue;
+    const value = roots[key];
+    const present = !!value && typeof value === 'object' && Object.keys(value).length > 0;
+    if (present) {
+      available.push(SOCLE_ENGINE_LABELS[key]);
+    } else {
+      missing.push(SOCLE_ENGINE_LABELS[key]);
+      missingKeys.push(key);
+    }
+  }
+
+  return { available, missing, missingKeys };
+}
+
+/**
+ * Bloc de prompt qui declare le socle au modele.
+ *
+ * Il est emis meme quand rien ne manque. Un socle complet doit se
+ * dire, sinon le modele ne peut pas distinguer un run entier d un
+ * run ou l information de couverture n a pas ete transmise.
+ */
+export function buildSocleBlock(availability: EngineAvailability): string {
+  const { available, missing } = availability;
+
+  if (missing.length === 0) {
+    return `# SOCLE D INSTRUCTION
+
+Les ${available.length} moteurs du socle ont abouti sur ce run. Aucun axe n est muet.
+
+`;
+  }
+
+  return `# SOCLE D INSTRUCTION
+
+ATTENTION : ce run est partiel. ${missing.length} moteur${missing.length > 1 ? 's' : ''} du socle ${missing.length > 1 ? 'sont indisponibles' : 'est indisponible'}.
+
+- Moteurs ayant abouti : ${available.join(', ') || 'aucun'}
+- Moteurs INDISPONIBLES sur ce run : ${missing.join(', ')}
+
+Tu construis ta synthese sur le socle disponible et sur lui seul.
+
+- Tu ne conclus rien sur un axe qui n a pas ete instruit. Un moteur indisponible ne te donne aucune information, ni favorable ni defavorable.
+- Tu signales explicitement dans ton argumentation les axes qui n ont pas pu etre instruits, en les nommant. Le partner doit lire la synthese en sachant sur quoi elle repose.
+- Tu ne presentes JAMAIS une lacune comme une absence de risque. Ne pas avoir mesure un risque n est pas l avoir ecarte. Une formulation du type "aucune alerte de vigilance" est interdite quand le moteur Aveuglement est indisponible : la formulation juste est "l axe vigilance n a pas pu etre instruit sur ce run".
+- Tu calibres tes dimensionProbabilities en consequence. Une dimension dont le moteur est muet reste incertaine, elle ne devient pas neutre par defaut, et ton successProbability integre cette incertitude residuelle.
+
+`;
+}
+
+/**
+ * Construit le userPrompt de la synthese finale.
+ *
+ * Extrait de orchestrateFinalRecommendation pour deux raisons. La
+ * premiere est que la construction du prompt est precisement ce qui
+ * levait sur c487a8b2 : tant qu elle vivait au milieu d une fonction
+ * exigeant un appel LLM complet, aucun test deterministe ne pouvait
+ * prouver qu une combinaison de moteurs nuls ne fait plus tomber la
+ * synthese. La seconde est que le socle declare se verifie sur le
+ * texte produit, pas sur une intention.
+ */
+export function buildOrchestratorUserPrompt(p: {
+  extraction: any;
+  team: any;
+  market: any;
+  macro: any;
+  patternMatching: any;
+  causalReversal: any;
+  blindspotAnalysis: any;
+  contrarianAnalysis: any;
+  fundNote?: string | null;
+  mechanicalScore?: any;
+  narrativeDrift?: any;
+  fragiliteStructurelle?: any;
+  conflictBlock: string;
+  annotationsBlock: string;
+}): string {
+  const {
+    extraction, team, market, macro, patternMatching, causalReversal,
+    blindspotAnalysis, contrarianAnalysis, fundNote, mechanicalScore,
+    narrativeDrift, fragiliteStructurelle, conflictBlock, annotationsBlock,
+  } = p;
+
   const E = protectEngineRoots({
     extraction,
     team,
@@ -415,13 +494,39 @@ export async function orchestrateFinalRecommendation(
   });
 
   // ============================================================
+  // SOCLE D INSTRUCTION DECLARE
+  // ------------------------------------------------------------
+  // La synthese doit savoir sur quoi elle repose. Avant la garde
+  // de classe, un moteur tombe faisait lever la construction du
+  // prompt ; depuis, elle aboutit, ce qui cree un risque nouveau :
+  // une synthese construite sur quatre moteurs muets se lit comme
+  // une synthese complete, et un axe non instruit se confond avec
+  // un axe sans risque. C est exactement l inverse de la doctrine.
+  //
+  // La disponibilite se calcule sur les racines brutes, avant
+  // protection : E a deja remplace les absents par des objets
+  // vides, il ne peut plus les distinguer.
+  // ============================================================
+  const availability = computeEngineAvailability({
+    extraction,
+    team,
+    market,
+    macro,
+    patternMatching,
+    causalReversal,
+    blindspotAnalysis,
+    contrarianAnalysis,
+  });
+  const socleBlock = buildSocleBlock(availability);
+
+  // ============================================================
   // NULL-CHECK DEFENSIF (commit 37aaab8 etendu) :
   // Si le moteur Causal renvoie un blindspotsScores partiellement
   // vide ou null (peut arriver sur des PDF courts ou tronques),
   // l acces direct b.score plante en serveur. On filtre pour ne
   // garder que les entries valides avant de calculer la moyenne.
   // ============================================================
-  const blindspotsScoresEntries = Object.values(E.causalReversal?.blindspotsScores || {})
+  const blindspotsScoresEntries: any[] = Object.values(E.causalReversal?.blindspotsScores || {})
     .filter((b: any) => b && typeof b === 'object' && typeof b.score === 'number');
 
   const blindspotsAvg = blindspotsScoresEntries.length > 0
@@ -449,33 +554,10 @@ export async function orchestrateFinalRecommendation(
     return s.slice(0, max) + '...';
   };
 
-  // ============================================================
-  // NIVEAU 3.A : APPRENTISSAGE PAR FEEDBACK SUPERVISE
-  // ------------------------------------------------------------
-  // Recupere les annotations utilisateur passees sur des dossiers du
-  // meme secteur. Ces annotations sont injectees dans le prompt comme
-  // contexte d apprentissage. L appel est non-bloquant : si la
-  // persistence est desactivee ou la base down, on injecte un bloc vide.
-  //
-  // L impact sur le coût est marginal (5 annotations × ~200 tokens =
-  // ~1000 tokens supplementaires en input).
-  // ============================================================
-  const pastAnnotations = await getRelevantPastAnnotations(
-    E.extraction.sector,
-    undefined,
-    5,
-  );
-  const annotationsBlock = formatPastAnnotationsForPrompt(pastAnnotations);
 
-  // Bloc ALERTE GOUVERNANCE injecte en tete si conflits detectes.
-  // Chaine vide quand pas de signal, donc invisible dans le flow
-  // majoritaire. Place avant les annotations pour que le LLM lise
-  // l alerte avant tout le reste.
-  const conflictBlock = buildConflictOfInterestBlock(conflictOfInterest ?? []);
+  return `Synthèse des 8 moteurs sur le dossier ${E.extraction?.companyName ?? '?'} :
 
-  const userPrompt = `Synthèse des 8 moteurs sur le dossier ${E.extraction?.companyName ?? '?'} :
-
-${conflictBlock}${annotationsBlock}# CONTEXTE
+${conflictBlock}${annotationsBlock}${socleBlock}# CONTEXTE
 ${E.extraction?.sector ?? '?'} / ${E.extraction?.subSector ?? '?'} · ${formatExtractionGeography(E.extraction)}
 Tour : ${E.extraction?.fundraise?.stage ?? '?'} ${E.extraction?.fundraise?.amount ?? '?'}
 Valorisation : ${E.extraction.fundraise?.valuation || 'non précisée'}
@@ -594,6 +676,115 @@ Produis la recommandation finale avec :
 7. ${mechanicalScore ? 'Narratif de retournement causal' : 'Decision drivers (3-5 facteurs décisifs)'}
 
 Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'générale')}`;
+}
+
+export async function orchestrateFinalRecommendation(
+  extraction: ExtractionOutput,
+  team: TeamAnalysisOutput,
+  market: MarketAnalysisOutput,
+  macro: MacroAnalysisOutput,
+  patternMatching: PatternMatchingOutput,
+  causalReversal: CausalReversalOutput,
+  blindspotAnalysis: BlindspotAnalysisOutput,
+  contrarianAnalysis: ContrarianAnalysisOutput,
+  fundNote?: string | null,
+  /**
+   * Score mecanique pre-calcule par lib/engines/score-calculator.ts a
+   * partir des sorties des moteurs Bloc 1. Si fourni, le LLM orchestrator
+   * recoit le score, le verdict derive et les dimensions deja calcules :
+   * il devient narrateur du verdict (argumentation, decision drivers,
+   * dialecticalResolution) au lieu de juge. Il peut signaler un desaccord
+   * motive via assessorDisagreement si son jugement structurel diverge
+   * fortement du calcul mecanique.
+   * Si non fourni (mode legacy / retro-compatibilite), l orchestrator
+   * fonctionne comme avant : LLM produit verdict + score + dimensions.
+   */
+  mechanicalScore?: import('./score-calculator').MechanicalScoreResult | null,
+  /**
+   * Sortie du moteur Lecture du langage (Narrative Drift V1). Optionnel,
+   * passe en parametre pour que l orchestrator puisse integrer la lecture
+   * du discours dans la resolution dialectique. null si moteur non
+   * applicable ou en echec.
+   */
+  narrativeDrift?: import('./narrative-drift-engine').NarrativeDriftAnalysisOutput | null,
+  /**
+   * Sortie agregee du moteur Fragilite Structurelle (Bloc Phase 4 :
+   * sept patterns). Optionnel. null si tous les patterns Phase 4 sont
+   * non applicables ou en cas d echec global du moteur.
+   */
+  fragiliteStructurelle?: import('./fragility-structurelle/types').FragiliteStructurelleAnalysisOutput | null,
+  /**
+   * Flags de conflit d interet calcules en amont par
+   * detectConflictsOfInterest. Si fourni et non vide, l orchestrateur
+   * injecte un bloc ALERTE GOUVERNANCE en tete du userPrompt pour
+   * que le LLM produise sa recommandation finale en pleine
+   * conscience de la position d interet du fonds. Vide ou absent
+   * pour les dossiers sans conflit detecte (cas majoritaire).
+   */
+  conflictOfInterest?: ConflictOfInterestFlag[] | null,
+  /**
+   * Identifiant du run en cours. Sert uniquement a rattacher les
+   * lignes error_logs posees depuis ce moteur au dossier analyse.
+   * null en mode persistence-off, ou la ligne analyses n existe pas.
+   */
+  analysisId?: string | null,
+): Promise<OrchestratedResult['finalRecommendation']> {
+
+  // ============================================================
+  // RACINES MOTEUR PROTEGEES
+  // ------------------------------------------------------------
+  // Toutes les sorties moteur dereferencees plus bas passent par E.
+  // Une racine null y devient un objet vide, donc chaque
+  // interpolation retombe sur le repli qu elle declarait deja au
+  // lieu de lever. Cf lib/engines/engine-roots.ts pour la trace de
+  // l incident qui a impose cette mecanique.
+  //
+  // Un moteur ajoute au prompt se protege en entrant dans cet objet.
+  // narrativeDrift, fragiliteStructurelle, mechanicalScore et
+  // conflictOfInterest n y entrent pas volontairement : ils
+  // gouvernent des ternaires de presence, et un objet vide etant
+  // truthy, les y faire passer construirait un bloc sur du vide.
+  // ============================================================
+  // ============================================================
+  // NIVEAU 3.A : APPRENTISSAGE PAR FEEDBACK SUPERVISE
+  // ------------------------------------------------------------
+  // Recupere les annotations utilisateur passees sur des dossiers du
+  // meme secteur. Ces annotations sont injectees dans le prompt comme
+  // contexte d apprentissage. L appel est non-bloquant : si la
+  // persistence est desactivee ou la base down, on injecte un bloc vide.
+  //
+  // L impact sur le coût est marginal (5 annotations × ~200 tokens =
+  // ~1000 tokens supplementaires en input).
+  // ============================================================
+  const pastAnnotations = await getRelevantPastAnnotations(
+    extraction?.sector,
+    undefined,
+    5,
+  );
+  const annotationsBlock = formatPastAnnotationsForPrompt(pastAnnotations);
+
+  // Bloc ALERTE GOUVERNANCE injecte en tete si conflits detectes.
+  // Chaine vide quand pas de signal, donc invisible dans le flow
+  // majoritaire. Place avant les annotations pour que le LLM lise
+  // l alerte avant tout le reste.
+  const conflictBlock = buildConflictOfInterestBlock(conflictOfInterest ?? []);
+
+  const userPrompt = buildOrchestratorUserPrompt({
+    extraction,
+    team,
+    market,
+    macro,
+    patternMatching,
+    causalReversal,
+    blindspotAnalysis,
+    contrarianAnalysis,
+    fundNote,
+    mechanicalScore,
+    narrativeDrift,
+    fragiliteStructurelle,
+    conflictBlock,
+    annotationsBlock,
+  });
 
   // maxTokens reduit de 8000 a 5000 : la sortie de l orchestrator est un JSON
   // de synthese compact, pas besoin de plus. Le retry est conserve mais
