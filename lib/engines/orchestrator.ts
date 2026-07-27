@@ -11,6 +11,7 @@ import type {
 } from './types';
 import { getRelevantPastAnnotations, formatPastAnnotationsForPrompt } from '../analysis-store';
 import type { ErrorLogEntry } from '../error-logger';
+import { protectEngineRoots } from './engine-roots';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -388,13 +389,39 @@ export async function orchestrateFinalRecommendation(
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
   // ============================================================
+  // RACINES MOTEUR PROTEGEES
+  // ------------------------------------------------------------
+  // Toutes les sorties moteur dereferencees plus bas passent par E.
+  // Une racine null y devient un objet vide, donc chaque
+  // interpolation retombe sur le repli qu elle declarait deja au
+  // lieu de lever. Cf lib/engines/engine-roots.ts pour la trace de
+  // l incident qui a impose cette mecanique.
+  //
+  // Un moteur ajoute au prompt se protege en entrant dans cet objet.
+  // narrativeDrift, fragiliteStructurelle, mechanicalScore et
+  // conflictOfInterest n y entrent pas volontairement : ils
+  // gouvernent des ternaires de presence, et un objet vide etant
+  // truthy, les y faire passer construirait un bloc sur du vide.
+  // ============================================================
+  const E = protectEngineRoots({
+    extraction,
+    team,
+    market,
+    macro,
+    patternMatching,
+    causalReversal,
+    blindspotAnalysis,
+    contrarianAnalysis,
+  });
+
+  // ============================================================
   // NULL-CHECK DEFENSIF (commit 37aaab8 etendu) :
   // Si le moteur Causal renvoie un blindspotsScores partiellement
   // vide ou null (peut arriver sur des PDF courts ou tronques),
   // l acces direct b.score plante en serveur. On filtre pour ne
   // garder que les entries valides avant de calculer la moyenne.
   // ============================================================
-  const blindspotsScoresEntries = Object.values(causalReversal?.blindspotsScores || {})
+  const blindspotsScoresEntries = Object.values(E.causalReversal?.blindspotsScores || {})
     .filter((b: any) => b && typeof b === 'object' && typeof b.score === 'number');
 
   const blindspotsAvg = blindspotsScoresEntries.length > 0
@@ -404,14 +431,14 @@ export async function orchestrateFinalRecommendation(
       )
     : 50; // fallback neutre si moteur Causal en echec total
 
-  const blindspotsAlertes = Object.values(causalReversal?.blindspotsScores || {})
+  const blindspotsAlertes = Object.values(E.causalReversal?.blindspotsScores || {})
     .filter((b: any) => b && b.alerte).length;
 
-  const aveuglementPatternsDetected = Object.values(blindspotAnalysis?.patterns || {}).filter((p: any) => p?.detected).length;
-  const aveuglementHighIntensity = Object.values(blindspotAnalysis?.patterns || {}).filter((p: any) => p?.detected && p.intensity >= 60).length;
+  const aveuglementPatternsDetected = Object.values(E.blindspotAnalysis?.patterns || {}).filter((p: any) => p?.detected).length;
+  const aveuglementHighIntensity = Object.values(E.blindspotAnalysis?.patterns || {}).filter((p: any) => p?.detected && p.intensity >= 60).length;
 
-  const contrarianSignalsDetected = Object.values(contrarianAnalysis?.signals || {}).filter((s: any) => s?.detected).length;
-  const contrarianHighStrength = Object.values(contrarianAnalysis?.signals || {}).filter((s: any) => s?.detected && s.strength >= 60).length;
+  const contrarianSignalsDetected = Object.values(E.contrarianAnalysis?.signals || {}).filter((s: any) => s?.detected).length;
+  const contrarianHighStrength = Object.values(E.contrarianAnalysis?.signals || {}).filter((s: any) => s?.detected && s.strength >= 60).length;
 
   // Helper pour tronquer les longues syntheses textuelles avant injection dans le prompt.
   // Les enrichissements sessions 3-4 ont allonge les sorties Blindspot/Contrarian/Causal.
@@ -434,7 +461,7 @@ export async function orchestrateFinalRecommendation(
   // ~1000 tokens supplementaires en input).
   // ============================================================
   const pastAnnotations = await getRelevantPastAnnotations(
-    extraction.sector,
+    E.extraction.sector,
     undefined,
     5,
   );
@@ -446,65 +473,65 @@ export async function orchestrateFinalRecommendation(
   // l alerte avant tout le reste.
   const conflictBlock = buildConflictOfInterestBlock(conflictOfInterest ?? []);
 
-  const userPrompt = `Synthèse des 8 moteurs sur le dossier ${extraction?.companyName ?? '?'} :
+  const userPrompt = `Synthèse des 8 moteurs sur le dossier ${E.extraction?.companyName ?? '?'} :
 
 ${conflictBlock}${annotationsBlock}# CONTEXTE
-${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'} · ${formatExtractionGeography(extraction)}
-Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
-Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
+${E.extraction?.sector ?? '?'} / ${E.extraction?.subSector ?? '?'} · ${formatExtractionGeography(E.extraction)}
+Tour : ${E.extraction?.fundraise?.stage ?? '?'} ${E.extraction?.fundraise?.amount ?? '?'}
+Valorisation : ${E.extraction.fundraise?.valuation || 'non précisée'}
 
 # MOTEUR ÉQUIPE
-- Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100
-- Anti-fragilité : ${team.collectiveAntiFragility?.score ?? '?'}/100
-- Transposition expérience : ${team.experienceTransposition?.score ?? '?'}/100
-- Obsession fondateur : ${team.founderObsession?.score ?? '?'}/100
-- Red flags : ${team?.redFlags?.length ?? '?'} · Green flags : ${team?.greenFlags?.length ?? '?'}
+- Couverture systémique : ${E.team.systemicCoverage?.score ?? '?'}/100
+- Anti-fragilité : ${E.team.collectiveAntiFragility?.score ?? '?'}/100
+- Transposition expérience : ${E.team.experienceTransposition?.score ?? '?'}/100
+- Obsession fondateur : ${E.team.founderObsession?.score ?? '?'}/100
+- Red flags : ${E.team?.redFlags?.length ?? '?'} · Green flags : ${E.team?.greenFlags?.length ?? '?'}
 
 # MOTEUR MARCHÉ
-- Intensité besoin : ${market.needIntensity?.score ?? '?'}/100
-- Signaux organiques : ${market.organicSignals?.score ?? '?'}/100
-- Défensibilité : ${market.defensibility?.score ?? '?'}/100
-- ${market?.perceivedSize ?? '?'} perçu / ${market?.realIntensity ?? '?'} réel · ${market?.saturation ?? '?'}
+- Intensité besoin : ${E.market.needIntensity?.score ?? '?'}/100
+- Signaux organiques : ${E.market.organicSignals?.score ?? '?'}/100
+- Défensibilité : ${E.market.defensibility?.score ?? '?'}/100
+- ${E.market?.perceivedSize ?? '?'} perçu / ${E.market?.realIntensity ?? '?'} réel · ${E.market?.saturation ?? '?'}
 
 # MOTEUR MACRO
-- Cycle : ${macro?.cyclePosition ?? '?'}
-- VC segment : ${macro?.vcCapitalOnSegment ?? '?'}
-- Fenêtre critique : ${macro?.criticalTimingWindow?.exists ? 'OUI ' + (macro?.criticalTimingWindow?.horizon || '') : 'Non'}
-- Opportunité contracyclique : ${macro.contraryclicalOpportunity?.score ?? '?'}/100
+- Cycle : ${E.macro?.cyclePosition ?? '?'}
+- VC segment : ${E.macro?.vcCapitalOnSegment ?? '?'}
+- Fenêtre critique : ${E.macro?.criticalTimingWindow?.exists ? 'OUI ' + (E.macro?.criticalTimingWindow?.horizon || '') : 'Non'}
+- Opportunité contracyclique : ${E.macro.contraryclicalOpportunity?.score ?? '?'}/100
 
 # MOTEUR PATTERN MATCHING
-- Archétype : ${patternMatching?.archetypeDominant ?? '?'}
-- Top comparables : ${(patternMatching.comparables || []).slice(0, 3).map(c => `${c.name} (${c.proximity}%)`).join(' · ')}
-- Benchmark rétrospectif : ${patternMatching?.retrospectiveBenchmark?.averageScore ?? '?'}/100
+- Archétype : ${E.patternMatching?.archetypeDominant ?? '?'}
+- Top comparables : ${(E.patternMatching.comparables || []).slice(0, 3).map(c => `${c.name} (${c.proximity}%)`).join(' · ')}
+- Benchmark rétrospectif : ${E.patternMatching?.retrospectiveBenchmark?.averageScore ?? '?'}/100
 
 # MOTEUR RETOURNEMENT CAUSAL
 - Score moyen angles morts (7 dimensions) : ${blindspotsAvg}/100
 - Alertes : ${blindspotsAlertes}/7
 
 # MOTEUR AVEUGLEMENT (12)
-- Score global de vigilance : ${blindspotAnalysis.globalBlindspotScore || 0}/100
+- Score global de vigilance : ${E.blindspotAnalysis.globalBlindspotScore || 0}/100
 - Patterns détectés : ${aveuglementPatternsDetected}/10
 - Patterns haute intensité : ${aveuglementHighIntensity}/10
-- Alertes critiques : ${(blindspotAnalysis.alertesCritiques || []).slice(0, 5).join(' · ') || 'aucune'}
-- Patterns historiques : ${(blindspotAnalysis.patternsHistoriques || []).map(p => `${p.case} (${p.outcome}, ${p.similarity}%)`).join(' · ') || 'aucun'}
-- Synthèse : ${truncate(blindspotAnalysis.syntheseAveuglement, 500)}
+- Alertes critiques : ${(E.blindspotAnalysis.alertesCritiques || []).slice(0, 5).join(' · ') || 'aucune'}
+- Patterns historiques : ${(E.blindspotAnalysis.patternsHistoriques || []).map(p => `${p.case} (${p.outcome}, ${p.similarity}%)`).join(' · ') || 'aucun'}
+- Synthèse : ${truncate(E.blindspotAnalysis.syntheseAveuglement, 500)}
 
 # MOTEUR SINGULARITÉS CONTRARIENNES (13)
-- Score global contrarien : ${contrarianAnalysis.globalContrarianScore || 0}/100
+- Score global contrarien : ${E.contrarianAnalysis.globalContrarianScore || 0}/100
 - Signaux détectés : ${contrarianSignalsDetected}/10
 - Signaux haute force : ${contrarianHighStrength}/10
-- Comparables contrariens : ${(contrarianAnalysis.comparablesContrariens || []).slice(0, 3).map(c => `${c.name} (${c.outcome})`).join(' · ') || 'aucun'}
-- Synthèse : ${truncate(contrarianAnalysis.syntheseSingularite, 500)}
+- Comparables contrariens : ${(E.contrarianAnalysis.comparablesContrariens || []).slice(0, 3).map(c => `${c.name} (${c.outcome})`).join(' · ') || 'aucun'}
+- Synthèse : ${truncate(E.contrarianAnalysis.syntheseSingularite, 500)}
 
 # DÉTAILS PATTERNS AVEUGLEMENT (top 5 haute intensité)
-${Object.values(blindspotAnalysis.patterns || {})
+${Object.values(E.blindspotAnalysis.patterns || {})
   .filter((p: any) => p?.detected && p.intensity >= 50)
   .slice(0, 5)
   .map((p: any) => `- ${p.patternName} (${p.intensity}/100) : ${truncate(p.evidence, 200)}`)
   .join('\n') || 'Aucun pattern haute intensité détecté'}
 
 # DÉTAILS SIGNAUX CONTRARIENS (top 5 haute force)
-${Object.values(contrarianAnalysis.signals || {})
+${Object.values(E.contrarianAnalysis.signals || {})
   .filter((s: any) => s?.detected && s.strength >= 50)
   .slice(0, 5)
   .map((s: any) => `- ${s.signalName} (${s.strength}/100) : ${truncate(s.evidence, 200)}`)
