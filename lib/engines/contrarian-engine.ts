@@ -167,6 +167,19 @@ export async function analyzeContrarian(
 
   const sectoralBlock = buildSectoralPromptBlock(sectoralContext, 'contrarian');
 
+  // types.ts declare founders comme tableau non optionnel, mais
+  // l objet vient d un parse LLM et tsconfig porte "strict": false :
+  // la declaration ne garantit rien a l execution. Le bloc FONDATEURS
+  // garde donc le second niveau, comme la ligne Valorisation du prompt
+  // de synthese depuis 3c22b3d. La cle absente produit son repli, pas
+  // un throw a la construction du prompt. Le test de forme porte sur
+  // Array.isArray et non sur un simple ||, parce qu une valeur non
+  // tableau traverserait le || et leverait au .map suivant.
+  //
+  // Garantir la cle a la source, dans le moteur d extraction, est le
+  // vrai chantier. Il n est pas ouvert ici : on garde le consommateur
+  // parce que la source ne l est pas encore.
+
   const userPrompt = `Analyse des singularités et signaux contrariens sur le dossier ${extraction?.companyName ?? '?'} :
 
 ${sectoralBlock}# CONTEXTE DOSSIER
@@ -177,7 +190,7 @@ Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extr
 Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
 
 # FONDATEURS
-${extraction.founders.map(f => `- ${f.name} (${f.role}) : ${f.background}`).join('\n')}
+${(Array.isArray(extraction.founders) ? extraction.founders : []).map(f => `- ${f.name} (${f.role}) : ${f.background}`).join('\n') || 'Aucun fondateur identifié dans le dossier.'}
 
 # ANALYSE ÉQUIPE (output moteur Team)
 - Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100
