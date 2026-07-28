@@ -229,7 +229,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   });
 
   // ---------- Warnings
-  const warnings = collectWarnings(input, applicableMethods, recommendedRange);
+  const warnings = collectWarnings(applicableMethods, recommendedRange);
 
   return {
     recommendedRange,
@@ -997,7 +997,6 @@ function buildSynthesis(args: {
 }
 
 function collectWarnings(
-  input: ValuationInput,
   applicableMethods: ValuationMethodResult[],
   range: any,
 ): string[] {
@@ -1016,14 +1015,35 @@ function collectWarnings(
     warnings.push(`La fourchette est très large (rapport max/min ${Math.round(range.max / range.min * 10) / 10}). Le pricing dépend fortement de signaux qualitatifs non chiffrables.`);
   }
 
-  // Le warning "aucun BP" se base maintenant sur la presence reelle
-  // d une projection revenue dans financialData (issue du moteur
-  // financial-extraction-engine), pas sur le flag hasFinancialData
-  // de financialCoherence qui ne capture pas la meme realite.
-  const hasUsableBp = !!input.financialData?.hasBP
-    && (input.financialData.revenueProjection || []).length > 0;
-  if (!hasUsableBp) {
-    warnings.push('Aucun BP ou pas de données financières exploitables. Les multiples sectoriels n ont pas pu être appliqués. La fourchette est basée uniquement sur les méthodes qualitatives (Berkus / Scorecard ou VC inverse).');
+  // Le warning ne se prononce que sur ce qui a reellement ete calcule.
+  // Il se lisait auparavant sur la presence d un fichier BP
+  // (financialData.hasBP), critere etranger a celui qui gouverne
+  // l application des multiples : extractBaseMetric ne regarde que le
+  // contenu de revenueProjection et de la traction extraite. Un dossier
+  // sans BP mais avec une projection exploitable imprimait donc
+  // "les multiples n ont pas pu etre appliques" sous une fourchette de
+  // multiples effective. On aligne le predicat sur le resultat.
+  const applied = new Set(applicableMethods.map((m) => m.method));
+  const quantitativeApplied = applied.has('sector-multiples') || applied.has('vc-method');
+  const qualitativeLabels = applicableMethods
+    .filter((m) => m.method === 'berkus' || m.method === 'scorecard')
+    .map((m) => m.label);
+
+  if (!applied.has('sector-multiples')) {
+    warnings.push('Les multiples sectoriels n ont pas pu être appliqués : aucune métrique de revenu exploitable (ARR, revenue, GMV ou EBITDA) n a été trouvée dans le pitch, la traction déclarée ou le BP.');
+  }
+
+  // "Uniquement qualitatif" n est vrai que si aucune methode
+  // quantitative n a abouti. La VC inverse est quantitative : quand
+  // elle produit une fourchette, la phrase est fausse. Et les methodes
+  // citees sont celles qui ont reellement contribue, pas la liste par
+  // defaut : au-dela du seed, Berkus et Scorecard sont non applicables
+  // et ne portent rien.
+  if (!quantitativeApplied) {
+    const support = qualitativeLabels.length > 0
+      ? ` La fourchette repose uniquement sur ${qualitativeLabels.join(' et ')}, qui valorisent l équipe et l opportunité avant toute traction chiffrée.`
+      : '';
+    warnings.push(`Aucune méthode quantitative n a abouti : ni les multiples sectoriels, ni la VC inverse ne disposent des inputs nécessaires.${support}`);
   }
 
   return warnings;
