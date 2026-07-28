@@ -371,6 +371,70 @@ function formatExtendedCaseForPrompt(c: ExtendedCaseRecord): string {
   Pattern reutilisable: ${c.reusablePattern}`;
 }
 
+// ============================================================
+// CONTRAT DE SORTIE DU MOTEUR PATTERN MATCHING
+// ------------------------------------------------------------
+// matchPatterns declare rendre un PatternMatchingOutput. Jusqu ici
+// il rendait ce que parseJSON voulait bien lui donner, y compris
+// null quand le modele emettait le litteral null. Ce null traversait
+// la sanitization sans lever et se propageait a tous les
+// consommateurs, dont causal-engine.ts qui le dereference racine
+// nue.
+//
+// La reponse structurelle est le contrat de sortie, pas la garde
+// chez chaque consommateur. Un moteur qui promet un objet rend un
+// objet : c est a lui de tenir sa promesse, pas a ses seize lecteurs
+// de s en mefier un par un.
+//
+// Ce que ce contrat NE fait pas : avaler une exception. Un parse qui
+// leve reste une exception, elle remonte au wrapper deadline qui la
+// classe failed et pose sa ligne error_logs. La transformer en objet
+// degrade ferait disparaitre un incident reel des traces, ce qui
+// couterait plus cher que le crash qu on evite. Seule la valeur
+// inexploitable rendue sans erreur est normalisee ici.
+// ============================================================
+
+/** Vrai si la valeur parsee est un objet exploitable comme sortie moteur. */
+export function isUsablePatternMatchingOutput(value: any): value is PatternMatchingOutput {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Sortie degradee du moteur Pattern Matching.
+ *
+ * Volontairement construite pour ECHOUER le contrat minimal du
+ * recorder (engine-status-recorder.ts, entree patternMatching) :
+ * comparables vide et retrospectiveBenchmark sans averageScore ni
+ * insights. Le moteur sort donc en empty_output, ce qui est la
+ * lecture honnete de ce qui s est passe. Loger la raison dans
+ * insights aurait satisfait le contrat et fait passer pour ok un
+ * moteur qui n a rien instruit ; la raison va dans degradedReason,
+ * qui n entre dans aucun contrat.
+ *
+ * degraded n est pas skipped. Le marqueur SKIPPED_FLAG de
+ * skipped-outputs.ts signale une non-applicabilite doctrinale, choix
+ * assume du parcours growth. Ici il s agit d un echec d execution.
+ * Confondre les deux est exactement ce que de6e378 a separe sur le
+ * moteur Fragilite.
+ */
+export function buildDegradedPatternMatchingOutput(reason: string): PatternMatchingOutput {
+  return {
+    archetypeDominant: null,
+    archetypeRationale: '',
+    comparables: [],
+    matchingPatterns: [],
+    retrospectiveBenchmark: {
+      averageScore: null,
+      successRate: '',
+      insights: '',
+      comparableScopeWarning: null,
+    },
+    internationalBenchmarks: [],
+    degraded: true,
+    degradedReason: reason,
+  } as unknown as PatternMatchingOutput;
+}
+
 export async function matchPatterns(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
@@ -547,7 +611,18 @@ ${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extra
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour chaque comparable cité avec des chiffres précis, ces chiffres doivent venir de la base de chiffres vérifiés ci-dessus. Retourne uniquement le JSON structuré.`;
 
   const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
-  const analysis = parseJSON<PatternMatchingOutput>(rawResponse);
+  // Contrat de sortie : matchPatterns promet un PatternMatchingOutput,
+  // il en rend un. parseJSON peut resoudre null (le modele emet le
+  // litteral null, JSON.parse le rend, sanitizeStringsRecursive le
+  // laisse passer) ou un scalaire. Ces valeurs traversaient la fonction
+  // sans lever et ressortaient telles quelles, propageant un null a
+  // tous les consommateurs de patternMatching.
+  const parsed = parseJSON<PatternMatchingOutput>(rawResponse);
+  const analysis: PatternMatchingOutput = isUsablePatternMatchingOutput(parsed)
+    ? parsed
+    : buildDegradedPatternMatchingOutput(
+        'Le moteur Pattern Matching a repondu sans structure exploitable : la reponse ne porte aucun objet JSON.',
+      );
   const audit = auditTagging(analysis, 'pattern-engine');
   if (audit.level !== 'ok') {
     console.warn('[pattern-engine] tagging audit:', audit.message);
