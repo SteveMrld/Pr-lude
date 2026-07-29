@@ -47,14 +47,18 @@ export interface AnalysisPayloadForSnapshot {
   mechanicalScore?: {
     globalScore?: number;
     verdict?: Verdict | string;
+    /** Le champ evaluated distingue une dimension reellement instruite
+     *  d une dimension dont le moteur est tombe. Absent des payloads
+     *  anterieurs a son introduction. */
     dimensions?: {
-      team?: { score?: number };
-      market?: { score?: number };
-      macro?: { score?: number };
-      financial?: { score?: number };
-      contrarian?: { score?: number };
-      vigilance?: { score?: number };
+      team?: { score?: number; evaluated?: boolean };
+      market?: { score?: number; evaluated?: boolean };
+      macro?: { score?: number; evaluated?: boolean };
+      financial?: { score?: number; evaluated?: boolean };
+      contrarian?: { score?: number; evaluated?: boolean };
+      vigilance?: { score?: number; evaluated?: boolean };
     };
+    scoreStatus?: string;
   };
   /** Sortie Fragilite Structurelle. Chaque pattern peut porter en
    *  plus du score global et du verdict ses trois axes (axis1
@@ -133,17 +137,31 @@ export function extractSnapshot(analysis: AnalysisPayloadForSnapshot): Trajector
     ?? analysis.verdict
     ?? 'approfondir') as Verdict;
 
-  // Dimensions : on tolere l absence de certaines, fallback 50
-  // (valeur neutre mediane). Si le score mecanique est absent, on
-  // reconstruit a partir de globalScore en mode degrade.
-  const dim = analysis.mechanicalScore?.dimensions ?? {};
+  // Dimensions : une dimension non evaluee n entre pas dans la
+  // trajectoire. Le repli sur globalScore qui existait ici fabriquait
+  // des points : un moteur tombe donnait un fantome a 50 que le run
+  // suivant, ou le moteur avait abouti a 63, transformait en une
+  // amelioration de 13 points. La trajectoire lisait un progres la ou
+  // il n y avait qu un moteur revenu en ligne. Une dimension sans
+  // valeur de moteur vaut null, et le comparateur ne calcule pas de
+  // delta contre null.
+  //
+  // Le champ evaluated est absent des payloads anterieurs a
+  // l instrumentation de la base : on retombe alors sur la presence
+  // d un score, comportement historique moins le repli.
+  const dim = (analysis.mechanicalScore?.dimensions ?? {}) as Record<string, { score?: number; evaluated?: boolean } | undefined>;
+  const dimScore = (key: string): number | null => {
+    const d = dim[key];
+    if (!d || d.evaluated === false) return null;
+    return typeof d.score === 'number' ? d.score : null;
+  };
   const dimensions = {
-    team: dim.team?.score ?? globalScore,
-    market: dim.market?.score ?? globalScore,
-    macro: dim.macro?.score ?? globalScore,
-    financial: dim.financial?.score ?? globalScore,
-    contrarian: dim.contrarian?.score ?? globalScore,
-    vigilance: dim.vigilance?.score ?? globalScore,
+    team: dimScore('team'),
+    market: dimScore('market'),
+    macro: dimScore('macro'),
+    financial: dimScore('financial'),
+    contrarian: dimScore('contrarian'),
+    vigilance: dimScore('vigilance'),
   };
 
   // Fragilite Structurelle : null si moteur non present ou tous

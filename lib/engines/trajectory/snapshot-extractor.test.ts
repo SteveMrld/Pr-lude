@@ -101,8 +101,40 @@ console.log('\n=== Test 3 : payload minimal sans dimensions ===');
   check('id alternatif accepte', snap.analysisId, 'minimal-analysis');
   check('timestamp alternatif accepte', snap.analyzedAt, '2026-01-01T00:00:00Z');
   check('verdict accepte', snap.verdict, 'approfondir');
-  check('team dim fallback globalScore', snap.dimensions.team, 50);
-  check('vigilance dim fallback globalScore', snap.dimensions.vigilance, 50);
+  // Aucune dimension n a de score dans ce payload : elles valent null,
+  // elles ne recopient plus le score global. Un fantome recopie ferait
+  // entrer dans la trajectoire un point qu aucun moteur n a produit, et
+  // le run suivant, ou le moteur aurait abouti, lirait la difference
+  // comme une progression du dossier.
+  check('team dim null en l absence de score de moteur', snap.dimensions.team, null);
+  check('vigilance dim null en l absence de score de moteur', snap.dimensions.vigilance, null);
+})();
+
+console.log('\n=== Test 3b : dimension marquee non evaluee ===');
+(() => {
+  const payload: AnalysisPayloadForSnapshot = {
+    id: 'gapped-analysis',
+    timestamp: '2026-02-01T00:00:00Z',
+    mechanicalScore: {
+      globalScore: 63,
+      verdict: 'investir avec conditions',
+      dimensions: {
+        // Moteur tombe : le champ score porte encore le neutre 50 du
+        // modele historique, evaluated dit la verite.
+        team: { score: 50, evaluated: false },
+        market: { score: 71, evaluated: true },
+        macro: { score: 55, evaluated: true },
+        financial: { score: 60, evaluated: true },
+        contrarian: { score: 66, evaluated: true },
+        vigilance: { score: 58, evaluated: true },
+      },
+    },
+  };
+  const snap = extractSnapshot(payload);
+  checkTrue('snapshot non null', !!snap);
+  if (!snap) return;
+  check('dimension non evaluee sortie de la trajectoire', snap.dimensions.team, null);
+  check('dimension evaluee conservee', snap.dimensions.market, 71);
 })();
 
 console.log('\n=== Test 4 : payload sans id ===');

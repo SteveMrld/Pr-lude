@@ -333,6 +333,37 @@ export interface ScoreBasis {
 
 export type MechanicalScoreStatus = 'computed' | 'insufficient-basis';
 
+/**
+ * Valeur canonique du troisieme etat la ou une chaine de verdict est
+ * attendue (persistence, note, registre). Ce n est pas un verdict
+ * d instruction, c est l aveu qu il n y en a pas. Toute couche qui
+ * lit un verdict doit pouvoir le reconnaitre plutot que de retomber
+ * sur un 'approfondir' par defaut, qui ferait passer une lacune de
+ * pipeline pour une position prudente du fonds.
+ */
+export const INSUFFICIENT_BASIS_VERDICT = 'socle insuffisant';
+
+/** Libelle partner du troisieme etat. */
+export const INSUFFICIENT_BASIS_LABEL = 'Socle insuffisant';
+
+/** True si le resultat mecanique porte un score exploitable. */
+export function hasComputedScore(
+  mechanical: { globalScore?: number | null; scoreStatus?: string } | null | undefined,
+): boolean {
+  return !!mechanical && typeof mechanical.globalScore === 'number';
+}
+
+/** True si le resultat mecanique est dans le troisieme etat. Un
+ *  resultat legacy sans scoreStatus mais sans score exploitable est
+ *  traite comme tel : il n a pas de score et n en aura pas. */
+export function isInsufficientBasis(
+  mechanical: { globalScore?: number | null; scoreStatus?: string } | null | undefined,
+): boolean {
+  if (!mechanical) return false;
+  if (mechanical.scoreStatus === 'insufficient-basis') return true;
+  return typeof mechanical.globalScore !== 'number';
+}
+
 export interface MechanicalScoreResult {
   /** Score global sur 100, calcule sur les seules dimensions evaluees.
    *  Null quand le socle est insuffisant : c est un etat terminal, pas

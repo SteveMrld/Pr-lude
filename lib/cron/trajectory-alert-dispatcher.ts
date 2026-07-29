@@ -46,13 +46,16 @@ function rowToEngineSnapshot(row: TrajectorySnapshotRow): TrajectorySnapshot {
     analyzedAt: row.analyzedAt,
     globalScore: row.globalScore,
     verdict: row.verdict,
+    // Les dimensions nulles restent nulles. Le repli sur le score global
+    // donnait a chaque dimension muette la valeur du dossier entier, ce
+    // qui produisait des deltas de trajectoire entierement fabriques.
     dimensions: {
-      team: row.dimensions.team ?? row.globalScore,
-      market: row.dimensions.market ?? row.globalScore,
-      macro: row.dimensions.macro ?? row.globalScore,
-      financial: row.dimensions.financial ?? row.globalScore,
-      contrarian: row.dimensions.contrarian ?? row.globalScore,
-      vigilance: row.dimensions.vigilance ?? row.globalScore,
+      team: row.dimensions.team,
+      market: row.dimensions.market,
+      macro: row.dimensions.macro,
+      financial: row.dimensions.financial,
+      contrarian: row.dimensions.contrarian,
+      vigilance: row.dimensions.vigilance,
     },
     fragiliteScore: row.fragiliteScore,
     fragiliteVerdict: row.fragiliteVerdict,

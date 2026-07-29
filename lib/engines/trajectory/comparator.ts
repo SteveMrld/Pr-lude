@@ -373,9 +373,11 @@ function buildTopAlertes(
     alertes.push(`Score global en baisse : ${comparison.globalScoreDelta.delta} points`);
   }
 
-  // Dimensions Bloc 1 en aggravation forte (>= 10 points)
+  // Dimensions Bloc 1 en aggravation forte (>= 10 points). Les
+  // dimensions non evaluees dans l un des deux runs sont sautees :
+  // on n alerte pas sur une chute qui n a pas ete mesuree.
   for (const [dim, delta] of Object.entries(comparison.dimensionsDeltas)) {
-    if (delta.delta <= -10) {
+    if (delta && delta.delta <= -10) {
       alertes.push(`Dimension ${dim} en chute : ${delta.delta} points`);
     }
   }
@@ -412,13 +414,21 @@ export function compareAnalyses(
   const globalScoreDelta = computeScoreDelta(before.globalScore, after.globalScore);
   const verdictTransition = computeVerdictTransition(before.verdict, after.verdict);
 
+  // Un delta n a de sens que si la dimension a ete evaluee des deux
+  // cotes. Une dimension muette dans l un des deux runs ne produit pas
+  // un ecart, elle produit un trou : mesurer contre un fantome ferait
+  // passer le simple retour en ligne d un moteur pour une progression
+  // du dossier. Meme convention que fragiliteDelta.
+  const dimensionDelta = (b: number | null, a: number | null) =>
+    (typeof b === 'number' && typeof a === 'number') ? computeScoreDelta(b, a) : null;
+
   const dimensionsDeltas = {
-    team: computeScoreDelta(before.dimensions.team, after.dimensions.team),
-    market: computeScoreDelta(before.dimensions.market, after.dimensions.market),
-    macro: computeScoreDelta(before.dimensions.macro, after.dimensions.macro),
-    financial: computeScoreDelta(before.dimensions.financial, after.dimensions.financial),
-    contrarian: computeScoreDelta(before.dimensions.contrarian, after.dimensions.contrarian),
-    vigilance: computeScoreDelta(before.dimensions.vigilance, after.dimensions.vigilance),
+    team: dimensionDelta(before.dimensions.team, after.dimensions.team),
+    market: dimensionDelta(before.dimensions.market, after.dimensions.market),
+    macro: dimensionDelta(before.dimensions.macro, after.dimensions.macro),
+    financial: dimensionDelta(before.dimensions.financial, after.dimensions.financial),
+    contrarian: dimensionDelta(before.dimensions.contrarian, after.dimensions.contrarian),
+    vigilance: dimensionDelta(before.dimensions.vigilance, after.dimensions.vigilance),
   };
 
   const fragiliteDelta = (before.fragiliteScore !== null && after.fragiliteScore !== null)

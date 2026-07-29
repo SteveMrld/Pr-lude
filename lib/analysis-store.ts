@@ -35,6 +35,7 @@
 import { getSupabaseServerClient, getSupabaseAdminClient } from './supabase/server';
 import { normalizeStringsRecursive } from './normalize-punctuation';
 import { warnOnFlagFallback } from './env-flags';
+import { INSUFFICIENT_BASIS_VERDICT } from './engines/score-calculator';
 
 // ============================================================
 // MODE SOLO : UUID admin par defaut
@@ -288,27 +289,44 @@ export function extractAnalysisMetadata(result: any): Partial<SaveAnalysisInput>
   // downstream qui court-circuiterait le fallback conforme).
   const mech = result?.mechanicalScore || {};
 
+  // Troisieme etat du calcul mecanique : le socle des moteurs evalues
+  // est tombe sous le seuil et aucun score n a ete produit. Il ne faut
+  // surtout pas le traduire en 'approfondir', qui est une position
+  // d instruction et se lirait comme une prudence du fonds alors que
+  // c est une lacune du pipeline. On propage l etat tel quel.
+  const insufficientBasis = mech?.scoreStatus === 'insufficient-basis';
+
   // Le verdict canonique : on prefere le verdict de la recommandation
   // finale s il est renseigne, sinon on tombe sur le verdict mecanique,
   // sinon sur la valeur par defaut. L ordre garantit qu on n ecrase
   // jamais un verdict LLM valide, mais qu on ne persiste jamais un
   // 'approfondir' par defaut alors que mechanicalScore avait deja
-  // derive un verdict propre.
-  const verdict =
-    reco?.verdict ||
-    reco?.recommendation ||
-    mech?.verdict ||
-    'approfondir';
+  // derive un verdict propre. Sur socle insuffisant l etat prime sur
+  // toute la chaine : un verdict narratif produit par le modele sur un
+  // socle troue est exactement le fantome que la brique elimine.
+  const verdict = insufficientBasis
+    ? INSUFFICIENT_BASIS_VERDICT
+    : (
+      reco?.verdict ||
+      reco?.recommendation ||
+      mech?.verdict ||
+      'approfondir'
+    );
 
   // Score global : preference finalRecommendation, fallback
   // mechanicalScore, sinon null. Le fallback couvre le cas d un
   // finalRecommendation degrade dont on aurait perdu la connexion
-  // au mechanicalScore (protection en profondeur).
-  const globalScore =
-    reco?.globalScore ??
-    reco?.confidence ??
-    (typeof mech?.globalScore === 'number' ? mech.globalScore : null) ??
-    null;
+  // au mechanicalScore (protection en profondeur). Sur socle
+  // insuffisant, null, sans exception : il n y a pas de chiffre a
+  // persister et un chiffre repris d ailleurs serait un fantome.
+  const globalScore = insufficientBasis
+    ? null
+    : (
+      reco?.globalScore ??
+      reco?.confidence ??
+      (typeof mech?.globalScore === 'number' ? mech.globalScore : null) ??
+      null
+    );
 
   // Conversion sure du montant si present
   let roundAmountEur: number | null = null;

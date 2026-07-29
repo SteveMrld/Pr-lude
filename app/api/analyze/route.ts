@@ -28,7 +28,7 @@ import '@/lib/engines/fragility-structurelle/commoditization-drift-pattern';
 import '@/lib/engines/fragility-structurelle/capital-structure-fragility-pattern';
 import '@/lib/engines/fragility-structurelle/scale-mirage-risk-pattern';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
-import { computeMechanicalScore } from '@/lib/engines/score-calculator';
+import { computeMechanicalScore, INSUFFICIENT_BASIS_VERDICT } from '@/lib/engines/score-calculator';
 import {
   buildSkippedTeamOutput,
   buildSkippedPatternMatchingOutput,
@@ -1484,6 +1484,8 @@ export async function POST(req: NextRequest) {
                 fallback: 'degraded-mechanical',
                 mechanicalScore: mechanicalScore.globalScore,
                 mechanicalVerdict: mechanicalScore.verdict,
+                mechanicalScoreStatus: mechanicalScore.scoreStatus,
+                mechanicalBasis: mechanicalScore.basis?.label,
                 retryable: isRetryableAnthropicOverload(lastError),
                 budgetRemainingMs: budgetRemainingMs(),
               },
@@ -1496,8 +1498,14 @@ export async function POST(req: NextRequest) {
             // sur la copie neutre sans risque de fuite technique.
             // degradedReason reste rempli pour la telemetry uniquement,
             // il n est jamais rendu directement au partner.
+            //
+            // Quand le socle mecanique lui-meme est insuffisant, le
+            // fallback ne peut pas s appuyer sur un score : il propage
+            // l etat terminal plutot qu un verdict par defaut. Un echec
+            // d orchestration sur un run deja lacunaire ne doit pas
+            // produire un 'approfondir' de confort.
             return {
-              verdict: mechanicalScore.verdict,
+              verdict: mechanicalScore.verdict ?? INSUFFICIENT_BASIS_VERDICT,
               successProbability: null,
               failureProbability: null,
               globalScore: mechanicalScore.globalScore,
@@ -1833,6 +1841,12 @@ export async function POST(req: NextRequest) {
           // courbe de calibration segmentee par version. Best-effort :
           // si la persistance dediee est down, on log et on continue.
           // Ne pas bloquer le complete event.
+          //
+          // Une dimension non evaluee entre desormais en base a null,
+          // pas au 50 de repli. Les colonnes dim_ des runs passes
+          // restent polluees de ces fantomes et ne sont pas reecrites
+          // ici : une retro-correction du registre est un chantier a
+          // part, tracee comme telle. Le fix vaut pour les runs futurs.
           // ============================================================
           if (analysisId && persistOk) {
             try {
@@ -1842,21 +1856,25 @@ export async function POST(req: NextRequest) {
                 const successProb = typeof reco.successProbability === 'number'
                   ? reco.successProbability
                   : null;
+                const dimScore = (key: 'team' | 'market' | 'macro' | 'financial' | 'contrarian' | 'vigilance'): number | null => {
+                  const d = mechanicalScore.dimensions[key];
+                  return d.evaluated ? d.score : null;
+                };
                 await insertPredictionRecord({
                   analysisId,
                   userId: ownerId,
-                  verdict: reco.verdict || 'approfondir',
+                  verdict: reco.verdict || mechanicalScore.verdict || INSUFFICIENT_BASIS_VERDICT,
                   globalScore: typeof mechanicalScore.globalScore === 'number'
                     ? mechanicalScore.globalScore
                     : null,
                   successProbability: successProb,
                   dimensions: {
-                    team: mechanicalScore.dimensions.team.score,
-                    market: mechanicalScore.dimensions.market.score,
-                    macro: mechanicalScore.dimensions.macro.score,
-                    financial: mechanicalScore.dimensions.financial.score,
-                    contrarian: mechanicalScore.dimensions.contrarian.score,
-                    vigilance: mechanicalScore.dimensions.vigilance.score,
+                    team: dimScore('team'),
+                    market: dimScore('market'),
+                    macro: dimScore('macro'),
+                    financial: dimScore('financial'),
+                    contrarian: dimScore('contrarian'),
+                    vigilance: dimScore('vigilance'),
                   },
                   versionStamp,
                 });

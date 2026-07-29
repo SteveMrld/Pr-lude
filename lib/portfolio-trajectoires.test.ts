@@ -146,7 +146,10 @@ console.log('\n=== Test 3 : rowToEngineSnapshot avec dimensions null ===');
     },
   });
   const engine = rowToEngineSnapshot(row);
-  check('team null -> 0 (default)', engine.dimensions.team, 0);
+  // Une dimension nulle en base reste nulle en forme engine. Le repli
+  // sur 0 fabriquait une chute maximale la ou il n y avait qu un moteur
+  // muet, et le comparateur en tirait des alertes de trajectoire.
+  check('team null reste null (pas de repli sur 0)', engine.dimensions.team, null);
   check('market 50 conservé', engine.dimensions.market, 50);
   check('vigilance 70 conservé', engine.dimensions.vigilance, 70);
   check('verdict conservé', engine.verdict, 'approfondir');

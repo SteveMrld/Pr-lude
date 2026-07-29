@@ -135,13 +135,17 @@ export function rowToEngineSnapshot(row: TrajectorySnapshotRow): TrajectorySnaps
     analyzedAt: row.analyzedAt,
     globalScore: row.globalScore,
     verdict: row.verdict,
+    // Les dimensions nulles restent nulles. Le repli sur 0 qui existait
+    // ici fabriquait une chute maximale la ou il n y avait qu un moteur
+    // muet, et le comparateur en tirait des alertes de trajectoire sur
+    // une degradation jamais mesuree.
     dimensions: {
-      team: row.dimensions.team ?? 0,
-      market: row.dimensions.market ?? 0,
-      macro: row.dimensions.macro ?? 0,
-      financial: row.dimensions.financial ?? 0,
-      contrarian: row.dimensions.contrarian ?? 0,
-      vigilance: row.dimensions.vigilance ?? 0,
+      team: row.dimensions.team,
+      market: row.dimensions.market,
+      macro: row.dimensions.macro,
+      financial: row.dimensions.financial,
+      contrarian: row.dimensions.contrarian,
+      vigilance: row.dimensions.vigilance,
     },
     fragiliteScore: row.fragiliteScore,
     fragiliteVerdict: row.fragiliteVerdict,

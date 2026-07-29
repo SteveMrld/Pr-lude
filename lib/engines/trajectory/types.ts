@@ -64,14 +64,19 @@ export interface TrajectorySnapshot {
   globalScore: number;
   /** Verdict global. */
   verdict: Verdict;
-  /** Scores des six dimensions du moteur Bloc 1. */
+  /** Scores des six dimensions du moteur Bloc 1. Null quand la
+   *  dimension n a pas ete evaluee sur ce run : moteur tombe, coupe,
+   *  ecarte du parcours, ou sans valeur exploitable. Un fantome
+   *  numerique a la place du null ferait entrer dans la trajectoire un
+   *  point qu aucun moteur n a produit, et le retour en ligne du
+   *  moteur au run suivant se lirait comme une progression. */
   dimensions: {
-    team: number;
-    market: number;
-    macro: number;
-    financial: number;
-    contrarian: number;
-    vigilance: number;
+    team: number | null;
+    market: number | null;
+    macro: number | null;
+    financial: number | null;
+    contrarian: number | null;
+    vigilance: number | null;
   };
   /** Score Fragilite Structurelle, null si moteur non applicable. */
   fragiliteScore: number | null;
@@ -176,8 +181,11 @@ export interface TrajectoryComparison {
   globalScoreDelta: ScoreDelta;
   /** Transition de verdict global. */
   verdictTransition: VerdictTransition;
-  /** Deltas des six dimensions Bloc 1. */
-  dimensionsDeltas: Record<keyof TrajectorySnapshot['dimensions'], ScoreDelta>;
+  /** Deltas des six dimensions Bloc 1. Null pour une dimension non
+   *  evaluee dans l un des deux snapshots au moins : il n y a alors
+   *  pas de progression a mesurer, seulement une lacune. Meme
+   *  convention que fragiliteDelta et narrativeDriftDelta. */
+  dimensionsDeltas: Record<keyof TrajectorySnapshot['dimensions'], ScoreDelta | null>;
   /** Delta Fragilite Structurelle, null si non applicable dans
    *  l un des deux snapshots. */
   fragiliteDelta: ScoreDelta | null;

@@ -12,6 +12,13 @@ import type {
 import { getRelevantPastAnnotations, formatPastAnnotationsForPrompt } from '../analysis-store';
 import type { ErrorLogEntry } from '../error-logger';
 import { protectEngineRoots } from './engine-roots';
+import {
+  hasComputedScore,
+  isInsufficientBasis,
+  INSUFFICIENT_BASIS_VERDICT,
+  DIMENSION_KEYS,
+  DIMENSION_LABELS,
+} from './score-calculator';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -460,6 +467,76 @@ Tu construis ta synthese sur le socle disponible et sur lui seul.
  * synthese. La seconde est que le socle declare se verifie sur le
  * texte produit, pas sur une intention.
  */
+/**
+ * Lignes de decomposition du score mecanique injectees dans le prompt.
+ *
+ * Une dimension non evaluee ne s ecrit plus comme une note : elle
+ * portait jusqu ici un 50 de repli avec sa contribution ponderee, ce
+ * qui donnait au modele un chiffre a narrer la ou aucun moteur n avait
+ * rien produit. Elle apparait desormais comme NON EVALUEE, avec sa
+ * cause, pour que la synthese sache qu il y a un trou et le dise.
+ */
+function buildMechanicalDecompositionLines(mechanicalScore: any): string {
+  const dims = mechanicalScore?.dimensions || {};
+  return DIMENSION_KEYS.map((key) => {
+    const d = dims[key];
+    if (!d) return `  · ${DIMENSION_LABELS[key]} : non renseignee`;
+    const weight = typeof d.weight === 'number' ? d.weight.toFixed(2) : '?';
+    // evaluated absent : payload produit avant l instrumentation de la
+    // base, on retombe sur la lecture historique du champ.
+    if (d.evaluated === false) {
+      const cause = d.evaluationCause ? ` (${d.evaluationCause}${d.engineStatus ? `, statut ${d.engineStatus}` : ''})` : '';
+      return `  · ${DIMENSION_LABELS[key]} : NON EVALUEE${cause}, poids ${weight} retire de l assiette`;
+    }
+    return `  · ${DIMENSION_LABELS[key]} ${d.score}/100 (poids ${weight}, contrib ${d.contribution})`;
+  }).join('\n');
+}
+
+/**
+ * Libelles historiques des dimensionProbabilities. Volontairement
+ * distincts de DIMENSION_LABELS du score-calculator : l agregateur de
+ * reconciliation (lib/reconciliation-aggregator.ts) groupe les series
+ * par nom de dimension d un run a l autre, renommer scinderait les
+ * historiques deja en base.
+ */
+const PROBABILITY_DIMENSION_NAMES: Record<string, string> = {
+  team: 'Equipe',
+  market: 'Marche',
+  macro: 'Macro',
+  financial: 'Modele economique',
+  contrarian: 'Singularites contrariennes',
+  vigilance: 'Vigilance critique',
+};
+
+/**
+ * Traduit les dimensions mecaniques en dimensionProbabilities de la
+ * recommandation. N emet que les dimensions reellement evaluees : une
+ * dimension dont le moteur est tombe portait jusqu ici un 50 de repli
+ * assorti d un riskScore de 50, et entrait dans la note comme un axe
+ * instruit a risque median. Elle en sort.
+ *
+ * Les payloads anterieurs a l instrumentation de la base ne portent pas
+ * le champ evaluated : ils sont traites comme evalues, comportement
+ * historique, pour ne pas vider la note des dossiers deja persistes.
+ */
+function buildMechanicalDimensionProbabilities(mechanicalScore: any): any[] {
+  const dims = mechanicalScore?.dimensions || {};
+  return DIMENSION_KEYS
+    .filter((key) => dims[key] && dims[key].evaluated !== false)
+    .map((key) => {
+      const d = dims[key];
+      return {
+        dimensionName: PROBABILITY_DIMENSION_NAMES[key],
+        successProbability: d.score,
+        riskScore: 100 - d.score,
+        weight: d.weight,
+        rationale: d.rationale,
+        keyDrivers: [],
+        keyRisks: [],
+      };
+    });
+}
+
 export function buildOrchestratorUserPrompt(p: {
   extraction: any;
   team: any;
@@ -518,6 +595,25 @@ export function buildOrchestratorUserPrompt(p: {
     contrarianAnalysis,
   });
   const socleBlock = buildSocleBlock(availability);
+
+  // ============================================================
+  // TROIS ETATS DU SCORE MECANIQUE, TROIS PROMPTS
+  // ------------------------------------------------------------
+  // Le prompt ne connaissait que deux etats : un score mecanique
+  // present, auquel cas le modele est narrateur, ou absent, auquel
+  // cas on lui redemandait de produire le score et le verdict. Le
+  // troisieme etat, socle insuffisant, ne peut tomber ni dans l un
+  // ni dans l autre. Il n a pas de score a narrer, et rebasculer sur
+  // la branche qui redemande le score au modele reveillerait
+  // exactement le biais de convergence documente en tete de
+  // score-calculator : le modele calibrerait ses dimensions sur le
+  // verdict qu il aurait choisi, et le trou du socle deviendrait
+  // invisible. Socle insuffisant est un etat terminal, pas un repli
+  // vers le modele.
+  // ============================================================
+  const mechanicalComputed = hasComputedScore(mechanicalScore);
+  const mechanicalStarved = !!mechanicalScore && isInsufficientBasis(mechanicalScore);
+  const mechanicalNarrated = mechanicalComputed || mechanicalStarved;
 
   // ============================================================
   // NULL-CHECK DEFENSIF (commit 37aaab8 etendu) :
@@ -619,28 +715,29 @@ ${Object.values(E.contrarianAnalysis.signals || {})
   .map((s: any) => `- ${s.signalName} (${s.strength}/100) : ${truncate(s.evidence, 200)}`)
   .join('\n') || 'Aucun signal contrarien fort détecté'}
 ${narrativeDrift ? buildNarrativeDriftBlock(narrativeDrift, truncate) : ''}${fragiliteStructurelle ? buildFragiliteStructurelleBlock(fragiliteStructurelle, truncate) : ''}
-${mechanicalScore ? `
+${mechanicalComputed ? `
 
 # SCORE MECANIQUE PRE-CALCULE (source de verite)
 
 Le code a deja calcule le score global et derive le verdict de maniere
-deterministe a partir des six scores des moteurs Bloc 1 ci-dessus :
+deterministe a partir des scores des moteurs Bloc 1 ci-dessus :
 
 - SCORE GLOBAL : ${mechanicalScore.globalScore}/100
-- VERDICT DERIVE : ${mechanicalScore.verdict.toUpperCase()}
+- VERDICT DERIVE : ${String(mechanicalScore.verdict).toUpperCase()}
+- BASE DU CALCUL : ${mechanicalScore.basis?.label || 'les six dimensions.'}
 - DECOMPOSITION :
-  · Equipe ${mechanicalScore.dimensions.team.score}/100 (poids 0.20, contrib ${mechanicalScore.dimensions.team.contribution})
-  · Marche ${mechanicalScore.dimensions.market.score}/100 (poids 0.22, contrib ${mechanicalScore.dimensions.market.contribution})
-  · Macro ${mechanicalScore.dimensions.macro.score}/100 (poids 0.15, contrib ${mechanicalScore.dimensions.macro.contribution})
-  · Modele economique ${mechanicalScore.dimensions.financial.score}/100 (poids 0.13, contrib ${mechanicalScore.dimensions.financial.contribution})
-  · Contrariens ${mechanicalScore.dimensions.contrarian.score}/100 (poids 0.15, contrib ${mechanicalScore.dimensions.contrarian.contribution})
-  · Vigilance ${mechanicalScore.dimensions.vigilance.score}/100 (poids 0.15, contrib ${mechanicalScore.dimensions.vigilance.contribution})
+${buildMechanicalDecompositionLines(mechanicalScore)}
 - SEUILS : <45 = REFUSER, 45-59 = APPROFONDIR, 60-74 = INVESTIR AVEC CONDITIONS, >=75 = INVESTIR
 
 TON ROLE A CHANGE : tu n es plus le juge qui decide du verdict, tu es le
 NARRATEUR qui argumente le verdict deja calcule. Le score affiche au
 partner sera ${mechanicalScore.globalScore}/100 et le verdict sera
-${mechanicalScore.verdict.toUpperCase()}, point. Tu ne peux pas les changer.
+${String(mechanicalScore.verdict).toUpperCase()}, point. Tu ne peux pas les changer.
+
+Les dimensions marquees NON EVALUEE ci-dessus n ont pas ete instruites :
+leur moteur n a pas abouti. Elles sont sorties de l assiette du calcul.
+Tu ne dois ni leur attribuer une valeur, ni presenter leur silence comme
+une absence de risque. Une dimension muette reste incertaine.
 
 CE QUE TU DOIS FAIRE :
 - Ecrire le narratif de retournement causal (pourquoi le dossier reussit /
@@ -665,15 +762,46 @@ sans modifier le score affiche. Utilise-le UNIQUEMENT si l ecart depasse
 12 points ou si le verdict ne te semble pas le bon : c est un signal fort
 qui sera lu par le partner.
 
+` : mechanicalStarved ? `
+
+# SOCLE INSUFFISANT, AUCUN SCORE N EST PRODUIT
+
+Le calcul mecanique n a pas abouti et ne produira pas de score sur ce run.
+Trop de dimensions n ont pas ete instruites : leurs moteurs sont tombes,
+ont ete coupes ou n ont rien rendu d exploitable.
+
+- ETAT : SOCLE INSUFFISANT
+- ${mechanicalScore.basis?.label || 'Assiette du calcul non declaree.'}
+- DIMENSIONS RETENUES :
+${buildMechanicalDecompositionLines(mechanicalScore)}
+
+CE POINT EST NON NEGOCIABLE : il n y a pas de score a produire, et ce
+n est pas a toi d en produire un. Le score affiche au partner sera
+l etat SOCLE INSUFFISANT, pas un chiffre. N essaie ni de reconstituer
+un score global, ni de deriver un verdict d instruction, ni de combler
+les dimensions manquantes par une estimation. Les champs verdict et
+globalScore de ton JSON seront ecrases par cet etat quoi que tu y mettes.
+
+CE QUE TU DOIS FAIRE, ET RIEN D AUTRE :
+- Ecrire ce que les moteurs qui ONT abouti etablissent reellement, sans
+  extrapoler sur les axes muets
+- Nommer explicitement ce qui n a pas pu etre instruit et ce que cela
+  interdit de conclure
+- Lister les decision drivers qui tiennent sur les seuls axes instruits
+- Lister les conditions cles, a commencer par la reinstruction des axes
+  manquants
+- Ne pas produire de plan de chantiers fonde sur un verdict, il n y en
+  a pas
+
 ` : ''}
 Produis la recommandation finale avec :
-1. ${mechanicalScore ? 'Argumentation dense (voir SCORE MECANIQUE ci-dessus, le verdict est deja calcule)' : 'Probabilité de succès chiffrée (et son inverse)'}
-2. ${mechanicalScore ? 'Resolution de la tension blindspots/contrarian' : 'Score global avec seuils explicites'}
-3. ${mechanicalScore ? 'Decision drivers (3-5 facteurs decisifs)' : 'Probabilités par dimension (6 dimensions avec poids)'}
-4. ${mechanicalScore ? 'Conditions cles actionnables' : 'Résolution de la tension blindspots/contrarian'}
-5. ${mechanicalScore ? 'Plan de chantiers si applicable' : 'Argumentation dense'}
-6. ${mechanicalScore ? 'Optionnel : assessorDisagreementRationale si tu es en desaccord motive' : 'Conditions clés actionnables'}
-7. ${mechanicalScore ? 'Narratif de retournement causal' : 'Decision drivers (3-5 facteurs décisifs)'}
+1. ${mechanicalComputed ? 'Argumentation dense (voir SCORE MECANIQUE ci-dessus, le verdict est deja calcule)' : mechanicalStarved ? 'Argumentation dense sur les seuls axes instruits, sans score ni verdict' : 'Probabilité de succès chiffrée (et son inverse)'}
+2. ${mechanicalNarrated ? 'Resolution de la tension blindspots/contrarian' : 'Score global avec seuils explicites'}
+3. ${mechanicalNarrated ? 'Decision drivers (3-5 facteurs decisifs)' : 'Probabilités par dimension (6 dimensions avec poids)'}
+4. ${mechanicalNarrated ? 'Conditions cles actionnables' : 'Résolution de la tension blindspots/contrarian'}
+5. ${mechanicalComputed ? 'Plan de chantiers si applicable' : mechanicalStarved ? 'Ce que l absence de socle interdit de conclure' : 'Argumentation dense'}
+6. ${mechanicalComputed ? 'Optionnel : assessorDisagreementRationale si tu es en desaccord motive' : mechanicalStarved ? 'Axes a reinstruire en priorite' : 'Conditions clés actionnables'}
+7. ${mechanicalNarrated ? 'Narratif de retournement causal' : 'Decision drivers (3-5 facteurs décisifs)'}
 
 Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'générale')}`;
 }
@@ -967,8 +1095,52 @@ export async function orchestrateFinalRecommendation(
   // utilise sont les valeurs mecaniques. Le LLM peut signaler un
   // desaccord motive via le champ assessorDisagreement (rempli dans
   // son output JSON s il a estime que son jugement diverge fortement).
+  //
+  // Trois etats, pas deux. Quand le socle est insuffisant, il n y a
+  // pas de score mecanique a substituer, et le score du LLM ne doit
+  // surtout pas prendre sa place par defaut : le laisser passer
+  // reviendrait a rendre au modele exactement le pouvoir que ce
+  // module lui a retire. Le verdict devient l etat terminal, le score
+  // devient null, et les dimensions non evaluees ne sont pas
+  // reportees comme des probabilites.
   // ============================================================
-  if (mechanicalScore) {
+  if (mechanicalScore && isInsufficientBasis(mechanicalScore)) {
+    // Capture avant ecrasement : ce que le modele aurait mis reste
+    // trace pour l audit, sans jamais devenir le score affiche.
+    const llmScoreSuggestion = typeof recommendation.globalScore === 'number'
+      ? recommendation.globalScore
+      : null;
+    recommendation.globalScore = null as any;
+    recommendation.verdict = INSUFFICIENT_BASIS_VERDICT as any;
+    recommendation.successProbability = null as any;
+    recommendation.failureProbability = null as any;
+    recommendation.assessorDisagreement = { present: false } as any;
+
+    // Seules les dimensions reellement instruites sont reportees. Une
+    // dimension muette n a pas de probabilite de succes, et lui en
+    // donner une la ferait entrer dans la note comme un axe evalue.
+    recommendation.dimensionProbabilities = buildMechanicalDimensionProbabilities(mechanicalScore);
+
+    recommendation.computedScoreBreakdown = {
+      weightedDimensionScore: null,
+      blindspotsContrarianAdjustment: 0,
+      finalComputedScore: null,
+      llmScore: llmScoreSuggestion,
+      delta: null,
+      auditNote: `Aucun score global n a ete produit sur ce run : ${mechanicalScore.basis?.label || 'le socle des dimensions evaluees est insuffisant.'} Le calcul n a pas ete rendu au moteur d orchestration, qui reste narrateur. Reinstruire le dossier une fois les moteurs manquants retablis.`,
+      formula: mechanicalScore.formula,
+      mechanicalDimensions: mechanicalScore.dimensions,
+      thresholds: mechanicalScore.thresholds,
+      divergenceThreshold: mechanicalScore.divergenceThreshold,
+      archetype: mechanicalScore.archetype,
+      scoreStatus: 'insufficient-basis',
+      basis: mechanicalScore.basis,
+    } as any;
+
+    return recommendation;
+  }
+
+  if (mechanicalScore && hasComputedScore(mechanicalScore)) {
     const llmVerdict = recommendation.verdict;
     const llmGlobalScore = recommendation.globalScore || 0;
 
@@ -997,15 +1169,10 @@ export async function orchestrateFinalRecommendation(
 
     // Les dimensionProbabilities sont remplacees par les scores reels
     // des moteurs Bloc 1. Le LLM ne peut plus les calibrer a la baisse
-    // ou a la hausse pour rendre son verdict plus coherent.
-    recommendation.dimensionProbabilities = [
-      { dimensionName: 'Equipe', successProbability: mechanicalScore.dimensions.team.score, riskScore: 100 - mechanicalScore.dimensions.team.score, weight: mechanicalScore.dimensions.team.weight, rationale: mechanicalScore.dimensions.team.rationale, keyDrivers: [], keyRisks: [] },
-      { dimensionName: 'Marche', successProbability: mechanicalScore.dimensions.market.score, riskScore: 100 - mechanicalScore.dimensions.market.score, weight: mechanicalScore.dimensions.market.weight, rationale: mechanicalScore.dimensions.market.rationale, keyDrivers: [], keyRisks: [] },
-      { dimensionName: 'Macro', successProbability: mechanicalScore.dimensions.macro.score, riskScore: 100 - mechanicalScore.dimensions.macro.score, weight: mechanicalScore.dimensions.macro.weight, rationale: mechanicalScore.dimensions.macro.rationale, keyDrivers: [], keyRisks: [] },
-      { dimensionName: 'Modele economique', successProbability: mechanicalScore.dimensions.financial.score, riskScore: 100 - mechanicalScore.dimensions.financial.score, weight: mechanicalScore.dimensions.financial.weight, rationale: mechanicalScore.dimensions.financial.rationale, keyDrivers: [], keyRisks: [] },
-      { dimensionName: 'Singularites contrariennes', successProbability: mechanicalScore.dimensions.contrarian.score, riskScore: 100 - mechanicalScore.dimensions.contrarian.score, weight: mechanicalScore.dimensions.contrarian.weight, rationale: mechanicalScore.dimensions.contrarian.rationale, keyDrivers: [], keyRisks: [] },
-      { dimensionName: 'Vigilance critique', successProbability: mechanicalScore.dimensions.vigilance.score, riskScore: 100 - mechanicalScore.dimensions.vigilance.score, weight: mechanicalScore.dimensions.vigilance.weight, rationale: mechanicalScore.dimensions.vigilance.rationale, keyDrivers: [], keyRisks: [] },
-    ];
+    // ou a la hausse pour rendre son verdict plus coherent. Les
+    // dimensions non evaluees sont omises : sans moteur derriere, une
+    // probabilite de succes serait une invention.
+    recommendation.dimensionProbabilities = buildMechanicalDimensionProbabilities(mechanicalScore);
 
     // computedScoreBreakdown reflete le calcul mecanique deterministe.
     // divergenceThreshold et archetype sont propages depuis le score-
@@ -1021,14 +1188,16 @@ export async function orchestrateFinalRecommendation(
       llmScore: llmGlobalScore,
       delta: scoreDelta,
       auditNote: significantDisagreement
-        ? `Desaccord motive du moteur d orchestration : il aurait calibre a ${llmGlobalScore} (verdict ${llmVerdict}) si on lui avait laisse le choix. Le score affiche (${mechanicalScore.globalScore}, verdict ${mechanicalScore.verdict}) est issu du calcul mecanique sur les six dimensions Bloc 1. Voir le champ assessorDisagreement pour le rationale du desaccord.`
-        : `Score mecanique aligne avec le jugement structurel du moteur d orchestration (ecart ${Math.abs(scoreDelta)} points, verdict identique).`,
+        ? `Desaccord motive du moteur d orchestration : il aurait calibre a ${llmGlobalScore} (verdict ${llmVerdict}) si on lui avait laisse le choix. Le score affiche (${mechanicalScore.globalScore}, verdict ${mechanicalScore.verdict}) est issu du calcul mecanique. ${mechanicalScore.basis?.label || ''} Voir le champ assessorDisagreement pour le rationale du desaccord.`
+        : `Score mecanique aligne avec le jugement structurel du moteur d orchestration (ecart ${Math.abs(scoreDelta)} points, verdict identique). ${mechanicalScore.basis?.label || ''}`,
       formula: mechanicalScore.formula,
       mechanicalDimensions: mechanicalScore.dimensions,
       thresholds: mechanicalScore.thresholds,
       divergenceThreshold: mechanicalScore.divergenceThreshold,
       archetype: mechanicalScore.archetype,
-    };
+      scoreStatus: mechanicalScore.scoreStatus ?? 'computed',
+      basis: mechanicalScore.basis,
+    } as any;
   }
 
   return recommendation;
