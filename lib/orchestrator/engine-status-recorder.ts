@@ -115,6 +115,16 @@ export interface EngineStatusEntry {
   /** Plafond max_tokens demande. Un outputTokens qui l atteint signale
    *  une troncature, pas un besoin de fenetre plus longue. */
   maxTokens?: number;
+  /** Au moins un appel du moteur a ete coupe par son plafond de tokens,
+   *  evalue appel par appel et non sur le cumul. Un moteur qui reprend
+   *  apres une coupure noierait le signal dans la somme. */
+  hitCeiling?: boolean;
+  /** Voie de parse effective de la sortie : direct, extracted quand un
+   *  candidat JSON a du etre extrait d une sortie enrobee de prose, ou
+   *  repaired quand jsonrepair a du refermer la structure. Ce dernier
+   *  cas est un signal fort de sortie coupee, et il etait jusqu ici
+   *  totalement muet : le moteur ressortait en ok sans trace. */
+  parseMode?: 'direct' | 'extracted' | 'recovered' | 'repaired';
   /** Motif rendu par la matrice de pertinence quand elle ecarte le
    *  moteur. Present sur les seules entrees skipped_not_applicable.
    *  Le releve doit pouvoir dire pourquoi un moteur n a pas tourne,
@@ -127,6 +137,8 @@ export interface EngineStatusEntry {
  *  lib/engines/engine-budget.ts, redeclaree ici pour que le recorder ne
  *  dependent pas de la couche moteurs. */
 export interface EngineLlmMeasure {
+  hitCeiling?: boolean;
+  parseMode?: 'direct' | 'extracted' | 'recovered' | 'repaired';
   llmDurationMs: number;
   outputTokens: number;
   inputTokens: number;
@@ -510,6 +522,8 @@ export class EngineStatusRecorder {
         inputTokens: m.inputTokens,
         llmCalls: m.calls,
         ...(m.maxTokens !== undefined ? { maxTokens: m.maxTokens } : {}),
+        ...(m.hitCeiling !== undefined ? { hitCeiling: m.hitCeiling } : {}),
+        ...(m.parseMode !== undefined ? { parseMode: m.parseMode } : {}),
       };
     });
     return out;

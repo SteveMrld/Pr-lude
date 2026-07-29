@@ -544,7 +544,15 @@ function sanitizeStringsRecursive(value: any): any {
   return value;
 }
 
-export function parseJSON<T = any>(rawText: string): T {
+/** Puits de tracabilite du parse. Volontairement structurel plutot que
+ *  nominal : engine-budget importerait anthropic-client et
+ *  reciproquement. Le puits de mesure LlmMeasure satisfait cette forme,
+ *  on lui passe donc directement. */
+export interface ParseTrace {
+  parseMode?: 'direct' | 'extracted' | 'recovered' | 'repaired';
+}
+
+export function parseJSON<T = any>(rawText: string, trace?: ParseTrace): T {
   let cleaned = rawText.trim();
 
   // Retirer les fences markdown éventuels
@@ -556,6 +564,7 @@ export function parseJSON<T = any>(rawText: string): T {
   // Tentative directe
   try {
     const parsed = JSON.parse(cleaned) as T;
+    if (trace) trace.parseMode = 'direct';
     return sanitizeStringsRecursive(parsed);
   } catch (e) {
     // Si le JSON direct echoue, on cherche le premier objet/tableau JSON
@@ -572,7 +581,16 @@ export function parseJSON<T = any>(rawText: string): T {
     let lastError: any = null;
     for (const candidate of candidates) {
       const attempt = tryParseCandidate<T>(cleaned, candidate.start, candidate.openChar);
-      if (attempt.ok) return sanitizeStringsRecursive(attempt.value as T);
+      if (attempt.ok) {
+        // recovered : le candidat etait coupe et tryParseCandidate a du
+        // le completer. Seconde voie de reparation silencieuse du
+        // parseur, distincte de jsonrepair et tout aussi muette.
+        if (trace) trace.parseMode = attempt.recovered ? 'recovered' : 'extracted';
+        if (attempt.recovered) {
+          console.warn('[parseJSON] candidat JSON coupe puis complete, sortie probablement tronquee');
+        }
+        return sanitizeStringsRecursive(attempt.value as T);
+      }
       lastError = attempt.error;
     }
 
@@ -580,6 +598,11 @@ export function parseJSON<T = any>(rawText: string): T {
     // en dernier recours.
     try {
       const repaired = JSON.parse(jsonrepair(cleaned)) as T;
+      // Seule voie qui modifie la structure rendue par le modele. Elle
+      // etait muette : une sortie coupee ressortait en ok sans laisser
+      // de trace nulle part. Elle se declare desormais.
+      if (trace) trace.parseMode = 'repaired';
+      console.warn('[parseJSON] sortie recousue par jsonrepair, structure probablement coupee');
       return sanitizeStringsRecursive(repaired);
     } catch {
       const firstCandidate = candidates[0];
@@ -634,7 +657,7 @@ function tryParseCandidate<T>(
   cleaned: string,
   start: number,
   openChar: '{' | '[',
-): { ok: boolean; value?: T; error?: any } {
+): { ok: boolean; value?: T; error?: any; recovered?: boolean } {
   const closeChar = openChar === '{' ? '}' : ']';
 
   // Compter les ouvertures et fermetures pour trouver la fin du JSON
@@ -658,6 +681,9 @@ function tryParseCandidate<T>(
 
   if (end === -1) {
     // JSON tronqué (réponse Claude coupée par max_tokens). Tentative de récupération en complétant.
+    // Cette voie modifie la structure rendue par le modele au meme
+    // titre que jsonrepair, et elle etait tout aussi muette. Elle se
+    // declare desormais via le drapeau recovered.
     let recovered = cleaned.slice(start);
 
     // Supprimer la dernière chaîne ouverte non terminée si présente
@@ -689,23 +715,26 @@ function tryParseCandidate<T>(
     while (stack.length) recovered += stack.pop();
 
     try {
-      return { ok: true, value: JSON.parse(recovered) as T };
+      return { ok: true, recovered: true, value: JSON.parse(recovered) as T };
     } catch (e3: any) {
       try {
-        return { ok: true, value: JSON.parse(jsonrepair(recovered)) as T };
+        return { ok: true, recovered: true, value: JSON.parse(jsonrepair(recovered)) as T };
       } catch (e4: any) {
         return { ok: false, error: e4 };
       }
     }
   }
 
+  // Structure complete : le compteur de profondeur a trouve sa
+  // fermeture. Extraction pure, rien n est modifie.
   const extracted = cleaned.slice(start, end + 1);
   try {
     return { ok: true, value: JSON.parse(extracted) as T };
   } catch (e2: any) {
-    // jsonrepair pour les JSON syntaxiquement invalides
+    // jsonrepair pour les JSON syntaxiquement invalides. La structure
+    // etait fermee mais mal formee : on repare, et on le declare.
     try {
-      return { ok: true, value: JSON.parse(jsonrepair(extracted)) as T };
+      return { ok: true, recovered: true, value: JSON.parse(jsonrepair(extracted)) as T };
     } catch (e3: any) {
       return { ok: false, error: e3 };
     }

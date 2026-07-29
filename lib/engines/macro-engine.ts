@@ -464,7 +464,7 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
     applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
   addCall(measure, startedAt, usage, 9000);
-  const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
+  const analysis = parseJSON<MacroAnalysisOutput>(rawResponse, measure);
 
   // Audit du tagging des sources (Niveau 2.B)
   const audit = auditTagging(analysis, 'macro-engine');

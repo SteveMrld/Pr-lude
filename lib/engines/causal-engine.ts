@@ -169,7 +169,7 @@ Produis le retournement causal complet. Retourne uniquement le JSON structuré.`
   const startedAt = Date.now();
   const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.causalReversal);
   addCall(measure, startedAt, usage, 8000);
-  const analysis = parseJSON<CausalReversalOutput>(rawResponse);
+  const analysis = parseJSON<CausalReversalOutput>(rawResponse, measure);
   const audit = auditTagging(analysis, 'causal-engine');
   if (audit.level !== 'ok') {
     console.warn('[causal-engine] tagging audit:', audit.message);

@@ -6,6 +6,28 @@ import { ENGINE_LLM_BUDGET, addCall, hitTokenCeiling, looksTruncated, type LlmMe
 // dependre du moteur reference-checks pour cela. Reexporte ici pour les
 // consommateurs existants.
 export { looksTruncated };
+
+/**
+ * Plafond de sortie de reference-checks, 4000 -> 5000 au brief 18.
+ *
+ * Le run 2517a288 a rendu exactement 4000 tokens sur 4000, et le parse
+ * a reussi : soit le modele a ferme sa structure pile a la limite, soit
+ * jsonrepair l a recousue en silence, et rien dans les donnees
+ * persistees ne permettait de trancher. La tracabilite du parse posee
+ * dans le meme commit repond a cette question au prochain run.
+ *
+ * Le plafond monte de 25 % sans toucher a la fenetre de 70s, qui garde
+ * 30s de marge. Debit mesure sur ce run, 4000 tokens en 40,0s, soit
+ * environ cent tokens par seconde sur Haiku : 5000 coute une
+ * cinquantaine de secondes et laisse une vingtaine de secondes. Au-dela
+ * la fenetre deviendrait la contrainte, et elle n est pas dans le
+ * perimetre de ce brief.
+ *
+ * Ce que le prochain run tranchera d un seul coup : si la sortie revient
+ * a 5000 pile avec un parseMode repaired, la contrainte est dans la
+ * demande du prompt et non dans le plafond.
+ */
+export const REFERENCE_CHECKS_MAX_TOKENS = 5000;
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput,
@@ -168,7 +190,7 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
   // La reprise inconditionnelle qui existait ici coutait une fenetre
   // pleine en serie, sur le dernier maillon du chemin critique, pour
   // rejouer exactement le meme prompt. Or la cause usuelle d un echec
-  // de parse a 4000 tokens est la troncature par max_tokens : le
+  // de parse a ce plafond est la troncature par max_tokens : le
   // modele a ete coupe en cours de JSON. Rejouer le meme prompt avec
   // le meme plafond reproduit la meme troncature, la reprise paie donc
   // une fenetre pour un echec certain.
@@ -186,11 +208,11 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
   // ============================================================
   const startedAt = Date.now();
   const { text: raw, usage } = await callClaudeWithUsage(
-    SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks,
+    SYSTEM_PROMPT, userPrompt, REFERENCE_CHECKS_MAX_TOKENS, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks,
   );
-  addCall(measure, startedAt, usage, 4000);
+  addCall(measure, startedAt, usage, REFERENCE_CHECKS_MAX_TOKENS);
   try {
-    return parseJSON<ReferenceChecksOutput>(raw);
+    return parseJSON<ReferenceChecksOutput>(raw, measure);
   } catch (firstErr: any) {
     // Deux signaux de troncature, le second est le definitif : un
     // output_tokens au plafond dit que le modele a ete coupe, la ou
@@ -207,9 +229,9 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
     console.warn('[reference-checks] JSON parse failed sur une sortie complete, reprise unique :', firstErr?.message);
     const retryStartedAt = Date.now();
     const { text: retried, usage: retryUsage } = await callClaudeWithUsage(
-      SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks,
+      SYSTEM_PROMPT, userPrompt, REFERENCE_CHECKS_MAX_TOKENS, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks,
     );
-    addCall(measure, retryStartedAt, retryUsage, 4000);
-    return parseJSON<ReferenceChecksOutput>(retried);
+    addCall(measure, retryStartedAt, retryUsage, REFERENCE_CHECKS_MAX_TOKENS);
+    return parseJSON<ReferenceChecksOutput>(retried, measure);
   }
 }

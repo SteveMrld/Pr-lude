@@ -621,7 +621,7 @@ Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour cha
   // laisse passer) ou un scalaire. Ces valeurs traversaient la fonction
   // sans lever et ressortaient telles quelles, propageant un null a
   // tous les consommateurs de patternMatching.
-  const parsed = parseJSON<PatternMatchingOutput>(rawResponse);
+  const parsed = parseJSON<PatternMatchingOutput>(rawResponse, measure);
   const analysis: PatternMatchingOutput = isUsablePatternMatchingOutput(parsed)
     ? parsed
     : buildDegradedPatternMatchingOutput(

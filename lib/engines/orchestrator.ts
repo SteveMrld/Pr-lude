@@ -944,7 +944,7 @@ export async function orchestrateFinalRecommendation(
   addCall(measure, startedAt, usage, ORCHESTRATE_MAX_TOKENS);
   let recommendation: OrchestratedResult['finalRecommendation'];
   try {
-    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse, measure);
   } catch (firstErr: any) {
     // Reprise de parse conditionnelle, meme doctrine que reference-checks
     // au brief 15. Rejouer le meme prompt apres une coupure par
@@ -963,7 +963,7 @@ export async function orchestrateFinalRecommendation(
     );
     addCall(measure, retryStartedAt, retried.usage, ORCHESTRATE_MAX_TOKENS);
     rawResponse = retried.text;
-    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
+    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse, measure);
   }
 
   const audit = auditTagging(recommendation, 'orchestrator');

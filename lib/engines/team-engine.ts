@@ -599,7 +599,7 @@ Intègre dans ton analyse :
     applyRunOptions({ maxWebSearches: 1, ...ENGINE_LLM_BUDGET.team }, runOptions),
   );
   addCall(measure, startedAt, usage, 8000);
-  const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
+  const analysis = parseJSON<TeamAnalysisOutput>(rawResponse, measure);
 
   // Audit du tagging des sources (Niveau 2.B). Logge un warning si le
   // LLM a peu tagge ses assertions. Le warning est ecrit dans la

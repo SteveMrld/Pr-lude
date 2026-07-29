@@ -373,7 +373,7 @@ export async function analyzeNarrativeDrift(
   );
   addCall(measure, startedAt, usage, 4000);
 
-  const parsed = parseJSON<NarrativeDriftAnalysisOutput>(rawResponse);
+  const parsed = parseJSON<NarrativeDriftAnalysisOutput>(rawResponse, measure);
 
   // Decoration cross-class / cross-echelle : si le LLM a choisi un nom
   // hors meme asset class, on prefixe la clause cross-class obligatoire.

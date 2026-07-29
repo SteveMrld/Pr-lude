@@ -322,7 +322,43 @@ export interface LlmMeasure {
    *  outputTokens au plafond comme une troncature plutot que comme un
    *  besoin reel de fenetre. */
   maxTokens?: number;
+  /**
+   * Franchissement du plafond de tokens, calcule au moment de l appel
+   * et non deduit apres coup d une egalite rendu / plafond.
+   *
+   * hitTokenCeiling() repond a la meme question mais depuis le puits
+   * cumule : sur un moteur qui reprend, un premier appel coupe suivi
+   * d une reprise courte donne une somme sous le plafond et le
+   * franchissement disparait. Ce drapeau, lui, retient qu au moins un
+   * appel a ete coupe.
+   */
+  hitCeiling?: boolean;
+  /**
+   * Voie par laquelle la sortie a ete parsee. jsonrepair recoud une
+   * sortie coupee sans lever ni logger, et le moteur ressort en ok :
+   * rien dans les donnees persistees ne permettait de savoir qu une
+   * sortie avait ete rafistolee. reference-checks a rendu exactement
+   * 4000 tokens sur 4000 au run 2517a288 et son parse a reussi, sans
+   * qu on puisse trancher entre une sortie complete et une reparation.
+   */
+  parseMode?: ParseMode;
 }
+
+/**
+ * Voie de parse effective d une sortie de modele.
+ *   direct    JSON.parse sur la sortie nettoyee des fences
+ *   extracted un candidat JSON valide extrait d une sortie enrobee de
+ *             prose, structure intacte, rien n a ete modifie
+ *   recovered le candidat etait coupe et le parseur a du le completer,
+ *             ou le reparer : signal fort d une sortie tronquee
+ *   repaired  jsonrepair a du refermer toute la sortie en dernier
+ *             recours : signal fort d une sortie tronquee
+ *
+ * Les deux dernieres voies modifient la structure rendue par le modele
+ * et etaient toutes deux muettes. La distinction entre elles est celle
+ * du recours employe, pas celle de la gravite.
+ */
+export type ParseMode = 'direct' | 'extracted' | 'recovered' | 'repaired';
 
 /** Puits de mesure vierge. */
 export function newMeasure(): LlmMeasure {
@@ -346,6 +382,12 @@ export function addCall(
   sink.inputTokens += usage?.input_tokens ?? 0;
   sink.calls += 1;
   if (maxTokens !== undefined) sink.maxTokens = maxTokens;
+  // Franchissement evalue sur CET appel, pas sur le cumul. Un moteur
+  // qui reprend apres une coupure noierait le signal dans la somme.
+  const rendus = usage?.output_tokens ?? 0;
+  if (maxTokens !== undefined && rendus >= Math.floor(maxTokens * 0.98)) {
+    sink.hitCeiling = true;
+  }
 }
 
 /**

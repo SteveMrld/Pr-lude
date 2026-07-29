@@ -530,7 +530,7 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
     applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
   addCall(measure, startedAt, usage, 9000);
-  const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
+  const analysis = parseJSON<MarketAnalysisOutput>(rawResponse, measure);
 
   // Audit du tagging des sources (Niveau 2.B)
   const audit = auditTagging(analysis, 'market-engine');

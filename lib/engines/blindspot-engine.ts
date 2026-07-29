@@ -388,7 +388,7 @@ Retourne uniquement le JSON structuré.`;
   const startedAt = Date.now();
   const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 14000, MODEL, ENGINE_LLM_BUDGET.blindspotAnalysis);
   addCall(measure, startedAt, usage, 14000);
-  const analysis = parseJSON<BlindspotAnalysisOutput>(rawResponse);
+  const analysis = parseJSON<BlindspotAnalysisOutput>(rawResponse, measure);
   const audit = auditTagging(analysis, 'blindspot-engine');
   if (audit.level !== 'ok') {
     console.warn('[blindspot-engine] tagging audit:', audit.message);

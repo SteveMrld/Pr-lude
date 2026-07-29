@@ -306,7 +306,7 @@ export async function analyzeFinancialCoherence(
     applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
   addCall(measure, startedAt, usage, 7000);
-  const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse);
+  const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse, measure);
 
   // Recombinaison deterministe : on assemble les tests applicables
   // (issus du LLM) avec les stubs non applicables (construits cote

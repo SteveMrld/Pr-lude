@@ -242,7 +242,7 @@ Retourne uniquement le JSON structuré.`;
   const startedAt = Date.now();
   const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.contrarianAnalysis);
   addCall(measure, startedAt, usage, 8000);
-  const analysis = parseJSON<ContrarianAnalysisOutput>(rawResponse);
+  const analysis = parseJSON<ContrarianAnalysisOutput>(rawResponse, measure);
   const audit = auditTagging(analysis, 'contrarian-engine');
   if (audit.level !== 'ok') {
     console.warn('[contrarian-engine] tagging audit:', audit.message);

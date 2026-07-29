@@ -33,7 +33,8 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { newMeasure, addCall, hitTokenCeiling } from './engine-budget';
+import { newMeasure, addCall, hitTokenCeiling, ENGINE_LLM_BUDGET } from './engine-budget';
+import { parseJSON as parse } from './anthropic-client';
 import { EngineStatusRecorder } from '../orchestrator/engine-status-recorder';
 
 let pass = 0;
@@ -337,6 +338,116 @@ check('Porte tombee : statut conserve', snap5.team.status, 'timeout');
 checkTrue('Porte tombee : la duree de son appel est enfin lisible',
   (snap5.team.llmDurationMs ?? 0) >= 179_000);
 check('Porte tombee : un appel compte', snap5.team.llmCalls, 1);
+
+// ============================================================
+// SECTION 6. TRACABILITE DU PARSE ET FRANCHISSEMENT DU PLAFOND
+// ------------------------------------------------------------
+// jsonrepair recoud une sortie coupee sans lever ni logger, et le
+// moteur ressort en ok. reference-checks a rendu exactement 4000
+// tokens sur 4000 au run 2517a288 avec un parse reussi, sans qu on
+// puisse trancher entre une sortie complete et une reparation. Deux
+// champs ferment la question au prochain run.
+// ============================================================
+
+console.log('\n=== Section 6. Tracabilite du parse et plafond ===');
+
+const tDirect = newMeasure();
+parse('{"a":1}', tDirect);
+check('JSON propre : parse direct', tDirect.parseMode, 'direct');
+
+const tExtrait = newMeasure();
+parse('Voici le resultat :\n{"a":1}', tExtrait);
+check('JSON enrobe de prose : parse extrait', tExtrait.parseMode, 'extracted');
+
+// Structure coupee : le parseur la complete lui-meme, seconde voie de
+// reparation silencieuse distincte de jsonrepair et tout aussi muette
+// avant ce commit.
+const tCoupe = newMeasure();
+parse('{"a":1,"b":[1,2', tCoupe);
+check('Structure non refermee : parse recupere', tCoupe.parseMode, 'recovered');
+
+// Structure fermee mais mal formee : jsonrepair intervient.
+const tRepare = newMeasure();
+parse('{"a":1,"b":2,}', tRepare);
+checkTrue('Structure fermee mais mal formee : la sortie est declaree modifiee',
+  tRepare.parseMode === 'recovered' || tRepare.parseMode === 'repaired');
+
+// Les deux voies qui modifient la structure doivent etre distinguables
+// de celles qui ne la modifient pas : c est tout l objet du champ.
+const NE_MODIFIE_PAS = ['direct', 'extracted'];
+checkTrue('Une sortie propre n est jamais declaree modifiee',
+  NE_MODIFIE_PAS.includes(tDirect.parseMode!) && NE_MODIFIE_PAS.includes(tExtrait.parseMode!));
+checkTrue('Une sortie coupee est toujours declaree modifiee',
+  !NE_MODIFIE_PAS.includes(tCoupe.parseMode!));
+
+const tFence = newMeasure();
+parse('```json\n{"a":1}\n```', tFence);
+check('Fence markdown : reste un parse direct', tFence.parseMode, 'direct');
+
+checkTrue('Puits absent : parseJSON ne leve pas',
+  (() => { try { parse('{"a":1}'); return true; } catch { return false; } })());
+
+// Le franchissement est evalue appel par appel. Un moteur qui reprend
+// apres une coupure noierait le signal dans la somme cumulee : le
+// premier appel coupe a 4000 plus une reprise courte a 900 donne 4900
+// sur un plafond de 5000, soit moins que le seuil, alors qu un appel
+// a bien ete coupe.
+const coupePuisRepris = newMeasure();
+addCall(coupePuisRepris, Date.now(), { output_tokens: 5000 }, 5000);
+addCall(coupePuisRepris, Date.now(), { output_tokens: 900 }, 5000);
+check('Coupure puis reprise : le cumul repasse sous le seuil', coupePuisRepris.outputTokens, 5900);
+checkTrue('Coupure puis reprise : le drapeau retient la coupure',
+  coupePuisRepris.hitCeiling === true);
+
+const jamaisCoupe = newMeasure();
+addCall(jamaisCoupe, Date.now(), { output_tokens: 2800 }, 5000);
+checkTrue('Sortie confortable : aucun franchissement', !jamaisCoupe.hitCeiling);
+
+// Les deux champs doivent atteindre le releve, sinon ils ne servent
+// a rien : c est le JSON persiste qu on relit apres un run.
+const recTrace = new EngineStatusRecorder();
+const mTrace = newMeasure();
+addCall(mTrace, Date.now(), { output_tokens: 5000 }, 5000);
+mTrace.parseMode = 'repaired';
+recTrace.recordMeasure('referenceChecks', mTrace);
+recTrace.finalizeFromResult(
+  { referenceChecks: { founderChecks: [{ q: 'x' }] } },
+  { referenceChecks: 'referenceChecks' },
+);
+const snapTrace = recTrace.snapshot();
+check('Releve : le franchissement est persiste', snapTrace.referenceChecks.hitCeiling, true);
+check('Releve : le mode de parse est persiste', snapTrace.referenceChecks.parseMode, 'repaired');
+checkTrue('Releve : les deux champs survivent a la finalisation',
+  snapTrace.referenceChecks.status === 'ok'
+  && snapTrace.referenceChecks.hitCeiling === true
+  && snapTrace.referenceChecks.parseMode === 'repaired');
+
+// Un moteur non instrumente ne doit pas afficher de faux champs.
+const recNu = new EngineStatusRecorder();
+const mNu = newMeasure();
+addCall(mNu, Date.now(), { output_tokens: 100 }, 5000);
+recNu.recordMeasure('macro', mNu);
+const snapNu = recNu.snapshot();
+check('Aucune coupure : pas de drapeau pose', snapNu.macro.hitCeiling, undefined);
+check('Aucun parse trace : pas de mode pose', snapNu.macro.parseMode, undefined);
+
+// Le plafond de reference-checks et son cablage.
+const refEngineSrc = read('lib/engines/reference-checks-engine.ts');
+checkTrue('reference-checks : le plafond est nomme et vaut 5000',
+  refEngineSrc.includes('export const REFERENCE_CHECKS_MAX_TOKENS = 5000'));
+checkTrue('reference-checks : plus aucun litteral 4000 au site d appel',
+  !/userPrompt, 4000, FAST_MODEL/.test(refEngineSrc));
+check('reference-checks : les deux appels lisent le plafond nomme',
+  (refEngineSrc.match(/REFERENCE_CHECKS_MAX_TOKENS/g) || []).length, 5);
+checkTrue('reference-checks : sa fenetre de temps n a pas bouge',
+  ENGINE_LLM_BUDGET.referenceChecks.timeout === 70_000);
+
+// Les onze moteurs instrumentes doivent tous tracer leur parse,
+// sinon le champ ne dit rien de la moitie du pipeline.
+for (const { file } of [...ENGINES, ...AMONT]) {
+  checkTrue(`${file} : passe le puits a parseJSON`,
+    /parseJSON<[^;]*>\([a-zA-Z]+, measure\)/.test(read(file)));
+}
 
 // ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);
