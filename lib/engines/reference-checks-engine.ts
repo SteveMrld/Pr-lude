@@ -1,5 +1,5 @@
-import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
-import { ENGINE_LLM_BUDGET } from './engine-budget';
+import { callClaudeWithUsage, parseJSON, FAST_MODEL } from './anthropic-client';
+import { ENGINE_LLM_BUDGET, addCall, hitTokenCeiling, type LlmMeasure } from './engine-budget';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput,
@@ -127,6 +127,7 @@ export async function generateReferenceChecks(
   team: TeamAnalysisOutput,
   blindspot: BlindspotAnalysisOutput,
   causal: CausalReversalOutput,
+  measure?: LlmMeasure,
 ): Promise<ReferenceChecksOutput> {
   const userPrompt = `# Société
 ${extraction.companyName} (${extraction.sector} / ${extraction.subSector}, ${extraction.country})
@@ -177,11 +178,20 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
   // callClaudeWithUsage sait rendre. Tant que ce site passe par
   // callClaude, on se contente de l heuristique textuelle ci-dessous.
   // ============================================================
-  const raw = await callClaude(SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks);
+  const startedAt = Date.now();
+  const { text: raw, usage } = await callClaudeWithUsage(
+    SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks,
+  );
+  addCall(measure, startedAt, usage, 4000);
   try {
     return parseJSON<ReferenceChecksOutput>(raw);
   } catch (firstErr: any) {
-    if (looksTruncated(raw)) {
+    // Deux signaux de troncature, le second est le definitif : un
+    // output_tokens au plafond dit que le modele a ete coupe, la ou
+    // l heuristique textuelle ne fait que le supposer. On garde les
+    // deux, l heuristique couvre le cas ou la mesure est absente
+    // (moteur appele sans puits, depuis un test ou un script).
+    if (hitTokenCeiling(measure) || looksTruncated(raw)) {
       console.warn(
         '[reference-checks] JSON parse failed sur une sortie tronquee, pas de reprise :',
         firstErr?.message,
@@ -189,7 +199,11 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
       throw firstErr;
     }
     console.warn('[reference-checks] JSON parse failed sur une sortie complete, reprise unique :', firstErr?.message);
-    const retried = await callClaude(SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks);
+    const retryStartedAt = Date.now();
+    const { text: retried, usage: retryUsage } = await callClaudeWithUsage(
+      SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks,
+    );
+    addCall(measure, retryStartedAt, retryUsage, 4000);
     return parseJSON<ReferenceChecksOutput>(retried);
   }
 }

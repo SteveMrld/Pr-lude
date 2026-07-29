@@ -1,5 +1,5 @@
-import { callClaude, parseJSON } from './anthropic-client';
-import { ENGINE_LLM_BUDGET } from './engine-budget';
+import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { formatExtractionGeography } from './fund-context';
@@ -122,7 +122,8 @@ export async function performCausalReversal(
   team: TeamAnalysisOutput,
   market: MarketAnalysisOutput,
   macro: MacroAnalysisOutput,
-  patternMatching: PatternMatchingOutput
+  patternMatching: PatternMatchingOutput,
+  measure?: LlmMeasure,
 ): Promise<CausalReversalOutput> {
 
   const userPrompt = `Données consolidées du dossier ${extraction?.companyName ?? '?'} :
@@ -165,7 +166,9 @@ Benchmark rétrospectif : ${patternMatching?.retrospectiveBenchmark?.averageScor
 
 Produis le retournement causal complet. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, undefined, ENGINE_LLM_BUDGET.causalReversal);
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.causalReversal);
+  addCall(measure, startedAt, usage, 8000);
   const analysis = parseJSON<CausalReversalOutput>(rawResponse);
   const audit = auditTagging(analysis, 'causal-engine');
   if (audit.level !== 'ok') {

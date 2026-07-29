@@ -29,7 +29,7 @@ import '@/lib/engines/fragility-structurelle/capital-structure-fragility-pattern
 import '@/lib/engines/fragility-structurelle/scale-mirage-risk-pattern';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore, INSUFFICIENT_BASIS_VERDICT } from '@/lib/engines/score-calculator';
-import { engineDeadlineFor } from '@/lib/engines/engine-budget';
+import { engineDeadlineFor, newMeasure } from '@/lib/engines/engine-budget';
 import {
   buildSkippedTeamOutput,
   buildSkippedPatternMatchingOutput,
@@ -1022,9 +1022,14 @@ export async function POST(req: NextRequest) {
             }
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
             enginesRecorder.markLLMStart('patternMatching');
-            const r = await matchPatterns(extraction, team, market, macro);
-            sendDone('pattern', r);
-            return r;
+            const measure = newMeasure();
+            try {
+              const r = await matchPatterns(extraction, team, market, macro, measure);
+              sendDone('pattern', r);
+              return r;
+            } finally {
+              enginesRecorder.recordMeasure('patternMatching', measure);
+            }
           })();
 
           // Aveuglement : skip en growth, calibre lecture du discours fondateur early.
@@ -1036,17 +1041,27 @@ export async function POST(req: NextRequest) {
             }
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
             enginesRecorder.markLLMStart('blindspotAnalysis');
-            const r = await analyzeBlindspots(extraction, team, market, macro, sectoralContext);
-            sendDone('blindspot', r);
-            return r;
+            const measure = newMeasure();
+            try {
+              const r = await analyzeBlindspots(extraction, team, market, macro, sectoralContext, measure);
+              sendDone('blindspot', r);
+              return r;
+            } finally {
+              enginesRecorder.recordMeasure('blindspotAnalysis', measure);
+            }
           })();
 
           const contrarianPromise = (async () => {
             const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
             enginesRecorder.markLLMStart('contrarianAnalysis');
-            const r = await analyzeContrarian(extraction, team, market, macro, sectoralContext);
-            sendDone('contrarian', r);
-            return r;
+            const measure = newMeasure();
+            try {
+              const r = await analyzeContrarian(extraction, team, market, macro, sectoralContext, measure);
+              sendDone('contrarian', r);
+              return r;
+            } finally {
+              enginesRecorder.recordMeasure('contrarianAnalysis', measure);
+            }
           })();
 
           const financialCoherencePromise = (async () => {
@@ -1109,6 +1124,7 @@ export async function POST(req: NextRequest) {
           const narrativeDriftPromise = narrativeDriftRequested
             ? (async () => {
                 enginesRecorder.markLLMStart('narrativeDrift');
+                const measure = newMeasure();
                 try {
                   const r = await analyzeNarrativeDrift({
                     extraction,
@@ -1116,13 +1132,15 @@ export async function POST(req: NextRequest) {
                     fundNote: fundDimensionalNotes?.market || null,
                     sectoralContext,
                     assetClass: relevanceMatrix.assetClass,
-                  });
+                  }, measure);
                   sendDone('narrative-drift', r);
                   return r;
                 } catch (err: any) {
                   logException('pipeline.narrative-drift', err, { severity: 'warning', analysisId });
                   sendDone('narrative-drift', null);
                   return null;
+                } finally {
+                  enginesRecorder.recordMeasure('narrativeDrift', measure);
                 }
               })()
             : Promise.resolve(null);
@@ -1184,9 +1202,14 @@ export async function POST(req: NextRequest) {
               teamPromise, marketPromise, macroPromise, patternPromise,
             ]);
             enginesRecorder.markLLMStart('causalReversal');
-            const r = await performCausalReversal(extraction, team, market, macro, pattern);
-            sendDone('causal', r);
-            return r;
+            const measure = newMeasure();
+            try {
+              const r = await performCausalReversal(extraction, team, market, macro, pattern, measure);
+              sendDone('causal', r);
+              return r;
+            } finally {
+              enginesRecorder.recordMeasure('causalReversal', measure);
+            }
           })();
 
           // ============================================================
@@ -1209,14 +1232,17 @@ export async function POST(req: NextRequest) {
               teamPromise, blindspotPromise, causalPromise,
             ]);
             enginesRecorder.markLLMStart('referenceChecks');
+            const measure = newMeasure();
             try {
-              const r = await generateReferenceChecks(extraction, team, blindspot, causal);
+              const r = await generateReferenceChecks(extraction, team, blindspot, causal, measure);
               sendDone('reference-checks', r);
               return r;
             } catch (err: any) {
               logException('pipeline.reference-checks', err, { severity: 'warning', analysisId });
               sendDone('reference-checks', null);
               return null;
+            } finally {
+              enginesRecorder.recordMeasure('referenceChecks', measure);
             }
           })();
 

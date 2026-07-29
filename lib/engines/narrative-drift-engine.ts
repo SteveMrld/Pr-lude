@@ -19,8 +19,8 @@
 // reproductibles. Garde-fou central contre l hallucination.
 // ============================================================
 
-import { callClaude, parseJSON } from './anthropic-client';
-import { ENGINE_LLM_BUDGET } from './engine-budget';
+import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { scoreText, type NarrativeDriftMetrics } from '../narrative-drift/score-text';
@@ -312,6 +312,7 @@ function buildSystemPrompt(assetClass: string, dossierStade: DossierStade): stri
 
 export async function analyzeNarrativeDrift(
   input: NarrativeDriftInput,
+  measure?: LlmMeasure,
 ): Promise<NarrativeDriftAnalysisOutput> {
   // ETAPE 1 : Calcul des metriques lexicales objectives
   // On agrege tous les corpus disponibles en un seul texte pour obtenir
@@ -353,7 +354,7 @@ export async function analyzeNarrativeDrift(
   const userPrompt = buildUserPrompt(input, metrics);
 
   // ETAPE 4 : Appel LLM avec selecteur d archetype gate par asset_class et stade
-  // callClaude(systemPrompt, userPrompt, maxTokens, model, options)
+  // callClaudeWithUsage(systemPrompt, userPrompt, maxTokens, model, options)
   const assetClass = input.assetClass ?? 'unclassified';
   const dossierStade = stageToStade(input.extraction.fundraise?.stage);
   // Fenetre dediee : 4000 tokens sur Sonnet coutent 65 a 95s dans ce
@@ -362,13 +363,15 @@ export async function analyzeNarrativeDrift(
   // instrumentes, toujours a 120s, c est-a-dire toujours ses deux
   // tentatives de 60s. Il n a aucune dependance et demarre a t=0
   // (route.ts:1075-1077), sa fenetre ne coute rien au chemin critique.
-  const rawResponse = await callClaude(
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(
     buildSystemPrompt(assetClass, dossierStade),
     userPrompt,
     4000,
-    undefined,
+    MODEL,
     ENGINE_LLM_BUDGET.narrativeDrift,
   );
+  addCall(measure, startedAt, usage, 4000);
 
   const parsed = parseJSON<NarrativeDriftAnalysisOutput>(rawResponse);
 

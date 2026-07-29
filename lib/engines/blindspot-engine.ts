@@ -1,5 +1,5 @@
-import { callClaude, parseJSON } from './anthropic-client';
-import { ENGINE_LLM_BUDGET } from './engine-budget';
+import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { findByStrate, type ExtendedCaseRecord } from '../corpus/extended-database';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
 import { stageToStade } from './archetype-selector';
@@ -278,6 +278,7 @@ export async function analyzeBlindspots(
   market: MarketAnalysisOutput,
   macro: MacroAnalysisOutput,
   sectoralContext?: SectoralContext | null,
+  measure?: LlmMeasure,
 ): Promise<BlindspotAnalysisOutput> {
 
   // Recuperation des cas Strate D (echecs pedagogiques) du corpus etendu.
@@ -384,7 +385,9 @@ Retourne uniquement le JSON structuré.`;
   // sur Pen Group (45 patterns, 3 categories de risques, evidence
   // detaillee). On monte a 14000 pour garder une vraie marge et eviter
   // les troncatures qui font echouer parseJSON meme avec jsonrepair.
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 14000, undefined, ENGINE_LLM_BUDGET.blindspotAnalysis);
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 14000, MODEL, ENGINE_LLM_BUDGET.blindspotAnalysis);
+  addCall(measure, startedAt, usage, 14000);
   const analysis = parseJSON<BlindspotAnalysisOutput>(rawResponse);
   const audit = auditTagging(analysis, 'blindspot-engine');
   if (audit.level !== 'ok') {

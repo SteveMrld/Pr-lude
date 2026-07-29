@@ -181,6 +181,83 @@ export function worstCaseConvergenceByWindowMs(): number {
     + ENGINE_LLM_BUDGET.referenceChecks.timeout;
 }
 
+// ============================================================
+// MESURE D APPEL
+// ------------------------------------------------------------
+// Les fenetres ci-dessus sont extrapolees a partir d un seul point
+// mesure, les 4000 tokens de fragilite. Le volume de sortie reel des
+// six moteurs est inconnu : aucun n a jamais abouti, et callClaude ne
+// remonte pas l usage. On dimensionne donc a l estime des moteurs dont
+// on ignore ce qu ils produisent, ce qui est tenable une fois et pas
+// deux.
+//
+// Le collecteur ci-dessous ferme cette boucle. Chaque moteur budgete
+// recoit un puits optionnel que la route lui passe, y depose la duree
+// de son appel et les tokens rendus, et la route reverse le tout dans
+// le releve per-moteur du run. Au premier run reel, les fenetres se
+// recalculent sur mesure au lieu de s extrapoler.
+//
+// Le puits est passe en parametre plutot que loge dans un module a
+// etat : deux analyses concurrentes dans la meme instance ecriraient
+// dans le meme registre global et melangeraient leurs mesures.
+//
+// Modele repris de analyzeMs sur les patterns de fragilite
+// (fragility-structurelle/orchestrator.ts:195-200), etendu aux tokens.
+// ============================================================
+
+export interface LlmMeasure {
+  /** Somme des durees d appel LLM du moteur, en ms. Mesuree autour du
+   *  seul appel reseau, hors construction de prompt et parseJSON. */
+  llmDurationMs: number;
+  /** Somme des tokens rendus par le modele sur ce moteur. */
+  outputTokens: number;
+  /** Somme des tokens d entree factures, cache exclu. */
+  inputTokens: number;
+  /** Nombre d appels LLM effectifs. Vaut plus de 1 quand un moteur
+   *  reprend, comme reference-checks sur une malformation de parse. */
+  calls: number;
+  /** Plafond max_tokens demande au dernier appel. Sert a lire un
+   *  outputTokens au plafond comme une troncature plutot que comme un
+   *  besoin reel de fenetre. */
+  maxTokens?: number;
+}
+
+/** Puits de mesure vierge. */
+export function newMeasure(): LlmMeasure {
+  return { llmDurationMs: 0, outputTokens: 0, inputTokens: 0, calls: 0 };
+}
+
+/**
+ * Accumule un appel dans le puits. Tolerant au puits absent : les
+ * moteurs restent appelables sans instrumentation, notamment depuis
+ * leurs tests deterministes et depuis les scripts de calibration.
+ */
+export function addCall(
+  sink: LlmMeasure | undefined | null,
+  startedAt: number,
+  usage: { input_tokens?: number; output_tokens?: number } | undefined | null,
+  maxTokens?: number,
+): void {
+  if (!sink) return;
+  sink.llmDurationMs += Math.max(0, Date.now() - startedAt);
+  sink.outputTokens += usage?.output_tokens ?? 0;
+  sink.inputTokens += usage?.input_tokens ?? 0;
+  sink.calls += 1;
+  if (maxTokens !== undefined) sink.maxTokens = maxTokens;
+}
+
+/**
+ * True si le dernier appel a vraisemblablement ete coupe par son
+ * plafond de tokens. Seuil a 98 % du plafond : le modele s arrete
+ * rarement pile a la limite pour des raisons naturelles. Signal
+ * definitif de troncature, la ou l heuristique textuelle de
+ * reference-checks n est qu une approximation.
+ */
+export function hitTokenCeiling(measure: LlmMeasure | undefined | null): boolean {
+  if (!measure || !measure.maxTokens || measure.calls === 0) return false;
+  return measure.outputTokens >= Math.floor(measure.maxTokens * 0.98);
+}
+
 /** Instant le plus tardif ou la porte de reference-checks peut s ouvrir,
  *  en pire cas de deadlines. Doit rester sous WAIT_DEADLINE_MS, sinon le
  *  moteur meurt sur sa garde d attente sans jamais appeler son LLM. */

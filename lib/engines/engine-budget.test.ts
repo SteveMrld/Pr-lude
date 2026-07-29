@@ -171,8 +171,8 @@ checkTrue('Accolades a l interieur d une chaine : non comptees',
   !looksTruncated('{"q": "utilise {ceci} et [cela]"}'));
 
 const refSrc = read('lib/engines/reference-checks-engine.ts');
-checkTrue('reference-checks : la reprise est gardee par looksTruncated',
-  refSrc.includes('if (looksTruncated(raw))'));
+checkTrue('reference-checks : la reprise est gardee sur la troncature',
+  /if \((?:hitTokenCeiling\(measure\) \|\| )?looksTruncated\(raw\)\)/.test(refSrc));
 checkTrue('reference-checks : la sortie tronquee releve l erreur au lieu de rejouer',
   refSrc.includes('throw firstErr'));
 

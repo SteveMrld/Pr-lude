@@ -1,5 +1,5 @@
-import { callClaude, parseJSON } from './anthropic-client';
-import { ENGINE_LLM_BUDGET } from './engine-budget';
+import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
 import { stageToStade } from './archetype-selector';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
@@ -164,6 +164,7 @@ export async function analyzeContrarian(
   market: MarketAnalysisOutput,
   macro: MacroAnalysisOutput,
   sectoralContext?: SectoralContext | null,
+  measure?: LlmMeasure,
 ): Promise<ContrarianAnalysisOutput> {
 
   const sectoralBlock = buildSectoralPromptBlock(sectoralContext, 'contrarian');
@@ -238,7 +239,9 @@ Retourne uniquement le JSON structuré.`;
   // Budget tokens : symetrique au moteur Vigilance critique (10 signaux contrariens
   // avec evidence, asymetrie, mecanism, comparables). 6000 etait trop juste,
   // 8000 pour rester safe.
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, undefined, ENGINE_LLM_BUDGET.contrarianAnalysis);
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.contrarianAnalysis);
+  addCall(measure, startedAt, usage, 8000);
   const analysis = parseJSON<ContrarianAnalysisOutput>(rawResponse);
   const audit = auditTagging(analysis, 'contrarian-engine');
   if (audit.level !== 'ok') {

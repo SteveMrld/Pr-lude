@@ -1,5 +1,5 @@
-import { callClaude, parseJSON } from './anthropic-client';
-import { ENGINE_LLM_BUDGET } from './engine-budget';
+import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { CORPUS, type CaseRecord } from '../corpus/database';
 import {
   EXTENDED_CORPUS,
@@ -440,7 +440,8 @@ export async function matchPatterns(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
   market: MarketAnalysisOutput,
-  macro: MacroAnalysisOutput
+  macro: MacroAnalysisOutput,
+  measure?: LlmMeasure,
 ): Promise<PatternMatchingOutput> {
 
   // Pré-sélection algorithmique : top 8 cas par proximité structurelle
@@ -611,7 +612,9 @@ ${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extra
 
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour chaque comparable cité avec des chiffres précis, ces chiffres doivent venir de la base de chiffres vérifiés ci-dessus. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, undefined, ENGINE_LLM_BUDGET.patternMatching);
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.patternMatching);
+  addCall(measure, startedAt, usage, 8000);
   // Contrat de sortie : matchPatterns promet un PatternMatchingOutput,
   // il en rend un. parseJSON peut resoudre null (le modele emet le
   // litteral null, JSON.parse le rend, sanitizeStringsRecursive le

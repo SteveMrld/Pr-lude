@@ -99,6 +99,34 @@ export interface EngineStatusEntry {
    *  etaient en failed, failed-upstream ou timeout au moment de la
    *  rejection en cascade. Permet de tracer la chaine de defaut. */
   failedDependencies?: string[];
+  /** Temps passe dans les seuls appels LLM du moteur, en ms. Distinct
+   *  d executionDurationMs, qui couvre aussi la construction du prompt,
+   *  le parseJSON et les post-traitements. Absent tant que le moteur
+   *  n est pas instrumente. */
+  llmDurationMs?: number;
+  /** Tokens rendus par le modele, cumules sur les appels du moteur.
+   *  C est la mesure qui manquait pour dimensionner les fenetres sur
+   *  autre chose qu une extrapolation. */
+  outputTokens?: number;
+  /** Tokens d entree factures, cache exclu. */
+  inputTokens?: number;
+  /** Nombre d appels LLM effectifs du moteur sur ce run. */
+  llmCalls?: number;
+  /** Plafond max_tokens demande. Un outputTokens qui l atteint signale
+   *  une troncature, pas un besoin de fenetre plus longue. */
+  maxTokens?: number;
+}
+
+/** Mesure d appel deposee par un moteur instrumente, avant d etre
+ *  fusionnee dans son entree de releve. Meme forme que LlmMeasure de
+ *  lib/engines/engine-budget.ts, redeclaree ici pour que le recorder ne
+ *  dependent pas de la couche moteurs. */
+export interface EngineLlmMeasure {
+  llmDurationMs: number;
+  outputTokens: number;
+  inputTokens: number;
+  calls: number;
+  maxTokens?: number;
 }
 
 // ============================================================
@@ -235,6 +263,7 @@ const UPSTREAM_FAIL_STATUSES: ReadonlySet<EngineStatus> = new Set<EngineStatus>(
 
 export class EngineStatusRecorder {
   private entries: Map<string, EngineStatusEntry> = new Map();
+  private measures: Map<string, EngineLlmMeasure> = new Map();
   private startTimes: Map<string, number> = new Map();
   private llmStartTimes: Map<string, number> = new Map();
   private declaredDeps: Map<string, string[]> = new Map();
@@ -409,10 +438,43 @@ export class EngineStatusRecorder {
     }
   }
 
-  /** Snapshot immuable des entrees, format persistance JSONB. */
+  /**
+   * Depose la mesure d appel LLM d un moteur : duree reseau, tokens
+   * rendus, nombre d appels. Independant du cycle record / finalize,
+   * et c est voulu. finalizeFromResult reconstruit les entrees des
+   * moteurs aboutis a partir du result_json, une mesure ecrite dans
+   * l entree serait perdue a ce moment-la. Elle vit donc dans une carte
+   * separee, fusionnee au snapshot.
+   *
+   * Idempotent par ecrasement : le dernier depot gagne. Un moteur ne
+   * depose qu une fois, a la fin de son travail.
+   */
+  recordMeasure(engine: string, measure: EngineLlmMeasure | null | undefined): void {
+    if (!measure || measure.calls === 0) return;
+    this.measures.set(engine, { ...measure });
+  }
+
+  /** Snapshot immuable des entrees, format persistance JSONB. Les
+   *  mesures d appel y sont fusionnees, y compris pour les moteurs dont
+   *  l entree a ete reconstruite par finalizeFromResult. */
   snapshot(): Record<string, EngineStatusEntry> {
     const out: Record<string, EngineStatusEntry> = {};
     this.entries.forEach((v, k) => { out[k] = { ...v }; });
+    this.measures.forEach((m, k) => {
+      // Un moteur peut avoir depose une mesure sans avoir d entree, si
+      // son appel a abouti puis que le post-traitement a leve avant
+      // l enregistrement. On cree l entree plutot que de perdre la
+      // mesure : c est precisement le cas qu on cherche a documenter.
+      const base = out[k] ?? { engine: k, status: 'empty_output' as EngineStatus, durationMs: 0, attempts: 1 };
+      out[k] = {
+        ...base,
+        llmDurationMs: m.llmDurationMs,
+        outputTokens: m.outputTokens,
+        inputTokens: m.inputTokens,
+        llmCalls: m.calls,
+        ...(m.maxTokens !== undefined ? { maxTokens: m.maxTokens } : {}),
+      };
+    });
     return out;
   }
 
