@@ -1,5 +1,5 @@
-import { ENGINE_LLM_BUDGET } from './engine-budget';
-import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
+import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
+import { callClaudeWithUsage, parseJSON, applyRunOptions, MODEL, type EngineRunOptions } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -392,6 +392,7 @@ export async function analyzeTeam(
   benchmarks?: BenchmarkPositioning | null,
   fundNote?: string | null,
   runOptions?: EngineRunOptions,
+  measure?: LlmMeasure,
 ): Promise<TeamAnalysisOutput & { realData?: FounderRealData[] }> {
   // ÉTAPE 1 : Récupération de data réelle pour chaque fondateur (timeout 8s par fondateur)
   const realDataPromises = (extraction.founders || []).map(async (founder) => {
@@ -589,13 +590,15 @@ Intègre dans ton analyse :
   // l ensemble. Retry desactive parce qu un depassement a 150s signale du
   // structurel (upstream web_search bloque, incident tool), pas du
   // transitoire : deux tentatives longues echoueraient identiquement.
-  const rawResponse = await callClaude(
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(
     SYSTEM_PROMPT,
     userPrompt,
     8000,
-    undefined, // model par defaut
+    MODEL,
     applyRunOptions({ maxWebSearches: 1, ...ENGINE_LLM_BUDGET.team }, runOptions),
   );
+  addCall(measure, startedAt, usage, 8000);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 
   // Audit du tagging des sources (Niveau 2.B). Logge un warning si le

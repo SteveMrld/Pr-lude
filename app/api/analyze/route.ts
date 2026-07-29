@@ -868,16 +868,31 @@ export async function POST(req: NextRequest) {
           // Moteur Equipe : skip en parcours growth, calibre early stage.
           // En growth on retourne immediatement un output neutre marque
           // skipped, sans appel LLM. Voir lib/engines/skipped-outputs.ts.
+          // Puits de mesure de la couche amont. team est la porte de cinq
+          // moteurs et n avait jamais ete mesure : sa fenetre de 180s est
+          // calibree sur des durees totales reconstituees, pas sur ses
+          // tokens. Les puits sont deposes dans le releve en finally,
+          // succes comme echec, parce que l echec est justement le cas
+          // qui renseigne le dimensionnement.
+          const teamMeasure = newMeasure();
+          const marketMeasure = newMeasure();
+          const macroMeasure = newMeasure();
+          const financialCoherenceMeasure = newMeasure();
+          const orchestrateMeasure = newMeasure();
+
           const teamPromise = (track === 'growth'
             ? Promise.resolve(buildSkippedTeamOutput())
-            : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team, runOptions)
-          ).then(r => { sendDone('team', r); return r; });
+            : analyzeTeam(extraction, undefined, fundDimensionalNotes?.team, runOptions, teamMeasure)
+          ).then(r => { sendDone('team', r); return r; })
+            .finally(() => { enginesRecorder.recordMeasure('team', teamMeasure); });
 
-          const marketPromise = analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix, sectoralContext, runOptions)
-            .then(r => { sendDone('market', r); return r; });
+          const marketPromise = analyzeMarket(extraction, fundDimensionalNotes?.market, relevanceMatrix, sectoralContext, runOptions, marketMeasure)
+            .then(r => { sendDone('market', r); return r; })
+            .finally(() => { enginesRecorder.recordMeasure('market', marketMeasure); });
 
-          const macroPromise = analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix, sectoralContext, runOptions)
-            .then(r => { sendDone('macro', r); return r; });
+          const macroPromise = analyzeMacro(extraction, fundDimensionalNotes?.macro, relevanceMatrix, sectoralContext, runOptions, macroMeasure)
+            .then(r => { sendDone('macro', r); return r; })
+            .finally(() => { enginesRecorder.recordMeasure('macro', macroMeasure); });
 
           const financialDataPromise = extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction)
             .then(r => { sendDone('financial-extraction', r); return r; });
@@ -1074,22 +1089,27 @@ export async function POST(req: NextRequest) {
               benchmarksPromise,
             ]);
             enginesRecorder.markLLMStart('financialCoherence');
-            const r = await analyzeFinancialCoherence({
-              extraction,
-              financialData,
-              market,
-              benchmarks,
-              fundNote: fundDimensionalNotes?.financial,
-              // Matrice de pertinence : source de verite pour la
-              // classification archetypale (six archetypes A a F).
-              // Conditionne le gating deterministe des tests
-              // applicables avant l appel LLM, voir
-              // lib/engines/financial-coherence-archetype.ts.
-              relevanceMatrix,
-              runOptions,
-            });
-            sendDone('financial-coherence', r);
-            return r;
+            try {
+              const r = await analyzeFinancialCoherence({
+                extraction,
+                financialData,
+                market,
+                benchmarks,
+                fundNote: fundDimensionalNotes?.financial,
+                // Matrice de pertinence : source de verite pour la
+                // classification archetypale (six archetypes A a F).
+                // Conditionne le gating deterministe des tests
+                // applicables avant l appel LLM, voir
+                // lib/engines/financial-coherence-archetype.ts.
+                relevanceMatrix,
+                runOptions,
+                measure: financialCoherenceMeasure,
+              });
+              sendDone('financial-coherence', r);
+              return r;
+            } finally {
+              enginesRecorder.recordMeasure('financialCoherence', financialCoherenceMeasure);
+            }
           })();
 
           const techClaimPromise = (async () => {
@@ -1481,6 +1501,7 @@ export async function POST(req: NextRequest) {
                   fragiliteStructurelle,
                   conflictOfInterest,
                   analysisId,
+                  orchestrateMeasure,
                 );
                 return result;
               } catch (err: any) {
@@ -1530,6 +1551,15 @@ export async function POST(req: NextRequest) {
                   `[orchestrate] backoff ${backoffMs}ms avant tentative ${attempt + 2}/${MAX_ATTEMPTS}`,
                 );
                 await new Promise(resolve => setTimeout(resolve, backoffMs));
+              } finally {
+                // Depot a chaque tentative, pas a la sortie de boucle. La
+                // synthese court contre budgetPromise dans un Promise.race :
+                // si le budget gagne, le releve est fige avant que cette
+                // boucle ait fini de tourner, et une mesure deposee en aval
+                // ne serait jamais lue. Le puits est cumulatif, chaque depot
+                // ecrase le precedent par un etat plus complet, et le nombre
+                // d appels vaut le nombre de tentatives reellement parties.
+                enginesRecorder.recordMeasure('finalRecommendation', orchestrateMeasure);
               }
             }
             // Fallback conforme a la doctrine : quand orchestrate echoue,

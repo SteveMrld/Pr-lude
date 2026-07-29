@@ -1,4 +1,5 @@
-import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
+import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { addCall, type LlmMeasure } from './engine-budget';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -316,6 +317,7 @@ export async function analyzeMarket(
   relevanceMatrix?: RelevanceMatrix | null,
   sectoralContext?: SectoralContext | null,
   runOptions?: EngineRunOptions,
+  measure?: LlmMeasure,
 ): Promise<MarketAnalysisOutput & { realData?: MarketRealData }> {
   // ÉTAPE 1 : Récupération de data réelle
   // Mots-clés à utiliser pour interroger les sources
@@ -519,13 +521,15 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
   // timeout 150s + maxRetries 0 : p50 market observe 94s wall, p90 129s.
   // Meme regime que team : le web_search cote serveur Anthropic partage
   // le budget SDK, un depassement a 150s trahit du structurel.
-  const rawResponse = await callClaude(
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
-    undefined,
+    MODEL,
     applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
+  addCall(measure, startedAt, usage, 9000);
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse);
 
   // Audit du tagging des sources (Niveau 2.B)

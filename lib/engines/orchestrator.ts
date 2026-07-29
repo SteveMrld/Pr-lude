@@ -1,4 +1,4 @@
-import { callClaude, parseJSON, MODEL } from './anthropic-client';
+import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
@@ -19,7 +19,7 @@ import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
 } from './score-calculator';
-import { ENGINE_LLM_BUDGET, ORCHESTRATE_MAX_TOKENS, looksTruncated } from './engine-budget';
+import { ENGINE_LLM_BUDGET, ORCHESTRATE_MAX_TOKENS, looksTruncated, addCall, type LlmMeasure } from './engine-budget';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -857,6 +857,10 @@ export async function orchestrateFinalRecommendation(
    * null en mode persistence-off, ou la ligne analyses n existe pas.
    */
   analysisId?: string | null,
+  /** Puits de mesure d appel LLM, optionnel. Renseigne par la route
+   *  pour que le releve du run porte la duree et les tokens de la
+   *  synthese, jamais mesures jusqu ici. */
+  measure?: LlmMeasure,
 ): Promise<OrchestratedResult['finalRecommendation']> {
 
   // ============================================================
@@ -932,10 +936,12 @@ export async function orchestrateFinalRecommendation(
   // le chemin critique contre le mur : team passant de 150 a 180s,
   // toute la chaine glisse de 30s, il fallait les reprendre ici.
   // ============================================================
-  let rawResponse = await callClaude(
+  const startedAt = Date.now();
+  let { text: rawResponse, usage } = await callClaudeWithUsage(
     SYSTEM_PROMPT, userPrompt, ORCHESTRATE_MAX_TOKENS, MODEL,
     ENGINE_LLM_BUDGET.finalRecommendation,
   );
+  addCall(measure, startedAt, usage, ORCHESTRATE_MAX_TOKENS);
   let recommendation: OrchestratedResult['finalRecommendation'];
   try {
     recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
@@ -950,10 +956,13 @@ export async function orchestrateFinalRecommendation(
       throw firstErr;
     }
     console.warn('[orchestrator] JSON parse failed sur une sortie complete, reprise unique :', firstErr?.message);
-    rawResponse = await callClaude(
+    const retryStartedAt = Date.now();
+    const retried = await callClaudeWithUsage(
       SYSTEM_PROMPT, userPrompt, ORCHESTRATE_MAX_TOKENS, MODEL,
       ENGINE_LLM_BUDGET.finalRecommendation,
     );
+    addCall(measure, retryStartedAt, retried.usage, ORCHESTRATE_MAX_TOKENS);
+    rawResponse = retried.text;
     recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   }
 

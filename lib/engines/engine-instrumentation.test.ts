@@ -1,5 +1,5 @@
 // ============================================================
-// TESTS - INSTRUMENTATION D APPEL DES SIX MOTEURS BUDGETES
+// TESTS - INSTRUMENTATION D APPEL DES MOTEURS BUDGETES
 // ------------------------------------------------------------
 // Les fenetres posees par le commit precedent sont extrapolees a
 // partir d un seul point mesure. Le volume de sortie reel des six
@@ -7,8 +7,17 @@
 // remontait pas l usage. Dimensionner a l estime est tenable une fois,
 // pas deux.
 //
+// La couche amont, team market macro financialCoherence et la synthese
+// finale, rejoint la mesure au brief 17 (section 5). Le motif est le
+// meme, l urgence est plus forte : team est la porte de cinq moteurs,
+// sa fenetre de 180s a ete calibree sur des durees totales
+// reconstituees a l exterieur du moteur, et le seul run qui l a fait
+// tomber l a coupe pile a son plafond, donc sans rien apprendre de sa
+// duree reelle. Instrumenter la porte est ce qui transforme le prochain
+// arbitrage en mesure au lieu d un second pari.
+//
 // Ce qui est verrouille ici :
-//   - Les six sites passent par le canal qui rend l usage, et non plus
+//   - Les onze sites passent par le canal qui rend l usage, et non plus
 //     par celui qui le jette.
 //   - Le puits de mesure accumule duree, tokens et nombre d appels, et
 //     tolere son absence pour que les moteurs restent appelables sans
@@ -73,10 +82,20 @@ for (const { recorderKey } of ENGINES) {
   checkTrue(`route.ts : reverse la mesure de ${recorderKey} dans le releve`,
     routeSrc.includes(`enginesRecorder.recordMeasure('${recorderKey}', measure)`));
 }
-// Le depot doit avoir lieu meme quand le moteur echoue : c est
-// justement le cas ou la mesure renseigne le dimensionnement.
-check('route.ts : six depots de mesure, tous en finally',
-  (routeSrc.match(/} finally {\n\s+enginesRecorder\.recordMeasure\(/g) || []).length, 6);
+
+/** Le depot doit avoir lieu meme quand le moteur echoue : c est
+ *  justement le cas ou la mesure renseigne le dimensionnement. Deux
+ *  formes coexistent selon que le moteur vit dans une IIFE async ou
+ *  dans une chaine de promesses, on verifie la garde et non la forme. */
+function depotEstGarde(src: string, appel: string): boolean {
+  const i = src.indexOf(appel);
+  if (i < 0) return false;
+  return /finally/.test(src.slice(Math.max(0, i - 600), i));
+}
+for (const { recorderKey } of ENGINES) {
+  checkTrue(`route.ts : le depot de ${recorderKey} survit a l echec du moteur`,
+    depotEstGarde(routeSrc, `enginesRecorder.recordMeasure('${recorderKey}', measure)`));
+}
 
 // ============================================================
 // SECTION 2. LE PUITS DE MESURE
@@ -199,6 +218,125 @@ rec3.recordMeasure('causalReversal', newMeasure());
 const snap3 = rec3.snapshot();
 check('Aucun appel effectue : aucune mesure posee', snap3.causalReversal.llmCalls, undefined);
 check('Aucun appel effectue : aucun token pose', snap3.causalReversal.outputTokens, undefined);
+
+// ============================================================
+// SECTION 5. LA COUCHE AMONT ET LA SYNTHESE FINALE
+// ------------------------------------------------------------
+// Les cinq moteurs qui encadrent les six precedents dans le pipeline,
+// la porte [team, market, macro], financialCoherence, et la synthese
+// qui ferme le run. Aucun n etait mesure, et team est celui dont
+// l ignorance coute le plus : il commande cinq moteurs en aval, son
+// echec les condamne tous, et sa fenetre a ete dimensionnee sur des
+// durees observees de l exterieur. Le prochain run doit rendre sa
+// duree d appel reelle meme s il tombe encore.
+// ============================================================
+
+console.log('\n=== Section 5. Couche amont et synthese finale ===');
+
+const AMONT: Array<{ file: string; recorderKey: string; sink: string }> = [
+  { file: 'lib/engines/team-engine.ts', recorderKey: 'team', sink: 'teamMeasure' },
+  { file: 'lib/engines/market-engine.ts', recorderKey: 'market', sink: 'marketMeasure' },
+  { file: 'lib/engines/macro-engine.ts', recorderKey: 'macro', sink: 'macroMeasure' },
+  { file: 'lib/engines/financial-coherence-engine.ts', recorderKey: 'financialCoherence', sink: 'financialCoherenceMeasure' },
+  { file: 'lib/engines/orchestrator.ts', recorderKey: 'finalRecommendation', sink: 'orchestrateMeasure' },
+];
+
+for (const { file } of AMONT) {
+  const src = read(file);
+  checkTrue(`${file} : passe par callClaudeWithUsage`, src.includes('callClaudeWithUsage('));
+  checkTrue(`${file} : n appelle plus le canal qui jette l usage`,
+    !/[^h]\bcallClaude\(/.test(src));
+  checkTrue(`${file} : accepte un puits de mesure optionnel`, src.includes('measure?: LlmMeasure'));
+  checkTrue(`${file} : depose son appel dans le puits`, src.includes('addCall(measure'));
+}
+
+/** Le modele passe desormais explicitement a chaque site d appel.
+ *  callClaude et callClaudeWithUsage ont le meme defaut, la bascule
+ *  est donc neutre, mais un undefined positionnel en quatrieme place
+ *  laissait la lecture du site dependre de la signature du client. On
+ *  inspecte chaque appel et non le fichier entier : un undefined dans
+ *  un appel voisin n a rien a voir avec le modele. */
+function appelsAvecUsage(src: string): string[] {
+  const out: string[] = [];
+  let i = src.indexOf('callClaudeWithUsage(');
+  while (i >= 0) {
+    out.push(src.slice(i, i + 400));
+    i = src.indexOf('callClaudeWithUsage(', i + 1);
+  }
+  return out;
+}
+for (const { file } of AMONT) {
+  const appels = appelsAvecUsage(read(file));
+  checkTrue(`${file} : au moins un appel instrumente`, appels.length >= 1);
+  checkTrue(`${file} : chaque appel nomme son modele`,
+    appels.every(a => /\bMODEL,/.test(a)));
+  checkTrue(`${file} : aucun appel ne laisse undefined en position modele`,
+    appels.every(a => !/^\s+undefined,/m.test(a.split(');')[0])));
+}
+
+for (const { recorderKey, sink } of AMONT) {
+  checkTrue(`route.ts : reverse la mesure de ${recorderKey} dans le releve`,
+    routeSrc.includes(`enginesRecorder.recordMeasure('${recorderKey}', ${sink})`));
+  checkTrue(`route.ts : le depot de ${recorderKey} survit a l echec du moteur`,
+    depotEstGarde(routeSrc, `enginesRecorder.recordMeasure('${recorderKey}', ${sink})`));
+  checkTrue(`route.ts : le puits de ${recorderKey} est cree par la route`,
+    routeSrc.includes(`const ${sink} = newMeasure()`));
+}
+
+// La synthese ne recoit son puits que si la route le lui passe : elle
+// est le seul des cinq a etre appelee en positionnel long.
+checkTrue('route.ts : la synthese recoit son puits en argument',
+  /analysisId,\n\s+orchestrateMeasure,/.test(routeSrc));
+
+// Onze moteurs mesures, ni plus ni moins. Un moteur ajoute au pipeline
+// sans puits se lit ici comme un ecart de compte.
+check('route.ts : onze depots de mesure au total',
+  (routeSrc.match(/enginesRecorder\.recordMeasure\(/g) || []).length, 11);
+
+// La cle de la synthese est celle que finalizeFromResult reconstruit.
+// Si les deux divergeaient, la mesure serait posee a cote de l entree
+// au lieu d y etre fusionnee, et n apparaitrait nulle part.
+checkTrue('route.ts : la cle de mesure de la synthese est celle du releve final',
+  routeSrc.includes("finalRecommendation: 'finalRecommendation'"));
+
+const rec4 = new EngineStatusRecorder();
+rec4.markLLMStart('finalRecommendation');
+const synthese = newMeasure();
+addCall(synthese, Date.now() - 96_000, { input_tokens: 61000, output_tokens: 4200 }, 5000);
+rec4.recordMeasure('finalRecommendation', synthese);
+rec4.finalizeFromResult(
+  { finalRecommendation: { verdict: 'A instruire', decisionDrivers: [{ label: 'X' }] } },
+  { finalRecommendation: 'finalRecommendation' },
+);
+const snap4 = rec4.snapshot();
+check('Synthese : statut reconstruit par la finalisation', snap4.finalRecommendation.status, 'ok');
+check('Synthese : la mesure survit a la finalisation', snap4.finalRecommendation.outputTokens, 4200);
+check('Synthese : le plafond de 5000 est lisible dans le releve', snap4.finalRecommendation.maxTokens, 5000);
+checkTrue('Synthese : duree d appel lisible dans le releve',
+  (snap4.finalRecommendation.llmDurationMs ?? 0) >= 96_000);
+
+// La boucle de reprise de la route partage un puits unique entre ses
+// trois tentatives. Le nombre d appels doit donc valoir le nombre de
+// tentatives reellement parties, c est ce qui distingue une synthese
+// lente d une synthese rejouee.
+const troisTentatives = newMeasure();
+addCall(troisTentatives, Date.now() - 150_000, { output_tokens: 0 }, 5000);
+addCall(troisTentatives, Date.now() - 150_000, { output_tokens: 0 }, 5000);
+check('Puits partage : deux tentatives comptees', troisTentatives.calls, 2);
+checkTrue('Puits partage : durees des tentatives cumulees', troisTentatives.llmDurationMs >= 300_000);
+
+// Le cas qui motive tout le commit : team tombe, et sa mesure doit
+// quand meme dire combien de temps son appel a tenu avant la coupure.
+const rec5 = new EngineStatusRecorder();
+rec5.record({ engine: 'team', status: 'timeout', attempts: 1, errorMessage: 'engine team timeout' });
+const teamTombe = newMeasure();
+addCall(teamTombe, Date.now() - 179_000, undefined, 8000);
+rec5.recordMeasure('team', teamTombe);
+const snap5 = rec5.snapshot();
+check('Porte tombee : statut conserve', snap5.team.status, 'timeout');
+checkTrue('Porte tombee : la duree de son appel est enfin lisible',
+  (snap5.team.llmDurationMs ?? 0) >= 179_000);
+check('Porte tombee : un appel compte', snap5.team.llmCalls, 1);
 
 // ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);

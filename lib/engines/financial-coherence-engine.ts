@@ -20,7 +20,8 @@
 // identique au comportement historique.
 // ============================================================
 
-import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
+import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { addCall, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock } from './fund-context';
@@ -210,6 +211,8 @@ interface AnalyzeFinancialCoherenceArgs {
   relevanceMatrix?: RelevanceMatrix | null;
   /** Mode de run. frozen=true coupe le web search. */
   runOptions?: EngineRunOptions;
+  /** Puits de mesure d appel LLM, optionnel. */
+  measure?: LlmMeasure;
 }
 
 export async function analyzeFinancialCoherence(
@@ -220,11 +223,16 @@ export async function analyzeFinancialCoherence(
   arg4?: string | null,
   arg5?: RelevanceMatrix | null,
   arg6?: EngineRunOptions,
+  arg7?: LlmMeasure,
 ): Promise<FinancialCoherenceOutput> {
   // Compatibilite ascendante : la signature historique positionnelle
   // (extraction, financialData, market, benchmarks, fundNote) reste
   // supportee pour les call sites legacy / tests. La nouvelle voie
   // (object literal avec relevanceMatrix) est privilegiee.
+  const measure: LlmMeasure | undefined =
+    (arg0 && typeof arg0 === 'object' && 'extraction' in arg0)
+      ? (arg0 as AnalyzeFinancialCoherenceArgs).measure
+      : arg7;
   let extraction: ExtractionOutput;
   let financialData: FinancialDataExtraction;
   let market: MarketAnalysisOutput;
@@ -289,13 +297,15 @@ export async function analyzeFinancialCoherence(
   // timeout 150s + maxRetries 0 : quatrieme moteur a web search actif,
   // meme politique que team/market/macro. Retry SDK desactive pour eviter
   // qu un blocage web_search structurel ne consomme deux fois le budget.
-  const rawResponse = await callClaude(
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(
     SYSTEM_PROMPT,
     userPrompt,
     7000,
-    undefined,
+    MODEL,
     applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
+  addCall(measure, startedAt, usage, 7000);
   const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse);
 
   // Recombinaison deterministe : on assemble les tests applicables

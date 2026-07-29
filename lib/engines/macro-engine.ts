@@ -1,4 +1,5 @@
-import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
+import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { addCall, type LlmMeasure } from './engine-budget';
 import { gatherMacroRealData, gatherImfWeoSnapshot, type MacroSnapshot, type ImfWeoSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -187,6 +188,7 @@ export async function analyzeMacro(
   relevanceMatrix?: RelevanceMatrix | null,
   sectoralContext?: SectoralContext | null,
   runOptions?: EngineRunOptions,
+  measure?: LlmMeasure,
 ): Promise<MacroAnalysisOutput & { realData?: MacroSnapshot; weoData?: ImfWeoSnapshot }> {
   // ÉTAPE 1 : Récupération des indicateurs macro réels du pays (timeout 8s pour éviter de bloquer le pipeline)
   const realData = await Promise.race([
@@ -453,13 +455,15 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
   // timeout 150s + maxRetries 0 : p50 macro observe 50s wall, p90 68s.
   // Moins dense en web_search que team/market mais la meme politique
   // s applique par coherence entre les moteurs a recherche active.
-  const rawResponse = await callClaude(
+  const startedAt = Date.now();
+  const { text: rawResponse, usage } = await callClaudeWithUsage(
     SYSTEM_PROMPT,
     userPrompt,
     9000,
-    undefined,
+    MODEL,
     applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
   );
+  addCall(measure, startedAt, usage, 9000);
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse);
 
   // Audit du tagging des sources (Niveau 2.B)
