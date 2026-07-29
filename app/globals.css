@@ -2359,6 +2359,38 @@ ul, ol { list-style: none; }
   margin-left: 4px;
   font-weight: 400;
 }
+/* Base du score : sur combien de dimensions il a ete calcule. Affichee
+   seulement quand l assiette est partielle, un score plein n a rien a
+   declarer de plus que lui-meme. */
+.note-syn-score-basis {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ocre-brule);
+  font-style: italic;
+}
+/* Troisieme etat : aucun score produit. Traitement volontairement
+   distinct de la jauge, pour qu il soit impossible de lire une absence
+   de socle comme un score bas. */
+.note-syn-score-unavailable {
+  margin-top: 6px;
+  padding-left: 12px;
+  border-left: 2px solid var(--ocre-brule);
+}
+.note-syn-score-unavailable-head {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--ocre-brule);
+  letter-spacing: -0.01em;
+}
+.note-syn-score-unavailable-body {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0.8;
+}
 
 /* C. Valorisation */
 .note-syn-valuation {

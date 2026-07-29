@@ -78,6 +78,8 @@ const VERDICT_LABELS: Record<string, string> = {
   'investir avec conditions': 'Investir avec conditions',
   'approfondir': 'Approfondir',
   'refuser': 'Refuser',
+  // Troisieme etat du calcul mecanique, pas une position d instruction.
+  'socle insuffisant': 'Socle insuffisant',
 };
 
 const VERDICT_COLORS: Record<string, string> = {
@@ -85,6 +87,7 @@ const VERDICT_COLORS: Record<string, string> = {
   'investir avec conditions': 'var(--ocre-brule)',
   'approfondir': 'var(--ocre-brule)',
   'refuser': 'var(--rouge-anglais)',
+  'socle insuffisant': 'var(--ocre-brule)',
 };
 
 const TENSION_LABELS: Record<string, string> = {

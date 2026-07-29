@@ -481,6 +481,24 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   });
 
   // ============================================================
+  // ASSIETTE DU SCORE ET TROISIEME ETAT
+  // ------------------------------------------------------------
+  // Le score mecanique declare desormais sur quelles dimensions il a
+  // ete calcule, et peut ne pas exister du tout quand le socle des
+  // moteurs aboutis passe sous le seuil. La note doit dire l un et
+  // l autre : un score muet sur son assiette laisse croire que les six
+  // axes ont ete instruits, et un socle insuffisant affiche en chiffre
+  // serait un score invente. Les deux champs sont absents des analyses
+  // persistees avant cette brique, la lecture degrade sans casser.
+  // ============================================================
+  const scoreBasis: any = (r as any)?.mechanicalScore?.basis
+    ?? (reco.computedScoreBreakdown as any)?.basis
+    ?? null;
+  const insufficientBasis: boolean =
+    (r as any)?.mechanicalScore?.scoreStatus === 'insufficient-basis'
+    || (reco.computedScoreBreakdown as any)?.scoreStatus === 'insufficient-basis';
+
+  // ============================================================
   // PROVENANCE DU RUN, pour la tracabilite d un PDF telecharge.
   // ------------------------------------------------------------
   // Un PDF exporte de la note ne portait aucun identifiant machine-
@@ -1610,12 +1628,28 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <div className="verdict-block-head">
               <span className="verdict-block-num" aria-hidden="true">1</span>
               <span className="verdict-block-title">Score d&apos;attractivité structurelle</span>
-              <span className="verdict-block-figure">
-                {reco.globalScore || 0}
-                <span style={{ fontSize: 14, opacity: 0.45, fontWeight: 400, marginLeft: 2 }}>/100</span>
-              </span>
+              {insufficientBasis ? (
+                <span className="verdict-block-figure" style={{ fontSize: 15, fontStyle: 'italic', color: 'var(--ocre-brule)' }}>
+                  Socle insuffisant
+                </span>
+              ) : (
+                <span className="verdict-block-figure">
+                  {typeof reco.globalScore === 'number' ? reco.globalScore : '—'}
+                  <span style={{ fontSize: 14, opacity: 0.45, fontWeight: 400, marginLeft: 2 }}>/100</span>
+                </span>
+              )}
             </div>
-            {typeof reco.globalScore === 'number' && (
+            {insufficientBasis && (
+              <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.65, color: 'var(--ink)' }}>
+                Aucun score d&apos;attractivité n&apos;a été produit sur ce dossier. Trop de dimensions
+                n&apos;ont pas pu être instruites pour qu&apos;une note pondérée ait un sens, et le code
+                n&apos;en fabrique pas à partir de ce qui manque.
+                {scoreBasis?.label ? ` ${scoreBasis.label}` : ''} Les dimensions instruites restent
+                lisibles ci-dessous et gardent leur valeur d&apos;instruction ; c&apos;est leur
+                agrégation en un chiffre unique qui est suspendue jusqu&apos;à réinstruction du dossier.
+              </div>
+            )}
+            {!insufficientBasis && typeof reco.globalScore === 'number' && (
               <div className="score-thresholds">
                 <div className="score-thresholds-track">
                   <div className="zone zone-refuser" style={{ width: '45%' }} title="Refuser : score &lt; 45" />
@@ -1678,7 +1712,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   Décomposition du score
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 12px 0', lineHeight: 1.55 }}>
-                  Le score global est la somme pondérée des six dimensions Bloc 1, calculées indépendamment par chaque moteur sur les faits du dossier. Aucun ajustement narratif au moment de la synthèse.
+                  Le score global est la moyenne pondérée des dimensions Bloc 1 réellement évaluées, calculées indépendamment par chaque moteur sur les faits du dossier. Aucun ajustement narratif au moment de la synthèse. Une dimension dont le moteur n&apos;a pas abouti sort de l&apos;assiette et n&apos;y contribue pas ; le calcul est renormalisé sur les dimensions restantes.
+                  {scoreBasis?.label ? ` ${scoreBasis.label}` : ''}
                 </p>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
@@ -1694,17 +1729,44 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       <React.Fragment key={r.key}>
                         <tr style={{ borderBottom: '1px solid var(--hairline-soft, rgba(0,0,0,0.06))' }}>
                           <td style={{ padding: '8px 0', fontWeight: 500 }}>{r.label}</td>
-                          <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--serif)', fontVariantNumeric: 'tabular-nums' }}>
-                            {r.dim?.score ?? '?'}<span style={{ color: 'var(--ink-soft)' }}>/100</span>
-                          </td>
-                          <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
-                            {((r.dim?.weight ?? 0) * 100).toFixed(0)}%
-                          </td>
-                          <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--serif)', fontVariantNumeric: 'tabular-nums' }}>
-                            +{(r.dim?.contribution ?? 0).toFixed(1)}
-                          </td>
+                          {/* Une dimension dont le moteur n a pas abouti n a pas
+                              de note. Afficher son 50 de repli avec sa
+                              contribution ponderee la ferait lire comme un axe
+                              instruit a valeur mediane. */}
+                          {r.dim?.evaluated === false ? (
+                            <>
+                              <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--ocre-brule)', fontStyle: 'italic' }}>
+                                indisponible
+                              </td>
+                              <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
+                                {((r.dim?.weight ?? 0) * 100).toFixed(0)}%
+                              </td>
+                              <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--ocre-brule)', fontStyle: 'italic', fontSize: 11 }}>
+                                hors assiette
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={{ padding: '8px 0', textAlign: 'right', fontFamily: 'var(--serif)', fontVariantNumeric: 'tabular-nums' }}>
+                                {r.dim?.score ?? '?'}<span style={{ color: 'var(--ink-soft)' }}>/100</span>
+                              </td>
+                              <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--ink-soft)', fontVariantNumeric: 'tabular-nums' }}>
+                                {((r.dim?.weight ?? 0) * 100).toFixed(0)}%
+                              </td>
+                              <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--serif)', fontVariantNumeric: 'tabular-nums' }}>
+                                +{(r.dim?.contribution ?? 0).toFixed(1)}
+                              </td>
+                            </>
+                          )}
                         </tr>
-                        {Array.isArray(r.dim?.subScores) && r.dim.subScores.length > 0 && (
+                        {r.dim?.evaluated === false && typeof r.dim?.rationale === 'string' && r.dim.rationale && (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '0 0 10px 14px', fontSize: 11, color: 'var(--ocre-brule)', lineHeight: 1.55, fontStyle: 'italic' }}>
+                              {r.dim.rationale}
+                            </td>
+                          </tr>
+                        )}
+                        {r.dim?.evaluated !== false && Array.isArray(r.dim?.subScores) && r.dim.subScores.length > 0 && (
                           <tr>
                             <td colSpan={4} style={{ padding: '0 0 10px 14px', fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.55, fontStyle: 'italic' }}>
                               {r.dim.subScores.map((s: any, idx: number) => (
@@ -1721,13 +1783,27 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       <td style={{ padding: '10px 0 4px 0', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 11 }}>Score global</td>
                       <td colSpan={2} />
                       <td style={{ padding: '10px 0 4px 0', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--serif)', fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>
-                        {reco.globalScore}<span style={{ fontSize: 12, color: 'var(--ink-soft)', fontWeight: 400 }}>/100</span>
+                        {insufficientBasis || typeof reco.globalScore !== 'number' ? (
+                          <span style={{ fontSize: 13, fontWeight: 500, fontStyle: 'italic', color: 'var(--ocre-brule)' }}>
+                            {insufficientBasis ? 'socle insuffisant' : 'indisponible'}
+                          </span>
+                        ) : (
+                          <>{reco.globalScore}<span style={{ fontSize: 12, color: 'var(--ink-soft)', fontWeight: 400 }}>/100</span></>
+                        )}
                       </td>
                     </tr>
                   </tbody>
                 </table>
                 <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--surface-soft, rgba(0,0,0,0.04))', borderRadius: 3, fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.55 }}>
-                  <strong style={{ color: 'var(--ink)' }}>Verdict dérivé.</strong> Refuser sous 45. Approfondir entre 45 et 59. Investir avec conditions entre 60 et 74. Investir au-delà de 75. Le verdict <strong style={{ color: 'var(--ink)' }}>{(reco.verdict || '').toUpperCase()}</strong> découle strictement de ces seuils, sans intervention narrative possible.
+                  {insufficientBasis ? (
+                    <>
+                      <strong style={{ color: 'var(--ink)' }}>Aucun verdict dérivé.</strong> Les seuils 45 / 60 / 75 s&apos;appliquent à un score, et il n&apos;y en a pas. Le code ne dérive pas de verdict d&apos;une assiette trop lacunaire et ne rend pas la décision au moteur narratif pour autant : l&apos;état affiché est celui du calcul, pas un jugement de repli.
+                    </>
+                  ) : (
+                    <>
+                      <strong style={{ color: 'var(--ink)' }}>Verdict dérivé.</strong> Refuser sous 45. Approfondir entre 45 et 59. Investir avec conditions entre 60 et 74. Investir au-delà de 75. Le verdict <strong style={{ color: 'var(--ink)' }}>{(reco.verdict || '').toUpperCase()}</strong> découle strictement de ces seuils, sans intervention narrative possible.
+                    </>
+                  )}
                 </div>
               </div>
           );
@@ -1789,20 +1865,37 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     contrarian: 'Singularités contrariennes',
                     vigilance: 'Vigilance critique (inversée)',
                   };
+                  // Deux indisponibilites distinctes, et une seule grille.
+                  // notEvaluable dit que le dossier ne porte pas la donnee,
+                  // evaluated=false dit que le moteur n a pas abouti. Le
+                  // traitement visuel d indisponibilite etait reserve au
+                  // premier cas ; une dimension dont le moteur etait tombe
+                  // s affichait donc comme une note normale, avec un 50 de
+                  // repli et sa contribution ponderee. Les deux cas passent
+                  // desormais par le meme rendu, jamais par la grille des
+                  // scores. Les payloads anterieurs au champ evaluated
+                  // gardent leur lecture historique.
+                  const unavailable = dim.evaluated === false || dim.notEvaluable === true;
                   return (
-                    <div key={key} style={{ borderLeft: `2px solid ${dim.notEvaluable ? 'var(--ocre-brule)' : 'var(--hairline)'}`, paddingLeft: 10 }}>
+                    <div key={key} style={{ borderLeft: `2px solid ${unavailable ? 'var(--ocre-brule)' : 'var(--hairline)'}`, paddingLeft: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                         <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500 }}>{labels[key]}</span>
                         <span style={{ fontSize: 11, opacity: 0.55 }}>poids {Math.round(dim.weight * 100)}%</span>
                       </div>
-                      {dim.notEvaluable ? (
+                      {unavailable ? (
                         <>
                           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 2 }}>
-                            <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, color: 'var(--ocre-brule)', fontStyle: 'italic' }}>Non évaluable</span>
-                            <span style={{ fontSize: 11, opacity: 0.65 }}>valeur neutre 50 utilisée</span>
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 13, fontWeight: 500, color: 'var(--ocre-brule)', fontStyle: 'italic' }}>
+                              {dim.notEvaluable ? 'Non évaluable' : 'Non évaluée'}
+                            </span>
+                            <span style={{ fontSize: 11, opacity: 0.65 }}>
+                              {dim.evaluated === false ? 'hors assiette du score' : 'valeur neutre 50 utilisée'}
+                            </span>
                           </div>
                           <div style={{ marginTop: 4, fontSize: 11, opacity: 0.7, lineHeight: 1.5, fontStyle: 'italic' }}>
-                            Données insuffisantes pour évaluer cette dimension. Le calcul global utilise une valeur neutre de 50 pour ne pas pénaliser le dossier.
+                            {dim.evaluated === false && typeof dim.rationale === 'string' && dim.rationale
+                              ? dim.rationale
+                              : 'Données insuffisantes pour évaluer cette dimension. Le calcul global utilise une valeur neutre de 50 pour ne pas pénaliser le dossier.'}
                           </div>
                         </>
                       ) : (
@@ -1827,8 +1920,18 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   );
                 })}
               </div>
+              {/* La base du calcul, declaree. Un score qui tait son assiette
+                  laisse croire que les six axes ont ete instruits. */}
+              {scoreBasis?.label && (
+                <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.6, color: 'var(--ocre-brule)', fontStyle: 'italic' }}>
+                  {scoreBasis.label}
+                </div>
+              )}
               <div className="verdict-block-legend" style={{ marginTop: 10 }}>
-                Formule : score = somme des (score_dimension × poids). Les six dimensions et leurs poids sont stables dans le temps. Les seuils de verdict sont 45 / 60 / 75. Un partner qui souhaite recalibrer la formule peut le faire en modifiant les poids dans le code, sans changer la nature des scores produits par les moteurs Bloc 1.
+                {(reco.computedScoreBreakdown as any).formula
+                  ? `Formule : ${(reco.computedScoreBreakdown as any).formula}`
+                  : 'Formule : score = somme des (score_dimension × poids). Les six dimensions et leurs poids sont stables dans le temps. Les seuils de verdict sont 45 / 60 / 75.'}
+                {' '}Un partner qui souhaite recalibrer la formule peut le faire en modifiant les poids dans le code, sans changer la nature des scores produits par les moteurs Bloc 1.
               </div>
             </div>
           )}

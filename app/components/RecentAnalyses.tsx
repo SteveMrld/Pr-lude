@@ -31,6 +31,8 @@ const VERDICT_LABELS: Record<string, string> = {
   'investir-conditions': 'Investir avec conditions',
   approfondir: 'Approfondir',
   refuser: 'Refuser',
+  // Troisieme etat du calcul mecanique, pas une position d instruction.
+  'socle insuffisant': 'Socle insuffisant',
 };
 
 function formatRelative(iso: string): string {

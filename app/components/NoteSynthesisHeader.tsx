@@ -55,7 +55,26 @@ const VERDICT_LABELS: Record<string, string> = {
   'investir avec conditions': 'Investir avec conditions',
   'approfondir': 'Approfondir',
   'refuser': 'Refuser',
+  // Troisieme etat du calcul mecanique : ce n est pas une position
+  // d instruction, c est l aveu qu il n y en a pas. Il tombe sur le
+  // slug 'neutre' cote couleur, il ne doit surtout pas emprunter
+  // l accent d un verdict.
+  'socle insuffisant': 'Socle insuffisant',
 };
+
+/**
+ * Ligne de base du score : sur combien de dimensions il a ete calcule.
+ * Un score qui ne dit pas son assiette laisse croire que les six axes
+ * ont ete instruits. Retourne null quand la base est pleine, il n y a
+ * alors rien a signaler.
+ */
+function formatScoreBasis(basis: any): string | null {
+  if (!basis || typeof basis.evaluatedCount !== 'number') return null;
+  const total = basis.totalCount ?? 6;
+  if (basis.evaluatedCount >= total) return null;
+  const weightPct = Math.round((basis.evaluatedWeight ?? 0) * 100);
+  return `Calculé sur ${basis.evaluatedCount} dimensions sur ${total}, poids évalué cumulé ${weightPct} %.`;
+}
 
 // Slug de verdict pour piloter les classes CSS d accent couleur.
 // Regroupe conditions et investir sur la meme famille verte, refuser
@@ -504,22 +523,32 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
   const mech = result?.mechanicalScore || {};
   const valuation = result?.valuation || {};
 
+  // Troisieme etat du calcul mecanique : le socle des dimensions
+  // evaluees est passe sous le seuil et aucun score n a ete produit.
+  // La note doit le dire, pas afficher un chiffre repris ailleurs.
+  const insufficientBasis = mech?.scoreStatus === 'insufficient-basis';
+  const scoreBasisLine = formatScoreBasis(mech?.basis);
+
   // Score et verdict avec fallback mecanique cf brique 2 fix
   // orchestrate. On lit prioritairement finalRecommendation, sinon
   // le score mecanique. Cela garantit que meme un run dont
   // l orchestrateur a echoue affiche un score et un verdict
   // veridiques, pas un ecran vide ni un "A Reinstruire" invente.
-  const globalScore =
-    typeof reco.globalScore === 'number' && isFinite(reco.globalScore)
+  const globalScore = insufficientBasis
+    ? null
+    : typeof reco.globalScore === 'number' && isFinite(reco.globalScore)
       ? reco.globalScore
       : typeof mech.globalScore === 'number' && isFinite(mech.globalScore)
         ? mech.globalScore
         : null;
 
-  const rawVerdict =
-    (typeof reco.verdict === 'string' && reco.verdict) ||
-    (typeof mech.verdict === 'string' && mech.verdict) ||
-    'approfondir';
+  const rawVerdict = insufficientBasis
+    ? 'socle insuffisant'
+    : (
+      (typeof reco.verdict === 'string' && reco.verdict) ||
+      (typeof mech.verdict === 'string' && mech.verdict) ||
+      'approfondir'
+    );
 
   const degraded = reco.degraded === true;
   const slug = verdictSlug(rawVerdict);
@@ -576,11 +605,27 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
         </div>
         <div className="note-syn-gauge-side">
           <div className="note-syn-eyebrow">Score global · seuils de decision</div>
-          <ScoreGauge score={globalScore} />
-          <div className="note-syn-score-num">
-            {globalScore != null ? globalScore : '—'}
-            <span className="note-syn-score-slash">/100</span>
-          </div>
+          {insufficientBasis ? (
+            <div className="note-syn-score-unavailable">
+              <div className="note-syn-score-unavailable-head">Aucun score global n&apos;a été produit</div>
+              <div className="note-syn-score-unavailable-body">
+                Trop de dimensions n&apos;ont pas pu être instruites sur ce run pour qu&apos;un score
+                ait un sens. {mech?.basis?.label ? `${mech.basis.label} ` : ''}
+                Réinstruire le dossier une fois les moteurs manquants rétablis.
+              </div>
+            </div>
+          ) : (
+            <>
+              <ScoreGauge score={globalScore} />
+              <div className="note-syn-score-num">
+                {globalScore != null ? globalScore : '—'}
+                <span className="note-syn-score-slash">/100</span>
+              </div>
+              {scoreBasisLine && (
+                <div className="note-syn-score-basis">{scoreBasisLine}</div>
+              )}
+            </>
+          )}
         </div>
       </section>
 
