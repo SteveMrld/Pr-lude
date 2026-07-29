@@ -1272,6 +1272,16 @@ export async function POST(req: NextRequest) {
           // verite pour le score global et le verdict, qui ne sont plus
           // produits par l orchestrator LLM. Voir lib/engines/score-calculator.ts
           // pour la formule complete et les seuils.
+          //
+          // Le releve d instrumentation est passe au calculateur pour qu il
+          // distingue une dimension reellement evaluee d une dimension dont
+          // le moteur est tombe. A ce point du pipeline le recorder porte
+          // les statuts poses par le wrapper deadline (ok, failed,
+          // failed-upstream, timeout) ; empty_output et
+          // skipped_not_applicable ne sont poses qu a la finalisation, plus
+          // bas, et le calculateur les rattrape par ses propres gardes sur
+          // les racines. Sans cette entree, un moteur tombe se fondait dans
+          // la moyenne a 50, valeur indistinguable d un vrai verdict median.
           const mechanicalScore = computeMechanicalScore({
             team,
             market,
@@ -1279,6 +1289,7 @@ export async function POST(req: NextRequest) {
             financial: financialCoherence,
             contrarian: contrarianAnalysis,
             blindspot: blindspotAnalysis,
+            engineStatuses: enginesRecorder.snapshot(),
           });
 
           // Calcul de fourchette de valorisation (deterministe, pas d appel
