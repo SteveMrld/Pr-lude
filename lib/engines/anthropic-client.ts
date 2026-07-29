@@ -193,8 +193,9 @@ export async function callClaude(
   // Par defaut on suit la variable env globale, mais l appelant peut
   // override (par ex. pour desactiver explicitement sur certains moteurs
   // qui n en ont pas besoin meme si la feature est globalement active).
-  const useWebSearch = options.enableWebSearch ?? isWebSearchEnabled();
+  // Meme regle que callClaudeWithUsage : zero hop eteint l outil.
   const maxWebSearches = options.maxWebSearches ?? 3;
+  const useWebSearch = (options.enableWebSearch ?? isWebSearchEnabled()) && maxWebSearches > 0;
 
   // Caching automatique du system prompt si suffisamment long.
   // Anthropic exige 1024 tokens minimum pour activer le caching sur
@@ -321,8 +322,14 @@ export async function callClaudeWithUsage(
   options: CallClaudeOptions = {},
 ): Promise<{ text: string; usage: CallUsage }> {
   const client = getClient();
-  const useWebSearch = options.enableWebSearch ?? isWebSearchEnabled();
+  // Un budget de recherche a zero eteint l outil, il ne l attache pas
+  // avec un plafond inerte. C est ce qui rend maxWebSearches: 0 lisible
+  // comme une decision doctrinale au site d appel, et non comme une
+  // borne que le modele pourrait contourner. Corollaire utile : les
+  // moteurs a zero hop deviennent insensibles au mode frozen, qu ils
+  // n honoraient pas puisqu ils ne passent pas par applyRunOptions.
   const maxWebSearches = options.maxWebSearches ?? 3;
+  const useWebSearch = (options.enableWebSearch ?? isWebSearchEnabled()) && maxWebSearches > 0;
   const enableSystemCaching = systemPrompt.length >= 4000;
 
   const requestParams: any = {

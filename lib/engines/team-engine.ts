@@ -596,7 +596,7 @@ Intègre dans ton analyse :
     userPrompt,
     8000,
     MODEL,
-    applyRunOptions({ maxWebSearches: 1, ...ENGINE_LLM_BUDGET.team }, runOptions),
+    applyRunOptions({ ...ENGINE_LLM_BUDGET.team }, runOptions),
   );
   addCall(measure, startedAt, usage, 8000);
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse, measure);

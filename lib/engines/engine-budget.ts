@@ -64,6 +64,22 @@
 export interface EngineLlmOptions {
   timeout: number;
   maxRetries: number;
+  /**
+   * Nombre de recherches web autorisees sur l appel, obligatoire.
+   *
+   * Le champ manquait, et le client applique alors son defaut de trois
+   * hops. Sept moteurs sur onze partaient donc avec un budget de
+   * recherche que personne n avait decide : pattern, blindspot,
+   * contrarian, causal, reference-checks, narrative-drift et la
+   * synthese finale. Le run 2517a288 l a rendu visible sur la synthese,
+   * qui a rendu 5127 tokens pour un plafond de 5000 : le compteur de
+   * sortie de l API agrege la boucle d outil serveur et ne peut
+   * depasser max_tokens que si un outil a tourne.
+   *
+   * Le champ est requis et non optionnel pour qu aucun moteur futur ne
+   * puisse heriter du defaut en silence. Le site d appel doit trancher.
+   */
+  maxWebSearches: number;
 }
 
 /**
@@ -105,24 +121,24 @@ export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Ob
   // des deux echecs est inconnue, ils ont ete coupes exactement au
   // plafond. C est un pari calibre, pas une deduction, et c est
   // precisement ce que l instrumentation du commit suivant leve.
-  team: Object.freeze({ timeout: 180_000, maxRetries: 0 }),
+  team: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 1 }),
   // 8000 tokens, Sonnet. Prompt systeme le plus lourd des six
   // (35 565 caracteres) mais sortie plafonnee a 8000.
-  patternMatching: Object.freeze({ timeout: 180_000, maxRetries: 0 }),
+  patternMatching: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0 }),
   // 14000 tokens, Sonnet. Branche parallele, sa fenetre ne pese pas sur
   // le chemin critique tant qu elle reste sous pattern + causal (360s).
-  blindspotAnalysis: Object.freeze({ timeout: 240_000, maxRetries: 0 }),
+  blindspotAnalysis: Object.freeze({ timeout: 240_000, maxRetries: 0, maxWebSearches: 0 }),
   // 8000 tokens, Sonnet. Branche parallele.
-  contrarianAnalysis: Object.freeze({ timeout: 180_000, maxRetries: 0 }),
+  contrarianAnalysis: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0 }),
   // 8000 tokens, Sonnet. Sur le chemin critique, apres pattern.
-  causalReversal: Object.freeze({ timeout: 180_000, maxRetries: 0 }),
+  causalReversal: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0 }),
   // 4000 tokens, Haiku 4.5. Dernier maillon du chemin critique, et le
   // moins critique fonctionnellement : c est lui qu on sacrifie en
   // premier si la chaine deborde.
-  referenceChecks: Object.freeze({ timeout: 70_000, maxRetries: 0 }),
+  referenceChecks: Object.freeze({ timeout: 70_000, maxRetries: 0, maxWebSearches: 0 }),
   // 4000 tokens, Sonnet. Sans dependance, demarre a t=0 en parallele de
   // la couche 1 (route.ts:1075-1077) : sa fenetre ne coute rien.
-  narrativeDrift: Object.freeze({ timeout: 120_000, maxRetries: 0 }),
+  narrativeDrift: Object.freeze({ timeout: 120_000, maxRetries: 0, maxWebSearches: 0 }),
   // 5000 tokens, Sonnet. La synthese finale etait restee sur le defaut
   // client 60s / 1 reprise (orchestrator.ts:920, appel sans options) et
   // sortait a 121s sur le run 0142901d, laissant Facteurs decisifs vide.
@@ -133,7 +149,7 @@ export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Ob
   //
   // Elle n est pas enveloppee par withEngineDeadline, elle a sa propre
   // boucle de reprise et court contre le budget global.
-  finalRecommendation: Object.freeze({ timeout: 150_000, maxRetries: 0 }),
+  finalRecommendation: Object.freeze({ timeout: 150_000, maxRetries: 0, maxWebSearches: 0 }),
 }) as Record<BudgetedEngineKey, EngineLlmOptions>;
 
 /** Plafond de tokens de la synthese finale. Expose pour que le site

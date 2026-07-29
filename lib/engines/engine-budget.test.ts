@@ -291,8 +291,10 @@ checkTrue('team : le litteral 150_000 a disparu du site d appel',
   !teamSrc.includes('timeout: 150_000'));
 checkTrue('team : la fenetre vient de la table partagee',
   teamSrc.includes('...ENGINE_LLM_BUDGET.team'));
+// La borne d une requete vient desormais de la table et non d un
+// litteral au site d appel. Voir section 6.
 checkTrue('team : la recherche web reste bornee a une requete',
-  teamSrc.includes('maxWebSearches: 1'));
+  ENGINE_LLM_BUDGET.team.maxWebSearches === 1);
 
 // La couche amont non elargie reste declaree, avec sa marge mesuree,
 // pour que le prochain arbitrage parte de chiffres et non de memoire.
@@ -304,6 +306,77 @@ for (const w of UPSTREAM_WATCHLIST) {
 checkTrue('market et financialCoherence sont les deux marges les plus faibles',
   UPSTREAM_WATCHLIST.filter(w => w.windowMs - w.worstObservedMs <= 20_000)
     .map(w => w.engine).sort().join(',') === 'financialCoherence,market');
+
+// ============================================================
+// SECTION 6. BUDGET DE RECHERCHE WEB EXPLICITE
+// ------------------------------------------------------------
+// EngineLlmOptions ne portait pas le champ, donc sept moteurs sur onze
+// heritaient des trois hops du client sans que personne les ait
+// decides. Le run 2517a288 l a rendu visible sur la synthese, qui a
+// rendu 5127 tokens pour un plafond de 5000 : le compteur de sortie de
+// l API agrege la boucle d outil serveur et ne peut depasser max_tokens
+// que si un outil a tourne.
+//
+// La regle doctrinale : seuls les quatre moteurs du niveau 2.A
+// interrogent le web, parce qu ils instruisent une assertion et la
+// taggent. Les moteurs dialectiques raisonnent sur les sorties amont,
+// et une synthese qui interroge le web produit une assertion que plus
+// aucun moteur ne porte, ce qui casse la tracabilite corpus / web /
+// inference.
+// ============================================================
+
+console.log('\n=== Section 6. Budget de recherche web ===');
+
+const HOPS_ATTENDUS: Record<BudgetedEngineKey, number> = {
+  team: 1,
+  patternMatching: 0,
+  blindspotAnalysis: 0,
+  contrarianAnalysis: 0,
+  causalReversal: 0,
+  referenceChecks: 0,
+  narrativeDrift: 0,
+  finalRecommendation: 0,
+};
+
+for (const key of Object.keys(HOPS_ATTENDUS) as BudgetedEngineKey[]) {
+  check(`${key} : budget de recherche declare`,
+    ENGINE_LLM_BUDGET[key].maxWebSearches, HOPS_ATTENDUS[key]);
+}
+checkTrue('Aucun moteur budgete ne laisse le budget de recherche indefini',
+  (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
+    .every(k => typeof ENGINE_LLM_BUDGET[k].maxWebSearches === 'number'));
+checkTrue('Un seul moteur budgete interroge le web',
+  (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
+    .filter(k => ENGINE_LLM_BUDGET[k].maxWebSearches > 0).join(',') === 'team');
+
+// Les trois autres moteurs du niveau 2.A ne passent pas par la table,
+// ils portent leurs options en litteral. Ils gardent leur hop unique.
+for (const f of ['market-engine', 'macro-engine', 'financial-coherence-engine']) {
+  checkTrue(`${f} : garde son hop unique du niveau 2.A`,
+    read(`lib/engines/${f}.ts`).includes('maxWebSearches: 1'));
+}
+
+// team ne doit plus porter de litteral concurrent a la table : le
+// spread ecrasait deja la valeur, mais deux sources pour un meme
+// reglage finissent toujours par diverger.
+checkTrue('team : le budget de recherche vient de la table seule',
+  !teamSrc.includes('maxWebSearches: 1,'));
+
+// Le zero doit eteindre l outil et non l attacher avec un plafond
+// inerte, sinon le modele recoit quand meme la capacite de chercher.
+const clientSrc = read('lib/engines/anthropic-client.ts');
+check('client : le zero hop eteint l outil sur les deux canaux',
+  (clientSrc.match(/isWebSearchEnabled\(\)\) && maxWebSearches > 0/g) || []).length, 2);
+checkTrue('client : le budget est lu avant la decision d attacher l outil',
+  clientSrc.indexOf('const maxWebSearches') < clientSrc.indexOf('const useWebSearch'));
+
+// Corollaire : les sept moteurs a zero hop deviennent insensibles au
+// mode frozen, qu ils n honoraient pas puisqu ils ne passent pas par
+// applyRunOptions. Le trou se referme par construction.
+for (const f of ['pattern-engine', 'blindspot-engine', 'contrarian-engine', 'causal-engine']) {
+  checkTrue(`${f} : n appelle pas applyRunOptions, et n en a plus besoin`,
+    !read(`lib/engines/${f}.ts`).includes('applyRunOptions'));
+}
 
 // ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);
