@@ -119,8 +119,8 @@ for (const key of Object.keys(EXPECTED) as BudgetedEngineKey[]) {
   checkTrue(`route.ts : deadline dediee cablee sur ${key}`,
     routeSrc.includes(`engineDeadlineFor('${key}')`));
 }
-check('route.ts : WAIT_DEADLINE_MS a 560s',
-  /const WAIT_DEADLINE_MS = 560_000;/.test(routeSrc), true);
+check('route.ts : WAIT_DEADLINE_MS a 620s',
+  /const WAIT_DEADLINE_MS = 620_000;/.test(routeSrc), true);
 check('route.ts : RUN_BUDGET_MS a 700s',
   /const RUN_BUDGET_MS = 700_000;/.test(routeSrc), true);
 check('route.ts : ENGINE_DEADLINE_MS reste le defaut a 200s',
@@ -188,7 +188,7 @@ console.log('\n=== Section 4. Pire cas de convergence ===');
 
 const MUR_VERCEL_MS = 800_000;
 const RUN_BUDGET_MS = 700_000;
-const WAIT_DEADLINE_MS = 560_000;
+const WAIT_DEADLINE_MS = 620_000;
 const MARGE_MINIMALE_MS = 80_000;
 
 // Pire cas par fenetres : le SDK tranche, regime attendu d un echec.
@@ -230,17 +230,19 @@ check('Porte de reference-checks par fenetres = 512s', porteRefChecks, 512_000);
 checkTrue('Par fenetres, la garde d attente ne coupe pas reference-checks',
   porteRefChecks < WAIT_DEADLINE_MS);
 
-// LIMITE CONNUE, documentee plutot que masquee : en pire cas par
-// deadlines externes la porte passe au-dela de la garde d attente et
-// reference-checks est sacrifie. C est le bon ordre de sacrifice, mais
-// ce n est pas un cas couvert. Le test fige l ecart pour qu il ne
-// s aggrave pas en silence.
+// Le regime degrade doit etre couvert lui aussi. Quand les gardes
+// externes prennent le relais des fenetres, la porte de reference-checks
+// recule a 600s : c est exactement le moment ou le run est deja en
+// difficulte, et ou une garde d attente qui lache ne sert a rien. La
+// valeur de 620s couvre les deux regimes.
 const porteRefChecksDeadlines = referenceChecksGateWorstCaseMs();
 check('Porte de reference-checks par deadlines = 600s', porteRefChecksDeadlines, 600_000);
-checkTrue('Ecart connu : par deadlines la garde d attente coupe reference-checks',
-  porteRefChecksDeadlines > WAIT_DEADLINE_MS);
-checkTrue('Cet ecart reste borne a 40s, le porter plus haut demanderait de relever la garde',
-  porteRefChecksDeadlines - WAIT_DEADLINE_MS <= 40_000);
+checkTrue('Par deadlines aussi, la garde d attente ne coupe pas reference-checks',
+  porteRefChecksDeadlines < WAIT_DEADLINE_MS);
+checkTrue('La garde d attente reste sous le budget de run',
+  WAIT_DEADLINE_MS < RUN_BUDGET_MS);
+checkTrue('La garde d attente garde au moins 20s de marge sur la porte la plus tardive',
+  WAIT_DEADLINE_MS - porteRefChecksDeadlines >= 20_000);
 
 check('Terme de porte retenu pour le pire cas par deadlines', GATE_WORST_CASE_MS, 200_000);
 

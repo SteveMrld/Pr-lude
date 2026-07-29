@@ -533,15 +533,18 @@ export async function POST(req: NextRequest) {
         //     pipeline), donc 700s reste le plafond dur du run et le mur
         //     Vercel garde 100s pour la sortie propre.
         //
-        //   - WAIT_DEADLINE 450s -> 560s. La porte de reference-checks
+        //   - WAIT_DEADLINE 450s -> 620s. La porte de reference-checks
         //     s ouvre a la fin de causal, soit 512s en pire cas par
-        //     fenetres. A 450s le moteur mourait sur sa garde d attente
-        //     sans avoir jamais appele son LLM, quelle que soit la
-        //     qualite de sa fenetre. LIMITE CONNUE : en pire cas par
-        //     deadlines externes (600s, cf referenceChecksGateWorstCaseMs)
-        //     la garde reste sous la porte et reference-checks est
-        //     sacrifie. C est le bon ordre de sacrifice, c est le maillon
-        //     le moins critique, mais ce n est pas un cas couvert.
+        //     fenetres et 600s en pire cas par deadlines externes
+        //     (referenceChecksGateWorstCaseMs). A 450s le moteur mourait
+        //     sur sa garde d attente sans avoir jamais appele son LLM,
+        //     quelle que soit la qualite de sa fenetre. La valeur couvre
+        //     les DEUX regimes : 560s aurait suffi au regime nominal
+        //     mais aurait sacrifie reference-checks des que les gardes
+        //     externes prennent le relais, c est-a-dire exactement quand
+        //     le run est deja en difficulte. Une garde qui lache au
+        //     moment ou elle sert n en est pas une. La marge reste de
+        //     80s sous le budget de run.
         //
         //   - ENGINE_DEADLINE 200s reste le DEFAUT des moteurs non
         //     budgetes (team, market, macro, financial-coherence,
@@ -553,7 +556,7 @@ export async function POST(req: NextRequest) {
         //     240s, ce qui aurait offert 60s de course en trop a tous les
         //     autres avant coupure.
         // ============================================================
-        const WAIT_DEADLINE_MS = 560_000;
+        const WAIT_DEADLINE_MS = 620_000;
         const ENGINE_DEADLINE_MS = 200_000;
         const RUN_BUDGET_MS = 700_000;
 
