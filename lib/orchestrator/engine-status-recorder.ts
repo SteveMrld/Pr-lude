@@ -115,6 +115,11 @@ export interface EngineStatusEntry {
   /** Plafond max_tokens demande. Un outputTokens qui l atteint signale
    *  une troncature, pas un besoin de fenetre plus longue. */
   maxTokens?: number;
+  /** Motif rendu par la matrice de pertinence quand elle ecarte le
+   *  moteur. Present sur les seules entrees skipped_not_applicable.
+   *  Le releve doit pouvoir dire pourquoi un moteur n a pas tourne,
+   *  pas seulement qu il n a rien produit. */
+  skipReason?: string;
 }
 
 /** Mesure d appel deposee par un moteur instrumente, avant d etre
@@ -404,11 +409,21 @@ export class EngineStatusRecorder {
   finalizeFromResult(result: Record<string, any>, engineToResultKey: Record<string, string>): void {
     for (const [engine, resultKey] of Object.entries(engineToResultKey)) {
       const existing = this.entries.get(engine);
-      // Ne pas ecraser un failed / failed-upstream / timeout deja enregistre.
+      // Ne pas ecraser un statut deja etabli par le pipeline lui-meme.
+      //
+      // skipped_not_applicable entre dans cette liste au brief 18. Un
+      // moteur ecarte par la matrice rend null, et un null nu est
+      // indistinguable d un echec pour le contrat minimal : il tombait
+      // donc en empty_output, ouvrait une lacune, et faisait basculer
+      // le run entier en completed_with_gaps pour un moteur qui avait
+      // fait exactement ce que la matrice lui demandait. Le pipeline
+      // declare desormais le skip a la source, et la finalisation ne
+      // doit pas le recouvrir en relisant le null qu il a laisse.
       if (existing && (
         existing.status === 'failed'
         || existing.status === 'failed-upstream'
         || existing.status === 'timeout'
+        || existing.status === 'skipped_not_applicable'
       )) continue;
       const value = result[resultKey];
       if (isSkippedByRelevanceMatrix(value)) {
@@ -449,6 +464,28 @@ export class EngineStatusRecorder {
    * Idempotent par ecrasement : le dernier depot gagne. Un moteur ne
    * depose qu une fois, a la fin de son travail.
    */
+  /**
+   * Declare qu un moteur a ete ecarte par la matrice de pertinence.
+   *
+   * A appeler sur la branche qui court-circuite le moteur, au moment ou
+   * la decision est prise, et non a la finalisation. La finalisation
+   * n a sous les yeux qu un null, et un null ne dit pas s il vient
+   * d une decision doctrinale ou d un echec. Seule la branche connait
+   * le verdict de la matrice et son motif.
+   *
+   * skipped_not_applicable ne fait pas partie de GAP_STATUSES : le run
+   * reste eligible a un completed nu.
+   */
+  recordSkippedByMatrix(engine: string, reason?: string | null): void {
+    this.entries.set(engine, {
+      engine,
+      status: 'skipped_not_applicable',
+      durationMs: 0,
+      attempts: 0,
+      ...(reason ? { skipReason: reason } : {}),
+    });
+  }
+
   recordMeasure(engine: string, measure: EngineLlmMeasure | null | undefined): void {
     if (!measure || measure.calls === 0) return;
     this.measures.set(engine, { ...measure });

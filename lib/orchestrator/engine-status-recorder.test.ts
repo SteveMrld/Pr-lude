@@ -459,6 +459,82 @@ console.log('\n[Suite 5] Promotion failed -> failed-upstream, distinction wait /
   check(failedSegment !== undefined && !failedSegment.includes('patternMatching'), 'segment failed n inclut pas patternMatching');
 }
 
+// ============================================================
+// SKIP DECLARE PAR LA MATRICE DE PERTINENCE
+// ------------------------------------------------------------
+// Un moteur ecarte par la matrice rend null. La finalisation ne voit
+// que ce null, et un null nu ne dit pas s il vient d une decision
+// doctrinale ou d un echec : le contrat minimal tombait, le moteur
+// atterrissait en empty_output, et le run entier basculait en
+// completed_with_gaps pour un moteur qui avait fait exactement ce
+// qu on lui demandait. Le pipeline declare desormais le skip a la
+// source, la ou le verdict de la matrice est connu.
+// ============================================================
+{
+  const r = new EngineStatusRecorder();
+  r.recordSkippedByMatrix('industrialMetrics', 'Modele non industriel.');
+  const s = r.snapshot();
+  check(s.industrialMetrics?.status === 'skipped_not_applicable',
+    'skip matrice : statut skipped_not_applicable');
+  check(s.industrialMetrics?.skipReason === 'Modele non industriel.',
+    'skip matrice : le motif de la matrice est porte par le releve');
+  check(r.gaps().length === 0, 'skip matrice : n ouvre aucune lacune');
+  check(!(GAP_STATUSES as readonly string[]).includes('skipped_not_applicable'),
+    'skip matrice : le statut n est pas un statut de lacune');
+}
+
+// La finalisation relit le result_json et y trouve le null laisse par
+// la branche court-circuitee. Elle ne doit pas recouvrir le skip.
+{
+  const r = new EngineStatusRecorder();
+  r.recordSkippedByMatrix('industrialMetrics', 'Modele non industriel.');
+  r.finalizeFromResult(
+    { industrialMetrics: null },
+    { industrialMetrics: 'industrialMetrics' },
+  );
+  const s = r.snapshot();
+  check(s.industrialMetrics?.status === 'skipped_not_applicable',
+    'skip matrice : survit a finalizeFromResult malgre le null');
+  check(s.industrialMetrics?.skipReason === 'Modele non industriel.',
+    'skip matrice : le motif survit a la finalisation');
+  check(r.computeRunStatus() === 'completed',
+    'skip matrice : le run reste eligible a un completed nu');
+}
+
+// Sans declaration, le meme null reste une lacune. C est le
+// comportement qu on veut conserver pour un moteur qui devait tourner.
+{
+  const r = new EngineStatusRecorder();
+  r.finalizeFromResult(
+    { industrialMetrics: null },
+    { industrialMetrics: 'industrialMetrics' },
+  );
+  const s = r.snapshot();
+  check(s.industrialMetrics?.status === 'empty_output',
+    'null non declare : reste empty_output');
+  check(r.gaps().length === 1, 'null non declare : ouvre bien une lacune');
+}
+
+// Un skip declare ne doit pas masquer un echec reel : si le moteur a
+// tourne et echoue, c est l echec qui prime, quel que soit l ordre.
+{
+  const r = new EngineStatusRecorder();
+  r.record({ engine: 'narrativeDrift', status: 'failed', attempts: 1, errorMessage: 'boom' });
+  r.recordSkippedByMatrix('narrativeDrift', 'motif matrice');
+  check(r.snapshot().narrativeDrift?.status === 'skipped_not_applicable',
+    'dernier ecrivain gagne : le skip declare apres un echec ecrase (branche exclusive par construction)');
+}
+
+// La convention historique du drapeau __skipped reste valide : elle
+// couvre le parcours growth, ou les moteurs rendent un objet conforme
+// a leur interface. Les deux voies coexistent.
+{
+  check(isSkippedByRelevanceMatrix({ __skipped: true }) === true,
+    'drapeau __skipped : toujours reconnu');
+  check(isSkippedByRelevanceMatrix(null) === false,
+    'drapeau __skipped : un null nu n est pas un skip');
+}
+
 // Durees mesurees : test asynchrone en fin de fichier avec setTimeout pour
 // simuler wait sur deps puis execution reelle.
 (async () => {

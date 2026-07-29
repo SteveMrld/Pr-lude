@@ -913,7 +913,14 @@ export async function POST(req: NextRequest) {
           // rate). Conditionne par la matrice : on ne brule l appel
           // LLM que si le verdict indicatorsIndustrial=full. Sur un
           // dossier SaaS classique, on retourne null sans appel reseau.
-          const industrialMetricsPromise = relevanceMatrix.verdicts.indicatorsIndustrial.applicable === 'full'
+          const industrialMetricsApplicable = relevanceMatrix.verdicts.indicatorsIndustrial.applicable === 'full';
+          if (!industrialMetricsApplicable) {
+            enginesRecorder.recordSkippedByMatrix(
+              'industrialMetrics',
+              relevanceMatrix.verdicts.indicatorsIndustrial.rationale,
+            );
+          }
+          const industrialMetricsPromise = industrialMetricsApplicable
             ? extractIndustrialMetrics(pitchDeck.payload, businessPlan?.payload || null, extraction)
             : Promise.resolve(null);
 
@@ -994,6 +1001,11 @@ export async function POST(req: NextRequest) {
             || forceNarrativeDriftFlag;
           if (narrativeDriftRequested) {
             sendStart('narrative-drift', 'Lecture du langage');
+          } else {
+            enginesRecorder.recordSkippedByMatrix(
+              'narrativeDrift',
+              relevanceMatrix.verdicts.narrativeDrift.rationale,
+            );
           }
 
           // Detection si le moteur Fragilite Structurelle doit tourner.
@@ -1012,6 +1024,15 @@ export async function POST(req: NextRequest) {
           );
           if (fragiliteRequested) {
             sendStart('fragility-structurelle', 'Fragilité structurelle');
+          } else {
+            // Fragilite porte un verdict par pattern, pas un verdict
+            // unique. Le motif rendu au releve est celui du premier
+            // pattern ecarte, qui porte la raison doctrinale commune
+            // (hors-scope de stade ou de modele economique).
+            const premierMotif = Object.values(fsVerdicts)
+              .map((v) => v?.rationale)
+              .find((r): r is string => typeof r === 'string' && r.length > 0);
+            enginesRecorder.recordSkippedByMatrix('fragiliteStructurelle', premierMotif);
           }
 
           const rawSummary = (extraction as any)?.rawSummary || '';
