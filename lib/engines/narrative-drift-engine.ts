@@ -20,6 +20,7 @@
 // ============================================================
 
 import { callClaude, parseJSON } from './anthropic-client';
+import { ENGINE_LLM_BUDGET } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { scoreText, type NarrativeDriftMetrics } from '../narrative-drift/score-text';
@@ -355,10 +356,18 @@ export async function analyzeNarrativeDrift(
   // callClaude(systemPrompt, userPrompt, maxTokens, model, options)
   const assetClass = input.assetClass ?? 'unclassified';
   const dossierStade = stageToStade(input.extraction.fundraise?.stage);
+  // Fenetre dediee : 4000 tokens sur Sonnet coutent 65 a 95s dans ce
+  // depot (ancrage fragilite), le defaut client de 60s est sous le
+  // plancher. Ce moteur sort en empty_output sur les sept runs
+  // instrumentes, toujours a 120s, c est-a-dire toujours ses deux
+  // tentatives de 60s. Il n a aucune dependance et demarre a t=0
+  // (route.ts:1075-1077), sa fenetre ne coute rien au chemin critique.
   const rawResponse = await callClaude(
     buildSystemPrompt(assetClass, dossierStade),
     userPrompt,
     4000,
+    undefined,
+    ENGINE_LLM_BUDGET.narrativeDrift,
   );
 
   const parsed = parseJSON<NarrativeDriftAnalysisOutput>(rawResponse);

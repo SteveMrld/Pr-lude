@@ -1,4 +1,5 @@
 import { callClaude, parseJSON } from './anthropic-client';
+import { ENGINE_LLM_BUDGET } from './engine-budget';
 import { findByStrate, type ExtendedCaseRecord } from '../corpus/extended-database';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
 import { stageToStade } from './archetype-selector';
@@ -383,7 +384,7 @@ Retourne uniquement le JSON structuré.`;
   // sur Pen Group (45 patterns, 3 categories de risques, evidence
   // detaillee). On monte a 14000 pour garder une vraie marge et eviter
   // les troncatures qui font echouer parseJSON meme avec jsonrepair.
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 14000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 14000, undefined, ENGINE_LLM_BUDGET.blindspotAnalysis);
   const analysis = parseJSON<BlindspotAnalysisOutput>(rawResponse);
   const audit = auditTagging(analysis, 'blindspot-engine');
   if (audit.level !== 'ok') {

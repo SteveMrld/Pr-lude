@@ -29,6 +29,7 @@ import '@/lib/engines/fragility-structurelle/capital-structure-fragility-pattern
 import '@/lib/engines/fragility-structurelle/scale-mirage-risk-pattern';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore, INSUFFICIENT_BASIS_VERDICT } from '@/lib/engines/score-calculator';
+import { engineDeadlineFor } from '@/lib/engines/engine-budget';
 import {
   buildSkippedTeamOutput,
   buildSkippedPatternMatchingOutput,
@@ -511,17 +512,50 @@ export async function POST(req: NextRequest) {
         //      Deux gardes distinctes (wait + execution) alignent le
         //      budget sur le travail reel de chaque moteur.
         //
-        //   4. Budget global du run (RUN_BUDGET_MS, 600s).
+        //   4. Budget global du run (RUN_BUDGET_MS, 700s).
         //      AbortController arme des l entree du stream, budgetPromise
         //      rejette a l abort. Race le Promise.all central et
-        //      orchestrate. Marge de 200s avant le mur Vercel 800s pour
+        //      orchestrate. Marge de 100s avant le mur Vercel 800s pour
         //      la sortie propre : markAnalysisFailed lisible, event
         //      'run-budget-exhausted' au client, close du stream. Garde
         //      ultime si une pathologie echappe aux deadlines par moteur.
+        //
+        // REVISION BRIEF 15. Six moteurs sont sortis du defaut client 60s
+        // pour une fenetre dimensionnee (lib/engines/engine-budget.ts).
+        // La chaine serielle porte -> pattern -> causal -> reference-checks
+        // ne tenait plus sous les anciennes constantes :
+        //
+        //   - RUN_BUDGET 600s -> 700s. Le pire cas par fenetres vaut
+        //     152 + 180 + 180 + 70 = 582s de convergence, plus 90s de
+        //     reserve de synthese, soit 672s. Il ne restait rien sous 600.
+        //     Le budget borne le run entier, convergence (Promise.race
+        //     plus bas) comme orchestrate (Promise.race en fin de
+        //     pipeline), donc 700s reste le plafond dur du run et le mur
+        //     Vercel garde 100s pour la sortie propre.
+        //
+        //   - WAIT_DEADLINE 450s -> 560s. La porte de reference-checks
+        //     s ouvre a la fin de causal, soit 512s en pire cas par
+        //     fenetres. A 450s le moteur mourait sur sa garde d attente
+        //     sans avoir jamais appele son LLM, quelle que soit la
+        //     qualite de sa fenetre. LIMITE CONNUE : en pire cas par
+        //     deadlines externes (600s, cf referenceChecksGateWorstCaseMs)
+        //     la garde reste sous la porte et reference-checks est
+        //     sacrifie. C est le bon ordre de sacrifice, c est le maillon
+        //     le moins critique, mais ce n est pas un cas couvert.
+        //
+        //   - ENGINE_DEADLINE 200s reste le DEFAUT des moteurs non
+        //     budgetes (team, market, macro, financial-coherence,
+        //     fragilite, et les moteurs sans appel LLM). Les six moteurs
+        //     budgetes recoivent desormais leur propre deadline, passee
+        //     en cinquieme argument de withEngineDeadline et derivee de
+        //     leur fenetre par engineDeadlineFor(). Une valeur unique
+        //     aurait du etre calee sur le plus lent des six, blindspot a
+        //     240s, ce qui aurait offert 60s de course en trop a tous les
+        //     autres avant coupure.
         // ============================================================
-        const WAIT_DEADLINE_MS = 450_000;
+        const WAIT_DEADLINE_MS = 560_000;
         const ENGINE_DEADLINE_MS = 200_000;
-        const RUN_BUDGET_MS = 600_000;
+        const RUN_BUDGET_MS = 700_000;
 
         const budgetAbort = new AbortController();
         const budgetTimer = setTimeout(() => {
@@ -1237,16 +1271,16 @@ export async function POST(req: NextRequest) {
               // sache nommer la dependance fautive quand un moteur rejete
               // avant d avoir appele son propre LLM (promotion
               // failed -> failed-upstream).
-              withEngineDeadline('pattern', 'patternMatching', patternPromise, ['team', 'market', 'macro']),
-              withEngineDeadline('blindspot', 'blindspotAnalysis', blindspotPromise, ['team', 'market', 'macro']),
-              withEngineDeadline('contrarian', 'contrarianAnalysis', contrarianPromise, ['team', 'market', 'macro']),
+              withEngineDeadline('pattern', 'patternMatching', patternPromise, ['team', 'market', 'macro'], engineDeadlineFor('patternMatching')),
+              withEngineDeadline('blindspot', 'blindspotAnalysis', blindspotPromise, ['team', 'market', 'macro'], engineDeadlineFor('blindspotAnalysis')),
+              withEngineDeadline('contrarian', 'contrarianAnalysis', contrarianPromise, ['team', 'market', 'macro'], engineDeadlineFor('contrarianAnalysis')),
               withEngineDeadline('financial-coherence', 'financialCoherence', financialCoherencePromise, ['market', 'financialData']),
               withEngineDeadline('tech-claim', 'techClaimCoherence', techClaimPromise, ['financialData']),
               withEngineDeadline('execution-friction', 'executionFriction', executionFrictionPromise, ['financialData']),
-              withEngineDeadline('narrative-drift', 'narrativeDrift', narrativeDriftPromise),
+              withEngineDeadline('narrative-drift', 'narrativeDrift', narrativeDriftPromise, undefined, engineDeadlineFor('narrativeDrift')),
               withEngineDeadline('fragility-structurelle', 'fragiliteStructurelle', fragilityPromise, ['market', 'financialData']),
-              withEngineDeadline('causal', 'causalReversal', causalPromise, ['team', 'market', 'macro', 'patternMatching']),
-              withEngineDeadline('reference-checks', 'referenceChecks', referenceChecksPromise, ['team', 'blindspotAnalysis', 'causalReversal']),
+              withEngineDeadline('causal', 'causalReversal', causalPromise, ['team', 'market', 'macro', 'patternMatching'], engineDeadlineFor('causalReversal')),
+              withEngineDeadline('reference-checks', 'referenceChecks', referenceChecksPromise, ['team', 'blindspotAnalysis', 'causalReversal'], engineDeadlineFor('referenceChecks')),
             ]),
             budgetPromise,
           ]);

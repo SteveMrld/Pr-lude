@@ -1,4 +1,5 @@
 import { callClaude, parseJSON } from './anthropic-client';
+import { ENGINE_LLM_BUDGET } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { formatExtractionGeography } from './fund-context';
@@ -164,7 +165,7 @@ Benchmark rétrospectif : ${patternMatching?.retrospectiveBenchmark?.averageScor
 
 Produis le retournement causal complet. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, undefined, ENGINE_LLM_BUDGET.causalReversal);
   const analysis = parseJSON<CausalReversalOutput>(rawResponse);
   const audit = auditTagging(analysis, 'causal-engine');
   if (audit.level !== 'ok') {

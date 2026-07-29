@@ -1,4 +1,5 @@
 import { callClaude, parseJSON } from './anthropic-client';
+import { ENGINE_LLM_BUDGET } from './engine-budget';
 import { CORPUS, type CaseRecord } from '../corpus/database';
 import {
   EXTENDED_CORPUS,
@@ -610,7 +611,7 @@ ${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extra
 
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour chaque comparable cité avec des chiffres précis, ces chiffres doivent venir de la base de chiffres vérifiés ci-dessus. Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, undefined, ENGINE_LLM_BUDGET.patternMatching);
   // Contrat de sortie : matchPatterns promet un PatternMatchingOutput,
   // il en rend un. parseJSON peut resoudre null (le modele emet le
   // litteral null, JSON.parse le rend, sanitizeStringsRecursive le

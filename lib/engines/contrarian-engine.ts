@@ -1,4 +1,5 @@
 import { callClaude, parseJSON } from './anthropic-client';
+import { ENGINE_LLM_BUDGET } from './engine-budget';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
 import { stageToStade } from './archetype-selector';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
@@ -237,7 +238,7 @@ Retourne uniquement le JSON structuré.`;
   // Budget tokens : symetrique au moteur Vigilance critique (10 signaux contrariens
   // avec evidence, asymetrie, mecanism, comparables). 6000 etait trop juste,
   // 8000 pour rester safe.
-  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000);
+  const rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, undefined, ENGINE_LLM_BUDGET.contrarianAnalysis);
   const analysis = parseJSON<ContrarianAnalysisOutput>(rawResponse);
   const audit = auditTagging(analysis, 'contrarian-engine');
   if (audit.level !== 'ok') {

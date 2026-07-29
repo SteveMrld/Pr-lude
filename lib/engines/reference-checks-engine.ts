@@ -1,4 +1,5 @@
 import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
+import { ENGINE_LLM_BUDGET } from './engine-budget';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput,
@@ -154,13 +155,88 @@ ${(causal.questionsToInvestigate || []).slice(0, 5).map((q: string) => `- ${q}`)
 
 Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
 
-  // Retry une fois sur erreur de parse, comme l'orchestrateur.
-  let raw = await callClaude(SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL);
+  // ============================================================
+  // REPRISE DE PARSE CONDITIONNELLE
+  // ------------------------------------------------------------
+  // La reprise inconditionnelle qui existait ici coutait une fenetre
+  // pleine en serie, sur le dernier maillon du chemin critique, pour
+  // rejouer exactement le meme prompt. Or la cause usuelle d un echec
+  // de parse a 4000 tokens est la troncature par max_tokens : le
+  // modele a ete coupe en cours de JSON. Rejouer le meme prompt avec
+  // le meme plafond reproduit la meme troncature, la reprise paie donc
+  // une fenetre pour un echec certain.
+  //
+  // CONDITION RETENUE : on ne rejoue que si la sortie n a PAS l allure
+  // d une troncature, c est-a-dire si le modele a bien ferme sa
+  // structure et que l echec vient d autre chose (guillemet mal
+  // echappe, virgule surnumeraire, prose parasite avant le JSON). Ces
+  // cas-la sont non deterministes et une seconde passe les corrige
+  // souvent. Une sortie coupee, elle, ne repasse pas.
+  //
+  // Le signal definitif serait output_tokens au plafond, que
+  // callClaudeWithUsage sait rendre. Tant que ce site passe par
+  // callClaude, on se contente de l heuristique textuelle ci-dessous.
+  // ============================================================
+  const raw = await callClaude(SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks);
   try {
     return parseJSON<ReferenceChecksOutput>(raw);
   } catch (firstErr: any) {
-    console.warn('[reference-checks] JSON parse failed, retrying once:', firstErr?.message);
-    raw = await callClaude(SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL);
-    return parseJSON<ReferenceChecksOutput>(raw);
+    if (looksTruncated(raw)) {
+      console.warn(
+        '[reference-checks] JSON parse failed sur une sortie tronquee, pas de reprise :',
+        firstErr?.message,
+      );
+      throw firstErr;
+    }
+    console.warn('[reference-checks] JSON parse failed sur une sortie complete, reprise unique :', firstErr?.message);
+    const retried = await callClaude(SYSTEM_PROMPT, userPrompt, 4000, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks);
+    return parseJSON<ReferenceChecksOutput>(retried);
   }
+}
+
+/**
+ * Detecte qu une reponse a ete coupee par max_tokens plutot que mal
+ * formee. Deux signaux, l un suffit :
+ *   - la sortie ne se termine pas par une accolade ou un crochet
+ *     fermant, une reponse JSON complete finit toujours par l un des
+ *     deux une fois les fences markdown retires ;
+ *   - les accolades ou les crochets ne sont pas equilibres, il en
+ *     manque a la fermeture.
+ *
+ * Volontairement conservateur : en cas de doute la fonction repond
+ * false et la reprise a lieu, on ne veut pas supprimer une reprise
+ * utile pour economiser une fenetre. Exporte pour etre testable sans
+ * appel reseau.
+ */
+export function looksTruncated(raw: string): boolean {
+  if (!raw) return true;
+  // Retire les fences markdown et la prose de tete eventuelle pour ne
+  // juger que la charge JSON.
+  let s = raw.trim();
+  s = s.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const firstBrace = s.search(/[[{]/);
+  if (firstBrace === -1) return true;
+  s = s.slice(firstBrace).trim();
+  if (!s) return true;
+
+  const last = s[s.length - 1];
+  if (last !== '}' && last !== ']') return true;
+
+  let curly = 0;
+  let square = 0;
+  let inString = false;
+  let escaped = false;
+  for (const ch of s) {
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') curly++;
+    else if (ch === '}') curly--;
+    else if (ch === '[') square++;
+    else if (ch === ']') square--;
+  }
+  // Un solde positif signale des ouvertures jamais refermees, donc une
+  // coupure. Un solde negatif est une malformation, pas une troncature.
+  return curly > 0 || square > 0;
 }

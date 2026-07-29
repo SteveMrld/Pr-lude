@@ -52,25 +52,36 @@ export interface EngineDeadlineOptions {
   onError: (engine: string, err: unknown) => void;
 }
 
-/** Type public du wrapper produit. Signature identique a l ancienne
- *  fonction inline de route.ts pour n imposer aucun changement aux
- *  21 sites d appel. */
+/** Type public du wrapper produit. Les quatre premiers parametres sont
+ *  ceux de l ancienne fonction inline de route.ts, aucun des 21 sites
+ *  d appel n a eu a changer.
+ *
+ *  Le cinquieme, llmDeadlineMs, aligne la garde d execution sur la
+ *  fenetre reelle du moteur. Une valeur unique pour les 21 moteurs
+ *  obligeait a la caler sur le plus lent, ce qui laissait les rapides
+ *  courir bien au-dela de leur fenetre utile avant d etre coupes, et
+ *  aurait coupe blindspot (fenetre 240s) avant que son SDK ne rende la
+ *  main. Omis, le defaut du wrapper s applique, comportement
+ *  historique inchange. */
 export type EngineDeadlineWrapper = <T>(
   engine: string,
   resultKey: string | null,
   work: Promise<T>,
   deps?: string[],
+  llmDeadlineMs?: number,
 ) => Promise<T | null>;
 
 export function createEngineDeadlineWrapper(opts: EngineDeadlineOptions): EngineDeadlineWrapper {
-  const { recorder, waitDeadlineMs, llmDeadlineMs, onTimeout, onDoneNull, onError } = opts;
+  const { recorder, waitDeadlineMs, llmDeadlineMs: defaultLlmDeadlineMs, onTimeout, onDoneNull, onError } = opts;
 
   return function withEngineDeadline<T>(
     engine: string,
     resultKey: string | null,
     work: Promise<T>,
     deps?: string[],
+    llmDeadlineOverrideMs?: number,
   ): Promise<T | null> {
+    const llmDeadlineMs = llmDeadlineOverrideMs ?? defaultLlmDeadlineMs;
     if (resultKey) recorder.markStart(resultKey, deps);
 
     return new Promise<T | null>((resolve) => {
