@@ -1,5 +1,11 @@
 import { callClaudeWithUsage, parseJSON, FAST_MODEL } from './anthropic-client';
-import { ENGINE_LLM_BUDGET, addCall, hitTokenCeiling, type LlmMeasure } from './engine-budget';
+import { ENGINE_LLM_BUDGET, addCall, hitTokenCeiling, looksTruncated, type LlmMeasure } from './engine-budget';
+
+// looksTruncated vit desormais dans engine-budget : l orchestrateur en a
+// besoin lui aussi pour sa propre reprise de parse, et il n avait pas a
+// dependre du moteur reference-checks pour cela. Reexporte ici pour les
+// consommateurs existants.
+export { looksTruncated };
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type {
   ExtractionOutput,
@@ -206,51 +212,4 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
     addCall(measure, retryStartedAt, retryUsage, 4000);
     return parseJSON<ReferenceChecksOutput>(retried);
   }
-}
-
-/**
- * Detecte qu une reponse a ete coupee par max_tokens plutot que mal
- * formee. Deux signaux, l un suffit :
- *   - la sortie ne se termine pas par une accolade ou un crochet
- *     fermant, une reponse JSON complete finit toujours par l un des
- *     deux une fois les fences markdown retires ;
- *   - les accolades ou les crochets ne sont pas equilibres, il en
- *     manque a la fermeture.
- *
- * Volontairement conservateur : en cas de doute la fonction repond
- * false et la reprise a lieu, on ne veut pas supprimer une reprise
- * utile pour economiser une fenetre. Exporte pour etre testable sans
- * appel reseau.
- */
-export function looksTruncated(raw: string): boolean {
-  if (!raw) return true;
-  // Retire les fences markdown et la prose de tete eventuelle pour ne
-  // juger que la charge JSON.
-  let s = raw.trim();
-  s = s.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-  const firstBrace = s.search(/[[{]/);
-  if (firstBrace === -1) return true;
-  s = s.slice(firstBrace).trim();
-  if (!s) return true;
-
-  const last = s[s.length - 1];
-  if (last !== '}' && last !== ']') return true;
-
-  let curly = 0;
-  let square = 0;
-  let inString = false;
-  let escaped = false;
-  for (const ch of s) {
-    if (escaped) { escaped = false; continue; }
-    if (ch === '\\') { escaped = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '{') curly++;
-    else if (ch === '}') curly--;
-    else if (ch === '[') square++;
-    else if (ch === ']') square--;
-  }
-  // Un solde positif signale des ouvertures jamais refermees, donc une
-  // coupure. Un solde negatif est une malformation, pas une troncature.
-  return curly > 0 || square > 0;
 }

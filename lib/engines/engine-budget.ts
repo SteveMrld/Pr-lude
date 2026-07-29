@@ -74,12 +74,14 @@ export interface EngineLlmOptions {
  * diverger silencieusement.
  */
 export type BudgetedEngineKey =
+  | 'team'
   | 'patternMatching'
   | 'blindspotAnalysis'
   | 'contrarianAnalysis'
   | 'causalReversal'
   | 'referenceChecks'
-  | 'narrativeDrift';
+  | 'narrativeDrift'
+  | 'finalRecommendation';
 
 /**
  * Fenetre d appel LLM par moteur, en une tentative. Source unique :
@@ -88,6 +90,22 @@ export type BudgetedEngineKey =
  * sur des litteraux disperses.
  */
 export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Object.freeze({
+  // 8000 tokens, Sonnet, plus une recherche web dont le commentaire de
+  // team-engine.ts:581-583 rappelle qu elle consomme le meme budget que
+  // la generation dans le meme roundtrip HTTP. C est LA porte : les cinq
+  // moteurs aval attendent team, market et macro, et teamPromise
+  // (route.ts:871-874) ne porte aucun catch, donc son rejet condamne la
+  // chaine entiere. Le run 0142901d l a montre : cinq failed-upstream
+  // avec exec 0,0s derriere un team tombe a 151,6s.
+  //
+  // 150s -> 180s. Sur les six runs post-override, quatre succes a 113,
+  // 138, 144 et 146s et deux echecs a 152s : la distribution etait
+  // centree sur son propre plafond. 180s couvre le pire succes observe
+  // avec 34s de marge. Ce que ces 180s ne disent pas : la duree reelle
+  // des deux echecs est inconnue, ils ont ete coupes exactement au
+  // plafond. C est un pari calibre, pas une deduction, et c est
+  // precisement ce que l instrumentation du commit suivant leve.
+  team: Object.freeze({ timeout: 180_000, maxRetries: 0 }),
   // 8000 tokens, Sonnet. Prompt systeme le plus lourd des six
   // (35 565 caracteres) mais sortie plafonnee a 8000.
   patternMatching: Object.freeze({ timeout: 180_000, maxRetries: 0 }),
@@ -105,7 +123,40 @@ export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Ob
   // 4000 tokens, Sonnet. Sans dependance, demarre a t=0 en parallele de
   // la couche 1 (route.ts:1075-1077) : sa fenetre ne coute rien.
   narrativeDrift: Object.freeze({ timeout: 120_000, maxRetries: 0 }),
+  // 5000 tokens, Sonnet. La synthese finale etait restee sur le defaut
+  // client 60s / 1 reprise (orchestrator.ts:920, appel sans options) et
+  // sortait a 121s sur le run 0142901d, laissant Facteurs decisifs vide.
+  // Son plafond passe de 8000 a 5000 tokens, ce que le commentaire de
+  // orchestrator.ts:917-919 annoncait deja sans que le code l applique :
+  // la sortie est un JSON de synthese compact. Le plafond reduit est ce
+  // qui finance sa fenetre sans pousser le chemin critique au mur.
+  //
+  // Elle n est pas enveloppee par withEngineDeadline, elle a sa propre
+  // boucle de reprise et court contre le budget global.
+  finalRecommendation: Object.freeze({ timeout: 150_000, maxRetries: 0 }),
 }) as Record<BudgetedEngineKey, EngineLlmOptions>;
+
+/** Plafond de tokens de la synthese finale. Expose pour que le site
+ *  d appel et les tests lisent la meme valeur. */
+export const ORCHESTRATE_MAX_TOKENS = 5000;
+
+/**
+ * Moteurs de la couche amont laisses a 150s dans ce commit, sous
+ * surveillance. Leurs marges mesurees sur le corpus :
+ *   market             130s au pire pour 150   -> 20s
+ *   financialCoherence 131s au pire pour 150   -> 19s
+ *   macro               77s au pire pour 150   -> 73s
+ * Les deux premiers sont les prochains candidats a l elargissement. On
+ * ne les touche pas maintenant pour ne pas rogner un budget deja tendu
+ * par le passage de team a 180 : market et macro sont dans la porte,
+ * donc chaque seconde ajoutee glisse tout le chemin critique. A
+ * reexaminer des qu un run les fait tomber.
+ */
+export const UPSTREAM_WATCHLIST: ReadonlyArray<{ engine: string; windowMs: number; worstObservedMs: number }> = Object.freeze([
+  Object.freeze({ engine: 'market', windowMs: 150_000, worstObservedMs: 130_000 }),
+  Object.freeze({ engine: 'financialCoherence', windowMs: 150_000, worstObservedMs: 131_000 }),
+  Object.freeze({ engine: 'macro', windowMs: 150_000, worstObservedMs: 77_000 }),
+]);
 
 /**
  * Slack entre la fenetre LLM d un moteur et sa deadline externe. Couvre
@@ -136,32 +187,43 @@ export function engineDeadlineFor(key: BudgetedEngineKey): number {
 // ============================================================
 
 /**
- * Duree d ouverture de la porte [team, market, macro], en pire cas.
- * Ces trois moteurs portent une fenetre de 150s (team-engine.ts:591,
- * market-engine.ts:527, macro-engine.ts:461) et gardent la deadline
- * externe par defaut. Mesures du corpus : 138, 144, 146s quand ils
- * aboutissent, un echec observe a 152s. Non budgetes ici, hors
- * perimetre, mais c est le plus gros terme de la chaine.
+ * Surcout wall-clock observe entre la fenetre LLM d un moteur et sa
+ * duree totale : construction du prompt, parseJSON, sanitize, audit.
+ * Mesure : team a rendu 151,6s pour une fenetre de 150s sur 0142901d,
+ * et 152s sur 7dd40680.
+ */
+export const ENGINE_OVERHEAD_MS = 2_000;
+
+/**
+ * Duree d ouverture de la porte [team, market, macro] en pire cas par
+ * deadlines externes. team porte desormais une fenetre de 180s et donc
+ * une deadline de 200s ; market et macro restent a 150s de fenetre sous
+ * la deadline par defaut de 200s. La porte vaut le maximum des trois.
  */
 export const GATE_WORST_CASE_MS = 200_000;
 
-/**
- * Reserve laissee a la synthese finale apres convergence : une
- * tentative estimee plus la marge de sortie propre
- * (route.ts:1377-1378). Orchestrate est lui-meme course contre le
- * budget global (route.ts:1529-1531), il ne peut donc pas deborder le
- * mur a lui seul, mais sans cette reserve il n aurait aucune chance
- * d aboutir.
- */
-export const ORCHESTRATE_RESERVE_MS = 90_000;
+/** Porte en pire cas par fenetres, borne par team qui est le plus lent
+ *  des trois et le seul dont le rejet condamne la chaine. */
+export function gateWorstCaseByWindowMs(): number {
+  return ENGINE_LLM_BUDGET.team.timeout + ENGINE_OVERHEAD_MS;
+}
 
 /**
- * Pire cas de convergence, deadlines externes toutes declenchees.
- * C est le plafond garanti par le code, pas le regime attendu.
- *
- * Chaine : porte -> pattern -> causal -> reference-checks. blindspot et
- * contrarian sont paralleles a pattern et n entrent pas dans la somme.
+ * Marge de sortie propre reservee apres la synthese : ecriture de
+ * markAnalysisCompleted, event de fin, close du stream
+ * (route.ts:1378, EXIT_MARGIN_MS).
  */
+export const EXIT_MARGIN_MS = 30_000;
+
+/**
+ * Reserve laissee a la synthese finale apres convergence : sa fenetre
+ * plus la marge de sortie propre. Orchestrate est course contre le
+ * budget global (Promise.race en fin de pipeline), il ne peut donc pas
+ * deborder le mur a lui seul, mais sans cette reserve il n aurait
+ * aucune chance d aboutir.
+ */
+export const ORCHESTRATE_RESERVE_MS = ENGINE_LLM_BUDGET.finalRecommendation.timeout + EXIT_MARGIN_MS;
+
 export function worstCaseConvergenceMs(): number {
   return GATE_WORST_CASE_MS
     + engineDeadlineFor('patternMatching')
@@ -175,10 +237,50 @@ export function worstCaseConvergenceMs(): number {
  * SDK qui tranche a la fenetre, la deadline externe ne sert pas.
  */
 export function worstCaseConvergenceByWindowMs(): number {
-  return 152_000
+  return gateWorstCaseByWindowMs()
     + ENGINE_LLM_BUDGET.patternMatching.timeout
     + ENGINE_LLM_BUDGET.causalReversal.timeout
     + ENGINE_LLM_BUDGET.referenceChecks.timeout;
+}
+
+/**
+ * Total du run en pire cas par fenetres, synthese et sortie comprises.
+ *
+ * A LIRE AVEC SA LIMITE. Cette somme suppose que quatre moteurs
+ * consecutifs consomment leur fenetre entiere puis echouent, scenario
+ * ou il n y a de toute facon plus rien a synthetiser. Surtout, elle
+ * n est pas atteignable : le budget de run court la convergence comme
+ * la synthese et coupe avant. Le plafond opposable du run est
+ * RUN_BUDGET_MS, pas cette somme.
+ */
+export function worstCaseRunByWindowMs(): number {
+  return worstCaseConvergenceByWindowMs() + ORCHESTRATE_RESERVE_MS;
+}
+
+/**
+ * Total nominal attendu, sur les durees mesurees quand elles existent
+ * et estimees sinon. C est le regime que le budget doit accueillir
+ * confortablement, par opposition au pire cas qui doit seulement
+ * degrader proprement.
+ *
+ * Porte 160s : team n a jamais ete mesure au-dela de 146s en succes,
+ * on prend une marge au-dessus du plafond qu il a heurte deux fois.
+ * pattern et causal 160s chacun : jamais mesures, estimation sur
+ * l ancrage fragilite a 8000 tokens. reference-checks 35s : jamais
+ * mesure, Haiku a 4000 tokens. Synthese 110s : jamais mesuree, Sonnet
+ * a 5000 tokens.
+ */
+export const NOMINAL_MS = Object.freeze({
+  gate: 160_000,
+  pattern: 160_000,
+  causal: 160_000,
+  referenceChecks: 35_000,
+  orchestrate: 110_000,
+});
+
+export function nominalRunMs(): number {
+  return NOMINAL_MS.gate + NOMINAL_MS.pattern + NOMINAL_MS.causal
+    + NOMINAL_MS.referenceChecks + NOMINAL_MS.orchestrate;
 }
 
 // ============================================================
@@ -256,6 +358,53 @@ export function addCall(
 export function hitTokenCeiling(measure: LlmMeasure | undefined | null): boolean {
   if (!measure || !measure.maxTokens || measure.calls === 0) return false;
   return measure.outputTokens >= Math.floor(measure.maxTokens * 0.98);
+}
+
+/**
+ * Detecte qu une reponse a ete coupee par max_tokens plutot que mal
+ * formee. Deux signaux, l un suffit :
+ *   - la sortie ne se termine pas par une accolade ou un crochet
+ *     fermant, une reponse JSON complete finit toujours par l un des
+ *     deux une fois les fences markdown retires ;
+ *   - les accolades ou les crochets ne sont pas equilibres, il en
+ *     manque a la fermeture.
+ *
+ * Volontairement conservateur : en cas de doute la fonction repond
+ * false et la reprise a lieu, on ne veut pas supprimer une reprise
+ * utile pour economiser une fenetre. Exporte pour etre testable sans
+ * appel reseau.
+ */
+export function looksTruncated(raw: string): boolean {
+  if (!raw) return true;
+  // Retire les fences markdown et la prose de tete eventuelle pour ne
+  // juger que la charge JSON.
+  let s = raw.trim();
+  s = s.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const firstBrace = s.search(/[[{]/);
+  if (firstBrace === -1) return true;
+  s = s.slice(firstBrace).trim();
+  if (!s) return true;
+
+  const last = s[s.length - 1];
+  if (last !== '}' && last !== ']') return true;
+
+  let curly = 0;
+  let square = 0;
+  let inString = false;
+  let escaped = false;
+  for (const ch of s) {
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') curly++;
+    else if (ch === '}') curly--;
+    else if (ch === '[') square++;
+    else if (ch === ']') square--;
+  }
+  // Un solde positif signale des ouvertures jamais refermees, donc une
+  // coupure. Un solde negatif est une malformation, pas une troncature.
+  return curly > 0 || square > 0;
 }
 
 /** Instant le plus tardif ou la porte de reference-checks peut s ouvrir,

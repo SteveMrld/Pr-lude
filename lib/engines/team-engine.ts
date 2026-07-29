@@ -1,3 +1,4 @@
+import { ENGINE_LLM_BUDGET } from './engine-budget';
 import { callClaude, parseJSON, applyRunOptions, type EngineRunOptions } from './anthropic-client';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
@@ -577,7 +578,12 @@ Intègre dans ton analyse :
   // max_uses eleves (regenerator.ts, milestone-detection-runner.ts)
   // parce qu ils tournent hors chemin critique et beneficient du
   // multi-hop pour croiser plusieurs sources.
-  // timeout 150s + maxRetries 0 : p50 team observe 105s wall, p90 143s.
+  // Fenetre 180s + maxRetries 0, portee de 150s au brief 17. Sur les six
+  // runs post-override, team aboutissait a 113, 138, 144 et 146s et
+  // tombait deux fois a 152s : sa distribution etait centree sur son
+  // propre plafond, et comme il est la porte de pattern, blindspot,
+  // contrarian, causal et reference-checks, chacun de ces echecs
+  // condamnait cinq moteurs d office. Cf lib/engines/engine-budget.ts.
   // Le web_search cote serveur Anthropic consomme le meme budget que la
   // generation dans le meme roundtrip HTTP, donc le timeout SDK plafonne
   // l ensemble. Retry desactive parce qu un depassement a 150s signale du
@@ -588,7 +594,7 @@ Intègre dans ton analyse :
     userPrompt,
     8000,
     undefined, // model par defaut
-    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
+    applyRunOptions({ maxWebSearches: 1, ...ENGINE_LLM_BUDGET.team }, runOptions),
   );
   const analysis = parseJSON<TeamAnalysisOutput>(rawResponse);
 

@@ -29,7 +29,7 @@ import '@/lib/engines/fragility-structurelle/capital-structure-fragility-pattern
 import '@/lib/engines/fragility-structurelle/scale-mirage-risk-pattern';
 import { orchestrateFinalRecommendation } from '@/lib/engines/orchestrator';
 import { computeMechanicalScore, INSUFFICIENT_BASIS_VERDICT } from '@/lib/engines/score-calculator';
-import { engineDeadlineFor, newMeasure } from '@/lib/engines/engine-budget';
+import { engineDeadlineFor, newMeasure, ENGINE_LLM_BUDGET } from '@/lib/engines/engine-budget';
 import {
   buildSkippedTeamOutput,
   buildSkippedPatternMatchingOutput,
@@ -1289,7 +1289,7 @@ export async function POST(req: NextRequest) {
               // avant leur propre appel LLM. Pas de deps declarees car
               // une rejection reelle ici est bien un incident du moteur
               // lui-meme, pas une cascade a promouvoir.
-              withEngineDeadline('team', 'team', teamPromise),
+              withEngineDeadline('team', 'team', teamPromise, undefined, engineDeadlineFor('team')),
               withEngineDeadline('market', 'market', marketPromise),
               withEngineDeadline('macro', 'macro', macroPromise),
               withEngineDeadline('financial-extraction', 'financialData', financialDataPromise),
@@ -1437,7 +1437,13 @@ export async function POST(req: NextRequest) {
             const RETRY_BACKOFFS_MS = [5_000, 15_000, 30_000];
             const MAX_ATTEMPTS = 3;
             const JITTER_RATIO = 0.25;
-            const ORCHESTRATE_ATTEMPT_ESTIMATE_MS = 60_000;
+            // Estimation d une tentative de synthese, utilisee pour decider
+            // s il reste assez de budget avant de tenter une reprise. Elle
+            // valait 60_000 tant que l orchestrateur heritait du defaut
+            // client ; il porte desormais sa propre fenetre et l estimation
+            // doit la suivre, sinon la boucle croit pouvoir tenter une
+            // reprise qui ne rentre plus.
+            const ORCHESTRATE_ATTEMPT_ESTIMATE_MS = ENGINE_LLM_BUDGET.finalRecommendation.timeout;
             const EXIT_MARGIN_MS = 30_000;
 
             function isRetryableAnthropicOverload(err: any): boolean {

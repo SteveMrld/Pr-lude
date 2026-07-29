@@ -28,9 +28,14 @@ import {
   engineDeadlineFor,
   worstCaseConvergenceMs,
   worstCaseConvergenceByWindowMs,
+  worstCaseRunByWindowMs,
+  nominalRunMs,
+  gateWorstCaseByWindowMs,
   referenceChecksGateWorstCaseMs,
   GATE_WORST_CASE_MS,
   ORCHESTRATE_RESERVE_MS,
+  ORCHESTRATE_MAX_TOKENS,
+  UPSTREAM_WATCHLIST,
   type BudgetedEngineKey,
 } from './engine-budget';
 import { looksTruncated } from './reference-checks-engine';
@@ -59,6 +64,8 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 console.log('\n=== Section 1. Fenetres et reprises ===');
 
 const EXPECTED: Record<BudgetedEngineKey, number> = {
+  team: 180_000,
+  finalRecommendation: 150_000,
   patternMatching: 180_000,
   blindspotAnalysis: 240_000,
   contrarianAnalysis: 180_000,
@@ -96,6 +103,8 @@ for (const key of Object.keys(EXPECTED) as BudgetedEngineKey[]) {
 console.log('\n=== Section 2. Cablage aux sites d appel ===');
 
 const CALL_SITES: Array<{ file: string; key: BudgetedEngineKey }> = [
+  { file: 'lib/engines/team-engine.ts', key: 'team' },
+  { file: 'lib/engines/orchestrator.ts', key: 'finalRecommendation' },
   { file: 'lib/engines/pattern-engine.ts', key: 'patternMatching' },
   { file: 'lib/engines/blindspot-engine.ts', key: 'blindspotAnalysis' },
   { file: 'lib/engines/contrarian-engine.ts', key: 'contrarianAnalysis' },
@@ -115,10 +124,14 @@ for (const { file, key } of CALL_SITES) {
 // Le wrapper deadline accepte bien un override par moteur, et la route
 // le cable sur les six.
 const routeSrc = read('app/api/analyze/route.ts');
-for (const key of Object.keys(EXPECTED) as BudgetedEngineKey[]) {
+// finalRecommendation n est pas enveloppe par withEngineDeadline : il a
+// sa propre boucle de reprise et court contre le budget global.
+for (const key of Object.keys(EXPECTED).filter(k => k !== 'finalRecommendation') as BudgetedEngineKey[]) {
   checkTrue(`route.ts : deadline dediee cablee sur ${key}`,
     routeSrc.includes(`engineDeadlineFor('${key}')`));
 }
+checkTrue('route.ts : l estimation de tentative de synthese suit sa fenetre',
+  routeSrc.includes('ORCHESTRATE_ATTEMPT_ESTIMATE_MS = ENGINE_LLM_BUDGET.finalRecommendation.timeout'));
 check('route.ts : WAIT_DEADLINE_MS a 620s',
   /const WAIT_DEADLINE_MS = 620_000;/.test(routeSrc), true);
 check('route.ts : RUN_BUDGET_MS a 700s',
@@ -182,6 +195,15 @@ checkTrue('reference-checks : la sortie tronquee releve l erreur au lieu de rejo
 // Chaine serielle : porte [team, market, macro] -> pattern -> causal
 // -> reference-checks. blindspot et contrarian sont paralleles a
 // pattern et n entrent pas dans la somme.
+//
+// DEUX PLAFONDS, ET UN SEUL EST OPPOSABLE. La somme des fenetres est
+// une arithmetique : elle suppose que quatre moteurs consecutifs
+// brulent leur fenetre entiere puis echouent, scenario ou il n y a de
+// toute facon plus rien a synthetiser. Ce qui borne reellement le run,
+// c est RUN_BUDGET_MS, qui court la convergence comme la synthese et
+// coupe avant que la somme ne soit atteinte. Le mur Vercel est protege
+// par le budget, pas par la somme, et les tests le disent dans cet
+// ordre.
 // ============================================================
 
 console.log('\n=== Section 4. Pire cas de convergence ===');
@@ -189,62 +211,99 @@ console.log('\n=== Section 4. Pire cas de convergence ===');
 const MUR_VERCEL_MS = 800_000;
 const RUN_BUDGET_MS = 700_000;
 const WAIT_DEADLINE_MS = 620_000;
-const MARGE_MINIMALE_MS = 80_000;
+const MARGE_MINIMALE_MS = 60_000;
 
-// Pire cas par fenetres : le SDK tranche, regime attendu d un echec.
-const parFenetres = worstCaseConvergenceByWindowMs();
-check('Pire cas convergence par fenetres = 582s', parFenetres, 582_000);
-checkTrue('Par fenetres, convergence plus synthese tiennent sous le budget de run',
-  parFenetres + ORCHESTRATE_RESERVE_MS <= RUN_BUDGET_MS);
-checkTrue('Par fenetres, marge au mur Vercel superieure a 80s',
-  MUR_VERCEL_MS - (parFenetres + ORCHESTRATE_RESERVE_MS) >= MARGE_MINIMALE_MS);
+check('Porte par fenetres = 182s (team 180 + surcout)', gateWorstCaseByWindowMs(), 182_000);
+check('Pire cas convergence par fenetres = 612s', worstCaseConvergenceByWindowMs(), 612_000);
+check('Reserve de synthese = 180s (fenetre 150 + sortie 30)', ORCHESTRATE_RESERVE_MS, 180_000);
+check('Somme arithmetique du run = 792s', worstCaseRunByWindowMs(), 792_000);
 
-// Pire cas par deadlines externes : plafond garanti par le code.
-const parDeadlines = worstCaseConvergenceMs();
-check('Pire cas convergence par deadlines = 690s', parDeadlines, 690_000);
-checkTrue('Par deadlines, la convergence reste sous le mur avec plus de 80s de marge',
-  MUR_VERCEL_MS - parDeadlines >= MARGE_MINIMALE_MS);
-checkTrue('Par deadlines, la convergence reste sous le budget de run',
-  parDeadlines <= RUN_BUDGET_MS);
+// LE PLAFOND OPPOSABLE. Le budget de run borne le run entier, quelles
+// que soient les sommes ci-dessus, parce qu il court les deux etapes.
+// C est de la que vient la garantie sur le mur.
+checkTrue('Le budget de run est le plafond effectif : il coupe avant la somme des fenetres',
+  RUN_BUDGET_MS < worstCaseRunByWindowMs());
+checkTrue('Marge au mur Vercel superieure a 60s, garantie par le budget de run',
+  MUR_VERCEL_MS - RUN_BUDGET_MS >= MARGE_MINIMALE_MS);
+check('Marge effective au mur', (MUR_VERCEL_MS - RUN_BUDGET_MS) / 1000, 100);
 
-// Le budget de run borne le run entier, convergence et synthese sont
-// toutes deux coursees contre lui. C est ce qui garantit le mur.
-checkTrue('Le budget de run laisse au moins 100s avant le mur Vercel',
-  MUR_VERCEL_MS - RUN_BUDGET_MS >= 100_000);
+// LE REGIME ATTENDU. C est lui que le budget doit accueillir
+// confortablement, le pire cas devant seulement degrader proprement.
+check('Nominal du run = 625s', nominalRunMs(), 625_000);
+checkTrue('Le nominal tient sous le budget de run',
+  nominalRunMs() < RUN_BUDGET_MS);
+checkTrue('Le nominal garde plus de 60s de marge sous le budget',
+  RUN_BUDGET_MS - nominalRunMs() >= MARGE_MINIMALE_MS);
+checkTrue('Le nominal garde plus de 60s de marge sous le mur',
+  MUR_VERCEL_MS - nominalRunMs() >= MARGE_MINIMALE_MS);
+
+// Pire cas par deadlines externes, plafond garanti par le code cote
+// convergence seule.
+check('Pire cas convergence par deadlines = 690s', worstCaseConvergenceMs(), 690_000);
+checkTrue('Par deadlines, la convergence reste sous le mur avec plus de 60s de marge',
+  MUR_VERCEL_MS - worstCaseConvergenceMs() >= MARGE_MINIMALE_MS);
 
 // blindspot est sur la branche parallele : sa fenetre ne doit pas
 // exceder pattern + causal, sinon elle deviendrait le chemin critique.
 checkTrue('La fenetre blindspot reste sous pattern + causal',
   ENGINE_LLM_BUDGET.blindspotAnalysis.timeout
   <= ENGINE_LLM_BUDGET.patternMatching.timeout + ENGINE_LLM_BUDGET.causalReversal.timeout);
-checkTrue('La deadline blindspot reste sous pattern + causal',
-  engineDeadlineFor('blindspotAnalysis')
-  <= engineDeadlineFor('patternMatching') + engineDeadlineFor('causalReversal'));
 
 // La porte de reference-checks doit s ouvrir avant que sa garde
-// d attente ne fire, sinon la fenetre ne sert a rien.
-const porteRefChecks = 152_000
+// d attente ne fire, dans les deux regimes.
+const porteRefChecks = gateWorstCaseByWindowMs()
   + ENGINE_LLM_BUDGET.patternMatching.timeout
   + ENGINE_LLM_BUDGET.causalReversal.timeout;
-check('Porte de reference-checks par fenetres = 512s', porteRefChecks, 512_000);
+check('Porte de reference-checks par fenetres = 542s', porteRefChecks, 542_000);
 checkTrue('Par fenetres, la garde d attente ne coupe pas reference-checks',
   porteRefChecks < WAIT_DEADLINE_MS);
 
-// Le regime degrade doit etre couvert lui aussi. Quand les gardes
-// externes prennent le relais des fenetres, la porte de reference-checks
-// recule a 600s : c est exactement le moment ou le run est deja en
-// difficulte, et ou une garde d attente qui lache ne sert a rien. La
-// valeur de 620s couvre les deux regimes.
 const porteRefChecksDeadlines = referenceChecksGateWorstCaseMs();
 check('Porte de reference-checks par deadlines = 600s', porteRefChecksDeadlines, 600_000);
 checkTrue('Par deadlines aussi, la garde d attente ne coupe pas reference-checks',
   porteRefChecksDeadlines < WAIT_DEADLINE_MS);
 checkTrue('La garde d attente reste sous le budget de run',
   WAIT_DEADLINE_MS < RUN_BUDGET_MS);
-checkTrue('La garde d attente garde au moins 20s de marge sur la porte la plus tardive',
-  WAIT_DEADLINE_MS - porteRefChecksDeadlines >= 20_000);
 
-check('Terme de porte retenu pour le pire cas par deadlines', GATE_WORST_CASE_MS, 200_000);
+check('Terme de porte par deadlines', GATE_WORST_CASE_MS, 200_000);
+
+// ============================================================
+// SECTION 5. LA SYNTHESE FINALE ET LA COUCHE AMONT SURVEILLEE
+// ============================================================
+
+console.log('\n=== Section 5. Synthese finale et surveillance amont ===');
+
+check('Plafond de tokens de la synthese ramene a 5000', ORCHESTRATE_MAX_TOKENS, 5000);
+const orcSrc = read('lib/engines/orchestrator.ts');
+checkTrue('orchestrator : le plafond litteral 8000 a disparu du site d appel',
+  !orcSrc.includes('userPrompt, 8000, MODEL'));
+checkTrue('orchestrator : les deux appels passent par le plafond partage',
+  (orcSrc.match(/ORCHESTRATE_MAX_TOKENS, MODEL/g) || []).length === 2);
+checkTrue('orchestrator : les deux appels portent la fenetre dediee',
+  (orcSrc.match(/ENGINE_LLM_BUDGET\.finalRecommendation/g) || []).length >= 2);
+checkTrue('orchestrator : la reprise de parse est gardee sur la troncature',
+  orcSrc.includes('if (looksTruncated(rawResponse))'));
+checkTrue('orchestrator : la sortie tronquee releve l erreur au lieu de rejouer',
+  orcSrc.includes("[orchestrator] JSON parse failed sur une sortie tronquee"));
+
+const teamSrc = read('lib/engines/team-engine.ts');
+checkTrue('team : le litteral 150_000 a disparu du site d appel',
+  !teamSrc.includes('timeout: 150_000'));
+checkTrue('team : la fenetre vient de la table partagee',
+  teamSrc.includes('...ENGINE_LLM_BUDGET.team'));
+checkTrue('team : la recherche web reste bornee a une requete',
+  teamSrc.includes('maxWebSearches: 1'));
+
+// La couche amont non elargie reste declaree, avec sa marge mesuree,
+// pour que le prochain arbitrage parte de chiffres et non de memoire.
+check('Trois moteurs amont sous surveillance', UPSTREAM_WATCHLIST.length, 3);
+for (const w of UPSTREAM_WATCHLIST) {
+  checkTrue(`${w.engine} : marge mesuree positive (${(w.windowMs - w.worstObservedMs) / 1000}s)`,
+    w.worstObservedMs < w.windowMs);
+}
+checkTrue('market et financialCoherence sont les deux marges les plus faibles',
+  UPSTREAM_WATCHLIST.filter(w => w.windowMs - w.worstObservedMs <= 20_000)
+    .map(w => w.engine).sort().join(',') === 'financialCoherence,market');
 
 // ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);

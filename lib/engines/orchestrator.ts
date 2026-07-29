@@ -19,6 +19,7 @@ import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
 } from './score-calculator';
+import { ENGINE_LLM_BUDGET, ORCHESTRATE_MAX_TOKENS, looksTruncated } from './engine-budget';
 
 const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -914,16 +915,45 @@ export async function orchestrateFinalRecommendation(
     annotationsBlock,
   });
 
-  // maxTokens reduit de 8000 a 5000 : la sortie de l orchestrator est un JSON
-  // de synthese compact, pas besoin de plus. Le retry est conserve mais
-  // utilise le meme maxTokens reduit pour eviter de doubler le temps en pire cas.
-  let rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
+  // ============================================================
+  // FENETRE ET PLAFOND DE LA SYNTHESE FINALE
+  // ------------------------------------------------------------
+  // Ce site etait reste sur le defaut client, 60s et une reprise, alors
+  // que c est l appel le plus lourd du pipeline en contexte d entree.
+  // Le run 0142901d l a vu sortir a 121 425 ms, soit exactement deux
+  // tentatives de 60s, avec degraded=true et decisionDrivers vide : la
+  // section Facteurs decisifs de la note est vide pour cette raison et
+  // pour aucune autre.
+  //
+  // Le plafond passe de 8000 a 5000 tokens. Le commentaire qui occupait
+  // ces lignes l annonçait deja, mot pour mot, sans que le code l ait
+  // jamais applique. La sortie est un JSON de synthese compact, et ce
+  // plafond reduit est ce qui finance la fenetre de 150s sans pousser
+  // le chemin critique contre le mur : team passant de 150 a 180s,
+  // toute la chaine glisse de 30s, il fallait les reprendre ici.
+  // ============================================================
+  let rawResponse = await callClaude(
+    SYSTEM_PROMPT, userPrompt, ORCHESTRATE_MAX_TOKENS, MODEL,
+    ENGINE_LLM_BUDGET.finalRecommendation,
+  );
   let recommendation: OrchestratedResult['finalRecommendation'];
   try {
     recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   } catch (firstErr: any) {
-    console.warn('[orchestrator] JSON parse failed, retrying once:', firstErr?.message);
-    rawResponse = await callClaude(SYSTEM_PROMPT, userPrompt, 8000, MODEL);
+    // Reprise de parse conditionnelle, meme doctrine que reference-checks
+    // au brief 15. Rejouer le meme prompt apres une coupure par
+    // max_tokens reproduit la coupure : on paierait une fenetre pleine,
+    // ici 150s, pour un echec certain. La reprise ne subsiste que pour
+    // les malformations non deterministes d une sortie bien fermee.
+    if (looksTruncated(rawResponse)) {
+      console.warn('[orchestrator] JSON parse failed sur une sortie tronquee, pas de reprise :', firstErr?.message);
+      throw firstErr;
+    }
+    console.warn('[orchestrator] JSON parse failed sur une sortie complete, reprise unique :', firstErr?.message);
+    rawResponse = await callClaude(
+      SYSTEM_PROMPT, userPrompt, ORCHESTRATE_MAX_TOKENS, MODEL,
+      ENGINE_LLM_BUDGET.finalRecommendation,
+    );
     recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse);
   }
 
