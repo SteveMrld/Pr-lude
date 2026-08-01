@@ -36,6 +36,8 @@ import {
   ORCHESTRATE_RESERVE_MS,
   ORCHESTRATE_MAX_TOKENS,
   UPSTREAM_WATCHLIST,
+  TEMPERATURE_DIALECTIQUE,
+  TEMPERATURE_SCORE,
   type BudgetedEngineKey,
 } from './engine-budget';
 import { looksTruncated } from './reference-checks-engine';
@@ -377,6 +379,42 @@ for (const f of ['pattern-engine', 'blindspot-engine', 'contrarian-engine', 'cau
   checkTrue(`${f} : n appelle pas applyRunOptions, et n en a plus besoin`,
     !read(`lib/engines/${f}.ts`).includes('applyRunOptions'));
 }
+
+// ============================================================
+// SECTION 7. TEMPERATURE EXPLICITE AU SITE D APPEL
+// ------------------------------------------------------------
+// Meme trou de contrat que le budget de recherche, une couche plus
+// bas. Le champ n existait sur aucun des deux canaux du client, donc
+// aucun site d appel ne pouvait en decider : les onze moteurs du
+// pipeline tournaient au defaut de l API pendant que la couche
+// d extraction passait 0 depuis toujours.
+//
+// Ce commit pose le mecanisme sans rien changer au comportement : la
+// table declare la valeur qui etait deja appliquee implicitement. Le
+// basculement des moteurs de dimension est l objet du commit suivant.
+// ============================================================
+
+checkTrue('Aucun moteur budgete ne laisse la temperature indefinie',
+  (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
+    .every(k => typeof ENGINE_LLM_BUDGET[k].temperature === 'number'));
+
+// Le defaut de l API vaut 1.0. La table le declare, elle ne le change
+// pas : ce commit doit etre neutre a l execution.
+check('La temperature declaree reste celle du defaut API sur les huit',
+  (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
+    .filter(k => ENGINE_LLM_BUDGET[k].temperature !== TEMPERATURE_DIALECTIQUE), []);
+check('Le defaut API est bien la valeur dialectique', TEMPERATURE_DIALECTIQUE, 1);
+check('La valeur de score supprime l echantillonnage', TEMPERATURE_SCORE, 0);
+
+// Le client emet le parametre, sur les deux canaux, et seulement si le
+// site d appel l a decide. Un defaut fabrique dans le client serait
+// exactement le silence qu on retire.
+check('client : la temperature est construite sur les deux canaux',
+  (clientSrc.match(/requestParams\.temperature = options\.temperature/g) || []).length, 2);
+check('client : aucun defaut de temperature n est fabrique',
+  (clientSrc.match(/options\.temperature \?\?/g) || []).length, 0);
+check('client : le champ est emis sous condition de presence',
+  (clientSrc.match(/options\.temperature !== undefined/g) || []).length, 2);
 
 // ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);

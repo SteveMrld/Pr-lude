@@ -80,7 +80,48 @@ export interface EngineLlmOptions {
    * puisse heriter du defaut en silence. Le site d appel doit trancher.
    */
   maxWebSearches: number;
+  /**
+   * Temperature d echantillonnage, obligatoire.
+   *
+   * Meme trou de contrat que maxWebSearches, une couche plus bas : le
+   * champ n existait sur aucun des deux canaux du client, donc aucun
+   * site d appel ne pouvait en decider et les onze moteurs du pipeline
+   * tournaient au defaut de l API. La couche d extraction, elle, passe
+   * 0 depuis toujours via callClaudeWithPDF. Le determinisme s arretait
+   * donc pile a l endroit ou commence le score.
+   *
+   * Ce que la variance coute, mesure : trois dimensions communes aux
+   * runs c487a8b2 et 2517a288 ont bouge de 6 a 11 points sur deckHash
+   * identique, meme modele, memes hashes de config. Six dimensions
+   * ponderees qui derivent chacune de cette amplitude deplacent le
+   * score global assez pour franchir un seuil de verdict, et un
+   * verdict qui change sans que l entree ait change n est pas
+   * opposable a un comite d investissement.
+   *
+   * Requis et non optionnel, pour la meme raison que le budget de
+   * recherche : un moteur futur ne doit pas pouvoir heriter du defaut
+   * API en silence.
+   */
+  temperature: number;
 }
+
+/**
+ * Temperature des moteurs dont la sortie n entre pas dans une dimension
+ * du score. Vaut exactement le defaut de l API, donc leur comportement
+ * ne change pas : la valeur passe d implicite a declaree, et rien
+ * d autre. Nommee plutot que litterale pour que le prochain arbitrage
+ * sur la variance dialectique se fasse en un point.
+ */
+export const TEMPERATURE_DIALECTIQUE = 1;
+
+/**
+ * Temperature des moteurs dont la sortie alimente une dimension du
+ * score. Le raisonnement est celui du commentaire de temperature sur
+ * callClaudeWithPDF, applique a la couche de jugement : une sortie
+ * consommee par un calcul deterministe et affichee comme une note ne
+ * peut pas etre echantillonnee librement.
+ */
+export const TEMPERATURE_SCORE = 0;
 
 /**
  * Cles moteur du releve d instrumentation (EngineStatusRecorder). Ce
@@ -121,24 +162,24 @@ export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Ob
   // des deux echecs est inconnue, ils ont ete coupes exactement au
   // plafond. C est un pari calibre, pas une deduction, et c est
   // precisement ce que l instrumentation du commit suivant leve.
-  team: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 1 }),
+  team: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 1, temperature: TEMPERATURE_DIALECTIQUE }),
   // 8000 tokens, Sonnet. Prompt systeme le plus lourd des six
   // (35 565 caracteres) mais sortie plafonnee a 8000.
-  patternMatching: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0 }),
+  patternMatching: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 14000 tokens, Sonnet. Branche parallele, sa fenetre ne pese pas sur
   // le chemin critique tant qu elle reste sous pattern + causal (360s).
-  blindspotAnalysis: Object.freeze({ timeout: 240_000, maxRetries: 0, maxWebSearches: 0 }),
+  blindspotAnalysis: Object.freeze({ timeout: 240_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 8000 tokens, Sonnet. Branche parallele.
-  contrarianAnalysis: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0 }),
+  contrarianAnalysis: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 8000 tokens, Sonnet. Sur le chemin critique, apres pattern.
-  causalReversal: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0 }),
+  causalReversal: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 4000 tokens, Haiku 4.5. Dernier maillon du chemin critique, et le
   // moins critique fonctionnellement : c est lui qu on sacrifie en
   // premier si la chaine deborde.
-  referenceChecks: Object.freeze({ timeout: 70_000, maxRetries: 0, maxWebSearches: 0 }),
+  referenceChecks: Object.freeze({ timeout: 70_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 4000 tokens, Sonnet. Sans dependance, demarre a t=0 en parallele de
   // la couche 1 (route.ts:1075-1077) : sa fenetre ne coute rien.
-  narrativeDrift: Object.freeze({ timeout: 120_000, maxRetries: 0, maxWebSearches: 0 }),
+  narrativeDrift: Object.freeze({ timeout: 120_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 5000 tokens, Sonnet. La synthese finale etait restee sur le defaut
   // client 60s / 1 reprise (orchestrator.ts:920, appel sans options) et
   // sortait a 121s sur le run 0142901d, laissant Facteurs decisifs vide.
@@ -149,7 +190,7 @@ export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Ob
   //
   // Elle n est pas enveloppee par withEngineDeadline, elle a sa propre
   // boucle de reprise et court contre le budget global.
-  finalRecommendation: Object.freeze({ timeout: 150_000, maxRetries: 0, maxWebSearches: 0 }),
+  finalRecommendation: Object.freeze({ timeout: 150_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
 }) as Record<BudgetedEngineKey, EngineLlmOptions>;
 
 /** Plafond de tokens de la synthese finale. Expose pour que le site

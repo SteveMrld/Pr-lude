@@ -130,6 +130,27 @@ interface CallClaudeOptions {
    *  pas d une reprise a l identique. Passer 0 remplace deux echecs longs
    *  par un echec unique et un fallback propre. */
   maxRetries?: number;
+  /**
+   * Temperature d echantillonnage de l appel.
+   *
+   * Le champ n existait pas sur ce canal. Ni callClaude ni
+   * callClaudeWithUsage ne construisaient requestParams.temperature, si
+   * bien qu aucun site d appel ne pouvait en decider : les onze moteurs
+   * du pipeline tournaient au defaut de l API, 1.0, y compris les six
+   * dont la sortie alimente une dimension du score. Seul
+   * callClaudeWithPDF acceptait une temperature, et il ne sert que la
+   * couche d extraction. La frontiere du determinisme se trouvait donc
+   * exactement au mauvais endroit : la lecture du document etait stable,
+   * la production de la note ne l etait pas.
+   *
+   * Aucun defaut n est fabrique ici. Quand le champ est absent, le
+   * client n emet pas le parametre et l API applique le sien, ce qui
+   * preserve le comportement des appelants hors pipeline. La contrainte
+   * est portee par EngineLlmOptions (lib/engines/engine-budget.ts), qui
+   * rend le champ requis pour les moteurs budgetes : c est la que le
+   * site d appel doit trancher, pas ici.
+   */
+  temperature?: number;
 }
 
 // ============================================================
@@ -220,6 +241,13 @@ export async function callClaude(
       : systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   };
+
+  // Temperature emise seulement si le site d appel l a decidee. Pas de
+  // defaut fabrique ici : un defaut dans le client serait exactement le
+  // silence qu on vient de retirer.
+  if (options.temperature !== undefined) {
+    requestParams.temperature = options.temperature;
+  }
 
   if (useWebSearch) {
     // Le tool web_search natif. Anthropic gere le scraping / search
@@ -340,6 +368,12 @@ export async function callClaudeWithUsage(
       : systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   };
+
+  // Meme regle que callClaude : rien n est emis si le site d appel n a
+  // pas tranche.
+  if (options.temperature !== undefined) {
+    requestParams.temperature = options.temperature;
+  }
 
   if (useWebSearch) {
     requestParams.tools = [
