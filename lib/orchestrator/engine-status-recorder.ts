@@ -345,8 +345,37 @@ export class EngineStatusRecorder {
    *  est 'failed' et que markLLMStart n a jamais ete appele apres
    *  un markStart valide, promeut automatiquement en 'failed-upstream'
    *  et remplace errorMessage par un message structure nommant les
-   *  dependances fautives. */
+   *  dependances fautives.
+   *
+   *  Une entree declaree ecartee par la matrice n est jamais recouverte,
+   *  quel que soit le statut presente. Voir la garde ci-dessous. */
   record(entry: Omit<EngineStatusEntry, 'durationMs' | 'waitDurationMs' | 'executionDurationMs' | 'failedDependencies'> & { durationMs?: number }): void {
+    // Garde de non-recouvrement du skip matrice.
+    //
+    // La branche qui court-circuite un moteur declare le skip puis
+    // remplace le travail par un Promise.resolve(null) que le wrapper
+    // deadline attend comme n importe quel autre. Cette promesse
+    // aboutit toujours, et la voie de succes du wrapper ecrivait un ok
+    // par-dessus la declaration (engine-deadline.ts, work.then). La
+    // finalisation relisait ensuite le null derriere ce ok, n y voyait
+    // plus de skip a preserver, echouait le contrat minimal et posait
+    // empty_output : le moteur ecarte ouvrait une lacune et faisait
+    // basculer le run entier en completed_with_gaps pour avoir fait
+    // exactement ce que la matrice lui demandait.
+    //
+    // finalizeFromResult tenait deja cette garde mais elle arrivait
+    // trop tard, la declaration etant perdue plusieurs centaines de
+    // lignes plus tot. Elle vit donc ici, au point de passage unique de
+    // toutes les ecritures de statut, plutot que dans chaque appelant :
+    // les trois branches ecartees du pipeline (industrialMetrics,
+    // narrativeDrift, fragiliteStructurelle) traversent le meme
+    // wrapper et sont couvertes par la meme ligne.
+    //
+    // Aucun statut posterieur n a autorite sur une decision doctrinale.
+    // Un moteur qu on n a jamais appele ne peut ni reussir, ni echouer,
+    // ni depasser sa fenetre.
+    if (this.entries.get(entry.engine)?.status === 'skipped_not_applicable') return;
+
     const startedAt = this.startTimes.get(entry.engine);
     const llmStartedAt = this.llmStartTimes.get(entry.engine);
     const now = Date.now();

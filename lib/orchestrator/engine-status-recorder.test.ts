@@ -535,6 +535,83 @@ console.log('\n[Suite 5] Promotion failed -> failed-upstream, distinction wait /
     'drapeau __skipped : un null nu n est pas un skip');
 }
 
+// ============================================================
+// GARDE DE NON-RECOUVREMENT DANS record()
+// ------------------------------------------------------------
+// Le brief 18 posait la declaration a la source et la garde a la
+// finalisation, mais laissait un point de passage ouvert entre les
+// deux. La branche ecartee remplace le travail par un
+// Promise.resolve(null) que withEngineDeadline attend comme les
+// autres. Cette promesse aboutit toujours, et la voie de succes du
+// wrapper ecrivait un ok par-dessus la declaration : la finalisation
+// ne trouvait plus de skip a preserver, relisait le null, echouait le
+// contrat minimal et posait empty_output. Le run 4e30c644 le montre,
+// entree persistee { status: empty_output, attempts: 1, durationMs: 0 }
+// alors que la matrice avait rendu applicable: none. Le champ attempts
+// est le discriminant : recordSkippedByMatrix ecrit 0, seule la voie
+// de succes du wrapper introduit 1.
+// ============================================================
+
+// Sequence exacte du pipeline sur un dossier non industriel.
+{
+  const r = new EngineStatusRecorder();
+  r.recordSkippedByMatrix('industrialMetrics', 'Modele non industriel.');
+  r.markStart('industrialMetrics');
+  // withEngineDeadline, voie de succes sur Promise.resolve(null).
+  r.record({ engine: 'industrialMetrics', status: 'ok', attempts: 1 });
+  r.finalizeFromResult(
+    { industrialMetrics: null },
+    { industrialMetrics: 'industrialMetrics' },
+  );
+  const s = r.snapshot();
+  check(s.industrialMetrics?.status === 'skipped_not_applicable',
+    'garde record : le ok du wrapper ne recouvre pas le skip declare');
+  check(s.industrialMetrics?.attempts === 0,
+    'garde record : attempts reste a 0, aucun appel n a eu lieu');
+  check(s.industrialMetrics?.skipReason === 'Modele non industriel.',
+    'garde record : le motif de la matrice survit au point de jonction');
+  check(r.gaps().length === 0, 'garde record : aucune lacune ouverte');
+  check(r.computeRunStatus() === 'completed',
+    'garde record : un dossier non industriel rend completed sans lacune');
+}
+
+// Les deux autres branches ecartees du pipeline traversent le meme
+// wrapper (route.ts:1350 et 1351) et sont couvertes par la meme ligne.
+for (const moteur of ['narrativeDrift', 'fragiliteStructurelle']) {
+  const r = new EngineStatusRecorder();
+  r.recordSkippedByMatrix(moteur, 'motif matrice');
+  r.markStart(moteur);
+  r.record({ engine: moteur, status: 'ok', attempts: 1 });
+  const s = r.snapshot();
+  check(s[moteur]?.status === 'skipped_not_applicable',
+    `garde record : ${moteur} ecarte survit au ok du wrapper`);
+  check(s[moteur]?.attempts === 0, `garde record : ${moteur} garde attempts a 0`);
+}
+
+// Aucun statut posterieur n a autorite sur la decision doctrinale. Un
+// moteur jamais appele ne peut ni echouer ni depasser sa fenetre.
+{
+  for (const statut of ['failed', 'timeout', 'empty_output'] as const) {
+    const r = new EngineStatusRecorder();
+    r.recordSkippedByMatrix('industrialMetrics', 'motif matrice');
+    r.record({ engine: 'industrialMetrics', status: statut, attempts: 1, errorMessage: 'boom' });
+    check(r.snapshot().industrialMetrics?.status === 'skipped_not_applicable',
+      `garde record : un ${statut} posterieur ne recouvre pas le skip`);
+  }
+}
+
+// Non-regression : la garde ne vise que le skip matrice. Toute autre
+// entree reste ecrasable, c est le contrat historique de record().
+{
+  const r = new EngineStatusRecorder();
+  r.record({ engine: 'market', status: 'ok', attempts: 1 });
+  r.record({ engine: 'market', status: 'failed', attempts: 2, errorMessage: 'boom' });
+  check(r.snapshot().market?.status === 'failed',
+    'garde record : une entree non ecartee reste ecrasable');
+  check(r.snapshot().market?.attempts === 2,
+    'garde record : le dernier ecrivain garde ses tentatives');
+}
+
 // Durees mesurees : test asynchrone en fin de fichier avec setTimeout pour
 // simuler wait sur deps puis execution reelle.
 (async () => {
