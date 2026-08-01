@@ -423,18 +423,31 @@ interface Gate {
 /**
  * Premiere garde : le moteur de cette dimension a-t-il abouti.
  *
- * Le releve d instrumentation prime quand il porte un statut pour ce
- * moteur. A defaut, sur les dossiers persistes avant le recorder, on
- * recalcule la disponibilite sur la racine, comme le fait
- * computeEngineAvailability, pour que le fix vaille aussi sur eux.
+ * Une seule verite, celle du releve. Brief 21, bloc 4.
  *
- * Note de sequencement : au point d appel du pipeline
- * (app/api/analyze/route.ts), le recorder ne porte encore que les
- * statuts poses par le wrapper deadline (ok, failed, failed-upstream,
- * timeout). empty_output et skipped_not_applicable ne sont poses qu a
- * la finalisation, apres l orchestration. Les gardes sur la racine
- * ci-dessous couvrent ces deux cas en propre, la table de statuts les
- * traite quand elle les porte deja.
+ * Le calculateur portait deux sources concurrentes. La table de
+ * statuts d abord, puis, meme quand elle disait ok, une seconde lecture
+ * de la racine qui pouvait la contredire et rendre moteur-absent. Le
+ * run 4e30c644 a fait sortir les deux dans le meme enregistrement : le
+ * bloc de score annonce engineStatus ok pour team, pipeline_engines_
+ * status annonce empty_output pour le meme moteur sur le meme run.
+ *
+ * La cause du desaccord n etait pas dans cette fonction mais dans son
+ * sequencement : le contrat minimal n etait applique qu apres
+ * l orchestration, donc apres le calcul du score, et la table lue ici
+ * n etait pas celle qui serait persistee. La route arrete desormais le
+ * releve des six moteurs de dimension avant d appeler le calculateur.
+ *
+ * Des lors la regle se simplifie. Si le releve porte une entree pour ce
+ * moteur, elle tranche seule : un statut de defaillance ecarte la
+ * dimension, tout autre statut ouvre la porte. La qualite du contenu
+ * reste jugee apres, par les composites, et une enveloppe recevable
+ * mais sans sous-score donne sous-champs-absents, ce qui est une cause
+ * de score et non un statut de moteur.
+ *
+ * Les gardes sur la racine ne servent plus qu au cas ou le releve est
+ * absent : dossiers persistes avant l instrumentation, rescoring
+ * hors pipeline. Elles reproduisent alors computeEngineAvailability.
  */
 function engineGate(
   dimension: DimensionKey,
@@ -443,11 +456,17 @@ function engineGate(
 ): Gate {
   const engineKey = DIMENSION_ENGINE_KEYS[dimension];
   const engineStatus = statuses?.[engineKey]?.status;
-  const mapped = engineStatus ? STATUS_TO_CAUSE[engineStatus] : undefined;
-  if (mapped) return { ok: false, cause: mapped, engineStatus };
-  if (isSkipped(root)) return { ok: false, cause: 'moteur-skipped', engineStatus };
-  if (!hasEngineRoot(root)) return { ok: false, cause: 'moteur-absent', engineStatus };
-  return { ok: true, engineStatus };
+
+  if (engineStatus) {
+    const mapped = STATUS_TO_CAUSE[engineStatus];
+    if (mapped) return { ok: false, cause: mapped, engineStatus };
+    return { ok: true, engineStatus };
+  }
+
+  // Aucun releve pour ce moteur : recalcul sur la racine.
+  if (isSkipped(root)) return { ok: false, cause: 'moteur-skipped' };
+  if (!hasEngineRoot(root)) return { ok: false, cause: 'moteur-absent' };
+  return { ok: true };
 }
 
 /** Rationale d une dimension non evaluee. Ne dit jamais qu une valeur

@@ -1424,13 +1424,54 @@ export async function POST(req: NextRequest) {
           //
           // Le releve d instrumentation est passe au calculateur pour qu il
           // distingue une dimension reellement evaluee d une dimension dont
-          // le moteur est tombe. A ce point du pipeline le recorder porte
-          // les statuts poses par le wrapper deadline (ok, failed,
-          // failed-upstream, timeout) ; empty_output et
-          // skipped_not_applicable ne sont poses qu a la finalisation, plus
-          // bas, et le calculateur les rattrape par ses propres gardes sur
-          // les racines. Sans cette entree, un moteur tombe se fondait dans
-          // la moyenne a 50, valeur indistinguable d un vrai verdict median.
+          // le moteur est tombe. Sans cette entree, un moteur tombe se
+          // fondait dans la moyenne a 50, valeur indistinguable d un vrai
+          // verdict median.
+          //
+          // ============================================================
+          // ARRET DU RELEVE AVANT LE SCORE - brief 21, bloc 4
+          // ------------------------------------------------------------
+          // Le releve fait foi, donc il doit etre arrete avant que le
+          // score ne le consulte. Il ne l etait pas : a ce point du
+          // pipeline le recorder ne portait que les statuts poses par le
+          // wrapper deadline, ok / failed / failed-upstream / timeout, et
+          // le contrat minimal n etait applique qu a la finalisation,
+          // plusieurs centaines de lignes plus bas. Le score lisait donc
+          // une table anterieure a celle qui serait persistee.
+          //
+          // Le run 4e30c644 porte les deux verites dans le meme
+          // enregistrement : le bloc de score dit engineStatus ok pour
+          // team, avec la cause sous-champs-absents, et
+          // pipeline_engines_status dit empty_output pour le meme moteur
+          // sur le meme run. Deux composants du meme pipeline ne
+          // s accordaient pas sur ce qui venait de se passer.
+          //
+          // La finalisation est donc avancee pour les six moteurs de
+          // dimension, et pour eux seuls : les autres n ont pas fini de
+          // tourner a cet instant et les declarer ici les marquerait
+          // vides a tort. La finalisation complete plus bas repasse sur
+          // les memes six avec le result_json entier et rend le meme
+          // verdict, les racines n ayant pas bouge entre-temps.
+          // ============================================================
+          enginesRecorder.finalizeFromResult(
+            {
+              team,
+              market,
+              macro,
+              financialCoherence,
+              contrarianAnalysis,
+              blindspotAnalysis,
+            },
+            {
+              team: 'team',
+              market: 'market',
+              macro: 'macro',
+              financialCoherence: 'financialCoherence',
+              contrarianAnalysis: 'contrarianAnalysis',
+              blindspotAnalysis: 'blindspotAnalysis',
+            },
+          );
+
           const mechanicalScore = computeMechanicalScore({
             team,
             market,

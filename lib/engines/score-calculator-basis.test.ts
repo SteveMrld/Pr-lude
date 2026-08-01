@@ -506,5 +506,121 @@ check('Dossier sans BP : cinq dimensions evaluees', noBusinessPlan.basis.evaluat
 check('Dossier sans BP : score renormalise sur 0.87', noBusinessPlan.globalScore, 63);
 
 // ============================================================
+// SECTION 7. UNE SEULE VERITE SUR LE STATUT D UN MOTEUR
+// ------------------------------------------------------------
+// Le run 4e30c644 portait deux verdicts contradictoires sur le meme
+// moteur dans le meme enregistrement : engineStatus ok cote bloc de
+// score, empty_output cote releve persiste. Le calculateur tenait
+// deux sources concurrentes, la table de statuts puis une seconde
+// lecture de la racine qui pouvait la contredire.
+//
+// Regle desormais : si le releve porte une entree pour ce moteur,
+// elle tranche seule. Les gardes sur la racine ne servent plus qu au
+// cas ou le releve est muet (dossiers persistes avant
+// l instrumentation, rescoring hors pipeline). La qualite du contenu
+// reste jugee apres, par les composites, et donne sous-champs-absents,
+// qui est une cause de score et non un statut de moteur.
+// ============================================================
+
+console.log('\n=== Section 7. Une seule verite sur le statut ===');
+
+// Cas team du run A : le releve dit empty_output, la dimension sort
+// de l assiette sous cette cause exacte, pas sous moteur-absent.
+const relevePrime = computeMechanicalScore({
+  team: null,
+  market: makeMarket(65),
+  macro: makeMacro(55),
+  financial: makeFinancial(75),
+  contrarian: makeContrarian(60),
+  blindspot: makeBlindspot(40),
+  engineStatuses: statuses({
+    team: 'empty_output',
+    market: 'ok',
+    macro: 'ok',
+    financialCoherence: 'ok',
+    contrarianAnalysis: 'ok',
+    blindspotAnalysis: 'ok',
+  }),
+});
+check('Releve empty_output : Equipe hors assiette', relevePrime.dimensions.team.evaluated, false);
+check('Releve empty_output : cause moteur-empty-output',
+  relevePrime.dimensions.team.evaluationCause, 'moteur-empty-output');
+check('Releve empty_output : statut expose identique au releve',
+  relevePrime.dimensions.team.engineStatus, 'empty_output');
+check('Releve empty_output : cinq dimensions evaluees', relevePrime.basis.evaluatedCount, 5);
+
+// Contradiction inverse : le releve dit ok, la racine est nulle. Le
+// releve tranche sur le statut du moteur, mais aucun score n est
+// fabrique pour autant : la dimension reste hors assiette, sous une
+// cause de contenu et non de moteur.
+const releveOkRacineVide = computeMechanicalScore({
+  team: null,
+  market: makeMarket(65),
+  macro: makeMacro(55),
+  financial: makeFinancial(75),
+  contrarian: makeContrarian(60),
+  blindspot: makeBlindspot(40),
+  engineStatuses: FULL_OK,
+});
+check('Releve ok racine vide : statut expose reste ok, sans contre-lecture',
+  releveOkRacineVide.dimensions.team.engineStatus, 'ok');
+check('Releve ok racine vide : aucune valeur fabriquee, dimension hors assiette',
+  releveOkRacineVide.dimensions.team.evaluated, false);
+check('Releve ok racine vide : cause de contenu, pas de moteur',
+  releveOkRacineVide.dimensions.team.evaluationCause, 'sous-champs-absents');
+check('Releve ok racine vide : contribution nulle',
+  releveOkRacineVide.dimensions.team.contribution, 0);
+check('Releve ok racine vide : cinq dimensions evaluees',
+  releveOkRacineVide.basis.evaluatedCount, 5);
+
+// Releve muet sur un moteur : la garde sur la racine reprend la main
+// et rend moteur-absent, sans statut expose puisqu il n y en a pas.
+const releveMuet = computeMechanicalScore({
+  team: null,
+  market: makeMarket(65),
+  macro: makeMacro(55),
+  financial: makeFinancial(75),
+  contrarian: makeContrarian(60),
+  blindspot: makeBlindspot(40),
+  engineStatuses: statuses({
+    market: 'ok',
+    macro: 'ok',
+    financialCoherence: 'ok',
+    contrarianAnalysis: 'ok',
+    blindspotAnalysis: 'ok',
+  }),
+});
+check('Releve muet : cause moteur-absent recalculee sur la racine',
+  releveMuet.dimensions.team.evaluationCause, 'moteur-absent');
+check('Releve muet : aucun statut expose', releveMuet.dimensions.team.engineStatus, undefined);
+check('Releve muet : cinq dimensions evaluees', releveMuet.basis.evaluatedCount, 5);
+
+// Le skip declare par la matrice passe par le releve et non plus par
+// la seule lecture de l enveloppe skippee.
+const skipReleve = computeMechanicalScore({
+  team: buildSkippedTeamOutput(),
+  market: makeMarket(65),
+  macro: makeMacro(55),
+  financial: makeFinancial(75),
+  contrarian: makeContrarian(60),
+  blindspot: buildSkippedBlindspotOutput(),
+  engineStatuses: statuses({
+    team: 'skipped_not_applicable',
+    market: 'ok',
+    macro: 'ok',
+    financialCoherence: 'ok',
+    contrarianAnalysis: 'ok',
+    blindspotAnalysis: 'skipped_not_applicable',
+  }),
+});
+check('Skip au releve : Equipe cause moteur-skipped',
+  skipReleve.dimensions.team.evaluationCause, 'moteur-skipped');
+check('Skip au releve : Vigilance cause moteur-skipped',
+  skipReleve.dimensions.vigilance.evaluationCause, 'moteur-skipped');
+check('Skip au releve : quatre dimensions evaluees', skipReleve.basis.evaluatedCount, 4);
+check('Skip au releve : score identique au meme cas lu sur la racine',
+  skipReleve.globalScore, 64);
+
+// ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);
 if (fail > 0) process.exit(1);
