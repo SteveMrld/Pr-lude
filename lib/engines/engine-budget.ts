@@ -162,15 +162,15 @@ export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Ob
   // des deux echecs est inconnue, ils ont ete coupes exactement au
   // plafond. C est un pari calibre, pas une deduction, et c est
   // precisement ce que l instrumentation du commit suivant leve.
-  team: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 1, temperature: TEMPERATURE_DIALECTIQUE }),
+  team: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 1, temperature: TEMPERATURE_SCORE }),
   // 8000 tokens, Sonnet. Prompt systeme le plus lourd des six
   // (35 565 caracteres) mais sortie plafonnee a 8000.
   patternMatching: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 14000 tokens, Sonnet. Branche parallele, sa fenetre ne pese pas sur
   // le chemin critique tant qu elle reste sous pattern + causal (360s).
-  blindspotAnalysis: Object.freeze({ timeout: 240_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
+  blindspotAnalysis: Object.freeze({ timeout: 240_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_SCORE }),
   // 8000 tokens, Sonnet. Branche parallele.
-  contrarianAnalysis: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
+  contrarianAnalysis: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_SCORE }),
   // 8000 tokens, Sonnet. Sur le chemin critique, apres pattern.
   causalReversal: Object.freeze({ timeout: 180_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 4000 tokens, Haiku 4.5. Dernier maillon du chemin critique, et le

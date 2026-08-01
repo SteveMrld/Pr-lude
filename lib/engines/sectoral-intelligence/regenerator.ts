@@ -25,6 +25,7 @@
 // ============================================================
 
 import { callClaudeWithUsage, parseJSON } from '../anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from '../engine-budget';
 import {
   buildDimensionSystemPrompt,
   buildDimensionUserPrompt,
@@ -412,6 +413,7 @@ function createDefaultDimensionCaller(
     const { text, usage } = await callClaudeWithUsage(systemPrompt, userPrompt, 2500, model, {
       enableWebSearch: true,
       maxWebSearches: 4,
+      temperature: TEMPERATURE_DIALECTIQUE,
     });
     const parsed = parseJSON<DimensionLLMResponse>(text);
     // Le LLM ne connait pas son propre token count ; on injecte
@@ -436,6 +438,7 @@ function createDefaultAggregatorCaller(
     );
     const { text, usage } = await callClaudeWithUsage(systemPrompt, userPrompt, 1200, model, {
       enableWebSearch: false,
+      temperature: TEMPERATURE_DIALECTIQUE,
     });
     const parsed = parseJSON<AggregatorLLMResponse>(text);
     parsed.usage = {

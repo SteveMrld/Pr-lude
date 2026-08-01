@@ -42,6 +42,7 @@
 import type { ExtractionOutput } from './types';
 import type { CapTableExtraction } from '../cap-table-parser';
 import { callClaude, callClaudeWithPDF, parseJSON, MODEL } from './anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 
 // ============================================================
 // Types
@@ -372,7 +373,7 @@ Extrais les 15 clauses standardisées. Pour chaque clause, cherche la formulatio
 Réponds UNIQUEMENT avec le JSON spécifié.`;
 
   try {
-    const response = await callClaudeWithPDF(PACT_SYSTEM_PROMPT, userPrompt, pdfBase64, 4500, MODEL);
+    const response = await callClaudeWithPDF(PACT_SYSTEM_PROMPT, userPrompt, pdfBase64, 4500, MODEL, TEMPERATURE_DIALECTIQUE);
     const result: any = parseJSON(response);
     if (!Array.isArray(result.clauses)) return [];
     return result.clauses
@@ -407,7 +408,7 @@ Extrais les 4 clauses statutaires matérielles (board_composition, quorum_majori
 Réponds UNIQUEMENT avec le JSON spécifié.`;
 
   try {
-    const response = await callClaudeWithPDF(STATUTES_SYSTEM_PROMPT, userPrompt, pdfBase64, 2500, MODEL);
+    const response = await callClaudeWithPDF(STATUTES_SYSTEM_PROMPT, userPrompt, pdfBase64, 2500, MODEL, TEMPERATURE_DIALECTIQUE);
     const result: any = parseJSON(response);
     if (!Array.isArray(result.clauses)) return [];
     return result.clauses
@@ -442,7 +443,7 @@ Cherche les flags listés (change_of_control, exclusivity, mfn, penalty_exit, au
 Réponds UNIQUEMENT avec le JSON spécifié.`;
 
   try {
-    const response = await callClaudeWithPDF(CLIENT_CONTRACT_SYSTEM_PROMPT, userPrompt, pdfBase64, 2000, MODEL);
+    const response = await callClaudeWithPDF(CLIENT_CONTRACT_SYSTEM_PROMPT, userPrompt, pdfBase64, 2000, MODEL, TEMPERATURE_DIALECTIQUE);
     const result: any = parseJSON(response);
     if (!Array.isArray(result.flags)) return [];
     return result.flags
@@ -557,7 +558,7 @@ Score global : ${globalScore}/100
 Produis la synthèse éditoriale et les questions DD prioritaires.`;
 
   try {
-    const response = await callClaude(SYNTHESIS_SYSTEM_PROMPT, userPrompt, 2000, MODEL);
+    const response = await callClaude(SYNTHESIS_SYSTEM_PROMPT, userPrompt, 2000, MODEL, { temperature: TEMPERATURE_DIALECTIQUE });
     const result: any = parseJSON(response);
     return {
       synthesis: result.synthesis || '',

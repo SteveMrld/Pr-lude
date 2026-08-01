@@ -31,6 +31,7 @@
 // ============================================================
 
 import { callClaudeWithUsage, parseJSON } from '../anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from '../engine-budget';
 import { PROMPT_VERSION as DIMENSION_PROMPT_VERSION } from './dimension-prompts';
 import {
   computeInterSectoralAnalytics,
@@ -436,7 +437,7 @@ function createDefaultLLMCaller(model: string) {
       userPrompt,
       DEFAULT_MAX_TOKENS,
       model,
-      { enableWebSearch: false },
+      { enableWebSearch: false, temperature: TEMPERATURE_DIALECTIQUE },
     );
     const parsed = parseJSON<AggregatorLLMResponse>(text);
     parsed.usage = {

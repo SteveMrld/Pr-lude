@@ -32,6 +32,7 @@
 
 import type { ExtractionOutput, FinancialDataExtraction, TechClaimCoherenceOutput } from './types';
 import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { normalizeFrText } from '../data/text-normalize';
 
 // ============================================================
@@ -381,7 +382,7 @@ ${extraction.rawSummary || 'non renseigné'}
 
 Audite la traçabilité de l'actif tech revendiqué et le contre-factuel (le pari tient-il sans la tech ?). Retourne uniquement le JSON structuré demandé.`;
 
-  const rawResponse = await callClaude(LLM_SYSTEM_PROMPT, userPrompt, 2000, FAST_MODEL);
+  const rawResponse = await callClaude(LLM_SYSTEM_PROMPT, userPrompt, 2000, FAST_MODEL, { temperature: TEMPERATURE_DIALECTIQUE });
   return parseJSON(rawResponse);
 }
 

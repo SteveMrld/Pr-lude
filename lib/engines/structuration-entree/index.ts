@@ -10,6 +10,7 @@
 // ============================================================
 
 import { callClaude, MODEL } from '../anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from '../engine-budget';
 import { normalizeFrenchPunctuation } from '../../normalize-punctuation';
 import {
   STRUCTURATION_SYSTEM_PROMPT,
@@ -162,7 +163,7 @@ export async function analyzeStructurationEntree(
     userPrompt,
     4000,
     MODEL,
-    { enableWebSearch: false },
+    { enableWebSearch: false, temperature: TEMPERATURE_DIALECTIQUE },
   );
 
   const parsed = extractJson(raw);

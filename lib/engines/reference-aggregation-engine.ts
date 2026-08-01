@@ -1,4 +1,5 @@
 import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import type { ReferenceCallNote } from '@/lib/reference-call-notes-store';
 
 // ============================================================
@@ -248,12 +249,12 @@ Agrège ces notes en une synthèse DD référence selon le format JSON spécifi�
 
 Retourne uniquement le JSON.`;
 
-  let raw = await callClaude(SYSTEM_PROMPT, userPrompt, 3500, FAST_MODEL);
+  let raw = await callClaude(SYSTEM_PROMPT, userPrompt, 3500, FAST_MODEL, { temperature: TEMPERATURE_DIALECTIQUE });
   try {
     return parseJSON<ReferenceAggregationOutput>(raw);
   } catch (firstErr: any) {
     console.warn('[reference-aggregation] JSON parse failed, retrying once:', firstErr?.message);
-    raw = await callClaude(SYSTEM_PROMPT, userPrompt, 3500, FAST_MODEL);
+    raw = await callClaude(SYSTEM_PROMPT, userPrompt, 3500, FAST_MODEL, { temperature: TEMPERATURE_DIALECTIQUE });
     return parseJSON<ReferenceAggregationOutput>(raw);
   }
 }

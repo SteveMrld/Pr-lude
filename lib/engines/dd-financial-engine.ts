@@ -34,6 +34,7 @@
 import type { ExtractionOutput, FinancialDataExtraction } from './types';
 import type { LedgerExtraction } from '../ledger-parser';
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { normalizeFrText } from '../data/text-normalize';
 
 // ============================================================
@@ -666,7 +667,7 @@ Produis la synthèse éditoriale et les questions DD prioritaires. Réponds UNIQ
   let synthesis = '';
   let questionsToInstruct: string[] = [];
   try {
-    const response = await callClaude(SYSTEM_PROMPT, userPrompt, 2500, MODEL);
+    const response = await callClaude(SYSTEM_PROMPT, userPrompt, 2500, MODEL, { temperature: TEMPERATURE_DIALECTIQUE });
     const llmResult: any = parseJSON(response);
     synthesis = llmResult.synthesis || '';
     questionsToInstruct = Array.isArray(llmResult.questionsToInstruct)

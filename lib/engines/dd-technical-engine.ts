@@ -40,6 +40,7 @@
 
 import type { ExtractionOutput } from './types';
 import { getClient, MODEL, parseJSON } from './anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 
 // ============================================================
 // Types
@@ -267,6 +268,11 @@ async function callClaudeMultiDocs(
     model: MODEL,
     max_tokens: maxTokens,
     system: systemPrompt,
+    // Ce helper local court-circuite callClaudeWithPDF pour porter
+    // plusieurs documents dans un meme message, et heritait donc du
+    // defaut API sans qu aucun contrat ne l en empeche. Valeur inchangee,
+    // declaree.
+    temperature: TEMPERATURE_DIALECTIQUE,
     messages: [{ role: 'user', content }],
   });
   const textBlock = response.content.find((c) => c.type === 'text');

@@ -160,7 +160,12 @@ ${bpContent.slice(0, 8000)}
 
 Retourne uniquement le JSON structuré.`;
 
-  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 8000, MODEL);
+  // temperature=0, comme la branche sans BP ci-dessus. L omission etait
+  // un oubli et non une decision : la meme fonction lisait le meme P&L
+  // de deux facons selon qu un business plan accompagnait le deck, et
+  // c est la branche avec BP, la plus riche en chiffres, qui echappait
+  // au determinisme. Sa sortie alimente la dimension Modele economique.
+  const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, deckBase64, 8000, MODEL, 0);
   const result = parseJSON<FinancialDataExtraction>(rawResponse);
   // Garantir que tous les champs requis existent
   result.hasBP = true;

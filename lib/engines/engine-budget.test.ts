@@ -389,20 +389,22 @@ for (const f of ['pattern-engine', 'blindspot-engine', 'contrarian-engine', 'cau
 // pipeline tournaient au defaut de l API pendant que la couche
 // d extraction passait 0 depuis toujours.
 //
-// Ce commit pose le mecanisme sans rien changer au comportement : la
-// table declare la valeur qui etait deja appliquee implicitement. Le
-// basculement des moteurs de dimension est l objet du commit suivant.
+// Le mecanisme a ete pose neutre : la table declarait d abord la valeur
+// deja appliquee implicitement sur les huit. La repartition reelle
+// entre les deux regimes est verrouillee section 8, une fois le
+// basculement des moteurs de dimension acquis.
 // ============================================================
 
 checkTrue('Aucun moteur budgete ne laisse la temperature indefinie',
   (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
     .every(k => typeof ENGINE_LLM_BUDGET[k].temperature === 'number'));
 
-// Le defaut de l API vaut 1.0. La table le declare, elle ne le change
-// pas : ce commit doit etre neutre a l execution.
-check('La temperature declaree reste celle du defaut API sur les huit',
+// Deux regimes et deux seulement. Une troisieme valeur signalerait un
+// reglage pris au site d appel plutot qu au niveau de la doctrine.
+checkTrue('Les huit se repartissent sur les deux seuls regimes declares',
   (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
-    .filter(k => ENGINE_LLM_BUDGET[k].temperature !== TEMPERATURE_DIALECTIQUE), []);
+    .every(k => ENGINE_LLM_BUDGET[k].temperature === TEMPERATURE_DIALECTIQUE
+      || ENGINE_LLM_BUDGET[k].temperature === TEMPERATURE_SCORE));
 check('Le defaut API est bien la valeur dialectique', TEMPERATURE_DIALECTIQUE, 1);
 check('La valeur de score supprime l echantillonnage', TEMPERATURE_SCORE, 0);
 
@@ -415,6 +417,65 @@ check('client : aucun defaut de temperature n est fabrique',
   (clientSrc.match(/options\.temperature \?\?/g) || []).length, 0);
 check('client : le champ est emis sous condition de presence',
   (clientSrc.match(/options\.temperature !== undefined/g) || []).length, 2);
+
+// ============================================================
+// SECTION 8. LES SIX MOTEURS DE DIMENSION SONT DETERMINISTES
+// ------------------------------------------------------------
+// La frontiere du determinisme se lit sur score-calculator : six
+// dimensions ponderees, six moteurs qui les alimentent. team, market,
+// macro et financialCoherence directement, contrarian sur sa dimension
+// propre, blindspot par la vigilance qui inverse globalBlindspotScore
+// (score-calculator.ts:741). Ces six-la sortent de l echantillonnage,
+// les autres non : ce test verrouille exactement cette ligne, et
+// casse aussi bien si un moteur de dimension y rentre a nouveau que si
+// un moteur dialectique en sort sans decision.
+// ============================================================
+
+const DIMENSION_ENGINES: BudgetedEngineKey[] = ['team', 'blindspotAnalysis', 'contrarianAnalysis'];
+for (const key of DIMENSION_ENGINES) {
+  check(`${key} : alimente une dimension, donc temperature 0`,
+    ENGINE_LLM_BUDGET[key].temperature, TEMPERATURE_SCORE);
+}
+checkTrue('Les cinq moteurs hors dimension gardent le defaut API',
+  (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
+    .filter(k => !DIMENSION_ENGINES.includes(k))
+    .every(k => ENGINE_LLM_BUDGET[k].temperature === TEMPERATURE_DIALECTIQUE));
+
+// Les trois autres moteurs de dimension portent leurs options en
+// litteral, hors de la table. La contrainte de type ne les atteint pas,
+// donc elle est reportee ici sur le source.
+for (const f of ['market-engine', 'macro-engine', 'financial-coherence-engine']) {
+  checkTrue(`${f} : passe la temperature de score au site d appel`,
+    read(`lib/engines/${f}.ts`).includes('temperature: TEMPERATURE_SCORE'));
+}
+
+// La branche avec business plan de l extraction financiere omettait la
+// temperature que sa jumelle sans BP passait a 0. Meme fonction, meme
+// P&L, deux regimes selon la presence d un fichier. Sa sortie alimente
+// la dimension Modele economique.
+check('financial-extraction : les deux branches lisent le P&L a 0',
+  (read('lib/engines/financial-extraction-engine.ts')
+    .match(/deckBase64, 8000, MODEL, 0\)/g) || []).length, 2);
+
+// Aucun site d appel ne doit plus heriter du defaut en silence. Le
+// balayage porte sur les fichiers qui appellent le client partage.
+const SITES_A_DECLARER = [
+  'lib/engines/reference-aggregation-engine.ts',
+  'lib/engines/tech-claim-coherence-engine.ts',
+  'lib/engines/execution-friction-engine.ts',
+  'lib/engines/dd-financial-engine.ts',
+  'lib/engines/dd-contractual-engine.ts',
+  'lib/engines/dd-technical-engine.ts',
+  'lib/engines/structuration-entree/index.ts',
+  'lib/engines/sectoral-intelligence/regenerator.ts',
+  'lib/engines/sectoral-intelligence/inter-sector-aggregator.ts',
+  'lib/cron/milestone-detection-runner.ts',
+  'lib/engines/fragility-structurelle/pattern-interface.ts',
+];
+for (const p of SITES_A_DECLARER) {
+  checkTrue(`${p} : temperature declaree et non heritee`,
+    read(p).includes('TEMPERATURE_DIALECTIQUE'));
+}
 
 // ============================================================
 console.log(`\n${pass}/${pass + fail} tests passes`);

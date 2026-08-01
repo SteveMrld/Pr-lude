@@ -21,7 +21,7 @@
 // ============================================================
 
 import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
-import { addCall, type LlmMeasure } from './engine-budget';
+import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock } from './fund-context';
@@ -303,7 +303,10 @@ export async function analyzeFinancialCoherence(
     userPrompt,
     7000,
     MODEL,
-    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
+    applyRunOptions(
+      { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
+      runOptions,
+    ),
   );
   addCall(measure, startedAt, usage, 7000);
   const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse, measure);

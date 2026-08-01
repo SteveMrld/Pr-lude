@@ -1,5 +1,5 @@
 import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
-import { addCall, type LlmMeasure } from './engine-budget';
+import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -527,7 +527,10 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
     userPrompt,
     9000,
     MODEL,
-    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
+    applyRunOptions(
+      { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
+      runOptions,
+    ),
   );
   addCall(measure, startedAt, usage, 9000);
   const analysis = parseJSON<MarketAnalysisOutput>(rawResponse, measure);

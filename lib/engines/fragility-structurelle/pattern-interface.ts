@@ -57,6 +57,8 @@ import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 // dedie : leur latence nominale differe, leur profil retry aussi.
 // ============================================================
 
+import { TEMPERATURE_DIALECTIQUE } from '../engine-budget';
+
 /** Options callClaude appliquees aux sept patterns fragility. Utilisees
  *  comme cinquieme argument de callClaude sur chacun des sept sites
  *  d appel. Alignees sur ENGINE_DEADLINE_MS=200_000 (route.ts:522) avec
@@ -65,7 +67,15 @@ import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 export const PATTERN_LLM_OPTIONS = Object.freeze({
   timeout: 180_000,
   maxRetries: 0,
-}) as { timeout: number; maxRetries: number };
+  // Declaree plutot que subie. Fragilite ne produit aucune dimension du
+  // score, ses sept verdicts se lisent comme des patterns et non comme
+  // des notes ponderees, donc la valeur reste celle du defaut API et le
+  // comportement ne change pas. Elle cesse simplement d etre implicite :
+  // la table est le seul endroit ou les sept sites d appel se reglent, et
+  // le jour ou la reproductibilite de fragilite deviendra un sujet, il y
+  // aura un point a modifier au lieu de sept.
+  temperature: TEMPERATURE_DIALECTIQUE,
+}) as { timeout: number; maxRetries: number; temperature: number };
 
 /**
  * Resultat de la pre-evaluation d applicabilite. Sert a decider si

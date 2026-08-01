@@ -1,5 +1,5 @@
 import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
-import { addCall, type LlmMeasure } from './engine-budget';
+import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { gatherMacroRealData, gatherImfWeoSnapshot, type MacroSnapshot, type ImfWeoSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -461,7 +461,10 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
     userPrompt,
     9000,
     MODEL,
-    applyRunOptions({ maxWebSearches: 1, timeout: 150_000, maxRetries: 0 }, runOptions),
+    applyRunOptions(
+      { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
+      runOptions,
+    ),
   );
   addCall(measure, startedAt, usage, 9000);
   const analysis = parseJSON<MacroAnalysisOutput>(rawResponse, measure);

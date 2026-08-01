@@ -44,6 +44,7 @@ import type {
   ExecutionFrictionFlag,
 } from './types';
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { formatExtractionGeography } from './fund-context';
 
 // ============================================================
@@ -403,7 +404,7 @@ Analyse les 8 axes de friction d'exécution. Réponds UNIQUEMENT avec le JSON sp
 
   let llmResult: any;
   try {
-    const response = await callClaude(SYSTEM_PROMPT, userPrompt, 3500, MODEL);
+    const response = await callClaude(SYSTEM_PROMPT, userPrompt, 3500, MODEL, { temperature: TEMPERATURE_DIALECTIQUE });
 
     llmResult = parseJSON(response);
   } catch (e) {

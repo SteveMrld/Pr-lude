@@ -29,6 +29,7 @@
 // ============================================================
 
 import { callClaude } from '@/lib/engines/anthropic-client';
+import { TEMPERATURE_DIALECTIQUE } from '@/lib/engines/engine-budget';
 import {
   addMilestone,
   listMilestonesForDedup,
@@ -204,7 +205,7 @@ export async function runMilestoneDetection(ctx: DetectionContext): Promise<Dete
       buildUserPrompt(ctx, predictionContext),
       3000,
       undefined,
-      { enableWebSearch: true, maxWebSearches: 5 },
+      { enableWebSearch: true, maxWebSearches: 5, temperature: TEMPERATURE_DIALECTIQUE },
     );
   } catch (err: any) {
     return {
