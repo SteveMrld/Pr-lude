@@ -544,7 +544,7 @@ async function main() {
     });
   }
   console.log(`Commit SHA : ${stamps[0].app.commitSha || '(inconnu)'}`);
-  console.log(`Modeles : primary=${stamps[0].models.primary} fast=${stamps[0].models.fast} temp=${stamps[0].models.defaultTemperature}\n`);
+  console.log(`Modeles : primary=${stamps[0].models.primary} fast=${stamps[0].models.fast} temp=${stamps[0].models.defaultTemperature} (voir engines[].temperature)\n`);
 
   console.log(`VERDICTS (frequence) :`);
   for (const [v, n] of Object.entries(verdictCounts)) {
