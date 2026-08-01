@@ -27,3 +27,8 @@ scripts/setkey-server.ts
 # corpus, seed scripts. Non partages. Le harnais et les scripts
 # stables sont sans prefixe et restent commites.
 scripts/_*
+
+# Bac a sable de session : sondes, payloads, cookies, scripts de
+# poll ecrits pour un diagnostic et jamais relus. Rien de ce qui
+# doit survivre a une session n a sa place ici.
+.tmp-run/
