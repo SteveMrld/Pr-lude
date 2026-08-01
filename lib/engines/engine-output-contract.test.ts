@@ -17,6 +17,13 @@ import {
   requireConformingOutput,
 } from './engine-output-contract';
 import type { ParseMode } from './engine-budget';
+import { passesMinimalContract } from '../orchestrator/engine-status-recorder';
+import {
+  buildSkippedTeamOutput,
+  buildSkippedBlindspotOutput,
+  buildSkippedPatternMatchingOutput,
+  buildSkippedCausalOutput,
+} from './skipped-outputs';
 
 let pass = 0, fail = 0;
 function check(cond: boolean, label: string) {
@@ -223,6 +230,54 @@ console.log('\n[Suite 2] Le contrat est evalue au moment de l appel');
   }
 
   {
+    // Le coeur de la doctrine : la reparation ne vaut pas succes. Le
+    // texte est coupe, la voie de recuperation en tire un objet valide,
+    // et cet objet ne porte aucune des cles exigees. C est le chemin
+    // exact du run 4e30c644, reproduit depuis le texte brut et non
+    // depuis l enveloppe deja parsee : le JSON casse sur l apostrophe de
+    // "Cote d Ivoire", la recuperation indexe par position, et le
+    // contrat tombe. Sans cette assertion, rien ne verifiait qu une
+    // reconstruction non conforme est refusee, seulement qu une
+    // enveloppe deja reconstruite l est.
+    const brut = '{"0":"web : Elle Cote d","1":"Ivoire","realData":[{"name":"Rebecca Cathline"}';
+    let leve: any = null;
+    try {
+      await parseEngineOutput('team', async () => brut);
+    } catch (e) { leve = e; }
+    check(leve instanceof EngineContractError,
+      'reconstruction non conforme : refusee, la reparation ne vaut pas succes');
+    check(leve?.parseMode === 'recovered' || leve?.parseMode === 'repaired',
+      '  l erreur porte le mode de reconstruction (obtenu ' + leve?.parseMode + ')');
+    check(leve?.keys.length === 3, '  trois cles rendues par la reparation');
+  }
+
+  {
+    // Meme chemin, avec reprise ouverte : le moteur declare son echec de
+    // contrat, rejoue son appel, et la seconde fenetre rend une sortie
+    // conforme. Le mode de la tentative fautive est bien une
+    // reconstruction, celui de la tentative retenue un parse fidele.
+    const modes: (ParseMode | undefined)[] = [];
+    let appels = 0;
+    const trace: { parseMode?: ParseMode } = {};
+    const v = await parseEngineOutput<any>('team', async () => {
+      appels++;
+      return appels === 1
+        ? '{"0":"web : Elle Cote d","1":"Ivoire","realData":[{"name":"X"}'
+        : '{"foundersCount":2,"systemicCoverage":{"score":52}}';
+    }, {
+      contractRetries: 1,
+      trace,
+      onRetry: (_a, err) => { modes.push(err.parseMode); },
+    });
+    check(appels === 2, 'reparation non conforme : le moteur rejoue son appel');
+    check(v.foundersCount === 2, '  la seconde tentative conforme est rendue');
+    check(modes[0] === 'recovered' || modes[0] === 'repaired',
+      '  la tentative fautive est declaree comme reconstruction (obtenu ' + modes[0] + ')');
+    check(trace.parseMode === 'direct',
+      '  le releve porte le mode de la tentative retenue, pas celui de la fautive');
+  }
+
+  {
     // Reconstruction qui satisfait le contrat : acceptee. Le mode est
     // trace, il ne condamne pas a lui seul.
     const trace: { parseMode?: ParseMode } = {};
@@ -270,6 +325,62 @@ console.log('\n[Suite 2] Le contrat est evalue au moment de l appel');
       await requireConformingOutput('team', Promise.reject(new Error('boom amont')));
     } catch (e: any) { msg = e?.message; }
     check(msg === 'boom amont', 'rejet amont : traverse la garde inchange');
+  }
+
+  // ------------------------------------------------------------
+  // Chemin nominal des six moteurs gardes. Une garde de consommation
+  // ne vaut que si elle ne refuse rien de legitime : un contrat calibre
+  // sur des noms de champs fantomes couperait le pipeline sur des
+  // sorties completes, ce qui est exactement l accident qu avait connu
+  // fragiliteStructurelle avec overallScore et combinations. Les six
+  // cles gardees par la route sont donc exercees sur des sortants de
+  // forme reelle, dont les deux voies de patternMatching et de
+  // causalReversal.
+  // ------------------------------------------------------------
+  {
+    const nominaux: [string, any][] = [
+      ['team', { foundersCount: 2, founderMarketFit: [{ score: 70 }], systemicCoverage: { score: 52 }, realData: [] }],
+      ['market', { perceivedSize: 'large', needIntensity: { score: 61 }, defensibility: { score: 44, moats: [] } }],
+      ['macro', { cyclePosition: 'mature', structuralTrends: [{ label: 'consolidation' }], regulatoryEnvironment: { score: 50 } }],
+      ['patternMatching', { comparables: [{ name: 'Doctolib', score: 62 }] }],
+      ['patternMatching', { retrospectiveBenchmark: { averageScore: 58, insights: ['x'] } }],
+      ['blindspotAnalysis', { patterns: { survivorship: { score: 40 } } }],
+      ['causalReversal', { reversalNarrative: 'La these tient si et seulement si.' }],
+      ['causalReversal', { blindspotsScores: { execution: 55 } }],
+    ];
+    let refuses = 0;
+    for (const [engine, sortie] of nominaux) {
+      try {
+        const v = await requireConformingOutput(engine, Promise.resolve(sortie));
+        if (v !== sortie) refuses++;
+      } catch { refuses++; }
+    }
+    check(refuses === 0,
+      'chemin nominal des six moteurs gardes : aucun faux positif sur huit sortants de forme reelle');
+  }
+
+  // ------------------------------------------------------------
+  // Parcours growth : les moteurs ecartes rendent une enveloppe neutre
+  // marquee __skipped qui ne satisfait pas toujours le contrat de leur
+  // cle. Le skip est teste avant le contrat, et c est ce qui permet au
+  // parcours growth de traverser la garde sans que rien ne soit
+  // fabrique : le moteur n a pas echoue, il n avait pas lieu de tourner.
+  // ------------------------------------------------------------
+  {
+    const ecartes: [string, any][] = [
+      ['team', buildSkippedTeamOutput()],
+      ['blindspotAnalysis', buildSkippedBlindspotOutput()],
+      ['patternMatching', buildSkippedPatternMatchingOutput()],
+      ['causalReversal', buildSkippedCausalOutput()],
+    ];
+    let refuses = 0;
+    for (const [engine, sortie] of ecartes) {
+      try { await requireConformingOutput(engine, Promise.resolve(sortie)); }
+      catch { refuses++; }
+    }
+    check(refuses === 0, 'parcours growth : les quatre sorties ecartees traversent la garde');
+    check(!passesMinimalContract('patternMatching', buildSkippedPatternMatchingOutput()),
+      '  et l une d elles echoue bien son contrat : c est le skip qui la sauve, pas le contenu');
   }
 
   console.log(`\n${pass} pass, ${fail} fail`);
