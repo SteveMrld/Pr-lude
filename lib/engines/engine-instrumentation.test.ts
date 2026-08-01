@@ -444,9 +444,43 @@ checkTrue('reference-checks : sa fenetre de temps n a pas bouge',
 
 // Les onze moteurs instrumentes doivent tous tracer leur parse,
 // sinon le champ ne dit rien de la moitie du pipeline.
+//
+// Deux cablages coexistent depuis le brief 21. Les moteurs passes au
+// point de passage unique deposent leur puits via l option trace de
+// parseEngineOutput, qui evalue le contrat minimal au site d appel et
+// releve le mode exactement comme parseJSON le faisait. Les autres
+// gardent l appel direct a parseJSON. Ce qui est verifie ici n est pas
+// la voie prise mais le fait que le puits soit passe : un moteur qui
+// parse sans tracer laisse une colonne muette dans le releve.
 for (const { file } of [...ENGINES, ...AMONT]) {
-  checkTrue(`${file} : passe le puits a parseJSON`,
-    /parseJSON<[^;]*>\([a-zA-Z]+, measure\)/.test(read(file)));
+  const src = read(file);
+  checkTrue(`${file} : passe le puits a la couche de parse`,
+    /parseJSON<[^;]*>\([a-zA-Z]+, measure\)/.test(src)
+    || /trace: measure/.test(src));
+}
+
+// Le point de passage du contrat, quand il est cable, doit l etre avec
+// la cle de releve du moteur et non son libelle : c est cette cle qui
+// indexe MINIMAL_CONTRACTS et pipeline_engines_status.
+{
+  const CLES_ATTENDUES: Record<string, string> = {
+    'lib/engines/team-engine.ts': 'team',
+    'lib/engines/market-engine.ts': 'market',
+    'lib/engines/macro-engine.ts': 'macro',
+    'lib/engines/blindspot-engine.ts': 'blindspotAnalysis',
+    'lib/engines/contrarian-engine.ts': 'contrarianAnalysis',
+    'lib/engines/causal-engine.ts': 'causalReversal',
+    'lib/engines/pattern-engine.ts': 'patternMatching',
+    'lib/engines/narrative-drift-engine.ts': 'narrativeDrift',
+    'lib/engines/financial-coherence-engine.ts': 'financialCoherence',
+    'lib/engines/reference-checks-engine.ts': 'referenceChecks',
+    'lib/engines/orchestrator.ts': 'finalRecommendation',
+  };
+  for (const [file, cle] of Object.entries(CLES_ATTENDUES)) {
+    const src = read(file);
+    checkTrue(`${file} : contrat evalue au site d appel sous la cle ${cle}`,
+      src.includes('parseEngineOutput') && src.includes(`'${cle}'`));
+  }
 }
 
 // ============================================================

@@ -1,5 +1,6 @@
 import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
-import { callClaudeWithUsage, parseJSON, applyRunOptions, MODEL, type EngineRunOptions } from './anthropic-client';
+import { callClaudeWithUsage, applyRunOptions, MODEL, type EngineRunOptions } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -590,16 +591,33 @@ Intègre dans ton analyse :
   // l ensemble. Retry desactive parce qu un depassement a 150s signale du
   // structurel (upstream web_search bloque, incident tool), pas du
   // transitoire : deux tentatives longues echoueraient identiquement.
-  const startedAt = Date.now();
-  const { text: rawResponse, usage } = await callClaudeWithUsage(
-    SYSTEM_PROMPT,
-    userPrompt,
-    8000,
-    MODEL,
-    applyRunOptions({ ...ENGINE_LLM_BUDGET.team }, runOptions),
-  );
-  addCall(measure, startedAt, usage, 8000);
-  const analysis = parseJSON<TeamAnalysisOutput>(rawResponse, measure);
+  // Contrat evalue au site d appel. team est le cas de reference du
+  // brief 21 : sur le run 4e30c644 il a rendu 7763 tokens sous un
+  // plafond de 8000, donc sans troncature, mais le JSON a casse et la
+  // voie de recuperation a rendu trois cles au lieu de quinze. Le
+  // statut est reste ok jusqu a la finalisation, et les cinq moteurs
+  // qui dependent de team ont consomme cette enveloppe.
+  //
+  // contractRetries reste a 0 et ce n est pas un oubli. Une reprise
+  // coute une seconde fenetre pleine : team tourne autour de 150s
+  // pour une fenetre de 180s et une deadline externe de 200s
+  // (engineDeadlineFor). Rejouer ici transformerait un echec de
+  // contrat propre en depassement de fenetre, donc en timeout, ce qui
+  // est un signal plus pauvre. Ouvrir la reprise pour team est une
+  // decision de calibration des fenetres et du budget global de run,
+  // pas une consequence de ce correctif.
+  const analysis = await parseEngineOutput<TeamAnalysisOutput>('team', async () => {
+    const startedAt = Date.now();
+    const { text, usage } = await callClaudeWithUsage(
+      SYSTEM_PROMPT,
+      userPrompt,
+      8000,
+      MODEL,
+      applyRunOptions({ ...ENGINE_LLM_BUDGET.team }, runOptions),
+    );
+    addCall(measure, startedAt, usage, 8000);
+    return text;
+  }, { trace: measure, contractRetries: 0 });
 
   // Audit du tagging des sources (Niveau 2.B). Logge un warning si le
   // LLM a peu tagge ses assertions. Le warning est ecrit dans la

@@ -20,7 +20,8 @@
 // identique au comportement historique.
 // ============================================================
 
-import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -297,19 +298,21 @@ export async function analyzeFinancialCoherence(
   // timeout 150s + maxRetries 0 : quatrieme moteur a web search actif,
   // meme politique que team/market/macro. Retry SDK desactive pour eviter
   // qu un blocage web_search structurel ne consomme deux fois le budget.
-  const startedAt = Date.now();
-  const { text: rawResponse, usage } = await callClaudeWithUsage(
-    SYSTEM_PROMPT,
-    userPrompt,
-    7000,
-    MODEL,
-    applyRunOptions(
-      { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
-      runOptions,
-    ),
-  );
-  addCall(measure, startedAt, usage, 7000);
-  const llmAnalysis = parseJSON<Partial<FinancialCoherenceOutput>>(rawResponse, measure);
+  const llmAnalysis = await parseEngineOutput<Partial<FinancialCoherenceOutput>>('financialCoherence', async () => {
+    const startedAt = Date.now();
+    const { text, usage } = await callClaudeWithUsage(
+      SYSTEM_PROMPT,
+      userPrompt,
+      7000,
+      MODEL,
+      applyRunOptions(
+        { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
+        runOptions,
+      ),
+    );
+    addCall(measure, startedAt, usage, 7000);
+    return text;
+  }, { trace: measure, contractRetries: 0 });
 
   // Recombinaison deterministe : on assemble les tests applicables
   // (issus du LLM) avec les stubs non applicables (construits cote

@@ -1,4 +1,5 @@
-import { parseJSON, applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { gatherMacroRealData, gatherImfWeoSnapshot, type MacroSnapshot, type ImfWeoSnapshot } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
@@ -455,19 +456,21 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
   // timeout 150s + maxRetries 0 : p50 macro observe 50s wall, p90 68s.
   // Moins dense en web_search que team/market mais la meme politique
   // s applique par coherence entre les moteurs a recherche active.
-  const startedAt = Date.now();
-  const { text: rawResponse, usage } = await callClaudeWithUsage(
-    SYSTEM_PROMPT,
-    userPrompt,
-    9000,
-    MODEL,
-    applyRunOptions(
-      { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
-      runOptions,
-    ),
-  );
-  addCall(measure, startedAt, usage, 9000);
-  const analysis = parseJSON<MacroAnalysisOutput>(rawResponse, measure);
+  const analysis = await parseEngineOutput<MacroAnalysisOutput>('macro', async () => {
+    const startedAt = Date.now();
+    const { text, usage } = await callClaudeWithUsage(
+      SYSTEM_PROMPT,
+      userPrompt,
+      9000,
+      MODEL,
+      applyRunOptions(
+        { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
+        runOptions,
+      ),
+    );
+    addCall(measure, startedAt, usage, 9000);
+    return text;
+  }, { trace: measure, contractRetries: 0 });
 
   // Audit du tagging des sources (Niveau 2.B)
   const audit = auditTagging(analysis, 'macro-engine');

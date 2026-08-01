@@ -1,4 +1,5 @@
-import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { callClaudeWithUsage, MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
@@ -944,7 +945,15 @@ export async function orchestrateFinalRecommendation(
   addCall(measure, startedAt, usage, ORCHESTRATE_MAX_TOKENS);
   let recommendation: OrchestratedResult['finalRecommendation'];
   try {
-    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse, measure);
+    // Le contrat entre dans le try : la garde de reprise ci-dessous
+    // vivait dans le catch d un parse et n etait donc jamais consultee
+    // quand le parse reussissait sur une enveloppe vide. Un contrat qui
+    // tombe leve desormais comme une malformation de JSON.
+    recommendation = await parseEngineOutput<OrchestratedResult['finalRecommendation']>(
+      'finalRecommendation',
+      async () => rawResponse,
+      { trace: measure, contractRetries: 0 },
+    );
   } catch (firstErr: any) {
     // Reprise de parse conditionnelle, meme doctrine que reference-checks
     // au brief 15. Rejouer le meme prompt apres une coupure par
@@ -963,7 +972,11 @@ export async function orchestrateFinalRecommendation(
     );
     addCall(measure, retryStartedAt, retried.usage, ORCHESTRATE_MAX_TOKENS);
     rawResponse = retried.text;
-    recommendation = parseJSON<OrchestratedResult['finalRecommendation']>(rawResponse, measure);
+    recommendation = await parseEngineOutput<OrchestratedResult['finalRecommendation']>(
+      'finalRecommendation',
+      async () => rawResponse,
+      { trace: measure, contractRetries: 0 },
+    );
   }
 
   const audit = auditTagging(recommendation, 'orchestrator');

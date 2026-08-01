@@ -1,4 +1,5 @@
-import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { callClaudeWithUsage, MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { findByStrate, type ExtendedCaseRecord } from '../corpus/extended-database';
 import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
@@ -385,10 +386,12 @@ Retourne uniquement le JSON structuré.`;
   // sur Pen Group (45 patterns, 3 categories de risques, evidence
   // detaillee). On monte a 14000 pour garder une vraie marge et eviter
   // les troncatures qui font echouer parseJSON meme avec jsonrepair.
-  const startedAt = Date.now();
-  const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 14000, MODEL, ENGINE_LLM_BUDGET.blindspotAnalysis);
-  addCall(measure, startedAt, usage, 14000);
-  const analysis = parseJSON<BlindspotAnalysisOutput>(rawResponse, measure);
+  const analysis = await parseEngineOutput<BlindspotAnalysisOutput>('blindspotAnalysis', async () => {
+    const startedAt = Date.now();
+    const { text, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 14000, MODEL, ENGINE_LLM_BUDGET.blindspotAnalysis);
+    addCall(measure, startedAt, usage, 14000);
+    return text;
+  }, { trace: measure, contractRetries: 0 });
   const audit = auditTagging(analysis, 'blindspot-engine');
   if (audit.level !== 'ok') {
     console.warn('[blindspot-engine] tagging audit:', audit.message);

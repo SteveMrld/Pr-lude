@@ -1,4 +1,5 @@
-import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { callClaudeWithUsage, MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -166,10 +167,12 @@ Benchmark rétrospectif : ${patternMatching?.retrospectiveBenchmark?.averageScor
 
 Produis le retournement causal complet. Retourne uniquement le JSON structuré.`;
 
-  const startedAt = Date.now();
-  const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.causalReversal);
-  addCall(measure, startedAt, usage, 8000);
-  const analysis = parseJSON<CausalReversalOutput>(rawResponse, measure);
+  const analysis = await parseEngineOutput<CausalReversalOutput>('causalReversal', async () => {
+    const startedAt = Date.now();
+    const { text, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.causalReversal);
+    addCall(measure, startedAt, usage, 8000);
+    return text;
+  }, { trace: measure, contractRetries: 0 });
   const audit = auditTagging(analysis, 'causal-engine');
   if (audit.level !== 'ok') {
     console.warn('[causal-engine] tagging audit:', audit.message);

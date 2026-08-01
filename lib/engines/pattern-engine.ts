@@ -1,4 +1,5 @@
-import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { callClaudeWithUsage, MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { CORPUS, type CaseRecord } from '../corpus/database';
 import {
@@ -612,16 +613,19 @@ ${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extra
 
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour chaque comparable cité avec des chiffres précis, ces chiffres doivent venir de la base de chiffres vérifiés ci-dessus. Retourne uniquement le JSON structuré.`;
 
-  const startedAt = Date.now();
-  const { text: rawResponse, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.patternMatching);
-  addCall(measure, startedAt, usage, 8000);
+  const parsed = await parseEngineOutput<PatternMatchingOutput>('patternMatching', async () => {
+    const startedAt = Date.now();
+    const { text, usage } = await callClaudeWithUsage(SYSTEM_PROMPT, userPrompt, 8000, MODEL, ENGINE_LLM_BUDGET.patternMatching);
+    addCall(measure, startedAt, usage, 8000);
+    return text;
+  }, { trace: measure, contractRetries: 0 });
   // Contrat de sortie : matchPatterns promet un PatternMatchingOutput,
-  // il en rend un. parseJSON peut resoudre null (le modele emet le
-  // litteral null, JSON.parse le rend, sanitizeStringsRecursive le
-  // laisse passer) ou un scalaire. Ces valeurs traversaient la fonction
-  // sans lever et ressortaient telles quelles, propageant un null a
-  // tous les consommateurs de patternMatching.
-  const parsed = parseJSON<PatternMatchingOutput>(rawResponse, measure);
+  // il en rend un. Le contrat minimal est desormais evalue au site
+  // d appel et leve sur une sortie qui ne le satisfait pas, y compris
+  // le litteral null que le modele peut emettre et que JSON.parse rend
+  // sans broncher. Le repli degrade ci-dessous ne couvre donc plus que
+  // le cas residuel d une sortie qui passe le contrat sans etre
+  // exploitable par les consommateurs de patternMatching.
   const analysis: PatternMatchingOutput = isUsablePatternMatchingOutput(parsed)
     ? parsed
     : buildDegradedPatternMatchingOutput(

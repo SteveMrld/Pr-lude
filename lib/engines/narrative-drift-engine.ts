@@ -19,7 +19,8 @@
 // reproductibles. Garde-fou central contre l hallucination.
 // ============================================================
 
-import { callClaudeWithUsage, parseJSON, MODEL } from './anthropic-client';
+import { callClaudeWithUsage, MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -363,17 +364,18 @@ export async function analyzeNarrativeDrift(
   // instrumentes, toujours a 120s, c est-a-dire toujours ses deux
   // tentatives de 60s. Il n a aucune dependance et demarre a t=0
   // (route.ts:1075-1077), sa fenetre ne coute rien au chemin critique.
-  const startedAt = Date.now();
-  const { text: rawResponse, usage } = await callClaudeWithUsage(
-    buildSystemPrompt(assetClass, dossierStade),
-    userPrompt,
-    4000,
-    MODEL,
-    ENGINE_LLM_BUDGET.narrativeDrift,
-  );
-  addCall(measure, startedAt, usage, 4000);
-
-  const parsed = parseJSON<NarrativeDriftAnalysisOutput>(rawResponse, measure);
+  const parsed = await parseEngineOutput<NarrativeDriftAnalysisOutput>('narrativeDrift', async () => {
+    const startedAt = Date.now();
+    const { text, usage } = await callClaudeWithUsage(
+      buildSystemPrompt(assetClass, dossierStade),
+      userPrompt,
+      4000,
+      MODEL,
+      ENGINE_LLM_BUDGET.narrativeDrift,
+    );
+    addCall(measure, startedAt, usage, 4000);
+    return text;
+  }, { trace: measure, contractRetries: 0 });
 
   // Decoration cross-class / cross-echelle : si le LLM a choisi un nom
   // hors meme asset class, on prefixe la clause cross-class obligatoire.

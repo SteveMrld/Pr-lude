@@ -1,4 +1,5 @@
-import { callClaudeWithUsage, parseJSON, FAST_MODEL } from './anthropic-client';
+import { callClaudeWithUsage, FAST_MODEL } from './anthropic-client';
+import { parseEngineOutput } from './engine-output-contract';
 import { ENGINE_LLM_BUDGET, addCall, hitTokenCeiling, looksTruncated, type LlmMeasure } from './engine-budget';
 
 // looksTruncated vit desormais dans engine-budget : l orchestrateur en a
@@ -212,7 +213,16 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
   );
   addCall(measure, startedAt, usage, REFERENCE_CHECKS_MAX_TOKENS);
   try {
-    return parseJSON<ReferenceChecksOutput>(raw, measure);
+    // Le contrat entre dans le try, et c est tout l objet du brief 21 :
+    // la garde de reprise ci-dessous vivait dans le catch d un parse,
+    // elle n etait donc jamais consultee quand le parse reussissait sur
+    // une enveloppe vide. Un contrat qui tombe leve desormais comme une
+    // malformation de JSON, et suit la meme heuristique de reprise.
+    return await parseEngineOutput<ReferenceChecksOutput>(
+      'referenceChecks',
+      async () => raw,
+      { trace: measure, contractRetries: 0 },
+    );
   } catch (firstErr: any) {
     // Deux signaux de troncature, le second est le definitif : un
     // output_tokens au plafond dit que le modele a ete coupe, la ou
@@ -232,6 +242,12 @@ Genere le plan d'appels de reference. Retourne uniquement le JSON.`;
       SYSTEM_PROMPT, userPrompt, REFERENCE_CHECKS_MAX_TOKENS, FAST_MODEL, ENGINE_LLM_BUDGET.referenceChecks,
     );
     addCall(measure, retryStartedAt, retryUsage, REFERENCE_CHECKS_MAX_TOKENS);
-    return parseJSON<ReferenceChecksOutput>(retried, measure);
+    // Seconde passe : meme contrat, plus de reprise. Un echec ici est
+    // declare et remonte au releve.
+    return await parseEngineOutput<ReferenceChecksOutput>(
+      'referenceChecks',
+      async () => retried,
+      { trace: measure, contractRetries: 0 },
+    );
   }
 }
