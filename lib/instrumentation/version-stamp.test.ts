@@ -20,6 +20,12 @@ import {
   getAppCommitSha,
   VERSION_STAMP_SCHEMA,
 } from './version-stamp';
+import {
+  ENGINE_LLM_BUDGET,
+  TEMPERATURE_DIALECTIQUE,
+  TEMPERATURE_SCORE,
+} from '../engines/engine-budget';
+import { PATTERN_LLM_OPTIONS } from '../engines/fragility-structurelle/pattern-interface';
 
 let pass = 0;
 let fail = 0;
@@ -110,6 +116,27 @@ function check(label: string, cond: boolean) {
   check('canonicalHash invariant a l ordre des cles', a === b);
   const c = canonicalHash({ a: 1, b: 2, c: 4 });
   check('canonicalHash bouge si une valeur change', a !== c);
+
+  // Le tri devait etre recursif et ne l etait pas. Le second argument
+  // de JSON.stringify n est pas un comparateur mais une liste blanche
+  // de noms de proprietes, appliquee a tous les niveaux : dans un objet
+  // imbrique, elle ne retenait dans chaque sous-objet que les
+  // proprietes portant le nom d une cle de premier niveau, donc aucune.
+  // enginesHash ne voyait ni les modeles, ni les prompts, ni les
+  // sources. Ces trois tests le tiennent ferme.
+  check('canonicalHash voit une valeur imbriquee changer',
+    canonicalHash({ team: { model: 'sonnet', temperature: 0 } })
+      !== canonicalHash({ team: { model: 'sonnet', temperature: 1 } }));
+  check('canonicalHash reste invariant a l ordre des cles imbriquees',
+    canonicalHash({ team: { model: 'sonnet', temperature: 0 } })
+      === canonicalHash({ team: { temperature: 0, model: 'sonnet' } }));
+  check('canonicalHash voit un tableau imbrique changer',
+    canonicalHash({ team: { hashes: ['a', 'b'] } })
+      !== canonicalHash({ team: { hashes: ['a', 'c'] } }));
+  // L ordre d un tableau porte du sens, il ne doit pas etre trie.
+  check('canonicalHash preserve l ordre des tableaux',
+    canonicalHash({ team: { hashes: ['a', 'b'] } })
+      !== canonicalHash({ team: { hashes: ['b', 'a'] } }));
 }
 
 // ============================================================
@@ -222,6 +249,76 @@ function check(label: string, cond: boolean) {
   } else {
     process.env.ENABLE_WEB_SEARCH = savedEnv;
   }
+}
+
+// ============================================================
+// TEMPERATURE PAR MOTEUR
+// ------------------------------------------------------------
+// Le champ valait 'api-default' sur les vingt-neuf entrees, ce qui
+// etait exact tant qu aucun site d appel ne pouvait en decider. Il
+// porte desormais la valeur reelle, et entre dans enginesHash : deux
+// runs qui ne partagent pas le meme regime d echantillonnage ne
+// peuvent plus se comparer comme s ils l avaient fait.
+//
+// Ce qui compte ici n est pas la valeur, c est qu elle soit derivee.
+// Un stamp qui redeclare en dur ce que la table decide finit toujours
+// par affirmer une temperature que le moteur n a pas eue.
+// ============================================================
+{
+  const stamp = buildVersionStamp({
+    inputs: { deckBase64: 'AAAA', deckBytes: 3, pitchText: 'pitch', bpText: null, additionalFiles: [] },
+    capturedAt: '2026-08-01T12:00:00.000Z',
+  });
+  const eng = stamp.engines;
+
+  check('Aucun moteur ne reste sur le sentinel api-default',
+    Object.values(eng).every(e => typeof e.temperature === 'number'));
+
+  // Les six moteurs de dimension, quel que soit le chemin par lequel
+  // leur temperature arrive au stamp, table ou litteral.
+  for (const id of ['team', 'market', 'macro', 'financial-coherence', 'contrarian', 'blindspot']) {
+    check(`${id} alimente une dimension, stamp a ${TEMPERATURE_SCORE}`,
+      eng[id].temperature === TEMPERATURE_SCORE);
+  }
+  // Et la couche d extraction, deterministe depuis l origine.
+  for (const id of ['extraction', 'financial-extraction', 'saas-metrics', 'industrial-metrics', 'prescan']) {
+    check(`${id} extrait, stamp a 0`, eng[id].temperature === 0);
+  }
+  // Les moteurs dialectiques gardent le defaut API, declare.
+  for (const id of ['pattern', 'causal', 'narrative-drift', 'reference-checks', 'orchestrator']) {
+    check(`${id} raisonne, stamp a ${TEMPERATURE_DIALECTIQUE}`,
+      eng[id].temperature === TEMPERATURE_DIALECTIQUE);
+  }
+
+  // Derivation effective : on ne teste pas une egalite de valeurs mais
+  // que le stamp lit bien la table. Si quelqu un recopie un litteral
+  // ici, ce test continue de passer et c est sa limite ; il casse en
+  // revanche si la table bouge sans que le stamp suive.
+  check('team derive sa temperature de la table budget',
+    eng['team'].temperature === ENGINE_LLM_BUDGET.team.temperature);
+  check('orchestrator derive sa temperature de la table budget',
+    eng['orchestrator'].temperature === ENGINE_LLM_BUDGET.finalRecommendation.temperature);
+  check('les sept patterns derivent de PATTERN_LLM_OPTIONS',
+    Object.keys(eng).filter(k => k.startsWith('fragility-'))
+      .every(k => eng[k].temperature === PATTERN_LLM_OPTIONS.temperature));
+  check('les sept patterns sont bien sept',
+    Object.keys(eng).filter(k => k.startsWith('fragility-')).length === 7);
+
+  // La temperature entre dans enginesHash, sinon le stamp la note sans
+  // que la comparaison de deux runs en tienne compte.
+  check('la temperature entre dans enginesHash',
+    fingerprintStamp(stamp).enginesHash
+      !== canonicalHash(Object.fromEntries(Object.entries(eng).map(([k, v]) => [k, {
+        model: v.model,
+        systemPromptHashes: v.systemPromptHashes,
+        promptVersion: v.promptVersion,
+        sourceFileHash: v.sourceFileHash,
+      }]))));
+
+  // Il n y a plus de temperature a l echelle du run : deux regimes
+  // coexistent et le champ global ne peut plus affirmer un defaut.
+  check('models.defaultTemperature acte la bascule par moteur',
+    stamp.models.defaultTemperature === 'per-engine');
 }
 
 console.log(`\n=== version-stamp ===`);

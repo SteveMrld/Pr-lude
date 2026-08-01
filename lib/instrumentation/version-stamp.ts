@@ -39,15 +39,28 @@ import {
   VERDICT_THRESHOLDS,
 } from '../engines/score-calculator';
 import { MODEL, FAST_MODEL, isWebSearchEnabled } from '../engines/anthropic-client';
+import {
+  ENGINE_LLM_BUDGET,
+  TEMPERATURE_DIALECTIQUE,
+  TEMPERATURE_SCORE,
+} from '../engines/engine-budget';
+import { PATTERN_LLM_OPTIONS } from '../engines/fragility-structurelle/pattern-interface';
 
 // ============================================================
 // SCHEMA VERSION
 // ------------------------------------------------------------
 // Incrementer a chaque changement structurel du stamp. Permet
 // aux consommateurs de gerer plusieurs schemas en parallele.
+//
+// v2 : la temperature cesse d etre le sentinel 'api-default' partout
+// et porte la valeur du site d appel, moteur par moteur. Le bump
+// compte parce que la valeur entre dans enginesHash : un stamp v1 et
+// un stamp v2 du meme code rendraient des hashes differents pour des
+// runs identiques, et le harnais de reproductibilite doit pouvoir
+// refuser la comparaison plutot que conclure a une divergence.
 // ============================================================
 
-export const VERSION_STAMP_SCHEMA = '2026-06-07-v1';
+export const VERSION_STAMP_SCHEMA = '2026-08-01-v2';
 
 // ============================================================
 // TYPES
@@ -56,8 +69,22 @@ export const VERSION_STAMP_SCHEMA = '2026-06-07-v1';
 export interface EngineFingerprint {
   /** Identifiant du modele LLM utilise par defaut dans le moteur. */
   model: string;
-  /** Temperature appliquee. 'api-default' = pas de surcharge cote code (defaut Anthropic = 1.0). */
-  temperature: number | 'api-default';
+  /**
+   * Temperature effectivement passee au site d appel du moteur.
+   *
+   * Le champ valait 'api-default' pour les trente moteurs, ce qui etait
+   * exact tant qu aucun site d appel ne pouvait en decider : ni
+   * callClaude ni callClaudeWithUsage ne construisaient le parametre. Le
+   * stamp disait donc la verite sans rien apprendre a personne, et deux
+   * runs a temperatures differentes auraient rendu le meme enginesHash.
+   *
+   * Depuis que la temperature est requise au site d appel, la valeur est
+   * portee ici et entre dans enginesHash : deux runs qui ne partagent pas
+   * le meme regime d echantillonnage ne peuvent plus etre compares comme
+   * s ils l avaient fait. C est la condition pour que le releve de
+   * reproductibilite mesure ce qu il pretend mesurer.
+   */
+  temperature: number;
   /** Hash des system prompts du moteur. Plusieurs si le moteur a plusieurs prompts (dd-contractual). */
   systemPromptHashes: string[];
   /** Longueur totale des system prompts (chars). */
@@ -122,13 +149,18 @@ export interface VersionStamp {
     primary: string;
     fast: string;
     /**
-     * Temperature par defaut appliquee au niveau du code. 'api-default'
-     * = aucun moteur ne fixe explicitement la temperature, donc Anthropic
-     * applique sa valeur par defaut (1.0). C est exactement la valeur a
-     * scruter pour la brique 2 si la variance LLM intrinseque s avere
-     * trop haute.
+     * Il n y a plus de temperature par defaut a l echelle du run.
+     *
+     * Le champ valait 'api-default' parce que le code n en fixait aucune
+     * et que la valeur etait donc uniforme par omission. Elle est
+     * desormais decidee moteur par moteur, selon que la sortie alimente
+     * une dimension du score ou non, et se lit dans engines[id]
+     * .temperature. Le libelle acte cette bascule plutot que de
+     * conserver un champ devenu faux : un stamp qui affirme un defaut
+     * global la ou il y a deux regimes induit en erreur exactement
+     * l analyse qu il doit servir.
      */
-    defaultTemperature: 'api-default';
+    defaultTemperature: 'per-engine';
   };
   configs: Record<string, ConfigFingerprint>;
   engines: Record<string, EngineFingerprint>;
@@ -148,13 +180,46 @@ function sha256(content: string | Buffer): string {
 }
 
 /**
- * Hash JSON deterministe : on stringify avec les cles triees pour
- * que deux objets equivalents (cles dans un ordre different)
- * produisent le meme hash.
+ * Serialisation deterministe : cles triees a tous les niveaux, ordre
+ * des tableaux preserve puisqu il porte du sens (systemPromptHashes
+ * suit l ordre de declaration des prompts dans le fichier).
+ */
+function canonicalize(value: any): any {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const k of Object.keys(value).sort()) out[k] = canonicalize(value[k]);
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Hash JSON deterministe, invariant a l ordre des cles.
+ *
+ * L implementation precedente passait Object.keys(value).sort() en
+ * second argument de JSON.stringify. Ce parametre n est pas un
+ * comparateur de tri : c est une liste blanche de noms de proprietes,
+ * appliquee a TOUS les niveaux de l objet. Sur une structure plate,
+ * elle se comportait comme un tri et le resultat etait juste. Sur une
+ * structure imbriquee, elle ne retenait dans chaque sous-objet que les
+ * proprietes portant le nom d une cle de premier niveau, c est-a-dire
+ * aucune : canonicalHash de la carte des moteurs rendait
+ * {"blindspot":{},"causal":{},...}.
+ *
+ * enginesHash etait donc aveugle a tout ce qu il pretendait tracer,
+ * modele, hash de prompt, hash de source, et desormais temperature. Il
+ * ne bougeait que si la liste des moteurs changeait. Les tests ne le
+ * voyaient pas parce qu ils n assertaient que son invariance entre deux
+ * runs identiques, propriete qu un hash constant satisfait toujours.
+ *
+ * Consequence pour la lecture des runs anterieurs : leur enginesHash
+ * ne vaut rien et ne doit pas etre invoque pour affirmer que deux runs
+ * ont tourne sur le meme code moteur. C est aussi pourquoi le schema
+ * passe en v2.
  */
 export function canonicalHash(value: any): string {
-  const sorted = JSON.stringify(value, Object.keys(value || {}).sort());
-  return sha256(sorted);
+  return sha256(JSON.stringify(canonicalize(value)));
 }
 
 // ============================================================
@@ -201,55 +266,71 @@ export function getAppCommitSha(): string | null {
 // REGISTRY MOTEURS LLM
 // ------------------------------------------------------------
 // Liste explicite des moteurs qui appellent Anthropic. Pour
-// chacun, on connait son fichier source et le modele applique.
-// La temperature est 'api-default' parce que le code ne fixe
-// pas de temperature dans aucun appel (cf grep dans le code).
-// Si demain un moteur surcharge temperature, on remonte la
-// valeur ici en dur ou via reflection.
+// chacun, on connait son fichier source, le modele applique et
+// la temperature passee a son site d appel.
+//
+// La temperature est derivee de la source unique partout ou elle
+// existe : ENGINE_LLM_BUDGET pour les huit moteurs budgetes,
+// PATTERN_LLM_OPTIONS pour les sept patterns de fragilite. Un
+// reglage change dans la table se propage donc au stamp sans
+// qu on ait a y penser, et un stamp ne peut pas affirmer une
+// temperature que le moteur n a pas eue. Les quinze autres la
+// declarent en dur ici parce que leur site d appel porte un
+// litteral et qu il n existe aucune table a lire : ceux-la
+// peuvent diverger, et c est le prix du litteral au site
+// d appel, pas un choix de ce module.
 // ============================================================
 
 interface EngineRegistryEntry {
   id: string;
   path: string;
   model: 'primary' | 'fast' | 'mixed';
+  /** Temperature du site d appel. Lue dans la table du moteur quand il
+   *  en a une, declaree ici quand son site d appel porte un litteral. */
+  temperature: number;
   promptVersion?: string;
 }
 
+/** Temperature des cinq moteurs d extraction, qui passent 0 en sixieme
+ *  argument de callClaudeWithPDF depuis l origine. Nommee pour que le
+ *  registry se lise comme une doctrine et non comme une liste de zeros. */
+const TEMPERATURE_EXTRACTION = 0;
+
 const LLM_ENGINES: EngineRegistryEntry[] = [
   // Bloc 0
-  { id: 'prescan', path: 'lib/engines/prescan-engine.ts', model: 'fast' },
+  { id: 'prescan', path: 'lib/engines/prescan-engine.ts', model: 'fast', temperature: TEMPERATURE_EXTRACTION },
   // Bloc 1 - extraction
-  { id: 'extraction', path: 'lib/engines/extraction-engine.ts', model: 'primary' },
-  { id: 'financial-extraction', path: 'lib/engines/financial-extraction-engine.ts', model: 'primary' },
-  { id: 'saas-metrics', path: 'lib/engines/saas-metrics-engine.ts', model: 'primary' },
-  { id: 'industrial-metrics', path: 'lib/engines/industrial-metrics-engine.ts', model: 'primary' },
+  { id: 'extraction', path: 'lib/engines/extraction-engine.ts', model: 'primary', temperature: TEMPERATURE_EXTRACTION },
+  { id: 'financial-extraction', path: 'lib/engines/financial-extraction-engine.ts', model: 'primary', temperature: TEMPERATURE_EXTRACTION },
+  { id: 'saas-metrics', path: 'lib/engines/saas-metrics-engine.ts', model: 'primary', temperature: TEMPERATURE_EXTRACTION },
+  { id: 'industrial-metrics', path: 'lib/engines/industrial-metrics-engine.ts', model: 'primary', temperature: TEMPERATURE_EXTRACTION },
   // Bloc 1 - analyse
-  { id: 'team', path: 'lib/engines/team-engine.ts', model: 'primary' },
-  { id: 'market', path: 'lib/engines/market-engine.ts', model: 'primary' },
-  { id: 'macro', path: 'lib/engines/macro-engine.ts', model: 'primary' },
-  { id: 'pattern', path: 'lib/engines/pattern-engine.ts', model: 'primary' },
-  { id: 'causal', path: 'lib/engines/causal-engine.ts', model: 'primary' },
-  { id: 'blindspot', path: 'lib/engines/blindspot-engine.ts', model: 'primary' },
-  { id: 'contrarian', path: 'lib/engines/contrarian-engine.ts', model: 'primary' },
-  { id: 'financial-coherence', path: 'lib/engines/financial-coherence-engine.ts', model: 'primary' },
-  { id: 'tech-claim', path: 'lib/engines/tech-claim-coherence-engine.ts', model: 'fast' },
-  { id: 'execution-friction', path: 'lib/engines/execution-friction-engine.ts', model: 'primary' },
-  { id: 'narrative-drift', path: 'lib/engines/narrative-drift-engine.ts', model: 'primary' },
-  { id: 'reference-checks', path: 'lib/engines/reference-checks-engine.ts', model: 'mixed' },
-  { id: 'reference-aggregation', path: 'lib/engines/reference-aggregation-engine.ts', model: 'mixed' },
-  { id: 'orchestrator', path: 'lib/engines/orchestrator.ts', model: 'primary' },
+  { id: 'team', path: 'lib/engines/team-engine.ts', model: 'primary', temperature: ENGINE_LLM_BUDGET.team.temperature },
+  { id: 'market', path: 'lib/engines/market-engine.ts', model: 'primary', temperature: TEMPERATURE_SCORE },
+  { id: 'macro', path: 'lib/engines/macro-engine.ts', model: 'primary', temperature: TEMPERATURE_SCORE },
+  { id: 'pattern', path: 'lib/engines/pattern-engine.ts', model: 'primary', temperature: ENGINE_LLM_BUDGET.patternMatching.temperature },
+  { id: 'causal', path: 'lib/engines/causal-engine.ts', model: 'primary', temperature: ENGINE_LLM_BUDGET.causalReversal.temperature },
+  { id: 'blindspot', path: 'lib/engines/blindspot-engine.ts', model: 'primary', temperature: ENGINE_LLM_BUDGET.blindspotAnalysis.temperature },
+  { id: 'contrarian', path: 'lib/engines/contrarian-engine.ts', model: 'primary', temperature: ENGINE_LLM_BUDGET.contrarianAnalysis.temperature },
+  { id: 'financial-coherence', path: 'lib/engines/financial-coherence-engine.ts', model: 'primary', temperature: TEMPERATURE_SCORE },
+  { id: 'tech-claim', path: 'lib/engines/tech-claim-coherence-engine.ts', model: 'fast', temperature: TEMPERATURE_DIALECTIQUE },
+  { id: 'execution-friction', path: 'lib/engines/execution-friction-engine.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE },
+  { id: 'narrative-drift', path: 'lib/engines/narrative-drift-engine.ts', model: 'primary', temperature: ENGINE_LLM_BUDGET.narrativeDrift.temperature },
+  { id: 'reference-checks', path: 'lib/engines/reference-checks-engine.ts', model: 'mixed', temperature: ENGINE_LLM_BUDGET.referenceChecks.temperature },
+  { id: 'reference-aggregation', path: 'lib/engines/reference-aggregation-engine.ts', model: 'mixed', temperature: TEMPERATURE_DIALECTIQUE },
+  { id: 'orchestrator', path: 'lib/engines/orchestrator.ts', model: 'primary', temperature: ENGINE_LLM_BUDGET.finalRecommendation.temperature },
   // Fragilite Structurelle (7 patterns)
-  { id: 'fragility-growth-subsidized', path: 'lib/engines/fragility-structurelle/growth-subsidized-pattern.ts', model: 'primary' },
-  { id: 'fragility-infrastructure-hostage', path: 'lib/engines/fragility-structurelle/infrastructure-hostage-pattern.ts', model: 'primary' },
-  { id: 'fragility-fixed-cost-trap', path: 'lib/engines/fragility-structurelle/fixed-cost-trap-pattern.ts', model: 'primary' },
-  { id: 'fragility-regulatory-time-bomb', path: 'lib/engines/fragility-structurelle/regulatory-time-bomb-pattern.ts', model: 'primary' },
-  { id: 'fragility-commoditization-drift', path: 'lib/engines/fragility-structurelle/commoditization-drift-pattern.ts', model: 'primary' },
-  { id: 'fragility-capital-structure', path: 'lib/engines/fragility-structurelle/capital-structure-fragility-pattern.ts', model: 'primary' },
-  { id: 'fragility-scale-mirage', path: 'lib/engines/fragility-structurelle/scale-mirage-risk-pattern.ts', model: 'primary' },
+  { id: 'fragility-growth-subsidized', path: 'lib/engines/fragility-structurelle/growth-subsidized-pattern.ts', model: 'primary', temperature: PATTERN_LLM_OPTIONS.temperature },
+  { id: 'fragility-infrastructure-hostage', path: 'lib/engines/fragility-structurelle/infrastructure-hostage-pattern.ts', model: 'primary', temperature: PATTERN_LLM_OPTIONS.temperature },
+  { id: 'fragility-fixed-cost-trap', path: 'lib/engines/fragility-structurelle/fixed-cost-trap-pattern.ts', model: 'primary', temperature: PATTERN_LLM_OPTIONS.temperature },
+  { id: 'fragility-regulatory-time-bomb', path: 'lib/engines/fragility-structurelle/regulatory-time-bomb-pattern.ts', model: 'primary', temperature: PATTERN_LLM_OPTIONS.temperature },
+  { id: 'fragility-commoditization-drift', path: 'lib/engines/fragility-structurelle/commoditization-drift-pattern.ts', model: 'primary', temperature: PATTERN_LLM_OPTIONS.temperature },
+  { id: 'fragility-capital-structure', path: 'lib/engines/fragility-structurelle/capital-structure-fragility-pattern.ts', model: 'primary', temperature: PATTERN_LLM_OPTIONS.temperature },
+  { id: 'fragility-scale-mirage', path: 'lib/engines/fragility-structurelle/scale-mirage-risk-pattern.ts', model: 'primary', temperature: PATTERN_LLM_OPTIONS.temperature },
   // Bloc 2 - DD
-  { id: 'dd-financial', path: 'lib/engines/dd-financial-engine.ts', model: 'primary' },
-  { id: 'dd-contractual', path: 'lib/engines/dd-contractual-engine.ts', model: 'primary' },
-  { id: 'dd-technical', path: 'lib/engines/dd-technical-engine.ts', model: 'primary' },
+  { id: 'dd-financial', path: 'lib/engines/dd-financial-engine.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE },
+  { id: 'dd-contractual', path: 'lib/engines/dd-contractual-engine.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE },
+  { id: 'dd-technical', path: 'lib/engines/dd-technical-engine.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE },
 ];
 
 // ============================================================
@@ -302,7 +383,7 @@ function fingerprintEngine(entry: EngineRegistryEntry): EngineFingerprint {
 
   return {
     model: modelOf(entry),
-    temperature: 'api-default',
+    temperature: entry.temperature,
     systemPromptHashes,
     systemPromptChars,
     promptVersion,
@@ -434,7 +515,7 @@ export function buildVersionStamp(opts: BuildStampOptions): VersionStamp {
     models: {
       primary: MODEL,
       fast: FAST_MODEL,
-      defaultTemperature: 'api-default',
+      defaultTemperature: 'per-engine',
     },
     configs: getConfigFingerprints(runMode),
     engines: getEngineFingerprints(),
