@@ -30,7 +30,10 @@
 
 import { parseJSON } from './anthropic-client';
 import type { ParseMode } from './engine-budget';
-import { passesMinimalContract } from '../orchestrator/engine-status-recorder';
+import {
+  passesMinimalContract,
+  isSkippedByRelevanceMatrix,
+} from '../orchestrator/engine-status-recorder';
 
 /**
  * Modes de parse qui rendent fidelement ce que le modele a ecrit.
@@ -173,4 +176,44 @@ export async function parseEngineOutput<T = any>(
   }
 
   throw last;
+}
+
+// ============================================================
+// GARDE COTE CONSOMMATEUR
+// ------------------------------------------------------------
+// Aucun moteur en aval ne doit consommer une sortie qui n a pas
+// satisfait son contrat minimal. Le point precedent fait declarer son
+// echec au producteur ; celui-ci fait refuser l entree au
+// consommateur. Les deux ne font pas double emploi.
+//
+// Un producteur peut etre declare non conclusif par le releve sans que
+// sa promesse propre ait rejete : le wrapper deadline resout null pour
+// ses appelants quand la fenetre tombe, mais la promesse du moteur,
+// elle, reste pendante et peut aboutir plus tard sur une sortie que
+// personne n a plus le droit d utiliser. Un moteur non converti au
+// point de passage peut aussi rendre une enveloppe vide sans lever. La
+// garde de consommation ferme ces deux portes par la meme regle, au
+// lieu de les traiter cas par cas.
+//
+// Une sortie ecartee par la matrice de pertinence passe : le moteur
+// n a pas echoue, il n avait pas lieu de tourner, et ses consommateurs
+// savent lire cette convention.
+// ============================================================
+
+/**
+ * Rend la sortie du moteur amont si elle satisfait son contrat, rejette
+ * sinon. L erreur porte la cle du moteur fautif, ce qui permet au
+ * releve de nommer la dependance dans le statut du consommateur plutot
+ * que de constater un echec sans source.
+ */
+export async function requireConformingOutput<T>(
+  engine: string,
+  source: Promise<T>,
+): Promise<T> {
+  const value = await source;
+  if (isSkippedByRelevanceMatrix(value)) return value;
+  if (passesMinimalContract(engine, value)) return value;
+  const err = new EngineContractError(engine, 'direct', value, 1);
+  console.warn(`[engine-contract] sortie amont refusee a ses consommateurs : ${err.message}`);
+  throw err;
 }

@@ -612,6 +612,35 @@ for (const moteur of ['narrativeDrift', 'fragiliteStructurelle']) {
     'garde record : le dernier ecrivain garde ses tentatives');
 }
 
+// ============================================================
+// UNE DEPENDANCE SANS CONTENU RECEVABLE EST UNE DEPENDANCE FAUTIVE
+// ------------------------------------------------------------
+// Brief 21, bloc 3. Du point de vue du moteur qui l a produite, une
+// enveloppe vide n est pas un echec d appel : il a repondu. Du point de
+// vue de celui qui devait la consommer, la difference n existe pas. Un
+// consommateur refuse pour cause de sortie amont non conforme doit
+// nommer la dependance, sinon le releve constate un echec sans source.
+// ============================================================
+{
+  const r = new EngineStatusRecorder();
+  r.markStart('team');
+  r.markLLMStart('team');
+  r.record({ engine: 'team', status: 'empty_output', attempts: 1 });
+
+  r.markStart('contrarianAnalysis', ['team', 'market', 'macro']);
+  // La garde de consommation rejette avant markLLMStart : le moteur n a
+  // jamais touche au reseau.
+  r.record({ engine: 'contrarianAnalysis', status: 'failed', attempts: 1, errorMessage: 'contrat amont' });
+
+  const s = r.snapshot();
+  check(s.contrarianAnalysis?.status === 'failed-upstream',
+    'dependance en empty_output : le consommateur est promu failed-upstream');
+  check((s.contrarianAnalysis?.failedDependencies ?? []).includes('team'),
+    '  la dependance fautive est nommee');
+  check((s.contrarianAnalysis?.errorMessage ?? '').includes('team'),
+    '  le message porte la source, pas un echec anonyme');
+}
+
 // Durees mesurees : test asynchrone en fin de fichier avec setTimeout pour
 // simuler wait sur deps puis execution reelle.
 (async () => {

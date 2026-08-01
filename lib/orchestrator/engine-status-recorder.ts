@@ -276,6 +276,15 @@ const UPSTREAM_FAIL_STATUSES: ReadonlySet<EngineStatus> = new Set<EngineStatus>(
   'failed',
   'failed-upstream',
   'timeout',
+  // empty_output entre dans la liste au brief 21. Du point de vue du
+  // moteur qui l a produit, une enveloppe sans contenu recevable n est
+  // pas un echec d appel : il a repondu. Du point de vue de celui qui
+  // devait la consommer, la difference n existe pas, la dependance ne
+  // lui a rien donne d instruisable. Sans cette entree, un consommateur
+  // refuse pour cause de sortie amont non conforme rendait un
+  // failed-upstream sans source identifiee, ce qui est exactement le
+  // renseignement qui manque quand on lit le releve apres coup.
+  'empty_output',
 ]);
 
 export class EngineStatusRecorder {

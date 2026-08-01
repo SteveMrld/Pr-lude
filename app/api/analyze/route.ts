@@ -55,6 +55,7 @@ import {
   getCurrentUserId,
 } from '@/lib/analysis-store';
 import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
+import { requireConformingOutput } from '@/lib/engines/engine-output-contract';
 import { createEngineDeadlineWrapper } from '@/lib/orchestrator/engine-deadline';
 import { createEngineLogCallbacks } from '@/lib/orchestrator/engine-log-callbacks';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
@@ -894,6 +895,37 @@ export async function POST(req: NextRequest) {
             .then(r => { sendDone('macro', r); return r; })
             .finally(() => { enginesRecorder.recordMeasure('macro', macroMeasure); });
 
+          // ============================================================
+          // GARDE DE CONSOMMATION - brief 21, bloc 3
+          // ------------------------------------------------------------
+          // Aucun moteur en aval ne consomme une sortie qui n a pas
+          // satisfait son contrat minimal. La porte [team, market,
+          // macro] ouvre cinq moteurs, et sur le run 4e30c644 les cinq
+          // ont recu de team une enveloppe a trois cles dont aucune
+          // n etait exigee par son contrat. Ils l ont lue comme une
+          // analyse d equipe aboutie.
+          //
+          // La garde ne double pas celle du site d appel, elle ferme une
+          // autre porte. Un producteur peut etre declare non conclusif
+          // par le releve sans que sa promesse propre ait rejete : le
+          // wrapper deadline resout null pour ses appelants quand la
+          // fenetre tombe, mais la promesse du moteur reste pendante et
+          // peut aboutir plus tard sur une sortie que plus personne n a
+          // le droit d utiliser. Le refus vit donc aussi cote
+          // consommateur.
+          //
+          // Le rejet arrive avant markLLMStart du consommateur : son
+          // echec est donc promu failed-upstream et nomme la dependance
+          // fautive. La dimension correspondante sort de l assiette du
+          // score avec sa base declaree, sans qu aucun 50 de repli
+          // n entre dans la moyenne.
+          const teamConforme = requireConformingOutput('team', teamPromise);
+          const marketConforme = requireConformingOutput('market', marketPromise);
+          const macroConforme = requireConformingOutput('macro', macroPromise);
+          // Filet contre une rejection non observee : en growth, une
+          // partie des consommateurs court-circuite avant d attendre.
+          for (const p of [teamConforme, marketConforme, macroConforme]) p.catch(() => {});
+
           const financialDataPromise = extractFinancialData(pitchDeck.payload, businessPlan?.payload || null, extraction)
             .then(r => { sendDone('financial-extraction', r); return r; });
 
@@ -1059,7 +1091,7 @@ export async function POST(req: NextRequest) {
               sendDone('pattern', r);
               return r;
             }
-            const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            const [team, market, macro] = await Promise.all([teamConforme, marketConforme, macroConforme]);
             enginesRecorder.markLLMStart('patternMatching');
             const measure = newMeasure();
             try {
@@ -1070,6 +1102,10 @@ export async function POST(req: NextRequest) {
               enginesRecorder.recordMeasure('patternMatching', measure);
             }
           })();
+          // Garde de consommation : causal ne raisonne pas sur un
+          // pattern matching qui n a pas satisfait son contrat.
+          const patternConforme = requireConformingOutput('patternMatching', patternPromise);
+          patternConforme.catch(() => {});
 
           // Aveuglement : skip en growth, calibre lecture du discours fondateur early.
           const blindspotPromise = (async () => {
@@ -1078,7 +1114,7 @@ export async function POST(req: NextRequest) {
               sendDone('blindspot', r);
               return r;
             }
-            const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            const [team, market, macro] = await Promise.all([teamConforme, marketConforme, macroConforme]);
             enginesRecorder.markLLMStart('blindspotAnalysis');
             const measure = newMeasure();
             try {
@@ -1089,9 +1125,14 @@ export async function POST(req: NextRequest) {
               enginesRecorder.recordMeasure('blindspotAnalysis', measure);
             }
           })();
+          // Garde de consommation : reference-checks batit son plan
+          // d appels sur les angles morts, il ne le batit pas sur une
+          // enveloppe vide.
+          const blindspotConforme = requireConformingOutput('blindspotAnalysis', blindspotPromise);
+          blindspotConforme.catch(() => {});
 
           const contrarianPromise = (async () => {
-            const [team, market, macro] = await Promise.all([teamPromise, marketPromise, macroPromise]);
+            const [team, market, macro] = await Promise.all([teamConforme, marketConforme, macroConforme]);
             enginesRecorder.markLLMStart('contrarianAnalysis');
             const measure = newMeasure();
             try {
@@ -1243,7 +1284,7 @@ export async function POST(req: NextRequest) {
               return r;
             }
             const [team, market, macro, pattern] = await Promise.all([
-              teamPromise, marketPromise, macroPromise, patternPromise,
+              teamConforme, marketConforme, macroConforme, patternConforme,
             ]);
             enginesRecorder.markLLMStart('causalReversal');
             const measure = newMeasure();
@@ -1255,6 +1296,10 @@ export async function POST(req: NextRequest) {
               enginesRecorder.recordMeasure('causalReversal', measure);
             }
           })();
+          // Garde de consommation : meme regle pour le retournement
+          // causal, seconde entree du plan d appels.
+          const causalConforme = requireConformingOutput('causalReversal', causalPromise);
+          causalConforme.catch(() => {});
 
           // ============================================================
           // COUCHE 4 : REFERENCE CHECKS (deps team + blindspot + causal)
@@ -1273,7 +1318,7 @@ export async function POST(req: NextRequest) {
           sendStart('reference-checks', 'Plan d\'appels DD terrain');
           const referenceChecksPromise = (async () => {
             const [team, blindspot, causal] = await Promise.all([
-              teamPromise, blindspotPromise, causalPromise,
+              teamConforme, blindspotConforme, causalConforme,
             ]);
             enginesRecorder.markLLMStart('referenceChecks');
             const measure = newMeasure();

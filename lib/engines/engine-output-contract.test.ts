@@ -14,6 +14,7 @@ import {
   EngineContractError,
   isParseFidele,
   PARSE_MODES_FIDELES,
+  requireConformingOutput,
 } from './engine-output-contract';
 import type { ParseMode } from './engine-budget';
 
@@ -231,6 +232,44 @@ console.log('\n[Suite 2] Le contrat est evalue au moment de l appel');
     check(v?.patterns?.P1?.score === 40, 'reconstruction conforme au contrat : acceptee');
     check(trace.parseMode === 'recovered' || trace.parseMode === 'repaired',
       '  le releve garde la trace de la reconstruction (obtenu ' + trace.parseMode + ')');
+  }
+
+  // ============================================================
+  // SUITE 6 - Garde cote consommateur
+  // ============================================================
+
+  console.log('\n[Suite 6] Garde cote consommateur');
+
+  {
+    const v = await requireConformingOutput('team',
+      Promise.resolve({ foundersCount: 2 }));
+    check((v as any).foundersCount === 2, 'sortie amont conforme : transmise telle quelle');
+  }
+
+  {
+    let leve: any = null;
+    try {
+      await requireConformingOutput('team', Promise.resolve({ '0': 'web : Elle Cote d', '1': 'Ivoire', realData: [] }));
+    } catch (e) { leve = e; }
+    check(leve instanceof EngineContractError,
+      'enveloppe team du run A : refusee a ses consommateurs');
+    check(leve?.engine === 'team', '  l erreur nomme la dependance fautive');
+  }
+
+  {
+    // Une sortie ecartee par la matrice passe : le moteur n a pas
+    // echoue, il n avait pas lieu de tourner.
+    const v = await requireConformingOutput('team', Promise.resolve({ __skipped: true }));
+    check((v as any).__skipped === true, 'sortie ecartee par la matrice : transmise sans refus');
+  }
+
+  {
+    // Le rejet du producteur traverse la garde sans etre transforme.
+    let msg = '';
+    try {
+      await requireConformingOutput('team', Promise.reject(new Error('boom amont')));
+    } catch (e: any) { msg = e?.message; }
+    check(msg === 'boom amont', 'rejet amont : traverse la garde inchange');
   }
 
   console.log(`\n${pass} pass, ${fail} fail`);
