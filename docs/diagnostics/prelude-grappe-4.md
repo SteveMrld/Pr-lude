@@ -162,3 +162,67 @@ diagnostic ecrit, dont deux une fois le brief redige. Celle-ci a ete
 vue en verifiant le chiffre du brief avant de toucher au code, ce qui
 est exactement l usage prevu de la regle inscrite dans CLAUDE.md. Le
 cout de la verification a ete d une commande.
+
+## 4. La cause conditionnee a son support, variante du patron
+
+Ouverte par le run Braincube du 2 aout, corrigee sur le site mesure et
+consignee ici pour les autres.
+
+### Le mecanisme
+
+La grappe 3 a ferme un patron : un incident technique et une decision
+doctrinale sortant par le meme canal. Le run Braincube en a revele une
+variante, et elle est plus difficile a voir.
+
+Sur un LBO, la neutralisation de la VC inverse supprime la seule
+methode de nature pre-money du dossier. Il ne reste donc aucune
+fourchette pre-money, et le motif de non-calcul de la dilution n etait
+pose que si une telle fourchette existait. La cause etait conditionnee
+a l existence du support qu elle devait precisement expliquer, donc
+elle disparaissait avec lui. Resultat : un champ vide, sans cause, sans
+motif, sans warning.
+
+La cause n est pas absente par oubli, elle est absente par
+conditionnement. C est ce qui rend la variante difficile a reperer :
+le code qui pose la cause existe, il est correct, et il ne s execute
+jamais dans le cas ou il serait le plus utile.
+
+### La consigne est en cause autant que l implementation
+
+La regle « pas un champ vide » avait ete enoncee au bloc 4 sur le seul
+cas de la cession totale. Elle valait pour les quatre types. Enoncee
+sur un cas particulier, elle s est lue comme ne valant que pour lui, et
+l implementation a suivi le perimetre de l enonce.
+
+C est un mode de defaillance a garder en tete pour la redaction des
+briefs autant que pour celle du code : une regle illustree par un cas
+se lit comme une regle sur ce cas. Quand la regle est generale, il faut
+l ecrire generale et donner le cas en exemple, dans cet ordre.
+
+### Ce qui reste a etablir
+
+Un balayage cible n a pas trouve d autre occurrence de la meme forme
+exacte, c est-a-dire une cause de non-production posee sous condition
+de l objet qu elle explique. Le balayage a porte sur les moteurs et sur
+la couche de refutation.
+
+Deux sites meritent cependant un examen, sans etre du meme ordre.
+
+`collectWarnings` du moteur de valorisation sort par un retour anticipe
+quand aucune fourchette n existe, apres avoir pousse un message
+generique sur les inputs insuffisants. Les warnings plus precis qui
+suivent, dont celui qui explique pourquoi les multiples n ont pas ete
+appliques, ne sont donc jamais atteints dans le cas ou tout a echoue.
+Le lecteur recoit le message le plus vague au moment ou il aurait le
+plus besoin du plus precis. Ce n est pas une cause manquante, c est un
+ordre de sortie qui privilegie le general sur le particulier.
+
+`detectLabelCalculationContradictions` rend un tableau vide quand
+l annee de reference du dossier n est pas derivable. Le silence est
+documente et voulu, mieux vaut manquer une contradiction que d en
+inventer une, mais il reste indiscernable d un dossier sans
+contradiction. La question de savoir si un detecteur doit pouvoir dire
+« je n ai pas pu chercher » se pose, et elle rejoint celle de la grappe
+fetchers.
+
+Aucun des deux n est traite.
