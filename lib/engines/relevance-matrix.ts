@@ -94,9 +94,34 @@ export interface RelevanceVerdict {
  * Output complet du service. Contient les criteres structurels
  * calcules et les verdicts par moteur ou sous-bloc.
  */
+/**
+ * Trace de l arbitrage de classe d actif quand la chaine de production
+ * et les champs declares du dossier ne disent pas la meme chose.
+ * Null quand ils concordent.
+ */
+export interface AssetClassArbitration {
+  /** Classe retenue au terme de l arbitrage. */
+  retenue: string;
+  /** Classe qu indiquaient les champs declares du dossier. */
+  indiqueeParLeDossier: string;
+  /** Chaine de production detectee sur le texte complet. */
+  chaineDetectee: ProductionChain;
+  /** Champs declares qui corroborent la lecture logicielle. */
+  champsCorroborants: string[];
+  /** Nombre de voix pour chaque lecture, chaine comprise. */
+  voix: { dossier: number; chaine: number };
+  motif: string;
+}
+
 export interface RelevanceMatrix {
   // Criteres structurels calcules
   assetClass: string;
+  /**
+   * Renseigne quand la classe retenue contredit les champs declares du
+   * dossier. La note doit alors presenter le choix comme sensible :
+   * la classe commande les multiples, donc la fourchette entiere.
+   */
+  assetClassArbitration: AssetClassArbitration | null;
   businessModel: BusinessModel;
   productionChain: ProductionChain;
   supplyChainExposure: ExposureLevel;
@@ -1683,6 +1708,109 @@ function buildScaleMirageRiskVerdict(maturity: NarrativeMaturity, productionChai
 //   - unknown : on conserve l indice tel quel, y compris 'unclassified'
 //     si rien n a matche. Pas de promotion silencieuse vers saas-b2b.
 // ============================================================
+/**
+ * Classes d actif dont les multiples sont ceux du logiciel. Le
+ * decoupage n est pas thematique mais economique : ce sont les classes
+ * ou la valeur se lit en multiple d ARR ou de revenu recurrent, par
+ * opposition aux classes industrielles ou elle se lit en multiple de
+ * chiffre d affaires ou d EBITDA.
+ */
+const CLASSES_LOGICIELLES: ReadonlySet<string> = new Set([
+  'saas-b2b', 'ai-generative', 'cybersecurity', 'adtech', 'edtech',
+  'fintech', 'marketplace-b2c', 'mediatech',
+]);
+
+/** Marqueurs d un modele logiciel dans un champ declare du dossier. */
+const MARQUEURS_LOGICIELS = /\b(saas|logiciel|software|plateforme|plate-forme|abonnement|subscription|licence|arr|revenus? recurrents?|recurring|cloud|api)\b/;
+
+/**
+ * Compte les champs declares du dossier qui lisent le modele comme
+ * logiciel. Trois champs sont interroges, le secteur, le sous-secteur
+ * et le modele economique, chacun soit parce qu il se normalise vers
+ * une classe logicielle, soit parce qu il porte un marqueur explicite.
+ */
+function champsLogiciels(extraction: ExtractionOutput): string[] {
+  const ext: any = extraction;
+  const champs: Array<[string, unknown]> = [
+    ['secteur', ext?.sector],
+    ['sous-secteur', ext?.subSector],
+    ['modele economique', ext?.businessModel],
+  ];
+  const out: string[] = [];
+  for (const [nom, valeur] of champs) {
+    if (typeof valeur !== 'string' || valeur.trim().length === 0) continue;
+    const norm = normalizeFrText(valeur);
+    if (CLASSES_LOGICIELLES.has(normalizeAssetClass(valeur)) || MARQUEURS_LOGICIELS.test(norm)) {
+      out.push(nom);
+    }
+  }
+  return out;
+}
+
+/**
+ * Arbitre la classe d actif entre la chaine de production detectee sur
+ * le texte complet et les champs declares du dossier.
+ *
+ * Le defaut ferme, releve sur la note Braincube du 3 aout 2026 : la
+ * chaine `hardware-physical`, detectee sur le vocabulaire industriel
+ * d un memorandum IIoT, commandait seule la classe. Le dossier
+ * declarait pourtant secteur « SaaS », sous-secteur « Plateforme
+ * IIoT » et modele « SaaS pur avec revenus recurrents », et ressortait
+ * en `industrial-hardware`. Un signal contre trois.
+ *
+ * L enjeu n est pas cosmetique. Sur la meme base de 13,5 M EUR, la
+ * classe industrielle donne 1x a 5x et la classe logicielle 8x a 25x,
+ * soit 13 a 67 M EUR contre 135 a 337 M EUR. La classe d actif est la
+ * decision la plus lourde du moteur de valorisation, et elle etait
+ * prise par un detecteur de vocabulaire.
+ *
+ * La regle : chaque champ declare porte une voix, la chaine en porte
+ * une. Une majorite de champs declares l emporte donc sur la chaine
+ * seule. En dessous, la chaine garde la main, parce qu elle lit le
+ * texte entier la ou un champ peut se tromper.
+ *
+ * Dans les deux cas la divergence est tracee. Une classe qui contredit
+ * les champs declares doit se voir dans la note, quel que soit le
+ * vainqueur : c est un choix sensible et non un calcul.
+ */
+function arbitrerClasseActif(
+  productionChain: ProductionChain,
+  rawAssetClass: string,
+  searchableText: string,
+  extraction: ExtractionOutput,
+): { retenue: string; trace: AssetClassArbitration | null } {
+  const parLaChaine = deriveAssetClass(productionChain, rawAssetClass, searchableText);
+  const indice = normalizeAssetClass(rawAssetClass);
+
+  // L arbitrage ne se pose que si le dossier lit un modele logiciel et
+  // que la chaine conclut a une classe industrielle.
+  const chaineIndustrielle = !CLASSES_LOGICIELLES.has(parLaChaine);
+  const corroborants = champsLogiciels(extraction);
+  const dossierLogiciel = CLASSES_LOGICIELLES.has(indice);
+
+  if (!chaineIndustrielle || !dossierLogiciel) {
+    return { retenue: parLaChaine, trace: null };
+  }
+
+  const voix = { dossier: corroborants.length, chaine: 1 };
+  const retenue = voix.dossier >= 2 ? indice : parLaChaine;
+  const motif = voix.dossier >= 2
+    ? `Les champs declares du dossier (${corroborants.join(', ')}) lisent un modele logiciel, la chaine de production detectee sur le texte lit ${productionChain}. ${voix.dossier} champs contre un signal : la lecture du dossier l emporte, et la classe ${indice} est retenue.`
+    : `La chaine de production detectee sur le texte lit ${productionChain} et conclut a ${parLaChaine}, alors que le secteur declare se normalise en ${indice}. ${voix.dossier === 0 ? 'Aucun autre champ declare' : `Un seul champ declare (${corroborants.join(', ')})`} ne corrobore la lecture logicielle : la chaine garde la main.`;
+
+  return {
+    retenue,
+    trace: {
+      retenue,
+      indiqueeParLeDossier: indice,
+      chaineDetectee: productionChain,
+      champsCorroborants: corroborants,
+      voix,
+      motif,
+    },
+  };
+}
+
 function deriveAssetClass(
   productionChain: ProductionChain,
   rawAssetClass: string,
@@ -1796,7 +1924,8 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
   // texte complet pour garantir qu un dossier hardware-physical ne
   // ressort jamais en saas-b2b par accident. Voir deriveAssetClass et
   // bug Platypus Craft, mai 2026.
-  const resolvedAssetClass = deriveAssetClass(productionChain, assetClass, text);
+  const arbitrage = arbitrerClasseActif(productionChain, assetClass, text, extraction);
+  const resolvedAssetClass = arbitrage.retenue;
   const supplyChain = detectSupplyChainExposure(text);
   const macroSensitivity = detectMacroSensitivity(text, businessModel);
   const geopolitical = detectGeopoliticalExposure(text, supplyChain);
@@ -1847,6 +1976,7 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
 
   return {
     assetClass: resolvedAssetClass,
+    assetClassArbitration: arbitrage.trace,
     businessModel,
     productionChain,
     supplyChainExposure: supplyChain.level,
@@ -1868,3 +1998,14 @@ export function computeRelevanceMatrix(extraction: ExtractionOutput, assetClass:
  * recalculer la matrice complete.
  */
 export { detectNarrativeMaturity };
+
+/**
+ * Surface reservee aux tests deterministes. `arbitrerClasseActif` se
+ * teste directement plutot qu a travers computeRelevanceMatrix, parce
+ * que la chaine de production doit pouvoir etre posee en entree :
+ * reproduire par un texte synthetique la chaine detectee sur un
+ * memorandum de cent pages ferait dependre le test de l equilibre
+ * fragile entre deux compteurs de mots-cles, et testerait le detecteur
+ * au lieu de l arbitrage.
+ */
+export const __testables = { arbitrerClasseActif, deriveAssetClass, champsLogiciels };

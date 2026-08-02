@@ -37,7 +37,7 @@ import {
 } from '@/lib/data/sector-benchmarks';
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
-import type { RelevanceMatrix } from '@/lib/engines/relevance-matrix';
+import type { AssetClassArbitration, RelevanceMatrix } from '@/lib/engines/relevance-matrix';
 import type { OperationType } from '@/lib/engines/types';
 import {
   deriveDossierReferenceYearWithReason,
@@ -567,7 +567,10 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   });
 
   // ---------- Warnings
-  const warnings = collectWarnings(applicableMethods, ranges, basis, dilutionNotComputable);
+  const warnings = collectWarnings(
+    applicableMethods, ranges, basis, dilutionNotComputable,
+    input.relevanceMatrix?.assetClassArbitration ?? null, stage,
+  );
 
   return {
     ranges,
@@ -1825,6 +1828,8 @@ function collectWarnings(
   ranges: ConsolidatedRange[],
   basis: ValuationBasis,
   dilutionNotComputable: string | null,
+  arbitrage?: AssetClassArbitration | null,
+  stage?: ValuationStage,
 ): string[] {
   const warnings: string[] = [];
 
@@ -1853,6 +1858,28 @@ function collectWarnings(
   // d un cote, metrique de revenu absente de l autre. Deux ouvertures
   // distinctes pour un fait unique obligeraient chaque consommateur en
   // aval a connaitre les deux formulations.
+  // Classe d actif contredite par les champs declares du dossier. Elle
+  // commande les multiples, donc la fourchette entiere : le lecteur
+  // doit voir le choix et son effet chiffre, pas seulement son
+  // resultat. La mention nomme les deux plages pour qu il puisse
+  // mesurer lui-meme l ecart plutot que le croire sur parole.
+  if (arbitrage && stage) {
+    const retenue = getSectorMultiples(arbitrage.retenue, stage);
+    const ecartee = getSectorMultiples(
+      arbitrage.retenue === arbitrage.indiqueeParLeDossier
+        ? deriveClasseEcartee(arbitrage)
+        : arbitrage.indiqueeParLeDossier,
+      stage,
+    );
+    const plage = (m: ReturnType<typeof getSectorMultiples>) =>
+      m ? `${m.range.min}x-${m.range.max}x de ${m.range.multipleType.toUpperCase()}` : 'aucune plage';
+    warnings.push(
+      `Choix sensible de classe d actif. ${arbitrage.motif} Ce choix commande les multiples : `
+      + `${arbitrage.retenue} donne ${plage(retenue)}, l autre lecture donne ${plage(ecartee)}. `
+      + `La fourchette ci-dessus repose entierement sur ce choix, a confirmer avant toute discussion de prix.`,
+    );
+  }
+
   if (basis.stalenessNote) warnings.push(basis.stalenessNote);
   if (basis.ageUnknownNote) warnings.push(basis.ageUnknownNote);
 
@@ -1960,3 +1987,16 @@ function formatEur(value: number): string {
  * elargi l API publique pour une raison de test.
  */
 export const __testables = { lireMontant, parseTicket };
+
+/**
+ * Classe ecartee par l arbitrage. Quand le dossier l a emporte, la
+ * lecture ecartee est celle de la chaine de production, qu on
+ * reconstitue depuis la trace plutot que de la recalculer.
+ */
+function deriveClasseEcartee(a: NonNullable<RelevanceMatrix['assetClassArbitration']>): string {
+  // La chaine conclut a industrial-hardware sauf signal thematique
+  // reconnu ; la trace ne conserve que la chaine, ce qui suffit a
+  // nommer la lecture alternative dans une mention destinee a un
+  // lecteur.
+  return a.chaineDetectee === 'wet-biotech' ? 'deeptech' : 'industrial-hardware';
+}
