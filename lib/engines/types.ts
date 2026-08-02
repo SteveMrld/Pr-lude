@@ -337,6 +337,15 @@ export interface MacroAnalysisOutput {
   contraryclicalOpportunity: {
     score: number;
     rationale: string;
+    /** Palier effectivement occupe par le score, pose par le clamp
+     *  deterministe de macro-engine. Structure plutot que prose : le
+     *  palier vivait uniquement dans une phrase du rationale, ou rien
+     *  ne garantissait qu il corresponde au chiffre a cote. */
+    band?: {
+      min: number;
+      max: number;
+      label: string;
+    };
   };
   structuralTrends: string[];
   regulatoryEnvironment: string;

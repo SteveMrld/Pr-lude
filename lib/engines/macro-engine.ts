@@ -168,6 +168,15 @@ electrique, croissance composee 12% du segment recharge selon IEA, taux
 BCE en debut de detente qui debloque le financement project. Pas de
 fenetre etroite mais courant sectoriel solide."
 
+La grille ne laisse aucun intervalle libre. Un score qui tombe entre
+deux paliers appartient au palier INFERIEUR : 0 a 19 relevent du palier
+5-15, 20 a 39 du palier 20-35, 40 a 59 du palier 40-55, 60 a 79 du
+palier 60-75, 80 a 100 du palier 80-95. Ne cite jamais deux paliers a
+la fois, ne qualifie jamais un score de frontalier ou d intermediaire :
+un score occupe un palier et un seul. Le code repose la regle apres toi
+et reecrira ta citation si elle ne correspond pas au chiffre que tu as
+pose, autant l ecrire juste du premier coup.
+
 Regle absolue : ce score doit etre chiffre dans CHAQUE analyse. Si les
 sources macro reelles (World Bank, IMF WEO) sont silencieuses ou en
 echec, base-toi sur le contexte sectoriel general et documente la
@@ -483,7 +492,151 @@ verifier des donnees macro tres recentes qui peuvent affecter le dossier :
   // independants du LLM et du fetcher reseau.
   applyMacroVerdictPostProcessing(analysis, relevanceMatrix);
 
+  // Clamp du palier contracyclique. Inconditionnel, contrairement au
+  // post-processing ci-dessus qui depend de la matrice : la coherence
+  // entre un score et le palier qu il declare ne se negocie pas avec
+  // la pertinence du sous-bloc.
+  clampContracyclicalPalier(analysis);
+
   return { ...analysis, realData, weoData: weoData ?? undefined };
+}
+
+// ============================================================
+// PALIERS DU SCORE CONTRACYCLIQUE - CLAMP DETERMINISTE
+// ------------------------------------------------------------
+// Les cinq paliers du score contracyclique vivaient uniquement dans
+// le SYSTEM_PROMPT, c est-a-dire dans de la prose adressee au modele.
+// Rien cote code ne verifiait que le palier cite dans le rationale
+// correspondait au chiffre pose a cote, et la grille elle-meme
+// laissait des trous : 0-4, 16-19, 36-39, 56-59, 76-79, 96-100
+// n appartenaient a aucun palier.
+//
+// Ce que produisait un trou, mesure sur les vingt-huit derniers runs
+// persistes qui portent un score contracyclique. Neuf tombent dans un
+// trou, soit pres d un tiers, et sur deux valeurs seulement, 58 et 38.
+// Le score 58 s est declare palier 40-55 quatre fois et palier 60-75
+// une fois, sur le meme moteur et des dossiers voisins. Le score 38
+// s est declare palier 20-35 quatre fois. Huit fois sur neuf le
+// modele rattache donc le trou au palier inferieur, une fois au
+// superieur, et il le signale en langue naturelle par une citation
+// double du type "palier 40-55 / 60-75, a la frontiere" : le moteur
+// cite litteralement deux bandes dont il n occupe aucune. En
+// revanche, aucun des dix-neuf scores tombant dans une bande ne cite
+// une bande fausse : l arbitraire est entierement dans les trous.
+//
+// La grille se referme donc vers le bas, ce qui suit la pratique
+// mesuree et va dans le sens de la prudence : un score contracyclique
+// plus bas signale un timing moins favorable, et ce moteur pese 0,15
+// du score global. Chaque palier absorbe le trou qui le surmonte
+// jusqu a la borne du suivant, et le palier hostile absorbe aussi le
+// bas de l echelle. La partition couvre [0, 100] sans trou ni
+// recouvrement.
+//
+// Ce que le clamp ne fait pas : il ne deplace pas le score. La valeur
+// alimente la dimension macro du score global, les prompts contrarien,
+// causal, pattern et orchestrateur ; la corriger pour la faire
+// coincider avec une bande reviendrait a laisser une phrase decider
+// d un chiffre. C est la declaration qui suit la valeur, jamais
+// l inverse. Seule exception, un score hors [0, 100] est ramene dans
+// l echelle : la, ce n est plus un desaccord de palier, c est une
+// valeur qui n existe pas.
+// ============================================================
+
+export interface ContracyclicalBand {
+  /** Bornes doctrinales du palier, telles que le SYSTEM_PROMPT les enonce. */
+  min: number;
+  max: number;
+  label: string;
+  /** Bornes effectives de la partition, trous refermes vers le bas. */
+  coversFrom: number;
+  coversTo: number;
+}
+
+// Les libelles sont accentues : ils ne restent pas dans le code, ils
+// sont ecrits dans le rationale que le partner lit. Un clamp qui
+// normalise la citation ne doit pas degrader la langue au passage.
+export const CONTRACYCLICAL_BANDS: ContracyclicalBand[] = [
+  { min: 5, max: 15, label: 'timing hostile', coversFrom: 0, coversTo: 19 },
+  { min: 20, max: 35, label: 'timing défavorable mais surmontable', coversFrom: 20, coversTo: 39 },
+  { min: 40, max: 55, label: 'timing neutre', coversFrom: 40, coversTo: 59 },
+  { min: 60, max: 75, label: 'timing favorable non urgent', coversFrom: 60, coversTo: 79 },
+  { min: 80, max: 95, label: 'timing exceptionnellement favorable', coversFrom: 80, coversTo: 100 },
+];
+
+/**
+ * Palier occupe par un score. Total sur [0, 100] par construction :
+ * les bornes coversFrom / coversTo se suivent sans trou. Un score hors
+ * echelle est ramene aux bornes avant resolution.
+ */
+export function resolveContracyclicalBand(score: number): ContracyclicalBand {
+  const clamped = Math.max(0, Math.min(100, score));
+  for (const band of CONTRACYCLICAL_BANDS) {
+    if (clamped >= band.coversFrom && clamped <= band.coversTo) return band;
+  }
+  // Inatteignable : la partition couvre [0, 100]. On rend le dernier
+  // palier plutot que de jeter, un moteur d analyse ne casse pas un
+  // pipeline sur une borne.
+  return CONTRACYCLICAL_BANDS[CONTRACYCLICAL_BANDS.length - 1];
+}
+
+/**
+ * Parenthese de declaration du palier, forme dominante en corpus :
+ * "Score 58 (palier 40-55 / 60-75, a la frontiere, timing favorable
+ * modere)." On remplace la parenthese entiere et pas la seule mention
+ * chiffree, parce que le qualificatif qui la suit porte la meme
+ * affirmation sous une autre forme : reecrire "40-55 / 60-75" en
+ * "40-55" et laisser "a la frontiere, timing favorable modere"
+ * derriere ne corrigerait que la moitie de la phrase.
+ */
+const PALIER_PARENTHESE_REGEX = /\([^()]*\bpalier\b[^()]*\)/gi;
+
+/**
+ * Citation d un palier hors parenthese, forme residuelle. Tiret simple
+ * ou demi-cadratin, citation simple ou double.
+ */
+const PALIER_CITATION_REGEX =
+  /palier\s+\d{1,3}\s*[-–]\s*\d{1,3}(?:\s*(?:\/|à|a|et|vers)\s*\d{1,3}\s*[-–]\s*\d{1,3})*/gi;
+
+/**
+ * Referme la grille des paliers cote code. Mute analysis sur place et
+ * le retourne, comme applyMacroVerdictPostProcessing.
+ *
+ * Trois effets, dans cet ordre :
+ *   1. le score sort de l echelle [0, 100] : il y est ramene ;
+ *   2. le palier occupe est resolu et pose en structure sur
+ *      contraryclicalOpportunity.band ;
+ *   3. toute citation de palier dans le rationale est reecrite pour
+ *      nommer ce palier et lui seul. Un rationale qui n en citait
+ *      aucun se voit prefixer la declaration, parce qu un score sans
+ *      palier n est pas plus lisible qu un palier faux.
+ */
+export function clampContracyclicalPalier(analysis: MacroAnalysisOutput): MacroAnalysisOutput {
+  const co = analysis?.contraryclicalOpportunity;
+  if (!co || typeof co.score !== 'number' || !Number.isFinite(co.score)) return analysis;
+
+  const clamped = Math.max(0, Math.min(100, Math.round(co.score)));
+  const band = resolveContracyclicalBand(clamped);
+  co.score = clamped;
+  co.band = { min: band.min, max: band.max, label: band.label };
+
+  const declaration = `palier ${band.min}-${band.max}, ${band.label}`;
+  const rationale = typeof co.rationale === 'string' ? co.rationale : '';
+
+  PALIER_PARENTHESE_REGEX.lastIndex = 0;
+  PALIER_CITATION_REGEX.lastIndex = 0;
+  if (PALIER_PARENTHESE_REGEX.test(rationale)) {
+    PALIER_PARENTHESE_REGEX.lastIndex = 0;
+    co.rationale = rationale.replace(PALIER_PARENTHESE_REGEX, `(${declaration})`);
+  } else if (PALIER_CITATION_REGEX.test(rationale)) {
+    PALIER_CITATION_REGEX.lastIndex = 0;
+    co.rationale = rationale.replace(PALIER_CITATION_REGEX, `palier ${band.min}-${band.max}`);
+  } else {
+    co.rationale = rationale.trim().length > 0
+      ? `Score ${clamped} (${declaration}). ${rationale.trim()}`
+      : `Score ${clamped} (${declaration}).`;
+  }
+
+  return analysis;
 }
 
 /**
