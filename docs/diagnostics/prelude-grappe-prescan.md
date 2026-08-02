@@ -640,6 +640,54 @@ Ce sont pour l essentiel des memorandums d information de cession, et le
 constat rejoint celui de la grappe 4 : le dispositif presuppose une
 levee, et la moitie du corpus n en est pas une.
 
+## 8. Le protocole qui trancherait l hypothese thesis_fit
+
+Ecrit et non lance. Il est consigne ici parce qu il ne se deduit pas de
+ce qui precede et qu il faudra le retrouver.
+
+L hypothese est celle du brief 28 : l identifiant d un test cadre la
+lecture du modele avant son enonce. `thesis_fit` s appelle fit de these
+et dit drapeaux rouges generiques, et il echouait sur des dossiers sans
+drapeau rouge. C est le mecanisme de la ligne « Tour » des onze prompts,
+ou le mot decidait de la lecture avant le contenu.
+
+Le rejeu ne l a pas testee, faute de condition : `thesis_fit` echoue
+zero fois sur soixante-six passes, la ou il etait le premier motif
+d elimination du corpus. La passe renommee n avait aucun dossier sur
+lequel tourner.
+
+Ce que ce zero ne dit pas. Deux explications le produisent et le rejeu
+ne les separe pas. L identifiant a pu cesser de cadrer la lecture ; mais
+le bloc 1 a aussi retire la these du fonds du prompt, donc le modele n a
+plus la matiere avec laquelle il echouait ce test. La cause possible a
+disparu en meme temps que le symptome, et une mesure ou la cause n existe
+plus ne mesure rien.
+
+**Le protocole a deux bras.** Reconstruire une variante du prompt qui
+reintroduit la these du fonds, telle qu elle etait avant le bloc 1, et
+la garder identique dans les deux bras a un caractere pres :
+l identifiant du test, `thesis_fit` dans le premier bras, un
+identifiant neutre du type `red_flags` dans le second, l enonce restant
+mot pour mot le meme. Trois passes par bras sur les dossiers du corpus
+ou le test echouait historiquement, treize eliminations lisibles dont
+six impliquent `thesis_fit`. La mesure est l ecart de taux d echec entre
+les deux bras.
+
+Trois precautions. La variante avec these n existe plus dans le produit,
+donc le protocole mesure un prompt de laboratoire et non le prompt en
+production, ce qui est acceptable parce que la question porte sur un
+mecanisme et non sur une performance. Le bras temoin doit tourner en
+meme temps que l autre, un ecart de plusieurs jours reintroduisant la
+bascule inexpliquee de juillet a aout comme facteur. Et le protocole ne
+vaut que si les deux bras partagent le meme jeu de dossiers, sans quoi
+on mesure le corpus.
+
+**Corriger d abord a rendu l hypothese plus difficile a tester, et
+c etait malgre tout le bon ordre.** Le contraire aurait consiste a
+garder en production un test qui eliminait des dossiers a tort, le temps
+de comprendre pourquoi. La connaissance perdue est reconstituable en
+laboratoire ; les dossiers ecartes entre-temps ne l auraient pas ete.
+
 ## Dettes ouvertes par cette grappe
 
 **Le nom de societe n est pas repris sur les lignes ecartees.** Les
@@ -655,6 +703,42 @@ qu un partner attend en rouvrant sa liste le lendemain.
 qui n existe plus.** A corriger en meme temps que la doctrine du
 gating, pas avant : tant que la question du vote n est pas tranchee,
 c est le commentaire qui dit la bonne intention.
+
+**La garde anti-divination attrape le fait absent, pas le fait faux.**
+Nouvelle dette, et il faut dire qu elle est creee par le bloc 1. La
+regle refuse une valeur non citee et une valeur hors vocabulaire ; elle
+n a aucune prise sur une valeur citee et mal lue. Sur Pen Group, deux
+passes lisent un ticket de 5 125 000 euros et la troisieme 51 250 000,
+avec citation dans les trois cas, et la comparaison deterministe rend
+`fail` sur `ticket_fit` comme on le lui demande.
+
+Le defaut est propre au deplacement opere : rendre la comparaison
+deterministe transfere la variance de l appreciation vers l extraction,
+et lui donne au passage une autorite qu elle n avait pas. Un jugement
+faux se lit comme un jugement, un calcul faux se lit comme un calcul.
+
+La piste est une garde de vraisemblance sur les faits extraits, ordre de
+grandeur et coherence avec le reste du dossier, mais elle n est pas
+ecrite et elle ne doit pas l etre a la legere : un controle du ticket
+qui croiserait le stade reintroduirait un jugement a l endroit meme d ou
+on vient de le sortir.
+
+**Le pre-scan presuppose une levee, comme le reste du pipeline avant la
+grappe 4.** Sur les vingt-deux dossiers rejoues, le stade est nul aux
+trois passes sur sept et le ticket sur onze, soit la moitie du corpus.
+Ce sont pour l essentiel des memorandums d information de cession, ou
+il n y a ni stade revendique ni ticket demande parce qu il n y a pas de
+tour.
+
+Ce n est donc pas une dette isolee : c est la meme presupposition que
+la grappe 4 a fermee sur la ligne de contexte des sept moteurs, sur les
+libelles de la note et sur la neutralisation des methodes de
+valorisation, reapparue a l entree du pipeline. Le pre-scan n a pas ete
+revu a l epoque parce qu il n etait pas dans le perimetre. Les tests
+`stage_ticket`, `ticket_fit` et `stage_fit` n ont pas de sens sur une
+cession, et la reponse ne sera probablement pas de les rendre non
+produits mais de les declarer hors domaine, de cause doctrine, comme la
+methode VC inverse l est deja.
 
 **Le taux d elimination du dispositif n a pas de valeur historique.**
 Toute mesure de ce taux commence au 2 aout 2026. Les affirmations du
