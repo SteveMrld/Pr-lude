@@ -97,13 +97,66 @@ export interface ValuationBasis {
   refusalReason: string | null;
 }
 
+// ============================================================
+// NATURE DE LA VALEUR PRODUITE
+// ------------------------------------------------------------
+// Les quatre methodes du moteur ne produisent pas la meme grandeur,
+// et le moteur les additionnait comme si elles le faisaient.
+//
+// Un multiple sectoriel s applique a un agregat d exploitation,
+// chiffre d affaires ou EBITDA. Les plages du catalogue sont des
+// multiples EV, calibres sur Argos, Carta et Atomico. Leur produit
+// est donc une valeur d entreprise : ce que vaut l actif economique,
+// avant de savoir qui le finance.
+//
+// Berkus, Scorecard et la VC inverse produisent une valeur des
+// capitaux propres avant tour. Berkus plafonne une somme de facteurs
+// qualitatifs, Scorecard part d une mediane de pre-money observee, la
+// VC inverse soustrait explicitement le ticket d une post-money
+// implicite. Aucune ne passe par un agregat d exploitation, aucune
+// n a de dette a retrancher.
+//
+// L ecart entre les deux natures est la dette nette du dossier. Le
+// pipeline ne l extrait pas : le contrat d extraction financiere ne
+// porte aucun poste de bilan, ni dette financiere, ni tresorerie, ni
+// besoin en fonds de roulement.
+//
+// Doctrine retenue : on ne consolide jamais deux natures. Extraire la
+// dette nette pour convertir les multiples en pre-money ajouterait une
+// inconnue que les decks fournissent rarement, et l ajouterait sur le
+// chiffre le plus visible du produit. On separe, on nomme, et le
+// partner fait le rapprochement avec les elements de bilan qu il a et
+// que le deck n a pas.
+//
+// La nature est portee par chaque methode et persistee dans le
+// resultat, elle n est jamais deduite a la lecture. Un consommateur
+// qui redeviendrait la nature depuis le nom de la methode
+// reintroduirait la connaissance implicite que ce champ supprime.
+// ============================================================
+
+export type ValuationNature = 'enterprise_value' | 'pre_money';
+
+/** Libelles editoriaux, ecrits tels quels dans la note. */
+export const VALUATION_NATURE_LABELS: Record<ValuationNature, string> = {
+  enterprise_value: "valeur d'entreprise",
+  pre_money: 'pre-money',
+};
+
 /**
  * Resultat d une methode de valorisation individuelle. Plusieurs
  * methodes peuvent s appliquer simultanement (ex : multiples ET
- * VC method) et leurs ranges sont consolides en final range.
+ * VC method), mais seules celles de meme nature sont consolidees
+ * ensemble.
  */
 export interface ValuationMethodResult {
   method: 'sector-multiples' | 'vc-method' | 'berkus' | 'scorecard';
+  /**
+   * Grandeur que cette methode produit. Declaree meme quand la
+   * methode est non applicable : la nature est une propriete de la
+   * methode, pas de son resultat, et la note doit pouvoir dire ce qui
+   * aurait ete produit.
+   */
+  nature: ValuationNature;
   /** Nom lisible pour la note. */
   label: string;
   /** True si la methode a pu produire un resultat exploitable. */
@@ -275,6 +328,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   const vcMethodResult = isSeedPreRevenue
     ? {
         method: 'vc-method' as const,
+        nature: 'pre_money' as const,
         label: 'Methode VC inverse',
         applicable: false,
         notApplicableReason: 'Methode reservee aux dossiers avec revenue exploitable. Au seed pre-revenue, la fourchette est ancree sur Berkus et Scorecard, qui valorisent l equipe et l opportunite avant traction commerciale, plutot que sur des exits sectoriels que la jeune entreprise n a pas encore les moyens de viser.',
@@ -351,6 +405,7 @@ function computeBySectorMultiples(
   if (!sector) {
     return {
       method: 'sector-multiples',
+      nature: 'enterprise_value',
       label: 'Multiples sectoriels',
       applicable: false,
       notApplicableReason: `Pas de plage de multiples definie pour ${assetClass} au stade ${stage}.`,
@@ -365,6 +420,7 @@ function computeBySectorMultiples(
   if (basis.branch === 'refused') {
     return {
       method: 'sector-multiples',
+      nature: 'enterprise_value',
       label: 'Multiples sectoriels',
       applicable: false,
       notApplicableReason: `${basis.declaration} ${basis.refusalReason ?? ''}`.trim(),
@@ -383,6 +439,7 @@ function computeBySectorMultiples(
   if (baseMetric === null) {
     return {
       method: 'sector-multiples',
+      nature: 'enterprise_value',
       label: 'Multiples sectoriels',
       applicable: false,
       notApplicableReason: `Aucun ${range.multipleType.toUpperCase()} exploitable au millesime ${basis.year} ni dans la traction declaree du pitch. La methode des multiples requiert une metrique de revenu mesurable a la base retenue, et ne se replie pas sur une annee voisine.`,
@@ -423,6 +480,7 @@ function computeBySectorMultiples(
 
   return {
     method: 'sector-multiples',
+      nature: 'enterprise_value',
     label: 'Multiples sectoriels',
     applicable: true,
     range: {
@@ -663,6 +721,7 @@ function computeByVcMethod(
   if (!exitScenarios) {
     return {
       method: 'vc-method',
+      nature: 'pre_money',
       label: 'Methode VC inverse',
       applicable: false,
       notApplicableReason: `Pas de scenarios d exit calibres pour ${assetClass} au stade ${stage}.`,
@@ -693,6 +752,7 @@ function computeByVcMethod(
   if (isAbsurd) {
     return {
       method: 'vc-method',
+      nature: 'pre_money',
       label: 'Methode VC inverse',
       applicable: false,
       notApplicableReason: `Le ticket propose (${formatEur(ticket)}) excede la post-money implicite (${formatEur(postCentral)}) necessaire pour atteindre IRR ${Math.round(targetIRR * 100)}% sur ${horizonYears} ans avec les exits calibres ${assetClass}. Soit le ticket est trop ambitieux, soit la these sous-jacente vise des exits superieurs aux medianes du segment.`,
@@ -709,6 +769,7 @@ function computeByVcMethod(
 
   return {
     method: 'vc-method',
+      nature: 'pre_money',
     label: 'Methode VC inverse',
     applicable: true,
     range: {
@@ -826,6 +887,7 @@ function computeByBerkus(input: ValuationInput, basis: ValuationBasis): Valuatio
 
   return {
     method: 'berkus',
+    nature: 'pre_money',
     label: 'Methode Berkus',
     applicable: true,
     range: {
@@ -847,6 +909,7 @@ function computeByBerkus(input: ValuationInput, basis: ValuationBasis): Valuatio
 function nonApplicableBerkus(): ValuationMethodResult {
   return {
     method: 'berkus',
+    nature: 'pre_money',
     label: 'Methode Berkus',
     applicable: false,
     notApplicableReason: 'La methode Berkus s applique uniquement au stade seed pre-revenue.',
@@ -898,6 +961,7 @@ function computeByScorecard(input: ValuationInput): ValuationMethodResult {
 
   return {
     method: 'scorecard',
+    nature: 'pre_money',
     label: 'Methode Scorecard (Bill Payne)',
     applicable: true,
     range: {
@@ -921,6 +985,7 @@ function computeByScorecard(input: ValuationInput): ValuationMethodResult {
 function nonApplicableScorecard(): ValuationMethodResult {
   return {
     method: 'scorecard',
+    nature: 'pre_money',
     label: 'Methode Scorecard (Bill Payne)',
     applicable: false,
     notApplicableReason: 'La methode Scorecard s applique uniquement au stade seed.',
@@ -949,10 +1014,10 @@ function buildNonApplicableValuation(
     : `Asset class ${assetClass}.`;
   const reason = `${assetMsg} ${stageMsg} Methodes de valorisation neutralisees pour eviter une fourchette cale sur des benchmarks saas-b2b par defaut.`;
   const methods: ValuationMethodResult[] = [
-    { method: 'sector-multiples', label: 'Multiples sectoriels', applicable: false, notApplicableReason: reason },
-    { method: 'vc-method', label: 'Methode VC inverse', applicable: false, notApplicableReason: reason },
-    { method: 'berkus', label: 'Methode Berkus', applicable: false, notApplicableReason: reason },
-    { method: 'scorecard', label: 'Methode Scorecard (Bill Payne)', applicable: false, notApplicableReason: reason },
+    { method: 'sector-multiples', nature: 'enterprise_value', label: 'Multiples sectoriels', applicable: false, notApplicableReason: reason },
+    { method: 'vc-method', nature: 'pre_money', label: 'Methode VC inverse', applicable: false, notApplicableReason: reason },
+    { method: 'berkus', nature: 'pre_money', label: 'Methode Berkus', applicable: false, notApplicableReason: reason },
+    { method: 'scorecard', nature: 'pre_money', label: 'Methode Scorecard (Bill Payne)', applicable: false, notApplicableReason: reason },
   ];
   const warnings: string[] = [];
   if (assetClass === 'unclassified' && stage === 'unknown') {
