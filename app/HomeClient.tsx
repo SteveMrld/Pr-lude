@@ -298,6 +298,17 @@ export default function HomeClient({
    * que le partner puisse deposer immediatement sans gate prealable.
    */
   const [track, setTrack] = useState<AnalysisTrack>('early');
+  // Date de reception du dossier, format YYYY-MM-DD. Donnee
+  // d instruction et non reglage technique : elle ancre la regle de
+  // millesime du moteur de valorisation quand le deck ne qualifie
+  // explicitement aucun exercice de realise. La route la lit depuis
+  // body.asOf depuis l origine, mais seul le script d ingestion corpus
+  // la renseignait : la branche intermediaire de la regle, qui
+  // concerne vingt dossiers du corpus sur trente-neuf, etait donc
+  // inatteignable depuis la production. Optionnelle : laissee vide, le
+  // moteur refuse la base plutot que de la deviner, ce qui reste un
+  // resultat juste.
+  const [asOf, setAsOf] = useState<string>('');
   // DD APPROFONDIE (Bloc 2) : workflow en deux temps. Le partner
   // declenche cette phase apres avoir lu la note Bloc 1 et decide
   // que le dossier merite une instruction approfondie (verdict
@@ -1155,6 +1166,15 @@ export default function HomeClient({
         files: uploaded.refs,
         track: track ?? 'early',
       };
+
+      // Date de reception du dossier. Transmise seulement si elle est
+      // renseignee et bien formee : la route revalide de son cote et
+      // ramene a null tout ce qui ne correspond pas a YYYY-MM-DD, mais
+      // envoyer une chaine vide ferait porter au serveur la charge de
+      // distinguer non saisi de mal saisi.
+      if (/^\d{4}-\d{2}-\d{2}$/.test(asOf)) {
+        payload.asOf = asOf;
+      }
 
       // Si l user force apres un knockout pre-scan, on l indique au
       // serveur pour qu il bypasse le gating et qu il evite de relancer
@@ -2620,6 +2640,35 @@ export default function HomeClient({
                       <span className="track-toggle-title">Growth</span>
                       <span className="track-toggle-sub">Serie B et au-dela</span>
                     </button>
+                  </div>
+
+                  {/* Date de reception du dossier. Placee a cote du
+                      selecteur de parcours parce qu elle est de meme
+                      nature : une donnee d instruction que le partner
+                      connait et que le document ne porte pas. Elle ancre
+                      le millesime des multiples quand le deck ne
+                      qualifie explicitement aucun exercice de realise.
+                      Optionnelle, et son absence a une consequence
+                      lisible plutot qu un comportement par defaut. */}
+                  <div className="asof-field">
+                    <label className="asof-label" htmlFor="asof-input">
+                      Date de reception du dossier
+                      <span className="asof-optional"> · optionnel</span>
+                    </label>
+                    <input
+                      id="asof-input"
+                      type="date"
+                      className="asof-input"
+                      value={asOf}
+                      max={undefined}
+                      onChange={(e) => setAsOf(e.target.value)}
+                      aria-describedby="asof-hint"
+                    />
+                    <div id="asof-hint" className="asof-hint">
+                      {asOf
+                        ? 'Sert de millesime de reference aux multiples quand le deck ne qualifie explicitement aucun exercice de realise.'
+                        : 'Sans elle, et si le deck ne qualifie aucun exercice de realise, les multiples sectoriels ne sont pas appliques.'}
+                    </div>
                   </div>
                   <div className={`upload-box ${dragging ? 'dragging' : ''}`}
                     onClick={() => inputRef.current?.click()}

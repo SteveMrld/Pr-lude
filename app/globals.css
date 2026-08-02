@@ -553,6 +553,54 @@ ul, ol { list-style: none; }
 }
 
 /* ============================================================
+   DATE DE RECEPTION DU DOSSIER - sous le selecteur de parcours.
+   Meme registre visuel que le toggle : sobre, aligne sur la
+   largeur de la zone de depot, sans chrome. Le champ est
+   optionnel et son absence a une consequence enoncee sous le
+   champ plutot qu un comportement par defaut silencieux.
+   ============================================================ */
+.asof-field {
+  max-width: 560px;
+  margin: 0 auto 14px;
+  text-align: left;
+}
+.asof-label {
+  display: block;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.asof-optional {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+.asof-input {
+  width: 100%;
+  padding: 9px 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+}
+.asof-input:focus {
+  outline: none;
+  border-color: var(--ocre-brule);
+}
+.asof-hint {
+  font-family: var(--sans);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+/* ============================================================
    DOSSIERS RECENTS - section sous le hero depot. Quatre cartes
    editoriales avec accroche de continuite. Le partner peut
    reprendre un dossier d un clic. Pas de chrome bruyant : sobre,
