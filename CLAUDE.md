@@ -102,6 +102,37 @@ patterns, tests E2E du pipeline) ne sont pas dans la suite
 deterministe. Ils sont dans des scripts a lancer separement avec
 ANTHROPIC_API_KEY configuree.
 
+## Discipline de mesure
+
+Une mesure de couverture qui trouve des trous se confirme en lisant la
+structure, jamais en comptant des occurrences de texte.
+
+La regle est nee de trois erreurs en une semaine, toutes de la meme
+forme. Une mesure de la table de benchmarks par appel a
+getSectorMultiples a conclu que la colonne series-c-plus etait vide sur
+les vingt et une classes : elle mesurait en fait un normaliseur qui ne
+lisait pas sa propre sortie, et la table etait complete. Une mesure de
+couverture de baseExits par expression reguliere a conclu que trois
+classes manquaient : la regex excluait les chiffres, et saas-b2b,
+marketplace-b2c et services-b2b portent tous un chiffre dans leur nom.
+Une mesure du nombre de sites portant une cause de non-production a
+compte des occurrences de type et de commentaire avec les vrais sites.
+
+Deux de ces trois erreurs ont fait ecrire un diagnostic faux dans un
+brief avant d etre corrigees.
+
+En pratique, quand une mesure conclut a une lacune, refaire la lecture
+en interrogeant l objet et non son texte : parcourir les clefs de la
+table plutot que grepper ses litteraux, appeler la fonction sur chaque
+valeur du catalogue plutot que compter ses branches, lire le type
+plutot que ses mentions. Le cout est de quelques lignes de script, et
+il se paie une fois contre un diagnostic faux qui oriente un brief
+entier.
+
+Le corollaire vaut aussi : une mesure qui ne trouve aucun trou est
+moins suspecte, mais elle merite la meme lecture structurelle quand
+elle sert a affirmer qu un correctif couvre tout.
+
 ## Conventions de commit
 
 Tag obligatoire en prefixe : feat / fix / refactor / docs / test /

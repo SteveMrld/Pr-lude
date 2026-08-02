@@ -42,15 +42,38 @@ que la table attend en anglais.
 C est donc une lacune de vocabulaire de la table de mots-cle, sur un
 secteur deja couvert, et non un secteur hors perimetre.
 
-### Ce qui reste a etablir
+### La question reste ouverte, et elle est rattachee au type d operation
 
-Si le defaut est bien de vocabulaire, ou si la matrice echoue pour une
-raison plus profonde sur les memorandums de societe etablie. Le fait
-que `productionChain` et `businessModel` echouent aussi sur le meme
-dossier suggere la seconde hypothese : un memorandum de cession decrit
-un actif et son exploitation, pas un produit et son modele de revenus,
-et le vocabulaire de la matrice est celui du second. Deux dossiers ne
-suffisent pas a trancher.
+Le correctif evident est d ajouter `hospitalite` et `parcs de loisirs`
+a la table de mots-cle. Il n est pas fait, et deliberement : il
+traiterait le symptome d un dossier et laisserait entier ce que
+`productionChain` et `businessModel` signalent en echouant sur le meme
+dossier.
+
+L hypothese a instruire est que la matrice de pertinence est elle
+aussi cadree par la presupposition de levee. Un memorandum de cession
+decrit un actif et son exploitation, un portefeuille de six parcs et
+leur frequentation. La matrice cherche un produit et un modele de
+revenus, parce que c est ce qu un deck de levee presente. Si
+l hypothese tient, les trois axes n echouent pas par coincidence :
+ils echouent ensemble parce qu ils interrogent tous les trois un objet
+que le document ne decrit pas.
+
+C est la meme racine que la ligne `Tour : stade montant` injectee dans
+sept prompts, ouverte au bloc 1 de cette grappe. Dans les deux cas, un
+cadre concu pour la levee est applique a une operation qui n en est
+pas une, et dans les deux cas le symptome visible, un ticket faux ici,
+une classe non tranchee la, est moins interessant que le cadre.
+
+Le lien a une consequence d ordonnancement : la matrice ne se corrige
+pas avant que le type d operation existe. Une fois qu il existe, la
+question devient tranchable, puisqu on saura si les dossiers
+`unclassified` sont des cessions.
+
+Deux dossiers ne suffisent de toute facon pas a conclure, et ce sont
+deux runs du meme. La mesure se refera quand le corpus aura grossi.
+
+### Ce qui reste a etablir
 
 Le cout d une classe non tranchee est disproportionne a sa cause. Un
 mot manquant dans une table de mots-cle neutralise quatre methodes de
