@@ -288,6 +288,18 @@ const UPSTREAM_FAIL_STATUSES: ReadonlySet<EngineStatus> = new Set<EngineStatus>(
 ]);
 
 export class EngineStatusRecorder {
+  /**
+   * Source de temps des durees d attente et d execution. Par defaut
+   * l horloge du runtime, comportement inchange en production.
+   *
+   * L injection existe pour les tests de deadline, qui avancent le
+   * temps eux-memes plutot que de dormir. Sans elle, un test sur
+   * horloge virtuelle mesurerait des durees nulles et devrait renoncer
+   * a verifier la distinction attente contre execution, qui est
+   * pourtant ce que le module apporte.
+   */
+  constructor(private readonly maintenant: () => number = () => Date.now()) {}
+
   private entries: Map<string, EngineStatusEntry> = new Map();
   private measures: Map<string, EngineLlmMeasure> = new Map();
   private startTimes: Map<string, number> = new Map();
@@ -301,7 +313,7 @@ export class EngineStatusRecorder {
    *  pour nommer la cause d une rejection en cascade. */
   markStart(engine: string, deps?: string[]): void {
     if (!this.startTimes.has(engine)) {
-      this.startTimes.set(engine, Date.now());
+      this.startTimes.set(engine, this.maintenant());
     }
     if (deps && deps.length > 0 && !this.declaredDeps.has(engine)) {
       this.declaredDeps.set(engine, deps.slice());
@@ -316,7 +328,7 @@ export class EngineStatusRecorder {
    *  deadline de basculer de la garde attente a la garde execution. */
   markLLMStart(engine: string): void {
     if (!this.llmStartTimes.has(engine)) {
-      this.llmStartTimes.set(engine, Date.now());
+      this.llmStartTimes.set(engine, this.maintenant());
       const listeners = this.llmStartListeners.get(engine);
       if (listeners && listeners.length > 0) {
         // Copie defensive : un listener peut theoriquement en ajouter
@@ -387,7 +399,7 @@ export class EngineStatusRecorder {
 
     const startedAt = this.startTimes.get(entry.engine);
     const llmStartedAt = this.llmStartTimes.get(entry.engine);
-    const now = Date.now();
+    const now = this.maintenant();
 
     let totalDurationMs = entry.durationMs;
     if (totalDurationMs === undefined) {

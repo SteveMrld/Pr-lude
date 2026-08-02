@@ -50,7 +50,32 @@ export interface EngineDeadlineOptions {
   /** Notifie une erreur remontee par la promesse sous-jacente,
    *  distincte d un timeout. */
   onError: (engine: string, err: unknown) => void;
+  /**
+   * Source de temps des deux gardes. Par defaut les minuteurs du
+   * runtime, comportement inchange en production.
+   *
+   * L injection existe pour les tests. Un test de deadline qui dort
+   * reellement mesure la charge de la machine autant que la logique
+   * qu il verifie : la suite engine-deadline echouait par intermittence
+   * sous charge de suite complete, et elargir ses marges n aurait fait
+   * que reculer le seuil auquel elle redevient trompeuse. Avec une
+   * horloge injectee, le test avance le temps lui-meme et ne depend
+   * plus de l ordonnanceur.
+   */
+  scheduler?: Scheduler;
 }
+
+/** Minuteurs utilises par les gardes. Signature volontairement reduite
+ *  a ce que le wrapper emploie. */
+export interface Scheduler {
+  setTimeout: (fn: () => void, ms: number) => any;
+  clearTimeout: (id: any) => void;
+}
+
+const SCHEDULER_RUNTIME: Scheduler = {
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+  clearTimeout: (id) => clearTimeout(id),
+};
 
 /** Type public du wrapper produit. Les quatre premiers parametres sont
  *  ceux de l ancienne fonction inline de route.ts, aucun des 21 sites
@@ -73,6 +98,7 @@ export type EngineDeadlineWrapper = <T>(
 
 export function createEngineDeadlineWrapper(opts: EngineDeadlineOptions): EngineDeadlineWrapper {
   const { recorder, waitDeadlineMs, llmDeadlineMs: defaultLlmDeadlineMs, onTimeout, onDoneNull, onError } = opts;
+  const horloge = opts.scheduler ?? SCHEDULER_RUNTIME;
 
   return function withEngineDeadline<T>(
     engine: string,
@@ -86,12 +112,12 @@ export function createEngineDeadlineWrapper(opts: EngineDeadlineOptions): Engine
 
     return new Promise<T | null>((resolve) => {
       let settled = false;
-      let timer: ReturnType<typeof setTimeout>;
+      let timer: any;
 
       const fire = (reason: string, deadlineMs: number) => {
         if (settled) return;
         settled = true;
-        clearTimeout(timer);
+        horloge.clearTimeout(timer);
         onTimeout(engine, reason, deadlineMs);
         try { onDoneNull(engine); } catch { /* controller closed */ }
         if (resultKey) {
@@ -108,7 +134,7 @@ export function createEngineDeadlineWrapper(opts: EngineDeadlineOptions): Engine
       // Garde attente : armee inconditionnellement des la construction.
       // Si le moteur atteint markLLMStart avant la fin de cette fenetre,
       // on la remplace par la garde execution.
-      timer = setTimeout(() => fire('wait-deadline-exceeded', waitDeadlineMs), waitDeadlineMs);
+      timer = horloge.setTimeout(() => fire('wait-deadline-exceeded', waitDeadlineMs), waitDeadlineMs);
 
       // Bascule wait -> execution au moment ou le moteur declare son
       // appel LLM. Si markLLMStart a deja ete emis, l abonnement fire
@@ -116,8 +142,8 @@ export function createEngineDeadlineWrapper(opts: EngineDeadlineOptions): Engine
       if (resultKey) {
         recorder.onLLMStart(resultKey, () => {
           if (settled) return;
-          clearTimeout(timer);
-          timer = setTimeout(() => fire('deadline-exceeded', llmDeadlineMs), llmDeadlineMs);
+          horloge.clearTimeout(timer);
+          timer = horloge.setTimeout(() => fire('deadline-exceeded', llmDeadlineMs), llmDeadlineMs);
         });
       }
 
@@ -125,14 +151,14 @@ export function createEngineDeadlineWrapper(opts: EngineDeadlineOptions): Engine
         (v) => {
           if (settled) return;
           settled = true;
-          clearTimeout(timer);
+          horloge.clearTimeout(timer);
           if (resultKey) recorder.record({ engine: resultKey, status: 'ok', attempts: 1 });
           resolve(v);
         },
         (err) => {
           if (settled) return;
           settled = true;
-          clearTimeout(timer);
+          horloge.clearTimeout(timer);
           onError(engine, err);
           try { onDoneNull(engine); } catch { /* controller closed */ }
           if (resultKey) {

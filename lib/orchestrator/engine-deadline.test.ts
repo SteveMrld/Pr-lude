@@ -1,6 +1,20 @@
 // ============================================================
 // Tests deterministes engine-deadline.ts
 // ------------------------------------------------------------
+// Deterministes au sens strict depuis le 3 aout 2026 : ils n emploient
+// plus une seule duree reelle. Ils dormaient auparavant sur dix-sept
+// constructions temporelles calquees sur les p90 du corpus, et
+// echouaient par intermittence sous charge de suite complete, parce
+// qu ils mesuraient l ordonnanceur autant que la logique. Elargir les
+// marges aurait recule le seuil sans changer la nature du test, et un
+// test intermittent finit par etre relance jusqu a passer, puis
+// ignore, et masque alors un vrai echec.
+//
+// Le temps est desormais un compteur que le test avance lui-meme, via
+// HorlogeVirtuelle, injectee dans le wrapper comme dans le recorder.
+// Les proportions du corpus sont conservees a l identique : ce sont
+// les memes nombres, ils ne coutent simplement plus de secondes.
+// ------------------------------------------------------------
 // Objectif prouver, pas verifier verdement : que la couche 3 du
 // pipeline s execute reellement derriere une couche 1 lente. Sous
 // l ancienne implementation (deadline armee a la construction du
@@ -17,6 +31,7 @@
 
 import { EngineStatusRecorder } from './engine-status-recorder';
 import { createEngineDeadlineWrapper } from './engine-deadline';
+import { HorlogeVirtuelle, vidangerMicrotaches } from './horloge-virtuelle';
 
 let pass = 0, fail = 0;
 function check(cond: boolean, label: string) {
@@ -24,7 +39,13 @@ function check(cond: boolean, label: string) {
   else { fail++; console.error(`  KO  ${label}`); }
 }
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+// Horloge du test. Chaque suite reprend la sienne pour repartir de zero.
+let horloge = new HorlogeVirtuelle();
+const sleep = (ms: number) => horloge.attendre(ms);
+function nouvelleHorloge(): void { horloge = new HorlogeVirtuelle(); }
+function nouveauRecorder(): EngineStatusRecorder {
+  return new EngineStatusRecorder(() => horloge.maintenant);
+}
 
 async function run() {
 
@@ -35,7 +56,8 @@ async function run() {
   console.log('\n[Suite 1] couche 3 execute meme quand couche 1 tient sur toute son enveloppe SDK');
 
   {
-    const recorder = new EngineStatusRecorder();
+    nouvelleHorloge();
+    const recorder = nouveauRecorder();
     const timeouts: Array<{ engine: string; reason: string }> = [];
     const doneNull: string[] = [];
 
@@ -46,6 +68,7 @@ async function run() {
       onTimeout: (engine, reason) => timeouts.push({ engine, reason }),
       onDoneNull: (engine) => doneNull.push(engine),
       onError: () => {},
+      scheduler: horloge.scheduler(),
     });
 
     // Couche 1 : sleeps calques sur p90 team/market/macro
@@ -101,8 +124,8 @@ async function run() {
       return { name: 'refChecks' };
     })();
 
-    const t0 = Date.now();
-    const [team, market, macro, pattern, blindspot, causal, refChecks] = await Promise.all([
+    const t0 = horloge.maintenant;
+    const attendu = Promise.all([
       withEngineDeadline('team', 'team', teamPromise),
       withEngineDeadline('market', 'market', marketPromise),
       withEngineDeadline('macro', 'macro', macroPromise),
@@ -111,7 +134,12 @@ async function run() {
       withEngineDeadline('causal', 'causalReversal', causalPromise, ['team', 'market', 'macro', 'patternMatching']),
       withEngineDeadline('reference-checks', 'referenceChecks', referenceChecksPromise, ['team', 'blindspotAnalysis', 'causalReversal']),
     ]);
-    const wall = Date.now() - t0;
+    // Une seule avancee couvre toute la chaine critique. Les minuteurs
+    // se declenchent dans l ordre de leurs echeances, donc l ordre
+    // observe est celui du temps et non celui de l ordonnanceur.
+    await horloge.avancer(6000);
+    const [team, market, macro, pattern, blindspot, causal, refChecks] = await attendu;
+    const wall = horloge.maintenant - t0;
 
     check(team !== null, 'couche 1 team resolue');
     check(market !== null, 'couche 1 market resolue');
@@ -151,7 +179,8 @@ async function run() {
   console.log('\n[Suite 2] contre-preuve : sous l ancien modele, la couche 3 est tuee');
 
   {
-    const recorder = new EngineStatusRecorder();
+    nouvelleHorloge();
+    const recorder = nouveauRecorder();
     const timeouts: string[] = [];
 
     // Wrapper legacy : deadline UNIQUE armee au construction, pas de
@@ -160,7 +189,7 @@ async function run() {
       if (resultKey) recorder.markStart(resultKey, deps);
       return new Promise<T | null>((resolve) => {
         let settled = false;
-        const timer = setTimeout(() => {
+        const timer = horloge.scheduler().setTimeout(() => {
           if (settled) return;
           settled = true;
           timeouts.push(engine);
@@ -171,14 +200,14 @@ async function run() {
           (v) => {
             if (settled) return;
             settled = true;
-            clearTimeout(timer);
+            horloge.scheduler().clearTimeout(timer);
             if (resultKey) recorder.record({ engine: resultKey, status: 'ok', attempts: 1 });
             resolve(v);
           },
           () => {
             if (settled) return;
             settled = true;
-            clearTimeout(timer);
+            horloge.scheduler().clearTimeout(timer);
             resolve(null);
           },
         );
@@ -201,13 +230,15 @@ async function run() {
       return { name: 'causal' };
     })();
 
-    const [_team, _market, _macro, pattern, causal] = await Promise.all([
+    const attenduLegacy = Promise.all([
       legacyWithDeadline('team', 'team', teamPromise),
       legacyWithDeadline('market', 'market', marketPromise),
       legacyWithDeadline('macro', 'macro', macroPromise),
       legacyWithDeadline('pattern', 'patternMatching', patternPromise, ['team', 'market', 'macro']),
       legacyWithDeadline('causal', 'causalReversal', causalPromise, ['team', 'market', 'macro', 'patternMatching']),
     ]);
+    await horloge.avancer(6000);
+    const [_team, _market, _macro, pattern, causal] = await attenduLegacy;
 
     check(pattern === null, 'sous l ancien modele, pattern est aussi tue par la deadline t=0 (pattern finissait a ~2430ms)');
     check(causal === null, 'sous l ancien modele, causal est tue par la deadline t=0 (n a jamais atteint son LLM)');
@@ -225,16 +256,18 @@ async function run() {
   console.log('\n[Suite 3] wait-deadline-exceeded fire quand une dep hang au-dela de WAIT_DEADLINE_MS');
 
   {
-    const recorder = new EngineStatusRecorder();
+    nouvelleHorloge();
+    const recorder = nouveauRecorder();
     const timeouts: Array<{ engine: string; reason: string }> = [];
 
     const withEngineDeadline = createEngineDeadlineWrapper({
       recorder,
-      waitDeadlineMs: 300,   // court pour test rapide
+      waitDeadlineMs: 300,
       llmDeadlineMs: 5000,
       onTimeout: (engine, reason) => timeouts.push({ engine, reason }),
       onDoneNull: () => {},
       onError: () => {},
+      scheduler: horloge.scheduler(),
     });
 
     // hangPromise n atteint jamais markLLMStart : simule une dep amont
@@ -242,7 +275,9 @@ async function run() {
     // resterait pendu.
     const hangPromise: Promise<any> = new Promise(() => {});
 
-    const result = await withEngineDeadline('hanging', 'hangingKey', hangPromise, ['someDep']);
+    const attenduHang = withEngineDeadline('hanging', 'hangingKey', hangPromise, ['someDep']);
+    await horloge.avancer(400);
+    const result = await attenduHang;
 
     check(result === null, 'moteur hung resout null via wait-deadline');
     check(timeouts.length === 1, 'exactement un timeout tire');
@@ -261,16 +296,18 @@ async function run() {
   console.log('\n[Suite 4] deadline-exceeded fire quand l execution LLM depasse ENGINE_DEADLINE_MS');
 
   {
-    const recorder = new EngineStatusRecorder();
+    nouvelleHorloge();
+    const recorder = nouveauRecorder();
     const timeouts: Array<{ engine: string; reason: string }> = [];
 
     const withEngineDeadline = createEngineDeadlineWrapper({
       recorder,
       waitDeadlineMs: 5000,
-      llmDeadlineMs: 200,   // court pour test rapide
+      llmDeadlineMs: 200,
       onTimeout: (engine, reason) => timeouts.push({ engine, reason }),
       onDoneNull: () => {},
       onError: () => {},
+      scheduler: horloge.scheduler(),
     });
 
     const slowLLM = (async () => {
@@ -279,7 +316,9 @@ async function run() {
       return { name: 'slow' };
     })();
 
-    const result = await withEngineDeadline('slow', 'slowKey', slowLLM);
+    const attenduSlow = withEngineDeadline('slow', 'slowKey', slowLLM);
+    await horloge.avancer(700);
+    const result = await attenduSlow;
 
     check(result === null, 'moteur exec-long resout null via exec-deadline');
     check(timeouts.length === 1, 'exactement un timeout tire');
