@@ -13,7 +13,7 @@
 // huit sans que rien ne le signale.
 // ============================================================
 
-import { assemblerPreScan, type PreScanRawResponse, type FundProfile } from './prescan-engine';
+import { assemblerPreScan, preScanNonProduit, motifIncident, type PreScanRawResponse, type FundProfile } from './prescan-engine';
 import type { DossierFacts } from './prescan-fit';
 
 let pass = 0, fail = 0;
@@ -158,6 +158,33 @@ const TOUS_PASS = Object.fromEntries(JUGEMENTS.map(id => [id, 'pass' as const]))
     const ordre = r.tests.map(t => t.id).join(',');
     check(ordre.startsWith('narrative,founder,financial,stage_ticket,market,thesis_fit'),
       'l ordre d affichage ne depend plus de la discipline du modele');
+  }
+
+  // ============================================================
+  console.log('\n[Suite 5] le pre-scan qui ne peut pas s executer se declare');
+  // ============================================================
+  {
+    check(motifIncident(new Error('A maximum of 100 PDF pages may be provided')).includes('cent pages'),
+      'la limite de pages est nommee');
+    check(motifIncident(new Error('messages.0.content.0.pdf.source.base64.data: too large')).includes('taille maximale'),
+      'la limite de taille est nommee');
+    check(motifIncident(new Error('socket hang up')).includes('Appel au modele en echec'),
+      'un incident non qualifie reste non qualifie plutot qu invente');
+  }
+  {
+    const r = preScanNonProduit(PROFIL, 'Document au-dela de la limite de cent pages acceptee par le modele.');
+    check(r.totalTests === 10, 'le total demande est conserve');
+    check(r.tests.every(t => t.status === 'not_produced'), 'aucun test ne rend de verdict');
+    check(r.tests.every(t => t.nonProductionCause === 'incident'), 'tous de cause incident');
+    check(r.failedTests.length === 0, 'aucun echec, donc aucun couperet critique');
+    check(r.recommendation !== 'not_recommended',
+      'un dossier non pre-scanne n est jamais elimine');
+    check(r.hasProductionIncident === true && r.nonProductionReason !== null,
+      'l incident et son motif sont portes par la sortie');
+    check(r.summary.startsWith('Ce dossier n a pas ete pre-scanne'),
+      'la note dit que le dossier n a pas ete pre-scanne');
+    const sansProfil = preScanNonProduit(undefined, 'motif');
+    check(sansProfil.totalTests === 6, 'six tests demandes sans profil, la meme regle qu ailleurs');
   }
 
   console.log(`\n${pass} pass, ${fail} fail`);

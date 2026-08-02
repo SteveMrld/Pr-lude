@@ -787,6 +787,18 @@ export async function POST(req: NextRequest) {
               : 'Pré-scan : triage rapide six tests éliminatoires');
             try {
               preScan = await runPreScan(pitchDeck.payload, fundProfileForPreScan || undefined);
+              // Le moteur ne leve plus quand il ne peut pas s executer :
+              // il rend une sortie dont tous les tests sont non produits
+              // de cause incident. L incident remonte donc ici depuis une
+              // sortie normale, et non depuis une exception, ce qui est
+              // la seule facon de le voir aussi dans la note.
+              if (preScan?.hasProductionIncident && preScan?.nonProductionReason) {
+                logException(
+                  'pipeline.prescan',
+                  new Error(`Pre-scan non execute : ${preScan.nonProductionReason}`),
+                  { severity: 'warning', analysisId, context: { phase: 'prescan-bloc-0' } },
+                );
+              }
             } catch (err: any) {
               logException('pipeline.prescan', err, {
                 severity: 'warning',

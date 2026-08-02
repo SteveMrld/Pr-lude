@@ -162,6 +162,11 @@ export interface PreScanOutput {
    * dispositif ne se convertit pas en decision doctrinale.
    */
   hasProductionIncident: boolean;
+  /**
+   * Motif de l incident quand le pre-scan n a pas pu s executer du
+   * tout, nommant la limite atteinte. Null en fonctionnement normal.
+   */
+  nonProductionReason: string | null;
 }
 
 export const BASE_SYSTEM_PROMPT = `Tu es le Moteur de Pré-Scan de la plateforme Prélude. Ton rôle est de lire un pitch deck VC en 5-8 secondes et de produire un verdict de triage rapide.
@@ -283,14 +288,29 @@ export async function runPreScan(
   // temperature=0 : triage deterministe sur six tests eliminatoires.
   // Un dossier borderline doit tomber toujours du meme cote entre deux
   // runs, sinon l economie du gating knockout devient stochastique.
-  const rawResponse = await callClaudeWithPDF(
+  let rawResponse: string;
+  try {
+    rawResponse = await callClaudeWithPDF(
     systemPrompt,
     userPrompt,
     pitchDeckBase64,
     fundProfile ? 2500 : 2000,
-    FAST_MODEL,
-    0,
-  );
+      FAST_MODEL,
+      0,
+    );
+  } catch (err: any) {
+    // Le pre-scan qui ne peut pas s executer se declare au lieu de
+    // lever. La route attrapait et poursuivait avec un pre-scan nul :
+    // le repli etait bon, un incident d API ne doit pas empecher une
+    // analyse, mais il etait muet. Quatre decks du corpus sur vingt-six
+    // sont dans ce cas, donc quinze pour cent des dossiers n etaient
+    // jamais tries sans que rien ne le signale.
+    return {
+      ...preScanNonProduit(fundProfile, motifIncident(err)),
+      durationMs: Date.now() - startTime,
+      model: FAST_MODEL,
+    };
+  }
 
   const parsed = parseJSON<PreScanRawResponse>(rawResponse);
 
@@ -298,6 +318,60 @@ export async function runPreScan(
     ...assemblerPreScan(parsed, fundProfile),
     durationMs: Date.now() - startTime,
     model: FAST_MODEL,
+  };
+}
+
+/**
+ * Nomme la limite atteinte. Les deux motifs rencontres sur le corpus
+ * sont les seuls que l API distingue explicitement ; tout le reste
+ * reste un incident sans qualification plutot qu un motif invente.
+ */
+export function motifIncident(err: unknown): string {
+  const m = String((err as any)?.message ?? err);
+  if (/maximum of \d+ PDF pages/i.test(m)) {
+    return 'Document au-dela de la limite de cent pages acceptee par le modele.';
+  }
+  if (/base64\.data|too large|request_too_large|exceed/i.test(m)) {
+    return 'Document au-dela de la taille maximale acceptee par le modele.';
+  }
+  return `Appel au modele en echec : ${m.slice(0, 160)}`;
+}
+
+/**
+ * Sortie d un pre-scan qui n a pas pu s executer. Tous les tests
+ * demandes sont non produits de cause incident, au sens de la grappe 3,
+ * et le verdict ne peut pas etre eliminatoire : une defaillance du
+ * dispositif ne se convertit pas en decision. C est la meme forme que
+ * la non-production du bloc 2, appliquee au cas ou rien n a tourne.
+ */
+export function preScanNonProduit(
+  fundProfile: FundProfile | undefined,
+  motif: string,
+): Omit<PreScanOutput, 'durationMs' | 'model'> {
+  const attendus = ORDRE_AFFICHAGE.filter(
+    id => fundProfile || !TESTS_DE_THESE.includes(id),
+  );
+  const tests: PreScanTest[] = attendus.map(id => ({
+    id,
+    name: NOMS_ATTENDUS[id] ?? id,
+    status: 'not_produced',
+    rationale: `Pre-scan non execute. ${motif}`,
+    evidence: '',
+    nonProductionCause: 'incident',
+  }));
+  return {
+    score: 0,
+    totalTests: attendus.length,
+    recommendation: 'pipeline_with_caveats',
+    summary: `Ce dossier n a pas ete pre-scanne. ${motif} Le pipeline complet tourne sans triage prealable, et aucun des ${attendus.length} tests n a rendu de verdict.`,
+    tests,
+    failedTests: [],
+    estimatedCostUsd: 0,
+    usedFundProfile: !!fundProfile,
+    dossierFacts: normaliserFacts(null),
+    notProducedTests: tests.map(t => ({ id: t.id, cause: 'incident' as const })),
+    hasProductionIncident: true,
+    nonProductionReason: motif,
   };
 }
 
@@ -412,6 +486,7 @@ export function assemblerPreScan(
       cause: t.nonProductionCause ?? 'absence',
     })),
     hasProductionIncident: incidents.length > 0,
+    nonProductionReason: null,
   };
 }
 

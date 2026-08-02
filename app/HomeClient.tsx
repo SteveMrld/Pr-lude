@@ -3602,14 +3602,22 @@ export default function HomeClient({
                 voir que le pre-scan a tourne et savoir ce qu il a dit. */}
             {result.preScan && (() => {
               const ps = result.preScan;
-              const isOk = ps.recommendation === 'ready_for_pipeline';
-              const isCaveats = ps.recommendation === 'pipeline_with_caveats';
-              const colors = isOk
+              // Un pre-scan qui n a pas pu s executer n est ni favorable
+              // ni defavorable. Le presenter comme un verdict avec
+              // reserves laisserait croire qu un triage a eu lieu.
+              const nonExecute = ps.hasProductionIncident === true && !!ps.nonProductionReason;
+              const isOk = !nonExecute && ps.recommendation === 'ready_for_pipeline';
+              const isCaveats = !nonExecute && ps.recommendation === 'pipeline_with_caveats';
+              const colors = nonExecute
+                ? { bg: 'rgba(138, 129, 117, 0.08)', border: 'rgba(138, 129, 117, 0.5)', accent: '#8a8175' }
+                : isOk
                 ? { bg: 'rgba(80, 140, 90, 0.06)', border: 'rgba(80, 140, 90, 0.45)', accent: '#508c5a' }
                 : isCaveats
                 ? { bg: 'rgba(192, 138, 63, 0.08)', border: 'rgba(192, 138, 63, 0.5)', accent: '#c08a3f' }
                 : { bg: 'rgba(192, 64, 60, 0.08)', border: 'rgba(192, 64, 60, 0.5)', accent: '#c0403c' };
-              const verdictLabel = isOk
+              const verdictLabel = nonExecute
+                ? 'Dossier non pré-scanné'
+                : isOk
                 ? 'Pré-scan favorable'
                 : isCaveats
                 ? 'Pré-scan avec réserves'
@@ -3647,7 +3655,9 @@ export default function HomeClient({
                       Triage Bloc 0 · {verdictLabel}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--ink-tertiary)' }}>
-                      Score {ps.score}/{totalTests}{ps.durationMs ? ` · ${(ps.durationMs / 1000).toFixed(1)}s` : ''}{ps.estimatedCostUsd ? ` · ~$${ps.estimatedCostUsd.toFixed(2)}` : ''}
+                      {nonExecute
+                        ? `Aucun des ${totalTests} tests n'a rendu de verdict`
+                        : `Score ${ps.score}/${totalTests}`}{ps.durationMs ? ` · ${(ps.durationMs / 1000).toFixed(1)}s` : ''}{ps.estimatedCostUsd ? ` · ~$${ps.estimatedCostUsd.toFixed(2)}` : ''}
                     </div>
                   </div>
                   <div style={{
