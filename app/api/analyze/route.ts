@@ -397,6 +397,7 @@ export async function POST(req: NextRequest) {
       ...others.map(o => o.name),
     ];
 
+
     // ============================================================
     // CREATION DE LA LIGNE ANALYSES A T0
     // ------------------------------------------------------------
@@ -439,6 +440,43 @@ export async function POST(req: NextRequest) {
         { severity: 'warning', analysisId, context: { droppedColumns: schemaDegradation } },
       );
     }
+
+    // ============================================================
+    // EMPREINTE DE VERSION, CONSTRUITE AVANT LE PREMIER APPEL
+    // ------------------------------------------------------------
+    // buildVersionStamp ne depend de rien qui vienne du pipeline : le
+    // commit vient de l environnement, modeles, configs et empreintes
+    // de moteurs sont statiques, le mode de run est connu a la lecture
+    // de la requete, et les entrees ne demandent que les octets des
+    // fichiers, disponibles depuis processFileRefs.
+    //
+    // Il naissait pourtant a la cloture du pipeline, donc les seuls
+    // runs qui n atteignaient jamais cette cloture, les elimines au
+    // pre-scan, etaient les seuls a ne porter aucune empreinte. La
+    // seule categorie ou la reproductibilite se joue vraiment etait
+    // celle qui n en gardait aucune trace, et le commit d une
+    // elimination ne se lisait pas, il s inferait de l horaire.
+    //
+    // Il est construit apres la creation de la ligne et non avant :
+    // la premiere construction coute une centaine de millisecondes,
+    // le temps de collecter les empreintes de prompts, et rien ne
+    // doit s intercaler entre l entree dans la route et l existence
+    // d une ligne. C est la lecon des analyses mort-nees.
+    //
+    // Le decoupage etait deja ecrit dans l architecture :
+    // sealVersionStamp n ajoute que la duree. Il n etait pas utilise
+    // dans cet ordre.
+    // ============================================================
+    const versionStampEntree = buildVersionStamp({
+      inputs: {
+        deckBase64: pitchDeck.payload,
+        deckBytes: pitchDeck.size,
+        pitchText: null,
+        bpText: businessPlan?.payload || null,
+        additionalFiles: allFileNames.filter(n => n !== pitchDeck.name),
+      },
+      runMode: { frozen, asOf },
+    });
 
     // Streaming SSE
     const stream = new ReadableStream({
@@ -787,7 +825,18 @@ export async function POST(req: NextRequest) {
                 totalTests: preScan.totalTests,
                 failedTests: preScan.failedTests || [],
                 summary: preScan.summary,
-              });
+                // Le detail, qui tombait jusqu ici. Un dossier ecarte
+                // doit se relire sur pieces sans relancer le modele :
+                // quel test a coupe, sur quelle citation, contre quelle
+                // valeur du profil.
+                tests: preScan.tests || [],
+                dossierFacts: preScan.dossierFacts ?? null,
+                notProducedTests: preScan.notProducedTests || [],
+                hasProductionIncident: preScan.hasProductionIncident === true,
+                model: preScan.model ?? null,
+                durationMs: preScan.durationMs ?? null,
+                usedFundProfile: preScan.usedFundProfile === true,
+              }, versionStampEntree);
             }
             // Termine proprement le stream sans envoyer 'complete'. Le
             // client recoit prescan-knockout et arrete le pipeline en
@@ -1933,22 +1982,12 @@ export async function POST(req: NextRequest) {
           // seule, ne change aucun comportement de moteur.
           // ============================================================
           const durationMs = Date.now() - startTime;
-          const versionStamp = sealVersionStamp(
-            buildVersionStamp({
-              inputs: {
-                deckBase64: pitchDeck.payload,
-                deckBytes: pitchDeck.size,
-                pitchText: null,
-                bpText: businessPlan?.payload || null,
-                additionalFiles: allFileNames.filter(n => n !== pitchDeck.name),
-              },
-              // Mode de run capture dans le stamp. frozen entre dans le
-              // configsHash via runMode (cf version-stamp.ts), asOf reste
-              // top-level comme provenance pure sans participation au hash.
-              runMode: { frozen, asOf },
-            }),
-            durationMs,
-          );
+          // Le stamp n est plus construit ici : il l a ete avant le
+          // premier appel au modele, et la cloture ne fait qu y ajouter
+          // la duree. Deux runs du meme deck partagent donc la meme
+          // empreinte qu ils aillent au bout ou non, ce qui est la
+          // condition pour comparer un run elimine a un run complet.
+          const versionStamp = sealVersionStamp(versionStampEntree, durationMs);
 
           const result = {
             meta: {

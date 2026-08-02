@@ -321,6 +321,48 @@ function check(label: string, cond: boolean) {
     stamp.models.defaultTemperature === 'per-engine');
 }
 
+// ============================================================
+// Le stamp d entree, construit avant le premier appel au modele
+// ------------------------------------------------------------
+// La grappe pre-scan a etabli que les seuls runs sans empreinte etaient
+// les seuls ou la reproductibilite se joue vraiment : les elimines au
+// pre-scan, qui n atteignent jamais la cloture ou le stamp naissait.
+// La route le construit desormais des la creation de la ligne et le
+// scelle a la fin. Ces tests verifient que le deplacement ne change
+// rien a ce que le stamp affirme.
+// ============================================================
+{
+  const entrees = {
+    deckBase64: 'ZGVjaw==',
+    deckBytes: 4,
+    pitchText: null,
+    bpText: null,
+    additionalFiles: [] as string[],
+  };
+  const entree = buildVersionStamp({ inputs: entrees, runMode: { frozen: false, asOf: null } });
+  const scelle = sealVersionStamp(entree, 123_456);
+
+  check('sceller n ajoute que la duree',
+    JSON.stringify({ ...scelle, durationMs: undefined })
+      === JSON.stringify({ ...entree, durationMs: undefined }));
+  check('la duree est bien posee', scelle.durationMs === 123_456);
+
+  // La propriete qui compte pour un acheteur : un run elimine et un run
+  // complet du meme deck portent la meme empreinte, donc se comparent.
+  const fEntree = fingerprintStamp(entree);
+  const fScelle = fingerprintStamp(scelle);
+  check('un run elimine et un run complet partagent le fingerprint',
+    JSON.stringify(fEntree) === JSON.stringify(fScelle));
+  check('la duree n entre dans aucun hash du fingerprint',
+    diffStamps(entree, scelle).length === 0);
+
+  // Et la construction reste stable entre deux appels du meme process,
+  // sans quoi deux runs identiques ne se compareraient pas davantage.
+  const bis = buildVersionStamp({ inputs: entrees, runMode: { frozen: false, asOf: null } });
+  check('deux constructions successives rendent le meme fingerprint',
+    JSON.stringify(fingerprintStamp(bis)) === JSON.stringify(fEntree));
+}
+
 console.log(`\n=== version-stamp ===`);
 console.log(`pass ${pass} / fail ${fail}`);
 if (fail > 0) process.exit(1);

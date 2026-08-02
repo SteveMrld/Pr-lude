@@ -936,7 +936,23 @@ export async function markAnalysisKnockedOut(
     totalTests?: number | null;
     failedTests?: unknown;
     summary?: string | null;
+    /** Detail des tests. Sans lui, les seuls runs qui coupent sont les
+     *  seuls dont on ne peut pas relire le motif. */
+    tests?: unknown;
+    /** Faits extraits du deck, avec leurs citations. Ils portent le
+     *  motif verifiable d un fit refuse. */
+    dossierFacts?: unknown;
+    notProducedTests?: unknown;
+    hasProductionIncident?: boolean;
+    model?: string | null;
+    durationMs?: number | null;
+    usedFundProfile?: boolean;
   },
+  /** Empreinte de version du run, construite avant le premier appel au
+   *  modele. Un dossier ecarte devient ainsi rejouable et attribuable a
+   *  un commit, ce qui etait impossible tant que le stamp naissait a la
+   *  cloture d un pipeline que l elimination empechait d atteindre. */
+  versionStamp?: unknown,
 ): Promise<boolean> {
   if (!isPersistenceEnabled()) return false;
   try {
@@ -968,7 +984,19 @@ export async function markAnalysisKnockedOut(
             totalTests: prediction.totalTests ?? null,
             failedTests: prediction.failedTests ?? [],
             summary: prediction.summary ?? null,
+            // Le detail du verdict, qui tombait jusqu ici. Les treize
+            // eliminations overridees du corpus le gardent parce
+            // qu elles transitent par le client ; les deux qui ont
+            // reellement coupe ne le gardaient pas.
+            tests: prediction.tests ?? [],
+            dossierFacts: prediction.dossierFacts ?? null,
+            notProducedTests: prediction.notProducedTests ?? [],
+            hasProductionIncident: prediction.hasProductionIncident === true,
+            model: prediction.model ?? null,
+            durationMs: prediction.durationMs ?? null,
+            usedFundProfile: prediction.usedFundProfile === true,
           },
+          ...(versionStamp ? { versionStamp } : {}),
         },
       })
       .eq('id', analysisId);
