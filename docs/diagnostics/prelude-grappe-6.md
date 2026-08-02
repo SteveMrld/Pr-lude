@@ -66,3 +66,86 @@ l illusion d une mesure.
 Obstacle de cout releve au passage : deux prompts sur trente-trois sont
 exportes, trente et un ne le sont pas. Les hasher par import suppose de
 les exporter.
+
+## 4. Mesure finale, et ce que le stamp garantit
+
+### Les appels au modele
+
+Quarante-quatre sites d appel dans le depot, dont quatorze deposaient
+une mesure avant la grappe. Le chiffre de reference du brief, onze sur
+vingt-six, datait du 1er aout et six briefs l avaient perime.
+
+Le compte des sites mesures n a plus de sens depuis le bloc 1, et c est
+le resultat recherche. La mesure ne se fait plus au site d appel mais
+au point de passage unique vers le SDK : les dix `messages.create` du
+client Anthropic sont tous derriere `getClient`, dont le
+`messages.create` est enveloppe. Les quarante-quatre sites sont donc
+mesures, y compris `callClaudeMultiDocs` qui vit dans
+dd-technical-engine et n emprunte aucun des trois helpers exportes, et
+un moteur ajoute demain le sera sans que personne n y pense. La bonne
+formulation n est plus « combien de sites sont mesures » mais « un site
+peut-il ne pas l etre », et la reponse est non.
+
+### Ce que le stamp couvre
+
+Six champs entrent dans le fingerprint : `commitSha`, `doctrineHash`,
+`configsHash`, `enginesHash`, `inputsHash`, `modelsHash`. Les
+vingt-neuf moteurs portent une empreinte de prompt, contre zero sur les
+cinq derniers runs de production, et le `doctrineHash` agrege les
+trente-trois prompts systeme du depot.
+
+**Ce que deux runs portant le meme fingerprint garantissent.** Ils ont
+tourne sur le meme code applicatif, au commit pres. Sur la meme
+doctrine, c est-a-dire sur des prompts systeme identiques mot pour mot,
+ce que le stamp ne savait pas dire jusqu ici. Sur les memes
+calibrations de scoring, poids de dimensions et seuils de verdict. Sur
+les memes entrees, deck, texte et business plan au hachage pres. Et sur
+le meme regime de sampling, modele et temperature par moteur.
+
+Un acheteur qui compare deux runs de meme fingerprint et observe deux
+verdicts differents tient donc une variance imputable au modele seul,
+et non a une derive de version, de doctrine ou d entree. C est la
+propriete que le produit doit pouvoir promettre.
+
+**Ce qu ils ne garantissent toujours pas.** Trois choses, et il faut
+les dire avant qu un acheteur les trouve.
+
+D abord, les prompts utilisateur ne sont pas couverts. Seuls les
+prompts systeme entrent dans l empreinte. Ce qui varie par dossier est
+construit a l appel, et l assemblage de ces blocs, injection
+sectorielle, cadrage macro, verdicts de pertinence, peut changer sans
+que le fingerprint bouge. Deux runs de meme fingerprint peuvent donc
+avoir recu des prompts utilisateur differents si le code d assemblage a
+change entre-temps sans changer le commit, ce qui est impossible, ou si
+une donnee amont a change, ce qui est couvert par `inputsHash` pour le
+deck mais pas pour les fiches sectorielles.
+
+Ensuite, les donnees externes ne sont pas dans l empreinte. Deux runs
+identiques a tous egards peuvent avoir interroge des sources qui ont
+repondu differemment, ou echoue pour l un et pas pour l autre. Le
+journal de recolte de la grappe 5 rend cette difference lisible apres
+coup, il ne la fait pas entrer dans le fingerprint.
+
+Enfin, le fingerprint ne dit rien du non-determinisme du modele
+lui-meme. Deux runs de meme fingerprint peuvent rendre deux verdicts
+differents, et c est meme tout l interet de la propriete : elle isole
+cette variance au lieu de la confondre avec les autres. Ce que le
+produit peut promettre est un verdict reproductible dans une plage
+mesurable, pas un texte identique.
+
+### Ce que le prochain run devra verifier
+
+Le cout mesure doit **remonter** par rapport aux runs precedents.
+
+La mesure passait par `addCall`, appele apres un retour reussi. Un
+appel qui echouait puis reussissait a la reprise ne comptait qu une
+fois, un appel definitivement echoue ne comptait pas, et le client
+porte `maxRetries: 1`. Le registre du bloc 1 enregistre l appel avant de
+savoir s il reussira et re-leve l erreur apres l avoir enregistree.
+
+Si le cout total en tokens et en duree ne bouge pas sur un dossier
+comparable, la conclusion n est pas que le taux de reprise est nul :
+c est que quelque chose n est pas branche. Le controle a faire est
+donc double, `llmLedger.totalCalls` non nul dans `result_json.meta`, et
+comparaison du cumul avec un run anterieur du meme deck. Un ecart nul
+sur les deux est un signal d alarme, pas une confirmation.
