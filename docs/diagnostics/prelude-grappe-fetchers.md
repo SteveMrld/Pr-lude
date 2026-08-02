@@ -157,3 +157,69 @@ desormais inertes pour ce depot, SSH n empruntant pas la chaine des
 credential helpers. Ils sont laisses en place plutot que supprimes :
 les retirer toucherait la configuration globale de la machine pour un
 gain nul.
+
+## Mesure du brief 26, et pourquoi elle est indirecte
+
+### La mesure demandee est nulle par construction
+
+Le brief demandait combien des dossiers du corpus portent au moins un
+`fetcher:timeout` ou `fetcher:miss` dans leur run persiste. La reponse
+est zero, et ce zero ne mesure rien.
+
+Aucun run anterieur ne peut en porter, pour deux raisons cumulees. Le
+champ `meta.sourceHarvest` n existait pas avant ce chantier, donc rien
+ne les aurait accueillis. Et les evenements n etaient de toute facon
+jamais emis, `opts?.emit` n ayant aucun emetteur. Mesure sur les
+quarante-trois dossiers : **zero porte un journal de recolte**, ce qui
+etait acquis avant de compter.
+
+### Le proxy retenu, et ce qu il vaut
+
+A defaut, on mesure la population ou la distinction aurait compte : les
+dossiers dont le `realData` du moteur Equipe est vide alors que des
+fondateurs sont nommes. Sur ces dossiers, le moteur a conclu sur un
+vide sans savoir d ou venait ce vide.
+
+Sur quarante-trois dossiers, trente-huit nomment au moins un fondateur.
+**Huit d entre eux, soit 21% de cette population, ont un realData vide
+ou sans aucun resultat de source.** Six portent au moins un fondateur
+marque `non-evaluable`, donc affiche « Non instruit » dans la note.
+
+Le detail separe deux situations que le proxy ne distingue pas mieux
+que le pipeline ne le faisait. Six dossiers ont un `realData` de
+longueur nulle, ce qui signifie que le moteur n a produit aucune entree
+par fondateur, y compris sur Braincube et ses trois fondateurs. Deux
+dossiers, les deux runs de Bemersive, ont un `realData` peuple mais
+dont chaque entree a `sourcesFound` vide. Aucun ne porte le sentinel
+`timeout` que le `Promise.race` du moteur Equipe pose sur depassement
+de budget, ce qui exclut au moins le depassement global comme cause,
+sans rien dire des echecs par source.
+
+Ce que le proxy ne dit pas, et il faut le tenir pour une limite et non
+pour un resultat : il ne distingue pas un fondateur reellement absent
+des bases publiques d un fondateur dont les recherches ont echoue.
+C est precisement la distinction que le journal introduit, et qui
+n existe pas retrospectivement. Le chiffre de 21% borne la population
+concernee, il ne la qualifie pas.
+
+La mesure reelle se fera sur les runs a venir, ou `meta.sourceHarvest`
+portera les issues et leurs causes.
+
+### La determination des sources du moteur Marche reste ouverte
+
+Le prompt du moteur Marche ne porte aucune regle sur le cas des
+sources absentes, ni repli explicite comme macro, ni plancher de
+convention comme equipe. Rien dans le code ne permet donc d etablir si
+ses sources sont determinantes pour ses trois dimensions notees,
+intensite du besoin a 0,45, defensibilite a 0,35, signaux organiques a
+0,20.
+
+**Hypothese a tester, et non constat** : les signaux organiques
+seraient la dimension la plus exposee, etant celle que Hacker News et
+les sources de traction alimentent le plus directement. Rien ne
+l etablit a ce jour.
+
+La methode qui trancherait est un rejeu comparatif, deux runs du meme
+dossier avec et sans sources, en observant l ecart sur les trois
+dimensions. Elle appartient a une autre grappe : ce n est pas une
+lecture de code et elle consomme deux runs LLM par dossier teste.
