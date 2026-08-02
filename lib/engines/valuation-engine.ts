@@ -951,29 +951,123 @@ function extractBaseMetric(
 }
 
 /**
- * Parse permissif des metriques financieres : accepte string ou
- * number, normalise les formats euro / million / k. Retourne le
- * montant en euros, ou null si non parseable.
+ * Lecture d un montant financier, avec sa cause de non-lecture.
+ *
+ * Le defaut ferme : « Cession de 100% du capital » rendait 100 M EUR.
+ * La forme precedente prenait le premier nombre du libelle, ignorait ce
+ * qui le suivait, et convertissait par defaut tout nombre sous mille en
+ * millions. Un pourcentage devenait donc un montant, et une part de
+ * capital devenait un ticket.
+ *
+ * Mesure sur le corpus au 3 aout 2026 : sur trente-trois dossiers
+ * portant un candidat de ticket, cinq annoncent une part de capital et
+ * un annonce un nombre de parcs cedes. Six dossiers sur trente-trois
+ * portaient donc un ticket fabrique, dont quatre cessions totales.
+ *
+ * Trois regles, dans cet ordre.
+ *
+ * Un nombre immediatement suivi d un signe pourcent n est pas un
+ * montant, et la lecture passe au suivant plutot que d abandonner le
+ * libelle entier : « cession de 100% du capital pour 12 M EUR » porte
+ * bien un montant. C est aussi ce qui evite de perdre le ticket de
+ * Crowdaa, ou un pourcentage de discount suit le montant recherche.
+ *
+ * L unite d une fourchette porte sur ses deux bornes. « 10-15m » lit
+ * dix millions et non dix, parce que le suffixe trouve plus loin dans
+ * la meme expression s applique a la borne basse.
+ *
+ * Sans unite ni devise, il n y a pas de montant. La conversion par
+ * defaut vers les millions est supprimee : elle transformait un nombre
+ * quelconque en somme d argent, ce qui est une divination au sens de la
+ * grappe 4. Verifie sur le corpus, aucune valeur legitime n en
+ * dependait, les quarante-huit candidats non vides portant tous soit un
+ * suffixe soit une devise.
+ */
+interface MontantLu {
+  value: number | null;
+  cause: NonProductionCauseOrNull;
+  motif: string | null;
+}
+
+const MONTANT_AUCUN: MontantLu = { value: null, cause: 'absence', motif: 'aucun montant annonce' };
+
+function lireMontant(raw: any): MontantLu {
+  if (raw == null || raw === '') return MONTANT_AUCUN;
+  if (typeof raw === 'number') {
+    return raw > 0
+      ? { value: raw, cause: null, motif: null }
+      : { value: null, cause: 'absence', motif: 'montant nul ou negatif' };
+  }
+  if (typeof raw !== 'string') return MONTANT_AUCUN;
+
+  // Les espaces ne sont supprimes qu entre chiffres, la ou ils separent
+  // les milliers. Les supprimer partout collait le suffixe au mot
+  // suivant : « 15m de cash-in » devenait « 15mde », donc quinze
+  // milliards. Le suffixe doit finir sur autre chose qu une lettre.
+  const s = raw.toLowerCase()
+    .replace(/[\u00a0\u202f]/g, ' ')
+    .replace(/(\d)[ ](?=\d{3}(?!\d))/g, '$1')
+    .replace(/,(\d)/g, '.$1');
+  const jetons = Array.from(s.matchAll(/(\d+(?:\.\d+)?)\s*((?:mds?|m|k|b)(?![a-z]))?\s*(%)?/g));
+  if (jetons.length === 0) {
+    return { value: null, cause: 'absence', motif: 'aucun nombre dans le libelle' };
+  }
+
+  const nonPourcent = jetons.filter((j) => j[3] !== '%');
+  if (nonPourcent.length === 0) {
+    return {
+      value: null,
+      cause: 'absence',
+      motif: 'le libelle exprime une part et non un montant',
+    };
+  }
+
+  const premier = nonPourcent[0];
+  const value = parseFloat(premier[1]);
+  if (isNaN(value) || value <= 0) {
+    return { value: null, cause: 'absence', motif: 'nombre non exploitable' };
+  }
+
+  // L unite peut vivre sur la borne haute d une fourchette, mais
+  // seulement si les deux bornes sont contigues. Chercher un suffixe
+  // n importe ou dans le libelle ferait lire « 500 000 recherches,
+  // plafond 7M » comme cinq cent mille millions.
+  let suffixe = premier[2];
+  if (suffixe === undefined) {
+    const idx = nonPourcent.indexOf(premier);
+    const suivant = nonPourcent[idx + 1];
+    if (suivant && suivant[2] !== undefined) {
+      const finPremier = (premier.index ?? 0) + premier[0].length;
+      const entre = s.slice(finPremier, suivant.index ?? finPremier);
+      if (/^\s*(?:-|–|—|a|à|to|\/)\s*$/.test(entre)) suffixe = suivant[2];
+    }
+  }
+
+  if (suffixe === 'md' || suffixe === 'mds' || suffixe === 'b') {
+    return { value: value * 1_000_000_000, cause: null, motif: null };
+  }
+  if (suffixe === 'm') return { value: value * 1_000_000, cause: null, motif: null };
+  if (suffixe === 'k') return { value: value * 1_000, cause: null, motif: null };
+
+  const devise = /€|eur|\$|usd|£|gbp/.test(s);
+  if (devise && value >= 1000) return { value, cause: null, motif: null };
+
+  return {
+    value: null,
+    cause: 'absence',
+    motif: devise
+      ? `montant de ${value} sans ordre de grandeur, non interpretable`
+      : 'nombre sans unite ni devise, donc pas un montant',
+  };
+}
+
+/**
+ * Repli de lecture pour les metriques ou seule la valeur compte. La
+ * cause reste consultable par lireMontant au site d appel qui en a
+ * besoin.
  */
 function parseFinancialNumber(raw: any): number | null {
-  if (raw == null) return null;
-  if (typeof raw === 'number' && raw > 0) return raw;
-  if (typeof raw !== 'string') return null;
-
-  const s = raw.toLowerCase().replace(/\s/g, '').replace(',', '.');
-  // Capture des nombres avec suffixes K / M / Md
-  const match = s.match(/(\d+(?:\.\d+)?)\s*(md|m|k|b)?/);
-  if (!match) return null;
-  const value = parseFloat(match[1]);
-  if (isNaN(value) || value <= 0) return null;
-
-  const suffix = match[2];
-  if (suffix === 'md' || suffix === 'b') return value * 1_000_000_000;
-  if (suffix === 'm') return value * 1_000_000;
-  if (suffix === 'k') return value * 1_000;
-  // Heuristique : si < 1000, on suppose que c est en millions (interpretation conservatrice)
-  if (value < 1000) return value * 1_000_000;
-  return value;
+  return lireMontant(raw).value;
 }
 
 /**
@@ -1604,6 +1698,15 @@ export interface TicketBreakdown {
   mixed: boolean;
   /** Libelle brut, conserve pour que la note puisse citer le document. */
   raw: string | null;
+  /**
+   * Null quand un montant a ete lu. Renseigne sinon, au sens de la
+   * grappe 3. Un libelle qui annonce une part de capital et non une
+   * somme rend donc un ticket non etabli avec son motif, la ou il
+   * rendait un montant fabrique.
+   */
+  cause: NonProductionCauseOrNull;
+  /** Motif de non-lecture, cite dans la note. Null si un montant a ete lu. */
+  causeMotif: string | null;
 }
 
 /**
@@ -1611,25 +1714,46 @@ export interface TicketBreakdown {
  * part en capital. Ne repartit jamais un montant mixte.
  */
 function parseTicket(extraction: ExtractionOutput | null | undefined): TicketBreakdown {
-  const empty: TicketBreakdown = { total: null, equity: null, mixed: false, raw: null };
+  const empty: TicketBreakdown = {
+    total: null, equity: null, mixed: false, raw: null,
+    cause: 'absence', causeMotif: 'aucun montant annonce',
+  };
   if (!extraction) return empty;
   const ext: any = extraction;
   const candidates = [ext.fundraise?.amount, ext.roundAmount, ext.roundAmountEur];
 
+  // Le premier candidat non vide fait foi, y compris quand il ne porte
+  // pas de montant. Passer au suivant apres un libelle de cession
+  // reviendrait a chercher un ticket ailleurs jusqu a en trouver un,
+  // ce qui est la forme meme du defaut ferme ici.
+  let premierRefus: MontantLu | null = null;
+  let premierRaw: string | null = null;
   for (const c of candidates) {
-    const v = parseFinancialNumber(c);
-    if (!v || v <= 0) continue;
-    const raw = typeof c === 'string' ? c : String(c ?? '');
+    if (c === null || c === undefined || c === '') continue;
+    const lu = lireMontant(c);
+    const raw = typeof c === 'string' ? c : String(c);
+    if (lu.value === null) {
+      if (premierRefus === null) { premierRefus = lu; premierRaw = raw; }
+      continue;
+    }
     const mixed = MIXED_FUNDING_REGEX.test(raw);
     return {
-      total: v,
+      total: lu.value,
       // Sans mention d un autre instrument, le tour est reput. en
       // capital : c est la lecture par defaut d un montant de levee
       // dans un deck, et elle n invente rien. Avec une telle mention
       // et sans repartition chiffree, la part equity reste inconnue.
-      equity: mixed ? null : v,
+      equity: mixed ? null : lu.value,
       mixed,
       raw,
+      cause: null,
+      causeMotif: null,
+    };
+  }
+  if (premierRefus) {
+    return {
+      total: null, equity: null, mixed: false, raw: premierRaw,
+      cause: premierRefus.cause, causeMotif: premierRefus.motif,
     };
   }
   return empty;
@@ -1829,3 +1953,10 @@ function formatEur(value: number): string {
   if (value >= 1_000) return `${Math.round(value / 1_000)}k€`;
   return `${value}€`;
 }
+
+/**
+ * Surface reservee aux tests deterministes. Ces deux fonctions sont
+ * internes au moteur et le restent : les exposer une par une aurait
+ * elargi l API publique pour une raison de test.
+ */
+export const __testables = { lireMontant, parseTicket };
