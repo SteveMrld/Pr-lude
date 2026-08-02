@@ -2,6 +2,7 @@
 // Utilisé par les moteurs pour enrichir l'analyse avec des faits vérifiables
 // avant de passer à Claude pour synthèse.
 
+import { recordSourceOutcome } from './source-harvest';
 import {
   disambiguateGithub,
   disambiguatePublications,
@@ -146,6 +147,10 @@ export function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return p as Promise<T>;
 }
 
+// Journal de recolte : la couche enregistre elle-meme ce qu elle
+// obtient, sans dependre d un emetteur que l appelant devrait fournir.
+// Voir source-harvest.ts pour la forme et ses raisons.
+
 // Budget global par moteur. Si la promesse passée dépasse `ms`, on logue
 // un warning, on émet l'event SSE, et on retourne `fallback` sans annuler
 // les fetches sous-jacents (qui ont déjà leur propre AbortController).
@@ -186,6 +191,7 @@ export async function trackedSource<T>(
 ): Promise<T> {
   if (!isSourceEnabled(source)) {
     opts?.emit?.('fetcher:skipped', { engine, source });
+    recordSourceOutcome({ engine, source, outcome: 'skipped', elapsedMs: 0 });
     return emptyValue;
   }
   const t0 = Date.now();
@@ -196,15 +202,22 @@ export async function trackedSource<T>(
     // Heuristique : si on est très près du timeout source, c'est probablement un timeout
     if (isEmpty(result) && elapsedMs >= sourceTimeoutMs - 200) {
       opts?.emit?.('fetcher:timeout', { engine, source, elapsedMs });
+      recordSourceOutcome({ engine, source, outcome: 'failed', elapsedMs, detail: 'vide au voisinage du budget, timeout probable' });
     } else if (isEmpty(result)) {
       opts?.emit?.('fetcher:miss', { engine, source, elapsedMs });
+      recordSourceOutcome({ engine, source, outcome: 'empty', elapsedMs });
     } else {
       opts?.emit?.('fetcher:hit', { engine, source, elapsedMs });
+      recordSourceOutcome({ engine, source, outcome: 'hit', elapsedMs });
     }
     return result;
-  } catch (e) {
+  } catch (e: any) {
     const elapsedMs = Date.now() - t0;
     opts?.emit?.('fetcher:timeout', { engine, source, elapsedMs });
+    // L echec est enregistre avec son message. Le catch d origine le
+    // perdait au moment ou il survenait : c est ce silence qui rendait
+    // un timeout indiscernable d une absence de signal.
+    recordSourceOutcome({ engine, source, outcome: 'failed', elapsedMs, detail: String(e?.message ?? e ?? 'erreur inconnue') });
     return emptyValue;
   }
 }

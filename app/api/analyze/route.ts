@@ -60,6 +60,7 @@ import { requireConformingOutput } from '@/lib/engines/engine-output-contract';
 import { createEngineDeadlineWrapper } from '@/lib/orchestrator/engine-deadline';
 import { createEngineLogCallbacks } from '@/lib/orchestrator/engine-log-callbacks';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
+import { withSourceHarvest, readSourceHarvest, harvestIsSilent } from '@/lib/data-fetchers/source-harvest';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
 import {
@@ -427,6 +428,13 @@ export async function POST(req: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
+        // Le journal de recolte des sources externes s ouvre ici et sa
+        // portee est celle du run. Il n existe pas d appel de remise a
+        // zero separe qu on pourrait sauter : la portee est le run.
+        // Tout le pipeline s execute a l interieur, donc chaque
+        // interrogation de source y est enregistree sans qu aucun
+        // moteur n ait a transmettre quoi que ce soit.
+        return withSourceHarvest(async () => {
 
         // Capture des startedAt par moteur pour calculer la duree a l envoi
         // de l event done. Permet aussi d emettre la duree dans le payload
@@ -1913,6 +1921,11 @@ export async function POST(req: NextRequest) {
               durationMs,
               engineDurations,
               versionStamp,
+              // Journal de recolte des sources externes. Persiste pour
+              // qu un rejeu hors ligne puisse distinguer un vide de
+              // recherche d un echec de source, distinction qui etait
+              // perdue des la fin du run.
+              sourceHarvest: readSourceHarvest(),
               // asOf vivait en colonne as_of et dans le version stamp,
               // jamais dans result_json. Les consommateurs qui rejouent
               // un moteur deterministe cote client (recalcul valuation
@@ -2291,8 +2304,21 @@ export async function POST(req: NextRequest) {
             const { releaseJobSlot } = await import('@/lib/rate-limit');
             releaseJobSlot(jobId).catch(() => {});
           }
+          // Un journal muet a la fin d un run est un incident en soi :
+          // il est indiscernable d une couche qui n aurait rien fait,
+          // ce qui est exactement la faute que le journal corrige. Le
+          // cas se signale plutot que de passer pour un run sans
+          // source.
+          if (harvestIsSilent()) {
+            logException(
+              'api.analyze.source-harvest-silent',
+              new Error('Journal de recolte vide en fin de run : aucune source externe n a ete enregistree, ce qui est indiscernable d une couche de fetchers inerte.'),
+              { severity: 'warning', analysisId },
+            );
+          }
           try { controller.close(); } catch { /* deja close */ }
         }
+        }); // fin de withSourceHarvest : la portee du journal se referme avec le run
       },
     });
 
