@@ -189,6 +189,7 @@ export async function resolveSectoralContext(
     const sFreshness = computeFreshness(brief.generated_at, now);
     if (sFreshness.freshness === 'expired') continue;
     secondaries.push({
+      slug: brief.sector_slug,
       brief,
       freshness: sFreshness.freshness,
       ageDays: sFreshness.ageDays,
@@ -214,6 +215,7 @@ export async function resolveSectoralContext(
     mode: 'applied',
     detectedSlugs: slugs,
     primary: {
+      slug: primaryBrief.sector_slug,
       brief: primaryBrief,
       freshness: primaryFreshness.freshness,
       ageDays: primaryFreshness.ageDays,

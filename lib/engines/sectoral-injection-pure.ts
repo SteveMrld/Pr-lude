@@ -350,13 +350,30 @@ export type SectoralContextMode =
   | 'no_brief'
   | 'expired';
 
+/**
+ * Le slug est porte en propre et non seulement atteignable par
+ * brief.sector_slug.
+ *
+ * L identite d un secteur retenu ne devrait pas dependre du chargement
+ * de sa fiche : primary.slug rendait undefined sur tout consommateur
+ * qui le lisait, et il fallait connaitre le detour par brief pour
+ * obtenir la seule information qui identifie l objet. Un contexte
+ * sectoriel doit pouvoir dire quel secteur il designe sans qu on
+ * deballe le document qu il transporte.
+ *
+ * Le champ est renseigne depuis brief.sector_slug, source unique : il
+ * ne peut donc pas diverger de la fiche effectivement chargee, ce qui
+ * serait pire que son absence.
+ */
 export interface SectoralPrimary {
+  slug: string;
   brief: SectoralBrief;
   freshness: SectoralFreshness;
   ageDays: number;
 }
 
 export interface SectoralSecondary {
+  slug: string;
   brief: SectoralBrief;
   freshness: SectoralFreshness;
   ageDays: number;

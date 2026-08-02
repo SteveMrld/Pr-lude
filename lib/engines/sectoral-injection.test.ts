@@ -445,7 +445,7 @@ console.log('\n=== Test 2 : computeFreshness ===');
     const ctx: SectoralContext = {
       mode: 'applied',
       detectedSlugs: ['ia-appliquee'],
-      primary: { brief, freshness: 'fresh', ageDays: 28 },
+      primary: { slug: brief.sector_slug, brief, freshness: 'fresh', ageDays: 28 },
       secondaries: [],
       methodologyNote: 'Secteur primaire IA appliquee, fiche du 2026-04-15.',
     };
@@ -499,7 +499,7 @@ console.log('\n=== Test 2 : computeFreshness ===');
     const ctx: SectoralContext = {
       mode: 'applied',
       detectedSlugs: ['crypto-blockchain'],
-      primary: { brief, freshness: 'fresh', ageDays: 42 },
+      primary: { slug: brief.sector_slug, brief, freshness: 'fresh', ageDays: 42 },
       secondaries: [],
       methodologyNote: '',
     };
@@ -522,8 +522,8 @@ console.log('\n=== Test 2 : computeFreshness ===');
     const ctx: SectoralContext = {
       mode: 'applied',
       detectedSlugs: ['fintech', 'proptech-construction'],
-      primary: { brief: primary, freshness: 'fresh', ageDays: 42 },
-      secondaries: [{ brief: secondary, freshness: 'fresh', ageDays: 28 }],
+      primary: { slug: primary.sector_slug, brief: primary, freshness: 'fresh', ageDays: 42 },
+      secondaries: [{ slug: secondary.sector_slug, brief: secondary, freshness: 'fresh', ageDays: 28 }],
       methodologyNote: '',
     };
     const block = buildSectoralPromptBlock(ctx, 'macro');
@@ -634,6 +634,18 @@ console.log('\n=== Test 2 : computeFreshness ===');
     check('mode applied', ctx.mode, 'applied');
     check('fiche primaire chargee sur le secteur arbitre', ctx.primary?.brief.sector_slug ?? '?', 'commerce-marketplaces');
     check('le premier fetch porte sur le secteur arbitre', fetched[0], 'commerce-marketplaces');
+
+    // Le slug se lit en propre, sans deballer la fiche transportee.
+    // Il rendait undefined avant que SectoralPrimary ne le porte.
+    check('primary.slug est renseigne', ctx.primary?.slug ?? '?', 'commerce-marketplaces');
+    checkTrue(
+      'primary.slug ne peut pas diverger de la fiche chargee',
+      ctx.primary?.slug === ctx.primary?.brief.sector_slug,
+    );
+    checkTrue(
+      'chaque secondaire porte aussi son slug',
+      ctx.secondaries.every((s) => s.slug === s.brief.sector_slug),
+    );
     checkTrue(
       'la note methodologique nomme le secteur arbitre',
       /Commerce|commerce/.test(ctx.methodologyNote),
