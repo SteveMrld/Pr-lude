@@ -86,13 +86,45 @@ import {
 
 export type ValuationBasisBranch = 'explicit-actual' | 'as-of-anterior' | 'refused';
 
+/**
+ * Seuil de peremption entre l ancre temporelle du dossier et le
+ * millesime retenu, en annees.
+ *
+ * Un ecart de un an est le cas nominal : un deck recu en 2026 dont le
+ * dernier exercice clos est 2025. Deux ans reste courant sur un dossier
+ * instruit tard ou dont la cloture n est pas encore auditee. Au-dela de
+ * trois, le document ne decrit plus l entreprise qu on instruit.
+ *
+ * La doctrine ne refuse pas pour autant : un dossier ancien n est pas
+ * invalide, il est ancien. La base est retenue, l ecart est declare, et
+ * la mention de peremption remonte jusqu a la note. Refuser priverait
+ * le partner d un ancrage qu il sait relativiser lui-meme ; taire
+ * l ecart le laisserait lire un multiple de marche recent applique a un
+ * chiffre d affaires qui ne l est pas.
+ */
+export const BASIS_STALENESS_THRESHOLD_YEARS = 3;
+
 export interface ValuationBasis {
   /** Branche de la regle qui a tranche. */
   branch: ValuationBasisBranch;
   /** Millesime retenu pour lire les series financieres, null si refus. */
   year: number | null;
+  /**
+   * Ecart en annees entre l ancre temporelle du dossier et le
+   * millesime retenu. Toujours renseigne quand une ancre existe, y
+   * compris sous le seuil : un chiffre dont on ne peut pas lire l age
+   * n est pas auditable. Null quand aucune ancre n est disponible,
+   * c est-a-dire sur la branche 1 sans asOf et sur le refus.
+   */
+  anchorGapYears: number | null;
+  /** Annee de l ancre ayant servi a mesurer l ecart, null si aucune. */
+  anchorYear: number | null;
+  /** True quand l ecart depasse le seuil doctrinal de peremption. */
+  stale: boolean;
   /** Phrase editoriale prete pour la note et le dashboard. */
   declaration: string;
+  /** Mention de peremption, null quand l ecart reste sous le seuil. */
+  stalenessNote: string | null;
   /** Motif du refus, null quand une base a ete retenue. */
   refusalReason: string | null;
 }
@@ -608,6 +640,38 @@ function pickProjectionValueAtYear(
  * dans l ordre doctrinal. Voir le bloc MILLESIME DE REFERENCE en tete
  * de fichier pour le raisonnement.
  */
+/**
+ * Garde de vraisemblance sur l ecart d ancre. Modelee sur les gardes de
+ * lib/analysis/reference-year : structurelle, sans I/O, sans horloge,
+ * et elle enrichit la base plutot que de la reecrire.
+ *
+ * Elle mesure l ecart entre l ancre temporelle du dossier et le
+ * millesime retenu, le pose dans la sortie qu il depasse ou non le
+ * seuil, et n ajoute une mention de peremption qu au-dela. Elle ne
+ * refuse jamais : la doctrine est la retention avec mention, un dossier
+ * ancien n etant pas invalide mais ancien.
+ *
+ * Sans ancre, l ecart n est pas mesurable et reste null. C est le cas
+ * de la branche 1 sur un dossier depose sans date de reception : le
+ * millesime est alors sur, puisque le document le qualifie lui-meme,
+ * mais son age ne l est pas.
+ */
+function withStaleness(basis: ValuationBasis, anchorYear: number | null): ValuationBasis {
+  if (anchorYear === null || basis.year === null) return basis;
+  const gap = anchorYear - basis.year;
+  const stale = gap > BASIS_STALENESS_THRESHOLD_YEARS;
+  return {
+    ...basis,
+    anchorYear,
+    anchorGapYears: gap,
+    stale,
+    declaration: `${basis.declaration} Ecart a l ancre du dossier : ${gap} an${Math.abs(gap) > 1 ? 's' : ''}.`,
+    stalenessNote: stale
+      ? `Base perimee : ${gap} ans separent le millesime retenu (${basis.year}) de la reception du dossier (${anchorYear}), au-dela du seuil doctrinal de ${BASIS_STALENESS_THRESHOLD_YEARS} ans. La fourchette reste calculee, mais elle applique des multiples de marche recents a un chiffre d affaires qui ne l est pas. A recroiser avec des comptes a jour avant toute discussion de prix.`
+      : null,
+  };
+}
+
 function resolveValuationBasis(input: ValuationInput): ValuationBasis {
   const fd = input.financialData;
 
@@ -617,17 +681,22 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
   // projections, non-posteriorite. On ne re-implemente rien ici, et un
   // durcissement de la primitive se propage au moteur sans retouche.
   const explicit = deriveDossierReferenceYearWithReason({ financialData: fd });
+  const asOfYear = normalizeYear(input.asOf ?? null);
+
   if (explicit.year !== null) {
-    return {
+    return withStaleness({
       branch: 'explicit-actual',
       year: explicit.year,
+      anchorGapYears: null,
+      anchorYear: null,
+      stale: false,
       declaration: `Base ${explicit.year}, dernier exercice que le deck qualifie explicitement de realise avec citation a l appui.`,
+      stalenessNote: null,
       refusalReason: null,
-    };
+    }, asOfYear);
   }
 
   // ---------- Branche 2 : derniere annee anterieure a la date de deck
-  const asOfYear = normalizeYear(input.asOf ?? null);
   const years = Array.isArray(fd?.revenueProjection)
     ? fd!.revenueProjection
         .map((p) => normalizeYear(p?.year))
@@ -639,16 +708,24 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
     const anterior = years.filter((y) => y < asOfYear);
     if (anterior.length > 0) {
       const year = anterior[anterior.length - 1];
-      return {
+      return withStaleness({
         branch: 'as-of-anterior',
         year,
+        anchorGapYears: null,
+        anchorYear: null,
+        stale: false,
         declaration: `Base ${year}, derniere annee de la serie anterieure a la reception du dossier (${input.asOf}). Le deck ne qualifie aucun exercice de realise : ${explicit.rejectionDetail ?? 'aucune mention explicite extractible.'}`,
+        stalenessNote: null,
         refusalReason: null,
-      };
+      }, asOfYear);
     }
     return {
       branch: 'refused',
       year: null,
+      anchorGapYears: null,
+      anchorYear: asOfYear,
+      stale: false,
+      stalenessNote: null,
       declaration: `Base refusee : aucun exercice qualifie de realise, et aucune annee des projections n est anterieure a la reception du dossier (${input.asOf}).`,
       refusalReason: years.length > 0
         ? `Le dossier a ete recu en ${asOfYear} et sa serie de chiffre d affaires commence en ${years[0]}. Toutes les annees documentees sont donc projetees, aucune ne peut servir de base a un multiple de marche.`
@@ -660,6 +737,10 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
   return {
     branch: 'refused',
     year: null,
+    anchorGapYears: null,
+    anchorYear: null,
+    stale: false,
+    stalenessNote: null,
     declaration: 'Base refusee : ni mention explicite de realise dans le deck, ni date de reception du dossier pour ancrer le millesime.',
     refusalReason: `${explicit.rejectionDetail ?? 'Aucune mention explicite de realise extractible du deck.'} Et la date de reception du dossier (asOf) n est pas renseignee, ce qui prive le moteur de son second ancrage. Les multiples ne sont pas appliques : une fourchette calculee sur une projection vaudrait moins que pas de fourchette du tout.`,
   };
@@ -1459,6 +1540,8 @@ function collectWarnings(
   // d un cote, metrique de revenu absente de l autre. Deux ouvertures
   // distinctes pour un fait unique obligeraient chaque consommateur en
   // aval a connaitre les deux formulations.
+  if (basis.stalenessNote) warnings.push(basis.stalenessNote);
+
   if (basis.branch === 'refused') {
     warnings.push(`Les multiples sectoriels n ont pas pu être appliqués : ${basis.refusalReason ?? basis.declaration}`);
   } else if (basis.branch === 'as-of-anterior') {

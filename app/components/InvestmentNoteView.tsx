@@ -2161,6 +2161,15 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   </span>
                   {(valuation as any).basis.declaration}
                   {(valuation as any).basis.refusalReason && ` ${(valuation as any).basis.refusalReason}`}
+                  {/* Mention de peremption. Rendue dans le meme cartouche
+                      que la base et non en warning isole : l age du
+                      millesime est une propriete de la base, le lecteur
+                      doit les rencontrer ensemble. */}
+                  {(valuation as any).basis.stalenessNote && (
+                    <div style={{ marginTop: 6, color: '#8a4b3a', fontWeight: 500 }}>
+                      {(valuation as any).basis.stalenessNote}
+                    </div>
+                  )}
                 </div>
               )}
 
