@@ -107,10 +107,19 @@ console.log('\n[Suite 3] la dilution disparait sur cession totale seulement');
   // Sur cession partielle la dilution garde un sens. Ici elle n est pas
   // calculee faute de fourchette pre-money, la VC inverse etant hors
   // domaine, mais elle n est pas declaree hors domaine pour autant.
+  // L assertion porte sur le motif et non sur la cause : depuis que la
+  // dilution sans support se declare aussi en doctrine, les deux cas
+  // partagent la cause et se distinguent par ce qu ils disent. Sur une
+  // cession partielle, la dilution n est pas sans objet, elle est sans
+  // support, ce qui appelle une action differente du partner.
   const partielle = computeValuation(build('cession-partielle'));
   check(
-    (partielle as any).dilutionNotComputableCause !== 'doctrine',
-    'cession partielle : la dilution n est pas declaree hors domaine',
+    !/sans objet/.test((partielle as any).dilutionNotComputableReason || ''),
+    'cession partielle : la dilution n est pas declaree sans objet',
+  );
+  check(
+    /sans support/.test((partielle as any).dilutionNotComputableReason || ''),
+    'elle est declaree sans support, ce qui est un fait different',
   );
 }
 
@@ -134,6 +143,68 @@ console.log('\n[Suite 4] un type non etabli ne neutralise rien');
   check(
     inconnu.ranges.length === reference.ranges.length,
     'et la sortie est identique en nombre de fourchettes',
+  );
+}
+
+// ============================================================
+console.log('\n[Suite 5] une dilution sans support porte sa cause');
+// ============================================================
+
+{
+  // Le defaut mesure au run Braincube. La neutralisation de la VC
+  // inverse sur un LBO supprime la seule methode pre-money du dossier,
+  // donc la fourchette pre-money disparait, donc la dilution n a plus
+  // de support. Elle se declarait par un champ vide, sans cause ni
+  // motif : le patron ferme a la grappe 3, reintroduit par le
+  // correctif de la grappe 4.
+  for (const op of ['lbo', 'cession-partielle'] as OperationType[]) {
+    const out = computeValuation(build(op));
+    check(
+      out.ranges.every((r: any) => r.nature !== 'pre_money'),
+      `${op} : aucune fourchette pre-money ne survit`,
+    );
+    check(out.dilutionAnalysis === null, `${op} : aucune dilution calculee`);
+    check(
+      (out as any).dilutionNotComputableCause === 'doctrine',
+      `${op} : la cause est declaree et vaut doctrine`,
+    );
+    check(
+      /sans support/.test((out as any).dilutionNotComputableReason || ''),
+      `${op} : le motif nomme l absence de support`,
+    );
+    check(
+      /Methode VC inverse/.test((out as any).dilutionNotComputableReason || ''),
+      `${op} : et nomme la methode ecartee`,
+    );
+    check(
+      out.warnings.some((w: string) => /Dilution sans support/i.test(w)),
+      `${op} : le motif remonte dans les warnings`,
+    );
+  }
+}
+
+{
+  // La regle vaut sur les quatre types et pas seulement sur la cession
+  // totale, ou elle avait ete enoncee. Une levee dont les methodes
+  // pre-money tombent porte aussi sa cause.
+  const out = computeValuation(build('levee', 'series-c-plus'));
+  const aPreMoney = out.ranges.some((r: any) => r.nature === 'pre_money');
+  const ticketAnnonce = true;
+  check(
+    aPreMoney || (out as any).dilutionNotComputableCause !== null || !ticketAnnonce,
+    'levee sans support pre-money : la cause est declaree elle aussi',
+  );
+}
+
+{
+  // Un dossier sans ticket annonce ne porte toujours aucun motif :
+  // l absence se distingue du refus, comme etabli au brief 23.
+  const sansTicket = build('lbo');
+  sansTicket.extraction.fundraise.amount = 'non precise';
+  const out = computeValuation(sansTicket);
+  check(
+    (out as any).dilutionNotComputableCause === null,
+    'aucun ticket annonce : aucune cause, l absence se distingue du refus',
   );
 }
 

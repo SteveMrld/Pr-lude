@@ -512,19 +512,48 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   const dilutionAnalysis = (!dilutionHorsDomaine && preMoneyRange && ticket.equity)
     ? buildDilutionAnalysis(preMoneyRange, ticket.equity)
     : null;
+
+  // Dilution privee de support. Quand aucune fourchette pre-money n a
+  // survecu, la dilution n a plus rien a quoi s appliquer. Le cas se
+  // produit typiquement sur un LBO ou une cession partielle, ou la
+  // neutralisation de la VC inverse supprime la seule methode
+  // pre-money du dossier.
+  //
+  // Ce cas se declarait par un champ vide, ce qui est le patron ferme
+  // a la grappe 3 reintroduit par un correctif de la grappe 4 : le
+  // motif de non-production etait conditionne a l existence du support
+  // qu il devait justement expliquer, donc il disparaissait avec lui.
+  // La regle « pas un champ vide » avait ete enoncee sur le seul cas
+  // de la cession totale, et s etait lue comme ne valant que pour lui.
+  const methodesPreMoney = methods.filter((m) => m.nature === 'pre_money');
+  const preMoneyToutesEcartees = methodesPreMoney.length > 0
+    && methodesPreMoney.every((m) => !m.applicable);
+  const preMoneyEcarteesParDoctrine = preMoneyToutesEcartees
+    && methodesPreMoney.every((m) => m.notApplicableCause === 'doctrine');
+  const dilutionSansSupport = !dilutionHorsDomaine
+    && preMoneyRange === null
+    && ticket.total !== null;
   // Dilution non calculable faute de repartition : le fait est porte
   // explicitement plutot que rendu par une absence, qu un lecteur
   // confondrait avec un tour sans ticket annonce.
   const dilutionNotComputable = dilutionHorsDomaine
     ? 'Dilution sans objet sur une cession totale : l integralite du capital change de main, il n y a pas d actionnaire existant dont la part serait reduite. La question pertinente est celle du prix paye, pas du pourcentage obtenu.'
+    : dilutionSansSupport
+    ? (preMoneyEcarteesParDoctrine
+      ? `Dilution sans support : elle se calcule sur une valeur des capitaux propres avant tour, et aucune des methodes qui en produisent une n est applicable a ce dossier (${methodesPreMoney.map((m) => m.label).join(', ')}). La fourchette disponible est en valeur d entreprise, sur laquelle un pourcentage de dilution n aurait pas de sens : la dette nette n est pas diluee par une augmentation de capital.`
+      : `Dilution sans support : aucune fourchette en valeur des capitaux propres avant tour n a pu etre produite pour ce dossier, faute d inputs pour les methodes qui en rendent une. La dilution ne se calcule pas sur la fourchette en valeur d entreprise disponible.`)
     : (preMoneyRange && ticket.total && !ticket.equity)
     ? `Dilution non calculable : le tour annonce ${formatEur(ticket.total)} sous la forme "${ticket.raw}", qui melange capital et un autre instrument sans donner la repartition. Une dilution calculee sur le montant total sur-estimerait la part obtenue par le fonds. A chiffrer avec la societe avant toute discussion de prix.`
     : null;
-  // La cause distingue les deux motifs de non-production. Hors domaine
-  // sur une cession totale, c est une decision ; faute de repartition
-  // capital contre dette, c est une donnee absente.
+  // Trois causes distinctes, et non deux. Hors domaine sur une cession
+  // totale, c est une decision. Sans support parce que les methodes
+  // pre-money ont ete ecartees par doctrine, c en est une aussi. Sans
+  // support faute d inputs, ou faute de repartition capital contre
+  // dette, c est une donnee absente.
   const dilutionNotComputableCause: NonProductionCauseOrNull = dilutionHorsDomaine
     ? 'doctrine'
+    : dilutionSansSupport
+    ? (preMoneyEcarteesParDoctrine ? 'doctrine' : 'absence')
     : dilutionNotComputable ? 'absence' : null;
 
   // ---------- Synthese editoriale
