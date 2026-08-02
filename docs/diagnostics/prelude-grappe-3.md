@@ -398,3 +398,40 @@ il s en produira un. La question ouverte est s il faut injecter une
 horloge dans la couche de deadline, comme le depot l a fait ailleurs
 pour la fraicheur sectorielle avec le parametre `now`, ou accepter des
 marges plus larges au prix d un test qui prouve moins.
+
+### Le champ obligatoire garantit la presence d une cause, pas sa justesse
+
+Lecon payee sur le commit a3541a8, a lire avant toute prochaine
+introduction d un champ obligatoire.
+
+Le champ obligatoire fait exactement ce qu on lui demande : le
+compilateur designe tous les sites de construction, aucun n est
+oublie, et le patron ne peut plus reapparaitre par omission. Sur
+IndicatorResult il a fait remonter quarante-trois sites d un coup,
+comme il l avait fait sur ValuationMethodResult.
+
+Ce qu il ne fait pas, c est verifier que la valeur posee est la bonne.
+Quand quarante-trois sites remontent d un coup, on ecrit une regle de
+repli pour satisfaire le compilateur et on traite ensuite les cas
+particuliers. Cette regle de repli est precisement l endroit ou une
+cause fausse s installe sans que rien ne tombe : les tests passent, le
+typage est satisfait, et le champ ment.
+
+Mesure sur le cas. Sur les sept indicateurs, deux ont recu une cause
+choisie et cinq la cause de repli, `absence`, la ou la bonne reponse
+etait `doctrine`. Le message de commit annoncait que la formulation
+disjonctive disparaissait : elle ne disparaissait que de deux sites sur
+sept. Le defaut n a ete vu qu au run de production suivant, en lisant
+la repartition des causes sur un dossier reel.
+
+L audit demande sur ValuationMethodResult, mene apres coup, rend un
+resultat different et instructif : seize sites sur dix-sept portaient
+une cause choisie, un seul une cause posee par analogie avec son
+voisin. La difference tient au nombre. Dix-sept sites se relisent un a
+un, quarante-trois appellent une regle de repli.
+
+La regle qui en decoule : apres chaque introduction d un champ
+obligatoire, auditer site par site les valeurs posees par repli, et ne
+pas considerer que le compilateur vert vaut relecture. C est le prix de
+la methode, et il est faible compare a ce qu elle evite, mais il doit
+etre paye explicitement plutot que suppose.
