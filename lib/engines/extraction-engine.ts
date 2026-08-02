@@ -38,8 +38,8 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
     "valuation": "valorisation telle que le document la présente, dont la nature dépend du type : pré-money ou post-money sur une levée, valeur d'entreprise ou d'equity sur une cession ou un LBO. Précise laquelle si le document le dit.",
     "leadInvestor": "investisseur lead d'une levée si annoncé. Sur une cession ou un LBO, laisse vide : le conseil du vendeur va dans sellSideAdvisor.",
     "coInvestors": ["liste des co-investisseurs si annoncés"],
-    "seller": "sur une cession ou un LBO, entité qui cède (ex: 'Compagnie des Alpes', 'PPR / Redcats', 'Ciments Calcia (Italcementi Group)'). Chaîne vide sur une levée.",
-    "stakeForSale": "sur une cession ou un LBO, périmètre cédé tel qu'annoncé (ex: '100%', 'jusqu'à 100%', '6 parcs de loisirs', 'carve-out de l'activité marine'). Chaîne vide sur une levée.",
+    "seller": "sur une cession ou un LBO, entité qui cède : groupe coté qui se sépare d'une filiale, industriel qui cède une activité, fonds sponsor en sortie. Chaîne vide sur une levée.",
+    "stakeForSale": "sur une cession ou un LBO, périmètre cédé tel qu'annoncé : un pourcentage, un nombre d'établissements, le carve-out d'une activité nommée. Chaîne vide sur une levée.",
     "sellSideAdvisor": "sur une cession ou un LBO, banque ou conseil mandaté côté vendeur (ex: 'Rothschild', 'Lazard'). Chaîne vide sur une levée."
   },
   "competitorsCited": ["liste des concurrents cités explicitement dans le deck"],
@@ -65,9 +65,9 @@ Les valeurs de operationType :
 
 Marqueurs de cession et de LBO réellement observés dans les documents traités par la plateforme, à chercher explicitement :
 - le document se présente comme "mémorandum d'information", "information memorandum", "IM", "teaser", "process letter"
-- il porte un nom de code de projet ("Project Chamois", "Project Tagora", "Projet Babel", "Pegasus", "Project Saturn", "Project Triton")
+- il porte un nom de code de projet, c'est-à-dire "Project" ou "Projet" suivi d'un nom d'animal, de relief, d'astre ou de mot rare, substitué au nom réel de la société pour préserver la confidentialité du processus
 - une banque d'affaires est mandatée côté vendeur : "préparé par Rothschild", "mandaté par X pour la cession de", "Lazard pour le compte de"
-- le vendeur est nommé et distinct de la société : "cession par Compagnie des Alpes", "à 100% par PPR/Redcats", "filiale de X"
+- le vendeur est nommé et distinct de la société : "cession par le groupe X", "à 100% par la maison mère", "filiale de X"
 - le vocabulaire de sortie : "cession", "carve-out", "rationalisation de portefeuille", "sortie du sponsor"
 - un pourcentage de capital cédé plutôt qu'un montant recherché
 

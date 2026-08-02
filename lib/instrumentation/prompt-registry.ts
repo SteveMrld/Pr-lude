@@ -130,6 +130,31 @@ export function collectPromptFingerprints(): PromptFingerprint[] {
   return out;
 }
 
+/**
+ * Texte integral de tous les prompts systeme atteignables. Meme
+ * parcours que collectPromptFingerprints, dont c est la variante non
+ * hachee.
+ *
+ * Existe pour une garde et une seule : verifier qu aucun nom de dossier
+ * traite par la plateforme ne se retrouve ecrit en dur dans un prompt.
+ * Un nom de client dans le prompt d un autre client est disqualifiant,
+ * et la seule facon de l empecher durablement est de relire tous les
+ * prompts a chaque execution de la suite plutot que de corriger les
+ * occurrences une a une.
+ */
+export function collectPromptTexts(): Array<{ module: string; name: string; text: string }> {
+  const out: Array<{ module: string; name: string; text: string }> = [];
+  for (const [mod, ns] of MODULES) {
+    for (const name of Object.keys(ns)) {
+      if (!/SYSTEM_PROMPT/.test(name)) continue;
+      const value = (ns as any)[name];
+      if (typeof value !== 'string') continue;
+      out.push({ module: mod, name, text: value });
+    }
+  }
+  return out;
+}
+
 /** Modules references par le registre. Lu par le test d exhaustivite. */
 export function registeredModules(): string[] {
   return MODULES.map(([m]) => m).sort();

@@ -262,7 +262,7 @@ export function findCurrencyMismatch(
         category: 'currency_mismatch',
         severity: 'warning',
         field,
-        message: `Montant cite dans une devise differente du pitch (pitch en ${pitchCurrency}) sans tag de source ni mention de conversion. Le pitch UP&CHARGE est en EUR, ne pas inventer de montants USD.`,
+        message: `Montant cite dans une devise differente du pitch (pitch en ${pitchCurrency}) sans tag de source ni mention de conversion. Convertir explicitement ou tagguer la source du montant.`,
         excerpt: text.slice(Math.max(0, idx - 30), Math.min(text.length, idx + 40)),
       });
     }

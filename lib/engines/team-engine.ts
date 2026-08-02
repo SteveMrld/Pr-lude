@@ -221,9 +221,9 @@ REGLE STRICTE SUR evaluability :
     (Wikipedia/OpenAlex/GitHub/arXiv), ET ces recherches ont bien eu
     lieu. Le overallFitScore doit etre place a 5-15 par convention pour
     signaler l'absence d'instruction POSSIBLE, pas une mauvaise note. Le
-    rendu UI affichera 'Non instruit'. Cas Pen Group : fondateurs
-    introuvables apres 8 ans dans secteur hautement reglementé =
-    non-evaluable.
+    rendu UI affichera 'Non instruit'. Cas typique : fondateurs
+    introuvables apres plusieurs annees d activite dans un secteur
+    hautement reglemente = non-evaluable.
   - 'recherches-empechees' : le bloc de donnees ci-dessous signale
     qu'au moins une source a ECHOUE (timeout, erreur reseau, quota).
     Dans ce cas la premisse de 'non-evaluable', « malgre les

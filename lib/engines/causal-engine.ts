@@ -111,8 +111,8 @@ REGLE CRITIQUE SUR evaluability :
   une dimension ne peut pas etre evaluee faute de donnees vérifiables
   (pas de footprint sur la dimension), tu DOIS marquer 'non-evaluable'
   et placer le score a 8-15 par convention. La lecture doit alors
-  expliquer "non instruit" plutot que "mauvais score". Cas type :
-  Pen Group sur maturiteExecution -> non-evaluable car aucun signal
+  expliquer "non instruit" plutot que "mauvais score". Cas type : une
+  societe sur maturiteExecution -> non-evaluable car aucun signal
   d'execution n'est verifiable. Le UI affichera 'Non instruit' au lieu
   d'un chiffre brut.
 

@@ -79,7 +79,7 @@ Tous les tests applicables avec seuils SaaS standard :
 - T5 : CA/employe 150-200K€.
 
 ## Archetype B · Hardware industriel / Deeptech / Defense / Aerospatial
-Ex : Pen Group, Helsing, Anduril, Quantum-Systems, Tekever, ASML, Joby Aviation, Platypus Craft (construction navale FR).
+Ex : Helsing, Anduril, Quantum-Systems, Tekever, ASML, Joby Aviation. Y entrent aussi la construction navale et les equipementiers industriels.
 - T1 : croissance hardware = max x2-x2.5 sustained, plus exigeant qu'en SaaS.
 - T3 : marge brute hardware 20-40% maximum, drapeau si projection >50%.
 - T5 : standard hardware 200-300K€/employe.
