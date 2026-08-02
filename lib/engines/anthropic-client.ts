@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { recordLlmCall } from '../instrumentation/llm-ledger';
 
 let _client: Anthropic | null = null;
 
@@ -80,12 +81,61 @@ export function getClient(): Anthropic {
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY manquante. Configurer dans Vercel Settings > Environment Variables.');
   }
-  _client = new Anthropic({
+  const raw = new Anthropic({
     apiKey,
     timeout: 60_000,
     maxRetries: 1,
   });
+  _client = instrumenter(raw);
   return _client;
+}
+
+/**
+ * Enveloppe messages.create pour que tout appel au modele soit
+ * enregistre, quel que soit le helper qui le declenche.
+ *
+ * C est le point de passage unique : les trois helpers exportes de ce
+ * module y passent, et callClaudeMultiDocs, qui vit dans
+ * dd-technical-engine et n emprunte aucun des trois, y passe aussi
+ * puisqu il appelle getClient. Un moteur ajoute demain est donc mesure
+ * sans que personne n ait rien a lui passer.
+ *
+ * L instrumentation ne modifie ni la requete ni la reponse : elle
+ * mesure autour et laisse passer. Un echec est enregistre puis
+ * re-leve, de sorte qu un appel qui echoue ne disparaisse pas du
+ * registre, ce que l ancienne mesure par addCall faisait puisqu elle
+ * n etait appelee qu apres un retour reussi.
+ */
+function instrumenter(client: Anthropic): Anthropic {
+  const messages = client.messages;
+  const original = messages.create.bind(messages);
+  (messages as any).create = async (params: any, options?: any) => {
+    const startedAt = Date.now();
+    try {
+      const response: any = options ? await original(params, options) : await original(params);
+      recordLlmCall({
+        model: String(params?.model ?? 'inconnu'),
+        durationMs: Date.now() - startedAt,
+        inputTokens: response?.usage?.input_tokens ?? 0,
+        outputTokens: response?.usage?.output_tokens ?? 0,
+        maxTokens: typeof params?.max_tokens === 'number' ? params.max_tokens : null,
+        failed: false,
+      });
+      return response;
+    } catch (err: any) {
+      recordLlmCall({
+        model: String(params?.model ?? 'inconnu'),
+        durationMs: Date.now() - startedAt,
+        inputTokens: 0,
+        outputTokens: 0,
+        maxTokens: typeof params?.max_tokens === 'number' ? params.max_tokens : null,
+        failed: true,
+        error: String(err?.message ?? err ?? 'erreur inconnue').slice(0, 200),
+      });
+      throw err;
+    }
+  };
+  return client;
 }
 
 export const MODEL = 'claude-sonnet-4-6';

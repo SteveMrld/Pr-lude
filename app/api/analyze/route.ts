@@ -61,6 +61,7 @@ import { createEngineDeadlineWrapper } from '@/lib/orchestrator/engine-deadline'
 import { createEngineLogCallbacks } from '@/lib/orchestrator/engine-log-callbacks';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import { withSourceHarvest, readSourceHarvest, harvestIsSilent } from '@/lib/data-fetchers/source-harvest';
+import { withLlmLedger, readLlmLedger, ledgerIsSilent } from '@/lib/instrumentation/llm-ledger';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
 import {
@@ -434,7 +435,12 @@ export async function POST(req: NextRequest) {
         // Tout le pipeline s execute a l interieur, donc chaque
         // interrogation de source y est enregistree sans qu aucun
         // moteur n ait a transmettre quoi que ce soit.
-        return withSourceHarvest(async () => {
+        // Deux registres a portee de run, ouverts ensemble : la
+        // recolte des sources externes et les appels au modele. Le
+        // pipeline entier s execute dedans, donc tout appel y est
+        // enregistre sans qu aucun moteur ait a transmettre de
+        // collecteur.
+        return withLlmLedger(async () => withSourceHarvest(async () => {
 
         // Capture des startedAt par moteur pour calculer la duree a l envoi
         // de l event done. Permet aussi d emettre la duree dans le payload
@@ -1926,6 +1932,10 @@ export async function POST(req: NextRequest) {
               // recherche d un echec de source, distinction qui etait
               // perdue des la fin du run.
               sourceHarvest: readSourceHarvest(),
+              // Registre des appels au modele. Alimente depuis le
+              // point de passage unique, donc exhaustif par
+              // construction et non par discipline.
+              llmLedger: readLlmLedger(),
               // asOf vivait en colonne as_of et dans le version stamp,
               // jamais dans result_json. Les consommateurs qui rejouent
               // un moteur deterministe cote client (recalcul valuation
@@ -2309,6 +2319,13 @@ export async function POST(req: NextRequest) {
           // ce qui est exactement la faute que le journal corrige. Le
           // cas se signale plutot que de passer pour un run sans
           // source.
+          if (ledgerIsSilent()) {
+            logException(
+              'api.analyze.llm-ledger-silent',
+              new Error('Registre des appels au modele vide en fin de run : un pipeline appelle forcement le modele, un registre muet signale une instrumentation debranchee.'),
+              { severity: 'warning', analysisId },
+            );
+          }
           if (harvestIsSilent()) {
             logException(
               'api.analyze.source-harvest-silent',
@@ -2318,7 +2335,7 @@ export async function POST(req: NextRequest) {
           }
           try { controller.close(); } catch { /* deja close */ }
         }
-        }); // fin de withSourceHarvest : la portee du journal se referme avec le run
+        })); // fin de withLlmLedger et withSourceHarvest : les deux portees se referment avec le run
       },
     });
 
