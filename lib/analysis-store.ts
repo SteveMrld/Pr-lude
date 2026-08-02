@@ -862,6 +862,115 @@ export async function listStaleRunningAnalyses(
   }
 }
 
+// ============================================================
+// ANALYSES MORT-NEES
+// ------------------------------------------------------------
+// createPendingAnalysis insere une ligne en status='running' avant
+// que le moindre moteur ne demarre. Quand le pipeline ne demarre
+// jamais, connexion SSE fermee aussitot, soumission en double
+// supplantee, requete abandonnee, la ligne reste running avec
+// progress.stage='started' et engines vide, et rien ne la distingue
+// d une analyse qui travaille. Cas mesure le 2 aout 2026 : une
+// ligne figee 241 millisecondes apres sa creation, restee running
+// jusqu au balayage.
+//
+// Le cron cleanup-stale-running finit par la basculer, mais son
+// seuil est de trente minutes et son passage de quinze : pendant
+// tout ce temps la ligne occupe un des trois slots de concurrence de
+// l organisation pour un pipeline qui ne tourne pas. Un partner qui
+// relance apres une soumission ratee peut se voir refuser son
+// analyse par une place que rien ne consomme.
+//
+// La garde ci-dessous est courte et etroite. Courte parce qu une
+// analyse qui n a enregistre aucun evenement de moteur au bout de
+// quelques minutes n en enregistrera plus : le premier moteur du
+// pipeline demarre en quelques secondes. Etroite parce qu elle ne
+// cible que ce cas precis, progress fige au stade initial, et laisse
+// intact le balayage a trente minutes qui couvre les pipelines
+// morts en cours de route. Les deux ne traitent pas le meme defaut
+// et n ont pas de raison de partager un seuil.
+// ============================================================
+
+/**
+ * Vrai quand un objet progress temoigne d une analyse qui n a jamais
+ * demarre : stade initial et aucun moteur enregistre.
+ *
+ * Le predicat vit en TypeScript et non dans la requete SQL parce que
+ * progress est un JSON dont la forme a change au fil des versions, et
+ * qu un filtre sur une cle imbriquee raterait silencieusement les
+ * formes anciennes. Fonction pure, testable sans base.
+ *
+ * Conservateur par construction : une ligne dont on ne sait pas lire
+ * le progress n est pas balayee. Mieux vaut laisser le cron a trente
+ * minutes s en charger que basculer une analyse qui travaille.
+ */
+export function isDeadBornProgress(progress: unknown): boolean {
+  if (!progress || typeof progress !== 'object') return false;
+  const p = progress as Record<string, any>;
+  if (p.stage !== 'started') return false;
+  const engines = p.engines;
+  if (engines === undefined || engines === null) return true;
+  if (typeof engines !== 'object') return false;
+  return Object.keys(engines).length === 0;
+}
+
+/** Quelques minutes : au-dela, un pipeline qui n a rien enregistre
+ *  ne demarrera plus. Volontairement plus court que le seuil du cron. */
+export const DEAD_BORN_THRESHOLD_MINUTES = 4;
+
+/**
+ * Bascule en 'failed' les analyses restees au stade initial sans
+ * qu aucun moteur n ait demarre, et libere leur slot de concurrence.
+ * Rejouable, sans effet sur les lignes qui progressent.
+ *
+ * Ne touche pas au cron cleanup-stale-running : les deux gardes
+ * cohabitent, celle-ci sur les mort-nees, celle-la sur les pipelines
+ * interrompus en cours d execution.
+ */
+export async function sweepDeadBornAnalyses(
+  thresholdMinutes: number = DEAD_BORN_THRESHOLD_MINUTES,
+): Promise<{ swept: number; ids: string[] }> {
+  if (!isPersistenceEnabled()) return { swept: 0, ids: [] };
+  try {
+    const supabase = getSupabaseAdminClient();
+    const cutoff = new Date(Date.now() - thresholdMinutes * 60_000).toISOString();
+    const { data, error } = await supabase
+      .from('analyses')
+      .select('id, progress, updated_at')
+      .eq('status', 'running')
+      .lt('updated_at', cutoff)
+      .limit(200);
+    if (error) {
+      console.error('[analysis-store] sweepDeadBornAnalyses erreur :', error);
+      return { swept: 0, ids: [] };
+    }
+
+    const deadBorn = (data || []).filter((row: any) => isDeadBornProgress(row.progress));
+    if (deadBorn.length === 0) return { swept: 0, ids: [] };
+
+    const ids = deadBorn.map((r: any) => r.id);
+    const { error: updateErr } = await supabase
+      .from('analyses')
+      .update({
+        status: 'failed',
+        error_message:
+          `Analyse jamais demarree : aucun moteur n a enregistre d evenement dans les ${thresholdMinutes} minutes suivant sa creation. `
+          + 'Ligne basculee automatiquement pour liberer le slot de concurrence. '
+          + 'Causes usuelles : soumission en double supplantee, page rechargee, connexion fermee avant le premier moteur.',
+        completed_at: new Date().toISOString(),
+      })
+      .in('id', ids);
+    if (updateErr) {
+      console.error('[analysis-store] sweepDeadBornAnalyses update erreur :', updateErr);
+      return { swept: 0, ids: [] };
+    }
+    return { swept: ids.length, ids };
+  } catch (err) {
+    console.error('[analysis-store] sweepDeadBornAnalyses exception :', err);
+    return { swept: 0, ids: [] };
+  }
+}
+
 /**
  * Bascule en 'failed' toutes les analyses running dont updated_at
  * est anterieur au seuil. Utilise pour le cron cleanup-stale-running.

@@ -329,6 +329,27 @@ export async function POST(req: NextRequest) {
     // est skip. Le slot est libere dans le finally du stream pour
     // garantir le cleanup meme en cas de pipeline qui plante.
     // ============================================================
+    // Balayage des analyses mort-nees avant de compter les slots. Une
+    // ligne creee par createPendingAnalysis dont aucun moteur n a
+    // jamais demarre reste running et occupe une des trois places de
+    // l organisation jusqu au cron a trente minutes. Purger ici, juste
+    // avant de compter, evite qu un partner se voie refuser une
+    // analyse par une place que rien ne consomme, sur le meme principe
+    // self-healing que la purge d active_jobs. Best-effort : un echec
+    // ne bloque pas le pipeline.
+    try {
+      const { sweepDeadBornAnalyses } = await import('@/lib/analysis-store');
+      const swept = await sweepDeadBornAnalyses();
+      if (swept.swept > 0) {
+        console.warn(`[api.analyze] ${swept.swept} analyse(s) mort-nee(s) basculee(s) : ${swept.ids.join(', ')}`);
+      }
+    } catch (err: any) {
+      logException('api.analyze.dead-born-sweep', err, {
+        severity: 'warning',
+        context: { phase: 'dead-born-sweep' },
+      });
+    }
+
     if (activeOrgId) {
       const { acquireJobSlot } = await import('@/lib/rate-limit');
       const slot = await acquireJobSlot(activeOrgId, activeUserId, pitchDeck.name);
