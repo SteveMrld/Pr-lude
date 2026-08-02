@@ -30,11 +30,34 @@ argument ne journalise rien : l erreur est perdue au moment ou elle
 survient.
 
 Les evenements `fetcher:timeout` et `fetcher:miss` n existent nulle
-part ailleurs que dans `sources.ts`. Verification faite sur l ensemble
-du depot : la route `/api/analyze` ne les capte pas, aucun champ de
-`result_json` ne les porte. Ils vivent le temps d une connexion SSE et
-disparaissent. **La distinction est donc definitivement perdue** des
-que le run est termine, y compris pour un rejeu hors ligne.
+part ailleurs que dans `sources.ts`. La distinction est donc
+definitivement perdue des que le run est termine, y compris pour un
+rejeu hors ligne.
+
+**Correction du 2 aout 2026, la premiere lecture etait plus indulgente
+que la realite.** Cette note affirmait que les evenements vivaient le
+temps d une connexion SSE puis disparaissaient. Ils ne sont jamais
+emis. `opts?.emit` n est appele que si un appelant fournit un objet
+`FetcherOpts`, et aucun ne le fait : le moteur Equipe passe
+explicitement `undefined` en troisieme position de
+`gatherFounderRealData` (`team-engine.ts:419`), le moteur macro appelle
+`gatherMacroRealData` avec un seul argument, et la recherche de
+`FetcherOpts` hors de `sources.ts` ne rend aucun autre site. Les cinq
+evenements, `fetcher:start`, `hit`, `miss`, `timeout`, `skipped` et
+`budget_exceeded`, sont cables et sans emetteur.
+
+Le mecanisme d observabilite existe pourtant en entier : `trackedSource`
+distingue deja le hit du miss et du timeout, avec une heuristique sur
+le temps ecoule proche du budget. Rien de tout cela ne sort de la
+fonction.
+
+C est la cinquieme occurrence de la famille des mesures fausses de la
+semaine, et la premiere qui ne vienne pas d une commande trop etroite
+mais d une lecture de code qui a suppose un cablage sans le verifier.
+Elle a une consequence de conception directe, consignee plus bas : un
+parametre optionnel jamais fourni est la preuve empirique que cette
+forme ne tient pas, et reconduire la meme forme en promettant de la
+brancher serait refaire le pari en connaissance de cause.
 
 Consequence en aval, lue sur les consommateurs : `realData` du moteur
 Equipe et les checks du moteur Reference checks sont construits a
