@@ -84,3 +84,68 @@ un veto global ou devenir un signal qui degrade sans tout neutraliser.
 Comment le dossier doit se comporter en attendant. Aujourd hui la note
 dit que la classification est a confirmer, ce qui est honnete, mais
 elle le dit apres avoir supprime tout le contenu chiffre.
+
+## 2. Mesure du type d operation sur le corpus
+
+Rejeu hors ligne des quarante-deux dossiers, avant tout run.
+
+Precision de methode, elle conditionne la lecture des chiffres : le
+classement est estime en appliquant aux textes deja persistes les
+memes marqueurs que le prompt nomme desormais. Ce n est pas une
+re-extraction par le modele. Les chiffres donnent un ordre de grandeur
+et une repartition, pas un decompte definitif.
+
+| valeur | dossiers |
+|---|---:|
+| levee | 14 |
+| cession partielle | 11 |
+| cession totale | 4 |
+| LBO | 1 |
+| non etabli | 12 |
+
+Seize dossiers sur quarante-deux, soit 38%, ne sont pas des levees.
+C est plus que les quatorze dossiers growth qui avaient ouvert le
+sujet : des memorandums de cession se trouvent aussi hors du parcours
+growth. Douze restent non etablis, ce qui est le comportement voulu
+d une regle qui refuse de deviner, et non un echec de classement.
+
+Consequences mesurees. Dix dossiers perdent leur VC inverse, un seul
+perd sa dilution, et seize voient leur vocabulaire de note changer.
+L ecart entre dix et un s explique : la dilution ne se neutralise que
+sur cession totale, et les quatre dossiers concernes n avaient pour la
+plupart pas de fourchette pre-money a diluer, la VC inverse etant deja
+neutralisee par ailleurs.
+
+Le chiffre demande sur les conseils vendeurs mal ranges : **un seul
+dossier**, ZargesTubesca, dont le champ leadInvestor porte
+« Rothschild GmbH (conseiller financier des vendeurs) ». Le cas est
+donc isole et non un peuplement. Il reste que le champ sellSideAdvisor
+se justifie par autre chose que sa frequence : sans lui, les quinze
+autres dossiers de cession laissaient simplement l information de cote,
+ce qui ne se voit nulle part. Un champ absent ne produit pas d erreur
+visible, il produit un silence.
+
+## 3. L ecart onze contre sept, quatrieme occurrence
+
+Le brief 25 annoncait sept moteurs portant la ligne « Tour : stade
+montant ». La mesure en a rendu onze, pour douze sites.
+
+La cause est ma propre mesure du brief 24, faite par une recherche trop
+etroite qui n avait pas capte les variantes d ecriture du meme
+gabarit : `${extraction.fundraise.amount}` sans repli,
+`${extraction.fundraise.amount || ''}`,
+`${extraction?.fundraise?.amount ?? '?'}`, et la variante au point
+median de reference-checks.
+
+C est la quatrieme occurrence de la meme famille dans la semaine, apres
+la table de benchmarks mesuree a travers un normaliseur defaillant, la
+couverture de baseExits mesuree par une regex qui excluait les
+chiffres, et le denombrement des sites de cause qui melangeait types,
+commentaires et sites reels.
+
+C est aussi la premiere ou la regle a joue **avant** l ecriture plutot
+qu apres. Les trois precedentes ont ete decouvertes une fois le
+diagnostic ecrit, dont deux une fois le brief redige. Celle-ci a ete
+vue en verifiant le chiffre du brief avant de toucher au code, ce qui
+est exactement l usage prevu de la regle inscrite dans CLAUDE.md. Le
+cout de la verification a ete d une commande.
