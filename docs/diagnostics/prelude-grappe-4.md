@@ -73,6 +73,56 @@ question devient tranchable, puisqu on saura si les dossiers
 Deux dossiers ne suffisent de toute facon pas a conclure, et ce sont
 deux runs du meme. La mesure se refera quand le corpus aura grossi.
 
+### Resolution du 3 aout 2026 : l hypothese est refutee
+
+Le type d operation existe depuis cette grappe, la question etait donc
+devenue tranchable. Elle a ete tranchee par lecture, et contre
+l hypothese ecrite ci-dessus.
+
+Les deux dossiers `unclassified` du corpus sont bien des cessions, mais
+ce n est pas ce qui les rend non classes. Leur secteur extrait vaut
+« Hospitalite », la classe `hospitality` existe dans la table, et deux
+autres dossiers du corpus l obtiennent sans difficulte. Le normaliseur
+ne connaissait que le mot anglais. Rien dans le mecanisme n attend un
+produit ni un modele de revenus : c est un ecart de vocabulaire, et le
+lien avec la ligne `Tour` etait une lecture par analogie que la mesure
+ne soutient pas.
+
+Ce que l enquete a etabli au-dela du cas est plus large que le cas.
+Quatre des onze libelles que le prompt d extraction propose lui-meme au
+modele etaient illisibles par le normaliseur de la meme plateforme, IA,
+Mobilite, Cloud et Hospitalite, et douze des trente-trois libelles du
+vocabulaire ferme du profil de fonds l etaient aussi. Deux listes closes
+du meme produit coexistaient sans que personne ne les compare, et le
+dossier tombait entre les deux.
+
+Le vocabulaire est complete et verrouille par un test qui interroge la
+fonction sur chaque valeur des deux catalogues, de sorte qu un libelle
+ajoute demain a l une des listes sans l autre fasse echouer la suite.
+
+### Dette : deux libelles restent hors vocabulaire, et c est delibere
+
+`Beaute` et `Distribution` ne sont pas lus par le normaliseur. Ils
+n ont pas ete ajoutes.
+
+La raison n est pas la difficulte mais le risque. La matrice les
+rattrape en aval par `deriveAssetClass`, qui arbitre sur la chaine de
+production lue dans le texte complet : `Beaute` ressort `healthtech` sur
+In Haircare, `Distribution` ressort `industrial-hardware` sur Alliance
+Marine. Ces deux dossiers fonctionnent. Ajouter les mots-cles
+changerait l entree de l arbitrage, donc potentiellement sa sortie, sur
+des cas qui ne posent aucun probleme aujourd hui, et In Haircare est
+precisement le dossier que trois grappes ont suivi.
+
+Un ecart connu et documente vaut mieux qu une correction qui deplace un
+comportement valide. La regle vaut au-dela de ces deux mots : le
+correctif de vocabulaire du 3 aout n a ete applique qu aux libelles qui
+sortaient en `unclassified`, jamais a ceux que l aval rattrapait deja.
+
+Ce qui rouvrirait le sujet : un dossier `Beaute` ou `Distribution` qui
+sortirait effectivement non classe, ou une revue de `deriveAssetClass`
+qui rendrait son arbitrage previsible avant de changer ses entrees.
+
 ### Ce qui reste a etablir
 
 Le cout d une classe non tranchee est disproportionne a sa cause. Un
