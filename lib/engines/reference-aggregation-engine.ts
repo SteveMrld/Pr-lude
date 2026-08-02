@@ -67,7 +67,7 @@ export interface ReferenceAggregationOutput {
   };
 }
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Agrégation de Reference Checks de la plateforme Prélude.
+export const SYSTEM_PROMPT = `Tu es le Moteur d'Agrégation de Reference Checks de la plateforme Prélude.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

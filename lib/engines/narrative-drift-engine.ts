@@ -106,7 +106,7 @@ export interface NarrativeDriftAnalysisOutput {
 // SYSTEM PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Derive Narrative de la plateforme Prelude.
+export const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Derive Narrative de la plateforme Prelude.
 
 ${SOURCE_TAGGING_INSTRUCTION}
 ${EDITORIAL_VOICE_INSTRUCTION}

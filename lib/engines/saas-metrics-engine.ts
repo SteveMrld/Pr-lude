@@ -191,7 +191,7 @@ export interface SaasMetricsExtraction {
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction des Métriques SaaS de Prélude. Ton rôle est unique : extraire trois familles de métriques que les autres moteurs ratent systématiquement, parce qu'elles sont enfouies dans le pitch ou le BP sans format standard.
+export const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction des Métriques SaaS de Prélude. Ton rôle est unique : extraire trois familles de métriques que les autres moteurs ratent systématiquement, parce qu'elles sont enfouies dans le pitch ou le BP sans format standard.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

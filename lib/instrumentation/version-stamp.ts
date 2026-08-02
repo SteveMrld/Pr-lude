@@ -45,6 +45,7 @@ import {
   TEMPERATURE_SCORE,
 } from '../engines/engine-budget';
 import { PATTERN_LLM_OPTIONS } from '../engines/fragility-structurelle/pattern-interface';
+import { collectPromptFingerprints, promptsDoctrineHash } from './prompt-registry';
 
 // ============================================================
 // SCHEMA VERSION
@@ -60,7 +61,7 @@ import { PATTERN_LLM_OPTIONS } from '../engines/fragility-structurelle/pattern-i
 // refuser la comparaison plutot que conclure a une divergence.
 // ============================================================
 
-export const VERSION_STAMP_SCHEMA = '2026-08-01-v2';
+export const VERSION_STAMP_SCHEMA = '2026-08-02-v3';
 
 // ============================================================
 // TYPES
@@ -167,6 +168,13 @@ export interface VersionStamp {
   inputs: InputFingerprint;
   webSearchEnabled: boolean;
   runMode: RunMode;
+  /**
+   * Hash agrege des trente-trois prompts systeme du depot, lu par
+   * import. Deux runs qui le partagent ont tourne sur la meme
+   * doctrine. C est ce que le stamp ne savait pas dire, et c est ce
+   * qu un fonds demande en voulant rejouer une instruction.
+   */
+  doctrineHash: string;
 }
 
 // ============================================================
@@ -358,6 +366,17 @@ function fingerprintEngine(entry: EngineRegistryEntry): EngineFingerprint {
   let systemPromptChars = 0;
   let promptVersion = entry.promptVersion;
 
+  // Empreintes de prompts lues par import et non sur le disque. Les
+  // fichiers .ts n existent plus apres le build : les cinq derniers
+  // runs de production portaient tous systemPromptHashes vide sur les
+  // vingt-neuf moteurs. Le registre, lui, vit dans le bundle.
+  const moduleKey = entry.path.replace(/^lib\/engines\//, '').replace(/\.ts$/, '');
+  for (const fp of collectPromptFingerprints()) {
+    if (fp.module !== moduleKey) continue;
+    systemPromptHashes.push(fp.hash);
+    systemPromptChars += fp.chars;
+  }
+
   if (existsSync(absPath)) {
     try {
       const content = readFileSync(absPath, 'utf8');
@@ -366,12 +385,11 @@ function fingerprintEngine(entry: EngineRegistryEntry): EngineFingerprint {
       // Capture les constantes XYZ_SYSTEM_PROMPT = `...` ou
       // const SYSTEM_PROMPT = `...`. Le pattern accepte les
       // template literals et les chaines simples ou doubles.
-      const tmplRegex = /const\s+\w*SYSTEM_PROMPT\w*\s*=\s*`([\s\S]*?)`/g;
-      let match: RegExpExecArray | null;
-      while ((match = tmplRegex.exec(content)) !== null) {
-        systemPromptChars += match[1].length;
-        systemPromptHashes.push(sha256(match[1]));
-      }
+      // La lecture de fichier ne sert plus qu au sourceFileHash. Les
+      // empreintes de prompt viennent du registre ci-dessus, seule
+      // source qui survive au build : les recollecter ici les
+      // dupliquerait en developpement et les laisserait vides en
+      // production, soit deux hashes differents pour un meme code.
 
       // Capture aussi const PROMPT_VERSION = '...' si present
       const verMatch = content.match(/export\s+const\s+\w*PROMPT_VERSION\w*\s*=\s*['"`]([^'"`]+)['"`]/);
@@ -522,6 +540,7 @@ export function buildVersionStamp(opts: BuildStampOptions): VersionStamp {
     inputs: fingerprintInputs(opts.inputs),
     webSearchEnabled,
     runMode,
+    doctrineHash: promptsDoctrineHash(),
   };
 }
 
@@ -541,6 +560,7 @@ export function sealVersionStamp(stamp: VersionStamp, durationMs: number): Versi
  */
 export interface StampFingerprint {
   commitSha: string | null;
+  doctrineHash: string;
   configsHash: string;
   enginesHash: string;
   inputsHash: string;
@@ -550,6 +570,7 @@ export interface StampFingerprint {
 export function fingerprintStamp(stamp: VersionStamp): StampFingerprint {
   return {
     commitSha: stamp.app.commitSha,
+    doctrineHash: stamp.doctrineHash ?? 'absent',
     configsHash: canonicalHash(
       Object.fromEntries(
         Object.entries(stamp.configs).map(([k, v]) => [k, v.hash]),
@@ -582,6 +603,7 @@ export function diffStamps(a: VersionStamp, b: VersionStamp): string[] {
   const fb = fingerprintStamp(b);
   const diffs: string[] = [];
   if (fa.commitSha !== fb.commitSha) diffs.push(`commitSha: ${fa.commitSha} vs ${fb.commitSha}`);
+  if (fa.doctrineHash !== fb.doctrineHash) diffs.push(`doctrine (prompts systeme) : ${fa.doctrineHash} vs ${fb.doctrineHash}`);
   if (fa.configsHash !== fb.configsHash) diffs.push(`configs: ${fa.configsHash} vs ${fb.configsHash}`);
   if (fa.enginesHash !== fb.enginesHash) diffs.push(`engines: ${fa.enginesHash} vs ${fb.enginesHash}`);
   if (fa.inputsHash !== fb.inputsHash) diffs.push(`inputs: ${fa.inputsHash} vs ${fb.inputsHash}`);

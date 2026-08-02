@@ -65,7 +65,7 @@ const ARCHETYPE_AXIS: ArchetypeAxis = 'infrastructure-hostage';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la captivité infrastructurelle des
+export const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la captivité infrastructurelle des
 entreprises SaaS, IA et plateformes numériques. Tu analyses le pattern
 Infrastructure Hostage sur ce dossier : dépendance critique à un fournisseur
 externe qui peut unilatéralement modifier les termes de l accès, du prix, de

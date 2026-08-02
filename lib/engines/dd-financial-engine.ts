@@ -572,7 +572,7 @@ function determineVerdict(tests: DDFinancialOutput['tests']): DDFinancialOutput[
 // Synthese editoriale (LLM)
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es l'auditeur DD financier de la plateforme Prélude. Tu écris pour un partner senior d'un fonds VC ou un membre de comité d'investissement qui va lire ta synthèse en 90 secondes avant de poser des questions.
+export const SYSTEM_PROMPT = `Tu es l'auditeur DD financier de la plateforme Prélude. Tu écris pour un partner senior d'un fonds VC ou un membre de comité d'investissement qui va lire ta synthèse en 90 secondes avant de poser des questions.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

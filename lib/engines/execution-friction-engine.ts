@@ -258,7 +258,7 @@ function countDetectedFlags(flags: ExecutionFrictionOutput['flags']): number {
 // System prompt LLM : evaluation des 8 axes
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es le Moteur de Friction d'Exécution Commerciale et Industrielle de la plateforme Prélude.
+export const SYSTEM_PROMPT = `Tu es le Moteur de Friction d'Exécution Commerciale et Industrielle de la plateforme Prélude.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

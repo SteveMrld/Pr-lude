@@ -38,7 +38,7 @@ import type {
   CausalReversalOutput,
 } from './types';
 
-const SYSTEM_PROMPT = `Tu es le Moteur de Reference Checks de la plateforme Prélude.
+export const SYSTEM_PROMPT = `Tu es le Moteur de Reference Checks de la plateforme Prélude.
 
 Ton rôle : transformer une analyse de dossier d'investissement en un PLAN D'APPELS structuré, prêt à exécuter par un VC qui doit instruire le dossier en due diligence terrain.
 ${EDITORIAL_VOICE_INSTRUCTION}

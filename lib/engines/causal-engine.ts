@@ -9,7 +9,7 @@ import type {
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput
 } from './types';
 
-const SYSTEM_PROMPT = `Tu es le Moteur de Retournement Causal de la plateforme Prélude. C'est le moteur final analytique avant l'orchestration. Tu reçois les outputs de tous les moteurs précédents et tu produis :
+export const SYSTEM_PROMPT = `Tu es le Moteur de Retournement Causal de la plateforme Prélude. C'est le moteur final analytique avant l'orchestration. Tu reçois les outputs de tous les moteurs précédents et tu produis :
 1. Le scoring détaillé des sept angles morts
 2. Les questions précises à instruire avant décision
 3. Les opérateurs lift-the-hood à mobiliser

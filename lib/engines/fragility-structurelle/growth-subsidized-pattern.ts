@@ -64,7 +64,7 @@ const PATTERN_ID: PatternId = 'growth-subsidized-model';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la fragilité économique structurelle des
+export const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la fragilité économique structurelle des
 entreprises à forte croissance. Tu analyses le pattern Growth Subsidized Model
 sur ce dossier : croissance du revenu qui masque une économie unitaire qui détruit
 de la valeur à chaque transaction marginale.

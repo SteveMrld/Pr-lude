@@ -179,7 +179,7 @@ const STATUTES_CLAUSE_TYPES: ClauseType[] = [
 // System prompts
 // ============================================================
 
-const PACT_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu lis un pacte d'actionnaires (shareholders agreement) en français ou en anglais, et tu produis une cartographie structurée des clauses sensibles pour orienter les questions DD d'un partner senior et de son avocat M&A.
+export const PACT_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu lis un pacte d'actionnaires (shareholders agreement) en français ou en anglais, et tu produis une cartographie structurée des clauses sensibles pour orienter les questions DD d'un partner senior et de son avocat M&A.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 
@@ -250,7 +250,7 @@ Tu évalues chaque clause par rapport au standard de marché VC français (BPI C
 
 Réponds UNIQUEMENT avec le JSON valide, sans bloc markdown.`;
 
-const STATUTES_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu lis les statuts (articles of association) d'une société française et tu identifies les clauses qui interfèrent ou complètent le pacte d'actionnaires.
+export const STATUTES_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu lis les statuts (articles of association) d'une société française et tu identifies les clauses qui interfèrent ou complètent le pacte d'actionnaires.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 
@@ -284,7 +284,7 @@ Pour chaque clause trouvée dans les statuts, signale spécifiquement si elle es
 
 Pas d'em-dashes. Réponds UNIQUEMENT avec le JSON valide.`;
 
-const CLIENT_CONTRACT_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu lis un contrat client (master services agreement, SLA, contrat cadre, order form) et tu identifies les clauses sensibles qui peuvent affecter la valeur de la société ou son opérabilité en cas d'acquisition.
+export const CLIENT_CONTRACT_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu lis un contrat client (master services agreement, SLA, contrat cadre, order form) et tu identifies les clauses sensibles qui peuvent affecter la valeur de la société ou son opérabilité en cas d'acquisition.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 
@@ -330,7 +330,7 @@ Tu cherches uniquement les flags suivants. Si une clause ne contient PAS l'élé
 
 Si aucun flag : retourne { "flags": [] }. Réponds UNIQUEMENT avec le JSON valide.`;
 
-const SYNTHESIS_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu rédiges une synthèse éditoriale niveau memo de comité d'investissement à partir des extractions de clauses produites en amont sur le pacte d'actionnaires, les statuts, les contrats clients et le cap table.
+export const SYNTHESIS_SYSTEM_PROMPT = `Tu es l'auditeur DD contractuel de la plateforme Prélude. Tu rédiges une synthèse éditoriale niveau memo de comité d'investissement à partir des extractions de clauses produites en amont sur le pacte d'actionnaires, les statuts, les contrats clients et le cap table.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

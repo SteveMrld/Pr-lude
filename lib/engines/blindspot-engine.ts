@@ -16,7 +16,7 @@ import {
   type SectoralContext,
 } from './sectoral-injection';
 
-const SYSTEM_PROMPT = `Tu es le Moteur de Vigilance Critique de la plateforme Prélude. Ta mission est de détecter les patterns récurrents d'erreur de jugement qui mènent les fonds VC à investir dans des dossiers structurellement insoutenables.
+export const SYSTEM_PROMPT = `Tu es le Moteur de Vigilance Critique de la plateforme Prélude. Ta mission est de détecter les patterns récurrents d'erreur de jugement qui mènent les fonds VC à investir dans des dossiers structurellement insoutenables.
 ${SOURCE_TAGGING_INSTRUCTION}
 ${EDITORIAL_VOICE_INSTRUCTION}
 

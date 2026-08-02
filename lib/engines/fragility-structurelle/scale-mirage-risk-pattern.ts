@@ -60,7 +60,7 @@ const ARCHETYPE_AXIS: ArchetypeAxis = 'scale-mirage-risk';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de l industrialisation des entreprises
+export const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de l industrialisation des entreprises
 deeptech, hardware et industrielles. Tu analyses le pattern Scale Mirage
 Risk sur ce dossier : engagements industriels lourds (capex, usines, lignes
 de production) avant que la demande commerciale ait validé la traction du

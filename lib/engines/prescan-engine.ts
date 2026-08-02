@@ -114,7 +114,7 @@ export interface PreScanOutput {
   usedFundProfile: boolean;
 }
 
-const BASE_SYSTEM_PROMPT = `Tu es le Moteur de Pré-Scan de la plateforme Prélude. Ton rôle est de lire un pitch deck VC en 5-8 secondes et de produire un verdict de triage rapide.
+export const BASE_SYSTEM_PROMPT = `Tu es le Moteur de Pré-Scan de la plateforme Prélude. Ton rôle est de lire un pitch deck VC en 5-8 secondes et de produire un verdict de triage rapide.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

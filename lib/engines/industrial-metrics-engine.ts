@@ -90,7 +90,7 @@ export interface IndustrialMetricsExtraction {
 // PROMPT SYSTEM
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction Métriques Industrielles de la plateforme Prélude. Tu extrais des métriques précises et structurées à partir d'un pitch deck et d'un business plan, pour un dossier dont le modèle économique relève de la fabrication-vente, du projet long, ou du contrat B2G.
+export const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction Métriques Industrielles de la plateforme Prélude. Tu extrais des métriques précises et structurées à partir d'un pitch deck et d'un business plan, pour un dossier dont le modèle économique relève de la fabrication-vente, du projet long, ou du contrat B2G.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

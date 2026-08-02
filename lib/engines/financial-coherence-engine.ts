@@ -52,7 +52,7 @@ import {
 // reclassifier le dossier de son cote.
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es le Moteur de Cohérence Financière de la plateforme Prélude. Ta mission est de tester la solidité interne et externe des projections financières du dossier en appliquant des tests rigoureux que les meilleurs partners VC font à la main sur Excel.
+export const SYSTEM_PROMPT = `Tu es le Moteur de Cohérence Financière de la plateforme Prélude. Ta mission est de tester la solidité interne et externe des projections financières du dossier en appliquant des tests rigoureux que les meilleurs partners VC font à la main sur Excel.
 ${SOURCE_TAGGING_INSTRUCTION}
 ${EDITORIAL_VOICE_INSTRUCTION}
 

@@ -15,7 +15,7 @@ import {
   type SectoralContext,
 } from './sectoral-injection';
 
-const SYSTEM_PROMPT = `Tu es le Moteur de Singularités et Signaux Contrariens de la plateforme Prélude. Ta mission est d'identifier ce qui justifie d'investir DESPITE les drapeaux rouges, les signaux qu'aucun outil de scoring standard ne capture.
+export const SYSTEM_PROMPT = `Tu es le Moteur de Singularités et Signaux Contrariens de la plateforme Prélude. Ta mission est d'identifier ce qui justifie d'investir DESPITE les drapeaux rouges, les signaux qu'aucun outil de scoring standard ne capture.
 ${SOURCE_TAGGING_INSTRUCTION}
 ${EDITORIAL_VOICE_INSTRUCTION}
 

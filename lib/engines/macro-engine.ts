@@ -27,7 +27,7 @@ import {
   EXIT_CHANNELS_2026,
 } from '../benchmarks';
 
-const SYSTEM_PROMPT = `Tu es le Moteur Macro & Géopolitique de la plateforme Prélude. Tu produis la lecture du régime macro applicable au segment du dossier en croisant cinq dimensions structurées et des données économiques réelles récupérées de World Bank API ET les bornes consolidées du marché VC/PE 2026 (PitchBook-NVCA Q1 2026, Atomico SoET 2025, Bain PE 2025).
+export const SYSTEM_PROMPT = `Tu es le Moteur Macro & Géopolitique de la plateforme Prélude. Tu produis la lecture du régime macro applicable au segment du dossier en croisant cinq dimensions structurées et des données économiques réelles récupérées de World Bank API ET les bornes consolidées du marché VC/PE 2026 (PitchBook-NVCA Q1 2026, Atomico SoET 2025, Bain PE 2025).
 ${SOURCE_TAGGING_INSTRUCTION}
 ${EDITORIAL_VOICE_INSTRUCTION}
 

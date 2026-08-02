@@ -60,7 +60,7 @@ const ARCHETYPE_AXIS: ArchetypeAxis = 'commoditization-drift';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la défensibilité des entreprises à
+export const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la défensibilité des entreprises à
 forte composante cognitive ou software. Tu analyses le pattern Commoditization
 Drift sur ce dossier : érosion mécanique des moats existants par les outils
 IA générative et autres baisses de coût technologique.

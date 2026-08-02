@@ -66,7 +66,7 @@ const PATTERN_ID: PatternId = 'fixed-cost-trap';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la fragilité structurelle des modèles
+export const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la fragilité structurelle des modèles
 asset-heavy. Tu analyses le pattern Fixed Cost Trap sur ce dossier : coûts
 fixes incompressibles à long terme qui ne peuvent pas être réduits à
 proportion d une baisse de revenu, basant le modèle sur l hypothèse implicite

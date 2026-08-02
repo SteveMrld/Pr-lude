@@ -55,7 +55,7 @@ const ARCHETYPE_AXIS: ArchetypeAxis = 'capital-structure-fragility';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la structure de capital des
+export const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de la structure de capital des
 entreprises ayant accumulé plusieurs tours de financement. Tu analyses le
 pattern Capital Structure Fragility sur ce dossier : asymétries entre
 classes d actionnaires telles que la trajectoire vers une exit ou un

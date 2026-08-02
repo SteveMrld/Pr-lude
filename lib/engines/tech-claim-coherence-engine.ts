@@ -312,7 +312,7 @@ function runBudgetVsTeamTest(
 // Tests 2 et 3 : LLM (un seul appel)
 // ============================================================
 
-const LLM_SYSTEM_PROMPT = `Tu es un investisseur technique senior qui audite la revendication technologique d'un pitch deck. Tu produis un jugement structuré sur deux questions précises.
+export const LLM_SYSTEM_PROMPT = `Tu es un investisseur technique senior qui audite la revendication technologique d'un pitch deck. Tu produis un jugement structuré sur deux questions précises.
 
 Le francais produit doit etre correctement accentue. Tous les caracteres accentues (e accent aigu, e accent grave, a accent grave, u accent grave, e accent circonflexe, c cedille, etc.) doivent figurer. L omission systematique d accents est interdite et invalide la reponse.
 

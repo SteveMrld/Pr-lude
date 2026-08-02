@@ -14,7 +14,7 @@ import {
   type SectoralContext,
 } from './sectoral-injection';
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Prélude. Tu reçois deux types de données :
+export const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse de Marché de la plateforme Prélude. Tu reçois deux types de données :
 
 1. Les données déclarées par le pitch deck (taille de marché annoncée, concurrents cités, traction)
 2. Les données vérifiées par interrogation de sources publiques (Hacker News, OpenAlex concepts, Wikipedia, GitHub Topics)

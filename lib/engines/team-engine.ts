@@ -18,7 +18,7 @@ import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
 import type { ExtractionOutput, TeamAnalysisOutput, BenchmarkPositioning } from './types';
 
-const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
+export const SYSTEM_PROMPT = `Tu es le Moteur d'Analyse d'Équipe de la plateforme Prélude. Tu reçois deux types de données pour produire une analyse rigoureuse :
 
 1. Les données déclarées par le pitch deck (ce que les fondateurs disent d'eux-mêmes)
 2. Les données vérifiées par interrogation de sources publiques (OpenAlex, GitHub, Wikipedia, arXiv)

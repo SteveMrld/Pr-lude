@@ -71,7 +71,7 @@ function computeStructuralProximity(
   return Math.round((score / maxScore) * 100);
 }
 
-const SYSTEM_PROMPT = `Tu es le Moteur de Pattern Matching de la plateforme Prélude. Tu reçois les outputs des moteurs précédents (extraction, équipe, marché, macro) ainsi qu'une présélection de cas du corpus calculée algorithmiquement par proximité structurelle. Tu produis l'identification de l'archétype dominant du dossier et tu raffines les comparables historiques en explicitant les analogies structurelles précises et les divergences.
+export const SYSTEM_PROMPT = `Tu es le Moteur de Pattern Matching de la plateforme Prélude. Tu reçois les outputs des moteurs précédents (extraction, équipe, marché, macro) ainsi qu'une présélection de cas du corpus calculée algorithmiquement par proximité structurelle. Tu produis l'identification de l'archétype dominant du dossier et tu raffines les comparables historiques en explicitant les analogies structurelles précises et les divergences.
 ${SOURCE_TAGGING_INSTRUCTION}
 ${EDITORIAL_VOICE_INSTRUCTION}
 

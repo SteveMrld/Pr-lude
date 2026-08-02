@@ -65,7 +65,7 @@ const ARCHETYPE_AXIS: ArchetypeAxis = 'regulatory-time-bomb';
 // PROMPT
 // ============================================================
 
-const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de l exposition réglementaire des
+export const SYSTEM_PROMPT = `Tu es un analyste senior spécialiste de l exposition réglementaire des
 entreprises opérant dans des secteurs régulés ou en zone grise. Tu analyses
 le pattern Regulatory Time Bomb sur ce dossier : modèle économique reposant
 sur un état réglementaire actuel destiné à changer dans une fenêtre
