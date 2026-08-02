@@ -1,10 +1,61 @@
 # Grappe 3, tete de file
 
-Deux defauts ouverts au brief 23, non traites. Le premier a change de
-nature a l etablissement : la premisse de depart etait fausse, et la
-cause reelle est plus large.
+## 1. Un incident technique et une decision doctrinale sortent par la meme phrase
 
-## 1. Le parcours growth n a aucun multiple sectoriel
+Premier bloc de la grappe, et le seul qui ne soit pas un defaut local.
+Ce n est pas un site a corriger, c est une maniere de coder qui se
+repete.
+
+### Ce qui est lu
+
+Deux apparitions etablies, sur deux moteurs sans rapport entre eux.
+
+La premiere a ete fermee au brief 21, cote statut de moteur :
+`empty_output` et `skipped_not_applicable` partageaient un canal de
+sortie. Le premier signifie que le moteur a tourne et n a rien rendu,
+le second qu on a decide qu il ne devait pas tourner. Le lecteur du
+statut voyait une absence, sans savoir laquelle.
+
+La seconde est le motif de non-application des multiples sectoriels,
+etabli au brief 23. `Pas de plage de multiples definie pour X au stade
+Y` recouvre deux faits opposes. Soit la plage est neutralisee a zero,
+decision doctrinale documentee sur place, une PME sans EBITDA stable
+au seed ne se valorise pas sur des multiples d EBITDA. Soit la plage
+existe et le code n a pas su la lire, incident de double
+normalisation. Les deux sortent mot pour mot de la meme facon.
+
+Le patron est identique dans les deux cas. Un etat qui signifie « nous
+avons choisi de ne pas produire » et un etat qui signifie « nous
+n avons pas su produire » partagent un canal, et le canal est lu comme
+le premier. La consequence est toujours la meme : une panne se
+presente au lecteur comme une doctrine, donc elle ne remonte jamais,
+donc elle dure.
+
+Deux occurrences sur deux moteurs distincts en trois briefs ne font
+pas une coincidence. Le defaut n est pas dans les sites, il est dans
+l habitude de traiter l absence comme une categorie unique au moment
+d ecrire le message.
+
+### Ce qui reste a etablir
+
+Le recensement, qui est le travail du bloc. Chercher dans le pipeline
+tous les endroits ou une sortie de type « non applicable », « absent »,
+« indisponible » ou « non calculable » peut avoir les deux origines.
+Les moteurs a examiner en priorite sont ceux qui ont deja un
+vocabulaire de non-applicabilite : indicateurs, valorisation, matrice
+de pertinence, patterns de fragilite, injection sectorielle.
+
+La forme de la separation. Un champ structure a cote du message, sur
+le modele de ce que le brief 22 a fait pour la base de valorisation,
+ou deux messages distincts. La premiere est plus sure, un consommateur
+ne peut pas se tromper sur un enum ; la seconde est moins invasive
+mais laisse la distinction dans de la prose, ce qui est precisement ce
+qui a echoue jusqu ici.
+
+S il faut un test transversal qui interdise la reapparition du patron,
+plutot qu un test par site.
+
+## 2. Le parcours growth n a aucun multiple sectoriel
 
 ### Ce qui est lu
 
@@ -57,15 +108,10 @@ pas sur des multiples d EBITDA. La seconde est un incident technique.
 Le lecteur de la note croit a une non-applicabilite decidee la ou il y
 a une lacune de lecture, et il n a aucun moyen de faire la difference.
 
-C est la meme conflation que `empty_output` contre
-`skipped_not_applicable`, deja fermee cote statut de moteur au brief
-21, reapparue ailleurs. Le patron se repete : un etat qui signifie
-« nous avons choisi de ne pas produire » et un etat qui signifie
-« nous n avons pas su produire » partagent un canal de sortie, et le
-canal est lu comme le premier. Chaque fois que ce patron reapparait,
-il transforme une panne en doctrine aux yeux du lecteur. Il vaut la
-peine de le chercher ailleurs dans le pipeline plutot que de le
-corriger site par site.
+C est la seconde occurrence du patron traite au bloc 1, et ce bloc-ci
+en est le cas d espece : la correction du normaliseur rendra les plages
+accessibles mais ne separera pas les deux motifs, qui continueront de
+sortir par la meme phrase pour les cinq cases neutralisees a zero.
 
 ### Ce qui reste a etablir
 
@@ -87,7 +133,7 @@ Comment separer les deux motifs. Une plage neutralisee a zero et une
 plage introuvable doivent cesser de partager une phrase. La premiere
 est une decision, la seconde un incident.
 
-## 2. Le pipeline presuppose une levee de fonds
+## 3. Le pipeline presuppose une levee de fonds
 
 ### Ce qui est lu
 
@@ -141,7 +187,7 @@ Quels moteurs presupposent une levee au-dela des trois releves ici,
 VC inverse, dilution et cadrage de la note. La recherche n a porte que
 sur le contrat d extraction et le moteur de valorisation.
 
-## 3. Un insert qui echoue entierement sur une colonne inconnue
+## 4. Un insert qui echoue entierement sur une colonne inconnue
 
 Ouvert par la regression du 2 aout, deja programme en correctif au
 brief 23 point 2. Consigne ici pour memoire de l etablissement demande.
