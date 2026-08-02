@@ -227,3 +227,53 @@ l insert traite le cas, mais un insert qui se re-tente en boucle en
 retirant des champs peut ecrire une ligne silencieusement amputee.
 Une ligne incomplete ecrite sans bruit serait pire que l echec actuel,
 qui au moins se voit.
+
+## 5. Deux reflexes de mesure, tires de la grappe
+
+Consignes ici parce qu ils ont chacun coute une erreur de portee, et
+qu ils ne relevent d aucun des blocs precedents.
+
+### Mesurer la chaine entiere, pas le maillon corrige
+
+Le diagnostic du bloc 2 annoncait quatorze dossiers sur quarante et un
+qui retrouveraient leurs multiples sectoriels une fois l idempotence
+posee. La correction faite, un seul les retrouve.
+
+Le chiffre de quatorze etait juste sur ce qu il mesurait : quatorze
+dossiers perdaient bien leurs multiples a cause du normaliseur. Il
+mesurait une cause sur une chaine qui en portait deux. Douze des
+treize restants sont bloques en aval par un refus de base de
+millesime, leur ancre etant une date d ingestion de corpus, refus pose
+deliberement au brief 23 et parfaitement correct. Le treizieme l est
+par une classe d actif que la matrice n a pas tranchee.
+
+La bonne lecture est plus favorable que le chiffre brut. Un dossier
+growth depose depuis l interface n a pas d ancre d ingestion, donc
+n est pas concerne par ce refus : pour lui la correction suffit et la
+plage redevient accessible immediatement. Le parcours growth est
+repare en production. Les douze bloques sont un artefact du corpus,
+pas de l application, et ils redeviendront calculables le jour ou ils
+seront rejoues avec une vraie date de reception.
+
+Le reflexe a garder : une portee annoncee sur une cause n est pas une
+portee de bout en bout. Avant d annoncer combien de dossiers un
+correctif debloque, rejouer la chaine complete et non le maillon.
+C est la deuxieme fois dans la semaine qu une portee se revele
+differente du diagnostic, apres l inversion d ordre entre migration et
+push ou j avais affirme une consequence sans avoir verifie l insert.
+
+### Dette : engine-deadline.test.ts est intermittent
+
+`lib/orchestrator/engine-deadline.test.ts` a echoue une fois pendant un
+passage de suite complete, puis a repasse trois fois de suite isole. Le
+fichier compte dix-sept constructions temporelles, `setTimeout`,
+`Date.now`, `sleep` : il est sensible a la charge de la machine et non
+au code teste. Sans rapport avec les correctifs de cette grappe, qui ne
+touchent pas l orchestrateur.
+
+A traiter separement, et a ne pas laisser trainer. Un test intermittent
+finit toujours par etre ignore, et il masquera un vrai echec le jour ou
+il s en produira un. La question ouverte est s il faut injecter une
+horloge dans la couche de deadline, comme le depot l a fait ailleurs
+pour la fraicheur sectorielle avec le parametre `now`, ou accepter des
+marges plus larges au prix d un test qui prouve moins.
