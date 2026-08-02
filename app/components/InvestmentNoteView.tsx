@@ -2175,6 +2175,16 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       {(valuation as any).basis.stalenessNote}
                     </div>
                   )}
+                  {/* Anciennete non evaluee. Registre visuel distinct de
+                      la peremption : celle-ci affirme que le chiffre est
+                      vieux, celle-la dit qu on ne sait pas s il l est.
+                      Les rendre du meme rouge apprendrait au lecteur a
+                      les confondre. */}
+                  {(valuation as any).basis.ageUnknownNote && (
+                    <div style={{ marginTop: 6, color: 'var(--muted)', fontStyle: 'italic' }}>
+                      {(valuation as any).basis.ageUnknownNote}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -196,5 +196,77 @@ console.log('\n[Suite 4] la garde ne modifie ni le millesime ni la fourchette');
   check(avecAncre.basis.stale && !sansAncre.basis.stale, 'seule la version ancree porte la peremption');
 }
 
+// ============================================================
+console.log('\n[Suite 5] anciennete non evaluee, distincte de la peremption');
+// ============================================================
+
+{
+  // Base retenue par la branche 1, aucune ancre. Le millesime est sur,
+  // son age ne l est pas, et la sortie doit le dire. C est la
+  // contrepartie assumee de la saisie optionnelle de la date de
+  // reception : un dossier depose sans elle ne doit pas se presenter
+  // comme un dossier dont l anciennete a ete verifiee.
+  const out = computeValuation(buildInput({ asOf: null, lastActualYear: 2017, revenueProjection: OOGARDEN }));
+  const b = out.basis;
+
+  check(b.branch === 'explicit-actual', 'la branche 1 tranche');
+  check(b.year === 2017, 'le millesime 2017 est retenu');
+  check(b.ageUnknown === true, 'l anciennete est declaree non evaluee');
+  check(typeof b.ageUnknownNote === 'string' && b.ageUnknownNote!.length > 0, 'une mention est produite');
+  check((b.ageUnknownNote ?? '').includes('2017'), 'la mention nomme le millesime concerne');
+  check(
+    (b.ageUnknownNote ?? '').includes('date de reception'),
+    'la mention dit ce qui manque et comment le combler',
+  );
+  check(
+    out.warnings.some((w) => /Anciennete non evaluee/i.test(w)),
+    'la mention remonte dans les warnings de la note',
+  );
+
+  // Ce n est pas une peremption, et la sortie ne doit surtout pas
+  // l affirmer : une peremption dit que le chiffre est vieux, celle-ci
+  // dit qu on ne sait pas s il l est.
+  check(b.stale === false, 'aucune peremption declaree');
+  check(b.stalenessNote === null, 'aucune mention de peremption');
+  check(
+    !out.warnings.some((w) => /perimee/i.test(w)),
+    'aucun warning de peremption sur une anciennete non mesurable',
+  );
+  check(
+    !(b.ageUnknownNote ?? '').includes('perime'),
+    'la mention elle-meme ne parle pas de peremption',
+  );
+}
+
+{
+  // Meme dossier avec ancre : l age devient mesurable, la mention
+  // d anciennete non evaluee disparait et cede la place a la
+  // peremption. Les deux ne coexistent jamais.
+  const out = computeValuation(buildInput({ asOf: '2026-06-08', lastActualYear: 2017, revenueProjection: OOGARDEN }));
+  check(out.basis.ageUnknown === false, 'avec ancre, l anciennete est evaluee');
+  check(out.basis.ageUnknownNote === null, 'la mention disparait');
+  check(out.basis.stale === true, 'et la peremption prend le relais');
+}
+
+{
+  // Ancre presente, ecart sous le seuil : ni peremption, ni anciennete
+  // non evaluee. La sortie ne porte aucune des deux mentions, ce qui
+  // est le seul cas ou le silence est juste.
+  const out = computeValuation(buildInput({ asOf: '2026-03-01', lastActualYear: 2025 }));
+  check(out.basis.ageUnknown === false, 'anciennete evaluee');
+  check(out.basis.ageUnknownNote === null, 'aucune mention d anciennete');
+  check(out.basis.stale === false, 'aucune peremption');
+  check(out.basis.stalenessNote === null, 'aucune mention de peremption');
+}
+
+{
+  // Refus : aucun millesime retenu, donc rien dont l anciennete
+  // pourrait etre inconnue. La mention ne s ajoute pas a un refus.
+  const out = computeValuation(buildInput({ asOf: null, lastActualYear: null }));
+  check(out.basis.branch === 'refused', 'la base est refusee');
+  check(out.basis.ageUnknown === false, 'aucune anciennete inconnue sur un refus');
+  check(out.basis.ageUnknownNote === null, 'aucune mention sur un refus');
+}
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail > 0 ? 1 : 0);

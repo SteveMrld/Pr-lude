@@ -121,10 +121,25 @@ export interface ValuationBasis {
   anchorYear: number | null;
   /** True quand l ecart depasse le seuil doctrinal de peremption. */
   stale: boolean;
+  /**
+   * True quand un millesime a ete retenu mais que son anciennete n a
+   * pas pu etre mesuree, faute d ancre temporelle exploitable.
+   *
+   * Ce n est pas une peremption, et confondre les deux serait une
+   * faute : une peremption affirme que le chiffre est vieux, celle-ci
+   * dit qu on ne sait pas s il l est. Un dossier depose sans date de
+   * reception dont le deck qualifie 2017 de realise tranche par la
+   * branche 1, produit une fourchette, et rien ne signalait que
+   * personne n avait regarde l age de ce 2017.
+   */
+  ageUnknown: boolean;
   /** Phrase editoriale prete pour la note et le dashboard. */
   declaration: string;
   /** Mention de peremption, null quand l ecart reste sous le seuil. */
   stalenessNote: string | null;
+  /** Mention d anciennete non evaluee, null quand l age est mesurable
+   *  ou quand aucune base n a ete retenue. */
+  ageUnknownNote: string | null;
   /** Motif du refus, null quand une base a ete retenue. */
   refusalReason: string | null;
 }
@@ -675,7 +690,23 @@ function pickProjectionValueAtYear(
  * mais son age ne l est pas.
  */
 function withStaleness(basis: ValuationBasis, anchorYear: number | null): ValuationBasis {
-  if (anchorYear === null || basis.year === null) return basis;
+  if (basis.year === null) return basis;
+
+  // Base retenue, ancre absente. On ne peut rien dire de l age du
+  // millesime, et c est precisement ce qu il faut dire. Le silence
+  // laisserait un dossier de 2017 et un dossier de 2025 se presenter
+  // exactement de la meme facon.
+  if (anchorYear === null) {
+    return {
+      ...basis,
+      ageUnknown: true,
+      ageUnknownNote:
+        `Anciennete non evaluee : le millesime ${basis.year} a ete retenu, mais aucune date de reception du dossier n est disponible pour mesurer son age. `
+        + 'Ce n est pas une peremption, c est une absence de mesure : le chiffre peut etre de l an dernier comme d il y a dix ans. '
+        + 'Renseigner la date de reception en page d entree rend l ecart calculable et declenche, le cas echeant, la mention de peremption.',
+    };
+  }
+
   const gap = anchorYear - basis.year;
   const stale = gap > BASIS_STALENESS_THRESHOLD_YEARS;
   return {
@@ -683,6 +714,8 @@ function withStaleness(basis: ValuationBasis, anchorYear: number | null): Valuat
     anchorYear,
     anchorGapYears: gap,
     stale,
+    ageUnknown: false,
+    ageUnknownNote: null,
     declaration: `${basis.declaration} Ecart a l ancre du dossier : ${gap} an${Math.abs(gap) > 1 ? 's' : ''}.`,
     stalenessNote: stale
       ? `Base perimee : ${gap} ans separent le millesime retenu (${basis.year}) de la reception du dossier (${anchorYear}), au-dela du seuil doctrinal de ${BASIS_STALENESS_THRESHOLD_YEARS} ans. La fourchette reste calculee, mais elle applique des multiples de marche recents a un chiffre d affaires qui ne l est pas. A recroiser avec des comptes a jour avant toute discussion de prix.`
@@ -708,6 +741,8 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
       anchorGapYears: null,
       anchorYear: null,
       stale: false,
+      ageUnknown: false,
+      ageUnknownNote: null,
       declaration: `Base ${explicit.year}, dernier exercice que le deck qualifie explicitement de realise avec citation a l appui.`,
       stalenessNote: null,
       refusalReason: null,
@@ -735,6 +770,8 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
         anchorGapYears: null,
         anchorYear: null,
         stale: false,
+        ageUnknown: false,
+        ageUnknownNote: null,
         declaration: `Base ${year}, derniere annee de la serie anterieure a la reception du dossier (${input.asOf}). Le deck ne qualifie aucun exercice de realise : ${explicit.rejectionDetail ?? 'aucune mention explicite extractible.'}`,
         stalenessNote: null,
         refusalReason: null,
@@ -746,6 +783,8 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
       anchorGapYears: null,
       anchorYear: asOfYear,
       stale: false,
+      ageUnknown: false,
+      ageUnknownNote: null,
       stalenessNote: null,
       declaration: `Base refusee : aucun exercice qualifie de realise, et aucune annee des projections n est anterieure a la reception du dossier (${input.asOf}).`,
       refusalReason: years.length > 0
@@ -769,6 +808,8 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
     anchorGapYears: null,
     anchorYear: null,
     stale: false,
+    ageUnknown: false,
+    ageUnknownNote: null,
     stalenessNote: null,
     declaration: 'Base refusee : ni mention explicite de realise dans le deck, ni ancre temporelle exploitable pour designer le millesime.',
     refusalReason: `${explicit.rejectionDetail ?? 'Aucune mention explicite de realise extractible du deck.'} ${ancreMotif} Les multiples ne sont pas appliques : une fourchette calculee sur une projection vaudrait moins que pas de fourchette du tout.`,
@@ -1570,6 +1611,7 @@ function collectWarnings(
   // distinctes pour un fait unique obligeraient chaque consommateur en
   // aval a connaitre les deux formulations.
   if (basis.stalenessNote) warnings.push(basis.stalenessNote);
+  if (basis.ageUnknownNote) warnings.push(basis.ageUnknownNote);
 
   if (basis.branch === 'refused') {
     warnings.push(`Les multiples sectoriels n ont pas pu être appliqués : ${basis.refusalReason ?? basis.declaration}`);
