@@ -225,7 +225,13 @@ Le stade doit être revendiqué ou clairement déductible d'une mention de tour.
 
 4. ticketEur : le montant recherché, en euros, en nombre entier sans séparateur ni unité. Si le deck exprime un besoin de financement sans le qualifier de levée, retiens-le quand même et cite le passage. Si aucun montant n'est demandé, value null.`;
 
-function buildSystemPrompt(): string {
+/**
+ * Exporte pour le harnais de mesure de la grappe pre-scan, qui rejoue
+ * le pre-scan en faisant varier un seul element du prompt. Reconstruire
+ * le prompt dans le harnais l aurait fait diverger du prompt reel, et
+ * une mesure sur un prompt approche ne mesure rien.
+ */
+export function buildSystemPrompt(): string {
   return BASE_SYSTEM_PROMPT + FACTS_PROMPT + `
 
 FORMAT DE RÉPONSE OBLIGATOIRE (JSON pur, sans markdown, sans backticks)
@@ -250,7 +256,7 @@ FORMAT DE RÉPONSE OBLIGATOIRE (JSON pur, sans markdown, sans backticks)
 Tu ne rends ni score ni recommendation : le verdict est calculé en aval. L'ordre des cinq tests doit être respecté exactement comme ci-dessus, et les cinq doivent être présents.`;
 }
 
-function buildUserPrompt(): string {
+export function buildUserPrompt(): string {
   return `Voici le pitch deck à pré-scanner. Rends les cinq tests de jugement et les quatre faits, dans le JSON exact spécifié.`;
 }
 

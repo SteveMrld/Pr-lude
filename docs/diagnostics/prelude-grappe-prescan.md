@@ -479,6 +479,167 @@ donc note sur un bareme que le modele avait raccourci lui-meme. Ces
 quatre-la sont mecaniquement fermes par le bloc 2, sans rien attendre
 d un rejeu.
 
+## 7. Le rejeu, execute le 2 aout 2026
+
+Vingt-six decks du corpus, trois passes chacun, sur le pre-scan issu
+des blocs 1 et 2. Soixante-dix-huit passes lancees, soixante-six
+exploitables.
+
+### Quatre decks ne peuvent pas etre pre-scannes du tout
+
+Quatre decks echouent aux trois passes, et la cause n est pas le
+pre-scan. Deux depassent la limite de cent pages PDF de l API, deux
+depassent la taille maximale du document encode. Ce sont des
+memorandums d information, les plus lourds du corpus.
+
+En production, `runPreScan` leve, la route attrape et poursuit avec
+`preScan` a null, donc le pipeline complet tourne sans triage. **Quinze
+pour cent du corpus n est jamais triee, et rien ne le signale.** Le
+comportement de repli est le bon, un incident d API ne doit pas
+empecher une analyse, mais il est muet la ou il devrait etre declare.
+C est la meme forme que la non-production du bloc 2, restee en dehors
+parce qu elle vit dans la route et non dans le moteur.
+
+### La variance residuelle
+
+```
+verdict identique aux trois passes : 20/22  (91%)
+score identique                    : 14/22  (64%)
+vecteur des dix tests identique    : 13/22  (59%)
+```
+
+Le verdict tient sur vingt-deux dossiers sur vingt-deux moins deux. La
+justification tient beaucoup moins : quatre dossiers sur dix rendent un
+vecteur de tests different d une passe a l autre sans que le verdict
+bouge. La lecture du 2 aout se confirme donc et se precise : ce qui
+etait instable n etait pas d abord la conclusion, c etait le motif.
+
+Ou vit ce qui reste :
+
+```
+                        instable sur   echecs
+narrative     jugement       1/22       0/66
+founder       jugement       1/22       1/66
+financial     jugement       4/22       1/66
+market        jugement       1/22       0/66
+thesis_fit    jugement       4/22       0/66
+stage_ticket  comparaison    1/22       6/66
+sector_fit    comparaison    0/22       0/66
+geography_fit comparaison    0/22       0/66
+ticket_fit    comparaison    1/22       1/66
+stage_fit     comparaison    0/22       0/66
+```
+
+Trois des cinq comparaisons ne bougent jamais. Les deux qui bougent ne
+bougent pas d elles-memes : elles sont deterministes par construction,
+et l instabilite leur vient des faits. Le fait `sector` varie sur deux
+dossiers, `stage` sur deux, `ticketEur` sur un, et cette variation
+traverse la comparaison sans que celle-ci y soit pour rien.
+
+La conclusion de conception est que sortir un test du jugement ne le
+sort pas du modele. Elle deplace le point de variance de l appreciation
+vers l extraction, ou il est beaucoup plus facile a voir, a citer et a
+contredire, mais elle ne le supprime pas.
+
+### Le cas qui le montre, et qui corrige une limite du bloc 1
+
+Sur Pen Group, la troisieme passe extrait un ticket de 51 250 000 euros
+la ou les deux premieres lisent 5 125 000. Un facteur dix, avec une
+citation a l appui dans les trois cas. La comparaison fait alors
+exactement ce qu on lui demande et rend `fail` sur `ticket_fit`, ce qui
+fait basculer le verdict.
+
+La garde anti-divination attrape le fait absent et le fait sans
+citation. Elle n attrape pas le fait faux. Une valeur citee mais mal
+lue passe toutes les defenses, et le determinisme de la comparaison
+donne alors a l erreur l apparence d un calcul. C est une limite a
+inscrire au meme rang que les autres, et elle n a pas de correctif
+evident : un controle de vraisemblance sur le ticket croiserait a
+nouveau le stade, donc reintroduirait un jugement.
+
+### Les eliminations
+
+```
+verdicts sur 66 passes : pipeline_with_caveats 36, ready_for_pipeline 29,
+                         not_recommended 1
+decks elimines aux trois passes            : 0/22
+decks elimines au moins une fois sur trois : 1/22
+```
+
+Une seule elimination en soixante-six passes, sur Ytterbium, et elle ne
+tient qu a une passe sur trois : `founder` y rend `fail` au troisieme
+tirage et `pass` aux deux premiers. C est le dernier cas de la propriete
+qui a ouvert la grappe, une porte dont l ouverture depend du tirage, et
+il ne concerne plus qu un dossier sur vingt-deux. Il porte aussi sur un
+test de jugement, ce qui est desormais le seul endroit ou il puisse
+porter.
+
+Aucun deck n est elimine aux trois passes. Le taux d elimination du
+dispositif est donc, sur ce corpus et apres les deux blocs, de l ordre
+d une passe sur soixante-six, contre quinze verdicts `not_recommended`
+sur cinquante-trois runs historiques. La comparaison est indicative et
+non rigoureuse : ce ne sont ni les memes conditions ni le meme nombre
+de passes par dossier.
+
+### In Haircare
+
+Trois passes, trois fois `ready_for_pipeline`, neuf sur dix, avec des
+faits rigoureusement identiques : secteur `Consumer`, zone `France`,
+stade `growth`, ticket 800 000 euros. Le dossier qui a ouvert la grappe
+obtient desormais le verdict le plus favorable des trois, de facon
+reproductible.
+
+Une correction au passage, contre ce que la note et les tests du bloc 1
+supposaient. J avais ecrit que le stade n etait pas revendique et que
+`stage_ticket` serait non produit. Le modele derive en realite un stade,
+`growth`, et le test rend `fail`, puisque 800 000 euros sont tres en
+deca de la fourchette usuelle d un growth. L echec est stable, motive et
+non eliminatoire, mais mon hypothese de depart etait fausse : le
+fixture du test portait une supposition sur le dossier, pas une lecture.
+
+### L hypothese thesis_fit n a pas pu etre testee
+
+La mesure demandee etait une passe supplementaire, sur les seuls
+dossiers ou `thesis_fit` echouait, avec l identifiant renomme et
+l enonce inchange.
+
+**Sa condition ne s est jamais presentee : `thesis_fit` echoue zero fois
+sur soixante-six passes**, la ou il etait le premier motif d elimination
+du corpus historique, seul dans trois cas et associe dans trois autres
+sur treize eliminations lisibles. La passe renommee n a donc tourne sur
+aucun dossier.
+
+Le resultat est spectaculaire et il ne prouve pas l hypothese. Deux
+explications au moins le produisent, et le rejeu ne les separe pas. La
+premiere est celle du brief, l identifiant cadre la lecture avant
+l enonce, comme la ligne « Tour » des onze prompts. La seconde est au
+moins aussi economique : le bloc 1 a retire la these du fonds du prompt,
+donc le modele n a plus sous les yeux la matiere avec laquelle il
+echouait ce test. On a supprime la cause possible en meme temps que le
+symptome.
+
+Ce qui trancherait est un protocole a deux bras et non une passe de
+plus : reintroduire la these dans le prompt, puis faire varier le seul
+identifiant entre les deux bras. Cela suppose de reconstruire une
+version du prompt que le produit n a plus, et cela ne se fait pas en
+marge d une grappe. L hypothese reste donc une hypothese, et elle est
+desormais plus difficile a tester qu avant, ce qui est le prix d avoir
+corrige d abord.
+
+### La non-production, exercee d un seul cote
+
+Soixante-neuf tests non produits sur soixante-six passes, tous de cause
+`absence`, aucun de cause `incident`. Le modele a rendu ses cinq tests
+de jugement a chaque passe : la branche que le bloc 2 a ouverte pour les
+omissions n a pas ete empruntee une seule fois, et la regle qui interdit
+d eliminer sur un incident n a donc pas ete exercee.
+
+Les absences, elles, disent quelque chose du corpus. Le stade est nul
+aux trois passes sur sept dossiers, le ticket sur onze, soit la moitie.
+Ce sont pour l essentiel des memorandums d information de cession, et le
+constat rejoint celui de la grappe 4 : le dispositif presuppose une
+levee, et la moitie du corpus n en est pas une.
+
 ## Dettes ouvertes par cette grappe
 
 **Le nom de societe n est pas repris sur les lignes ecartees.** Les
