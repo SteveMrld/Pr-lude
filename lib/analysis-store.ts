@@ -613,6 +613,126 @@ export interface CreatePendingAnalysisInput {
   asOfSource?: 'deck-receipt' | 'corpus-ingestion' | null;
 }
 
+// ============================================================
+// INSERT TOLERANT A UNE COLONNE INCONNUE
+// ------------------------------------------------------------
+// En deploiement continu, le code precede regulierement le schema :
+// un commit qui ajoute une colonne part en production avant que la
+// migration ne soit passee. PostgREST rejette alors l insert entier
+// sur la colonne inconnue, et un champ optionnel fait perdre toute la
+// ligne.
+//
+// Cas mesure le 2 aout 2026. createPendingAnalysis ecrivait
+// as_of_source avant que la migration ne cree la colonne. L insert
+// echouait, la fonction rendait null, et la ligne d analyse n etait
+// creee qu en fin de pipeline par le chemin de secours, sans as_of,
+// sans frozen, sans started_at. Pendant les 625 secondes du run,
+// aucune ligne n existait : ni reprise apres coupure SSE, ni
+// progression ecrite, ni prise par le balayage des mort-nees.
+//
+// La tolerance retire la colonne fautive et rejoue, une fois par
+// colonne refusee, dans une limite stricte. Elle ne s applique qu au
+// motif "column ... does not exist" : une violation de contrainte,
+// un refus RLS ou une erreur de type continuent d echouer, et c est
+// voulu, ce sont des erreurs metier.
+//
+// Exigence qui accompagne la tolerance, et qui compte autant qu elle :
+// une ligne amputee en silence serait pire que l echec actuel, qui au
+// moins se voit. Chaque colonne retiree est donc journalisee, et la
+// liste remonte a l appelant pour que le run puisse en porter la
+// mention. Le degrade cesse d etre invisible.
+// ============================================================
+
+/** Borne du nombre de colonnes qu on accepte de retirer. Au-dela, ce
+ *  n est plus une dette de migration ponctuelle mais une divergence de
+ *  schema, et il vaut mieux echouer bruyamment. */
+const MAX_DROPPED_COLUMNS = 4;
+
+const UNKNOWN_COLUMN_REGEX = /column\s+"?([a-z0-9_.]+)"?\s+of\s+relation|column\s+([a-z0-9_.]+)\s+does not exist|could not find the '?([a-z0-9_]+)'? column/i;
+
+/** Nom de colonne extrait d un message d erreur PostgREST, ou null. */
+export function extractUnknownColumn(message: string | null | undefined): string | null {
+  if (!message) return null;
+  const m = message.match(UNKNOWN_COLUMN_REGEX);
+  if (!m) return null;
+  const raw = m[1] || m[2] || m[3];
+  if (!raw) return null;
+  // PostgREST prefixe parfois la relation : analyses.as_of_source.
+  const parts = raw.split('.');
+  return parts[parts.length - 1] || null;
+}
+
+export interface TolerantInsertResult<T> {
+  data: T | null;
+  error: any;
+  /** Colonnes retirees du payload pour que l insert passe. Vide dans
+   *  le cas nominal. Non vide, la ligne ecrite est amputee et
+   *  l appelant doit le signaler. */
+  droppedColumns: string[];
+}
+
+/**
+ * Insere une ligne en retirant les colonnes que le schema ne connait
+ * pas encore, une par une, en journalisant chaque retrait.
+ *
+ * Fonction generique volontairement : les vingt et un sites d insert
+ * du depot partagent le meme mode d echec, et une tolerance ecrite
+ * dans un seul d entre eux ne serait qu une rustine locale.
+ */
+export async function insertTolerant<T = any>(
+  client: any,
+  table: string,
+  payload: Record<string, any>,
+  select = 'id',
+): Promise<TolerantInsertResult<T>> {
+  const dropped: string[] = [];
+  let body = { ...payload };
+
+  for (let attempt = 0; attempt <= MAX_DROPPED_COLUMNS; attempt++) {
+    const { data, error } = await client.from(table).insert(body).select(select).single();
+    if (!error) {
+      if (dropped.length > 0) {
+        console.warn(
+          `[analysis-store] insert ${table} : ${dropped.length} colonne(s) retiree(s) faute de schema : ${dropped.join(', ')}. `
+          + 'La ligne ecrite est amputee de ces champs. Migration en retard sur le code.',
+        );
+      }
+      return { data: data as T, error: null, droppedColumns: dropped };
+    }
+
+    const colonne = extractUnknownColumn(error.message);
+    if (!colonne || !(colonne in body)) {
+      // Erreur metier, ou colonne introuvable dans le payload : on ne
+      // tente rien, l echec est legitime et doit se voir.
+      return { data: null, error, droppedColumns: dropped };
+    }
+    delete body[colonne];
+    dropped.push(colonne);
+  }
+
+  return {
+    data: null,
+    error: new Error(
+      `insert ${table} : plus de ${MAX_DROPPED_COLUMNS} colonnes inconnues, divergence de schema trop large pour etre toleree. Retirees : ${dropped.join(', ')}`,
+    ),
+    droppedColumns: dropped,
+  };
+}
+
+/**
+ * Colonnes retirees au dernier createPendingAnalysis, ou tableau vide.
+ * Lue par la route pour porter la mention dans le run : un degrade de
+ * schema doit apparaitre dans la trace du run et pas seulement dans les
+ * logs serveur, que personne ne relit apres coup.
+ */
+let lastPendingInsertDroppedColumns: string[] = [];
+
+export function consumePendingInsertDegradation(): string[] {
+  const out = lastPendingInsertDroppedColumns;
+  lastPendingInsertDroppedColumns = [];
+  return out;
+}
+
 /**
  * Cree une ligne d analyse en statut 'running' au tout debut du
  * pipeline. Retourne l id assigne par Postgres. Si la persistence
@@ -632,9 +752,10 @@ export async function createPendingAnalysis(
     }
     const supabase = getClient(useAdminClient);
     const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from('analyses')
-      .insert({
+    const { data, error, droppedColumns } = await insertTolerant<{ id: string }>(
+      supabase,
+      'analyses',
+      {
         user_id: userId,
         company_name: input.initialCompanyName || '(analyse en cours)',
         verdict: null,
@@ -651,12 +772,14 @@ export async function createPendingAnalysis(
         frozen: input.frozen === true,
         as_of: input.asOf || null,
         as_of_source: input.asOfSource || null,
-      })
-      .select('id')
-      .single();
+      },
+    );
     if (error) {
       console.error('[analysis-store] createPendingAnalysis erreur :', error);
       return null;
+    }
+    if (droppedColumns.length > 0) {
+      lastPendingInsertDroppedColumns = droppedColumns;
     }
     return data?.id || null;
   } catch (err) {

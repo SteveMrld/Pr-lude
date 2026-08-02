@@ -53,6 +53,7 @@ import {
   markAnalysisFailed,
   extractAnalysisMetadata,
   getCurrentUserId,
+  consumePendingInsertDegradation,
 } from '@/lib/analysis-store';
 import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
 import { requireConformingOutput } from '@/lib/engines/engine-output-contract';
@@ -407,6 +408,20 @@ export async function POST(req: NextRequest) {
       asOf,
       asOfSource,
     });
+
+    // Degradation de schema, s il y en a eu une. La ligne a bien ete
+    // creee mais amputee des colonnes que la base ne connait pas
+    // encore. Le fait remonte dans la trace du run et pas seulement
+    // dans les logs serveur, que personne ne relit apres coup : un
+    // degrade invisible vaut moins que l echec franc qu il remplace.
+    const schemaDegradation = consumePendingInsertDegradation();
+    if (schemaDegradation.length > 0) {
+      logException(
+        'api.analyze.schema-degradation',
+        new Error(`Ligne d analyse creee sans les colonnes ${schemaDegradation.join(', ')} : migration en retard sur le code.`),
+        { severity: 'warning', analysisId, context: { droppedColumns: schemaDegradation } },
+      );
+    }
 
     // Streaming SSE
     const stream = new ReadableStream({
