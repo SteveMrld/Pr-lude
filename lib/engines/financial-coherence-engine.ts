@@ -513,7 +513,7 @@ Le modele economique de ce dossier (${archetypeLabel}) n est pas evalue par les 
 Societe : ${extraction?.companyName ?? '?'}
 Secteur (libelle pitch) : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
 Modele economique declare : ${extraction?.businessModel ?? '?'}
-Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
+Stade declare : ${extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${extraction?.fundraise?.amount ?? '?'}
 
 # ARCHETYPE (precalcule deterministe par la matrice de pertinence)
 Archetype : ${archetype} - ${archetypeLabel}

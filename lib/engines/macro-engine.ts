@@ -430,7 +430,7 @@ Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extr
 
 Produit : ${extraction.productDescription}
 Business model : ${extraction.businessModel}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
+Stade declare : ${extraction.fundraise.stage} · Montant annonce : ${extraction.fundraise.amount}
 
 ${summary}
 

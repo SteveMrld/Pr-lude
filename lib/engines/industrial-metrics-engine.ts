@@ -242,7 +242,7 @@ export async function extractIndustrialMetrics(
 
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector}${extraction.subSector ? ' / ' + extraction.subSector : ''}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount || ''}
+Stade declare : ${extraction.fundraise.stage} · Montant annonce : ${extraction.fundraise.amount || 'non precise'}
 Géographie : ${extraction.country || 'non précisé'}
 
 Le pitch deck est joint.${bpContent ? '' : ' Aucun business plan séparé disponible : tu travailles uniquement sur le deck.'}

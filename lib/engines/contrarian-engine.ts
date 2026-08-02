@@ -190,7 +190,7 @@ Société : ${extraction?.companyName ?? '?'}
 Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
 Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
-Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
+Stade declare : ${extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${extraction?.fundraise?.amount ?? '?'}
 
 # FONDATEURS
 ${(Array.isArray(extraction.founders) ? extraction.founders : []).map(f => `- ${f.name} (${f.role}) : ${f.background}`).join('\n') || 'Aucun fondateur identifié dans le dossier.'}

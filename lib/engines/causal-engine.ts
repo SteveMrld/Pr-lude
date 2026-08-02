@@ -132,7 +132,7 @@ export async function performCausalReversal(
 # Extraction
 Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
 Géographie : ${formatExtractionGeography(extraction)}
-Tour : ${extraction?.fundraise?.stage ?? '?'} ${extraction?.fundraise?.amount ?? '?'}
+Stade declare : ${extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${extraction?.fundraise?.amount ?? '?'}
 
 # Équipe
 Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100 - ${team?.systemicCoverage?.rationale ?? '?'}

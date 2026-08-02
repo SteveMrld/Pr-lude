@@ -160,7 +160,7 @@ export async function generateReferenceChecks(
 ): Promise<ReferenceChecksOutput> {
   const userPrompt = `# Société
 ${extraction.companyName} (${extraction.sector} / ${extraction.subSector}, ${extraction.country})
-Tour : ${extraction.fundraise.stage} · ${extraction.fundraise.amount}
+Stade declare : ${extraction.fundraise.stage} · Montant annonce : ${extraction.fundraise.amount}
 
 # Fondateurs
 ${(extraction.founders || []).map(f => `- ${f.name} (${f.role}) : ${f.background}`).join('\n')}

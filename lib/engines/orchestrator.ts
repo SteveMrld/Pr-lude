@@ -657,7 +657,7 @@ export function buildOrchestratorUserPrompt(p: {
 
 ${conflictBlock}${annotationsBlock}${socleBlock}# CONTEXTE
 ${E.extraction?.sector ?? '?'} / ${E.extraction?.subSector ?? '?'} · ${formatExtractionGeography(E.extraction)}
-Tour : ${E.extraction?.fundraise?.stage ?? '?'} ${E.extraction?.fundraise?.amount ?? '?'}
+Stade declare : ${E.extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${E.extraction?.fundraise?.amount ?? '?'}
 Valorisation : ${E.extraction.fundraise?.valuation || 'non précisée'}
 
 # MOTEUR ÉQUIPE

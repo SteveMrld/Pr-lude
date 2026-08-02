@@ -106,7 +106,7 @@ export async function extractFinancialData(
 # CONTEXTE
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
+Stade declare : ${extraction.fundraise.stage} · Montant annonce : ${extraction.fundraise.amount}
 
 Le pitch deck est joint. Aucun business plan séparé n'est disponible.
 
@@ -144,7 +144,7 @@ Retourne uniquement le JSON.`;
 # CONTEXTE
 Société : ${extraction.companyName}
 Secteur : ${extraction.sector}
-Tour : ${extraction.fundraise.stage} ${extraction.fundraise.amount}
+Stade declare : ${extraction.fundraise.stage} · Montant annonce : ${extraction.fundraise.amount}
 
 # BUSINESS PLAN (contenu textuel extrait du fichier Excel, CSV ou Word)
 

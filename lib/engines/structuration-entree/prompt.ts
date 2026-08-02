@@ -99,7 +99,7 @@ export function buildStructurationUserPrompt(resultJson: any): string {
   lines.push('# DOSSIER A STRUCTURER');
   lines.push('');
   lines.push(`Societe : ${truncate(ext.companyName || resultJson?.companyName || 'non precisee', 200)}`);
-  lines.push(`Tour : ${truncate(ext.fundraise?.roundType || 'non precise', 100)}`);
+  lines.push(`Stade declare : ${truncate(ext.fundraise?.roundType || 'non precise', 100)}`);
   lines.push(`Montant : ${truncate(ext.fundraise?.amount || 'non precise', 100)}`);
   lines.push(`Valorisation declaree : ${truncate(ext.fundraise?.valuation || 'non precisee', 200)}`);
   lines.push(`Pays : ${truncate(ext.country || 'non precise', 100)}`);

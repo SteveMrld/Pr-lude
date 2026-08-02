@@ -360,7 +360,7 @@ async function runLLMTests(
 
 # CONTEXTE
 Secteur : ${extraction.sector || '?'} / ${extraction.subSector || '?'}
-Tour : ${extraction.fundraise?.stage || '?'} ${extraction.fundraise?.amount || '?'}
+Stade declare : ${extraction.fundraise?.stage || '?'} · Montant annonce : ${extraction.fundraise?.amount || '?'}
 
 # REVENDICATION TECH DÉTECTÉE
 Budget tech : ${budgetSignal.detected ? `${budgetSignal.percentage}% de la levée, soit ~${budgetSignal.amountEur ? Math.round(budgetSignal.amountEur / 1000) + 'k EUR' : 'montant non chiffré'}` : 'non chiffré dans le pitch'}
