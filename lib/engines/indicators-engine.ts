@@ -81,6 +81,15 @@ export interface IndicatorResult {
    *  disponibles dans la projection. null si l indicateur n a pas
    *  ete calculable (non-applicable, absent). */
   computedForYear?: number | null;
+  /**
+   * Cause structuree de la non-production, null quand l indicateur a
+   * une valeur. verdict='non-applicable' recouvrait quatre faits que
+   * le message melangeait deux a deux par un ou : benchmarks absents
+   * faute d asset class ou de stade, donnees du BP absentes, annee de
+   * reference non derivable, division impossible. Le lecteur d un
+   * tableau de bord voyait une seule categorie.
+   */
+  nonProductionCause: import('./non-production').NonProductionCauseOrNull;
   /** Etat editorial de la base de calcul, tres important pour ne
    *  pas presenter un chiffre projete comme un realise :
    *   - 'actual'  : refYear connu, annee calculee <= refYear.
@@ -279,9 +288,10 @@ function computeBurnMultiple(
     return {
       key: 'burnMultiple', label, value: null, unit: 'x',
       verdict: 'non-applicable',
+      nonProductionCause: !benchmarks ? 'doctrine' : 'absence',
       rationale: !benchmarks
-        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Indicateur neutralise pour eviter un verdict cale sur des seuils logiciels decales.'
-        : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
+        ? 'Aucun jeu de benchmarks ne correspond au couple asset class et stade de ce dossier. L indicateur est neutralise plutot que cale sur des seuils logiciels decales : c est une decision, pas une donnee manquante.'
+        : 'Donnees du business plan absentes pour cet indicateur. Rien n a echoue, le dossier ne porte pas les series necessaires.',
       dataConfidence: 'absent',
       computedForYear: null,
       baseState: 'unknown',
@@ -293,6 +303,7 @@ function computeBurnMultiple(
     return {
       key: 'burnMultiple', label, value: null, unit: benchmark.unit,
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: refYear === null
         ? 'Annee de reference du dossier non derivable. Indicateur non calculable sans base temporelle validee, jamais devine sur l horloge systeme.'
         : 'Aucune annee de projection utilisable pour cet indicateur.',
@@ -323,6 +334,7 @@ function computeBurnMultiple(
     return {
       key: 'burnMultiple', label, value: null, unit: benchmark.unit,
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: newArr == null
         ? `Croissance revenue annuelle non calculable depuis le BP (annee ${targetYear} ou precedente absente).`
         : newArr <= 0
@@ -339,6 +351,7 @@ function computeBurnMultiple(
   return {
     key: 'burnMultiple', label, value: roundTo(value, 2), unit: benchmark.unit,
     verdict: classifyValue(value, benchmark),
+    nonProductionCause: null,
     rationale: `Burn ${formatEur(burn)} / Net New ARR ${formatEur(newArr)} = ${roundTo(value, 2)}x.${baseStateSuffix(resolved.baseState)}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -373,9 +386,10 @@ function computeRuleOf40(
     return {
       key: 'ruleOf40', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: !benchmarks ? 'doctrine' : 'absence',
       rationale: !benchmarks
-        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Indicateur neutralise.'
-        : 'Indicateur non applicable au couple asset-class / stage ou donnees BP absentes.',
+        ? 'Aucun jeu de benchmarks ne correspond au couple asset class et stade de ce dossier. L indicateur est neutralise plutot que cale sur des seuils decales : c est une decision, pas une donnee manquante.'
+        : 'Donnees du business plan absentes pour cet indicateur. Rien n a echoue, le dossier ne porte pas les series necessaires.',
       dataConfidence: 'absent',
       computedForYear: null,
       baseState: 'unknown',
@@ -387,6 +401,7 @@ function computeRuleOf40(
     return {
       key: 'ruleOf40', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: refYear === null
         ? 'Annee de reference du dossier non derivable. Indicateur non calculable sans base temporelle validee, jamais devine sur l horloge systeme.'
         : 'Aucune annee de projection utilisable pour cet indicateur.',
@@ -419,6 +434,7 @@ function computeRuleOf40(
     return {
       key: 'ruleOf40', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: growth == null
         ? `Croissance YoY non calculable (annee ${targetYear} ou precedente absente du BP).`
         : 'Marge FCF ou EBITDA non extractible du BP.',
@@ -433,6 +449,7 @@ function computeRuleOf40(
   return {
     key: 'ruleOf40', label, value: roundTo(value, 1), unit: '%',
     verdict: classifyValue(value, benchmark),
+    nonProductionCause: null,
     rationale: `Croissance YoY ${roundTo(growth, 1)}% + Marge ${marginType} ${roundTo(marginPct, 1)}% = ${roundTo(value, 1)}%.${baseStateSuffix(resolved.baseState)}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -459,6 +476,7 @@ function computeNdr(
     return {
       key: 'ndr', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: !benchmarks
         ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). NDR neutralise.'
         : 'NDR non applicable a cet asset class. La metrique mesure la retention nette de revenus recurrents sur la base installee, pertinente uniquement pour les modeles SaaS, fintech recurrent, ou consumer subscriptions. Modele du dossier non concerne.',
@@ -493,6 +511,7 @@ function computeNdr(
     return {
       key: 'ndr', label, value: roundTo(ret.ndr, 1), unit: '%',
       verdict: classifyValue(ret.ndr, benchmark),
+      nonProductionCause: null,
       rationale: `NDR ${roundTo(ret.ndr, 1)}% (${provenanceLabel}). ${ret.notes || ''}`.trim(),
       dataConfidence: confidence,
       benchmark: thresholdsToBenchmark(benchmark),
@@ -510,6 +529,7 @@ function computeNdr(
     return {
       key: 'ndr', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'NDR non communique dans le BP. Doit etre demande au fondateur en DD : (ARR debut + expansion - churn - downgrade) / ARR debut.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -520,6 +540,7 @@ function computeNdr(
   return {
     key: 'ndr', label, value: roundTo(value, 1), unit: '%',
     verdict: classifyValue(value, benchmark),
+    nonProductionCause: null,
     rationale: `NDR declare ${roundTo(value, 1)}% (cite dans rawNotes du BP). Verifier methodologie de calcul en DD.`,
     dataConfidence: 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -543,6 +564,7 @@ function computeMagicNumber(
     return {
       key: 'magicNumber', label, value: null, unit: 'x',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: !benchmarks
         ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Magic Number neutralise.'
         : 'Magic Number non applicable a cet asset class. La metrique mesure l efficacite du capital S&M dans la generation d ARR new, pertinente uniquement pour les modeles SaaS et software a vente recurrente. Modele du dossier non concerne.',
@@ -577,6 +599,7 @@ function computeMagicNumber(
     return {
       key: 'magicNumber', label, value: roundTo(se.magicNumber, 2), unit: 'x',
       verdict: classifyValue(se.magicNumber, benchmark),
+      nonProductionCause: null,
       rationale: `Magic Number ${roundTo(se.magicNumber, 2)}x (${provenanceLabel}). ${se.notes || ''}`.trim(),
       dataConfidence: confidence,
       benchmark: thresholdsToBenchmark(benchmark),
@@ -586,6 +609,7 @@ function computeMagicNumber(
   return {
     key: 'magicNumber', label, value: null, unit: 'x',
     verdict: 'non-applicable',
+    nonProductionCause: 'absence',
     rationale: 'Magic Number non calculable depuis le BP standard. Necessite S&M depense Q-1 et ARR new annualise du Q. Doit etre extrait du pitch ou demande au fondateur en DD.',
     dataConfidence: 'absent',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -618,6 +642,7 @@ function computePaybackCac(
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: !benchmarks
         ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Payback CAC neutralise.'
         : 'Payback CAC non applicable a cet asset class. La metrique mesure la duree d amortissement du cout d acquisition d un client, pertinente uniquement pour les modeles a vente recurrente ou repetable. Modele du dossier non concerne.',
@@ -633,6 +658,7 @@ function computePaybackCac(
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Payback CAC non applicable : le modele economique n implique pas d acquisition par funnel marketing mesurable (vente B2G par appels d offres, projets uniques negocies). La metrique pertinente pour ce modele est le cycle commercial moyen et le taux de gain sur appels d offre soumis.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -667,6 +693,7 @@ function computePaybackCac(
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'CAC ou ACV non communiques dans le pitch ni le BP. Doivent etre demandes en DD pour calculer le payback. Demander aussi le funnel de conversion (visites / leads / customers) pour qualifier la base reelle du CAC.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -682,6 +709,7 @@ function computePaybackCac(
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Contribution unitaire mensuelle nulle ou negative : payback non calculable.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -726,6 +754,7 @@ function computePaybackCac(
   return {
     key: 'paybackCac', label, value: roundTo(value, 1), unit: 'mois',
     verdict: classifyValue(value, benchmark),
+    nonProductionCause: null,
     rationale: `${cacExplanation} / (ACV ${formatEur(acv)} / 12 × marge brute ${grossMarginPct != null ? `${roundTo(grossMarginPct, 0)}%` : '50% proxy'}) = ${roundTo(value, 1)} mois.`,
     dataConfidence,
     benchmark: thresholdsToBenchmark(benchmark),
@@ -748,6 +777,7 @@ function computeGrossMargin(
     return {
       key: 'grossMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: !benchmarks
         ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifie). Marge brute neutralisee : sera evaluee qualitativement en DD selon le secteur reel du dossier.'
         : 'Indicateur non applicable ou donnees BP absentes.',
@@ -791,6 +821,7 @@ function computeGrossMargin(
     return {
       key: 'grossMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Projection de marge brute absente du dossier (grossMarginProjection vide ou entrees non parseables). Donnee critique pour evaluer la viabilite unitaire : a demander en DD un BP portant une serie annuelle de marge brute chiffree.',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -817,6 +848,7 @@ function computeGrossMargin(
   return {
     key: 'grossMargin', label, value: roundTo(value, 1), unit: '%',
     verdict: classifyValue(value, benchmark),
+    nonProductionCause: null,
     rationale: targetYear !== null
       ? `Marge brute ${roundTo(value, 1)}% pour l exercice ${targetYear}.${trajectoryNote}${baseStateSuffix(baseState)}`
       : `Marge brute ${roundTo(value, 1)}% (moyenne des projections disponibles).${trajectoryNote}${baseStateSuffix(baseState)}`,
@@ -841,6 +873,7 @@ function computeRevenuePerEmployee(
     return {
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: !benchmarks
         ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifié). Capital efficiency neutralisée.'
         : 'Indicateur non applicable ou données BP absentes.',
@@ -855,6 +888,7 @@ function computeRevenuePerEmployee(
     return {
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: refYear === null
         ? 'Année de référence du dossier non dérivable, capital efficiency non calculable sans base temporelle validée.'
         : 'Aucune année de projection revenue utilisable.',
@@ -872,6 +906,7 @@ function computeRevenuePerEmployee(
     return {
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: revenue == null
         ? `Revenue ${targetYear} absent du BP.`
         : `Headcount ${targetYear} absent du BP. Donnée critique pour évaluer la capital efficiency.`,
@@ -886,6 +921,7 @@ function computeRevenuePerEmployee(
   return {
     key: 'revenuePerEmployee', label, value: Math.round(value), unit: 'EUR/FTE',
     verdict: classifyValue(value, benchmark),
+    nonProductionCause: null,
     rationale: `Revenue ${formatEur(revenue)} / ${headcount} ETP = ${formatEur(value)} par employé (exercice ${targetYear}).${baseStateSuffix(resolved.baseState)}`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -973,6 +1009,7 @@ function computeUnitMargin(
     return {
       key: 'unitMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Marge brute par unite non communiquee dans le BP ni inferable du pitch. Critique pour les modeles a fabrication-vente : a extraire en DD (prix unitaire + cout direct par unite, hors overheads).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -983,6 +1020,7 @@ function computeUnitMargin(
   return {
     key: 'unitMargin', label, value: roundTo(marginPct, 1), unit: '%',
     verdict: classifyValue(marginPct, benchmark),
+    nonProductionCause: null,
     rationale: `Marge brute par unite ${roundTo(marginPct, 1)}% (extraite du ${sourceLabel}).`,
     dataConfidence: 'high',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -1001,6 +1039,7 @@ function computeCommercialCycle(im?: IndustrialMetricsExtraction | null): Indica
     return {
       key: 'commercialCycle', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Cycle commercial moyen non extractible du pitch ni du BP. Determinant pour les modeles a fabrication-vente et a projets : a demander en DD (du premier contact a la signature, hors phase de production).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -1010,6 +1049,7 @@ function computeCommercialCycle(im?: IndustrialMetricsExtraction | null): Indica
   return {
     key: 'commercialCycle', label, value: im.commercialCycleMonths, unit: 'mois',
     verdict: classifyValue(im.commercialCycleMonths, benchmark),
+    nonProductionCause: null,
     rationale: `Cycle commercial moyen ${im.commercialCycleMonths} mois (provenance ${im.commercialCycleProvenance}).`,
     dataConfidence: im.commercialCycleProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -1031,6 +1071,7 @@ function computeOrderBacklog(
     return {
       key: 'orderBacklog', label, value: null, unit: 'x',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Carnet de commandes non communique dans les documents fournis. Indicateur structurant de visibilite pour les modeles industriels : a demander en DD (somme des contrats signes ou commandes fermes / revenue annuel projete).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -1045,6 +1086,7 @@ function computeOrderBacklog(
     return {
       key: 'orderBacklog', label, value: null, unit: 'x',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: refYear === null
         ? `Carnet de commandes ${formatEur(im.orderBacklogEur)} extrait, mais annee de reference du dossier non derivable. Multiple non calculable sans base temporelle validee.`
         : `Carnet de commandes ${formatEur(im.orderBacklogEur)} extrait, mais revenue exercice ${resolved?.year ?? refYear} absent du BP.`,
@@ -1059,6 +1101,7 @@ function computeOrderBacklog(
   return {
     key: 'orderBacklog', label, value: roundTo(multiple, 2), unit: 'x',
     verdict: classifyValue(multiple, benchmark),
+    nonProductionCause: null,
     rationale: `Carnet de commandes ${formatEur(im.orderBacklogEur)} / revenue ${formatEur(revenue)} = ${roundTo(multiple, 2)}x annualise sur exercice ${resolved!.year} (provenance ${im.orderBacklogProvenance}).${baseStateSuffix(resolved!.baseState)}`,
     dataConfidence: im.orderBacklogProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -1082,6 +1125,7 @@ function computeWorkingCapitalRatio(
     return {
       key: 'workingCapitalRatio', label, value: null, unit: 'ratio',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Working capital non extractible des documents. Critique pour les modeles industriels a cycle long : a demander en DD (besoin en fonds de roulement / revenue annuel).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -1096,6 +1140,7 @@ function computeWorkingCapitalRatio(
     return {
       key: 'workingCapitalRatio', label, value: null, unit: 'ratio',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: refYear === null
         ? `Working capital ${formatEur(im.workingCapitalEur)} extrait, mais annee de reference du dossier non derivable. Ratio non calculable sans base temporelle validee.`
         : `Working capital ${formatEur(im.workingCapitalEur)} extrait, mais revenue exercice ${resolved?.year ?? refYear} absent du BP.`,
@@ -1110,6 +1155,7 @@ function computeWorkingCapitalRatio(
   return {
     key: 'workingCapitalRatio', label, value: roundTo(ratio, 2), unit: 'ratio',
     verdict: classifyValue(ratio, benchmark),
+    nonProductionCause: null,
     rationale: `Working capital ${formatEur(im.workingCapitalEur)} / revenue ${formatEur(revenue)} = ${roundTo(ratio, 2)} (exercice ${resolved!.year}).${baseStateSuffix(resolved!.baseState)}`,
     dataConfidence: im.workingCapitalProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -1130,6 +1176,7 @@ function computeProjectCapex(im?: IndustrialMetricsExtraction | null): Indicator
     return {
       key: 'projectCapex', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Capex par projet et / ou taille moyenne contrat non extraits. Indicateur d intensite capitalistique pour les modeles a SPV : a demander en DD (capex moyen par projet / revenue moyen par projet).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -1140,6 +1187,7 @@ function computeProjectCapex(im?: IndustrialMetricsExtraction | null): Indicator
   return {
     key: 'projectCapex', label, value: roundTo(ratioPct, 1), unit: '%',
     verdict: classifyValue(ratioPct, benchmark),
+    nonProductionCause: null,
     rationale: `Capex projet ${formatEur(im.capexPerProjectEur)} / contrat moyen ${formatEur(im.averageContractValueEur)} = ${roundTo(ratioPct, 1)}%.`,
     dataConfidence: 'medium',
     benchmark: thresholdsToBenchmark(benchmark),
@@ -1155,6 +1203,7 @@ function computeIndustrialCapacity(im?: IndustrialMetricsExtraction | null): Ind
     return {
       key: 'industrialCapacity', label, value: null, unit: 'unites/an',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Capacite industrielle non communiquee. Determinante pour les modeles a fabrication unitaire : a demander en DD (production maximale annuelle au stade actuel et trajectoire de scale-up).',
       dataConfidence: 'absent',
     };
@@ -1162,6 +1211,7 @@ function computeIndustrialCapacity(im?: IndustrialMetricsExtraction | null): Ind
   return {
     key: 'industrialCapacity', label, value: im.annualProductionCapacityUnits, unit: 'unites/an',
     verdict: 'sain', // Pas de seuil par benchmark, on affiche la valeur sans verdict comparatif
+    nonProductionCause: null,
     rationale: `Capacite ${im.annualProductionCapacityUnits} unites par an au stade actuel (provenance ${im.annualProductionCapacityProvenance}).`,
     dataConfidence: im.annualProductionCapacityProvenance === 'declared' ? 'high' : 'medium',
   };
@@ -1178,6 +1228,7 @@ function computeTenderWinRate(im?: IndustrialMetricsExtraction | null): Indicato
     return {
       key: 'tenderWinRate', label, value: null, unit: '%',
       verdict: 'non-applicable',
+      nonProductionCause: 'absence',
       rationale: 'Taux de gain sur appels d offres non communique. Critique pour les modeles B2G et project-based : a demander en DD (nombre d appels d offre gagnes / nombre soumis sur les 24 derniers mois).',
       dataConfidence: 'absent',
       benchmark: thresholdsToBenchmark(benchmark),
@@ -1187,6 +1238,7 @@ function computeTenderWinRate(im?: IndustrialMetricsExtraction | null): Indicato
   return {
     key: 'tenderWinRate', label, value: roundTo(im.tenderWinRatePct, 1), unit: '%',
     verdict: classifyValue(im.tenderWinRatePct, benchmark),
+    nonProductionCause: null,
     rationale: `Taux de gain ${roundTo(im.tenderWinRatePct, 1)}% sur appels d offres soumis (provenance ${im.tenderWinRateProvenance}).`,
     dataConfidence: im.tenderWinRateProvenance === 'declared' ? 'high' : 'medium',
     benchmark: thresholdsToBenchmark(benchmark),

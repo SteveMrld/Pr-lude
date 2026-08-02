@@ -85,6 +85,14 @@ export interface DDTechnicalTest {
 }
 
 export interface DDTechnicalOutput {
+  /**
+   * Cause structuree de la non-production, null quand l audit a
+   * tourne. verdict='not_applicable' recouvrait deux faits opposes :
+   * aucun document technique fourni, ce qui est une absence, et un
+   * appel LLM en echec, ce qui est un incident. Le second ne se lisait
+   * que dans reasonNotTriggered, en prose.
+   */
+  nonProductionCause: import('./non-production').NonProductionCauseOrNull;
   triggered: boolean;
   reasonNotTriggered?: string;
 
@@ -428,6 +436,8 @@ export async function analyzeDDTechnical(
   if (!opts.techDocs || opts.techDocs.length === 0) {
     return {
       triggered: false,
+      // Absence : le partner n a pas depose de document, rien n a echoue.
+      nonProductionCause: 'absence',
       reasonNotTriggered:
         "Aucun document technique fourni. Pour declencher l audit DD technique, le partner doit deposer dans la data room le ou les documents transmis par la startup (architecture overview, security policy, BCP, RGPD register, etc.).",
       documentsAnalyzed: [],
@@ -468,6 +478,9 @@ Produis le JSON structuré avec les 10 tests T1 à T10, la synthèse et les ques
     console.warn('[dd-technical] LLM call failed:', err?.message);
     return {
       triggered: false,
+      // Incident : les documents etaient la, l appel a echoue. Le
+      // dossier merite d etre rejoue, ce que 'absence' ne disait pas.
+      nonProductionCause: 'incident',
       reasonNotTriggered: `Erreur lors de l appel LLM pour l audit DD technique : ${
         err?.message || 'unknown'
       }`,
@@ -524,6 +537,7 @@ Produis le JSON structuré avec les 10 tests T1 à T10, la synthèse et les ques
 
   return {
     triggered: true,
+    nonProductionCause: null,
     documentsAnalyzed: docs.map((d) => ({ name: d.name, analyzed: true })),
     tests,
     globalScore,
