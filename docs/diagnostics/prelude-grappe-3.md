@@ -349,6 +349,42 @@ retirant des champs peut ecrire une ligne silencieusement amputee.
 Une ligne incomplete ecrite sans bruit serait pire que l echec actuel,
 qui au moins se voit.
 
+### Sa premiere utilite reelle, hors reparation de son propre incident
+
+Note du 2 aout 2026, apres la grappe 6.
+
+L insert tolerant a ete ecrit pour reparer l incident qui l avait fait
+naitre, `as_of_source` ecrit avant que la colonne existe. Tant qu il
+n a servi qu a cela, il restait un pansement sur une inversion d ordre
+qu on s etait promis de ne pas refaire, donc une piece dont la valeur
+etait indissociable de la faute qui l avait justifiee.
+
+La grappe 6 lui donne son premier emploi de plein droit. Le bloc 3
+depose `deck_hash` a la creation de la ligne, et
+`supabase-deck-hash-migration.sql` n est pas encore executee. Sans la
+tolerance, le meme enchainement recommencerait a l identique : insert
+rejete en entier, aucune ligne pendant toute la duree du run, aucune
+reprise possible apres coupure, et le champ perdu par-dessus le
+marche. Avec elle, la ligne se cree, `deck_hash` est retire, le retrait
+est journalise, et le run porte la mention de sa degradation. Le seul
+effet du retard de migration est l absence du champ, ce qui est
+exactement sa portee.
+
+La lecon de conception depasse le cas. Une tolerance qui ne sert qu a
+absorber ses propres incidents est suspecte, parce qu elle deplace la
+discipline au lieu de la remplacer. Celle-ci change de nature des lors
+qu elle rend l ordre entre code et migration indifferent : ecrire un
+champ avant sa colonne cesse d etre une faute a eviter pour devenir une
+degradation nommee et bornee. C est la propriete qui rendait
+l inversion d ordre discutable au brief 23, et elle est desormais
+acquise plutot que promise.
+
+Elle ne dispense pas d executer la migration, elle dispense de la faire
+passer avant. La ligne de conduite reste d appliquer la migration au
+premier acces au PAT, et le controle est le meme qu au premier jour :
+`consumePendingInsertDegradation` doit rendre un retrait de `deck_hash`
+sur les runs d ici la, et plus rien apres.
+
 ## 5. Deux reflexes de mesure, tires de la grappe
 
 Consignes ici parce qu ils ont chacun coute une erreur de portee, et
