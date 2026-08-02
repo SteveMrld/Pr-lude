@@ -311,12 +311,17 @@ function pickEuropeanComparables(
     return compSector.split(/[/\s]+/).some((token) => token.length > 3 && haystack.includes(token));
   });
 
-  // Si on n a pas 3 matches sectoriels, on complete avec quelques references generiques
+  // Le remplissage par defaut disparait. Il completait jusqu a trois en
+  // prenant les premieres entrees de la liste, si bien qu un dossier
+  // dont le secteur ne recoupait rien recevait Mistral, Lovable et
+  // Synthesia comme comparables europeens. C est ce qui s est produit
+  // sur le memorandum IIoT du 3 aout : trois bouchons presentes comme
+  // des comparables, aucun date, aucun source, la comparabilite
+  // argumentee sur rien.
+  //
+  // Aucun comparable vaut mieux qu un comparable faux : le premier se
+  // voit et se corrige, le second se cite en comite.
   const top: typeof MIGHTY_50_SAMPLE[number][] = matches.slice(0, 3);
-  if (top.length < 3) {
-    const generic: typeof MIGHTY_50_SAMPLE[number][] = MIGHTY_50_SAMPLE.filter((c) => !top.includes(c)).slice(0, 3 - top.length);
-    top.push(...generic);
-  }
 
   return top.map((c) => ({
     name: c.name,
@@ -369,12 +374,6 @@ export async function analyzeBenchmarks(
     warnings.push('Stade du tour non identifiable. Benchmarks de positionnement indisponibles.');
   }
 
-  // Warning specifique Europe vs US
-  if (region === 'Europe') {
-    warnings.push(
-      "Dossier europeen compare aux benchmarks US (PitchBook). Le marche europeen est structurellement ~6x plus petit annuellement (Atomico SoET 2025). Privilegier les comparables europeens listes ci-dessous.",
-    );
-  }
 
   // 3. Calcul des deviations et verdicts
   const preMoneyDeviation =
@@ -416,6 +415,22 @@ export async function analyzeBenchmarks(
   // 5. Selection des comparables europeens si applicable
   const europeanComparables =
     region === 'Europe' ? pickEuropeanComparables(extraction) : undefined;
+
+  // Un dossier europeen sans comparable sectoriel doit le dire. Sans
+  // cette mention, la note affiche simplement une section vide et le
+  // lecteur ne sait pas si le moteur n a rien trouve ou n a pas
+  // cherche : c est la distinction que la grappe 3 a imposee partout
+  // ailleurs, appliquee ici.
+  if (region === 'Europe') {
+    const base = 'Dossier europeen compare aux benchmarks US (PitchBook). Le marche europeen est structurellement ~6x plus petit annuellement (Atomico SoET 2025).';
+    // La phrase renvoyait a des comparables listes ci-dessous meme
+    // quand il n y en avait aucun. Un avertissement qui renvoie a une
+    // section vide se lit comme une erreur d affichage plutot que comme
+    // une reserve de methode.
+    warnings.push((europeanComparables?.length ?? 0) > 0
+      ? `${base} Privilegier les comparables europeens listes ci-dessous.`
+      : `${base} Aucun comparable europeen ne recoupe le secteur de ce dossier dans la liste de reference : le moteur n en propose donc aucun, plutot que de completer avec des societes sans lien sectoriel. L ecart Europe contre Etats-Unis reste a corriger a la main.`);
+  }
 
   // 6. Citations
   const citations = [
