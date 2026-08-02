@@ -148,8 +148,12 @@ Reste a faire avant prod commerciale :
 Reste a faire en optimisation :
 - Persistence dediee snapshots Trajectoire en table Supabase
   separee (actuellement on agrege sur les versions existantes).
-- Refactor de app/HomeClient.tsx (6000 lignes, decouper en
-  sous-composants).
+- Refactor des deux gros fichiers d interface, a egalite et non plus
+  un seul : app/HomeClient.tsx (7015 lignes) et
+  app/components/InvestmentNoteView.tsx (7008 lignes), a decouper en
+  sous-composants. Le second est le fichier le plus souvent touche du
+  depot, puisque toute evolution de la note d instruction y passe.
+  Mesure au 2 aout 2026.
 - Narrative Drift V2 (ingestion communications externes pour
   activer le sous-module KPI_EXTINCTION).
 
@@ -196,7 +200,7 @@ Si Steve demande quoi faire en priorite, l ordre est :
 1. Calibration LLM des sept patterns Fragilite structurelle
 2. Tests E2E pipeline sur dossier reel
 3. Adaptation note et dashboard pour parcours growth
-4. Refactor HomeClient.tsx
+4. Refactor HomeClient.tsx et InvestmentNoteView.tsx
 5. Narrative Drift V2
 6. Persistence dediee snapshots Trajectoire
 
