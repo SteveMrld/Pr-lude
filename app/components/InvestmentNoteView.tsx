@@ -24,7 +24,13 @@ import {
   DIMENSION_LABELS,
   SECTORS as SECTORAL_SECTORS,
 } from '@/lib/engines/sectoral-intelligence/types';
-import { computeValuation } from '@/lib/engines/valuation-engine';
+import {
+  computeValuation,
+  // Les libelles de nature viennent du moteur, ils ne sont pas
+  // reecrits ici : la note ne doit pas pouvoir nommer une grandeur
+  // autrement que le calcul qui l a produite.
+  VALUATION_NATURE_LABELS as NATURE_LABELS,
+} from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { computeTopRisks } from '@/lib/compute-top-risks';
 import { aggregateRefutations } from '@/lib/refutation/aggregator';
@@ -2087,10 +2093,15 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
           {/* BLOC 1.7 : FOURCHETTE DE VALORISATION
               Resultat du moteur valuation-engine (calcul deterministe).
-              Affiche la fourchette pre-money plausible, le detail des
-              methodes utilisees (multiples sectoriels, VC method, Berkus,
-              Scorecard), l analyse de dilution sur le ticket propose, et
-              les warnings methodologiques. Si aucune methode n est
+              Affiche une fourchette par nature de valeur, au plus deux,
+              chacune nommee : valeur d entreprise pour les multiples
+              sectoriels, pre-money pour la VC inverse, Berkus et
+              Scorecard. Les deux ne se comparent pas terme a terme,
+              l ecart etant la dette nette que le pipeline n extrait pas,
+              et la section le dit au lecteur. Puis le detail des
+              methodes utilisees, l analyse de dilution sur le ticket
+              propose, calculee sur la seule pre-money, et les warnings
+              methodologiques. Si aucune methode n est
               applicable (cas extreme : dossier sans BP, sans secteur
               identifie, sans ticket), la section explique pourquoi. */}
           {valuation && (
@@ -2098,9 +2109,17 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <div className="verdict-block-head">
                 <span className="verdict-block-num" aria-hidden="true">1.7</span>
                 <span className="verdict-block-title">Fourchette de valorisation</span>
-                {valuation.recommendedRange && (
+                {/* Le chiffre de tete n apparait que si le moteur rend une
+                    nature unique. Deux natures, deux chiffres qui ne se
+                    comparent pas : en afficher un seul en gros caractere
+                    reintroduirait exactement le melange que la
+                    consolidation par nature a supprime. */}
+                {valuation.recommendedRange && (valuation as any).ranges?.length === 1 && (
                   <span className="verdict-block-figure" style={{ fontSize: 22 }}>
                     {formatEurShort(valuation.recommendedRange.central)}
+                    <span style={{ fontSize: 11, marginLeft: 6, color: 'var(--muted)', fontFamily: 'var(--sans)' }}>
+                      {NATURE_LABELS[(valuation as any).ranges[0].nature] ?? ''}
+                    </span>
                   </span>
                 )}
               </div>
@@ -2145,9 +2164,31 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 </div>
               )}
 
-              {/* Barre visuelle de la fourchette */}
-              {valuation.recommendedRange && (
-                <div style={{ marginBottom: 16 }}>
+              {/* ============================================================
+                  Une barre par nature de valeur. Le moteur rend au plus
+                  deux fourchettes, une en valeur d entreprise issue des
+                  multiples sectoriels, une en pre-money issue de la VC
+                  inverse, de Berkus ou de Scorecard. Elles sont vraies
+                  toutes les deux et ne se comparent pas : ce qui les
+                  separe est la dette nette du dossier, que le contrat
+                  d extraction financiere ne porte pas.
+                  ============================================================ */}
+              {((valuation as any).ranges ?? []).map((r: any) => (
+                <div key={r.nature} style={{ marginBottom: 16 }}>
+                  <div style={{
+                    fontSize: 11,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--ocre-brule)',
+                    fontFamily: 'var(--sans)',
+                    fontWeight: 600,
+                    marginBottom: 6,
+                  }}>
+                    {NATURE_LABELS[r.nature] ?? r.nature}
+                    <span style={{ textTransform: 'none', fontWeight: 400, color: 'var(--muted)', marginLeft: 8 }}>
+                      {r.contributions?.map((c: any) => c.label).join(', ')}
+                    </span>
+                  </div>
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -2185,10 +2226,28 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     fontWeight: 500,
                     marginTop: 4,
                   }}>
-                    <span>{formatEurShort(valuation.recommendedRange.min)}</span>
-                    <span style={{ color: 'var(--ocre-brule)' }}>{formatEurShort(valuation.recommendedRange.central)}</span>
-                    <span>{formatEurShort(valuation.recommendedRange.max)}</span>
+                    <span>{formatEurShort(r.min)}</span>
+                    <span style={{ color: 'var(--ocre-brule)' }}>{formatEurShort(r.central)}</span>
+                    <span>{formatEurShort(r.max)}</span>
                   </div>
+                </div>
+              ))}
+
+              {((valuation as any).ranges ?? []).length > 1 && (
+                <div style={{
+                  fontSize: 12,
+                  lineHeight: 1.6,
+                  marginBottom: 16,
+                  padding: '8px 12px',
+                  borderLeft: '2px solid var(--muted)',
+                  color: 'var(--ink-soft)',
+                }}>
+                  Ces deux fourchettes ne se comparent pas terme a terme. Ce qui les
+                  separe est la dette nette du dossier, et le pipeline ne l extrait
+                  pas : le contrat d extraction financiere ne porte ni dette
+                  financiere, ni tresorerie, ni besoin en fonds de roulement. Le
+                  rapprochement revient au partner, sur des elements de bilan que le
+                  deck ne fournit pas.
                 </div>
               )}
 
@@ -2212,11 +2271,23 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   }}>
                     Analyse de dilution sur ticket {formatEurShort(valuation.dilutionAnalysis.proposedTicket)}
                   </div>
-                  <div>
-                    Sur valo basse {formatEurShort(valuation.recommendedRange?.min || 0)} : <strong>{valuation.dilutionAnalysis.dilutionAtMin}%</strong>.{' '}
-                    Sur valo centrale {formatEurShort(valuation.recommendedRange?.central || 0)} : <strong>{valuation.dilutionAnalysis.dilutionAtCentral}%</strong>.{' '}
-                    Sur valo haute {formatEurShort(valuation.recommendedRange?.max || 0)} : <strong>{valuation.dilutionAnalysis.dilutionAtMax}%</strong>.
-                  </div>
+                  {/* La dilution se lit sur la fourchette pre-money et sur
+                      elle seule. Elle affichait les bornes de
+                      recommendedRange, qui pouvait etre une valeur
+                      d entreprise : la dette nette n est pas diluee par une
+                      augmentation de capital, et le pourcentage n aurait
+                      rien voulu dire. */}
+                  {(() => {
+                    const pm = ((valuation as any).ranges ?? []).find((r: any) => r.nature === 'pre_money');
+                    if (!pm) return null;
+                    return (
+                      <div>
+                        Sur pre-money basse {formatEurShort(pm.min)} : <strong>{valuation.dilutionAnalysis.dilutionAtMin}%</strong>.{' '}
+                        Sur pre-money centrale {formatEurShort(pm.central)} : <strong>{valuation.dilutionAnalysis.dilutionAtCentral}%</strong>.{' '}
+                        Sur pre-money haute {formatEurShort(pm.max)} : <strong>{valuation.dilutionAnalysis.dilutionAtMax}%</strong>.
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

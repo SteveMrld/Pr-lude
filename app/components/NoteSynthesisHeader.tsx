@@ -409,9 +409,13 @@ interface ValuationBarProps {
   min: number;
   central: number;
   max: number;
+  /** Libelle de la nature mesuree, ecrit dans le libelle
+   *  d accessibilite. La barre affirmait « pre-money » en dur alors
+   *  qu elle pouvait rendre une valeur d entreprise. */
+  natureLabel: string;
 }
 
-function ValuationBar({ min, central, max }: ValuationBarProps) {
+function ValuationBar({ min, central, max, natureLabel }: ValuationBarProps) {
   const width = 480;
   const height = 68;
   const barY = 28;
@@ -426,7 +430,7 @@ function ValuationBar({ min, central, max }: ValuationBarProps) {
       width="100%"
       height="auto"
       preserveAspectRatio="none"
-      aria-label={`Valorisation pre-money entre ${formatEurCompact(min)} et ${formatEurCompact(max)} avec central ${formatEurCompact(central)}`}
+      aria-label={`Valorisation en ${natureLabel} entre ${formatEurCompact(min)} et ${formatEurCompact(max)} avec central ${formatEurCompact(central)}`}
       role="img"
       style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
     >
@@ -563,8 +567,23 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
   const forces = extractTopForces(result, 3);
   const risks = extractTopRisks(result, 3);
 
-  const valuationRange = valuation?.recommendedRange;
+  // Le cartouche de synthese affichait recommendedRange sous le
+  // libelle « Valorisation pre-money », alors que le champ portait une
+  // moyenne ponderee de deux natures. Il lit desormais la liste des
+  // fourchettes et rend une barre par nature, chacune nommee. Le
+  // libelle en dur a disparu : c est la sortie du moteur qui dit ce
+  // qu elle mesure, pas le composant qui le suppose.
+  const valuationRanges: Array<{ nature: string; min: number; central: number; max: number }> =
+    Array.isArray(valuation?.ranges) && valuation.ranges.length > 0
+      ? valuation.ranges
+      : (valuation?.recommendedRange && typeof valuation.recommendedRange.central === 'number'
+        ? [{ nature: 'pre_money', ...valuation.recommendedRange }]
+        : []);
   const valuationConfidence = valuation?.confidence;
+  const NATURE_LABEL: Record<string, string> = {
+    enterprise_value: "valeur d'entreprise",
+    pre_money: 'pre-money',
+  };
 
   // Argumentation : passe par sanitizeNarrative (module unifie
   // lib/note/section-fallback) en ceinture-et-bretelles. Meme si
@@ -630,16 +649,23 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
       </section>
 
       {/* C. VALORISATION */}
-      {valuationRange && typeof valuationRange.central === 'number' && (
+      {valuationRanges.length > 0 && (
         <section className="note-syn-valuation">
-          <div className="note-syn-eyebrow">
-            Valorisation pre-money · fiabilite {formatConfidence(valuationConfidence)}
-          </div>
-          <ValuationBar
-            min={valuationRange.min}
-            central={valuationRange.central}
-            max={valuationRange.max}
-          />
+          {valuationRanges.map((r, i) => (
+            <React.Fragment key={r.nature}>
+              <div className="note-syn-eyebrow">
+                Valorisation en {NATURE_LABEL[r.nature] ?? r.nature}
+                {i === 0 ? ` · fiabilite ${formatConfidence(valuationConfidence)}` : ''}
+              </div>
+              <ValuationBar min={r.min} central={r.central} max={r.max} natureLabel={NATURE_LABEL[r.nature] ?? r.nature} />
+            </React.Fragment>
+          ))}
+          {valuationRanges.length > 1 && (
+            <div className="note-syn-eyebrow" style={{ marginTop: 6, opacity: 0.85 }}>
+              Deux natures, non comparables terme a terme : l ecart est la dette nette,
+              que le pipeline n extrait pas.
+            </div>
+          )}
         </section>
       )}
 
