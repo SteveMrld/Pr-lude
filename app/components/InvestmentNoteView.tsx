@@ -571,6 +571,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         // refuse de s ancrer, ce qui est le comportement voulu : mieux
         // vaut un refus motive qu une ancre dont on ignore le sens.
         asOfSource: (r as any)?.meta?.asOfSource ?? null,
+        operationType: (r.extraction as any)?.fundraise?.operationType ?? null,
       });
     } catch (err) {
       console.warn('[InvestmentNoteView] recompute valuation failed:', err);

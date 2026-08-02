@@ -1563,6 +1563,9 @@ export async function POST(req: NextRequest) {
             // hardware au vocabulaire FR, retombait en saas-b2b par
             // defaut et calibrait la fourchette sur des exits SaaS.
             relevanceMatrix,
+            // Nature de l operation, pour neutraliser les methodes hors
+            // de leur domaine. Non-etabli ne neutralise rien.
+            operationType: extraction?.fundraise?.operationType ?? null,
             // Ancrage temporel de la regle de millesime. Le moteur ne
             // lit plus l horloge : a defaut de mention explicite de
             // realise dans le deck, c est la date de reception du

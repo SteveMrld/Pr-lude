@@ -38,11 +38,12 @@ import {
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 import type { RelevanceMatrix } from '@/lib/engines/relevance-matrix';
+import type { OperationType } from '@/lib/engines/types';
 import {
   deriveDossierReferenceYearWithReason,
   normalizeYear,
 } from '@/lib/analysis/reference-year';
-import type { NonProductionCauseOrNull } from '@/lib/engines/non-production';
+import type { NonProductionCause, NonProductionCauseOrNull } from '@/lib/engines/non-production';
 
 // ============================================================
 // MILLESIME DE REFERENCE DES MULTIPLES
@@ -283,6 +284,9 @@ export interface ValuationOutput {
    *  de dilution motivee ne se confonde pas avec un dossier sans
    *  ticket. */
   dilutionNotComputableReason: string | null;
+  /** Cause structuree du non-calcul de la dilution. Null quand elle est
+   *  calculee ou quand aucun ticket n est annonce. */
+  dilutionNotComputableCause: NonProductionCauseOrNull;
   /** Si un ticket est mentionne dans le pitch, analyse de dilution. */
   dilutionAnalysis?: {
     proposedTicket: number;
@@ -365,6 +369,19 @@ interface ValuationInput {
    * silencieusement faux.
    */
   asOfSource?: 'deck-receipt' | 'corpus-ingestion' | null | undefined;
+  /**
+   * Nature de l operation instruite, lue depuis
+   * extraction.fundraise.operationType. Sert a neutraliser les
+   * methodes hors de leur domaine, et a elles seules : les multiples
+   * sectoriels restent applicables sur les quatre types, ce sont des
+   * multiples de transaction autant que de tour.
+   *
+   * Quand le type vaut 'non-etabli', aucune neutralisation n a lieu.
+   * Le pipeline ne sait pas, donc il ne decide pas : transformer une
+   * ignorance en decision serait exactement le patron que la grappe 3
+   * a ferme.
+   */
+  operationType?: OperationType | null | undefined;
 }
 
 /**
@@ -485,15 +502,30 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // reste absente sinon.
   const ticket = parseTicket(input.extraction);
   const preMoneyRange = ranges.find((r) => r.nature === 'pre_money') ?? null;
-  const dilutionAnalysis = (preMoneyRange && ticket.equity)
+  // Sur une cession totale, la dilution disparait par construction : il
+  // n y a plus d actionnaire existant a diluer, l integralite du
+  // capital change de main. Le fait est declare avec sa cause plutot
+  // que rendu par un champ vide, qu un lecteur confondrait avec un
+  // dossier sans ticket annonce. Sur une cession partielle elle garde
+  // un sens, la question du pourcentage cede restant posee.
+  const dilutionHorsDomaine = input.operationType === 'cession-totale';
+  const dilutionAnalysis = (!dilutionHorsDomaine && preMoneyRange && ticket.equity)
     ? buildDilutionAnalysis(preMoneyRange, ticket.equity)
     : null;
   // Dilution non calculable faute de repartition : le fait est porte
   // explicitement plutot que rendu par une absence, qu un lecteur
   // confondrait avec un tour sans ticket annonce.
-  const dilutionNotComputable = (preMoneyRange && ticket.total && !ticket.equity)
+  const dilutionNotComputable = dilutionHorsDomaine
+    ? 'Dilution sans objet sur une cession totale : l integralite du capital change de main, il n y a pas d actionnaire existant dont la part serait reduite. La question pertinente est celle du prix paye, pas du pourcentage obtenu.'
+    : (preMoneyRange && ticket.total && !ticket.equity)
     ? `Dilution non calculable : le tour annonce ${formatEur(ticket.total)} sous la forme "${ticket.raw}", qui melange capital et un autre instrument sans donner la repartition. Une dilution calculee sur le montant total sur-estimerait la part obtenue par le fonds. A chiffrer avec la societe avant toute discussion de prix.`
     : null;
+  // La cause distingue les deux motifs de non-production. Hors domaine
+  // sur une cession totale, c est une decision ; faute de repartition
+  // capital contre dette, c est une donnee absente.
+  const dilutionNotComputableCause: NonProductionCauseOrNull = dilutionHorsDomaine
+    ? 'doctrine'
+    : dilutionNotComputable ? 'absence' : null;
 
   // ---------- Synthese editoriale
   const synthesis = buildSynthesis({
@@ -515,6 +547,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     methods,
     dilutionAnalysis,
     dilutionNotComputableReason: dilutionNotComputable,
+    dilutionNotComputableCause,
     assetClass,
     stage,
     basis,
@@ -946,6 +979,27 @@ function computeByVcMethod(
   assetClass: string,
   stage: ValuationStage,
 ): ValuationMethodResult {
+  // Hors domaine sur cession et LBO. La methode modelise le rendement
+  // d un investisseur qui entre au capital et calcule le pre-money
+  // qu il peut payer pour atteindre son IRR cible. Sur une cession, il
+  // n y a pas d entree au capital mais un transfert de propriete, et
+  // sur un LBO le rendement depend d une structure de dette que le
+  // pipeline n extrait pas. Ce n est ni un incident ni une absence de
+  // donnee : c est une methode appliquee hors de ce qu elle sait
+  // mesurer.
+  const op = input.operationType;
+  if (op === 'cession-partielle' || op === 'cession-totale' || op === 'lbo') {
+    const libelle = op === 'lbo' ? 'un LBO' : 'une cession';
+    return {
+      method: 'vc-method',
+      nature: 'pre_money',
+      label: 'Methode VC inverse',
+      applicable: false,
+      notApplicableCause: 'doctrine',
+      notApplicableReason: `La VC inverse ne s applique pas a ${libelle}. Elle deduit le pre-money qu un investisseur peut payer pour atteindre son IRR cible en entrant au capital, or il n y a pas d entree au capital dans cette operation. Les multiples sectoriels restent applicables, ce sont des multiples de transaction autant que de tour.`,
+    };
+  }
+
   const targetIRR = 0.30; // 30% IRR cible classique VC
   const horizonYears = stage === 'seed' ? 7 : stage === 'series-a' ? 6 : stage === 'series-b' ? 5 : 4;
 
@@ -1291,6 +1345,7 @@ function buildNonApplicableValuation(
     methods,
     dilutionAnalysis: null,
     dilutionNotComputableReason: null,
+    dilutionNotComputableCause: null,
     assetClass,
     stage,
     basis,
