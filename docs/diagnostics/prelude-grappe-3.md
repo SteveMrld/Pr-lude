@@ -180,22 +180,108 @@ growth du corpus sont des memorandums d information de cession ou de
 LBO, pas des decks de levee. Le parcours growth du produit est donc
 peuple d operations que le contrat d extraction ne sait pas nommer.
 
-### Ce qui reste a etablir
+### Doctrine tranchee
 
-Le perimetre produit, qui se tranche a l ouverture de la grappe et non
-ici. Aucun correctif n est propose : le defaut de parsing est reel
-mais second, et le corriger sans trancher le perimetre rendrait un
-ticket nul la ou il rend aujourd hui un ticket faux, sans que la note
-cesse pour autant de parler de levee.
+Arbitree au brief 24, elle n est pas rediscutee ici.
 
-Quelle proportion du corpus est concernee, au-dela des quatorze
-dossiers growth. Rien ne dit que tous soient des cessions, ni qu aucun
-dossier early ne le soit. La mesure demande une lecture des
-memorandums, pas une requete.
+Le type d operation devient une donnee extraite de premier rang, au
+meme titre que le stade. Trois valeurs au depart : levee, cession
+totale ou partielle, LBO. Quand le type n est pas etabli avec
+citation, il est declare non etabli, et les moteurs qui presupposent
+une levee, VC inverse et dilution, se declarent non applicables avec
+motif plutot que de calculer sur une hypothese. C est la meme
+discipline que celle appliquee au millesime de valorisation au brief
+22 : une donnee sans citation n est pas une donnee, et un refus motive
+vaut mieux qu un calcul sur une supposition.
 
-Quels moteurs presupposent une levee au-dela des trois releves ici,
-VC inverse, dilution et cadrage de la note. La recherche n a porte que
-sur le contrat d extraction et le moteur de valorisation.
+### Perimetre du changement, mesure
+
+Quatre couches, du contrat vers le rendu. Les sites cites sont ceux
+qui touchent `fundraise`, releves sur le depot et non estimes.
+
+**Le contrat de type.** `ExtractionOutput.fundraise`
+(`lib/engines/types.ts:24-30`) porte `stage`, `amount`, `valuation`,
+`leadInvestor`, `coInvestors`. Le type d operation s y ajoute, avec sa
+citation, sur le modele de `lastActualYear` et
+`lastActualYearEvidence` : la valeur et la preuve voyagent ensemble,
+et la primitive qui les lit refuse la premiere sans la seconde. Un
+quatrieme etat, non etabli, est necessaire et ne doit pas etre un
+`null` silencieux.
+
+**Le prompt d extraction.** `lib/engines/extraction-engine.ts:33-39`.
+Le bloc `fundraise` presuppose la levee dans ses libelles memes :
+`amount` est decrit comme « montant leve ou recherche », `valuation`
+comme « valorisation pre-money ou post-money », et l enumeration de
+`stage` ne propose que des stades de levee, de `pre-seed` a `pre-IPO`.
+Sur une cession, le modele n a aucune case ou ranger ce qu il lit, et
+il range dans celles qui existent : c est ainsi que « Cession de 100%
+du capital » est arrive dans `amount`. Le prompt doit gagner le champ
+de type avec sa regle anti-divination, et les libelles des trois
+champs existants doivent cesser de nommer la levee comme seul cadre.
+
+**Les moteurs consommateurs.** Quatorze fichiers lisent `fundraise`,
+en trois familles de nature differente.
+
+La premiere famille est celle qui calcule sur le montant, et c est la
+seule que la doctrine neutralise. `valuation-engine.ts` lit
+`fundraise.amount` par `parseTicket` pour la VC inverse et pour la
+dilution. Ces deux-la se declarent non applicables quand le type n est
+pas etabli ou n est pas une levee.
+
+La deuxieme famille lit le stade pour choisir des seuils :
+`valuation-engine` par `normalizeStage`, `pattern-engine.ts:612` et
+`narrative-drift-engine.ts:360` par `stageToStade`,
+`capital-structure-fragility-pattern.ts`. Elle n est pas concernee par
+le type d operation : un stade reste un stade sur une cession, et les
+benchmarks sectoriels par palier gardent leur sens.
+
+La troisieme famille n injecte qu une ligne de contexte dans un prompt,
+de la forme `Tour : ${stage} ${amount}` : `saas-metrics-engine.ts:388`,
+`industrial-metrics-engine.ts:245`,
+`reference-checks-engine.ts:163`,
+`financial-coherence-engine.ts:516`, `financial-extraction-engine.ts`,
+`blindspot-engine.ts:326`, `orchestrator.ts:661`. Elle ne calcule
+rien, mais elle dit « Tour » a sept moteurs sur une operation qui n en
+est pas un. Le mot cadre la lecture du modele, et le changement y est
+peu couteux : une ligne par site.
+
+Restent deux sites hors pipeline. `assertion-validator.ts` verifie des
+affirmations portant sur `amount` et `valuation`.
+`reconciliation-prefill.ts:131` prefixe le formulaire de
+reconciliation avec le stade et le montant. Les deux suivent
+mecaniquement, sans decision doctrinale propre.
+
+**La note.** `InvestmentNoteView.tsx` affiche `fundraise.valuation` en
+tableau de faits, `IcPackView.tsx:291` egalement. La section 1.7 parle
+de fourchette de valorisation et de dilution sur ticket. Sur une
+cession, la dilution disparait par construction et le vocabulaire de
+tour doit ceder la place a celui de prix d acquisition. Le cartouche
+de couverture nomme le tour dans sa ligne de contexte.
+
+### Ce qui reste a etablir avant d ordonnancer
+
+Quelle proportion du corpus est reellement concernee. Les quatorze
+dossiers growth sont un indice, pas une mesure : rien ne dit que tous
+soient des cessions, ni qu aucun dossier early ne le soit. La mesure
+demande une lecture des memorandums, pas une requete.
+
+Si trois valeurs suffisent. Une cession partielle et une cession
+totale n ont pas les memes consequences sur la dilution, et un LBO se
+distingue d une cession par sa structure de dette plus que par le
+transfert de propriete. Le decoupage retenu est un point de depart
+assume, a confronter au corpus.
+
+Ce que devient la fourchette de valorisation sur une cession. Les
+multiples sectoriels gardent leur sens, ce sont des multiples de
+transaction autant que de tour. La VC inverse n en a plus : elle
+modelise le rendement d un investisseur qui entre au capital. Si la
+valorisation doit rester utile sur ces dossiers, il lui faut une
+methode propre, ce qui deborde le present cadrage.
+
+Le defaut de parsing reste second et ne se corrige pas seul :
+`parseFinancialNumber` tirant 100 M€ de « 100% du capital » rendrait
+un ticket nul une fois corrige, sans que la note cesse pour autant de
+parler de levee.
 
 ## 4. Un insert qui echoue entierement sur une colonne inconnue
 
