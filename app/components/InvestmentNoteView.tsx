@@ -566,6 +566,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         // doit pas produire une fourchette que le run d origine
         // n aurait pas produite.
         asOf: (r as any)?.meta?.asOf ?? null,
+        // La provenance suit l ancre. Absente sur les analyses
+        // anterieures a sa persistance, elle vaut null et le rejeu
+        // refuse de s ancrer, ce qui est le comportement voulu : mieux
+        // vaut un refus motive qu une ancre dont on ignore le sens.
+        asOfSource: (r as any)?.meta?.asOfSource ?? null,
       });
     } catch (err) {
       console.warn('[InvestmentNoteView] recompute valuation failed:', err);

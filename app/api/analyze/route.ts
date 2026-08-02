@@ -169,6 +169,21 @@ export async function POST(req: NextRequest) {
     const frozen = body?.frozen === true || body?.frozen === 'true';
     const asOfRaw = typeof body?.asOf === 'string' ? body.asOf.trim() : '';
     const asOf = /^\d{4}-\d{2}-\d{2}$/.test(asOfRaw) ? asOfRaw : null;
+    // Provenance de l ancre. Une date de reception saisie par le
+    // partner et une date d ingestion de corpus vivaient dans le meme
+    // champ sans se distinguer, et la regle de millesime s ancrait
+    // indifferemment sur les deux. Le script d ingestion declare
+    // desormais sa provenance ; l interface, qui envoie une saisie
+    // partner, vaut deck-receipt par defaut. Une valeur inconnue reste
+    // null et le moteur refuse de s y ancrer.
+    const asOfSourceRaw = typeof body?.asOfSource === 'string' ? body.asOfSource.trim() : '';
+    const asOfSource: 'deck-receipt' | 'corpus-ingestion' | null = asOf === null
+      ? null
+      : asOfSourceRaw === 'corpus-ingestion'
+      ? 'corpus-ingestion'
+      : asOfSourceRaw === 'deck-receipt' || asOfSourceRaw === ''
+      ? 'deck-receipt'
+      : null;
     const runOptions = { frozen };
 
     // Download des fichiers depuis Storage en parallele. C est le
@@ -369,6 +384,7 @@ export async function POST(req: NextRequest) {
       })),
       frozen,
       asOf,
+      asOfSource,
     });
 
     // Streaming SSE
@@ -1518,6 +1534,7 @@ export async function POST(req: NextRequest) {
             // rejeu du meme dossier six mois plus tard retient donc le
             // meme millesime que le run d origine.
             asOf,
+            asOfSource,
           });
 
           // Calcul des sept indicateurs deal type (Burn multiple, Rule of
@@ -1866,6 +1883,7 @@ export async function POST(req: NextRequest) {
               // valorisation ne peut pas trancher la branche 2 de la
               // regle de millesime et refuse la fourchette.
               asOf,
+              asOfSource,
             },
             // Flags conflit d interet calcules juste apres extraction
             // (voir bloc CONFLITS D INTERET). Vide sur les dossiers

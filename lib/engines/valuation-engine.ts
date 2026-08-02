@@ -323,6 +323,24 @@ interface ValuationInput {
    * d origine. Absente, la branche 2 ne peut pas trancher et le
    * moteur refuse plutot que de deviner. */
   asOf?: string | null | undefined;
+  /**
+   * Provenance de l ancre temporelle. Une date de reception saisie par
+   * le partner et une date d ingestion de corpus sont deux choses
+   * differentes, et seule la premiere designe le moment ou le dossier
+   * a ete recu.
+   *
+   * Les vingt-six lignes du corpus portent toutes le meme as_of,
+   * 2026-06-08, qui est le jour de l ingestion : le script passe une
+   * constante a tous les dossiers de la campagne. Ancrer la branche 2
+   * dessus attribue a un memorandum de 2017 une reception en juin 2026
+   * et produit mecaniquement neuf ans d ecart.
+   *
+   * La branche 2 n ancre que sur 'deck-receipt'. Une provenance
+   * d ingestion, ou une provenance non etablie, conduit au refus
+   * motive : le comportement devient explicite au lieu d etre
+   * silencieusement faux.
+   */
+  asOfSource?: 'deck-receipt' | 'corpus-ingestion' | null | undefined;
 }
 
 /**
@@ -693,10 +711,13 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
       declaration: `Base ${explicit.year}, dernier exercice que le deck qualifie explicitement de realise avec citation a l appui.`,
       stalenessNote: null,
       refusalReason: null,
-    }, asOfYear);
+    }, input.asOfSource === 'deck-receipt' ? asOfYear : null);
   }
 
   // ---------- Branche 2 : derniere annee anterieure a la date de deck
+  // L ancre doit etre une date de reception, pas n importe quelle date
+  // rangee dans le meme champ.
+  const anchorUsable = asOfYear !== null && input.asOfSource === 'deck-receipt';
   const years = Array.isArray(fd?.revenueProjection)
     ? fd!.revenueProjection
         .map((p) => normalizeYear(p?.year))
@@ -704,8 +725,8 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
         .sort((a, b) => a - b)
     : [];
 
-  if (asOfYear !== null) {
-    const anterior = years.filter((y) => y < asOfYear);
+  if (anchorUsable) {
+    const anterior = years.filter((y) => y < asOfYear!);
     if (anterior.length > 0) {
       const year = anterior[anterior.length - 1];
       return withStaleness({
@@ -728,12 +749,20 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
       stalenessNote: null,
       declaration: `Base refusee : aucun exercice qualifie de realise, et aucune annee des projections n est anterieure a la reception du dossier (${input.asOf}).`,
       refusalReason: years.length > 0
-        ? `Le dossier a ete recu en ${asOfYear} et sa serie de chiffre d affaires commence en ${years[0]}. Toutes les annees documentees sont donc projetees, aucune ne peut servir de base a un multiple de marche.`
+        ? `Le dossier a ete recu en ${asOfYear!} et sa serie de chiffre d affaires commence en ${years[0]}. Toutes les annees documentees sont donc projetees, aucune ne peut servir de base a un multiple de marche.`
         : `Le dossier ne documente aucune serie de chiffre d affaires exploitable.`,
     };
   }
 
   // ---------- Branche 3 : refus
+  // Trois causes distinctes menent ici, et le motif les separe. Une
+  // ancre absente n est pas la meme chose qu une ancre presente mais
+  // impropre : la seconde demande une action differente du partner.
+  const ancreMotif = asOfYear === null
+    ? 'Et la date de reception du dossier (asOf) n est pas renseignee, ce qui prive le moteur de son second ancrage.'
+    : input.asOfSource === 'corpus-ingestion'
+    ? `Et la date presente (${input.asOf}) est une date d ingestion de corpus, pas une date de reception du dossier : elle vaut la meme chose pour tous les dossiers de la campagne et ne dit rien de celui-ci. Elle ne peut pas ancrer un millesime.`
+    : `Et la provenance de la date presente (${input.asOf}) n est pas etablie : rien ne permet d affirmer qu il s agit de la reception du dossier plutot que d une date de traitement. Une ancre dont on ignore le sens ne vaut pas mieux qu une ancre absente.`;
   return {
     branch: 'refused',
     year: null,
@@ -741,8 +770,8 @@ function resolveValuationBasis(input: ValuationInput): ValuationBasis {
     anchorYear: null,
     stale: false,
     stalenessNote: null,
-    declaration: 'Base refusee : ni mention explicite de realise dans le deck, ni date de reception du dossier pour ancrer le millesime.',
-    refusalReason: `${explicit.rejectionDetail ?? 'Aucune mention explicite de realise extractible du deck.'} Et la date de reception du dossier (asOf) n est pas renseignee, ce qui prive le moteur de son second ancrage. Les multiples ne sont pas appliques : une fourchette calculee sur une projection vaudrait moins que pas de fourchette du tout.`,
+    declaration: 'Base refusee : ni mention explicite de realise dans le deck, ni ancre temporelle exploitable pour designer le millesime.',
+    refusalReason: `${explicit.rejectionDetail ?? 'Aucune mention explicite de realise extractible du deck.'} ${ancreMotif} Les multiples ne sont pas appliques : une fourchette calculee sur une projection vaudrait moins que pas de fourchette du tout.`,
   };
 }
 

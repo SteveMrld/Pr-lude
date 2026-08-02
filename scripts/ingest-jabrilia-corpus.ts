@@ -158,6 +158,12 @@ async function runFrozenPipeline(
     files: [fileRef],
     frozen: true,
     asOf,
+    // L ancre passee ici est la date d ingestion de la campagne, la
+    // meme pour tous les dossiers, et non la date de reception de
+    // chacun. Elle est declaree comme telle pour que la regle de
+    // millesime refuse de s y ancrer : sans ce marqueur, un memorandum
+    // de 2017 se voyait attribuer une reception au jour de l ingestion.
+    asOfSource: 'corpus-ingestion',
   };
   const res = await fetch(`${BASE_URL}/api/analyze`, {
     method: 'POST',

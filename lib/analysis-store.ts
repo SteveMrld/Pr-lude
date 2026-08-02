@@ -609,6 +609,8 @@ export interface CreatePendingAnalysisInput {
    * absente. Pour le corpus, c est la date de reception du dossier.
    */
   asOf?: string | null;
+  /** Provenance de l ancre : saisie partner ou ingestion de corpus. */
+  asOfSource?: 'deck-receipt' | 'corpus-ingestion' | null;
 }
 
 /**
@@ -648,6 +650,7 @@ export async function createPendingAnalysis(
         // deux colonnes en NOT NULL DEFAULT false / NULL.
         frozen: input.frozen === true,
         as_of: input.asOf || null,
+        as_of_source: input.asOfSource || null,
       })
       .select('id')
       .single();

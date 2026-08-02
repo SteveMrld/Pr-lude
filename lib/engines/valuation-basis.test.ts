@@ -101,6 +101,10 @@ function buildInput(opts: {
     marketScore: 55,
     relevanceMatrix: { assetClass: opts.assetClass ?? 'ecommerce-dtc' },
     asOf: opts.asOf ?? null,
+    // Provenance declaree : ces fixtures simulent une date de
+    // reception saisie par le partner, seule provenance sur laquelle
+    // la branche 2 accepte de s ancrer.
+    asOfSource: 'deck-receipt' as const,
   };
 }
 
@@ -332,6 +336,50 @@ console.log('\n[Suite 5] aucune lecture d horloge dans le moteur');
   check(
     !codeLines.some((l) => /getFullYear/.test(l)),
     'valuation-engine.ts n appelle pas getFullYear',
+  );
+}
+
+// ============================================================
+console.log('\n[Suite 6] la branche 2 n ancre que sur une date de reception');
+// ============================================================
+
+{
+  // L ancre d ingestion de corpus ne designe pas la reception du
+  // dossier : elle vaut la meme valeur pour toute la campagne. La
+  // branche 2 la refuse au lieu de s en servir.
+  const base = buildInput({ lastActualYear: null, asOf: '2026-06-08' });
+  const ingestion = computeValuation({ ...base, asOfSource: 'corpus-ingestion' });
+  check(ingestion.basis.branch === 'refused', 'ancre d ingestion : la base est refusee');
+  check(
+    (ingestion.basis.refusalReason || '').includes('ingestion de corpus'),
+    'le motif nomme la provenance d ingestion',
+  );
+  check(
+    multiplesOf(ingestion)?.applicable === false,
+    'les multiples sont neutralises',
+  );
+
+  // La meme date, declaree comme reception, ancre normalement.
+  const reception = computeValuation({ ...base, asOfSource: 'deck-receipt' });
+  check(reception.basis.branch === 'as-of-anterior', 'ancre de reception : la branche 2 tranche');
+  check(reception.basis.year === 2025, `millesime 2025 (obtenu ${reception.basis.year})`);
+}
+
+{
+  // Provenance non etablie : refus egalement, avec un motif distinct.
+  // Une ancre dont on ignore le sens ne vaut pas mieux qu une absence.
+  const inconnue = computeValuation({
+    ...buildInput({ lastActualYear: null, asOf: '2026-06-08' }),
+    asOfSource: null,
+  });
+  check(inconnue.basis.branch === 'refused', 'provenance inconnue : la base est refusee');
+  check(
+    (inconnue.basis.refusalReason || '').includes('provenance'),
+    'le motif distingue la provenance non etablie de l absence de date',
+  );
+  check(
+    !(inconnue.basis.refusalReason || '').includes('ingestion de corpus'),
+    'et ne l attribue pas a une ingestion qu il ne constate pas',
   );
 }
 

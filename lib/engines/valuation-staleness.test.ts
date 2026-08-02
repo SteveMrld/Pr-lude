@@ -65,6 +65,10 @@ function buildInput(opts: {
     team: null, market: null, teamScore: 60, marketScore: 55,
     relevanceMatrix: { assetClass: 'ecommerce-dtc' },
     asOf: opts.asOf ?? null,
+    // Provenance declaree : ces fixtures simulent une date de
+    // reception saisie par le partner, seule provenance sur laquelle
+    // la branche 2 accepte de s ancrer.
+    asOfSource: 'deck-receipt' as const,
   };
 }
 
