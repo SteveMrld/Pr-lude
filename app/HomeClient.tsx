@@ -3673,10 +3673,16 @@ export default function HomeClient({
                       </summary>
                       <div style={{ marginTop: 12 }}>
                         {ps.tests.map((t: any, i: number) => {
+                          // Un test non produit n est ni un succes ni un
+                          // echec. Le peindre en rouge le ferait lire
+                          // comme une elimination, ce qui est la
+                          // conflation meme que la grappe 3 a fermee.
                           const testColor = t.status === 'pass'
                             ? '#508c5a'
                             : t.status === 'warn'
                             ? '#c08a3f'
+                            : t.status === 'not_produced'
+                            ? '#8a8175'
                             : '#c0403c';
                           return (
                             <div key={i} style={{

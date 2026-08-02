@@ -1,5 +1,5 @@
 import { callClaudeWithPDF, parseJSON, FAST_MODEL } from './anthropic-client';
-import type { NonProductionCauseOrNull } from './non-production';
+import type { NonProductionCause, NonProductionCauseOrNull } from './non-production';
 import {
   evaluerComparaisons,
   type DossierFact,
@@ -150,6 +150,18 @@ export interface PreScanOutput {
    * sans relancer le modele.
    */
   dossierFacts: DossierFacts;
+  /**
+   * Tests demandes qui n ont pas rendu de verdict, avec leur cause. Le
+   * releve est explicite pour qu une note ne puisse pas presenter dix
+   * tests quand huit ont conclu.
+   */
+  notProducedTests: Array<{ id: string; cause: NonProductionCause }>;
+  /**
+   * True si au moins une non-production est de cause incident. Dans ce
+   * cas l elimination par le score est interdite : une defaillance du
+   * dispositif ne se convertit pas en decision doctrinale.
+   */
+  hasProductionIncident: boolean;
 }
 
 export const BASE_SYSTEM_PROMPT = `Tu es le Moteur de Pré-Scan de la plateforme Prélude. Ton rôle est de lire un pitch deck VC en 5-8 secondes et de produire un verdict de triage rapide.
@@ -274,12 +286,32 @@ export async function runPreScan(
     0,
   );
 
-  const parsed = parseJSON<{
-    summary: string;
-    tests: PreScanTest[];
-    dossierFacts: DossierFacts;
-  }>(rawResponse);
+  const parsed = parseJSON<PreScanRawResponse>(rawResponse);
 
+  return {
+    ...assemblerPreScan(parsed, fundProfile),
+    durationMs: Date.now() - startTime,
+    model: FAST_MODEL,
+  };
+}
+
+/** Ce que le modele rend, avant assemblage. */
+export interface PreScanRawResponse {
+  summary: string;
+  tests: PreScanTest[];
+  dossierFacts: DossierFacts;
+}
+
+/**
+ * Assemble la sortie du pre-scan a partir de la reponse brute du modele
+ * et du profil du fonds. Pure et exportee pour etre verifiable sans
+ * appel au modele : c est la seule facon de tester que le denominateur
+ * est fixe et qu un incident n elimine pas.
+ */
+export function assemblerPreScan(
+  parsed: PreScanRawResponse,
+  fundProfile?: FundProfile,
+): Omit<PreScanOutput, 'durationMs' | 'model'> {
   // Les tests de jugement viennent du modele, les comparaisons du code.
   // L ordre d affichage est reconstitue ici et ne depend plus de la
   // discipline du modele a respecter une liste.
@@ -296,11 +328,22 @@ export async function runPreScan(
   const parId = new Map<string, PreScanTest>();
   for (const t of testsDeJugement) parId.set(t.id, t as PreScanTest);
   for (const t of comparaisons) parId.set(t.id, t as PreScanTest);
-  const validatedTests: PreScanTest[] = ORDRE_AFFICHAGE
-    .filter(id => parId.has(id))
-    .map(id => parId.get(id)!);
 
-  const totalTests = validatedTests.length || (fundProfile ? 10 : 6);
+  // Le denominateur est le nombre de tests DEMANDES. Un test que le
+  // modele n a pas rendu ne disparait plus : il entre dans la liste en
+  // non-production de cause incident, il pese zero au numerateur, et il
+  // se voit. La forme precedente, `validatedTests.length`, faisait
+  // exactement l inverse : elle transformait une defaillance en
+  // avantage, puisqu un test omis ne pouvait pas echouer tout en
+  // retirant une unite au denominateur.
+  const attendus = ORDRE_AFFICHAGE.filter(
+    id => fundProfile || !TESTS_DE_THESE.includes(id),
+  );
+  const validatedTests: PreScanTest[] = attendus.map(id =>
+    parId.get(id) ?? testOmis(id),
+  );
+
+  const totalTests = attendus.length;
 
   const computedScore = validatedTests.reduce((acc, t) => {
     if (t.status === 'pass') return acc + 1;
@@ -312,6 +355,9 @@ export async function runPreScan(
     .filter(t => t.status === 'fail')
     .map(t => t.id);
 
+  const nonProduits = validatedTests.filter(t => t.status === 'not_produced');
+  const incidents = nonProduits.filter(t => t.nonProductionCause === 'incident');
+
   // Knockout sur les tests critiques :
   // - narrative, founder, thesis_fit (universels)
   // - sector_fit, geography_fit (these specifique)
@@ -322,10 +368,19 @@ export async function runPreScan(
 
   const ratio = totalTests > 0 ? computedScore / totalTests : 0;
 
+  // Le denominateur fixe rend le score penalisant quand un test manque,
+  // ce qui est voulu. Mais une defaillance du modele ne doit pas se
+  // convertir en decision doctrinale : c est la conflation que la
+  // grappe 3 a fermee partout ailleurs. Un incident interdit donc
+  // l elimination par le score. Le couperet critique reste, mais il ne
+  // se declenche que sur un `fail` reel, jamais sur une non-production,
+  // quelle que soit sa cause.
+  const eliminationParScore = ratio < 0.5 && incidents.length === 0;
+
   let recommendation: PreScanOutput['recommendation'];
-  if (criticalKnockout || ratio < 0.5) {
+  if (criticalKnockout || eliminationParScore) {
     recommendation = 'not_recommended';
-  } else if (ratio >= 0.8) {
+  } else if (ratio >= 0.8 && nonProduits.length === 0) {
     recommendation = 'ready_for_pipeline';
   } else {
     recommendation = 'pipeline_with_caveats';
@@ -344,10 +399,49 @@ export async function runPreScan(
     tests: validatedTests,
     failedTests: failedIds,
     estimatedCostUsd,
-    durationMs: Date.now() - startTime,
-    model: FAST_MODEL,
     usedFundProfile: !!fundProfile,
     dossierFacts: facts,
+    notProducedTests: nonProduits.map(t => ({
+      id: t.id,
+      cause: t.nonProductionCause ?? 'absence',
+    })),
+    hasProductionIncident: incidents.length > 0,
+  };
+}
+
+/** Les quatre tests de fit qui n existent qu avec un profil de fonds. */
+const TESTS_DE_THESE: readonly string[] = [
+  'sector_fit', 'geography_fit', 'ticket_fit', 'stage_fit',
+];
+
+/** Libelles des tests attendus, pour nommer ceux que le modele a omis. */
+const NOMS_ATTENDUS: Record<string, string> = {
+  narrative: 'Cohérence narrative minimale',
+  founder: 'Crédibilité fondateur minimale',
+  financial: 'Plausibilité financière',
+  stage_ticket: 'Cohérence stade vs ticket',
+  market: 'Marché identifiable',
+  thesis_fit: 'Pas de drapeau rouge éliminatoire',
+  sector_fit: 'Thèse sectorielle',
+  geography_fit: 'Thèse géographique',
+  ticket_fit: 'Gamme de tickets',
+  stage_fit: 'Stade investi',
+};
+
+/**
+ * Un test attendu que rien n a produit. En pratique un test de jugement
+ * que le modele n a pas rendu, les comparaisons etant calculees et donc
+ * toujours presentes. La cause est `incident` et non `absence` : le
+ * modele devait le rendre, il ne l a pas fait, il y a a reparer.
+ */
+function testOmis(id: string): PreScanTest {
+  return {
+    id,
+    name: NOMS_ATTENDUS[id] ?? id,
+    status: 'not_produced',
+    rationale: 'Le modele n a pas rendu ce test. Il compte dans le total demande et pese zero, sans pouvoir eliminer le dossier.',
+    evidence: '',
+    nonProductionCause: 'incident',
   };
 }
 
