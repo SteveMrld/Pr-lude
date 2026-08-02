@@ -119,11 +119,24 @@ neutralisee par ailleurs.
 Le chiffre demande sur les conseils vendeurs mal ranges : **un seul
 dossier**, ZargesTubesca, dont le champ leadInvestor porte
 « Rothschild GmbH (conseiller financier des vendeurs) ». Le cas est
-donc isole et non un peuplement. Il reste que le champ sellSideAdvisor
-se justifie par autre chose que sa frequence : sans lui, les quinze
-autres dossiers de cession laissaient simplement l information de cote,
-ce qui ne se voit nulle part. Un champ absent ne produit pas d erreur
-visible, il produit un silence.
+donc isole et non un peuplement.
+
+Il reste que le champ sellSideAdvisor se justifie par autre chose que
+sa frequence : sans lui, les quinze autres dossiers de cession
+laissaient simplement l information de cote, ce qui ne se voit nulle
+part. Un champ absent ne produit pas d erreur visible, il produit un
+silence, et un silence ne se mesure pas.
+
+C est le raisonnement de la grappe fetchers applique en amont de la
+chaine. La-bas, une source externe qui echoue rend un vide
+indiscernable d une absence de signal, et le moteur conclut sur ce
+vide. Ici, une information que le contrat n a pas de case pour
+recevoir disparait sans laisser de trace, et la note conclut sans elle.
+Dans les deux cas, ce qui manque ne remonte pas, donc rien ne le
+signale, donc le defaut dure. La difference tient a l endroit : le
+premier est une perte a la collecte, le second une perte au contrat.
+Le remede est le meme, ouvrir la case et rendre le manque visible
+plutot que de compter sur sa frequence pour le decouvrir.
 
 ## 3. L ecart onze contre sept, quatrieme occurrence
 
