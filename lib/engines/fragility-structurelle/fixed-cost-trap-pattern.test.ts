@@ -51,7 +51,7 @@ function mockExtraction(opts: Partial<ExtractionOutput> = {}): ExtractionOutput 
     productDescription: 'Workflow automation cloud.',
     businessModel: 'Subscription B2B SaaS pricing per-seat',
     traction: { metrics: [] },
-    fundraise: { stage: 'Series B', amount: '20M' },
+    fundraise: { stage: 'Series B', amount: '20M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
     competitorsCited: [],
     rawSummary: 'SaaS B2B cloud avec abonnement.',
     boardMembers: [],
@@ -96,7 +96,7 @@ console.log('\n=== Test 4 : isApplicable hardware industriel ===');
 console.log('\n=== Test 5 : isApplicable seed sans signal asset-heavy ===');
 {
   const seedSaas = mockExtraction({
-    fundraise: { stage: 'Seed', amount: '1M' },
+    fundraise: { stage: 'Seed', amount: '1M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
   });
   const result = _internal.isApplicable(seedSaas, MINIMAL_FIN);
   // SaaS pure cloud meme en seed = partial

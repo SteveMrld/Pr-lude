@@ -29,7 +29,7 @@ function mockExtraction(opts: Partial<ExtractionOutput> = {}): ExtractionOutput 
     productDescription: 'Workflow automation.',
     businessModel: 'Subscription B2B SaaS',
     traction: { metrics: [] },
-    fundraise: { stage: 'Series C', amount: '50M' },
+    fundraise: { stage: 'Series C', amount: '50M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
     competitorsCited: [], rawSummary: 'SaaS B2B en growth.',
     boardMembers: [], clientsNamed: [],
     ...opts,
@@ -45,13 +45,13 @@ console.log('\n=== Test 2 : isApplicable Series C ===');
 
 console.log('\n=== Test 3 : isApplicable Series A ===');
 {
-  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Series A', amount: '8M' } }), MINIMAL_FIN);
+  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Series A', amount: '8M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' } }), MINIMAL_FIN);
   check('Series A -> partial', r.level, 'partial');
 }
 
 console.log('\n=== Test 4 : isApplicable Seed ===');
 {
-  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Seed', amount: '1M' } }), MINIMAL_FIN);
+  const r = _internal.isApplicable(mockExtraction({ fundraise: { stage: 'Seed', amount: '1M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' } }), MINIMAL_FIN);
   check('Seed -> weak-signal', r.level, 'weak-signal');
 }
 
@@ -86,13 +86,13 @@ console.log('\n=== Test 6 : extractCapTableSnapshot detection ===');
 console.log('\n=== Test 7 : extractCapTableSnapshot estimate rounds ===');
 {
   // Series A = 2 tours estimes (seed + A)
-  const seriesA = _internal.extractCapTableSnapshot(mockExtraction({ fundraise: { stage: 'Series A', amount: '5M' } }));
+  const seriesA = _internal.extractCapTableSnapshot(mockExtraction({ fundraise: { stage: 'Series A', amount: '5M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' } }));
   check('Series A -> 2 tours', seriesA.numberOfRounds, 2);
   // Series C = 4 tours
-  const seriesC = _internal.extractCapTableSnapshot(mockExtraction({ fundraise: { stage: 'Series C', amount: '50M' } }));
+  const seriesC = _internal.extractCapTableSnapshot(mockExtraction({ fundraise: { stage: 'Series C', amount: '50M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' } }));
   check('Series C -> 4 tours', seriesC.numberOfRounds, 4);
   // Seed = 1 tour
-  const seed = _internal.extractCapTableSnapshot(mockExtraction({ fundraise: { stage: 'Seed', amount: '500k' } }));
+  const seed = _internal.extractCapTableSnapshot(mockExtraction({ fundraise: { stage: 'Seed', amount: '500k', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' } }));
   check('Seed -> 1 tour', seed.numberOfRounds, 1);
 }
 
@@ -101,7 +101,7 @@ console.log('\n=== Test 8 : buildUserPrompt structure ===');
   const input: PatternInput = {
     extraction: mockExtraction({
       marketPitch: 'Levee Series C avec preferences cumulees.',
-      fundraise: { stage: 'Series C', amount: '50M' },
+      fundraise: { stage: 'Series C', amount: '50M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
     }),
   };
   const p = _internal.buildUserPrompt(input);

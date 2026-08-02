@@ -18,6 +18,8 @@ async function testBenchmarkEngine() {
     traction: { metrics: ['100K developers'], revenue: '5M€' },
     fundraise: {
       stage: 'Series A',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '12M€',
       valuation: '50M€',
     },
@@ -49,7 +51,7 @@ async function testBenchmarkEngine() {
     sector: 'Fintech',
     subSector: 'Payment infrastructure',
     country: 'United States',
-    fundraise: { stage: 'Seed', amount: '$5M', valuation: '$25M' },
+    fundraise: { stage: 'Seed', amount: '$5M', valuation: '$25M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
   };
   const result2 = await analyzeBenchmarks(extraction2, null);
   console.log(JSON.stringify(result2, null, 2));
@@ -60,7 +62,7 @@ async function testBenchmarkEngine() {
     sector: 'AI',
     subSector: 'Enterprise AI agents',
     country: 'United Kingdom',
-    fundraise: { stage: 'Series B', amount: '$60M', valuation: '$250M' },
+    fundraise: { stage: 'Series B', amount: '$60M', valuation: '$250M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
   };
   const result3 = await analyzeBenchmarks(extraction3, null);
   console.log(JSON.stringify(result3, null, 2));

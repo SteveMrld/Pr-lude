@@ -66,6 +66,8 @@ const platypusExtraction: ExtractionOutput = {
   },
   fundraise: {
     stage: 'series-a',
+    operationType: 'levee' as const,
+    operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
     amount: '6M EUR',
     valuation: '20M EUR pre-money',
   },

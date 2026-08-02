@@ -240,7 +240,7 @@ const biotechMatrix = computeRelevanceMatrix(ext({
   productDescription: 'Programme de drug discovery sur cibles validees. Essais cliniques phase I en cours. Laboratoire wet lab a Paris.',
   businessModel: 'Out-licensing aux laboratoires pharmaceutiques. Royalties sur ventes finales.',
   rawSummary: 'NovaTher est une biotechnologie francaise specialisee dans le developpement de therapies innovantes pour les cancers rares. Le programme principal repose sur une molecule originale en phase I d essai clinique multicentrique. Le laboratoire dispose de salles wet lab equipees, d une plateforme de criblage et d une bioteque proprietaire. Les fondateurs viennent de l Inserm et de l Institut Curie. La strategie commerciale repose sur un partenariat avec un grand laboratoire pharmaceutique a partir de la phase II, avec un schema classique de royalties sur les ventes futures du medicament autorise.',
-  fundraise: { stage: 'series-a', amount: '15M EUR' },
+  fundraise: { stage: 'series-a', amount: '15M EUR', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
 }), 'Biotechnologie Therapeutique cellulaire');
 check('Biotech productionChain === wet-biotech', biotechMatrix.productionChain, 'wet-biotech');
 checkTrue('Biotech assetClass in [healthtech, deeptech]', ['healthtech', 'deeptech'].includes(biotechMatrix.assetClass));
@@ -254,7 +254,7 @@ const defenseMatrix = computeRelevanceMatrix(ext({
   productDescription: 'Hardware radar plus logiciel de fusion de donnees. Production en serie en partenariat avec MBDA et Thales. Soumission aux export controls dual-use.',
   businessModel: 'Vente sur appels d offres publics DGA et armees alliees. Contrats pluriannuels.',
   rawSummary: 'EuroShield developpe une technologie radar coherente couplee a un logiciel de fusion de donnees pour identifier et neutraliser les drones hostiles. Les premiers contrats sont avec la DGA francaise et trois ministeres alliees europeens. La fabrication des composants radar se fait en France sur un site industriel proprietaire avec une chaine d assemblage et un banc de calibration. Le systeme est soumis aux export controls dual-use europeens. Le carnet de commandes signe a fin 2025 represente cinquante millions d euros sur trois ans, avec quatre tranches de livraison reparties par exercice budgetaire.',
-  fundraise: { stage: 'series-b', amount: '40M EUR' },
+  fundraise: { stage: 'series-b', amount: '40M EUR', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
   country: 'France',
 }), 'Défense Systeme de contre-drone');
 check('Defense assetClass === defense', defenseMatrix.assetClass, 'defense');
@@ -270,7 +270,7 @@ const emrMatrix = computeRelevanceMatrix(ext({
   productDescription: 'Conception et exploitation de fermes hydroliennes offshore. Genie maritime, infrastructure physique sur fond marin.',
   businessModel: 'Vente d electricite aux operateurs reseau via contrats long terme. Modele projet par projet.',
   rawSummary: 'OceanFlow exploite une technologie hydrolienne mature avec deux fermes pilotes installees en Bretagne et une troisieme en construction sur le littoral atlantique. Les infrastructures sont posees sur fond marin avec un genie maritime sous-marin specialise. Les contrats sont negocies projet par projet avec les operateurs de reseau et les collectivites cotieres. La filiere energies marines renouvelables francaise beneficie d un cadre reglementaire stabilise mais d un cycle de developpement long, typique des infrastructures lourdes. Capex moyen par projet quatre-vingts millions d euros, avec un retour sur investissement attendu a quinze ans.',
-  fundraise: { stage: 'series-b', amount: '50M EUR' },
+  fundraise: { stage: 'series-b', amount: '50M EUR', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
 }), 'Énergies marines Hydrolien');
 checkTrue('EMR assetClass in [industrial-hardware, climate-tech]', ['industrial-hardware', 'climate-tech'].includes(emrMatrix.assetClass));
 check('EMR productionChain === infrastructure-physical', emrMatrix.productionChain, 'infrastructure-physical');
@@ -284,7 +284,7 @@ const aquacultureMatrix = computeRelevanceMatrix(ext({
   productDescription: 'Fermes aquacoles avec bassins industriels en circuit ferme. Equipement de filtration et de recirculation. Production en serie de saumons et truites.',
   businessModel: 'Vente B2B aux distributeurs et grandes surfaces. Modele vente unitaire de poissons par tonnage.',
   rawSummary: 'AquaBleu deploie en France une filiere aquacole moderne en circuit ferme avec recirculation de l eau, dans des installations industrielles dimensionnees pour quinze mille tonnes annuelles. Le procede d elevage est entierement traceable et certifie. Les commandes des grandes surfaces et grossistes francais constituent la principale source de revenu, avec une diversification europeenne en cours. Les CAPEX par site industriel sont substantiels, avec un payback usine estime a sept ans en regime de croisiere. Le secteur de l aquaculture francaise est en pleine recomposition reglementaire et industrielle.',
-  fundraise: { stage: 'series-a', amount: '12M EUR' },
+  fundraise: { stage: 'series-a', amount: '12M EUR', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
 }), 'Aquaculture Pisciculture');
 check('Aquaculture assetClass === foodtech', aquacultureMatrix.assetClass, 'foodtech');
 
@@ -297,7 +297,7 @@ const fintechMatrix = computeRelevanceMatrix(ext({
   productDescription: 'Plateforme SaaS B2B avec API de paiement, gestion des flux, reporting comptable. Agrement etablissement de paiement.',
   businessModel: 'Abonnement B2B mensuel HT par utilisateur, plus commission sur volume traite. ARR cible 20M EUR a 3 ans.',
   rawSummary: 'NeoPaiement opere comme etablissement de paiement agree ACPR et fournit aux PME francaises une plateforme SaaS B2B de paiement instantane avec API ouverte. Le modele combine un abonnement par utilisateur, facture en HT par mois, et une commission sur le volume de paiement traite. La base installee depasse deux mille PME francaises avec un ARR consolide de douze millions d euros et une croissance organique trimestrielle de quinze pourcent. Le pricing est cale sur les pratiques B2B standards : engagement annuel avec discount progressif, multi-utilisateurs par siege.',
-  fundraise: { stage: 'series-b', amount: '30M EUR' },
+  fundraise: { stage: 'series-b', amount: '30M EUR', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
 }), 'Fintech Paiement B2B');
 check('Fintech assetClass === fintech', fintechMatrix.assetClass, 'fintech');
 check('Fintech productionChain === pure-software', fintechMatrix.productionChain, 'pure-software');

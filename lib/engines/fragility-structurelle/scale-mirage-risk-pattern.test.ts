@@ -29,7 +29,7 @@ function mockHardware(opts: Partial<ExtractionOutput> = {}): ExtractionOutput {
     productDescription: 'Drone hardware avec capteurs proprietaires capex usine 50M.',
     businessModel: 'Vente unitaire hardware industriel',
     traction: { metrics: [] },
-    fundraise: { stage: 'Series B', amount: '20M' },
+    fundraise: { stage: 'Series B', amount: '20M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
     competitorsCited: [], rawSummary: 'Production hardware industrielle drones.',
     boardMembers: [], clientsNamed: [],
     ...opts,
@@ -45,7 +45,7 @@ function mockSaas(opts: Partial<ExtractionOutput> = {}): ExtractionOutput {
     productDescription: 'Workflow automation cloud.',
     businessModel: 'Subscription B2B SaaS',
     traction: { metrics: [] },
-    fundraise: { stage: 'Series B', amount: '20M' },
+    fundraise: { stage: 'Series B', amount: '20M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' },
     competitorsCited: [], rawSummary: 'SaaS B2B cloud abonnement.',
     boardMembers: [], clientsNamed: [],
     ...opts,
@@ -61,13 +61,13 @@ console.log('\n=== Test 2 : isApplicable hardware deeptech Series B ===');
 
 console.log('\n=== Test 3 : isApplicable hardware Series A ===');
 {
-  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Series A', amount: '8M' } }), MINIMAL_FIN);
+  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Series A', amount: '8M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' } }), MINIMAL_FIN);
   check('hardware Series A -> full', r.level, 'full');
 }
 
 console.log('\n=== Test 4 : isApplicable hardware Seed ===');
 {
-  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Seed', amount: '2M' } }), MINIMAL_FIN);
+  const r = _internal.isApplicable(mockHardware({ fundraise: { stage: 'Seed', amount: '2M', operationType: 'levee' as const, operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.' } }), MINIMAL_FIN);
   check('hardware seed -> partial', r.level, 'partial');
 }
 

@@ -191,6 +191,8 @@ const wework: ReferenceDossier = {
     },
     fundraise: {
       stage: 'Series H pre-IPO',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '3 Md USD planifies en IPO',
       valuation: '47 Md USD (derniere ronde privee, ramene a 8-12 Md proposes en IPO)',
       leadInvestor: 'SoftBank Vision Fund',
@@ -259,6 +261,8 @@ const theranos: ReferenceDossier = {
     },
     fundraise: {
       stage: 'Series C',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '400 M USD',
       valuation: '9 Md USD',
       leadInvestor: 'investisseurs prives (Murdoch, Devos, Walton)',
@@ -324,6 +328,8 @@ const casper: ReferenceDossier = {
     },
     fundraise: {
       stage: 'IPO Nasdaq fevrier 2020',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '100 M USD',
       valuation: '470 M USD au IPO (vs 1,1 Md USD pre-money 2019)',
       leadInvestor: 'IPO public',
@@ -383,6 +389,8 @@ const moviepass: ReferenceDossier = {
     },
     fundraise: {
       stage: 'subsidiaire de HMNY Nasdaq',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: 'levees publiques convertibles 60 M USD H2 2017',
       valuation: 'HMNY market cap volatile 30 M a 800 M USD',
       leadInvestor: 'public market',
@@ -445,6 +453,8 @@ const atlassian: ReferenceDossier = {
     },
     fundraise: {
       stage: 'IPO Nasdaq decembre 2015',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '462 M USD secondary offering',
       valuation: '4,4 Md USD post-IPO',
       leadInvestor: 'IPO public',
@@ -509,6 +519,8 @@ const stripe: ReferenceDossier = {
     },
     fundraise: {
       stage: 'Series E',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '150 M USD',
       valuation: '9,2 Md USD post-money',
       leadInvestor: 'CapitalG (Google) + General Catalyst',
@@ -576,6 +588,8 @@ const mistral: ReferenceDossier = {
     },
     fundraise: {
       stage: 'Series B',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '600 M EUR',
       valuation: '6 Md EUR post-money',
       leadInvestor: 'General Catalyst + Andreessen Horowitz + Lightspeed',
@@ -642,6 +656,8 @@ const northvolt: ReferenceDossier = {
     },
     fundraise: {
       stage: 'Series E',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '1,2 Md USD planifie pour cloture juin 2023',
       valuation: '12 Md USD post-money',
       leadInvestor: 'Volkswagen Group + Goldman Sachs Asset Management',
@@ -715,6 +731,8 @@ const ynsect: ReferenceDossier = {
     },
     fundraise: {
       stage: 'Series D extension',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '160 M USD complementaires',
       valuation: 'non communique (estime 700 M EUR cumulee post-money)',
       leadInvestor: 'Astanor Ventures + Armat Group',
@@ -783,6 +801,8 @@ const klarna: ReferenceDossier = {
     },
     fundraise: {
       stage: 'down round 2022',
+      operationType: 'levee' as const,
+      operationTypeEvidence: 'Fixture de test : le stade et le montant modelisent un document de levee.',
       amount: '800 M USD',
       valuation: '6,7 Md USD post-money (vs 45,6 Md USD juin 2021)',
       leadInvestor: 'Sequoia + Mubadala',

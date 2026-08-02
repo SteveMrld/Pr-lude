@@ -1,5 +1,24 @@
 // Types partagés entre les sept moteurs de la plateforme
 
+/**
+ * Nature de l operation instruite. Quatre valeurs plus l etat non
+ * etabli, arbitrees au brief 24.
+ *
+ * La cession se scinde en partielle et totale parce que la dilution
+ * disparait par construction sur une totale, ou il n y a plus
+ * d actionnaire existant a diluer, et garde un sens sur une partielle.
+ * Le LBO reste distinct pour sa structure de dette, precisement la
+ * grandeur que le contrat d extraction financiere n extrait jamais :
+ * un LBO nomme comme tel signale donc que l element determinant de
+ * l operation est absent du dossier instruit.
+ */
+export type OperationType =
+  | 'levee'
+  | 'cession-partielle'
+  | 'cession-totale'
+  | 'lbo'
+  | 'non-etabli';
+
 export interface ExtractionOutput {
   companyName: string;
   sector: string;
@@ -27,6 +46,39 @@ export interface ExtractionOutput {
     valuation?: string;
     leadInvestor?: string;
     coInvestors?: string[];
+    /**
+     * Nature de l operation instruite. Donnee de premier rang, au meme
+     * titre que le stade : le pipeline ne connaissait que la levee, et
+     * ce bloc porte encore son nom pour raison de compatibilite.
+     *
+     * 'non-etabli' est un quatrieme etat et non un null silencieux. Il
+     * signifie que le document ne permet pas de trancher, ce qui est
+     * different de ne pas avoir cherche.
+     */
+    operationType: OperationType;
+    /**
+     * Citation textuelle courte qui fonde le type. La valeur et sa
+     * preuve voyagent ensemble, sur le modele de lastActualYear et
+     * lastActualYearEvidence : sans citation extractible, le type
+     * retombe a 'non-etabli'. La regle anti-divination est la meme des
+     * deux cotes, le contrat refuse une valeur sans preuve et le prompt
+     * ne doit jamais en produire une.
+     */
+    operationTypeEvidence: string | null;
+    /**
+     * Cases ouvertes aux operations qui ne sont pas des levees. Les
+     * trois champs sont nommes d apres ce que les memorandums du corpus
+     * portent reellement, et non d apres ce qu on suppose qu ils
+     * portent : un cedant nomme (« Compagnie des Alpes », « PPR /
+     * Redcats », « Ciments Calcia »), un perimetre cede (« 100% »,
+     * « jusqu a 100% », « 6 parcs »), et une banque mandatee cote
+     * vendeur (« Rothschild », « Lazard »). Faute de ces cases, le
+     * conseil vendeur atterrissait dans leadInvestor, mesure sur le
+     * dossier ZargesTubesca.
+     */
+    seller?: string;
+    stakeForSale?: string;
+    sellSideAdvisor?: string;
   };
   competitorsCited: string[];
   // Clients nommes dans le deck : noms + entreprise + nature du lien (pilote, contrat,
