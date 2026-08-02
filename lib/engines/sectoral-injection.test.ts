@@ -444,6 +444,7 @@ console.log('\n=== Test 2 : computeFreshness ===');
     });
     const ctx: SectoralContext = {
       mode: 'applied',
+      cause: null,
       detectedSlugs: ['ia-appliquee'],
       primary: { slug: brief.sector_slug, brief, freshness: 'fresh', ageDays: 28 },
       secondaries: [],
@@ -498,6 +499,7 @@ console.log('\n=== Test 2 : computeFreshness ===');
     });
     const ctx: SectoralContext = {
       mode: 'applied',
+      cause: null,
       detectedSlugs: ['crypto-blockchain'],
       primary: { slug: brief.sector_slug, brief, freshness: 'fresh', ageDays: 42 },
       secondaries: [],
@@ -521,6 +523,7 @@ console.log('\n=== Test 2 : computeFreshness ===');
     const secondary = makeBrief('proptech-construction', { generatedAt: '2026-04-15T00:00:00Z' });
     const ctx: SectoralContext = {
       mode: 'applied',
+      cause: null,
       detectedSlugs: ['fintech', 'proptech-construction'],
       primary: { slug: primary.sector_slug, brief: primary, freshness: 'fresh', ageDays: 42 },
       secondaries: [{ slug: secondary.sector_slug, brief: secondary, freshness: 'fresh', ageDays: 28 }],
@@ -545,6 +548,7 @@ console.log('\n=== Test 2 : computeFreshness ===');
     check('undefined context', buildSectoralPromptBlock(undefined, 'macro'), '');
     const unknownCtx: SectoralContext = {
       mode: 'unknown_sector',
+      cause: 'absence',
       detectedSlugs: [],
       primary: null,
       secondaries: [],

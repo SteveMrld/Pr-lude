@@ -381,6 +381,16 @@ export interface SectoralSecondary {
 
 export interface SectoralContext {
   mode: SectoralContextMode;
+  /**
+   * Cause structuree de la non-production, obligatoire, null quand le
+   * contexte est applique. Le mode ne suffisait pas : `no_brief`
+   * recouvrait a la fois une fiche jamais generee, ce qui est une
+   * absence, et un acces Supabase en echec, ce qui est un incident.
+   * Les deux rendaient la meme note methodologique au lecteur, et le
+   * console.warn du catch n etant pas persiste, la distinction etait
+   * definitivement perdue.
+   */
+  cause: import('./non-production').NonProductionCauseOrNull;
   detectedSlugs: string[];
   primary: SectoralPrimary | null;
   secondaries: SectoralSecondary[];

@@ -130,6 +130,7 @@ export async function resolveSectoralContext(
   if (slugs.length === 0) {
     return {
       mode: 'unknown_sector',
+      cause: 'absence',
       detectedSlugs: [],
       primary: null,
       secondaries: [],
@@ -142,22 +143,29 @@ export async function resolveSectoralContext(
   const secondarySlugs = slugs.slice(1, 3);
 
   let primaryBrief: SectoralBrief | null = null;
+  // L echec d acces et l absence de fiche menaient au meme etat. On
+  // les separe a la source : le pipeline ne casse toujours pas, mais
+  // la sortie ne pretend plus qu une panne est une lacune de corpus.
+  let primaryFetchFailed = false;
   try {
     primaryBrief = await fetchBrief(primarySlug);
   } catch (err: any) {
-    // Acces Supabase en echec : on ne casse pas le pipeline.
     console.warn(`[sectoral-injection] fetch primary brief failed for ${primarySlug}:`, err?.message);
     primaryBrief = null;
+    primaryFetchFailed = true;
   }
 
   if (!primaryBrief) {
     const label = SECTORS.find((s) => s.slug === primarySlug)?.label ?? primarySlug;
     return {
       mode: 'no_brief',
+      cause: primaryFetchFailed ? 'incident' : 'absence',
       detectedSlugs: slugs,
       primary: null,
       secondaries: [],
-      methodologyNote: `Le secteur primaire detecte est ${label} mais aucune fiche sectorielle Prelude n est encore persistee pour ce secteur. La lecture s appuie sur le seul contenu du dossier en attendant la prochaine regeneration trimestrielle.`,
+      methodologyNote: primaryFetchFailed
+        ? `Le secteur primaire detecte est ${label}, mais le chargement de sa fiche sectorielle a echoue. Ce n est pas une absence de fiche : la lecture sectorielle manque a cette analyse pour une raison technique, et le dossier merite d etre rejoue.`
+        : `Le secteur primaire detecte est ${label} mais aucune fiche sectorielle Prelude n est encore persistee pour ce secteur. La lecture s appuie sur le seul contenu du dossier en attendant la prochaine regeneration trimestrielle.`,
     };
   }
 
@@ -167,6 +175,7 @@ export async function resolveSectoralContext(
     const label = SECTORS.find((s) => s.slug === primarySlug)?.label ?? primarySlug;
     return {
       mode: 'expired',
+      cause: 'doctrine',
       detectedSlugs: slugs,
       primary: null,
       secondaries: [],
@@ -213,6 +222,7 @@ export async function resolveSectoralContext(
 
   return {
     mode: 'applied',
+    cause: null,
     detectedSlugs: slugs,
     primary: {
       slug: primaryBrief.sector_slug,

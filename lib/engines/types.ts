@@ -811,6 +811,15 @@ export interface ExecutionFrictionAxis {
 }
 
 export interface ExecutionFrictionOutput {
+  /**
+   * Cause structuree de la non-production, null quand le moteur a
+   * produit. verdict='not_applicable' recouvrait deux faits opposes :
+   * moins de deux flags declenches, donc une decision du moteur, et un
+   * appel LLM en echec, donc un incident. Le second ne se lisait que
+   * par la presence d une chaine dans la synthese, ce qui est
+   * exactement le mode de lecture que le brief 22 a condamne.
+   */
+  nonProductionCause: import('./non-production').NonProductionCauseOrNull;
   // Si triggered = false : moins de 2 flags se sont declenches, le
   // moteur ne tourne pas (cas typique : SaaS B2B early stage). Les
   // axes restent vides, l UI masque la section.

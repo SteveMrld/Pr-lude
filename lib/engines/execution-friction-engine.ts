@@ -357,6 +357,8 @@ export async function analyzeExecutionFriction(
   if (flagCount < 2) {
     return {
       triggered: false,
+      // Moins de deux flags : decision du moteur, pas un manque.
+      nonProductionCause: 'doctrine',
       flags,
       axes: [],
       globalScore: 0,
@@ -412,6 +414,7 @@ Analyse les 8 axes de friction d'exécution. Réponds UNIQUEMENT avec le JSON sp
     // soft avec les flags pour ne pas casser la pipeline.
     return {
       triggered: true,
+      nonProductionCause: 'incident',
       flags,
       axes: [],
       globalScore: 0,
@@ -443,6 +446,7 @@ Analyse les 8 axes de friction d'exécution. Réponds UNIQUEMENT avec le JSON sp
 
   return {
     triggered: true,
+    nonProductionCause: null,
     flags,
     axes,
     globalScore,
