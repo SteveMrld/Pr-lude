@@ -611,6 +611,14 @@ export interface CreatePendingAnalysisInput {
   asOf?: string | null;
   /** Provenance de l ancre : saisie partner ou ingestion de corpus. */
   asOfSource?: 'deck-receipt' | 'corpus-ingestion' | null;
+  /**
+   * Empreinte sha256 tronquee du deck, calculee des la sortie de
+   * processFileRefs. Deposee a la creation de la ligne pour qu un run
+   * echoue porte l empreinte du document qui l a fait echouer : elle
+   * n existait qu en fin de pipeline, donc sur les seuls runs
+   * aboutis.
+   */
+  deckHash?: string | null;
 }
 
 // ============================================================
@@ -772,6 +780,7 @@ export async function createPendingAnalysis(
         frozen: input.frozen === true,
         as_of: input.asOf || null,
         as_of_source: input.asOfSource || null,
+        deck_hash: input.deckHash || null,
       },
     );
     if (error) {

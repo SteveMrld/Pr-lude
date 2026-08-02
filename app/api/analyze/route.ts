@@ -59,6 +59,7 @@ import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder'
 import { requireConformingOutput } from '@/lib/engines/engine-output-contract';
 import { createEngineDeadlineWrapper } from '@/lib/orchestrator/engine-deadline';
 import { createEngineLogCallbacks } from '@/lib/orchestrator/engine-log-callbacks';
+import { createHash } from 'crypto';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import { withSourceHarvest, readSourceHarvest, harvestIsSilent } from '@/lib/data-fetchers/source-harvest';
 import { withLlmLedger, readLlmLedger, ledgerIsSilent } from '@/lib/instrumentation/llm-ledger';
@@ -211,6 +212,18 @@ export async function POST(req: NextRequest) {
       technicalDocs,
       others,
     } = await processFileRefs(buffered);
+
+    // Empreinte du deck, calculee au plus tot possible : le payload
+    // existe des la sortie de processFileRefs, soit bien avant la
+    // creation de la ligne. Elle etait jusqu ici calculee par
+    // buildVersionStamp en fin de pipeline, donc absente de tout run
+    // echoue : aucun echec n etait rattachable au document qui l avait
+    // provoque. Meme fonction de hachage que le version stamp, sha256
+    // tronque a seize caracteres, pour que les deux empreintes soient
+    // comparables sans conversion.
+    const deckHashPrecoce = pitchDeck
+      ? createHash('sha256').update(pitchDeck.payload).digest('hex').slice(0, 16)
+      : null;
 
     if (!pitchDeck) {
       return new Response(JSON.stringify({ error: 'Pitch deck PDF requis' }), { status: 400 });
@@ -409,6 +422,7 @@ export async function POST(req: NextRequest) {
       frozen,
       asOf,
       asOfSource,
+      deckHash: deckHashPrecoce,
     });
 
     // Degradation de schema, s il y en a eu une. La ligne a bien ete
