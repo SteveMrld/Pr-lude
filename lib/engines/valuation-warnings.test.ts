@@ -28,7 +28,15 @@ function check(cond: boolean, label: string) {
   else { fail++; console.error(`  KO  ${label}`); }
 }
 
-const CURRENT_YEAR = new Date().getFullYear();
+// Millesime fige. Le fixture calculait son annee sur
+// new Date().getFullYear() pour tomber sur la branche d horloge du
+// moteur, branche qui n existe plus : la base des multiples se lit
+// desormais sur le dernier exercice qualifie de realise, a defaut sur
+// la derniere annee anterieure a la reception du dossier. Un test qui
+// derive son fixture de l horloge ne peut pas exercer une regle qui
+// l a bannie, et surtout il change de sens au passage de chaque annee
+// civile.
+const BASE_YEAR = 2024;
 
 function buildInput(opts: {
   stage: string;
@@ -36,6 +44,10 @@ function buildInput(opts: {
   hasBP?: boolean;
   revenueProjection?: Array<{ year: string; value: number; source: string }>;
   tractionRevenue?: string;
+  /** Millesime declare realise par le deck, avec sa citation. Absent,
+   *  le moteur bascule sur asOf puis sur le refus. */
+  lastActualYear?: number;
+  asOf?: string;
 }): any {
   return {
     extraction: {
@@ -53,12 +65,17 @@ function buildInput(opts: {
       fcfProjection: [],
       headcount: [],
       opexProjection: [],
+      lastActualYear: opts.lastActualYear ?? null,
+      lastActualYearEvidence: opts.lastActualYear
+        ? `Tableau P&L slide 9 : colonne ${opts.lastActualYear} qualifiee realise.`
+        : null,
     },
     team: null,
     market: null,
     teamScore: 60,
     marketScore: 55,
     relevanceMatrix: { assetClass: 'saas-b2b' },
+    asOf: opts.asOf ?? null,
   };
 }
 
@@ -74,7 +91,8 @@ console.log('\n[Suite 1] dossier sans fichier BP mais avec projection exploitabl
   const out = computeValuation(buildInput({
     stage: 'series-a',
     hasBP: false,
-    revenueProjection: [{ year: String(CURRENT_YEAR), value: 2, source: 'deck' }],
+    revenueProjection: [{ year: String(BASE_YEAR), value: 2, source: 'deck' }],
+    lastActualYear: BASE_YEAR,
   }));
 
   const multiples = out.methods.find((m) => m.method === 'sector-multiples');

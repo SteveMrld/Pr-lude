@@ -37,6 +37,65 @@ import {
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 import type { RelevanceMatrix } from '@/lib/engines/relevance-matrix';
+import {
+  deriveDossierReferenceYearWithReason,
+  normalizeYear,
+} from '@/lib/analysis/reference-year';
+
+// ============================================================
+// MILLESIME DE REFERENCE DES MULTIPLES
+// ------------------------------------------------------------
+// Un multiple sectoriel s applique sur un chiffre d affaires
+// realise. Le moteur lisait la projection de l annee d horloge, ce
+// qui appliquait des multiples de marche sur un chiffre que
+// l entreprise n a pas encore fait : sur In Haircare, base 6,552 M
+// projetee 2026 contre 2,113 M realises en 2024, soit une
+// valorisation gonflee d un facteur trois.
+//
+// La regle qui remplace l horloge est ordonnee et exclusive. Elle
+// ne cherche pas a etre maligne, elle cherche a etre auditable :
+// chaque sortie declare laquelle des trois branches a tranche et
+// quel millesime elle a retenu.
+//
+//   1. explicit-actual : la derniere annee que le deck qualifie
+//      explicitement de realise, via la primitive partagee
+//      lib/analysis/reference-year. Celle-ci exige lastActualYear
+//      ET une citation textuelle du document, plus deux gardes de
+//      vraisemblance contre les projections du dossier.
+//
+//   2. as-of-anterior : a defaut de mention explicite, la derniere
+//      annee de la serie strictement anterieure a la date de
+//      reception du deck. asOf est une donnee saisie et persistee,
+//      pas une lecture d horloge : deux rejeux du meme dossier
+//      retiennent le meme millesime, six mois plus tard aussi.
+//
+//   3. refused : sans asOf exploitable, ou sans annee anterieure
+//      dans la serie, le moteur refuse. Les multiples sortent non
+//      applicables avec motif ecrit. Une valorisation absente est
+//      un resultat, une valorisation ancree sur une projection n en
+//      est pas un.
+//
+// La branche positionnelle qu on avait envisagee (avant-derniere
+// annee documentee) a ete ecartee : sur une serie qui court
+// jusqu en 2028 elle designe 2027, une projection pure. Elle
+// reproduisait le defaut avec un cran de decalage.
+//
+// new Date().getFullYear() ne figure plus dans ce moteur, sans
+// exception.
+// ============================================================
+
+export type ValuationBasisBranch = 'explicit-actual' | 'as-of-anterior' | 'refused';
+
+export interface ValuationBasis {
+  /** Branche de la regle qui a tranche. */
+  branch: ValuationBasisBranch;
+  /** Millesime retenu pour lire les series financieres, null si refus. */
+  year: number | null;
+  /** Phrase editoriale prete pour la note et le dashboard. */
+  declaration: string;
+  /** Motif du refus, null quand une base a ete retenue. */
+  refusalReason: string | null;
+}
 
 /**
  * Resultat d une methode de valorisation individuelle. Plusieurs
@@ -94,6 +153,12 @@ export interface ValuationOutput {
    *  est explicitement marquee non calculable plutot que cale sur les
    *  benchmarks seed par defaut. */
   stage: ValuationStage | 'unknown';
+  /** Millesime de reference retenu pour lire les series financieres,
+   *  et branche de la regle qui l a tranche. Declare dans la sortie
+   *  parce que le classement basis actual/budget de l extraction reste
+   *  instable d un run a l autre : la regle ne stabilise pas ce
+   *  classement, elle rend le choix explicite et auditable. */
+  basis: ValuationBasis;
   /** Phrase de synthese editoriale pour le partner. */
   synthesis: string;
   /** Avertissements methodologiques a remonter. */
@@ -124,6 +189,14 @@ interface ValuationInput {
    * Craft, mai 2026 : trois classificateurs independants tous biaises
    * vers saas-b2b en silence, on consolide. */
   relevanceMatrix?: RelevanceMatrix | null | undefined;
+  /** Date de reception du deck au format YYYY-MM-DD, saisie par le
+   * partner en page d entree et persistee en colonne as_of. Sert
+   * d ancrage temporel a la branche 2 de la regle de millesime. Une
+   * donnee du dossier, pas une lecture d horloge : c est ce qui
+   * permet a un rejeu de retenir le meme millesime que le run
+   * d origine. Absente, la branche 2 ne peut pas trancher et le
+   * moteur refuse plutot que de deviner. */
+  asOf?: string | null | undefined;
 }
 
 /**
@@ -150,6 +223,13 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   }
   const stage = normalizeStage(stageRaw);
 
+  // Millesime de reference. Resolu avant toute autre decision parce
+  // qu il conditionne la detection profitable-mature, la base des
+  // multiples et le facteur rollout de Berkus. Resolu aussi sur le
+  // chemin non applicable pour que la sortie declare toujours sur quoi
+  // le moteur aurait travaille.
+  const basis = resolveValuationBasis(input);
+
   // Doctrine : si l asset class est non classifiee ou le stade non
   // identifie, on ne calcule pas une fourchette ancree sur des
   // benchmarks decales. On retourne un output ou toutes les methodes
@@ -158,7 +238,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // industrial-hardware retombait en saas-b2b silencieux et appliquait
   // des multiples ARR sur du hardware unitaire).
   if (assetClass === 'unclassified' || stage === 'unknown') {
-    return buildNonApplicableValuation(assetClass, stage);
+    return buildNonApplicableValuation(assetClass, stage, basis);
   }
 
   // Detection automatique du cas 'profitable-mature' : si on est en
@@ -167,7 +247,14 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // une fourchette plus precise que les multiples revenue sur ces
   // dossiers. La detection ne s active pas pour les cas SaaS pur ou
   // l EBITDA peut etre negatif tout en ayant des multiples ARR eleves.
-  const ebitda = pickProjectionValue(input.financialData?.ebitdaProjection);
+  // L EBITDA lu ici est celui du millesime de reference, pas celui de
+  // l horloge. La bascule vers profitable-mature exigeait un EBITDA
+  // "extrait du pitch ou du BP" et lisait en fait une projection : sur
+  // In Haircare, 0,785 M projete 2026 contre 0,138 M en 2024. Une
+  // societe deficitaire en realise et beneficiaire en projection
+  // changeait donc de classe d actif, donc de plage de multiples et de
+  // scenarios d exit, sur la foi d une promesse.
+  const ebitda = pickProjectionValueAtYear(input.financialData?.ebitdaProjection, basis.year);
   const isLateStage = stage === 'series-b' || stage === 'series-c-plus';
   const isNonPureSaas = assetClass !== 'saas-b2b'
     && assetClass !== 'cybersecurity'
@@ -177,7 +264,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   }
 
   // ---------- Methode 1 : multiples sectoriels
-  const multiplesResult = computeBySectorMultiples(input, assetClass, stage);
+  const multiplesResult = computeBySectorMultiples(input, assetClass, stage, basis);
 
   // ---------- Methode 2 : VC method inverse
   // Au seed pre-revenue, la VC inverse n est de toutes facons exclue
@@ -195,7 +282,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     : computeByVcMethod(input, assetClass, stage);
 
   // ---------- Methode 3 : Berkus / Scorecard (seed only)
-  const berkusResult = stage === 'seed' ? computeByBerkus(input) : nonApplicableBerkus();
+  const berkusResult = stage === 'seed' ? computeByBerkus(input, basis) : nonApplicableBerkus();
   const scorecardResult = stage === 'seed' ? computeByScorecard(input) : nonApplicableScorecard();
 
   const methods: ValuationMethodResult[] = [
@@ -229,7 +316,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   });
 
   // ---------- Warnings
-  const warnings = collectWarnings(applicableMethods, recommendedRange);
+  const warnings = collectWarnings(applicableMethods, recommendedRange, basis);
 
   return {
     recommendedRange,
@@ -238,6 +325,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     dilutionAnalysis,
     assetClass,
     stage,
+    basis,
     synthesis,
     warnings,
     benchmarkSources: getBenchmarkSources(assetClass),
@@ -257,6 +345,7 @@ function computeBySectorMultiples(
   input: ValuationInput,
   assetClass: string,
   stage: ValuationStage,
+  basis: ValuationBasis,
 ): ValuationMethodResult {
   const sector = getSectorMultiples(assetClass, stage);
   if (!sector) {
@@ -268,14 +357,42 @@ function computeBySectorMultiples(
     };
   }
 
+  // Branche 3 de la regle de millesime. Le refus se prononce avant
+  // toute lecture de serie, y compris avant le repli sur la traction
+  // declaree du deck : un chiffre dont on ne sait pas dater l exercice
+  // ne peut pas porter un multiple de marche. Le motif remonte tel
+  // quel dans la note.
+  if (basis.branch === 'refused') {
+    return {
+      method: 'sector-multiples',
+      label: 'Multiples sectoriels',
+      applicable: false,
+      notApplicableReason: `${basis.declaration} ${basis.refusalReason ?? ''}`.trim(),
+      inputs: {
+        baseYear: null,
+        baseBranch: basis.branch,
+        multipleType: sector.range.multipleType,
+        assetClass,
+        stage,
+      },
+    };
+  }
+
   const range = sector.range;
-  const baseMetric = extractBaseMetric(input, range.multipleType);
+  const baseMetric = extractBaseMetric(input, range.multipleType, basis);
   if (baseMetric === null) {
     return {
       method: 'sector-multiples',
       label: 'Multiples sectoriels',
       applicable: false,
-      notApplicableReason: `Aucun ${range.multipleType.toUpperCase()} exploitable trouve dans le pitch ou le BP. La methode des multiples requiert une metrique de revenu mesurable.`,
+      notApplicableReason: `Aucun ${range.multipleType.toUpperCase()} exploitable au millesime ${basis.year} ni dans la traction declaree du pitch. La methode des multiples requiert une metrique de revenu mesurable a la base retenue, et ne se replie pas sur une annee voisine.`,
+      inputs: {
+        baseYear: basis.year,
+        baseBranch: basis.branch,
+        multipleType: range.multipleType,
+        assetClass,
+        stage,
+      },
     };
   }
 
@@ -299,7 +416,7 @@ function computeBySectorMultiples(
     ? ` Benchmark sectoriel calibre il y a ${freshnessMonths} mois (asOf ${range.asOf}), a recroiser.`
     : '';
 
-  const baseRationale = `Multiple ${range.multipleType.toUpperCase()} ${range.min}x-${range.max}x applique sur ${formatEur(baseMetric)} (${range.multipleType.toUpperCase()} declare).`;
+  const baseRationale = `Multiple ${range.multipleType.toUpperCase()} ${range.min}x-${range.max}x applique sur ${formatEur(baseMetric)}, ${range.multipleType.toUpperCase()} du millesime ${basis.year}. ${basis.declaration}`;
   const rationale = range.notes
     ? `${baseRationale} ${range.notes}${freshnessNote}`
     : `${baseRationale}${freshnessNote}`;
@@ -315,6 +432,12 @@ function computeBySectorMultiples(
     },
     inputs: {
       baseMetric,
+      // Le dashboard affichait un baseMetric nu, impossible a dater.
+      // Les deux champs suivants rendent la fourchette auditable sans
+      // aller relire le code : quel exercice porte le chiffre, et
+      // quelle branche de la regle l a designe.
+      baseYear: basis.year,
+      baseBranch: basis.branch,
       multipleType: range.multipleType,
       multipleRange: `${range.min}x - ${range.max}x`,
       assetClass,
@@ -326,38 +449,99 @@ function computeBySectorMultiples(
 }
 
 /**
- * Extrait une valeur usable d une projection financiere en millions
- * d EUR et la retourne en EUR bruts. Strategie : on prefere l annee
- * courante (revenue probablement realise ou pres de l etre), sinon la
- * derniere annee passee disponible, sinon la premiere annee future.
+ * Lit une serie financiere au millesime exact retenu par la regle de
+ * base, et retourne la valeur en EUR bruts.
  *
  * Les projections financialData.{revenue,ebitda,grossMargin,fcf}
  * Projection viennent du moteur financial-extraction-engine, qui
  * stocke les valeurs en MILLIONS d EUR. On reconvertit en EUR pour
  * que le moteur valuation puisse appliquer les multiples sectoriels
  * (qui s appliquent sur des montants en EUR bruts).
+ *
+ * Lecture stricte, sans repli sur une annee voisine. Une serie qui ne
+ * porte pas le millesime retenu rend null, et la methode qui en depend
+ * ressort non applicable. C est le cas reel du run 9201a046 ou revenue
+ * compte huit entrees depuis 2019 quand ebitda en compte sept depuis
+ * 2020 : un repli silencieux sur l annee la plus proche ferait lire
+ * deux grandeurs a deux millesimes differents sous une meme base
+ * declaree, ce qui est precisement ce que la declaration doit rendre
+ * impossible.
  */
-function pickProjectionValue(
+function pickProjectionValueAtYear(
   projection: Array<{ year: string; value: number; source: string }> | undefined,
+  year: number | null,
   unitMultiplier = 1_000_000,
 ): number | null {
-  if (!projection || projection.length === 0) return null;
-  const currentYear = new Date().getFullYear();
-  const parsed = projection
-    .map((p) => ({ year: parseInt(String(p.year), 10), value: Number(p.value) }))
-    .filter((p) => !isNaN(p.year) && !isNaN(p.value));
-  if (parsed.length === 0) return null;
-
-  const exact = parsed.find((p) => p.year === currentYear);
-  if (exact) return exact.value * unitMultiplier;
-
-  const past = parsed.filter((p) => p.year < currentYear).sort((a, b) => b.year - a.year)[0];
-  if (past) return past.value * unitMultiplier;
-
-  const future = parsed.filter((p) => p.year > currentYear).sort((a, b) => a.year - b.year)[0];
-  if (future) return future.value * unitMultiplier;
-
+  if (!projection || projection.length === 0 || year === null) return null;
+  for (const p of projection) {
+    const y = parseInt(String(p.year), 10);
+    const v = Number(p.value);
+    if (y === year && !isNaN(v)) return v * unitMultiplier;
+  }
   return null;
+}
+
+/**
+ * Applique la regle de millesime aux entrees du dossier. Fonction
+ * pure, aucune lecture d horloge, trois branches exclusives evaluees
+ * dans l ordre doctrinal. Voir le bloc MILLESIME DE REFERENCE en tete
+ * de fichier pour le raisonnement.
+ */
+function resolveValuationBasis(input: ValuationInput): ValuationBasis {
+  const fd = input.financialData;
+
+  // ---------- Branche 1 : mention explicite de realise
+  // La primitive partagee porte deja tout le contrat : lastActualYear
+  // renseigne, citation textuelle presente, appartenance aux annees des
+  // projections, non-posteriorite. On ne re-implemente rien ici, et un
+  // durcissement de la primitive se propage au moteur sans retouche.
+  const explicit = deriveDossierReferenceYearWithReason({ financialData: fd });
+  if (explicit.year !== null) {
+    return {
+      branch: 'explicit-actual',
+      year: explicit.year,
+      declaration: `Base ${explicit.year}, dernier exercice que le deck qualifie explicitement de realise avec citation a l appui.`,
+      refusalReason: null,
+    };
+  }
+
+  // ---------- Branche 2 : derniere annee anterieure a la date de deck
+  const asOfYear = normalizeYear(input.asOf ?? null);
+  const years = Array.isArray(fd?.revenueProjection)
+    ? fd!.revenueProjection
+        .map((p) => normalizeYear(p?.year))
+        .filter((y): y is number => y !== null)
+        .sort((a, b) => a - b)
+    : [];
+
+  if (asOfYear !== null) {
+    const anterior = years.filter((y) => y < asOfYear);
+    if (anterior.length > 0) {
+      const year = anterior[anterior.length - 1];
+      return {
+        branch: 'as-of-anterior',
+        year,
+        declaration: `Base ${year}, derniere annee de la serie anterieure a la reception du dossier (${input.asOf}). Le deck ne qualifie aucun exercice de realise : ${explicit.rejectionDetail ?? 'aucune mention explicite extractible.'}`,
+        refusalReason: null,
+      };
+    }
+    return {
+      branch: 'refused',
+      year: null,
+      declaration: `Base refusee : aucun exercice qualifie de realise, et aucune annee des projections n est anterieure a la reception du dossier (${input.asOf}).`,
+      refusalReason: years.length > 0
+        ? `Le dossier a ete recu en ${asOfYear} et sa serie de chiffre d affaires commence en ${years[0]}. Toutes les annees documentees sont donc projetees, aucune ne peut servir de base a un multiple de marche.`
+        : `Le dossier ne documente aucune serie de chiffre d affaires exploitable.`,
+    };
+  }
+
+  // ---------- Branche 3 : refus
+  return {
+    branch: 'refused',
+    year: null,
+    declaration: 'Base refusee : ni mention explicite de realise dans le deck, ni date de reception du dossier pour ancrer le millesime.',
+    refusalReason: `${explicit.rejectionDetail ?? 'Aucune mention explicite de realise extractible du deck.'} Et la date de reception du dossier (asOf) n est pas renseignee, ce qui prive le moteur de son second ancrage. Les multiples ne sont pas appliques : une fourchette calculee sur une projection vaudrait moins que pas de fourchette du tout.`,
+  };
 }
 
 /**
@@ -368,24 +552,28 @@ function pickProjectionValue(
 function extractBaseMetric(
   input: ValuationInput,
   multipleType: 'arr' | 'revenue' | 'gmv' | 'ebitda',
+  basis: ValuationBasis,
 ): number | null {
   const ext: any = input.extraction;
   const fd = input.financialData;
 
-  // ARR : on prend le revenue projete comme proxy d ARR pour les
-  // modeles SaaS, sauf si une mention explicite d ARR est dans la
-  // traction extraite du deck.
+  // ARR : on prend le revenue du millesime de reference comme proxy
+  // d ARR pour les modeles SaaS, sauf si une mention explicite d ARR
+  // est dans la traction extraite du deck.
   if (multipleType === 'arr') {
-    const fromBp = pickProjectionValue(fd?.revenueProjection);
+    const fromBp = pickProjectionValueAtYear(fd?.revenueProjection, basis.year);
     if (fromBp) return fromBp;
     const fromExt = ext?.traction?.revenue
       || ext?.traction?.metrics?.find?.((m: string) => /arr|recurring/i.test(m));
     return parseFinancialNumber(fromExt);
   }
 
-  // REVENUE : projection du BP en priorite, sinon extraction
+  // REVENUE : serie du BP au millesime de reference en priorite, sinon
+  // extraction. Le repli sur traction.revenue n est atteint que si la
+  // base a ete tranchee : computeBySectorMultiples sort avant d appeler
+  // cette fonction quand la branche est refused.
   if (multipleType === 'revenue') {
-    const fromBp = pickProjectionValue(fd?.revenueProjection);
+    const fromBp = pickProjectionValueAtYear(fd?.revenueProjection, basis.year);
     if (fromBp) return fromBp;
     const fromExt = ext?.traction?.revenue;
     return parseFinancialNumber(fromExt);
@@ -399,9 +587,9 @@ function extractBaseMetric(
     return parseFinancialNumber(gmvLine);
   }
 
-  // EBITDA : projection du BP en priorite
+  // EBITDA : serie du BP au millesime de reference, sans repli
   if (multipleType === 'ebitda') {
-    return pickProjectionValue(fd?.ebitdaProjection);
+    return pickProjectionValueAtYear(fd?.ebitdaProjection, basis.year);
   }
 
   return null;
@@ -611,7 +799,7 @@ function getExitScenarios(assetClass: string, stage: ValuationStage): { bear: nu
 //   5. Product rollout / sales : depend de la presence d ARR / revenue
 // ============================================================
 
-function computeByBerkus(input: ValuationInput): ValuationMethodResult {
+function computeByBerkus(input: ValuationInput, basis: ValuationBasis): ValuationMethodResult {
   const teamScore = input.teamScore ?? 50;
   const marketScore = input.marketScore ?? 50;
 
@@ -622,8 +810,13 @@ function computeByBerkus(input: ValuationInput): ValuationMethodResult {
   const factor3 = (teamScore / 100) * FACTOR_MAX;
   const factor4 = ((teamScore + marketScore) / 200) * FACTOR_MAX;
   const ext: any = input.extraction;
-  const revenueFromBp = pickProjectionValue(input.financialData?.revenueProjection);
-  const hasRevenue = (revenueFromBp != null && revenueFromBp > 0)
+  // Facteur 5 de Berkus, product rollout et ventes. Il mesure un
+  // deploiement commercial constate, pas une ambition : le lire au
+  // millesime de reference lui rend ce qu il pretend mesurer. Un seed
+  // sans chiffre realise tombe a 0,2 du plafond, ce qui est le
+  // comportement attendu de la methode sur un dossier pre-revenue.
+  const revenueAtBasis = pickProjectionValueAtYear(input.financialData?.revenueProjection, basis.year);
+  const hasRevenue = (revenueAtBasis != null && revenueAtBasis > 0)
     || !!parseFinancialNumber(ext?.traction?.revenue);
   const factor5 = hasRevenue ? FACTOR_MAX * 0.7 : FACTOR_MAX * 0.2;
 
@@ -746,6 +939,7 @@ function nonApplicableScorecard(): ValuationMethodResult {
 function buildNonApplicableValuation(
   assetClass: string,
   stage: ValuationStage | 'unknown',
+  basis: ValuationBasis,
 ): ValuationOutput {
   const stageMsg = stage === 'unknown'
     ? 'Stade non identifie (libelle pitch atypique : bridge, tour intermediaire, pre-B, extension de seed, etc.).'
@@ -775,6 +969,7 @@ function buildNonApplicableValuation(
     dilutionAnalysis: null,
     assetClass,
     stage,
+    basis,
     synthesis: 'Valorisation non calculable : la matrice n a pas trouve d ancrage sectoriel ou de stade reconnu pour ce dossier. Plutot qu une fourchette decalee, le moteur affiche explicitement l incertitude. Le partner doit clarifier (secteur dominant, palier de levee) avant de reactiver les methodes.',
     warnings,
     benchmarkSources: [],
@@ -999,8 +1194,29 @@ function buildSynthesis(args: {
 function collectWarnings(
   applicableMethods: ValuationMethodResult[],
   range: any,
+  basis: ValuationBasis,
 ): string[] {
   const warnings: string[] = [];
+
+  // La base retenue est un avertissement de plein droit, pas une note
+  // de bas de page. Un partner qui lit une fourchette doit savoir sur
+  // quel exercice elle repose avant de lire le chiffre, et par quelle
+  // branche de la regle cet exercice a ete designe. La branche as-of
+  // signale en outre que le deck n a rien qualifie de realise, ce qui
+  // est en soi un signal d instruction.
+  //
+  // Les deux causes de non-application des multiples partagent
+  // volontairement la meme phrase d ouverture. Le fait annonce au
+  // lecteur est le meme, les multiples n ont pas ete appliques ; seul
+  // le motif apres le deux-points differe, base temporelle refusee
+  // d un cote, metrique de revenu absente de l autre. Deux ouvertures
+  // distinctes pour un fait unique obligeraient chaque consommateur en
+  // aval a connaitre les deux formulations.
+  if (basis.branch === 'refused') {
+    warnings.push(`Les multiples sectoriels n ont pas pu être appliqués : ${basis.refusalReason ?? basis.declaration}`);
+  } else if (basis.branch === 'as-of-anterior') {
+    warnings.push(`${basis.declaration} Le deck ne qualifie explicitement aucun exercice de realise : la base a ete ancree sur la date de reception du dossier, pas sur une declaration du fondateur. A recouper avec les liasses.`);
+  }
 
   if (!range) {
     warnings.push('Fourchette non calculée : inputs insuffisants. Le partner doit collecter le BP / l ARR avant de procéder à la négociation.');
@@ -1029,8 +1245,13 @@ function collectWarnings(
     .filter((m) => m.method === 'berkus' || m.method === 'scorecard')
     .map((m) => m.label);
 
-  if (!applied.has('sector-multiples')) {
-    warnings.push('Les multiples sectoriels n ont pas pu être appliqués : aucune métrique de revenu exploitable (ARR, revenue, GMV ou EBITDA) n a été trouvée dans le pitch, la traction déclarée ou le BP.');
+  // Le motif de non-application des multiples est desormais a deux
+  // causes distinctes qu il serait faux de confondre : soit la base
+  // temporelle a ete refusee, et le warning correspondant a deja ete
+  // pousse en tete, soit la base existe mais aucune metrique de revenu
+  // ne la porte.
+  if (!applied.has('sector-multiples') && basis.branch !== 'refused') {
+    warnings.push(`Les multiples sectoriels n ont pas pu être appliqués : aucune métrique de revenu exploitable (ARR, revenue, GMV ou EBITDA) au millésime ${basis.year} dans le BP, ni dans la traction déclarée du pitch.`);
   }
 
   // "Uniquement qualitatif" n est vrai que si aucune methode

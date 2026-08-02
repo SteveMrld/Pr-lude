@@ -1501,6 +1501,13 @@ export async function POST(req: NextRequest) {
             // hardware au vocabulaire FR, retombait en saas-b2b par
             // defaut et calibrait la fourchette sur des exits SaaS.
             relevanceMatrix,
+            // Ancrage temporel de la regle de millesime. Le moteur ne
+            // lit plus l horloge : a defaut de mention explicite de
+            // realise dans le deck, c est la date de reception du
+            // dossier qui designe le dernier exercice utilisable. Un
+            // rejeu du meme dossier six mois plus tard retient donc le
+            // meme millesime que le run d origine.
+            asOf,
           });
 
           // Calcul des sept indicateurs deal type (Burn multiple, Rule of
@@ -1840,6 +1847,15 @@ export async function POST(req: NextRequest) {
               durationMs,
               engineDurations,
               versionStamp,
+              // asOf vivait en colonne as_of et dans le version stamp,
+              // jamais dans result_json. Les consommateurs qui rejouent
+              // un moteur deterministe cote client (recalcul valuation
+              // de la note, aggregateRefutations) lisaient meta.asOf et
+              // recevaient undefined. Le champ est desormais persiste la
+              // ou ils le cherchent : sans lui, le rejeu client de la
+              // valorisation ne peut pas trancher la branche 2 de la
+              // regle de millesime et refuse la fourchette.
+              asOf,
             },
             // Flags conflit d interet calcules juste apres extraction
             // (voir bloc CONFLITS D INTERET). Vide sur les dossiers

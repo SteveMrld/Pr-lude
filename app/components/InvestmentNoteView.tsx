@@ -553,6 +553,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         market: r.market,
         teamScore,
         marketScore,
+        // Meme ancrage temporel que le calcul serveur. Sur une analyse
+        // anterieure a la persistance de meta.asOf, le champ est absent
+        // et le rejeu client refuse les multiples au lieu de les ancrer
+        // sur une projection : c est le comportement voulu, un rejeu ne
+        // doit pas produire une fourchette que le run d origine
+        // n aurait pas produite.
+        asOf: (r as any)?.meta?.asOf ?? null,
       });
     } catch (err) {
       console.warn('[InvestmentNoteView] recompute valuation failed:', err);
@@ -2102,6 +2109,41 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14, color: 'var(--ink-soft)' }}>
                 {valuation.synthesis}
               </div>
+
+              {/* ============================================================
+                  Base retenue pour les multiples. Placee avant la
+                  fourchette et non en note de bas de bloc : un multiple
+                  sectoriel ne veut rien dire sans l exercice qu il
+                  multiplie, et le lecteur doit rencontrer le millesime
+                  avant le chiffre. Le moteur declare toujours la branche
+                  qui a tranche, y compris quand elle refuse.
+                  ============================================================ */}
+              {(valuation as any).basis && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                    marginBottom: 14,
+                    padding: '8px 12px',
+                    borderLeft: `2px solid ${(valuation as any).basis.branch === 'refused' ? '#8a4b3a' : 'var(--ocre-brule)'}`,
+                    background: 'rgba(107, 91, 58, 0.05)',
+                    color: 'var(--ink-soft)',
+                  }}
+                >
+                  <span style={{
+                    fontFamily: 'var(--sans)',
+                    fontSize: 10,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--muted)',
+                    marginRight: 8,
+                  }}>
+                    Base retenue
+                  </span>
+                  {(valuation as any).basis.declaration}
+                  {(valuation as any).basis.refusalReason && ` ${(valuation as any).basis.refusalReason}`}
+                </div>
+              )}
 
               {/* Barre visuelle de la fourchette */}
               {valuation.recommendedRange && (
