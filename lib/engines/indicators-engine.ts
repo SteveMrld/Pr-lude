@@ -476,9 +476,12 @@ function computeNdr(
     return {
       key: 'ndr', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      nonProductionCause: 'absence',
+      // Les deux branches sont doctrinales et pour deux raisons
+      // differentes : aucun jeu de benchmarks pour le couple, ou une
+      // metrique qui ne concerne pas le modele economique du dossier.
+      nonProductionCause: 'doctrine',
       rationale: !benchmarks
-        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). NDR neutralise.'
+        ? 'Aucun jeu de benchmarks ne correspond au couple asset class et stade de ce dossier. L indicateur est neutralise plutot que cale sur des seuils decales : c est une decision, pas une donnee manquante. NDR neutralise.'
         : 'NDR non applicable a cet asset class. La metrique mesure la retention nette de revenus recurrents sur la base installee, pertinente uniquement pour les modeles SaaS, fintech recurrent, ou consumer subscriptions. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
@@ -564,9 +567,12 @@ function computeMagicNumber(
     return {
       key: 'magicNumber', label, value: null, unit: 'x',
       verdict: 'non-applicable',
-      nonProductionCause: 'absence',
+      // Les deux branches sont doctrinales et pour deux raisons
+      // differentes : aucun jeu de benchmarks pour le couple, ou une
+      // metrique qui ne concerne pas le modele economique du dossier.
+      nonProductionCause: 'doctrine',
       rationale: !benchmarks
-        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Magic Number neutralise.'
+        ? 'Aucun jeu de benchmarks ne correspond au couple asset class et stade de ce dossier. L indicateur est neutralise plutot que cale sur des seuils decales : c est une decision, pas une donnee manquante. Magic Number neutralise.'
         : 'Magic Number non applicable a cet asset class. La metrique mesure l efficacite du capital S&M dans la generation d ARR new, pertinente uniquement pour les modeles SaaS et software a vente recurrente. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
@@ -642,9 +648,12 @@ function computePaybackCac(
     return {
       key: 'paybackCac', label, value: null, unit: 'mois',
       verdict: 'non-applicable',
-      nonProductionCause: 'absence',
+      // Les deux branches sont doctrinales et pour deux raisons
+      // differentes : aucun jeu de benchmarks pour le couple, ou une
+      // metrique qui ne concerne pas le modele economique du dossier.
+      nonProductionCause: 'doctrine',
       rationale: !benchmarks
-        ? 'Benchmarks SaaS non applicables (asset class non reconnue ou stade non identifie). Payback CAC neutralise.'
+        ? 'Aucun jeu de benchmarks ne correspond au couple asset class et stade de ce dossier. L indicateur est neutralise plutot que cale sur des seuils decales : c est une decision, pas une donnee manquante. Payback CAC neutralise.'
         : 'Payback CAC non applicable a cet asset class. La metrique mesure la duree d amortissement du cout d acquisition d un client, pertinente uniquement pour les modeles a vente recurrente ou repetable. Modele du dossier non concerne.',
       dataConfidence: 'absent',
     };
@@ -777,10 +786,10 @@ function computeGrossMargin(
     return {
       key: 'grossMargin', label, value: null, unit: '%',
       verdict: 'non-applicable',
-      nonProductionCause: 'absence',
+      nonProductionCause: !benchmarks ? 'doctrine' : 'absence',
       rationale: !benchmarks
-        ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifie). Marge brute neutralisee : sera evaluee qualitativement en DD selon le secteur reel du dossier.'
-        : 'Indicateur non applicable ou donnees BP absentes.',
+        ? 'Aucun jeu de benchmarks ne correspond au couple asset class et stade de ce dossier. L indicateur est neutralise plutot que cale sur des seuils decales : c est une decision, pas une donnee manquante. Marge brute neutralisee : elle sera evaluee qualitativement en DD selon le secteur reel du dossier.'
+        : 'Donnees du business plan absentes pour la marge brute. Rien n a echoue, le dossier ne porte pas la serie necessaire.',
       dataConfidence: 'absent',
       computedForYear: null,
       baseState: 'unknown',
@@ -873,10 +882,10 @@ function computeRevenuePerEmployee(
     return {
       key: 'revenuePerEmployee', label, value: null, unit: 'EUR/FTE',
       verdict: 'non-applicable',
-      nonProductionCause: 'absence',
+      nonProductionCause: !benchmarks ? 'doctrine' : 'absence',
       rationale: !benchmarks
-        ? 'Benchmarks non applicables (asset class non reconnue ou stade non identifié). Capital efficiency neutralisée.'
-        : 'Indicateur non applicable ou données BP absentes.',
+        ? 'Aucun jeu de benchmarks ne correspond au couple asset class et stade de ce dossier. L indicateur est neutralise plutot que cale sur des seuils decales : c est une decision, pas une donnee manquante. Capital efficiency neutralisee.'
+        : 'Donnees du business plan absentes pour le revenu par employe. Rien n a echoue, le dossier ne porte pas les series necessaires.',
       dataConfidence: 'absent',
       computedForYear: null,
       baseState: 'unknown',

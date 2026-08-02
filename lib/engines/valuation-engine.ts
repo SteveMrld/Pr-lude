@@ -959,8 +959,15 @@ function computeByVcMethod(
       nature: 'pre_money',
       label: 'Methode VC inverse',
       applicable: false,
-      notApplicableCause: 'absence',
-      notApplicableReason: `Pas de scenarios d exit calibres pour ${assetClass} au stade ${stage}.`,
+      // Audit du brief 24 : cette cause avait ete posee par analogie
+      // avec le site voisin, sans etre choisie. La table baseExits
+      // couvre les vingt et une classes du catalogue, donc un null ici
+      // ne peut venir que d une classe hors catalogue, ce que la garde
+      // amont de computeValuation intercepte deja. Si le cas se
+      // produit malgre tout, c est une lacune de referentiel et non une
+      // donnee absente du dossier.
+      notApplicableCause: 'incident',
+      notApplicableReason: `Aucun scenario d exit n est calibre pour ${assetClass} au stade ${stage}, alors que le referentiel devrait en porter pour les vingt et une classes du catalogue. C est une lacune du referentiel et non une decision.`,
     };
   }
 
