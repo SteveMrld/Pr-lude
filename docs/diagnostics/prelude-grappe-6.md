@@ -149,3 +149,41 @@ c est que quelque chose n est pas branche. Le controle a faire est
 donc double, `llmLedger.totalCalls` non nul dans `result_json.meta`, et
 comparaison du cumul avec un run anterieur du meme deck. Un ecart nul
 sur les deux est un signal d alarme, pas une confirmation.
+
+## 5. Le run de validation, et ce qu il ne demontre pas
+
+Run `8b4c6ad6`, In Haircare, 2 aout 2026, commit `55b8913`. Les sept
+controles sont passes : registre non muet a vingt et un appels,
+`deck_hash` pose a la creation et identique a celui du stamp, aucune
+degradation de schema a l insert, vingt-trois entrees au journal de
+recolte, vingt-neuf moteurs sur vingt-neuf portant une empreinte de
+prompt, `doctrineHash` a `423160eb7a7d4c3e`.
+
+Le cout remonte comme attendu. Contre la moyenne des trois runs
+anterieurs du meme deck : appels +90,9%, entree +17,8%, sortie +45,6%,
+duree +52,0%. La comparaison qui vaut est celle des deux mesures sur ce
+meme run, puisqu elle porte sur exactement le meme travail : l ancienne
+mesure y rend onze appels, 82 443 tokens d entree et 52 990 de sortie,
+le registre en rend vingt et un, 99 702 et 78 342.
+
+**Mais la hausse ne vient pas de ce que le brief anticipait.**
+`failedCalls` vaut zero sur ce run : il n a connu ni echec ni reprise.
+La totalite de l ecart vient donc de la couverture, c est-a-dire des
+dix moteurs qui appelaient le modele sans etre mesures. L hypothese du
+brief, selon laquelle le cout devait remonter parce que les echecs et
+les reprises sont desormais comptes, reste non demontree faute d echec
+a compter.
+
+Ce serait une faute de lire le +91% comme sa confirmation. Il confirme
+quelque chose de plus large, la fin de la mesure par discipline, et
+laisse l autre moitie en attente d un run qui echoue. Le controle a
+refaire est precis : sur un run portant au moins un `failedCalls` non
+nul, verifier que la duree et les tokens de l appel echoue sont bien
+comptes, ce qu aucune donnee du corpus ne permet aujourd hui.
+
+Une limite mesuree sur piece, en complement de celle nommee au bloc 2 :
+le stamp attache trente-deux empreintes de prompt aux vingt-neuf
+moteurs, la ou le registre en compte trente-trois. L ecart est
+`structuration-entree/prompt`, qui n a pas d entree moteur dans le
+stamp. Le `doctrineHash` le couvre puisqu il agrege le registre entier ;
+la ventilation par moteur ne le montre pas.
