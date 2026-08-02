@@ -94,3 +94,43 @@ defaut visible, et rejouer.
 promesse echoue, de sorte qu un echec ne soit pas memorise pour tout le
 run. Ce comportement est correct et doit le rester : il garantit qu un
 second appel dans le meme pipeline retente reellement.
+
+## Annexe operatoire : la surveillance du deploiement apres le passage en SSH
+
+Consigne ici parce que la question se posera au premier push de cette
+grappe, et qu elle a ete tranchee avant d etre rencontree.
+
+Le remote `origin` est passe en SSH le 2 aout 2026, avec une paire
+ed25519 generee sur la machine. Plus aucun identifiant ne transite par
+la conversation pour pousser. Mais l API GitHub, qu interroge le script
+de surveillance du deploiement pour lire l etat Production d un sha, ne
+connait pas SSH : elle veut un token.
+
+Trois options avaient ete posees, une seule est retenue.
+
+**Retenue.** Un token a portee reduite, stocke dans `.env.local` et
+injecte par le meme mecanisme que le PAT Supabase, c est-a-dire le
+serveur local sur le port 7778. Il ne transite jamais par le chat. La
+portee minimale suffit : lecture des deployments et de leurs statuts
+sur un depot prive, soit `repo` en classic ou la permission Deployments
+en lecture seule en fine-grained.
+
+**Ecartee, l abandon de la verification automatique.** Elle a servi a
+chaque push de la semaine et a plusieurs fois corrige une conclusion
+hative, dont une ou le script concluait sans imprimer sa ligne de
+detail. S en priver rendrait la confirmation declarative.
+
+**Ecartee, l exposition du sha deploye sur l URL de production.** Ce
+serait ajouter une surface publique pour resoudre un probleme interne :
+un endpoint qui publie la version deployee renseigne autant un
+attaquant qu un operateur.
+
+Etat de la configuration git apres bascule, verifie : `origin` en
+`git@github.com:SteveMrld/Pr-lude.git`, lecture authentifiee sans
+token confirmee par `git ls-remote`, `~/.git-credentials` toujours a
+0 octet. Le helper `store` reste declare en configuration globale et
+un helper vide le neutralise en configuration locale ; les deux sont
+desormais inertes pour ce depot, SSH n empruntant pas la chaine des
+credential helpers. Ils sont laisses en place plutot que supprimes :
+les retirer toucherait la configuration globale de la machine pour un
+gain nul.
