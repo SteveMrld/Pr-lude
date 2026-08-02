@@ -271,6 +271,119 @@ peut pas lire le detail des tests, alors que ce sont les seules qui ont
 reellement coupe. Les treize eliminations overridees, elles, gardent
 tout, parce qu elles transitent par le client.
 
+## 5. Doctrine tranchee, et ordre des travaux
+
+Arbitre le 2 aout 2026, apres la mesure. L ordre compte autant que le
+contenu, et il decoule d une phrase de l enquete : un vote a trois
+passes sur un test faux produit un faux resultat avec plus de
+confiance. Multiplier les tirages avant de reparer ce qui est tire,
+c est acheter de la certitude sur une erreur.
+
+L argument qui justifie cet ordre est un fait du corpus et non une
+preference. Les deux tirages du 2 aout rendent tous deux
+`not_recommended` : sous l unanimite comme sous la majorite simple,
+In Haircare aurait ete ecarte. Le vote ne l aurait pas sauve. Seule la
+correction de `sector_fit` l aurait fait, puisque c est ce test qui a
+declare hors these un dossier consumer alors que le profil du fonds
+porte `Consumer` et `E-commerce` parmi ses vingt-six secteurs cibles.
+Le dispositif dont on debattait le plus n aurait rien change ; celui
+dont on ne debattait pas etait la cause.
+
+### 1. Ce qui est comparable se compare, ce qui se juge se juge
+
+Secteur, stade et ticket sont des comparaisons entre une donnee du
+dossier et une donnee du profil du fonds. Elles sortent du prompt et
+deviennent deterministes. Le modele ne conserve que ce qui demande un
+jugement, coherence narrative, credibilite du fondateur, plausibilite
+financiere, drapeau rouge, et il ne redecide jamais la these.
+
+La raison est que `sector_fit` ne mesure pas de la variance : il
+demande au modele de juger ce qu une comparaison etablit. Un profil qui
+liste vingt-six secteurs et n en exclut aucun, qui ne filtre aucun
+stade et couvre les tickets de 500 euros a 15 millions, ne laisse rien
+a apprecier. Le taux d echec observe sur ces tests le confirme et
+l aggrave : `stage_ticket` echoue treize fois sur dix-neuf,
+`stage_fit` dix fois sur les quinze runs ou il est present,
+`ticket_fit` sept fois sur dix-huit. Les tests les plus defaillants du
+dispositif sont exactement ceux qui n auraient jamais du etre confies
+au modele.
+
+Ce point precede tous les autres parce qu il retire du perimetre du
+jugement ce qui n en relevait pas. Tout ce qui suit ne porte plus alors
+que sur ce qui se juge reellement.
+
+### 2. Le denominateur est fixe
+
+`totalTests` vaut le nombre de tests demandes, pas le nombre de tests
+rendus. Un test omis par le modele est un test en echec de production,
+declare comme tel, et non un test qui disparait.
+
+La raison est que la forme actuelle,
+`validatedTests.length || (fundProfile ? 10 : 6)`, transforme une
+defaillance en avantage. Un test omis ne peut pas echouer, et il retire
+en meme temps une unite au denominateur, donc il remonte mecaniquement
+le ratio. Quatre pre-scans du corpus sont juges sur neuf tests et un
+sur huit sans que rien ne le signale. Deux passes qui ne rendent pas le
+meme nombre de tests ne sont pas comparables, ce qui rend le point 2
+prealable au point 3 : on ne peut pas faire voter des bulletins dont on
+ignore le format.
+
+C est aussi la forme exacte que la grappe 3 a tranchee ailleurs. Un
+test absent est une non-production, elle a une cause, et cette cause
+est `incident` et non `absence` : le modele devait le rendre.
+
+### 3. Le vote vient apres, et seulement si la variance subsiste
+
+Une fois 1 et 2 poses, la question se repose sur ce qui reste, les
+tests de jugement, avec un denominateur stable. Si la variance a
+disparu, le vote est sans objet et le couperet peut rester a une passe.
+Si elle subsiste, la regle est celle etablie a la section 3 : trois
+passes en parallele, au maximum des trois durees et non a leur somme,
+elimination seulement si les trois rendent `not_recommended`, sinon le
+pipeline part avec le bandeau d alerte.
+
+L asymetrie de cout ne bouge pas et reste le fondement de l unanimite.
+Un faux positif fait tourner un pipeline pour rien et coute trois
+dollars. Un faux negatif fait disparaitre un dossier de l instruction
+sans que personne ne le sache, et le partner ne voit jamais ce qu il n a
+pas lu. Une majorite simple laisserait une passe dissidente sans effet,
+alors que c est precisement le signal recherche.
+
+Le vote est donc conditionnel et arrive en troisieme, non parce qu il
+serait couteux, il coute moins de trois pour cent de ce qu il protege,
+mais parce que sa valeur depend entierement de ce que 1 et 2 auront
+laisse.
+
+### 4. Le stamp des runs elimines
+
+Le stamp est construit apres `processFileRefs`, la ou vit deja
+`deckHashPrecoce`, et `sealVersionStamp` le ferme a la cloture. Dans le
+meme geste, `markAnalysisKnockedOut` cesse de laisser tomber le tableau
+`tests`, le modele et la duree.
+
+La raison est que ce point conditionne la verification des trois
+autres. Sans stamp sur les runs elimines, aucune des corrections
+ci-dessus ne pourra etre attribuee a un commit ni a une version de
+doctrine, et la seule categorie de runs ou la reproductibilite se joue
+restera celle qui n en garde aucune trace. Sans le detail des tests sur
+les lignes ecartees, la variance residuelle du point 3 ne sera pas
+mesurable, puisque les seuls runs qui coupent sont aujourd hui les
+seuls dont on ne peut pas lire les tests.
+
+Il est place en quatrieme parce qu il n a pas besoin de preceder les
+autres pour etre juste, mais il ne doit pas les suivre de loin : le
+premier run qui validera 1 et 2 devra deja le porter.
+
+### Ce qui reste ouvert et ne doit etre impute a rien
+
+La bascule de juillet a aout sur le meme deck, de `ready_for_pipeline`
+a `not_recommended`, est constatee et non expliquee. Le code a change
+entre les deux, aucun run de juillet ne porte d empreinte de prompt, et
+le profil de fonds n a pas bouge. Cela suffit a exclure le profil, cela
+ne designe rien d autre. Elle reste ouverte comme telle jusqu a ce qu un
+run l etablisse, et aucune des quatre decisions ci-dessus ne doit etre
+justifiee par elle.
+
 ## Dettes ouvertes par cette grappe
 
 **Le nom de societe n est pas repris sur les lignes ecartees.** Les
