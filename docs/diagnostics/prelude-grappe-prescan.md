@@ -384,6 +384,101 @@ ne designe rien d autre. Elle reste ouverte comme telle jusqu a ce qu un
 run l etablisse, et aucune des quatre decisions ci-dessus ne doit etre
 justifiee par elle.
 
+## 6. Mesure du brief 28, et ce qu elle ne peut pas dire
+
+### Le rejeu demande est bloque, et il faut le dire avant les chiffres
+
+Le bloc 4 demandait de rejouer le pre-scan sur les dossiers du corpus
+dont le deck est disponible, pour mesurer ce qui reste de variance une
+fois les comparaisons sorties du jugement. Les decks sont la, quatre-
+vingts PDF dans le bucket `dossier-uploads`, rattaches aux analyses par
+`uploaded_files[].storagePath`, et vingt-huit noms de fichiers
+distincts. La cle d API Anthropic est en place.
+
+Le telechargement, lui, ne passe pas.
+`SUPABASE_SERVICE_ROLE_KEY` porte toujours le R parasite du 2 aout,
+220 caracteres au lieu de 208, et l API Storage la refuse avec un
+`Bucket not found` qui est un refus d authentification deguise. La cle
+anon, elle, rend `Object not found`, c est-a-dire un 404 de RLS. Aucune
+des deux ne permet de lire un deck, et la consigne est de ne pas
+toucher a `.env`.
+
+Le rejeu attend donc une cle de service valide. Son cout est borne :
+vingt-huit decks distincts, trois passes chacun pour mesurer une
+variance, soit quatre-vingt-quatre appels Haiku, de l ordre de deux
+dollars et d une demi-heure en parallele. Il ne demande aucun run
+complet.
+
+**Ce qui suit ne mesure donc pas la variance residuelle.** Cela mesure
+ce que le corpus permet d etablir sans rappeler le modele, et la
+distinction compte : la premiere question du bloc 4 reste ouverte.
+
+### Ou tombaient les verdicts defavorables
+
+Sur tous les pre-scans du corpus dont le detail des tests est lisible,
+quarante-sept echecs de test sont enregistres. Trente-quatre portent
+sur les cinq tests devenus deterministes, treize sur les cinq tests de
+jugement. **Soixante-douze pour cent des echecs sortent du domaine du
+jugement**, et avec eux la variance qu ils portaient. Les alertes
+suivent la meme pente, vingt-deux contre quinze.
+
+C est la mesure qui justifie l ordre des travaux : la majorite de ce
+que le pre-scan reprochait aux dossiers relevait d un calcul, pas d une
+appreciation.
+
+### Mais les eliminations ne suivent pas la meme repartition
+
+Treize eliminations du corpus gardent le detail de leurs tests. Leur
+decomposition dement la lecture optimiste que le chiffre precedent
+invite a faire.
+
+```
+elimineees par un couperet devenu deterministe seul : 1
+elimineees par un couperet de jugement seul         : 9
+couperet mixte, jugement et comparaison             : 3
+elimineees par le score seul                        : 0
+```
+
+Une seule elimination sur treize reposait uniquement sur un test que le
+code tranche desormais. Neuf reposaient sur `narrative` ou sur
+`thesis_fit`, qui restent des jugements. Trois etaient mixtes : la part
+comparative disparait, la part de jugement coupe toujours.
+
+Autrement dit, la correction retire la majorite des echecs et la
+minorite des eliminations. Les deux chiffres sont vrais et ils ne
+disent pas la meme chose, parce que le couperet ne compte pas les
+echecs, il regarde cinq tests critiques.
+
+### Correction sur In Haircare, contre ce que j avais avance
+
+La note affirmait plus haut que seule la correction de `sector_fit`
+aurait sauve In Haircare. C est vrai du premier tirage du 2 aout, ou
+`sector_fit` etait le seul test en echec sur neuf sur dix. C est faux
+du second, ou `thesis_fit` a echoue en meme temps que `sector_fit`,
+`stage_ticket` et `stage_fit`.
+
+Apres les blocs 1 et 2, le premier tirage ne coupe plus. Le second
+coupe toujours, parce que `thesis_fit` reste un jugement et qu il a
+rendu `fail` sur une marque de soins capillaires.
+
+Ce qui ouvre le vrai sujet. `thesis_fit` s appelle « fit de these » et
+son enonce dit l inverse : « signaux d alarme integrite, claims
+grossierement faux, projet manifestement illegal », et le prompt
+precise meme qu il ne concerne pas la these d un fonds. Le modele
+echoue ce test sur des dossiers ou aucun drapeau rouge n existe, et
+c est le deuxieme motif d elimination du corpus. L hypothese la plus
+economique est que l identifiant l emporte sur l enonce, mais elle
+reste une hypothese : rien ici ne l etablit, et seul le rejeu bloque
+pourrait la trancher.
+
+### Les denominateurs amputes que le bloc 2 ferme
+
+Quatre pre-scans sur dix-neuf ont ete juges sur un denominateur inferieur
+a dix, trois sur neuf tests et un sur huit. Un cinquieme du corpus etait
+donc note sur un bareme que le modele avait raccourci lui-meme. Ces
+quatre-la sont mecaniquement fermes par le bloc 2, sans rien attendre
+d un rejeu.
+
 ## Dettes ouvertes par cette grappe
 
 **Le nom de societe n est pas repris sur les lignes ecartees.** Les
