@@ -51,6 +51,7 @@ import {
   updateAnalysisProgress,
   markAnalysisCompleted,
   markAnalysisFailed,
+  markAnalysisKnockedOut,
   extractAnalysisMetadata,
   getCurrentUserId,
   consumePendingInsertDegradation,
@@ -772,6 +773,22 @@ export async function POST(req: NextRequest) {
               totalTests: preScan.totalTests,
               message: 'Le pre-scan a leve un knockout. Pipeline complet non lance pour economiser les credits. Le partner peut forcer l analyse complete via le bouton dedie.',
             });
+            // La prediction se persiste avant de fermer. Sans cela elle
+            // ne pourrait jamais etre confrontee a son resultat, donc
+            // elle serait inutilisable pour la calibration, et aucune
+            // reponse sur pieces ne serait possible sur un dossier
+            // ecarte. La ligne existant deja, la meme ecriture la
+            // cloture au lieu de la laisser en 'running' jusqu au
+            // balayage des mort-nees.
+            if (analysisId) {
+              await markAnalysisKnockedOut(analysisId, {
+                recommendation: preScan.recommendation,
+                score: preScan.score,
+                totalTests: preScan.totalTests,
+                failedTests: preScan.failedTests || [],
+                summary: preScan.summary,
+              });
+            }
             // Termine proprement le stream sans envoyer 'complete'. Le
             // client recoit prescan-knockout et arrete le pipeline en
             // affichant le bandeau de gating.

@@ -907,6 +907,82 @@ export async function markAnalysisCompleted(
  * mais avec error_message rempli) et d offrir un rejeu sur la
  * meme ligne plutot que la creation d un nouveau dossier homonyme.
  */
+/**
+ * Cloture une ligne sur un knockout de pre-scan, en persistant la
+ * prediction qui l a motive.
+ *
+ * Le pre-scan d elimination produisait une prediction, « ce dossier ne
+ * passera pas », et n en gardait aucune trace : la route emettait un
+ * evenement SSE puis fermait le stream et sortait avant toute
+ * ecriture. Une prediction non persistee ne peut jamais etre
+ * confrontee a son resultat, donc elle est inutilisable pour la
+ * calibration, et le fonds qui demanderait pourquoi tel dossier n a
+ * pas ete instruit n obtiendrait aucune reponse sur pieces.
+ *
+ * La ligne existant deja a ce moment, la meme ecriture ferme un second
+ * defaut : elle etait laissee en 'running' et n etait basculee que par
+ * le balayage des mort-nees, en occupant d ici la un slot de
+ * concurrence sur trois. Un correctif, deux defauts.
+ *
+ * Le statut retenu est 'knockout' et non 'failed' : rien n a echoue,
+ * une regle a decide. C est la distinction du bloc 1 de la grappe 3,
+ * appliquee au statut de run.
+ */
+export async function markAnalysisKnockedOut(
+  analysisId: string,
+  prediction: {
+    recommendation: string;
+    score?: number | null;
+    totalTests?: number | null;
+    failedTests?: unknown;
+    summary?: string | null;
+  },
+): Promise<boolean> {
+  if (!isPersistenceEnabled()) return false;
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('analyses')
+      .update({
+        status: 'knockout',
+        verdict: prediction.recommendation,
+        completed_at: now,
+        updated_at: now,
+        error_message:
+          'Pre-scan eliminatoire : pipeline complet non lance. Ce n est pas un echec, '
+          + 'c est une decision de la regle de pre-scan. Le partner peut forcer l analyse complete.',
+        result_json: {
+          meta: {
+            // Horodatage propre a la prediction, distinct de celui de
+            // la ligne : c est la date a laquelle la prediction a ete
+            // emise qui compte pour la confronter a son resultat.
+            predictedAt: now,
+            outcome: 'prescan-knockout',
+            cause: 'doctrine',
+          },
+          preScan: {
+            recommendation: prediction.recommendation,
+            score: prediction.score ?? null,
+            totalTests: prediction.totalTests ?? null,
+            failedTests: prediction.failedTests ?? [],
+            summary: prediction.summary ?? null,
+          },
+        },
+      })
+      .eq('id', analysisId);
+    if (error) {
+      console.error('[analysis-store] markAnalysisKnockedOut erreur :', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[analysis-store] markAnalysisKnockedOut exception :', err);
+    return false;
+  }
+}
+
 export async function markAnalysisFailed(
   analysisId: string,
   errorMessage: string,
