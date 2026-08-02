@@ -30,7 +30,7 @@ function check(cond: boolean, label: string) {
 function faits(p: Partial<DossierFacts> = {}): DossierFacts {
   const vide = { value: null, evidence: null };
   return {
-    sector: vide, geography: vide, stage: vide, ticketEur: vide, ...p,
+    companyName: vide, sector: vide, geography: vide, stage: vide, ticketEur: vide, ...p,
   } as DossierFacts;
 }
 const cite = <T,>(value: T) => ({ value, evidence: 'page 3 : citation du deck' });

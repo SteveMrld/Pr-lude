@@ -31,6 +31,7 @@ const PROFIL: FundProfile = {
 
 const cite = <T,>(value: T) => ({ value, evidence: 'page 4 : citation' });
 const FAITS_COMPLETS: DossierFacts = {
+  companyName: cite('Acme SAS'),
   sector: cite('Fintech'), geography: cite('France'),
   stage: cite('seed'), ticketEur: cite(2_000_000),
 } as DossierFacts;
@@ -153,6 +154,8 @@ const TOUS_PASS = Object.fromEntries(JUGEMENTS.map(id => [id, 'pass' as const]))
   {
     const r = assemblerPreScan(reponse(TOUS_PASS), PROFIL);
     check(r.dossierFacts.sector.value === 'Fintech', 'les faits extraits sont conserves');
+    check(r.dossierFacts.companyName.value === 'Acme SAS',
+      'le nom de societe est un fait comme les autres, disponible a l ecriture de la ligne');
     check(r.dossierFacts.sector.evidence === 'page 4 : citation', 'avec leur citation');
     check(r.failedTests.length === 0, 'aucun echec sur ce dossier');
     const ordre = r.tests.map(t => t.id).join(',');

@@ -848,6 +848,7 @@ export async function POST(req: NextRequest) {
                 model: preScan.model ?? null,
                 durationMs: preScan.durationMs ?? null,
                 usedFundProfile: preScan.usedFundProfile === true,
+                companyName: preScan.dossierFacts?.companyName?.value ?? null,
               }, versionStampEntree);
             }
             // Termine proprement le stream sans envoyer 'complete'. Le

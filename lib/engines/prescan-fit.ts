@@ -65,6 +65,15 @@ export interface DossierFact<T> {
  * comparaisons. Aucun d eux ne suppose de connaitre la these du fonds.
  */
 export interface DossierFacts {
+  /**
+   * Nom de la societe. N entre dans aucune comparaison : il sert a
+   * nommer la ligne. Une analyse ecartee au pre-scan restait libellee
+   * « analyse en cours » alors que le resume nommait la societe, donc
+   * un dossier ecarte etait identifiable par son empreinte de deck et
+   * pas par son nom, ce qui est l inverse de ce qu un partner attend en
+   * rouvrant sa liste.
+   */
+  companyName: DossierFact<string>;
   sector: DossierFact<string>;
   geography: DossierFact<string>;
   stage: DossierFact<string>;

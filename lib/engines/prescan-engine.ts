@@ -212,23 +212,25 @@ Y a-t-il des signaux d'alarme intégrité, des claims grossièrement faux, ou un
 // rien, et le dire coute moins cher que le taire.
 const FACTS_PROMPT = `
 
-LES QUATRE FAITS À EXTRAIRE
+LES CINQ FAITS À EXTRAIRE
 
-En plus des cinq tests, tu extrais quatre faits du deck. Chacun porte une valeur prise dans le vocabulaire imposé ci-dessous, et une citation courte du deck qui la justifie.
+En plus des cinq tests, tu extrais cinq faits du deck. Chacun porte une valeur prise dans le vocabulaire imposé ci-dessous, et une citation courte du deck qui la justifie.
 
 Règle absolue : si le deck ne permet pas d'établir un fait, tu rends value null et evidence null. Tu n'inventes jamais, tu ne déduis jamais d'un secteur voisin ou d'un ordre de grandeur plausible. Une valeur sans citation est rejetée par la suite du traitement, donc la produire ne sert à rien.
 
-1. sector : le secteur principal du dossier, choisi EXACTEMENT dans cette liste, libellé identique au caractère près :
+1. companyName : le nom de la société analysée, tel que le deck l'écrit, sans forme juridique ni slogan. Aucun vocabulaire imposé. Si le deck ne nomme aucune société, value null.
+
+2. sector : le secteur principal du dossier, choisi EXACTEMENT dans cette liste, libellé identique au caractère près :
 ${SECTOR_VOCABULARY.join(' | ')}
 
-2. geography : le marché principal ou le siège de la société, choisi EXACTEMENT dans cette liste :
+3. geography : le marché principal ou le siège de la société, choisi EXACTEMENT dans cette liste :
 ${GEOGRAPHY_VOCABULARY.join(' | ')}
 
-3. stage : le stade revendiqué par le dossier, choisi EXACTEMENT dans cette liste :
+4. stage : le stade revendiqué par le dossier, choisi EXACTEMENT dans cette liste :
 ${STAGES.join(' | ')}
 Le stade doit être revendiqué ou clairement déductible d'une mention de tour. Un chiffre d'affaires ou un effectif ne suffisent pas à le déduire : dans ce cas, value null.
 
-4. ticketEur : le montant recherché, en euros, en nombre entier sans séparateur ni unité. Si le deck exprime un besoin de financement sans le qualifier de levée, retiens-le quand même et cite le passage. Si aucun montant n'est demandé, value null.`;
+5. ticketEur : le montant recherché, en euros, en nombre entier sans séparateur ni unité. Si le deck exprime un besoin de financement sans le qualifier de levée, retiens-le quand même et cite le passage. Si aucun montant n'est demandé, value null.`;
 
 /**
  * Exporte pour le harnais de mesure de la grappe pre-scan, qui rejoue
@@ -251,6 +253,7 @@ FORMAT DE RÉPONSE OBLIGATOIRE (JSON pur, sans markdown, sans backticks)
     { "id": "thesis_fit", "name": "Pas de drapeau rouge éliminatoire", "status": "...", "rationale": "...", "evidence": "..." }
   ],
   "dossierFacts": {
+    "companyName": { "value": "<nom de la société ou null>", "evidence": "<citation ou null>" },
     "sector": { "value": "<libellé du vocabulaire ou null>", "evidence": "<citation ou null>" },
     "geography": { "value": "<libellé du vocabulaire ou null>", "evidence": "<citation ou null>" },
     "stage": { "value": "<libellé du vocabulaire ou null>", "evidence": "<citation ou null>" },
@@ -559,6 +562,7 @@ function normaliserFacts(brut: any): DossierFacts {
     return { value: ok ? (v as T) : null, evidence: e };
   };
   return {
+    companyName: lire<string>('companyName', 'string'),
     sector: lire<string>('sector', 'string'),
     geography: lire<string>('geography', 'string'),
     stage: lire<string>('stage', 'string'),

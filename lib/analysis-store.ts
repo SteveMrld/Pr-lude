@@ -947,6 +947,13 @@ export async function markAnalysisKnockedOut(
     model?: string | null;
     durationMs?: number | null;
     usedFundProfile?: boolean;
+    /**
+     * Nom de la societe, lu par le pre-scan avec sa citation. La ligne
+     * ecartee restait libellee « analyse en cours » alors que le resume
+     * nommait la societe : elle etait identifiable par son empreinte de
+     * deck et pas par son nom.
+     */
+    companyName?: string | null;
   },
   /** Empreinte de version du run, construite avant le premier appel au
    *  modele. Un dossier ecarte devient ainsi rejouable et attribuable a
@@ -964,6 +971,10 @@ export async function markAnalysisKnockedOut(
       .update({
         status: 'knockout',
         verdict: prediction.recommendation,
+        // Le nom n est ecrit que s il a ete etabli. Ecrire une chaine
+        // vide ou un repli invente vaudrait moins que le libelle
+        // d attente, qui au moins ne ment pas.
+        ...(prediction.companyName ? { company_name: prediction.companyName } : {}),
         completed_at: now,
         updated_at: now,
         error_message:
