@@ -185,14 +185,39 @@ peuple d operations que le contrat d extraction ne sait pas nommer.
 Arbitree au brief 24, elle n est pas rediscutee ici.
 
 Le type d operation devient une donnee extraite de premier rang, au
-meme titre que le stade. Trois valeurs au depart : levee, cession
-totale ou partielle, LBO. Quand le type n est pas etabli avec
-citation, il est declare non etabli, et les moteurs qui presupposent
-une levee, VC inverse et dilution, se declarent non applicables avec
-motif plutot que de calculer sur une hypothese. C est la meme
-discipline que celle appliquee au millesime de valorisation au brief
-22 : une donnee sans citation n est pas une donnee, et un refus motive
-vaut mieux qu un calcul sur une supposition.
+meme titre que le stade. Quand il n est pas etabli avec citation, il
+est declare non etabli, et les moteurs qui presupposent une levee se
+declarent non applicables avec motif plutot que de calculer sur une
+hypothese. C est la meme discipline que celle appliquee au millesime
+de valorisation au brief 22 : une donnee sans citation n est pas une
+donnee, et un refus motive vaut mieux qu un calcul sur une
+supposition.
+
+**Quatre valeurs et non trois** : levee, cession partielle, cession
+totale, LBO. La cession se scinde parce que la dilution disparait par
+construction sur une cession totale, ou il n y a plus d actionnaire
+existant a diluer, et garde un sens sur une partielle, ou la question
+du pourcentage cede reste posee. Fondre les deux sous un libelle unique
+obligerait chaque consommateur a rederiver la distinction, ce qui est
+le patron que la grappe entiere combat. Le LBO reste distinct de la
+cession pour sa structure de dette, et le detail merite d etre pose :
+cette structure est precisement la grandeur que le contrat
+d extraction financiere n extrait jamais, ni dette financiere, ni
+tresorerie, ni BFR. Un LBO nomme comme tel signale donc au lecteur que
+l element determinant de l operation est absent du dossier instruit.
+
+**La fourchette de valorisation reste ce qu elle est.** Les multiples
+sectoriels gardent leur sens sur une cession comme sur un LBO : ce sont
+des multiples de transaction autant que de tour, et ils suffisent.
+Aucune methode nouvelle n est ajoutee dans cette grappe. La VC inverse,
+elle, se declare non applicable sur cession et sur LBO, avec cause
+`doctrine` au sens du bloc 1 : elle modelise le rendement d un
+investisseur qui entre au capital, ce qui n a pas lieu dans ces
+operations. Ce n est ni un incident ni une absence de donnee, c est une
+methode hors de son domaine, et le champ de cause doit le dire.
+
+Ouvrir des methodes de valorisation propres aux operations M&A serait
+un chantier a part, et il n est pas ouvert.
 
 ### Perimetre du changement, mesure
 
@@ -258,30 +283,30 @@ cession, la dilution disparait par construction et le vocabulaire de
 tour doit ceder la place a celui de prix d acquisition. Le cartouche
 de couverture nomme le tour dans sa ligne de contexte.
 
-### Ce qui reste a etablir avant d ordonnancer
+### Ordre d execution, grappe 4
 
-Quelle proportion du corpus est reellement concernee. Les quatorze
-dossiers growth sont un indice, pas une mesure : rien ne dit que tous
-soient des cessions, ni qu aucun dossier early ne le soit. La mesure
-demande une lecture des memorandums, pas une requete.
+Le chantier commence par la ligne de contexte des sept moteurs, qui
+est le poste le plus large et le moins couteux. Sept lectures
+dialectiques d une cession ecrites comme s il s agissait d un tour de
+table produisent une note de travers bien au-dela d un ticket faux :
+le mot « Tour » cadre le raisonnement du modele avant qu il ne lise
+quoi que ce soit d autre, et il le cadre sept fois. Une ligne par
+site, aucune logique a changer, et l effet porte sur toute la prose de
+la note.
 
-Si trois valeurs suffisent. Une cession partielle et une cession
-totale n ont pas les memes consequences sur la dilution, et un LBO se
-distingue d une cession par sa structure de dette plus que par le
-transfert de propriete. Le decoupage retenu est un point de depart
-assume, a confronter au corpus.
+Viennent ensuite le contrat de type et le prompt d extraction, qui
+vont de pair, puis la neutralisation de la VC inverse et de la
+dilution, puis le vocabulaire de la note.
 
-Ce que devient la fourchette de valorisation sur une cession. Les
-multiples sectoriels gardent leur sens, ce sont des multiples de
-transaction autant que de tour. La VC inverse n en a plus : elle
-modelise le rendement d un investisseur qui entre au capital. Si la
-valorisation doit rester utile sur ces dossiers, il lui faut une
-methode propre, ce qui deborde le present cadrage.
+La proportion du corpus reellement concernee se mesure apres. Elle ne
+conditionne pas la conception : le type d operation doit etre extrait
+que le corpus en compte trois ou trente.
 
 Le defaut de parsing reste second et ne se corrige pas seul :
 `parseFinancialNumber` tirant 100 M€ de « 100% du capital » rendrait
 un ticket nul une fois corrige, sans que la note cesse pour autant de
-parler de levee.
+parler de levee. Il se traite quand le type d operation existe, pas
+avant.
 
 ## 4. Un insert qui echoue entierement sur une colonne inconnue
 
