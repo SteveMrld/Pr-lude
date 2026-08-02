@@ -36,6 +36,16 @@ pas une coincidence. Le defaut n est pas dans les sites, il est dans
 l habitude de traiter l absence comme une categorie unique au moment
 d ecrire le message.
 
+Une decision prise et a ne pas defaire : `EngineStatus` n est pas
+aligne sur les trois causes. Ses six valeurs, `failed`,
+`failed-upstream`, `timeout`, `skipped_not_applicable`,
+`empty_output`, `ok`, sont plus riches que `doctrine`, `incident`,
+`absence`, et distinguent notamment trois formes d incident que la
+cause unique confondrait. Le marqueur `sourcesQueried: ['timeout']` du
+moteur macro est dans le meme cas. Les harmoniser au nom de
+l uniformite appauvrirait deux endroits qui font deja mieux que la
+forme commune. On ne touche pas.
+
 ### Ce qui reste a etablir
 
 Le recensement, qui est le travail du bloc. Chercher dans le pipeline
