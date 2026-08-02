@@ -84,6 +84,42 @@ export interface SectorBenchmarks {
  */
 export type ValuationStage = 'seed' | 'series-a' | 'series-b' | 'series-c-plus';
 
+// ============================================================
+// IDEMPOTENCE DES NORMALISEURS
+// ------------------------------------------------------------
+// Les deux fonctions ci-dessous lisent un libelle libre sorti du LLM
+// d extraction et rendent une valeur canonique. Elles ne savaient pas
+// lire leur propre sortie.
+//
+// normalizeStage reconnaissait 'Series C' et 'growth', qu elle mappe
+// toutes deux vers 'series-c-plus', mais pas 'series-c-plus' lui-meme,
+// qui tombait dans le retour 'unknown' final. normalizeAssetClass
+// reconnaissait vingt de ses vingt et une valeurs de sortie par
+// coincidence de mots-cle, et manquait 'profitable-mature', qui n est
+// pas un libelle sectoriel mais une classe derivee par le moteur de
+// valorisation.
+//
+// Le defaut se declenchait a chaque fois qu une valeur deja normalisee
+// repassait par le normaliseur. C est exactement ce que fait
+// computeValuation : il normalise le stade a l entree puis transmet la
+// valeur canonique a computeBySectorMultiples, qui la repasse dans
+// getSectorMultiples, qui renormalise. Mesure sur le corpus : quatorze
+// dossiers sur quarante et un, soit l integralite du parcours growth,
+// perdaient leurs multiples sectoriels sur une table qui les portait.
+//
+// La correction n est pas d ajouter deux mots-cle manquants. Elle est
+// de poser l idempotence comme contrat : normalize(x) vaut
+// normalize(normalize(x)) pour toute valeur canonique du catalogue.
+// Une valeur deja classee est reconnue avant toute heuristique, et la
+// garde vaut pour toutes les valeurs presentes et futures du
+// catalogue, pas pour les deux cas qu on avait sous les yeux.
+// ============================================================
+
+/** Les quatre paliers canoniques, plus le sentinel d incertitude. */
+const CANONICAL_STAGES: ReadonlySet<string> = new Set<string>([
+  'seed', 'series-a', 'series-b', 'series-c-plus', 'unknown',
+]);
+
 /**
  * Mapping permissif des stades extraits du pitch vers les quatre paliers
  * canoniques de valorisation.
@@ -99,7 +135,9 @@ export type ValuationStage = 'seed' | 'series-a' | 'series-b' | 'series-c-plus';
  */
 export function normalizeStage(rawStage: string | null | undefined): ValuationStage | 'unknown' {
   if (!rawStage) return 'unknown';
-  const s = rawStage.toLowerCase();
+  const s = rawStage.toLowerCase().trim();
+  // Contrat d idempotence, evalue avant toute heuristique de libelle.
+  if (CANONICAL_STAGES.has(s)) return s as ValuationStage | 'unknown';
   if (s.includes('pre-seed') || s.includes('preseed') || s.includes('pre seed')) return 'seed';
   if (s.includes('seed') || s.includes('amorcage') || s.includes('amorçage')) return 'seed';
   // Series A late et variantes post-PMF, pre-B : ces tours sont
@@ -595,6 +633,13 @@ export const SECTOR_BENCHMARKS: SectorBenchmarks = {
  */
 export function normalizeAssetClass(raw: string | null | undefined): string {
   if (!raw) return 'unclassified'; // jamais saas-b2b silencieux
+  // Contrat d idempotence. La liste n est pas recopiee : elle se lit
+  // sur les clefs de SECTOR_BENCHMARKS, de sorte qu une classe d actif
+  // ajoutee a la table soit couverte sans qu on ait a y penser. C est
+  // ce qui manquait a profitable-mature, seule classe derivee par le
+  // moteur de valorisation et non issue d un libelle sectoriel.
+  const canonique = String(raw).toLowerCase().trim();
+  if (canonique === 'unclassified' || canonique in SECTOR_BENCHMARKS) return canonique;
   // Normalisation lowercase + suppression diacritiques. Permet de
   // matcher indifferemment "Santé", "santé", "sante", "SANTÉ" avec
   // un seul keyword non accentue. Voir lib/data/text-normalize.ts.
