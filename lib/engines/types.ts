@@ -208,13 +208,23 @@ export interface TeamAnalysisOutput {
      * Distingue un score basé sur des données vs un score plancher d'incertitude.
      *   - 'evaluable'           : trajectoire suffisamment documentée pour scorer
      *   - 'partially-evaluable' : signaux partiels (par ex. nom retrouvé sans détails)
-     *   - 'non-evaluable'       : aucune donnée vérifiable. Le score 0-15 est un
+     *   - 'non-evaluable'       : aucune donnée vérifiable alors que les
+     *                             recherches ont abouti. Le score 5-15 est un
      *                             plancher de convention signalant l'impossibilité
      *                             d'instruire, pas une mauvaise note.
-     * Le rendu UI doit afficher un libellé "Non instruit" plutôt qu'un chiffre brut
-     * quand evaluability = 'non-evaluable'.
+     *   - 'recherches-empechees' : au moins une source déterminante a échoué,
+     *                             donc les recherches n'ont pas eu lieu. La
+     *                             prémisse de 'non-evaluable', « malgré les
+     *                             recherches », est fausse : le plancher de
+     *                             convention ne s'applique pas, et le libellé
+     *                             ne doit pas affirmer qu'on a cherché.
+     *
+     * Le rendu UI affiche "Non instruit" sur 'non-evaluable' et
+     * "Instruction empêchée" sur 'recherches-empechees'. Les deux disent une
+     * absence, mais l'une est un résultat et l'autre un incident : c'est le
+     * partner qui lit ce libellé, et il n'a pas les mêmes suites à donner.
      */
-    evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable';
+    evaluability?: 'evaluable' | 'partially-evaluable' | 'non-evaluable' | 'recherches-empechees';
     trajectorySummary: string; // narratif dense de la trajectoire
     fitSignals: string[]; // signaux positifs de founder-market fit
     fitGaps: string[]; // gaps de founder-market fit

@@ -2,6 +2,17 @@ import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { callClaudeWithUsage, applyRunOptions, MODEL, type EngineRunOptions } from './anthropic-client';
 import { parseEngineOutput } from './engine-output-contract';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
+import { sourceCause } from '../data-fetchers/source-harvest';
+
+/**
+ * Sources dont l echec invalide la premisse de la regle 'non-evaluable'.
+ * Ce sont exactement les quatre que le prompt nomme dans cette regle :
+ * elle dit « aucune donnee verifiable malgre les recherches
+ * (Wikipedia/OpenAlex/GitHub/arXiv) », donc l echec de l une d elles
+ * rend la phrase fausse. La liste est derivee du texte de la regle et
+ * non choisie : si la regle change, cette liste doit changer avec elle.
+ */
+const SOURCES_DETERMINANTES_EQUIPE = ['wikipedia', 'openalex', 'github', 'arxiv'] as const;
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
@@ -207,11 +218,22 @@ REGLE STRICTE SUR evaluability :
     peu de details (par ex. profil LinkedIn minimal sans publications).
     Score a calibrer prudemment, lecteur doit comprendre.
   - 'non-evaluable' : aucune donnee verifiable malgre les recherches
-    (Wikipedia/OpenAlex/GitHub/arXiv). Le overallFitScore doit etre
-    place a 5-15 par convention pour signaler l'absence d'instruction
-    POSSIBLE, pas une mauvaise note. Le rendu UI affichera 'Non instruit'.
-    Cas Pen Group : fondateurs introuvables apres 8 ans dans secteur
-    hautement reglementé = non-evaluable.
+    (Wikipedia/OpenAlex/GitHub/arXiv), ET ces recherches ont bien eu
+    lieu. Le overallFitScore doit etre place a 5-15 par convention pour
+    signaler l'absence d'instruction POSSIBLE, pas une mauvaise note. Le
+    rendu UI affichera 'Non instruit'. Cas Pen Group : fondateurs
+    introuvables apres 8 ans dans secteur hautement reglementé =
+    non-evaluable.
+  - 'recherches-empechees' : le bloc de donnees ci-dessous signale
+    qu'au moins une source a ECHOUE (timeout, erreur reseau, quota).
+    Dans ce cas la premisse de 'non-evaluable', « malgre les
+    recherches », est FAUSSE : la recherche n'a pas eu lieu, elle a
+    ete empechee. Tu NE DOIS PAS appliquer le plancher de convention
+    5-15, qui affirmerait qu'on a cherche sans trouver. Pose
+    evaluability = 'recherches-empechees', nomme la ou les sources
+    defaillantes dans trajectorySummary, et score sur les seuls
+    signaux declares du deck en disant explicitement que la
+    verification externe n'a pas pu etre menee.
 
 Quand le fondateur est non-evaluable, le narratif (trajectorySummary)
 doit expliquer pourquoi : "Aucune donnee verifiable, ce qui pour un
@@ -446,6 +468,16 @@ export async function analyzeTeam(
     }
     s += `Sources interrogées : ${(rd.sourcesQueried || []).join(', ') || 'aucune'}\n`;
     s += `Sources avec résultats : ${(rd.sourcesFound || []).join(', ') || 'AUCUNE'}\n`;
+    // Fiabilite de la recolte, lue dans le journal a portee de run. Sans
+    // elle, une source en timeout et une source qui repond sans rien
+    // trouver produisent la meme ligne « AUCUNE », et le modele conclut
+    // a une absence de signal la ou personne n a pu chercher.
+    const echecs = SOURCES_DETERMINANTES_EQUIPE.filter((src) => sourceCause(src) === 'incident');
+    if (echecs.length > 0) {
+      s += `ATTENTION, RECHERCHES EMPECHEES : ${echecs.join(', ')} ont ECHOUE (timeout, erreur reseau ou quota). `;
+      s += `L'absence de resultat sur ces sources n'est PAS une absence de signal : la recherche n'a pas abouti. `;
+      s += `Applique la regle 'recherches-empechees' et n'utilise pas le plancher de convention.\n`;
+    }
 
     if (rd.openalex) {
       s += `OpenAlex : ${v.openalex_pubs} publications, h-index ${v.openalex_h_index}, ${v.openalex_citations} citations\n`;

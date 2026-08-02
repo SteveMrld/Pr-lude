@@ -1,4 +1,5 @@
 import { applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
+import { readSourceHarvest } from '../data-fetchers/source-harvest';
 import { parseEngineOutput } from './engine-output-contract';
 import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
@@ -340,7 +341,21 @@ export async function analyzeMarket(
   // ÉTAPE 2 : Construire le résumé pour Claude
   let realDataSummary = `\n--- DONNÉES VÉRIFIÉES PAR SOURCES PUBLIQUES ---\n`;
   realDataSummary += `Sources interrogées : ${(realData.sourcesQueried || []).join(', ') || 'aucune'}\n`;
-  realDataSummary += `Sources avec résultats : ${(realData.sourcesFound || []).join(', ') || 'AUCUNE'}\n\n`;
+  realDataSummary += `Sources avec résultats : ${(realData.sourcesFound || []).join(', ') || 'AUCUNE'}\n`;
+  // On porte l information sans rien neutraliser. Le prompt du moteur
+  // Marche ne contient aucune regle sur le cas des sources absentes, ni
+  // repli explicite comme macro, ni plancher de convention comme
+  // equipe : rien dans le code ne permet donc d etablir si ces sources
+  // sont determinantes pour ses trois dimensions notees. La question
+  // demande une mesure comparative et non une lecture, et elle reste
+  // ouverte. En attendant, le modele sait au moins ce qui a echoue.
+  const sourcesMarcheEnEchec = readSourceHarvest().entries
+    .filter((e) => e.engine === 'market' && e.outcome === 'failed')
+    .map((e) => e.source);
+  if (sourcesMarcheEnEchec.length > 0) {
+    realDataSummary += `Sources en ECHEC pendant ce run : ${Array.from(new Set(sourcesMarcheEnEchec)).join(', ')}. Leur absence de resultat est un incident, pas un signal.\n`;
+  }
+  realDataSummary += `\n`;
 
   if (realData.hackerNews) {
     realDataSummary += `Hacker News (mentions de "${extraction.companyName}") :\n`;

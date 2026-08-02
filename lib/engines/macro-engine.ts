@@ -2,6 +2,7 @@ import { applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } fr
 import { parseEngineOutput } from './engine-output-contract';
 import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { gatherMacroRealData, gatherImfWeoSnapshot, type MacroSnapshot, type ImfWeoSnapshot } from '../data-fetchers/sources';
+import { readSourceHarvest } from '../data-fetchers/source-harvest';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import { buildFundNoteBlock, formatExtractionGeography } from './fund-context';
@@ -238,7 +239,19 @@ export async function analyzeMacro(
   let summary = `\n--- DONNÉES MACRO RÉELLES (World Bank API) ---\n`;
   summary += `Pays : ${realData.country}\n`;
   summary += `Sources interrogées : ${(realData.sourcesQueried || []).join(', ') || 'aucune'}\n`;
-  summary += `Sources avec résultats : ${(realData.sourcesFound || []).join(', ') || 'aucune'}\n\n`;
+  summary += `Sources avec résultats : ${(realData.sourcesFound || []).join(', ') || 'aucune'}\n`;
+  // Le repli du prompt existe deja, il dit de se baser sur le contexte
+  // sectoriel general quand les sources sont silencieuses. Ce qu il ne
+  // disait pas, faute de l information, c est laquelle a echoue et si
+  // elle a echoue plutot que de ne rien avoir. On le nomme.
+  const sourcesMacroEnEchec = readSourceHarvest().entries
+    .filter((e) => e.engine === 'macro' && e.outcome === 'failed')
+    .map((e) => e.source);
+  if (sourcesMacroEnEchec.length > 0) {
+    summary += `Sources en ECHEC pendant ce run (timeout, reseau, quota) : ${Array.from(new Set(sourcesMacroEnEchec)).join(', ')}. `;
+    summary += `Leur silence n'est pas une absence de donnee mais un incident : dis-le dans le rationale plutot que de conclure a l'absence de signal macro.\n`;
+  }
+  summary += `\n`;
 
   const indicators = realData.indicators || {};
   const derivedMetrics = realData.derivedMetrics || {};

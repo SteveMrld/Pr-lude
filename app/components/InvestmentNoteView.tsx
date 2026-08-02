@@ -1131,12 +1131,23 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 // que le lecteur lise '5/100' comme un mauvais profil.
                 const nonEvaluable = f.evaluability === 'non-evaluable';
                 const partiallyEvaluable = f.evaluability === 'partially-evaluable';
+                // Quatrieme etat. « Non instruit » affirme qu on a
+                // cherche sans trouver ; quand une source determinante a
+                // echoue, on n a pas cherche. C est ce libelle que le
+                // partner lit, et les deux etats n appellent pas la meme
+                // suite : le premier est un resultat sur le fondateur,
+                // le second un incident sur le run, qui se rejoue.
+                const recherchesEmpechees = f.evaluability === 'recherches-empechees';
                 return (
-                  <div key={i} className={`founder-block ${nonEvaluable ? 'founder-block-uneval' : ''}`}>
+                  <div key={i} className={`founder-block ${nonEvaluable || recherchesEmpechees ? 'founder-block-uneval' : ''}`}>
                     <div className="founder-header">
                       <span className="founder-name">{f.name}</span>
                       <span className="founder-role">/ {f.role}</span>
-                      {nonEvaluable ? (
+                      {recherchesEmpechees ? (
+                        <span className="founder-fit founder-fit-uneval" title="Instruction empêchée : au moins une source externe a échoué pendant ce run. Ce n'est pas une absence de signal sur le fondateur, c'est une recherche qui n'a pas abouti. Le dossier mérite d'être rejoué.">
+                          INSTRUCTION EMPÊCHÉE
+                        </span>
+                      ) : nonEvaluable ? (
                         <span className="founder-fit founder-fit-uneval" title="Score non instruit faute de données vérifiables - n'est pas un mauvais score, c'est l'absence d'instruction possible">
                           NON INSTRUIT
                         </span>
