@@ -646,9 +646,12 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   const s = normalizeFrText(raw);
 
   // ----- Premium / categorie speciale
+  // Le sigle francais IA se lit comme le sigle anglais AI, avec la meme
+  // precaution de bordure de mot : sans elle, « financial » ou
+  // « social » emporteraient la classe.
   if (s.includes('genai') || s.includes('llm') || s.includes('generative')
     || s.includes('foundation model') || s.includes('intelligence artificielle')
-    || /\bai\b/.test(s)) return 'ai-generative';
+    || /\bai\b/.test(s) || /\bia\b/.test(s)) return 'ai-generative';
 
   // ----- Energies marines / infrastructures marines : prioritaire
   // sur climate-tech generique car le profil economique (CAPEX par
@@ -669,10 +672,12 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
     || s.includes('banque') || s.includes('neobanque')
     || s.includes('paiement') || s.includes('paiements')
     || s.includes('assurance') || s.includes('mutuelle') || s.includes('prevoyance')
-    || s.includes('credit') || s.includes('agrement acpr') || s.includes('agrement orias')) return 'fintech';
+    || s.includes('credit') || s.includes('agrement acpr') || s.includes('agrement orias')
+    || s.includes('web3') || s.includes('crypto') || s.includes('blockchain')) return 'fintech';
   if (s.includes('marketplace') || s.includes('platform b2c') || s.includes('consumer marketplace')) return 'marketplace-b2c';
   if (s.includes('ecommerce') || s.includes('e-commerce') || s.includes('dtc') || s.includes('direct to consumer')
-    || s.includes('retail')) return 'ecommerce-dtc';
+    || s.includes('retail') || s.includes('consumer') || s.includes('grande consommation')
+    || s.includes('biens de consommation')) return 'ecommerce-dtc';
   if (s.includes('deeptech') || s.includes('deep tech') || s.includes('biotech')
     || s.includes('quantum') || s.includes('materials') || s.includes('semiconductor')) return 'deeptech';
   // Transport medical / sanitaire FR : route explicitement vers
@@ -702,8 +707,16 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   if (s.includes('defense') || s.includes('defence') || s.includes('military')
     || s.includes('militaire') || s.includes('armement') || s.includes('armee')
     || s.includes('dual-use')) return 'defense';
-  if (s.includes('hospitality') || s.includes('travel') || s.includes('tourism')
-    || s.includes('hotel') || s.includes('vacation')) return 'hospitality';
+  // Le francais du prompt d extraction entre ici. « Hospitalite » est
+  // un des onze libelles que ce prompt propose lui-meme, et le
+  // normaliseur ne le lisait pas : les deux dossiers Compagnie des
+  // Alpes du corpus, parcs de loisirs, ressortaient non classes et
+  // perdaient leurs quatre methodes de valorisation pour un mot.
+  if (s.includes('hospitality') || s.includes('hospitalite') || s.includes('travel')
+    || s.includes('tourism') || s.includes('tourisme') || s.includes('hotellerie')
+    || s.includes('hotel') || s.includes('vacation') || s.includes('loisir')
+    || s.includes('parc d attraction') || s.includes('parcs d attraction')
+    || s.includes('parc de loisirs') || s.includes('parcs de loisirs')) return 'hospitality';
 
   // ----- Asset-classes ajoutees pour couverture etendue
   if (s.includes('adtech') || s.includes('ad tech') || s.includes('advertising')
@@ -723,7 +736,8 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   // maritime reste capture par 'freight', 'shipping', 'last mile'.
   if (s.includes('logistics') || s.includes('supply chain') || s.includes('freight')
     || s.includes('shipping') || s.includes('last mile') || s.includes('ferroviaire')
-    || s.includes('aviation civile') || s.includes('fret')) return 'logistics';
+    || s.includes('aviation civile') || s.includes('fret')
+    || s.includes('mobilite') || s.includes('mobility') || s.includes('transport')) return 'logistics';
   if (s.includes('media') || s.includes('streaming') || s.includes('publishing')
     || s.includes('gaming') || s.includes('content') || s.includes('entertainment')) return 'mediatech';
   // Detection sport via word-boundary pour eviter la capture par
@@ -753,6 +767,8 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
     // saas-b2b par defaut. Voir bug Platypus Craft, mai 2026.
     || s.includes('naval') || s.includes('navale')
     || s.includes('navire') || s.includes('bateau') || s.includes('bateaux')
+    || s.includes('robotique') || s.includes('robotics') || /\biot\b/.test(s)
+    || s.includes('internet des objets') || s.includes('objets connectes')
     || s.includes('nautique') || s.includes('nautisme')
     || s.includes('shipbuilding') || s.includes('shipyard')
     || s.includes('marine') || s.includes('maritime')
@@ -765,7 +781,8 @@ export function normalizeAssetClass(raw: string | null | undefined): string {
   // productionChain detecte sur le corpus textuel complet.
   if (s.includes('saas') || s.includes('b2b') || s.includes('software')
     || s.includes('logiciel') || s.includes('edition logicielle')
-    || s.includes('hrtech') || s.includes('legaltech') || s.includes('govtech')) return 'saas-b2b';
+    || s.includes('hrtech') || s.includes('hr tech') || s.includes('legaltech')
+    || s.includes('govtech') || s.includes('cloud')) return 'saas-b2b';
 
   return 'unclassified'; // jamais saas-b2b silencieux
 }
