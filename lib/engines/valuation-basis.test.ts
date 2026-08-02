@@ -193,9 +193,13 @@ console.log('\n[Suite 2] branche 2, ancrage sur la date de reception du dossier'
   const c = computeValuation(buildInput({ asOf: '2024-03-01' }));
   check(a.basis.year === 2024 && b.basis.year === 2024, 'deux dates dans la meme annee donnent la meme base');
   check(c.basis.year === 2023, `une reception en 2024 recule la base a 2023 (obtenu ${c.basis.year})`);
+  // On compare la fourchette en valeur d entreprise et non
+  // recommendedRange : celui-ci est null des que deux natures
+  // coexistent, et deux null egaux ne prouveraient rien.
+  const evOf = (o: any) => o.ranges.find((r: any) => r.nature === 'enterprise_value')?.central ?? null;
   check(
-    a.recommendedRange?.central === b.recommendedRange?.central,
-    'la fourchette ne bouge pas entre deux receptions de la meme annee',
+    evOf(a) !== null && evOf(a) === evOf(b),
+    `la fourchette ne bouge pas entre deux receptions de la meme annee (${evOf(a)} vs ${evOf(b)})`,
   );
 }
 

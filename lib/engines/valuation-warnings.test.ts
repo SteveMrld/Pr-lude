@@ -97,7 +97,12 @@ console.log('\n[Suite 1] dossier sans fichier BP mais avec projection exploitabl
 
   const multiples = out.methods.find((m) => m.method === 'sector-multiples');
   check(multiples?.applicable === true, 'les multiples sectoriels ont produit une fourchette');
-  check(out.recommendedRange !== null, 'une fourchette consolidee est calculee');
+  // Deux methodes applicables de natures differentes, multiples en
+  // valeur d entreprise et VC inverse en pre-money : deux fourchettes
+  // consolidees, et aucune fourchette unique. recommendedRange portait
+  // auparavant leur moyenne ponderee sous une seule etiquette.
+  check(out.ranges.length === 2, `deux fourchettes consolidees, une par nature (obtenu ${out.ranges.length})`);
+  check(out.recommendedRange === null, 'aucune fourchette unique quand deux natures coexistent');
   check(
     !out.warnings.some((w) => INAPPLICABILITE.test(w)),
     'aucun warning d inapplicabilite des multiples sous un resultat de multiples',

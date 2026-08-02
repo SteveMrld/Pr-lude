@@ -175,8 +175,42 @@ export interface ValuationMethodResult {
  * Resultat global du moteur de valorisation. C est ce qu on stocke
  * dans result.valuation et qu on affiche dans la note PDF.
  */
+/**
+ * Fourchette consolidee pour une nature de valeur donnee. Les methodes
+ * qui la composent partagent toutes cette nature : rien n est melange
+ * ici, et les poids sont renormalises sur les seules methodes
+ * retenues, de sorte qu une fourchette a une seule methode ne soit pas
+ * amputee du poids des methodes de l autre nature.
+ */
+export interface ConsolidatedRange {
+  nature: ValuationNature;
+  min: number;
+  central: number;
+  max: number;
+  /** Methodes retenues et poids effectifs, sommant a 1. */
+  contributions: Array<{ method: string; label: string; weight: number }>;
+}
+
 export interface ValuationOutput {
-  /** Fourchette consolidee pre-money en euros. */
+  /**
+   * Fourchettes consolidees, une par nature disponible, au plus deux.
+   * C est la sortie de reference : un dossier peut porter une valeur
+   * d entreprise issue des multiples et une valeur des capitaux
+   * propres avant tour issue de la VC inverse, et les deux sont
+   * vraies sans etre comparables.
+   */
+  ranges: ConsolidatedRange[];
+  /**
+   * Fourchette unique, renseignee seulement quand une seule nature est
+   * disponible. Null des que deux natures coexistent, parce qu il n y
+   * a alors pas de chiffre unique a recommander : l ecart entre les
+   * deux est la dette nette, que le pipeline n extrait pas.
+   *
+   * Le champ portait auparavant une moyenne ponderee des deux natures,
+   * documentee comme pre-money. Sur un dossier series-a, c etait 65
+   * pour cent de valeur d entreprise et 35 pour cent de pre-money
+   * additionnes sous une etiquette qui n en decrivait qu une.
+   */
   recommendedRange: {
     min: number;
     central: number;
@@ -346,22 +380,36 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     scorecardResult,
   ];
 
-  // ---------- Consolidation : moyenne ponderee des methodes applicables
+  // ---------- Consolidation : une fourchette par nature de valeur
   const applicableMethods = methods.filter((m) => m.applicable && m.range);
-  const recommendedRange = consolidateRanges(applicableMethods, stage);
+  const ranges = consolidateRanges(applicableMethods, stage);
+  // recommendedRange ne survit que comme raccourci du cas homogene.
+  // Des que deux natures coexistent il n y a pas de chiffre unique a
+  // recommander, et rendre l une des deux reviendrait a trancher en
+  // silence une question qui appartient au lecteur.
+  const recommendedRange = ranges.length === 1
+    ? { min: ranges[0].min, central: ranges[0].central, max: ranges[0].max }
+    : null;
 
   // ---------- Confiance globale
   const confidence = determineConfidence(applicableMethods, assetClass, stage);
 
   // ---------- Analyse de dilution si ticket mentionne
+  // La dilution se calcule sur une pre-money et sur elle seule :
+  // ticket / (pre-money + ticket). L appliquer a une valeur
+  // d entreprise rendrait un pourcentage qui ne veut rien dire, la
+  // dette nette n etant pas diluee par une augmentation de capital.
+  // Elle suit donc la fourchette pre-money quand il y en a une, et
+  // reste absente sinon.
   const ticket = parseTicketEur(input.extraction);
-  const dilutionAnalysis = (recommendedRange && ticket)
-    ? buildDilutionAnalysis(recommendedRange, ticket)
+  const preMoneyRange = ranges.find((r) => r.nature === 'pre_money') ?? null;
+  const dilutionAnalysis = (preMoneyRange && ticket)
+    ? buildDilutionAnalysis(preMoneyRange, ticket)
     : null;
 
   // ---------- Synthese editoriale
   const synthesis = buildSynthesis({
-    recommendedRange,
+    ranges,
     confidence,
     assetClass,
     stage,
@@ -370,9 +418,10 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   });
 
   // ---------- Warnings
-  const warnings = collectWarnings(applicableMethods, recommendedRange, basis);
+  const warnings = collectWarnings(applicableMethods, ranges, basis);
 
   return {
+    ranges,
     recommendedRange,
     confidence,
     methods,
@@ -1028,6 +1077,7 @@ function buildNonApplicableValuation(
     warnings.push(`Asset class non reconnue. Valorisation non calculable plutot que calee sur des multiples saas-b2b decales. Voir matrix.productionChain pour le routage doctrinal : un dossier hardware-physical n est pas valorise comme un SaaS B2B.`);
   }
   return {
+    ranges: [],
     recommendedRange: null,
     confidence: 'low',
     methods,
@@ -1073,9 +1123,9 @@ function buildNonApplicableValuation(
 function consolidateRanges(
   methods: ValuationMethodResult[],
   stage: ValuationStage,
-): { min: number; central: number; max: number } | null {
+): ConsolidatedRange[] {
   const valid = methods.filter((m) => m.applicable && m.range);
-  if (valid.length === 0) return null;
+  if (valid.length === 0) return [];
 
   // Disponibilite du revenue : on detecte via l applicabilite de
   // sector-multiples qui requiert un ARR ou revenue exploitable.
@@ -1121,57 +1171,86 @@ function consolidateRanges(
   })();
 
   const eligible = valid.filter((m) => (weights[m.method] || 0) > 0);
-  if (eligible.length === 0) return null;
+  if (eligible.length === 0) return [];
 
-  let totalWeight = 0;
-  let weightedCentral = 0;
-  const centrals: number[] = [];
-
+  // Groupement par nature. Le poids d une methode reste celui de la
+  // table doctrinale, mais il est renormalise a l interieur de son
+  // groupe : sinon une fourchette de valeur d entreprise portee par les
+  // seuls multiples en series-a vaudrait 0,65 fois son central, ampute
+  // du poids d une methode d une autre nature qui ne la concerne pas.
+  const groups = new Map<ValuationNature, ValuationMethodResult[]>();
   for (const m of eligible) {
-    const w = weights[m.method] || 0;
-    totalWeight += w;
-    weightedCentral += m.range!.central * w;
-    centrals.push(m.range!.central);
+    const arr = groups.get(m.nature) ?? [];
+    arr.push(m);
+    groups.set(m.nature, arr);
   }
 
-  const central = weightedCentral / totalWeight;
+  // Ordre stable et editorial : la valeur d entreprise d abord quand
+  // elle existe, parce qu elle vient de l ancrage empirique le plus
+  // direct, le chiffre d affaires realise du dossier.
+  const ORDER: ValuationNature[] = ['enterprise_value', 'pre_money'];
+  const out: ConsolidatedRange[] = [];
 
-  // Garde-fous d incertitude. ENVELOPPE_MAX : les bornes ne sortent
-  // jamais de central x [0.55, 1.80] meme si les methodes divergent
-  // beaucoup. ENVELOPPE_MIN : les bornes garantissent au minimum +/-
-  // 20% autour du central, meme si les methodes convergent tres etroit.
-  const ENVELOPPE_MAX_DOWN = 0.55;
-  const ENVELOPPE_MAX_UP = 1.80;
-  const ENVELOPPE_MIN_DOWN = 0.80;
-  const ENVELOPPE_MIN_UP = 1.20;
+  for (const nature of ORDER) {
+    const group = groups.get(nature);
+    if (!group || group.length === 0) continue;
 
-  let min: number, max: number;
-  if (eligible.length === 1) {
-    // Methode unique : on resserre ses bornes propres dans le plafond
-    // de plausibilite, sinon une seule methode au range tres large
-    // (typiquement VC inverse seul) sortirait une fourchette inutile.
-    const m = eligible[0];
-    min = Math.max(m.range!.min, central * ENVELOPPE_MAX_DOWN);
-    max = Math.min(m.range!.max, central * ENVELOPPE_MAX_UP);
-  } else {
-    // Plusieurs methodes : la dispersion entre leurs centraux est l
-    // ancrage de l incertitude.
-    const minCentral = Math.min(...centrals);
-    const maxCentral = Math.max(...centrals);
-    min = Math.max(minCentral, central * ENVELOPPE_MAX_DOWN);
-    max = Math.min(maxCentral, central * ENVELOPPE_MAX_UP);
+    let totalWeight = 0;
+    let weightedCentral = 0;
+    const centrals: number[] = [];
+    for (const m of group) {
+      const w = weights[m.method] || 0;
+      totalWeight += w;
+      weightedCentral += m.range!.central * w;
+      centrals.push(m.range!.central);
+    }
+    const central = weightedCentral / totalWeight;
+
+    // Garde-fous d incertitude, appliques a l interieur du groupe.
+    // ENVELOPPE_MAX : les bornes ne sortent jamais de central x
+    // [0.55, 1.80] meme si les methodes divergent beaucoup.
+    // ENVELOPPE_MIN : les bornes garantissent au minimum +/- 20% autour
+    // du central, meme si les methodes convergent tres etroit.
+    const ENVELOPPE_MAX_DOWN = 0.55;
+    const ENVELOPPE_MAX_UP = 1.80;
+    const ENVELOPPE_MIN_DOWN = 0.80;
+    const ENVELOPPE_MIN_UP = 1.20;
+
+    let min: number, max: number;
+    if (group.length === 1) {
+      // Methode unique dans sa nature : on resserre ses bornes propres
+      // dans le plafond de plausibilite, sinon une seule methode au
+      // range tres large, typiquement la VC inverse, sortirait une
+      // fourchette inutilisable pour pricer.
+      const m = group[0];
+      min = Math.max(m.range!.min, central * ENVELOPPE_MAX_DOWN);
+      max = Math.min(m.range!.max, central * ENVELOPPE_MAX_UP);
+    } else {
+      // Plusieurs methodes de meme nature : la dispersion entre leurs
+      // centraux est l ancrage de l incertitude.
+      const minCentral = Math.min(...centrals);
+      const maxCentral = Math.max(...centrals);
+      min = Math.max(minCentral, central * ENVELOPPE_MAX_DOWN);
+      max = Math.min(maxCentral, central * ENVELOPPE_MAX_UP);
+    }
+
+    if (min > central * ENVELOPPE_MIN_DOWN) min = central * ENVELOPPE_MIN_DOWN;
+    if (max < central * ENVELOPPE_MIN_UP) max = central * ENVELOPPE_MIN_UP;
+
+    out.push({
+      nature,
+      min: Math.round(min),
+      central: Math.round(central),
+      max: Math.round(max),
+      contributions: group.map((m) => ({
+        method: m.method,
+        label: m.label,
+        weight: Math.round(((weights[m.method] || 0) / totalWeight) * 1000) / 1000,
+      })),
+    });
   }
 
-  // Plage minimale d incertitude : on garantit toujours +/- 20% autour
-  // du central, sauf si les bornes plafond sont deja plus serrees.
-  if (min > central * ENVELOPPE_MIN_DOWN) min = central * ENVELOPPE_MIN_DOWN;
-  if (max < central * ENVELOPPE_MIN_UP) max = central * ENVELOPPE_MIN_UP;
-
-  return {
-    min: Math.round(min),
-    central: Math.round(central),
-    max: Math.round(max),
-  };
+  return out;
 }
 
 function determineConfidence(
@@ -1231,23 +1310,34 @@ function buildDilutionAnalysis(
 }
 
 function buildSynthesis(args: {
-  recommendedRange: { min: number; central: number; max: number } | null;
+  ranges: ConsolidatedRange[];
   confidence: string;
   assetClass: string;
   stage: ValuationStage;
   applicableMethods: ValuationMethodResult[];
   dilutionAnalysis: any;
 }): string {
-  if (!args.recommendedRange) {
+  if (args.ranges.length === 0) {
     return 'La fourchette de valorisation ne peut pas etre etablie : aucune des methodes (multiples, VC inverse, Berkus, Scorecard) ne dispose des inputs necessaires. Demander a la startup le BP, l ARR ou le revenue declare avant de relancer le calcul.';
   }
-  const { min, central, max } = args.recommendedRange;
-  const sourcesLabel = args.applicableMethods.map((m) => m.label).join(', ');
   const confidenceLabel = args.confidence === 'high' ? 'eleve'
     : args.confidence === 'medium' ? 'modere'
     : 'faible';
 
-  let synth = `La fourchette pre-money plausible se situe entre ${formatEur(min)} et ${formatEur(max)}, avec un point central de ${formatEur(central)}. Niveau de fiabilite ${confidenceLabel}, base sur ${args.applicableMethods.length} methode${args.applicableMethods.length > 1 ? 's' : ''} applicable${args.applicableMethods.length > 1 ? 's' : ''} (${sourcesLabel}).`;
+  // Une phrase par nature. La synthese ne peut plus annoncer un
+  // chiffre unique quand le moteur en produit deux qui ne mesurent pas
+  // la meme chose : elle les nomme tous les deux.
+  const phrases = args.ranges.map((r) => {
+    const sources = r.contributions.map((c) => c.label).join(', ');
+    return `En ${VALUATION_NATURE_LABELS[r.nature]}, la fourchette plausible se situe entre ${formatEur(r.min)} et ${formatEur(r.max)}, avec un point central de ${formatEur(r.central)} (${sources}).`;
+  });
+
+  let synth = phrases.join(' ');
+  synth += ` Niveau de fiabilite ${confidenceLabel}, base sur ${args.applicableMethods.length} methode${args.applicableMethods.length > 1 ? 's' : ''} applicable${args.applicableMethods.length > 1 ? 's' : ''}.`;
+
+  if (args.ranges.length > 1) {
+    synth += ' Les deux fourchettes ne sont pas comparables terme a terme : ce qui les separe est la dette nette du dossier, que le pipeline n extrait pas. Le rapprochement revient au partner, sur les elements de bilan que le deck ne porte pas.';
+  }
 
   if (args.dilutionAnalysis) {
     synth += ` Sur le ticket propose, la dilution s etablit entre ${args.dilutionAnalysis.dilutionAtMax}% (valo haute) et ${args.dilutionAnalysis.dilutionAtMin}% (valo basse).`;
@@ -1258,10 +1348,19 @@ function buildSynthesis(args: {
 
 function collectWarnings(
   applicableMethods: ValuationMethodResult[],
-  range: any,
+  ranges: ConsolidatedRange[],
   basis: ValuationBasis,
 ): string[] {
   const warnings: string[] = [];
+
+  // Deux natures en sortie : le fait doit remonter en avertissement et
+  // pas seulement dans la prose de synthese, parce que c est ce qui
+  // interdit de lire un seul chiffre.
+  if (ranges.length > 1) {
+    warnings.push(
+      `Deux natures de valeur en sortie, ${ranges.map((r) => VALUATION_NATURE_LABELS[r.nature]).join(' et ')}, qui ne se comparent pas terme a terme. L ecart entre elles est la dette nette, absente du contrat d extraction financiere : le pipeline ne lit ni dette, ni tresorerie, ni BFR. Aucune fourchette unique n est recommandee.`,
+    );
+  }
 
   // La base retenue est un avertissement de plein droit, pas une note
   // de bas de page. Un partner qui lit une fourchette doit savoir sur
@@ -1283,7 +1382,7 @@ function collectWarnings(
     warnings.push(`${basis.declaration} Le deck ne qualifie explicitement aucun exercice de realise : la base a ete ancree sur la date de reception du dossier, pas sur une declaration du fondateur. A recouper avec les liasses.`);
   }
 
-  if (!range) {
+  if (ranges.length === 0) {
     warnings.push('Fourchette non calculée : inputs insuffisants. Le partner doit collecter le BP / l ARR avant de procéder à la négociation.');
     return warnings;
   }
@@ -1292,8 +1391,13 @@ function collectWarnings(
     warnings.push('Une seule méthode applicable. La fourchette est moins robuste qu une consolidation à 2-3 méthodes. Considérer comme indicative.');
   }
 
-  if (range.max / range.min > 4) {
-    warnings.push(`La fourchette est très large (rapport max/min ${Math.round(range.max / range.min * 10) / 10}). Le pricing dépend fortement de signaux qualitatifs non chiffrables.`);
+  // La largeur s evalue fourchette par fourchette. Une fourchette de
+  // valeur d entreprise etroite et une fourchette pre-money large ne
+  // se moyennent pas : chacune est signalee pour ce qu elle est.
+  for (const r of ranges) {
+    if (r.min > 0 && r.max / r.min > 4) {
+      warnings.push(`La fourchette en ${VALUATION_NATURE_LABELS[r.nature]} est très large (rapport max/min ${Math.round(r.max / r.min * 10) / 10}). Le pricing dépend fortement de signaux qualitatifs non chiffrables.`);
+    }
   }
 
   // Le warning ne se prononce que sur ce qui a reellement ete calcule.
