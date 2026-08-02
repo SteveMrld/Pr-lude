@@ -25,6 +25,14 @@ import {
   SECTORS as SECTORAL_SECTORS,
 } from '@/lib/engines/sectoral-intelligence/types';
 import {
+  OPERATION_LABELS,
+  libelleMontant,
+  libelleContrepartie,
+  estCession,
+  MENTION_LBO,
+  MENTION_TYPE_NON_ETABLI,
+} from '@/lib/note/operation-vocabulary';
+import {
   computeValuation,
   // Les libelles de nature viennent du moteur, ils ne sont pas
   // reecrits ici : la note ne doit pas pouvoir nommer une grandeur
@@ -3639,23 +3647,64 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
       {/* Bloc 4 - Transaction features (collapsible en mode compact) */}
       <NoteSectionWrapper number="4." title="Modalités de la transaction" compactMode={compactMode} collapseInCompact={true} sectionId="section-4">
+        {/* Mention portee par le type. Le LBO signale une lacune du
+            dossier, ecrite comme une production et non comme un
+            avertissement technique : dire ce que le document ne contient
+            pas est un resultat d instruction. */}
+        {e.fundraise?.operationType === 'lbo' && (
+          <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 12, padding: '8px 12px', borderLeft: '2px solid var(--ocre-brule)', background: 'rgba(107, 91, 58, 0.05)' }}>
+            {MENTION_LBO}
+          </div>
+        )}
+        {(!e.fundraise?.operationType || e.fundraise.operationType === 'non-etabli') && (
+          <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 12, padding: '8px 12px', borderLeft: '2px solid var(--muted)', color: 'var(--ink-soft)' }}>
+            {MENTION_TYPE_NON_ETABLI}
+          </div>
+        )}
         <table className="note-table">
           <tbody>
             <tr>
-              <td className="note-label">Stage</td>
+              <td className="note-label">Nature de l&apos;opération</td>
+              <td className="note-value">
+                {OPERATION_LABELS[(e.fundraise?.operationType as any) ?? 'non-etabli']}
+                {e.fundraise?.operationTypeEvidence && (
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    « {e.fundraise.operationTypeEvidence} »
+                  </span>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td className="note-label">Stade</td>
               <td className="note-value">{e.fundraise?.stage || '—'}</td>
             </tr>
             <tr>
-              <td className="note-label">Nominal</td>
+              <td className="note-label">{libelleMontant(e.fundraise?.operationType)}</td>
               <td className="note-value">{e.fundraise?.amount || '—'}</td>
             </tr>
+            {estCession(e.fundraise?.operationType) && (
+              <>
+                <tr>
+                  <td className="note-label">Cédant</td>
+                  <td className="note-value">{e.fundraise?.seller || 'non précisé'}</td>
+                </tr>
+                <tr>
+                  <td className="note-label">Périmètre cédé</td>
+                  <td className="note-value">{e.fundraise?.stakeForSale || 'non précisé'}</td>
+                </tr>
+              </>
+            )}
             <tr>
               <td className="note-label">Valuation</td>
               <td className="note-value">{e.fundraise?.valuation || 'non précisée'}</td>
             </tr>
             <tr>
-              <td className="note-label">Lead investor</td>
-              <td className="note-value">{e.fundraise?.leadInvestor || 'non précisé'}</td>
+              <td className="note-label">{libelleContrepartie(e.fundraise?.operationType)}</td>
+              <td className="note-value">
+                {estCession(e.fundraise?.operationType)
+                  ? (e.fundraise?.sellSideAdvisor || 'non précisé')
+                  : (e.fundraise?.leadInvestor || 'non précisé')}
+              </td>
             </tr>
             {fd?.currentRound?.runwayMonths && fd.currentRound.runwayMonths !== 'non précisé' && (
               <tr>
