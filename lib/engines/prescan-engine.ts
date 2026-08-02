@@ -1,4 +1,17 @@
 import { callClaudeWithPDF, parseJSON, FAST_MODEL } from './anthropic-client';
+import type { NonProductionCauseOrNull } from './non-production';
+import {
+  evaluerComparaisons,
+  type DossierFact,
+  type DossierFacts,
+  type FitProfile,
+  type PreScanStatus,
+} from './prescan-fit';
+import {
+  SECTOR_VOCABULARY,
+  GEOGRAPHY_VOCABULARY,
+  STAGES,
+} from '../fund-profile/vocabulary';
 
 // ============================================================
 // MOTEUR DE PRE-SCAN (TRIAGE BLOC 0)
@@ -22,19 +35,27 @@ import { callClaudeWithPDF, parseJSON, FAST_MODEL } from './anthropic-client';
 // la note avec la raison precise, et le partner reste libre
 // d analyser quand meme (mode souple par defaut).
 //
-// Tests structurels appliques systematiquement :
+// Repartition des dix tests depuis la grappe pre-scan : ce qui est
+// comparable se compare, ce qui se juge se juge.
+//
+// Rendus par le modele, parce qu ils demandent de lire un document :
 //   1. Coherence narrative minimale
 //   2. Credibilite fondateur minimale
 //   3. Plausibilite financiere
-//   4. Coherence stade vs ticket
 //   5. Marche identifiable
 //   6. Pas de drapeau rouge eliminatoire
 //
-// Tests appliques UNIQUEMENT si fundProfile fourni :
-//   7. Sector fit (these sectorielle)
-//   8. Geography fit (these geographique)
-//   9. Ticket fit (gamme de tickets)
-//  10. Stage fit (stade investi)
+// Calcules par le code dans prescan-fit, a partir de quatre faits que
+// le modele extrait avec leur citation :
+//   4. Coherence stade vs ticket (contre les fourchettes usuelles)
+//   7. Sector fit, 8. Geography fit, 9. Ticket fit, 10. Stage fit
+//      (contre le profil du fonds)
+//
+// Le profil du fonds ne descend plus dans le prompt. Le modele ne
+// connait pas la these, donc il ne peut pas la redecider : c est la
+// faute qui a ouvert la grappe, sector_fit ayant declare hors these un
+// dossier consumer quand le profil portait Consumer parmi ses secteurs
+// cibles.
 // ============================================================
 
 export interface FundProfile {
@@ -83,12 +104,22 @@ export interface PreScanTest {
   id: string;
   /** Nom lisible du test affiche dans l UI */
   name: string;
-  /** Resultat : pass = pas d alerte, warn = alerte mineure, fail = knockout */
-  status: 'pass' | 'warn' | 'fail';
+  /**
+   * pass = pas d alerte, warn = alerte mineure, fail = knockout,
+   * not_produced = le test n a pas rendu de verdict. Le quatrieme cas
+   * n est ni un succes ni un echec : il se lit avec sa cause.
+   */
+  status: PreScanStatus;
   /** Phrase courte qui explique le verdict (15-40 mots, francais sans em-dashes) */
   rationale: string;
   /** Citation exacte du pitch qui justifie le verdict, ou empty si absence justifie l alerte */
   evidence: string;
+  /**
+   * Null quand le test a rendu un verdict. Renseigne sinon, au sens de
+   * la grappe 3 : `absence` quand le deck ne porte pas la donnee,
+   * `incident` quand le modele devait rendre le test et ne l a pas fait.
+   */
+  nonProductionCause?: NonProductionCauseOrNull;
 }
 
 export interface PreScanOutput {
@@ -112,6 +143,13 @@ export interface PreScanOutput {
   model: string;
   /** True si un fundProfile a ete utilise (les 4 tests these ont tourne) */
   usedFundProfile: boolean;
+  /**
+   * Faits extraits du deck qui alimentent les comparaisons. Persistes
+   * pour qu une elimination puisse etre relue sur pieces : le motif
+   * d un fit refuse se verifie contre la citation et contre le profil,
+   * sans relancer le modele.
+   */
+  dossierFacts: DossierFacts;
 }
 
 export const BASE_SYSTEM_PROMPT = `Tu es le Moteur de Pré-Scan de la plateforme Prélude. Ton rôle est de lire un pitch deck VC en 5-8 secondes et de produire un verdict de triage rapide.
@@ -123,7 +161,9 @@ Tu n'analyses pas en profondeur. Tu n'entres pas dans le détail. Tu appliques m
 VOIX
 Voix éditoriale Le Grand Continent / The Atlantic. Français. Pas d'em-dashes (utilise des virgules ou des points). Pas de flatterie. Pas de bullet points dans les rationales. Tu es honnête et chirurgical.
 
-LES SIX TESTS UNIVERSELS
+LES CINQ TESTS DE JUGEMENT
+
+Ces cinq tests sont les seuls que tu rends. Les tests de cohérence stade contre ticket et de fit avec la thèse du fonds ne te sont pas demandés : ils sont calculés par comparaison à partir des faits que tu extrais plus bas. Tu ne connais pas la thèse du fonds et tu n'as pas à la deviner.
 
 1. NARRATIVE (Cohérence narrative minimale)
 Le pitch défend-il une thèse claire de problème, solution, marché, pourquoi maintenant ? Status fail si AUCUNE des quatre n'est répondue. Status warn si une ou deux sont absentes. Status pass si les quatre sont présentes même grossièrement.
@@ -134,115 +174,72 @@ Y a-t-il au moins un fondateur identifié avec un parcours documenté ? Status f
 3. FINANCIAL (Plausibilité financière)
 Les chiffres avancés sont-ils dans des ordres de grandeur cohérents ? Status fail sur claims absurdes. Status warn sur chiffres flous ou non sourcés. Status pass sinon.
 
-4. STAGE_TICKET (Cohérence stade vs ticket)
-Le ticket demandé est-il cohérent avec le stade revendiqué ? Status fail si seed qui demande 20M+ ou Series A qui demande 500k. Status warn si décalage modéré. Status pass si stade et ticket s'alignent.
-
-5. MARKET (Marché identifiable)
+4. MARKET (Marché identifiable)
 Y a-t-il un marché identifiable, même grossièrement ? Status fail si purement technologique sans qui paie ni pourquoi. Status warn si marché évoqué mais clients-types non spécifiés. Status pass si segment identifiable.
 
-6. THESIS_FIT (Pas de drapeau rouge éliminatoire)
-Y a-t-il des signaux d'alarme intégrité, des claims grossièrement faux, ou un projet manifestement illégal ? Status fail si oui. Status warn en zone grise. Status pass sinon. Ce test est UNIVERSEL et concerne uniquement les drapeaux rouges génériques, pas la thèse spécifique du fonds (si une thèse est fournie, elle est évaluée séparément).`;
+5. THESIS_FIT (Pas de drapeau rouge éliminatoire)
+Y a-t-il des signaux d'alarme intégrité, des claims grossièrement faux, ou un projet manifestement illégal ? Status fail si oui. Status warn en zone grise. Status pass sinon. Ce test concerne uniquement les drapeaux rouges génériques, jamais la thèse d'un fonds.`;
 
-const FUND_PROFILE_TESTS_PROMPT = `
+// ------------------------------------------------------------
+// Extraction des faits comparables
+// ------------------------------------------------------------
+// Le modele n evalue plus le fit : il extrait quatre faits du deck, que
+// le code compare ensuite au profil du fonds. La liste de vocabulaire
+// remise ici est la taxonomie de la plateforme, pas la these d un
+// fonds : elle ne dit pas ce que le fonds cible, elle dit quels
+// libelles existent. Sans elle, le modele rendrait du texte libre et la
+// comparaison redeviendrait approximative.
+//
+// La regle de citation est la regle anti-divination de la grappe 4. Une
+// valeur sans citation est refusee en aval, donc l inventer ne sert a
+// rien, et le dire coute moins cher que le taire.
+const FACTS_PROMPT = `
 
-LES TESTS DE FIT THÈSE FONDS (s'appliquent uniquement si une thèse fonds est fournie ci-dessous)
+LES QUATRE FAITS À EXTRAIRE
 
-7. SECTOR_FIT (Thèse sectorielle)
-Le secteur du dossier correspond-il à la thèse sectorielle du fonds ?
-- Si le secteur du dossier figure dans sectors_excluded : fail systématique.
-- Si sectors_focus est défini et le dossier ne s'y rattache PAS du tout : fail.
-- Si sectors_focus est défini et le dossier s'y rattache partiellement (zone connexe, lecture extensive possible) : warn.
-- Si sectors_focus est défini et le dossier s'y rattache clairement : pass.
-- Si sectors_focus est vide (fonds généraliste) ET sectors_excluded ne match pas : pass automatique.
+En plus des cinq tests, tu extrais quatre faits du deck. Chacun porte une valeur prise dans le vocabulaire imposé ci-dessous, et une citation courte du deck qui la justifie.
 
-8. GEOGRAPHY_FIT (Thèse géographique)
-La géographie du dossier correspond-elle à la thèse géographique du fonds ?
-Mêmes règles que sector_fit avec geographies_focus / geographies_excluded.
+Règle absolue : si le deck ne permet pas d'établir un fait, tu rends value null et evidence null. Tu n'inventes jamais, tu ne déduis jamais d'un secteur voisin ou d'un ordre de grandeur plausible. Une valeur sans citation est rejetée par la suite du traitement, donc la produire ne sert à rien.
 
-9. TICKET_FIT (Gamme de tickets)
-Le ticket demandé est-il dans la gamme du fonds ?
-- Si ticket_min_eur défini et ticket demandé < 50% du min : fail (trop petit).
-- Si ticket_max_eur défini et ticket demandé > 200% du max : fail (trop gros).
-- Si ticket_min_eur ou ticket_max_eur défini et ticket demandé est dans les 50-200% des bornes mais hors plage stricte : warn.
-- Si ticket dans la plage : pass.
-- Si pas de bornes définies : pass automatique.
+1. sector : le secteur principal du dossier, choisi EXACTEMENT dans cette liste, libellé identique au caractère près :
+${SECTOR_VOCABULARY.join(' | ')}
 
-10. STAGE_FIT (Stade investi)
-Le stade revendiqué correspond-il au stade investi par le fonds ?
-- Si stages_focus défini et stade pas dedans : fail.
-- Si stages_focus défini et stade adjacent : warn (par ex. fonds seed/series-a et dossier pre-seed).
-- Si stages_focus vide : pass automatique.`;
+2. geography : le marché principal ou le siège de la société, choisi EXACTEMENT dans cette liste :
+${GEOGRAPHY_VOCABULARY.join(' | ')}
 
-function buildSystemPrompt(fundProfile?: FundProfile): string {
-  let prompt = BASE_SYSTEM_PROMPT;
+3. stage : le stade revendiqué par le dossier, choisi EXACTEMENT dans cette liste :
+${STAGES.join(' | ')}
+Le stade doit être revendiqué ou clairement déductible d'une mention de tour. Un chiffre d'affaires ou un effectif ne suffisent pas à le déduire : dans ce cas, value null.
 
-  if (fundProfile) {
-    prompt += FUND_PROFILE_TESTS_PROMPT;
-  }
+4. ticketEur : le montant recherché, en euros, en nombre entier sans séparateur ni unité. Si le deck exprime un besoin de financement sans le qualifier de levée, retiens-le quand même et cite le passage. Si aucun montant n'est demandé, value null.`;
 
-  prompt += `
-
-VERDICT GLOBAL
-
-Score : pass = 1, warn = 0.5, fail = 0. Score sur le total des tests appliqués.
-
-Mapping vers verdict :
-- ready_for_pipeline : score >= 80% du total ET aucun fail sur narrative/founder/thesis_fit/sector_fit/geography_fit
-- pipeline_with_caveats : score 50-80% du total
-- not_recommended : score < 50% du total OU un fail sur narrative/founder/thesis_fit/sector_fit/geography_fit
+function buildSystemPrompt(): string {
+  return BASE_SYSTEM_PROMPT + FACTS_PROMPT + `
 
 FORMAT DE RÉPONSE OBLIGATOIRE (JSON pur, sans markdown, sans backticks)
 
 {
-  "score": <nombre, peut être demi-points>,
-  "totalTests": <nombre total de tests appliqués>,
-  "recommendation": "ready_for_pipeline" | "pipeline_with_caveats" | "not_recommended",
   "summary": "<1-2 phrases qui résument la lecture du pré-scan, voix Le Grand Continent>",
   "tests": [
     { "id": "narrative", "name": "Cohérence narrative minimale", "status": "...", "rationale": "...", "evidence": "..." },
     { "id": "founder", "name": "Crédibilité fondateur minimale", "status": "...", "rationale": "...", "evidence": "..." },
     { "id": "financial", "name": "Plausibilité financière", "status": "...", "rationale": "...", "evidence": "..." },
-    { "id": "stage_ticket", "name": "Cohérence stade vs ticket", "status": "...", "rationale": "...", "evidence": "..." },
     { "id": "market", "name": "Marché identifiable", "status": "...", "rationale": "...", "evidence": "..." },
-    { "id": "thesis_fit", "name": "Pas de drapeau rouge éliminatoire", "status": "...", "rationale": "...", "evidence": "..." }${fundProfile ? `,
-    { "id": "sector_fit", "name": "Thèse sectorielle", "status": "...", "rationale": "...", "evidence": "..." },
-    { "id": "geography_fit", "name": "Thèse géographique", "status": "...", "rationale": "...", "evidence": "..." },
-    { "id": "ticket_fit", "name": "Gamme de tickets", "status": "...", "rationale": "...", "evidence": "..." },
-    { "id": "stage_fit", "name": "Stade investi", "status": "...", "rationale": "...", "evidence": "..." }` : ''}
-  ]
-}
-
-L'ordre des tests doit être respecté exactement comme ci-dessus.`;
-
-  return prompt;
-}
-
-function buildUserPrompt(fundProfile?: FundProfile): string {
-  let prompt = `Voici le pitch deck à pré-scanner. Applique les tests structurels et retourne le JSON exact spécifié.`;
-
-  if (fundProfile) {
-    prompt += `
-
-THÈSE D'INVESTISSEMENT DU FONDS À APPLIQUER
-
-Secteurs cibles : ${fundProfile.sectorsFocus.length > 0 ? fundProfile.sectorsFocus.join(', ') : 'généraliste, pas de filtre sectoriel'}
-Secteurs exclus : ${fundProfile.sectorsExcluded.length > 0 ? fundProfile.sectorsExcluded.join(', ') : 'aucun'}
-Zones cibles : ${fundProfile.geographiesFocus.length > 0 ? fundProfile.geographiesFocus.join(', ') : 'pas de filtre géographique'}
-Zones exclues : ${fundProfile.geographiesExcluded.length > 0 ? fundProfile.geographiesExcluded.join(', ') : 'aucune'}
-Ticket minimum : ${fundProfile.ticketMinEur ? formatEuros(fundProfile.ticketMinEur) : 'pas de borne basse'}
-Ticket maximum : ${fundProfile.ticketMaxEur ? formatEuros(fundProfile.ticketMaxEur) : 'pas de borne haute'}
-Stades investis : ${fundProfile.stagesFocus.length > 0 ? fundProfile.stagesFocus.join(', ') : 'tous stades'}${fundProfile.notes ? `
-
-Notes du gestionnaire : ${fundProfile.notes}` : ''}`;
+    { "id": "thesis_fit", "name": "Pas de drapeau rouge éliminatoire", "status": "...", "rationale": "...", "evidence": "..." }
+  ],
+  "dossierFacts": {
+    "sector": { "value": "<libellé du vocabulaire ou null>", "evidence": "<citation ou null>" },
+    "geography": { "value": "<libellé du vocabulaire ou null>", "evidence": "<citation ou null>" },
+    "stage": { "value": "<libellé du vocabulaire ou null>", "evidence": "<citation ou null>" },
+    "ticketEur": { "value": <nombre ou null>, "evidence": "<citation ou null>" }
   }
-
-  return prompt;
 }
 
-function formatEuros(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M EUR`;
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}k EUR`;
-  return `${amount} EUR`;
+Tu ne rends ni score ni recommendation : le verdict est calculé en aval. L'ordre des cinq tests doit être respecté exactement comme ci-dessus, et les cinq doivent être présents.`;
+}
+
+function buildUserPrompt(): string {
+  return `Voici le pitch deck à pré-scanner. Rends les cinq tests de jugement et les quatre faits, dans le JSON exact spécifié.`;
 }
 
 /**
@@ -259,8 +256,8 @@ export async function runPreScan(
   fundProfile?: FundProfile,
 ): Promise<PreScanOutput> {
   const startTime = Date.now();
-  const systemPrompt = buildSystemPrompt(fundProfile);
-  const userPrompt = buildUserPrompt(fundProfile);
+  const systemPrompt = buildSystemPrompt();
+  const userPrompt = buildUserPrompt();
 
   // Haiku 4.5 : 5x moins cher que Sonnet, suffisamment intelligent pour
   // un triage de surface. max_tokens 2500 pour avoir la marge avec les
@@ -278,17 +275,31 @@ export async function runPreScan(
   );
 
   const parsed = parseJSON<{
-    score: number;
-    totalTests: number;
-    recommendation: string;
     summary: string;
     tests: PreScanTest[];
+    dossierFacts: DossierFacts;
   }>(rawResponse);
 
-  // Validation defensive : on recompute le score et la recommandation
-  // mecaniquement a partir des tests, pour ne pas dependre du calcul
-  // du LLM (Haiku est moins discipline que Sonnet sur l arithmetique).
-  const validatedTests = Array.isArray(parsed.tests) ? parsed.tests : [];
+  // Les tests de jugement viennent du modele, les comparaisons du code.
+  // L ordre d affichage est reconstitue ici et ne depend plus de la
+  // discipline du modele a respecter une liste.
+  const testsDeJugement = (Array.isArray(parsed.tests) ? parsed.tests : [])
+    .filter(t => t && typeof t.id === 'string' && TESTS_DE_JUGEMENT.includes(t.id))
+    .map(t => ({ ...t, nonProductionCause: null as NonProductionCauseOrNull }));
+
+  const facts = normaliserFacts(parsed.dossierFacts);
+  const comparaisons = evaluerComparaisons(
+    facts,
+    fundProfile ? profilPourComparaison(fundProfile) : null,
+  );
+
+  const parId = new Map<string, PreScanTest>();
+  for (const t of testsDeJugement) parId.set(t.id, t as PreScanTest);
+  for (const t of comparaisons) parId.set(t.id, t as PreScanTest);
+  const validatedTests: PreScanTest[] = ORDRE_AFFICHAGE
+    .filter(id => parId.has(id))
+    .map(id => parId.get(id)!);
+
   const totalTests = validatedTests.length || (fundProfile ? 10 : 6);
 
   const computedScore = validatedTests.reduce((acc, t) => {
@@ -336,5 +347,58 @@ export async function runPreScan(
     durationMs: Date.now() - startTime,
     model: FAST_MODEL,
     usedFundProfile: !!fundProfile,
+    dossierFacts: facts,
+  };
+}
+
+/** Les cinq tests que le modele rend encore. */
+const TESTS_DE_JUGEMENT: readonly string[] = [
+  'narrative', 'founder', 'financial', 'market', 'thesis_fit',
+];
+
+/**
+ * Ordre d affichage, inchange par rapport a l existant pour que la note
+ * et l interface ne bougent pas : les comparaisons se glissent a la
+ * place qu occupaient les tests du meme nom.
+ */
+const ORDRE_AFFICHAGE: readonly string[] = [
+  'narrative', 'founder', 'financial', 'stage_ticket', 'market', 'thesis_fit',
+  'sector_fit', 'geography_fit', 'ticket_fit', 'stage_fit',
+];
+
+/**
+ * Un fait absent, mal type ou sans citation devient un fait vide. La
+ * normalisation est faite ici plutot que dans les comparaisons pour que
+ * celles-ci restent lisibles comme des regles et non comme des gardes.
+ */
+function normaliserFacts(brut: any): DossierFacts {
+  const lire = <T,>(cle: string, type: 'string' | 'number'): DossierFact<T> => {
+    const f = brut && typeof brut === 'object' ? brut[cle] : null;
+    if (!f || typeof f !== 'object') return { value: null, evidence: null };
+    const v = f.value;
+    const ok = type === 'number'
+      ? typeof v === 'number' && Number.isFinite(v)
+      : typeof v === 'string' && v.trim().length > 0;
+    const e = typeof f.evidence === 'string' && f.evidence.trim().length > 0
+      ? f.evidence.trim() : null;
+    return { value: ok ? (v as T) : null, evidence: e };
+  };
+  return {
+    sector: lire<string>('sector', 'string'),
+    geography: lire<string>('geography', 'string'),
+    stage: lire<string>('stage', 'string'),
+    ticketEur: lire<number>('ticketEur', 'number'),
+  };
+}
+
+function profilPourComparaison(p: FundProfile): FitProfile {
+  return {
+    sectorsFocus: p.sectorsFocus ?? [],
+    sectorsExcluded: p.sectorsExcluded ?? [],
+    geographiesFocus: p.geographiesFocus ?? [],
+    geographiesExcluded: p.geographiesExcluded ?? [],
+    ticketMinEur: p.ticketMinEur ?? null,
+    ticketMaxEur: p.ticketMaxEur ?? null,
+    stagesFocus: p.stagesFocus ?? [],
   };
 }

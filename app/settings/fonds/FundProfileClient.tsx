@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import {
+  SECTORS, SECTORS_EXCLUDED, GEOGRAPHIES, GEOGRAPHIES_EXCLUDED, STAGES,
+} from '@/lib/fund-profile/vocabulary';
 
 // ============================================================
 // PAGE PROFIL FONDS
@@ -35,33 +38,15 @@ interface Props {
   isOnboarding?: boolean;
 }
 
-const COMMON_SECTORS = [
-  'SaaS B2B', 'Fintech', 'Insurtech', 'Healthtech', 'Biotech', 'Medtech',
-  'Deeptech', 'Cleantech', 'Climate tech', 'AI / ML', 'Cyber',
-  'Mobilité', 'Spatial', 'Defense', 'Agritech', 'Foodtech',
-  'E-commerce', 'Marketplace', 'Consumer', 'Education', 'HR tech',
-  'Proptech', 'Industrial tech', 'Robotique', 'IoT', 'Web3 / Crypto',
-];
-
-const COMMON_SECTORS_EXCLUDED = [
-  'Defense', 'Tabac', 'Alcool', 'Jeu', 'Adult', 'Fossile', 'Crypto spéculatif',
-];
-
-const COMMON_GEOGRAPHIES = [
-  'France', 'Royaume-Uni', 'Allemagne', 'Espagne', 'Italie',
-  'Benelux', 'Nordics', 'Europe (UE)', 'Royaume-Uni + Irlande',
-  'États-Unis', 'Canada', 'Amérique du Nord',
-  'Israël', 'MENA', 'Afrique', 'Amérique latine', 'Asie', 'Monde',
-];
-
-const COMMON_GEOGRAPHIES_EXCLUDED = [
-  'Russie', 'Chine', 'Iran', 'Corée du Nord', 'Pays sous sanctions',
-];
-
-const COMMON_STAGES = [
-  'pre-seed', 'seed', 'series-a', 'series-b', 'series-c', 'growth',
-  'late-stage', 'pre-IPO',
-];
+// Source unique : lib/fund-profile/vocabulary.ts. Ces listes sont le
+// referentiel que le pre-scan compare au dossier, elles ne peuvent plus
+// vivre dans un composant client sans garantir la derive du jour ou
+// quelqu un ajoute un secteur d un seul cote.
+const COMMON_SECTORS = [...SECTORS];
+const COMMON_SECTORS_EXCLUDED = [...SECTORS_EXCLUDED];
+const COMMON_GEOGRAPHIES = [...GEOGRAPHIES];
+const COMMON_GEOGRAPHIES_EXCLUDED = [...GEOGRAPHIES_EXCLUDED];
+const COMMON_STAGES = [...STAGES];
 
 const TICKET_PRESETS = [
   { label: 'Pre-seed', range: '50k - 500k', min: 50_000, max: 500_000 },
