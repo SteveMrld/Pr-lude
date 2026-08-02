@@ -203,6 +203,66 @@ const SLUG_MATCHERS: SlugMatcher[] = [
   ]},
 ];
 
+// ============================================================
+// ARBITRAGE PAR LA CLASSE D ACTIF
+// ------------------------------------------------------------
+// Le balayage par mots-cle ci-dessus decide du secteur primaire par
+// l ordre de declaration de la table : le premier matcher qui touche
+// gagne, quelle que soit la force du signal. Sur un dossier
+// ecommerce-dtc de soins capillaires, le subSector "Soins capillaires"
+// touche le mot-cle 'soins' du matcher sante-biotech, declare en
+// quatrieme position, tandis que commerce-marketplaces est douzieme.
+// Mesure sur le corpus : detectedSlugs sort
+// ["sante-biotech", "commerce-marketplaces"], la fiche primaire
+// injectee dans les six moteurs sectoriels est celle de la sante, et
+// la fiche commerce ne joue qu en secondaire. Le dossier est lu a
+// l envers, et l asset class arbitree par la matrice de pertinence,
+// ecommerce-dtc, n entre a aucun moment dans la decision.
+//
+// C est le meme defaut que le bug Platypus Craft avait ferme du cote
+// valorisation : plusieurs classificateurs independants, aucun
+// arbitre. Le reordering de la table des matchers avait alors traite
+// le symptome, un dossier a la fois. La correction ici est en amont :
+// la matrice de pertinence a deja tranche l asset class en croisant
+// l indice sectoriel et la chaine de production detectee sur le texte
+// complet, et cette decision prime sur un balayage de mots-cle qui ne
+// voit que trois champs tronques.
+//
+// La table ne couvre que les classes dont le rattachement sectoriel
+// est doctrinalement net. Une classe absente, ou qui decrit un profil
+// plutot qu un secteur comme profitable-mature, laisse le balayage
+// decider comme avant : la table affirme ce qu elle sait, pas plus.
+// ============================================================
+
+export const ASSET_CLASS_TO_SECTOR_SLUG: Record<string, string> = {
+  'saas-b2b': 'logiciel-entreprise-horizontal',
+  'services-b2b': 'logiciel-entreprise-horizontal',
+  'ai-generative': 'ia-appliquee',
+  'fintech': 'fintech',
+  'healthtech': 'sante-biotech',
+  'cybersecurity': 'cybersecurite-defense',
+  'defense': 'cybersecurite-defense',
+  'climate-tech': 'climat-energie',
+  'industrial-hardware': 'industrie-hardware',
+  'deeptech': 'industrie-hardware',
+  'logistics': 'mobilite-logistique',
+  'foodtech': 'agritech-foodtech',
+  'proptech': 'proptech-construction',
+  'edtech': 'education-future-of-work',
+  'ecommerce-dtc': 'commerce-marketplaces',
+  'marketplace-b2c': 'commerce-marketplaces',
+  'adtech': 'commerce-marketplaces',
+};
+
+/**
+ * Slug sectoriel impose par la classe d actif arbitree, ou null quand
+ * la classe ne designe pas un secteur du catalogue.
+ */
+export function sectorSlugForAssetClass(assetClass: string | null | undefined): string | null {
+  if (!assetClass) return null;
+  return ASSET_CLASS_TO_SECTOR_SLUG[assetClass] ?? null;
+}
+
 function normalize(text: string): string {
   return text
     .toLowerCase()
@@ -214,15 +274,37 @@ function normalize(text: string): string {
 }
 
 /**
- * Identifie le secteur primaire et au plus deux secondaires a partir de
- * l extraction. Ordre des matchers preserve : on parcourt SLUG_MATCHERS
- * et on collecte les slugs hits dans l ordre rencontre. Le premier hit
- * est le primaire, les deux suivants (distincts) sont les secondaires.
+ * Identifie le secteur primaire et au plus deux secondaires.
  *
- * Retourne un tableau vide si aucun mapping ne se laisse trancher : la
- * couche d injection cale alors le mode sur 'sector_unknown'.
+ * Le primaire vient de la classe d actif arbitree par la matrice de
+ * pertinence quand celle-ci designe un secteur du catalogue. A defaut
+ * seulement, il vient du balayage par mots-cle, dont l ordre de
+ * declaration de SLUG_MATCHERS decide.
+ *
+ * Les secondaires viennent du balayage dans tous les cas, prives du
+ * primaire : le balayage garde toute sa valeur pour reperer les
+ * secteurs adjacents d un dossier, ce qu il perd c est le droit de
+ * decider seul lequel domine.
+ *
+ * Retourne un tableau vide si rien ne se laisse trancher : la couche
+ * d injection cale alors le mode sur 'unknown_sector'.
  */
-export function detectSectorSlugs(extraction: ExtractionOutput): string[] {
+export function detectSectorSlugs(
+  extraction: ExtractionOutput,
+  assetClass?: string | null,
+): string[] {
+  const imposed = sectorSlugForAssetClass(assetClass);
+  const scanned = scanSectorSlugs(extraction);
+  if (!imposed) return scanned;
+  return [imposed, ...scanned.filter((s) => s !== imposed)].slice(0, 3);
+}
+
+/**
+ * Balayage par mots-cle seul. Parcourt SLUG_MATCHERS et collecte les
+ * slugs touches dans l ordre rencontre. Extrait de detectSectorSlugs
+ * pour que l arbitrage par classe d actif se lise a un seul endroit.
+ */
+export function scanSectorSlugs(extraction: ExtractionOutput): string[] {
   const haystack = normalize(
     [
       extraction.sector || '',

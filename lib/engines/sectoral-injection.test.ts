@@ -554,6 +554,97 @@ console.log('\n=== Test 2 : computeFreshness ===');
   }
 
   // ============================================================
+  console.log('\n=== Test 15 : la classe d actif arbitre le secteur primaire ===');
+  // ------------------------------------------------------------
+  // Le defaut ferme : le secteur primaire etait decide par l ordre de
+  // declaration de SLUG_MATCHERS, le premier matcher qui touche
+  // gagnant quelle que soit la force du signal. Cas mesure en corpus,
+  // dossier ecommerce-dtc de soins capillaires vendus en direct : le
+  // subSector touche le mot-cle 'soins' de sante-biotech, declare en
+  // quatrieme position, quand commerce-marketplaces est douzieme. Les
+  // six moteurs sectoriels recevaient donc la fiche sante en primaire
+  // et la fiche commerce en secondaire, sur un dossier que la matrice
+  // de pertinence avait deja classe ecommerce-dtc.
+  // ============================================================
+
+  {
+    const inHaircare = makeExtraction({
+      sector: 'E-commerce',
+      subSector: 'Soins capillaires / Beaute holistique pour cheveux textures',
+      productDescription: 'Complements alimentaires en cures, soins topiques hydratants et fortifiants, routines beaute en packs.',
+    });
+
+    // Comportement historique, conserve quand aucune classe d actif
+    // n arbitre : le balayage decide seul et se trompe de primaire.
+    const sansArbitre = detectSectorSlugs(inHaircare);
+    check('sans arbitre, le primaire reste sante-biotech', sansArbitre[0], 'sante-biotech');
+
+    const avecArbitre = detectSectorSlugs(inHaircare, 'ecommerce-dtc');
+    check('avec la classe d actif, le primaire devient commerce', avecArbitre[0], 'commerce-marketplaces');
+    checkTrue(
+      'le secteur sante subsiste en secondaire, il n est pas efface',
+      avecArbitre.includes('sante-biotech'),
+    );
+    checkTrue('aucun doublon dans la liste', new Set(avecArbitre).size === avecArbitre.length);
+    checkTrue('au plus trois secteurs', avecArbitre.length <= 3);
+  }
+
+  {
+    // Une classe d actif qui ne designe aucun secteur du catalogue
+    // laisse le balayage decider, comme avant. La table affirme ce
+    // qu elle sait, pas plus.
+    const dossier = makeExtraction({ sector: 'Sante', subSector: 'biotech' });
+    check('unclassified ne force rien', detectSectorSlugs(dossier, 'unclassified')[0], 'sante-biotech');
+    check('classe absente de la table ne force rien', detectSectorSlugs(dossier, 'profitable-mature')[0], 'sante-biotech');
+    check('classe nulle ne force rien', detectSectorSlugs(dossier, null)[0], 'sante-biotech');
+  }
+
+  {
+    // Le primaire impose s applique meme quand le balayage ne l aurait
+    // jamais trouve : un dossier dont le vocabulaire ne touche aucun
+    // mot-cle commerce mais que la matrice classe ecommerce-dtc.
+    const muet = makeExtraction({
+      sector: 'Beaute',
+      subSector: 'Cosmetique solide',
+      productDescription: 'Savons et shampoings solides fabriques en France.',
+    });
+    const slugs = detectSectorSlugs(muet, 'ecommerce-dtc');
+    check('le primaire impose apparait meme sans hit de balayage', slugs[0], 'commerce-marketplaces');
+  }
+
+  {
+    // Resolution complete : la fiche chargee est celle du secteur
+    // arbitre, pas celle du premier matcher.
+    const fetched: string[] = [];
+    const ctx = await resolveSectoralContext(
+      makeExtraction({
+        sector: 'E-commerce',
+        subSector: 'Soins capillaires',
+        productDescription: 'Soins et complements pour cheveux textures.',
+      }),
+      {
+        assetClass: 'ecommerce-dtc',
+        now: new Date('2026-05-13T00:00:00Z'),
+        fetchBrief: async (slug: string) => {
+          fetched.push(slug);
+          return makeBrief(slug, { generatedAt: '2026-04-01T00:00:00Z' });
+        },
+      },
+    );
+    check('mode applied', ctx.mode, 'applied');
+    check('fiche primaire chargee sur le secteur arbitre', ctx.primary?.brief.sector_slug ?? '?', 'commerce-marketplaces');
+    check('le premier fetch porte sur le secteur arbitre', fetched[0], 'commerce-marketplaces');
+    checkTrue(
+      'la note methodologique nomme le secteur arbitre',
+      /Commerce|commerce/.test(ctx.methodologyNote),
+    );
+    checkTrue(
+      'sante reste en secondaire',
+      ctx.secondaries.some((s) => s.brief.sector_slug === 'sante-biotech'),
+    );
+  }
+
+  // ============================================================
   // FIN
   // ============================================================
 

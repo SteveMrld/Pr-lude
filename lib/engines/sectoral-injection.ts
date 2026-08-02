@@ -49,6 +49,9 @@ import {
   EXPIRED_THRESHOLD_DAYS,
   computeFreshness,
   detectSectorSlugs,
+  scanSectorSlugs,
+  sectorSlugForAssetClass,
+  ASSET_CLASS_TO_SECTOR_SLUG,
   formatDate,
   ENGINE_DIMENSION_MAP,
   FRAGILITY_PATTERN_ACTIVATION_HINTS,
@@ -71,6 +74,9 @@ export {
   EXPIRED_THRESHOLD_DAYS,
   computeFreshness,
   detectSectorSlugs,
+  scanSectorSlugs,
+  sectorSlugForAssetClass,
+  ASSET_CLASS_TO_SECTOR_SLUG,
   formatDate,
   ENGINE_DIMENSION_MAP,
   FRAGILITY_PATTERN_ACTIVATION_HINTS,
@@ -101,6 +107,16 @@ export interface ResolveOptions {
   fetchBrief?: (slug: string) => Promise<SectoralBrief | null>;
   /** Date courante mockable pour les tests de fraicheur. */
   now?: Date;
+  /**
+   * Asset class arbitree par la matrice de pertinence. Quand elle
+   * designe un secteur du catalogue, elle impose le secteur primaire
+   * et le balayage par mots-cle ne fournit plus que les secondaires.
+   * Sans elle, comportement historique : le premier matcher qui touche
+   * dans l ordre de declaration de la table devient primaire, ce qui
+   * sortait la fiche sante sur un dossier de soins capillaires vendus
+   * en direct au consommateur.
+   */
+  assetClass?: string | null;
 }
 
 export async function resolveSectoralContext(
@@ -110,7 +126,7 @@ export async function resolveSectoralContext(
   const now = options.now ?? new Date();
   const fetchBrief = options.fetchBrief ?? getLatestBriefForSector;
 
-  const slugs = detectSectorSlugs(extraction);
+  const slugs = detectSectorSlugs(extraction, options.assetClass ?? null);
   if (slugs.length === 0) {
     return {
       mode: 'unknown_sector',

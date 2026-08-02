@@ -788,7 +788,17 @@ export async function POST(req: NextRequest) {
           const { resolveSectoralContext } = await import('@/lib/engines/sectoral-injection');
           let sectoralContext: import('@/lib/engines/sectoral-injection').SectoralContext | null = null;
           try {
-            sectoralContext = await resolveSectoralContext(extraction);
+            // L asset class arbitree par la matrice impose le secteur
+            // primaire quand elle designe un secteur du catalogue. Sans
+            // elle, la fiche primaire etait decidee par l ordre de
+            // declaration de la table de mots-cle : un dossier
+            // ecommerce-dtc de soins capillaires sortait avec la fiche
+            // sante en primaire et la fiche commerce en secondaire,
+            // c est-a-dire lu a l envers par les six moteurs
+            // sectoriels.
+            sectoralContext = await resolveSectoralContext(extraction, {
+              assetClass: relevanceMatrix.assetClass,
+            });
           } catch (err: any) {
             logException('pipeline.sectoral-injection.resolve', err, { severity: 'warning', analysisId });
             sectoralContext = null;
