@@ -220,6 +220,13 @@ export interface ValuationOutput {
   confidence: 'high' | 'medium' | 'low';
   /** Resultat detaille de chacune des methodes. */
   methods: ValuationMethodResult[];
+  /** Motif ecrit quand la dilution ne peut pas etre calculee faute de
+   *  repartition capital / autre instrument dans le tour annonce.
+   *  Null quand la dilution est calculee ou quand aucun ticket n est
+   *  annonce. Porte separement de dilutionAnalysis pour qu une absence
+   *  de dilution motivee ne se confonde pas avec un dossier sans
+   *  ticket. */
+  dilutionNotComputableReason: string | null;
   /** Si un ticket est mentionne dans le pitch, analyse de dilution. */
   dilutionAnalysis?: {
     proposedTicket: number;
@@ -401,10 +408,16 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // dette nette n etant pas diluee par une augmentation de capital.
   // Elle suit donc la fourchette pre-money quand il y en a une, et
   // reste absente sinon.
-  const ticket = parseTicketEur(input.extraction);
+  const ticket = parseTicket(input.extraction);
   const preMoneyRange = ranges.find((r) => r.nature === 'pre_money') ?? null;
-  const dilutionAnalysis = (preMoneyRange && ticket)
-    ? buildDilutionAnalysis(preMoneyRange, ticket)
+  const dilutionAnalysis = (preMoneyRange && ticket.equity)
+    ? buildDilutionAnalysis(preMoneyRange, ticket.equity)
+    : null;
+  // Dilution non calculable faute de repartition : le fait est porte
+  // explicitement plutot que rendu par une absence, qu un lecteur
+  // confondrait avec un tour sans ticket annonce.
+  const dilutionNotComputable = (preMoneyRange && ticket.total && !ticket.equity)
+    ? `Dilution non calculable : le tour annonce ${formatEur(ticket.total)} sous la forme "${ticket.raw}", qui melange capital et un autre instrument sans donner la repartition. Une dilution calculee sur le montant total sur-estimerait la part obtenue par le fonds. A chiffrer avec la societe avant toute discussion de prix.`
     : null;
 
   // ---------- Synthese editoriale
@@ -418,7 +431,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   });
 
   // ---------- Warnings
-  const warnings = collectWarnings(applicableMethods, ranges, basis);
+  const warnings = collectWarnings(applicableMethods, ranges, basis, dilutionNotComputable);
 
   return {
     ranges,
@@ -426,6 +439,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     confidence,
     methods,
     dilutionAnalysis,
+    dilutionNotComputableReason: dilutionNotComputable,
     assetClass,
     stage,
     basis,
@@ -777,7 +791,15 @@ function computeByVcMethod(
     };
   }
 
-  const ticket = parseTicketEur(input.extraction) || 0;
+  // La VC inverse soustrait le ticket de la post-money implicite pour
+  // rendre un pre-money. Faute de repartition, elle retient le montant
+  // total du tour : la soustraction est alors trop grande, donc le
+  // pre-money rendu est un minorant, ce qui est le sens prudent de
+  // l erreur. Le fait est signale dans le rationale plutot que corrige
+  // par une cle de repartition inventee.
+  const ticketInfo = parseTicket(input.extraction);
+  const ticket = ticketInfo.equity ?? ticketInfo.total ?? 0;
+  const ticketIsUpperBound = ticketInfo.equity === null && ticketInfo.total !== null;
   const targetMultiple = Math.pow(1 + targetIRR, horizonYears);
 
   // Pour chaque scenario d exit, on calcule la post-money implicite
@@ -835,7 +857,7 @@ function computeByVcMethod(
       targetMultiple: Math.round(targetMultiple * 10) / 10,
       ticket,
     },
-    rationale: `IRR cible ${Math.round(targetIRR * 100)}% sur ${horizonYears} ans (multiple ${Math.round(targetMultiple * 10) / 10}x). Exits cibles : bear ${formatEur(exitScenarios.bear)}, base ${formatEur(exitScenarios.base)}, bull ${formatEur(exitScenarios.bull)}, calibres sur les exits observes 2020-2025 dans ${assetClass}.`,
+    rationale: `IRR cible ${Math.round(targetIRR * 100)}% sur ${horizonYears} ans (multiple ${Math.round(targetMultiple * 10) / 10}x). Exits cibles : bear ${formatEur(exitScenarios.bear)}, base ${formatEur(exitScenarios.base)}, bull ${formatEur(exitScenarios.bull)}, calibres sur les exits observes 2020-2025 dans ${assetClass}.${ticketIsUpperBound ? ` Le tour annonce "${ticketInfo.raw}" melange capital et un autre instrument sans repartition : le ticket soustrait ici est donc un majorant de la part en capital, et le pre-money rendu un minorant.` : ''}`,
   };
 }
 
@@ -1082,6 +1104,7 @@ function buildNonApplicableValuation(
     confidence: 'low',
     methods,
     dilutionAnalysis: null,
+    dilutionNotComputableReason: null,
     assetClass,
     stage,
     basis,
@@ -1267,22 +1290,79 @@ function determineConfidence(
   return 'low';
 }
 
-function parseTicketEur(extraction: ExtractionOutput | null | undefined): number | null {
-  if (!extraction) return null;
+// ============================================================
+// TICKET DU TOUR ET PART EN CAPITAL
+// ------------------------------------------------------------
+// Le ticket annonce dans un deck n est pas toujours du capital. Cas
+// mesure sur le corpus : extraction.fundraise.amount vaut
+// "800k€ (mix Equity/bancaire)", et le moteur en tirait 800 000 euros
+// traites integralement comme une augmentation de capital. La dilution
+// affichee, 5,8 pour cent, supposait donc 800 000 euros d equity la ou
+// le deck annonce un mixte, et la VC inverse soustrayait la totalite du
+// tour d une post-money implicite.
+//
+// Les deux usages n ont pas la meme tolerance a l erreur. La dilution
+// est un pourcentage que le partner lit comme un fait negociable : une
+// dilution calculee sur une assiette trop large est fausse dans un
+// sens qui n est pas conservateur, elle sur-estime ce que le fonds
+// obtient. La VC inverse, elle, soustrait le ticket pour passer de la
+// post-money au pre-money : un ticket trop grand y minore le pre-money,
+// ce qui est prudent.
+//
+// D ou la regle asymetrique. Quand le document signale un financement
+// mixte sans donner la repartition, la dilution est declaree non
+// calculable avec son motif, et la VC inverse continue en signalant
+// que son ticket est un majorant. On ne devine aucune repartition :
+// une cle 50/50 posee par defaut serait une donnee inventee sur le
+// chiffre que le partner emporte en negociation.
+// ============================================================
+
+/**
+ * Marqueurs de financement mixte dans le libelle du tour. Volontairement
+ * etroits : ils cherchent la mention explicite d un instrument autre que
+ * le capital, pas une intuition sur la structure du tour.
+ */
+const MIXED_FUNDING_REGEX =
+  /(bancaire|banque|dette|debt|emprunt|pret\b|prêt|obligataire|oblig\b|bpi|subvention|grant|avance remboursable|mixte|mix\b|blended)/i;
+
+export interface TicketBreakdown {
+  /** Montant total du tour tel que le document l annonce, en euros. */
+  total: number | null;
+  /** Part en capital, quand elle est etablie sans devinette. */
+  equity: number | null;
+  /** True si le libelle signale un instrument autre que le capital. */
+  mixed: boolean;
+  /** Libelle brut, conserve pour que la note puisse citer le document. */
+  raw: string | null;
+}
+
+/**
+ * Lit le ticket du tour et, quand c est possible sans inference, sa
+ * part en capital. Ne repartit jamais un montant mixte.
+ */
+function parseTicket(extraction: ExtractionOutput | null | undefined): TicketBreakdown {
+  const empty: TicketBreakdown = { total: null, equity: null, mixed: false, raw: null };
+  if (!extraction) return empty;
   const ext: any = extraction;
-  // Le ticket est range dans extraction.fundraise.amount sous forme
-  // de string ('3M EUR', '5M$', '500k EUR'...). On parse de maniere
-  // permissive.
-  const candidates = [
-    ext.fundraise?.amount,
-    ext.roundAmount,
-    ext.roundAmountEur,
-  ];
+  const candidates = [ext.fundraise?.amount, ext.roundAmount, ext.roundAmountEur];
+
   for (const c of candidates) {
     const v = parseFinancialNumber(c);
-    if (v && v > 0) return v;
+    if (!v || v <= 0) continue;
+    const raw = typeof c === 'string' ? c : String(c ?? '');
+    const mixed = MIXED_FUNDING_REGEX.test(raw);
+    return {
+      total: v,
+      // Sans mention d un autre instrument, le tour est reput. en
+      // capital : c est la lecture par defaut d un montant de levee
+      // dans un deck, et elle n invente rien. Avec une telle mention
+      // et sans repartition chiffree, la part equity reste inconnue.
+      equity: mixed ? null : v,
+      mixed,
+      raw,
+    };
   }
-  return null;
+  return empty;
 }
 
 function buildDilutionAnalysis(
@@ -1350,8 +1430,11 @@ function collectWarnings(
   applicableMethods: ValuationMethodResult[],
   ranges: ConsolidatedRange[],
   basis: ValuationBasis,
+  dilutionNotComputable: string | null,
 ): string[] {
   const warnings: string[] = [];
+
+  if (dilutionNotComputable) warnings.push(dilutionNotComputable);
 
   // Deux natures en sortie : le fait doit remonter en avertissement et
   // pas seulement dans la prose de synthese, parce que c est ce qui

@@ -2251,6 +2251,35 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 </div>
               )}
 
+              {/* Dilution non calculable, motivee. Rendue au meme
+                  emplacement que l analyse elle-meme : une absence
+                  silencieuse se lirait comme un dossier sans ticket
+                  annonce, ce qui n est pas le cas ici. */}
+              {(valuation as any).dilutionNotComputableReason && !valuation.dilutionAnalysis && (
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'var(--surface-soft)',
+                  borderLeft: '2px solid #8a4b3a',
+                  marginBottom: 14,
+                  fontSize: 12.5,
+                  lineHeight: 1.55,
+                  color: 'var(--ink-soft)',
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    color: '#8a4b3a',
+                    marginBottom: 4,
+                    fontFamily: 'var(--sans)',
+                  }}>
+                    Dilution non calculable
+                  </div>
+                  {(valuation as any).dilutionNotComputableReason}
+                </div>
+              )}
+
               {/* Analyse de dilution */}
               {valuation.dilutionAnalysis && (
                 <div style={{
