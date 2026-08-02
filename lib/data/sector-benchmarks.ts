@@ -790,3 +790,40 @@ export function getSectorMultiples(
   if (!range || (range.min === 0 && range.central === 0 && range.max === 0)) return null;
   return { range, assetClass, stage };
 }
+
+/**
+ * Pourquoi une plage de multiples n a pas ete rendue.
+ *
+ * getSectorMultiples rend null dans deux situations que rien ne
+ * distinguait, et le moteur de valorisation ecrivait la meme phrase
+ * pour les deux : « Pas de plage de multiples definie pour X au stade
+ * Y ». Une plage neutralisee a zero est une decision doctrinale
+ * documentee sur place, une PME sans EBITDA stable au seed ne se
+ * valorise pas sur des multiples d EBITDA. Une plage absente de la
+ * table est un incident de referentiel. Le lecteur croyait a la
+ * premiere devant la seconde.
+ *
+ * La fonction ci-dessous repond en lisant la table, et non en
+ * devinant. Elle est exportee pour que le moteur n ait pas a
+ * reimplementer la lecture.
+ */
+export type MultipleRangeAbsence =
+  | 'neutralisee'      // entree presente, bornes a zero : doctrine
+  | 'absente'          // entree absente de la table : incident
+  | 'classe-inconnue'  // asset class ou stade hors catalogue : doctrine amont
+  | 'disponible';      // la plage existe et a ete rendue
+
+export function explainMissingMultiples(
+  rawAssetClass: string | null | undefined,
+  rawStage: string | null | undefined,
+): MultipleRangeAbsence {
+  const assetClass = normalizeAssetClass(rawAssetClass);
+  const stage = normalizeStage(rawStage);
+  if (stage === 'unknown' || assetClass === 'unclassified') return 'classe-inconnue';
+  const sectorData = SECTOR_BENCHMARKS[assetClass];
+  if (!sectorData) return 'classe-inconnue';
+  const range = sectorData[stage];
+  if (!range) return 'absente';
+  if (range.min === 0 && range.central === 0 && range.max === 0) return 'neutralisee';
+  return 'disponible';
+}

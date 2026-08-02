@@ -30,6 +30,7 @@ import {
   normalizeStage,
   normalizeAssetClass,
   getSectorMultiples,
+  explainMissingMultiples,
   SECTOR_BENCHMARKS,
   type ValuationStage,
 } from './sector-benchmarks';
@@ -167,6 +168,41 @@ console.log('\n[Suite 5] le contrat vaut pour les valeurs futures du catalogue')
     duType.every((st) => normalizeStage(st) === st),
     'les cinq valeurs du type de stade sont toutes idempotentes',
   );
+}
+
+// ============================================================
+console.log('\n[Suite 6] une plage neutralisee et une plage absente se distinguent');
+// ============================================================
+
+{
+  // Le patron ferme : les deux situations rendaient null et sortaient
+  // par la meme phrase. Elles ont maintenant deux causes distinctes.
+  check(explainMissingMultiples('deeptech', 'seed') === 'neutralisee', 'deeptech au seed : neutralisation doctrinale');
+  check(explainMissingMultiples('profitable-mature', 'seed') === 'neutralisee', 'profitable-mature au seed : neutralisation doctrinale');
+  check(explainMissingMultiples('industrial-hardware', 'seed') === 'neutralisee', 'industrial-hardware au seed : neutralisation doctrinale');
+  check(explainMissingMultiples('saas-b2b', 'series-c-plus') === 'disponible', 'saas-b2b en series-c-plus : plage disponible');
+  check(explainMissingMultiples('ecommerce-dtc', 'series-c-plus') === 'disponible', 'ecommerce-dtc en series-c-plus : plage disponible');
+  check(explainMissingMultiples('unclassified', 'series-a') === 'classe-inconnue', 'classe non tranchee : cause amont');
+  check(explainMissingMultiples('saas-b2b', 'bridge') === 'classe-inconnue', 'stade non tranche : cause amont');
+
+  // Les cinq neutralisations du referentiel, et elles seules.
+  let neutralisees = 0;
+  for (const c of CLASSES) {
+    for (const st of ['seed', 'series-a', 'series-b', 'series-c-plus'] as ValuationStage[]) {
+      if (explainMissingMultiples(c, st) === 'neutralisee') neutralisees++;
+    }
+  }
+  check(neutralisees === 5, `cinq neutralisations doctrinales dans le referentiel (obtenu ${neutralisees})`);
+
+  // Et aucune absence : le referentiel est complet, ce que le
+  // diagnostic initial de la grappe avait mal lu.
+  let absentes = 0;
+  for (const c of CLASSES) {
+    for (const st of ['seed', 'series-a', 'series-b', 'series-c-plus'] as ValuationStage[]) {
+      if (explainMissingMultiples(c, st) === 'absente') absentes++;
+    }
+  }
+  check(absentes === 0, `aucune plage absente du referentiel (obtenu ${absentes})`);
 }
 
 console.log(`\n${pass} pass, ${fail} fail`);

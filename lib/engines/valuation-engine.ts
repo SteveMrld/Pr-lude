@@ -28,6 +28,7 @@
 // ============================================================
 
 import {
+  explainMissingMultiples,
   getSectorMultiples,
   normalizeAssetClass,
   normalizeStage,
@@ -540,17 +541,20 @@ function computeBySectorMultiples(
 ): ValuationMethodResult {
   const sector = getSectorMultiples(assetClass, stage);
   if (!sector) {
+    // On demande au referentiel pourquoi il n a rien rendu, plutot que
+    // d ecrire une phrase unique pour deux faits opposes.
+    const absence = explainMissingMultiples(assetClass, stage);
     return {
       method: 'sector-multiples',
       nature: 'enterprise_value',
       label: 'Multiples sectoriels',
       applicable: false,
-      // Cause provisoire. Le bloc 3 du brief 24 la remplace par une
-      // resolution reelle : une plage neutralisee a zero est une
-      // doctrine, une plage presente mais illisible est un incident.
-      // A cet instant le moteur ne sait pas encore distinguer les deux.
-      notApplicableCause: 'absence',
-      notApplicableReason: `Pas de plage de multiples definie pour ${assetClass} au stade ${stage}.`,
+      notApplicableCause: absence === 'absente' ? 'incident' : 'doctrine',
+      notApplicableReason: absence === 'neutralisee'
+        ? `Les multiples ne s appliquent pas a ${assetClass} au stade ${stage} : la plage est explicitement neutralisee dans le referentiel, par exemple parce qu une societe a ce stade n a pas d agregat stable a multiplier. C est une decision de calibration, pas une lacune.`
+        : absence === 'classe-inconnue'
+        ? `Le couple ${assetClass} et ${stage} ne designe pas une combinaison du referentiel. La classe d actif ou le stade n a pas ete tranche en amont, et le moteur refuse de caler la fourchette sur des benchmarks voisins.`
+        : `Aucune plage de multiples n existe dans le referentiel pour ${assetClass} au stade ${stage}, alors que cette combinaison devrait en porter une. C est une lacune du referentiel et non une decision : la fourchette manque a ce dossier pour une raison technique.`,
     };
   }
 
