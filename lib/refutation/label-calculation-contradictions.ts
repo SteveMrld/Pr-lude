@@ -13,12 +13,38 @@
 // exercice A = 2024A), la base de calcul est en fait projetee sur
 // N+2 alors que le label ne dit pas forward.
 //
-// La brique lit la base temporelle reellement utilisee par le
-// calcul (deduite du rationale ou de la structure des projections)
-// puis compare a l annee de reference du dossier (deduite du champ
-// as_of, du nom de fichier, ou du rawNotes financial via les
-// qualifiers A/B/E/F). Si base > reference et si le libelle ou le
-// contexte proche ne portent aucune qualification forward, signale.
+// La brique lit la base temporelle reellement utilisee par le calcul
+// puis la compare a l annee de reference du dossier. Si base >
+// reference et si le libelle ou le contexte proche ne portent aucune
+// qualification forward, elle signale.
+//
+// Depuis quelle source elle lit cette base, brique 22 :
+//
+//   1. indicator.computedForYear, quand le champ est present. C est
+//      le moteur d indicateurs lui-meme qui declare l annee sur
+//      laquelle il a calcule, a cote d un baseState tri-etat. Aucune
+//      reconstruction ne peut battre une declaration.
+//
+//   2. A defaut, et seulement sur les result_json anterieurs a
+//      l existence du champ, une reconstruction par mesure : on
+//      cherche dans le rationale une grandeur qui identifie l annee de
+//      facon falsifiable, montant de revenu absolu ou taux de
+//      croissance annuel, et on la recroise avec revenueProjection.
+//
+//   3. A defaut, silence.
+//
+// Ce qui a disparu, et pourquoi : la brique retombait sur
+// min(annee courante, derniere annee des projections) des que le
+// rationale ne portait pas de montant. Elle reproduisait ainsi
+// l ancien comportement d horloge du moteur d indicateurs, en pariant
+// que les deux horloges disaient la meme chose. Depuis que le moteur
+// calcule sur l annee de reference du dossier, le pari est faux et la
+// brique fabriquait la contradiction qu elle pretendait detecter : sur
+// le dossier de reference du corpus, Rule of 40 porte
+// computedForYear 2023 et baseState actual, la brique annoncait une
+// base 2026 et signalait trois ans de projection non qualifiee. Une
+// contradiction inventee coute plus cher qu une contradiction
+// manquee : elle apprend au lecteur a ignorer le cartouche.
 //
 // Design conservateur, meme discipline que les deux premieres
 // briques du refutation layer. En cas de doute sur la qualification,
@@ -101,17 +127,22 @@ export function detectDossierRefYear(
 // ============================================================
 // Detection de l annee de base du calcul
 // ------------------------------------------------------------
-// Le rationale mentionne parfois explicitement la valeur numerique
-// (Revenue par employe : "Revenue 2,75M€ / 18 ETP = ..."). On
-// extrait la valeur et on cherche dans financialData.revenueProjection
-// l annee correspondante (a 1% pres). Si aucun match, on tombe
-// sur `nowYear` (heuristique : indicators-engine.ts calcule sur
-// new Date().getFullYear()).
+// Source primaire : indicator.computedForYear, declare par
+// indicators-engine a cote de baseState. Les deux reconstructions
+// qui suivent ne servent qu aux result_json produits avant que le
+// champ n existe, et elles ont en commun de mesurer une grandeur
+// que le calcul a reellement utilisee, non de deviner.
 //
-// Pour Rule of 40, le rationale expose des pourcentages sans
-// revenu absolu. On utilise directement le fallback nowYear
-// clampe au max annee de revenueProjection, ce qui reproduit le
-// comportement observe du moteur.
+//   - Montant de revenu absolu dans le rationale, cas Revenue par
+//     employe : "Revenue 2,75M€ / 18 ETP = ...". On recroise avec
+//     revenueProjection a 5% pres.
+//   - Taux de croissance annuel dans le rationale, cas Rule of 40 :
+//     "Croissance YoY 27,3% + Marge FCF 22,5%". Une seule paire
+//     d annees consecutives de la serie produit ce taux, ce qui
+//     designe l annee de calcul sans ambiguite.
+//
+// Les deux sont falsifiables : si aucune annee de la serie ne rend
+// la grandeur lue, la fonction ne retourne rien.
 // ============================================================
 
 function extractRevenueFromRationale(rationale: string): number | null {
@@ -144,33 +175,77 @@ function findYearForRevenue(
   return best ? best.year : null;
 }
 
-function maxYearInProjection(projection: Array<{ year: string | number }> | undefined): number | null {
-  if (!Array.isArray(projection) || projection.length === 0) return null;
-  let max = 0;
+/**
+ * Extrait un taux de croissance annuel du rationale. Cible la forme
+ * produite par indicators-engine pour Rule of 40, "Croissance YoY
+ * 27.3% + Marge FCF 22.5%", ou le signe et la virgule decimale sont
+ * tous deux possibles. Retourne le taux en points de pourcentage.
+ */
+function extractYoYGrowthFromRationale(rationale: string): number | null {
+  const m = rationale.match(/croissance\s+yoy\s+(-?\d+(?:[.,]\d+)?)\s*%/i);
+  if (!m) return null;
+  const v = parseFloat(m[1].replace(',', '.'));
+  return Number.isFinite(v) ? v : null;
+}
+
+/**
+ * Identifie l annee N telle que la croissance de N-1 vers N reproduit
+ * le taux lu dans le rationale. Tolerance 0,5 point, qui absorbe
+ * l arrondi a une decimale du rationale sans rendre deux paires
+ * voisines confondables sur des series reelles. Une seule annee
+ * candidate est acceptee : si deux paires produisent le meme taux, la
+ * mesure ne designe rien et la fonction se tait.
+ */
+function findYearForYoYGrowth(
+  projection: Array<{ year: string | number; value: number }> | undefined,
+  targetPct: number,
+): number | null {
+  if (!Array.isArray(projection) || projection.length < 2) return null;
+  const byYear = new Map<number, number>();
   for (const p of projection) {
     const y = parseInt(String(p.year), 10);
-    if (Number.isFinite(y) && y > max) max = y;
+    const v = Number(p.value);
+    if (Number.isFinite(y) && Number.isFinite(v) && !byYear.has(y)) byYear.set(y, v);
   }
-  return max > 0 ? max : null;
+  const matches: number[] = [];
+  for (const [y, v] of Array.from(byYear.entries())) {
+    const prev = byYear.get(y - 1);
+    if (prev === undefined || prev === 0) continue;
+    const pct = ((v - prev) / Math.abs(prev)) * 100;
+    if (Math.abs(pct - targetPct) <= 0.5) matches.push(y);
+  }
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function detectBaseYearForIndicator(
-  indicator: { key: string; rationale?: string | null },
+  indicator: { key: string; rationale?: string | null; computedForYear?: unknown },
   rj: any,
-  nowYear: number,
 ): number | null {
+  // 1. Declaration du moteur. Prime sur toute reconstruction : c est
+  //    l annee que le calcul a effectivement utilisee, pas une lecture
+  //    de sa prose de sortie.
+  const declared = indicator.computedForYear;
+  if (typeof declared === 'number' && Number.isFinite(declared)) return declared;
+
+  // 2 et 3. Chemin legacy, result_json anterieurs au champ. Deux
+  //    mesures falsifiables, aucune heuristique de position ni
+  //    d horloge. Silence si aucune ne designe une annee.
   const rationale = String(indicator.rationale || '');
-  // 1. Parse revenu absolu dans rationale (marche pour revenuePerEmployee)
+  const projection = rj?.financialData?.revenueProjection;
+
   const rev = extractRevenueFromRationale(rationale);
   if (rev !== null) {
-    const y = findYearForRevenue(rj?.financialData?.revenueProjection, rev);
+    const y = findYearForRevenue(projection, rev);
     if (y !== null) return y;
   }
-  // 2. Fallback : indicators-engine calcule sur new Date().getFullYear()
-  //    clampe au max annee de la projection revenue
-  const maxProj = maxYearInProjection(rj?.financialData?.revenueProjection);
-  if (maxProj === null) return null;
-  return Math.min(nowYear, maxProj);
+
+  const growth = extractYoYGrowthFromRationale(rationale);
+  if (growth !== null) {
+    const y = findYearForYoYGrowth(projection, growth);
+    if (y !== null) return y;
+  }
+
+  return null;
 }
 
 // ============================================================
@@ -191,7 +266,13 @@ function isQualifiedAsForward(label: string, rationale: string): boolean {
 // ============================================================
 
 export interface DetectOptions {
-  /** Annee courante calendaire, injectable pour tests deterministes. */
+  /**
+   * Ignore. La brique ne lit plus d horloge : l annee de base vient de
+   * indicator.computedForYear, a defaut d une mesure recroisee avec
+   * revenueProjection. Le champ reste dans la signature pour ne pas
+   * casser les appelants, au meme titre que les trois options legacy
+   * ci-dessous.
+   */
   nowYear?: number;
   /** Annee de reference du dossier, injectable pour forcer la valeur. */
   refYearOverride?: number;
@@ -208,7 +289,6 @@ export function detectLabelCalculationContradictions(
   opts: DetectOptions = {},
 ): LabelCalculationContradiction[] {
   if (!resultJson || typeof resultJson !== 'object') return [];
-  const nowYear = opts.nowYear ?? new Date().getFullYear();
 
   const refYear = detectDossierRefYear(resultJson, {
     asOf: opts.asOf ?? null,
@@ -231,7 +311,7 @@ export function detectLabelCalculationContradictions(
     const rationale = String(ind.rationale || '');
     if (isQualifiedAsForward(label, rationale)) continue;
 
-    const baseYear = detectBaseYearForIndicator(ind, resultJson, nowYear);
+    const baseYear = detectBaseYearForIndicator(ind, resultJson);
     if (baseYear === null) continue;
     if (baseYear <= refYear) continue;
 

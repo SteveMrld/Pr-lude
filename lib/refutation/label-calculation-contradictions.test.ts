@@ -261,7 +261,10 @@ console.log('\n[Suite 5] Detection baseYear cross-check revenueProjection');
 }
 
 {
-  // Rationale sans revenu absolu, fallback min(nowYear, maxProjection)
+  // Rationale sans grandeur mesurable et sans computedForYear : la
+  // brique se tait. C est le cas qui retombait sur min(annee courante,
+  // derniere annee de la serie) et annoncait une base 2026 sans qu une
+  // seule donnee du dossier ne la designe.
   const rj = {
     financialData: {
       lastActualYear: 2024,
@@ -279,8 +282,164 @@ console.log('\n[Suite 5] Detection baseYear cross-check revenueProjection');
     },
   };
   const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
-  check(cs.length === 1, 'fallback : baseYear = min(2026, 2028) = 2026');
-  check(cs[0]?.baseYearOfCalculation === 2026, '  baseYear = 2026');
+  check(cs.length === 0, 'aucune grandeur mesurable dans le rationale : silencieux');
+}
+
+// ============================================================
+// SUITE 5 bis - computedForYear prime sur toute reconstruction
+// ------------------------------------------------------------
+// Le defaut ferme par la brique 22. Le moteur d indicateurs declare
+// desormais l annee de calcul dans computedForYear, avec un baseState
+// tri-etat a cote. La brique lisait toujours sa prose de sortie et
+// retombait sur l horloge, ce qui fabriquait une contradiction sur des
+// indicateurs calcules au realise.
+// ============================================================
+
+console.log('\n[Suite 5 bis] computedForYear declare par le moteur');
+
+{
+  // Cas mesure sur le dossier de reference du corpus : Rule of 40
+  // calcule sur 2023, annee de reference du dossier 2023, baseState
+  // actual. Aucune contradiction. La reconstruction par horloge
+  // annoncait 2026 et signalait trois ans de projection non qualifiee.
+  const rj = {
+    financialData: {
+      lastActualYear: 2023,
+      lastActualYearEvidence: "Tableau P&L slide 10 : colonnes 2020 a 2023 qualifiees reel",
+      revenueProjection: [
+        { year: '2020', value: 0.48, basis: 'actual' },
+        { year: '2021', value: 1.56, basis: 'actual' },
+        { year: '2022', value: 1.752, basis: 'actual' },
+        { year: '2023', value: 1.483, basis: 'actual' },
+        { year: '2024', value: 2.113, basis: 'budget' },
+        { year: '2025', value: 3.697, basis: 'projected' },
+        { year: '2026', value: 6.552, basis: 'projected' },
+      ],
+    },
+    indicators: {
+      indicators: [
+        {
+          key: 'ruleOf40', label: 'Rule of 40', value: -43.8, unit: '%', verdict: 'rouge',
+          rationale: 'Croissance YoY -15.4% + Marge EBITDA -28.5% = -43.8%.',
+          computedForYear: 2023,
+          baseState: 'actual',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'computedForYear=2023 sur refYear=2023 : aucune contradiction fabriquee');
+}
+
+{
+  // Symetrie : la brique reste capable de signaler quand la base
+  // declaree est bien posterieure a l annee de reference.
+  const rj = {
+    financialData: {
+      lastActualYear: 2023,
+      lastActualYearEvidence: 'colonne 2023 qualifiee reel',
+      revenueProjection: [
+        { year: '2023', value: 1.483, basis: 'actual' },
+        { year: '2026', value: 6.552, basis: 'projected' },
+      ],
+    },
+    indicators: {
+      indicators: [
+        {
+          key: 'ruleOf40', label: 'Rule of 40', value: 120, unit: '%', verdict: 'best-in-class',
+          rationale: 'Croissance YoY 90% + Marge EBITDA 30% = 120%.',
+          computedForYear: 2026,
+          baseState: 'forward',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 1, 'computedForYear=2026 sur refYear=2023 : contradiction signalee');
+  check(cs[0]?.baseYearOfCalculation === 2026, '  baseYear lu dans computedForYear');
+  check(cs[0]?.yearsForward === 3, '  trois ans de projection');
+}
+
+{
+  // computedForYear prime sur la reconstruction : ici la prose
+  // designerait 2026 par le taux de croissance, le champ declare 2023.
+  // C est le champ qui gagne.
+  const rj = {
+    financialData: {
+      lastActualYear: 2023,
+      lastActualYearEvidence: 'colonne 2023 qualifiee reel',
+      revenueProjection: [
+        { year: '2025', value: 2.0, basis: 'projected' },
+        { year: '2026', value: 4.0, basis: 'projected' },
+        { year: '2023', value: 1.483, basis: 'actual' },
+      ],
+    },
+    indicators: {
+      indicators: [
+        {
+          key: 'ruleOf40', label: 'Rule of 40', value: 110, unit: '%', verdict: 'best-in-class',
+          rationale: 'Croissance YoY 100% + Marge EBITDA 10% = 110%.',
+          computedForYear: 2023,
+          baseState: 'actual',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'la declaration du moteur bat la reconstruction par la prose');
+}
+
+{
+  // Chemin legacy : sans computedForYear, le taux de croissance du
+  // rationale identifie l annee de calcul. C est ce qui maintient la
+  // detection sur les result_json anterieurs au champ, sans horloge.
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'P&L 2024A audite',
+      revenueProjection: [
+        { year: '2024', value: 1.608, basis: 'actual' },
+        { year: '2025', value: 2.16, basis: 'projected' },
+        { year: '2026', value: 2.75, basis: 'projected' },
+      ],
+    },
+    indicators: {
+      indicators: [
+        {
+          key: 'ruleOf40', label: 'Rule of 40', value: 49.9, unit: '%', verdict: 'best-in-class',
+          rationale: 'Croissance YoY 27.3% + Marge FCF 22.5% = 49.9%.',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 1, 'legacy : le taux de croissance 27,3% designe 2026');
+  check(cs[0]?.baseYearOfCalculation === 2026, '  baseYear reconstruit a 2026');
+}
+
+{
+  // La reconstruction est falsifiable : un taux qu aucune paire de la
+  // serie ne produit ne designe rien, et la brique se tait.
+  const rj = {
+    financialData: {
+      lastActualYear: 2024,
+      lastActualYearEvidence: 'P&L 2024A audite',
+      revenueProjection: [
+        { year: '2024', value: 1.608, basis: 'actual' },
+        { year: '2026', value: 2.75, basis: 'projected' },
+      ],
+    },
+    indicators: {
+      indicators: [
+        {
+          key: 'ruleOf40', label: 'Rule of 40', value: 60, unit: '%', verdict: 'best-in-class',
+          rationale: 'Croissance YoY 12.7% + Marge FCF 47.3% = 60%.',
+        },
+      ],
+    },
+  };
+  const cs = detectLabelCalculationContradictions(rj, { nowYear: 2026 });
+  check(cs.length === 0, 'taux introuvable dans la serie : silencieux plutot qu invente');
 }
 
 // ============================================================
