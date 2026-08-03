@@ -160,6 +160,38 @@ ce qui est la meme faute a un cran de subtilite : la valeur est bien
 la, mais on lui prete une finesse qu elle n a pas, et cette finesse
 seule suffit a faire basculer une conclusion.
 
+## Discipline des jeux d essai
+
+Un repli qui rend la meme valeur que sa source rend la source invisible
+a toute mesure de dependance. Corollaire : un jeu d essai doit faire
+diverger une source de son repli, sinon il mesure leur identite et pas
+la dependance.
+
+La regle est nee le 3 aout 2026 du verrou du graphe de dependances.
+Le moteur de benchmarks lit `financialData.currentRound.amount` avec un
+repli sur `extraction.fundraise.amount`. Le jeu d essai portait le meme
+montant des deux cotes : vider la source rendait exactement la meme
+sortie, et la dependance paraissait fausse alors qu elle etait
+seulement masquee par son propre repli.
+
+C est le pendant, cote verification, de ce que la semaine a rencontre
+trois fois cote production : une chose qui existe mais que rien
+n exerce. Le parametre jamais passe, le champ jamais rempli, la regle
+ecrite dans un commentaire et appliquee a une ligne. Ici la chose est
+exercee mais la mesure ne peut pas la voir, ce qui produit le meme
+resultat, une couverture affirmee et absente.
+
+En pratique, quand un jeu d essai doit prouver qu une sortie depend
+d une entree, il faut que cette entree porte une valeur que rien
+d autre ne peut fournir. Un montant different du repli, un identifiant
+qui n existe qu a cet endroit, une date qu aucune autre source ne
+donne. La valeur n a pas besoin d etre realiste, elle a besoin d etre
+discriminante.
+
+Corollaire de redaction : ce qu un jeu d essai n exerce pas doit etre
+imprime et non tu. Compter comme succes une assertion que le jeu ne met
+pas en jeu revient a revendiquer une couverture qu on n a pas.
+
 ## Discipline des regles ecrites
 
 Quand une regle est ecrite dans un commentaire, elle doit etre portee

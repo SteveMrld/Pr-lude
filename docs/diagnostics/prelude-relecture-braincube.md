@@ -219,3 +219,82 @@ sur la taille du document. Une reprise dediee a l extraction, distincte
 du `maxRetries` global. Ou un decoupage du document avant appel, qui
 reglerait aussi la limite de cent pages du pre-scan, mais qui est un
 chantier a part entiere.
+
+## Mesure d ecart sur le corpus, 3 aout 2026
+
+Les quarante-huit analyses persistees rejouees avec les regles du jour,
+en moins d une minute et sans un appel au modele. Aucune note n a ete
+ecrasee : la mesure dit ce que les regles d aujourd hui diraient, pas
+ce que ces runs ont dit.
+
+```
+changent de classe d actif  :  9
+changent de fourchette      :  3
+voient une reserve se lever :  4
+inchangees                  : 36
+non exploitables            :  2
+```
+
+Trente-six sur quarante-huit sont inchangees. Les corrections de la
+semaine ne bouleversent pas le corpus, elles corrigent une minorite
+identifiable. Les trois changements de fourchette sont tous sur
+Braincube et tous du meme ordre, un facteur 5,8 a 5,95, ce qui confirme
+que l ecart vient de la classe d actif et non d un artefact de run.
+
+### Constat separe : la classe d actif variait deja d un run a l autre
+
+Les deux analyses BlueAi du corpus ne portaient pas la meme classe
+avant toute correction : `saas-b2b` sur celle du 26 mai,
+`industrial-hardware` sur celle du 8 juin, sur le meme dossier. Ce n est
+pas un effet des correctifs, c est une instabilite de classification
+qui existait et que personne n avait vue, parce que personne ne
+comparait deux runs du meme dossier sur ce champ.
+
+Elle se mesure pour zero appel au modele. La matrice est deterministe :
+il suffit de rejouer `computeRelevanceMatrix` sur les extractions deja
+persistees et de compter les classes obtenues par dossier. La
+variabilite ne viendrait alors que de l extraction amont, `sector` et
+`subSector`, ce qui isolerait exactement ou naît l instabilite.
+
+C est le premier moteur de la liste de priorite des mesures de
+stabilite, et cette observation confirme le classement : sa sortie
+commande les multiples, donc la fourchette, et elle bouge.
+
+### Ce qu un correctif vaut quand un autre verrou tenait deja
+
+Six des neuf changements de classe ne changent pas la fourchette. Sur
+Compagnie des Alpes et Smart&co, la classe se corrige et la
+valorisation reste non produite pour une autre raison, base de
+millesime refusee ou stade non identifie.
+
+C est la mesure honnete de ce qu un correctif vaut. Une correction
+reelle peut avoir un effet nul parce qu un autre verrou tenait deja, et
+cela ne la rend pas inutile : cela dit qu elle etait la seconde
+barriere et pas la premiere. La distinction compte au moment d arbitrer
+un chantier, parce qu une seconde barriere se paie au meme prix qu une
+premiere et se voit beaucoup moins.
+
+### La reserve levee sur In Haircare est un faux positif
+
+Examinee avant tout gel, comme demande. Elle ne doit pas etre montree.
+
+Les deux evenements retenus n en sont pas. Le premier est « Le pitch ne
+fournit ni pacte d actionnaires, ni term sheet, ni cap table detaillee.
+Un tour documente existe : ... », le second une phrase sur un waterfall
+a trois niveaux. Ce sont des constats d analyse du moteur Fragilite,
+pas des faits dates. La detection les a pris pour des evenements parce
+qu ils portent un marqueur de financement a moins de quatre-vingt-dix
+caracteres d une annee 2025.
+
+Deux facteurs aggravants. L ancre est reconstituee a 2025, millesime
+2023 augmente de deux ans, ce qui la place tard et rend « posterieure »
+toute mention d une annee 2025. Et le resserrement du matin, qui avait
+fait passer Braincube de vingt et un evenements a dix, ne suffit pas :
+« un tour documente existe » franchit le marqueur `tour de` sans etre
+un evenement date.
+
+Le taux de faux positifs est donc plus eleve que ce que la mesure sur
+six dossiers laissait croire. La detection reste declaree provisoire
+dans le code et dans la note, et la grappe des evenements structures
+reste la reponse. En attendant, une reserve levee doit etre lue avant
+d etre montree.
