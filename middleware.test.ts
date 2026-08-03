@@ -17,9 +17,9 @@
 //   tsx middleware.test.ts
 // ============================================================
 
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
-import { config, isCronPath } from './middleware';
+import { config, isCronPath, isHeaderGuardedPath, HEADER_GUARDED_PATHS } from './middleware';
 
 let pass = 0;
 let fail = 0;
@@ -97,6 +97,78 @@ for (const p of DECOYS) {
   check(`${p} n est pas reconnu comme tache planifiee`, isCronPath(p), false);
   checkTrue(`${p} reste soumis au middleware`, isMatchedByMiddleware(p));
 }
+
+// ============================================================
+// LES ROUTES GARDEES PAR EN-TETE, CONFRONTEES AU DEPOT
+// ------------------------------------------------------------
+// La premiere correction portait sur le prefixe /api/cron/. C etait le
+// mauvais critere : ce qui distingue ces routes n est pas leur
+// emplacement mais leur mode d authentification. Le webhook sectoriel
+// event-trigger se garde par en-tete, vit ailleurs, et portait donc la
+// meme panne sans que rien ne la signale.
+//
+// Ce bloc verrouille le critere reel. Il releve dans app/api les
+// routes qui lisent un en-tete d autorisation, et exige que chacune
+// soit ecartee du middleware. Trois declarations doivent coincider :
+// HEADER_GUARDED_PATHS, le matcher litteral, et le depot. Le test
+// echoue des que l une diverge, ce qui est la seule forme qui survive
+// a l ajout d une huitieme route par quelqu un qui ne lira pas ce
+// fichier.
+// ============================================================
+
+console.log('\n--- routes gardees par en-tete ---');
+
+function routesGardeesParEnTete(): string[] {
+  const racine = join(process.cwd(), 'app', 'api');
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const nom of readdirSync(dir)) {
+      const chemin = join(dir, nom);
+      if (statSync(chemin).isDirectory()) { walk(chemin); continue; }
+      if (nom !== 'route.ts') continue;
+      const src = readFileSync(chemin, 'utf-8');
+      // Une route gardee par en-tete lit l en-tete Authorization,
+      // directement ou via la garde partagee des taches planifiees.
+      const litEnTete =
+        /headers\.get\(\s*['"]authorization['"]\s*\)/i.test(src)
+        || /isCronAuthorized|evaluateCronAuth/.test(src);
+      if (!litEnTete) continue;
+      const rel = chemin
+        .slice(join(process.cwd(), 'app').length)
+        .replace(/\\/g, '/')
+        .replace(/\/route\.ts$/, '');
+      out.push(rel);
+    }
+  };
+  walk(racine);
+  return out.sort();
+}
+
+const gardees = routesGardeesParEnTete();
+checkTrue(`le depot porte des routes gardees par en-tete (${gardees.length})`, gardees.length > 0);
+
+for (const route of gardees) {
+  checkTrue(`${route} est reconnue comme gardee par en-tete`, isHeaderGuardedPath(route));
+  check(`${route} est ecartee du matcher`, isMatchedByMiddleware(route), false);
+}
+
+// L inverse aussi : un chemin declare garde par en-tete qui ne
+// correspondrait a aucune route du depot serait une entree perimee,
+// et une entree perimee ouvre le middleware sur un chemin qui n a plus
+// de garde propre.
+for (const declare of HEADER_GUARDED_PATHS) {
+  const couvre = gardees.some((r) =>
+    declare.endsWith('/') ? r.startsWith(declare) : r === declare,
+  );
+  checkTrue(`le chemin declare ${declare} correspond a une route reelle`, couvre);
+}
+
+// Une route qui n est pas gardee par en-tete ne doit pas etre ecartee :
+// une exclusion trop large rendrait publique une route protegee, ce qui
+// est le sens inverse de l erreur et il est pire.
+check('une route applicative reste soumise au middleware', isHeaderGuardedPath('/api/analyses/list'), false);
+check('la racine sectorielle n est pas ecartee en bloc', isHeaderGuardedPath('/api/sectoral/autre-chose'), false);
+checkTrue('la route applicative reste dans le matcher', isMatchedByMiddleware('/api/analyses/list'));
 
 // ------------------------------------------------------------
 // Ce que ce fichier n exerce pas, et qu il ne faut donc pas compter

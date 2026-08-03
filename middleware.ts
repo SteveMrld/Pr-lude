@@ -22,18 +22,53 @@ const PUBLIC_PATHS = [
   '/demo', // future page demo PEN Group en lecture seule
 ];
 
-// Les taches planifiees declarees dans vercel.json sont appelees par
-// l infrastructure Vercel, qui ne porte aucun cookie de session. Sous
-// ENABLE_AUTH, le middleware les traitait comme des routes protegees
-// et les redirigeait en 307 vers /login : les six crons n ont jamais
-// atteint leur handler depuis leur mise en service. Un 307 n est pas
-// une erreur, rien ne le remonte, et la tache passe pour active.
+// Routes dont l appelant est une machine et non un navigateur : elles
+// ne portent aucun cookie de session et se gardent elles-memes par un
+// en-tete Authorization verifie en premiere ligne de leur handler.
 //
-// La bonne garde d une tache planifiee n est pas la session mais le
-// CRON_SECRET, que chaque route verifie elle-meme en premiere ligne
-// de son handler. Le middleware doit donc s ecarter, pas arbitrer.
+// Sous ENABLE_AUTH, le middleware les traitait comme des routes
+// protegees et les redirigeait en 307 vers /login. Un 307 n est pas
+// une erreur, rien ne le remonte, et la route passe pour active : les
+// six taches planifiees n ont jamais atteint leur handler depuis leur
+// mise en service.
+//
+// La premiere correction n a porte que sur le prefixe /api/cron/, et
+// c etait le mauvais critere. Ce qui distingue ces routes n est pas
+// leur emplacement, c est leur mode d authentification. Le webhook
+// sectoriel event-trigger, qui se garde par SECTORAL_EVENT_TOKEN et
+// vit sous /api/sectoral/, portait donc exactement la meme panne,
+// restee dans l ombre parce que le correctif avait ete ecrit sur le
+// symptome. Elle n a rien coute a ce jour, faute d appelant configure,
+// mais elle etait armee.
+//
+// Le predicat porte donc sur le critere reel. La liste est verrouillee
+// par middleware.test.ts, qui la confronte aux routes du depot lisant
+// effectivement un en-tete d autorisation : la huitieme route ne peut
+// plus etre oubliee, elle fera echouer le test.
 export const CRON_PATH_PREFIX = '/api/cron/';
 
+/**
+ * Chemins gardes par en-tete. Un prefixe termine par '/' couvre son
+ * sous-arbre, un chemin exact ne couvre que lui-meme.
+ */
+export const HEADER_GUARDED_PATHS: ReadonlyArray<string> = [
+  CRON_PATH_PREFIX,
+  '/api/sectoral/event-trigger',
+];
+
+export function isHeaderGuardedPath(pathname: string): boolean {
+  return HEADER_GUARDED_PATHS.some((p) =>
+    p.endsWith('/')
+      ? pathname === p.slice(0, -1) || pathname.startsWith(p)
+      : pathname === p,
+  );
+}
+
+/**
+ * Conserve : le nom dit ce qu il fait et plusieurs appelants le
+ * lisent. Il delegue au predicat general plutot que de porter sa
+ * propre regle, pour qu il n y ait qu une definition a maintenir.
+ */
 export function isCronPath(pathname: string): boolean {
   return pathname === '/api/cron' || pathname.startsWith(CRON_PATH_PREFIX);
 }
@@ -50,11 +85,11 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Sortie anticipee avant toute lecture de session. Le matcher plus
-  // bas exclut deja /api/cron/, donc cette branche ne devrait pas etre
-  // atteinte en production ; elle est la defense qui survit a une
+  // bas exclut deja ces chemins, donc cette branche ne devrait pas
+  // etre atteinte en production ; elle est la defense qui survit a une
   // reecriture du matcher, laquelle est une expression reguliere que
   // personne ne relit. Les deux mecanismes tombent independamment.
-  if (isCronPath(pathname)) {
+  if (isHeaderGuardedPath(pathname)) {
     return NextResponse.next();
   }
 
@@ -119,14 +154,16 @@ export async function middleware(req: NextRequest) {
 }
 
 // Le matcher doit rester une chaine litterale : Next l analyse
-// statiquement au build et refuse toute valeur calculee. La branche
-// api/cron/ y figure donc en dur, et middleware.test.ts verifie qu elle
-// couvre bien les six chemins declares dans vercel.json, en lisant ce
-// fichier plutot qu en faisant confiance a la memoire de celui qui
-// ajoutera la septieme tache.
+// statiquement au build et refuse toute valeur calculee. Les chemins
+// gardes par en-tete y figurent donc en dur, et middleware.test.ts
+// verifie que cette liste litterale et HEADER_GUARDED_PATHS disent la
+// meme chose, puis que les deux couvrent les routes du depot qui
+// lisent un en-tete d autorisation. Trois declarations qui devraient
+// coincider, et un test qui echoue des qu elles divergent, plutot que
+// la memoire de celui qui ajoutera la huitieme route.
 export const config = {
   matcher: [
-    // Match toutes les routes sauf assets explicites et taches planifiees
-    '/((?!api/cron/|_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.webp).*)',
+    // Match toutes les routes sauf assets explicites et routes gardees par en-tete
+    '/((?!api/cron/|api/sectoral/event-trigger|_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.webp).*)',
   ],
 };
