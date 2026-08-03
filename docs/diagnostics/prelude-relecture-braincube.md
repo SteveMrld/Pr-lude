@@ -298,3 +298,62 @@ six dossiers laissait croire. La detection reste declaree provisoire
 dans le code et dans la note, et la grappe des evenements structures
 reste la reponse. En attendant, une reserve levee doit etre lue avant
 d etre montree.
+
+## Trois constats du 3 aout, valables au-dela de leur cas
+
+### Un indicateur en bout de chaine mesure son amont autant que lui
+
+`finalRecommendation` echouait son contrat sur vingt-deux pour cent des
+sorties assemblees du corpus, dix sur quarante-six. C etait le seul
+moteur de la table a echouer sur des sorties completes, donc le seul ou
+le contrat et le moteur semblaient en desaccord.
+
+La declaration d entrees a retourne la lecture : les dix echecs sont des
+runs ou aucun moteur d analyse n avait produit de sortie a arbitrer.
+L orchestrateur n a pas failli, il n avait rien a orchestrer.
+
+Le taux ne mesurait donc pas l orchestrateur, il mesurait l etat de son
+amont. La regle generale : un indicateur place en bout de chaine dit
+autant de ce qui le precede que de lui-meme, et le lire comme une
+mesure du dernier maillon est une erreur de cadrage avant d etre une
+erreur de chiffre. Avant d instruire un taux d echec terminal, il faut
+etablir ce qui etait disponible en entree.
+
+### Une table juste posee sur une justification fausse
+
+La declaration d entrees de `finalRecommendation` retient un seuil a un
+moteur amont : des qu un seul a produit, un echec est un incident et
+non une absence. Le seuil est bon, et la raison que j en avais donnee
+ne l etait pas. J avais ecrit que l orchestrateur « sait conclure sur ce
+dont il dispose », ce qui etait une supposition sur son comportement.
+
+La lecture de son prompt donne la vraie raison, et elle est plus forte :
+il porte une doctrine explicite du socle partiel qui lui **impose** de
+conclure, « elle assume son verdict sur ce qu elle a lu, elle ne se
+refugie pas dans un refus de conclure », servie par un calcul de
+disponibilite sur les racines brutes.
+
+Ce qui vaut au-dela du cas : une declaration juste adossee a une
+justification fausse est plus dangereuse qu une declaration fausse. La
+declaration se verifie par un test, la justification se recopie. Le
+prochain qui reprendra ce seuil lira la raison ecrite a cote, pas le
+comportement reel, et il la propagera a un moteur qui n a pas cette
+doctrine. Une justification est donc a verifier au meme titre qu une
+valeur, et une justification supposee doit etre marquee comme telle
+tant qu elle n a pas ete lue.
+
+### Le defaut latent des predicats, regle sans occurrence
+
+Le contrat de `financialCoherence` decrivait la sortie assemblee et
+etait evalue sur la sortie brute. Lecture faite des cinq autres moteurs
+qui recombinent, aucun n est dans ce cas : `team`, `market`, `macro`,
+`patternMatching` et `narrativeDrift` ont des predicats dont tous les
+champs sont demandes au modele dans leur propre prompt, verifie ligne a
+ligne.
+
+La regle reste ecrite alors qu elle n a aucune occurrence : qu un
+contrat passe aujourd hui n etablit pas qu il decrit le bon objet, cela
+dit seulement qu il n exige pas encore un champ ajoute apres coup. Un
+defaut latent qui n attend qu un durcissement de predicat pour se
+reveler est un defaut, pas une reserve, et il se documente avant de se
+manifester.
