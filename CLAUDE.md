@@ -338,6 +338,56 @@ anterieure a l identique quand il est absent. La branche ancienne n est
 pas un repli degrade, c est la lecture juste des donnees anciennes, et
 elle se supprime le jour ou plus aucune donnee ancienne n est lue.
 
+## Collision de deux exigences sur un meme texte
+
+Quand deux exigences differentes reposent sur la meme chaine de
+caracteres, un changement fait au nom de l une depense l autre sans
+qu aucun arbitrage soit rendu. Le mecanisme n a rien de particulier au
+cas qui l a revele, et il se reproduira.
+
+Le cas est du 3 aout 2026. Le brief 25 avait ecrit dans le prompt
+d extraction six noms de code de processus et trois noms de vendeurs
+lus dans le corpus, en marqueurs de cession, et un test verrouillait
+qu ils soient nommes, precisement pour que ces marqueurs restent des
+observations et non des suppositions. Le commit `2177651` a retire tous
+les noms de dossiers reels des prompts, parce qu un nom de client dans
+la note d un autre client est disqualifiant devant un fonds. Les deux
+exigences etaient justes, elles portaient sur les memes caracteres, et
+la seconde a emporte la premiere sans que personne s en apercoive. Le
+diff du nettoyage est irreprochable lu seul, l assertion de la garde est
+irreprochable lue seule, et la contradiction n existe que dans leur
+intersection, qui ne vit dans aucun fichier.
+
+C est ce qui rend la collision invisible a la relecture. Il n y a ni
+import a declarer, ni type a satisfaire, ni appelant a mettre a jour :
+une chaine de caracteres est une ressource partagee sans proprietaire,
+et le compilateur ne connait pas ses usages. Rien ne signale au commit
+qui la modifie qu il retire l objet d une garde, et rien ne signale a la
+garde que son objet a change de raison d etre.
+
+Ce qui aurait du alerter est un test devenu rouge apres un commit sans
+rapport apparent avec lui. C est le seul signe que la collision produit,
+et c est un bon signe : il est precis, il est date, il nomme les deux
+parties. Le danger est le reflexe qui suit, reparer le test rouge, qui
+consiste a rendre l arbitrage une seconde fois dans le meme sens et a
+l enterrer pour de bon. Un test rouge dont le commit fautif ne parlait
+pas du sujet du test n est pas une reparation a faire, c est un
+arbitrage a rendre, et il se rend explicitement.
+
+La sortie, quand elle existe, est de monter d un cran d abstraction.
+Un exemple satisfait une exigence et viole l autre ; la regle qui a
+produit l exemple les satisfait souvent toutes les deux. Ici, ce qui se
+verifie est desormais la forme du marqueur, un nom de code forme de
+Project suivi d un nom d animal ou de relief, et non le nom du dossier
+ou il a ete lu. La garde couvre les six noms retires et tous les
+suivants, et elle ne nomme personne. Les deux exigences y gagnent, ce
+qui est le signe qu on a trouve le bon niveau et pas un compromis.
+
+Cette sortie n est pas toujours disponible. Quand elle ne l est pas,
+l arbitrage se tranche et s ecrit, avec ce qu il coute au perdant. Ce
+qu on ne veut a aucun prix, c est qu il soit rendu par le hasard de
+l ordre des commits.
+
 ## Discipline de provenance
 
 Une mention de provenance ne doit jamais etre la seule chose qui
