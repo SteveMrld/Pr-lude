@@ -271,6 +271,14 @@ export interface MarketAnalysisOutput {
       timeframe: string;      // ex. "2032", "2025", "horizon 2030"
       source: string;         // ex. "Pitchbook Drone Industry Report 2024"
       confidence: 'high' | 'medium' | 'low';  // qualité de la source
+      /**
+       * Perimetre exact que le chiffre mesure. Obligatoire : un TAM
+       * sans perimetre declare n est pas un chiffre. Trois passes du
+       * moteur sur le meme dossier ont rendu tantot le segment
+       * analytics, tantot la depense mondiale, sans que rien ne
+       * permette de voir qu on ne parlait pas de la meme chose.
+       */
+      perimeter?: string | null;
     };
     // Serviceable Addressable Market - segment réellement adressable
     sam: {
@@ -278,12 +286,14 @@ export interface MarketAnalysisOutput {
       timeframe: string;
       source: string;
       methodology: string;    // ex. "TAM × % cargo BVLOS Europe"
+      perimeter?: string | null;
     };
     // Serviceable Obtainable Market - part de marché capturable
     som: {
       value: string;
       timeframe: string;
       methodology: string;    // ex. "5% du SAM en 5 ans, hypothese aggressive"
+      perimeter?: string | null;
     };
     // Synthèse narrative du sizing (3-5 phrases)
     sizingNarrative: string;

@@ -178,19 +178,22 @@ Les trois premiers champs (perceivedSize, realIntensity, saturation) sont REQUIS
   "saturation": "saturated" ou "fragmented" ou "emerging",
   "marketSizing": {
     "tam": {
-      "value": "ex. '47Mds$ d ici 2032' ou 'non chiffré'",
+      "value": "montant seul, sans qualificatif de périmètre. ex. '47Mds$'",
+      "perimeter": "périmètre exact que ce montant mesure, en une ligne : quoi, où, quand. ex. 'dépense mondiale toutes couches confondues, 2024' ou 'segment logiciel analytique manufacturier, monde, 2024'. Obligatoire.",
       "timeframe": "ex. '2032', '2025', 'horizon 2030'",
       "source": "ex. 'Pitchbook Drone Industry Report 2024', 'Maddyness 2025', 'pitch deck'",
       "confidence": "high | medium | low"
     },
     "sam": {
-      "value": "ex. '8.5Mds$ segment cargo BVLOS Europe 2030'",
+      "value": "montant seul. ex. '8.5Mds$'",
+      "perimeter": "périmètre exact, en une ligne. ex. 'segment cargo BVLOS certifié, Europe, 2030'. Obligatoire, et il doit être strictement inclus dans celui du TAM.",
       "timeframe": "ex. '2030'",
       "source": "ex. 'Frost & Sullivan European UAV Cargo 2024'",
       "methodology": "ex. 'TAM mondial × 18% Europe × 32% segment cargo certifié'"
     },
     "som": {
-      "value": "ex. '425M$ horizon 5 ans'",
+      "value": "montant seul. ex. '425M$'",
+      "perimeter": "périmètre exact, en une ligne, strictement inclus dans celui du SAM. Obligatoire.",
       "timeframe": "ex. 'horizon 2030, soit 5 ans'",
       "methodology": "ex. '5% du SAM, hypothèse aggressive avec leadership européen'"
     },
@@ -248,6 +251,36 @@ Les trois premiers champs (perceivedSize, realIntensity, saturation) sont REQUIS
     "differentiationRationale": "phrase qui explique en quoi la startup se différencie selon la matrice"
   }
 }
+
+# REGLE DE PERIMETRE, PRIORITAIRE SUR TOUTES LES AUTRES
+
+Un TAM sans perimetre declare n est pas un chiffre. Chacun des trois
+niveaux porte un champ perimeter obligatoire qui dit en une ligne ce
+que le montant mesure : quoi, ou, quand.
+
+La raison est mesuree et non theorique. Trois passes de ce moteur sur
+le meme dossier ont rendu tantot onze milliards, le segment logiciel
+analytique manufacturier, tantot cinq cents milliards, la depense
+mondiale toutes couches confondues, tantot les deux dans un ordre
+different. Les trois chiffres etaient defendables et aucun n etait
+comparable aux autres, parce que le perimetre vivait dans la prose et
+changeait avec elle.
+
+Trois consequences que tu dois respecter.
+
+Le champ value porte le montant seul, sans qualificatif de perimetre.
+Ecrire « 8,5 Mds$ segment cargo Europe 2030 » dans value est interdit :
+le montant va dans value, le reste dans perimeter.
+
+Les trois perimetres doivent etre embiotes. Celui du SAM est
+strictement inclus dans celui du TAM, celui du SOM dans celui du SAM.
+Si tu ne peux pas les embiter, c est que tu as change de referentiel en
+cours de route, et il faut refaire les trois sur le meme.
+
+Le perimetre le plus etroit qui reste defendable est preferable au plus
+large. Un TAM de cinq cents milliards qui englobe le materiel, la
+connectivite et les services quand la societe vend un logiciel ne
+mesure pas son marche, il mesure une industrie.
 
 # REGLE CRITIQUE SUR marketSizing
 
@@ -570,7 +603,7 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
     perceivedSize: (analysis.perceivedSize || 'large') as 'massive' | 'large' | 'niche',
     realIntensity: (analysis.realIntensity || 'medium') as 'extreme' | 'high' | 'medium',
     saturation: (analysis.saturation || 'fragmented') as 'saturated' | 'fragmented' | 'emerging',
-    marketSizing: analysis.marketSizing,
+    marketSizing: appliquerGardePerimetre(analysis.marketSizing),
     organicSignals: analysis.organicSignals || { score: 50, rationale: 'Signaux organiques non instruits.', evidence: [] },
     needIntensity: analysis.needIntensity || { score: 50, rationale: 'Intensite du besoin non instruite.', gap: '' },
     defensibility: analysis.defensibility || { score: 50, moats: [], vulnerabilities: [] } as any,
@@ -660,4 +693,38 @@ export function applyMarketVerdictPostProcessing(
   }
 
   return merged;
+}
+
+/**
+ * Garde de contrat sur le dimensionnement. Un niveau qui rend un
+ * montant sans declarer son perimetre voit sa valeur remplacee par une
+ * non-production explicite : c est la regle anti-divination appliquee
+ * non pas a la valeur mais a ce qu elle mesure.
+ *
+ * Le montant brut est conserve dans rawValue pour qu un lecteur du
+ * code voie ce que le modele avait rendu, mais il ne remonte pas comme
+ * chiffre dans la note : un montant dont on ignore le perimetre se
+ * compare a tort, et se comparer a tort coute plus cher que ne rien
+ * comparer.
+ *
+ * Le seuil de dix caracteres ecarte les perimetres de complaisance du
+ * type « monde » ou « 2024 », qui ne disent ni quoi ni ou.
+ */
+export function appliquerGardePerimetre(sizing: any): any {
+  if (!sizing || typeof sizing !== 'object') return sizing;
+  const out: any = { ...sizing };
+  for (const niveau of ['tam', 'sam', 'som']) {
+    const n = out[niveau];
+    if (!n || typeof n !== 'object') continue;
+    const perimetre = typeof n.perimeter === 'string' ? n.perimeter.trim() : '';
+    if (perimetre.length >= 10) { out[niveau] = { ...n, perimeter: perimetre }; continue; }
+    out[niveau] = {
+      ...n,
+      rawValue: n.value ?? null,
+      value: 'Non chiffre : perimetre non declare',
+      perimeter: null,
+      perimeterMissing: true,
+    };
+  }
+  return out;
 }
