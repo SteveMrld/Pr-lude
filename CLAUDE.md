@@ -160,6 +160,34 @@ ce qui est la meme faute a un cran de subtilite : la valeur est bien
 la, mais on lui prete une finesse qu elle n a pas, et cette finesse
 seule suffit a faire basculer une conclusion.
 
+## Discipline de non-retroactivite des contrats
+
+Un contrat plus fin ne requalifie pas les donnees produites sous le
+contrat ancien. Elles ne portent pas la precision qu on leur
+appliquerait.
+
+La regle est nee le 3 aout 2026 sur le passage du type d operation a
+une representation composite. La nouvelle regle est que la dilution
+suppose une composante de cash-in ; l ancienne etait que seule une
+cession totale la mettait hors domaine, parce qu une cession partielle
+pouvait accompagner une augmentation de capital que rien ne permettait
+de constater. Appliquer la nouvelle regle aux analyses anterieures
+aurait declare hors domaine des dilutions calculees a bon droit, sur la
+foi d une composante absente non pas du dossier mais du contrat qui l a
+produit.
+
+Le raisonnement vaut au-dela du cas. Une absence sous un contrat ancien
+n est pas une negation, c est un silence : le champ n existait pas, la
+question n etait pas posee. Traiter ce silence comme une reponse est la
+meme faute que la divination, prise par l autre bout, puisqu on tire
+une conclusion de ce qui n a jamais ete demande.
+
+En pratique, tout consommateur d un champ nouveau doit porter deux
+branches, celle qui lit le champ et celle qui applique la regle
+anterieure a l identique quand il est absent. La branche ancienne n est
+pas un repli degrade, c est la lecture juste des donnees anciennes, et
+elle se supprime le jour ou plus aucune donnee ancienne n est lue.
+
 ## Discipline de provenance
 
 Une mention de provenance ne doit jamais etre la seule chose qui

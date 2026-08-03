@@ -215,7 +215,16 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
   // Un evenement de financement conteste le cash-in quand il en existe
   // un. Quand il n en existe pas, il conteste l operation elle-meme :
   // sur une cession pure, une levee posterieure signifie que le vendeur
-  // a trouve son financement ailleurs.
+  // a trouve son financement ailleurs, et c est le cas d origine de ce
+  // module.
+  //
+  // NE PAS SIMPLIFIER. La ligne `porteComposante('cash-in') === false`
+  // n est pas une redondance de la ligne precedente : sans elle, la
+  // regle par composante annulerait le cas fondateur, une cession pure
+  // contestee par une levee posterieure ne visant plus aucune
+  // composante et ne suspendant plus le prix. Les deux branches disent
+  // deux choses differentes et la seconde ne se deduit pas de la
+  // premiere.
   const composanteVisee = principalPourCause.nature === 'procedure-collective' ? 'toutes'
     : principalPourCause.nature === 'changement-de-controle' ? 'cession'
     : porteComposante('cash-in') === false ? 'cession'
