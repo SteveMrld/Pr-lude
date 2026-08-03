@@ -21,10 +21,9 @@ meme document.
 
 Aucun calcul n'en depend. Le champ a un seul consommateur, la ligne
 « Cedant » du tableau d'operation de la note d'instruction
-(`app/components/InvestmentNoteView.tsx:3794`), et rien d'autre ne le
-lit. La garde post-parse le vide quand aucune composante d'operation
-n'est etablie, ce qui couvre le cas de la levee pure, et ne fait rien
-au-dela.
+(`app/components/InvestmentNoteView.tsx`), et rien d'autre ne le lit. La
+garde post-parse le vide quand aucune composante d'operation n'est
+etablie, ce qui couvre le cas de la levee pure, et ne fait rien au-dela.
 
 Ce qui en fait une dette et non une imprecision : le champ imprime un
 nom de personne physique dans un document vendu a des fonds
@@ -52,6 +51,105 @@ Pas ferme aujourd'hui parce que la brique appartient au meme chantier
 que la stabilite des composantes d'operation, qui est en cours de
 mesure, et qu'il vaut mieux poser la garde une fois sur un contrat
 arrete que deux fois sur un contrat qui bouge.
+
+---
+
+## Le declenchement du moteur tech repose sur la formulation de l'extraction
+
+Ouvert le 3 aout 2026.
+
+`analyzeTechClaimCoherence` decide de s'appliquer ou non en cherchant
+des mots-cles dans un texte qui n'est pas le document. Le texte scanne
+est la concatenation de `companyName`, `productDescription`,
+`businessModel`, `marketPitch` et `rawSummary`, c'est-a-dire cinq champs
+que le moteur d'extraction a rediges, en francais, par synthese.
+
+La consequence est que l'activation d'un moteur depend du vocabulaire
+qu'un modele a choisi pour resumer, et non de ce que le dossier
+revendique. « Algorithme proprietaire » declenche ; « algorithme
+proprietaire » remplace par « moteur d'analyse developpe en interne »,
+qui dit la meme chose, ne declenche pas.
+
+Ce qui rend la dette serieuse est le croisement avec la mesure de
+stabilite du meme jour. Les champs de l'extraction qui varient d'un
+tirage a l'autre sont exactement les champs de synthese, la ou les
+champs de copie sont stables caractere pour caractere. Le declencheur du
+moteur tech est donc pose sur le canal le moins stable de l'extraction,
+et une section entiere de la note peut apparaitre ou disparaitre pour
+une raison qui n'est pas dans le dossier.
+
+Mesure disponible, et elle ne condamne pas le moteur : sur les quatre
+runs de `Project Woodpecker` qui portent une extraction, du 8 juin au
+3 aout, le declenchement est stable et le mot trouve est le meme,
+« algorithme proprietaire ». Sur vingt-huit dossiers distincts, quatre
+declenchent. Rien n'etablit donc un defaut constate ; ce qui est etabli
+est une dependance a un canal dont on sait par ailleurs qu'il bouge.
+
+### Ce qui manque pour trancher, et ce qu'il faudrait pour l'obtenir
+
+La mesure directe n'existe pas. `scripts/engine-stability.ts` suit dix
+champs de l'extraction, tous factuels, et aucun des cinq champs de
+synthese sur lesquels le declencheur travaille. On sait donc que les
+champs de synthese sont la famille qui derive, on ne sait pas de combien,
+et on ne sait rien du tout de la frequence a laquelle cette derive fait
+basculer une activation.
+
+Ce qu'il faudrait, en quatre points, aucun n'etant fait aujourd'hui.
+
+**Observer le verdict et non la prose.** Comparer les
+`productDescription` de N passes ne repond pas a la question : deux
+formulations differentes qui declenchent toutes deux comptent comme une
+divergence alors qu'elles ne changent rien. La grandeur qui agit est le
+booleen de declenchement et l'ensemble des mots-cles trouves. Le script
+doit donc suivre `moatClaimDetected.detected`, la liste des mots trouves,
+et `budgetAllocationDetected.detected`, en lecture derivee, comme il le
+fait deja pour les composantes d'operation. Sans quoi la mesure retombe
+dans la confusion entre le canal visible et le canal muet.
+
+**Entrer par la porte de la production.** `detectMoatClaim` et
+`detectBudgetAllocation` ne sont pas exportees. Il faut les exporter et
+que le script les appelle, jamais recopier leur balayage de mots-cles :
+une copie mesurerait son accord avec elle-meme et resterait verte le jour
+ou la liste de mots-cles du moteur changerait.
+
+**Choisir un dossier a la limite, et le choisir par une mesure et non
+par intuition.** Woodpecker declenche quatre fois sur quatre : il est
+loin du seuil, et vingt passes de plus n'y apprendraient rien. Le dossier
+utile est celui dont la synthese frole le declenchement. Ce reperage se
+fait hors ligne et sans appel au modele, sur les vingt-huit extractions
+deja persistees : passer chacune dans le detecteur, et retenir celles qui
+ne declenchent pas mais dont la prose porte un vocabulaire voisin d'un
+mot-cle de la liste. C'est la premiere chose a faire, elle est gratuite,
+et elle conditionne le reste.
+
+**Prevoir le bon nombre de passes.** L'evenement mesure est binaire, et
+il n'y a pas de grandeur continue sous-jacente dont le seuil serait
+connu, comme la duree l'etait pour le depassement de fenetre. La
+substitution qui a permis de conclure en trois tirages sur la fenetre
+n'est donc pas disponible ici, et il faut l'ordre de grandeur au-dessus :
+vingt a trente passes en serie sur le dossier retenu. Le cout est
+modere, une extraction de ce format tourne en une minute pour quelques
+dizaines de centimes, soit une trentaine de minutes et quelques euros.
+C'est le prix a annoncer avant de lancer, pas apres.
+
+La mesure reste inutile si elle sert a decider s'il faut allonger la
+liste de mots-cles. Elle sert a decider si le declencheur doit quitter la
+prose, ce qui est la sortie decrite ci-dessous.
+
+La sortie probable n'est pas d'allonger la liste de mots-cles, qui
+deplacerait le seuil sans changer sa nature. Elle est de faire declarer
+la revendication technologique par le contrat d'extraction, avec sa
+citation, comme le type d'operation et le montant : un champ que le
+modele remplit en lisant le document, et non un mot que le pipeline
+cherche dans une prose que le modele a ecrite.
+
+Note de correction : cette entree a d'abord ete formulee comme un defaut
+de langue, un moteur qui ne se declencherait pas sur un memorandum en
+anglais. C'etait faux, et faux d'une facon precise : le declencheur ne
+lit jamais le document, il lit la synthese francaise que l'extraction en
+a faite, donc la langue du document ne l'atteint pas. `Project
+Woodpecker`, memorandum en anglais, declenche sur les quatre runs. La
+lecture du code a change la nature du defaut, pas seulement sa taille.
 
 ---
 
