@@ -236,6 +236,48 @@ Corollaire de redaction : ce qu un jeu d essai n exerce pas doit etre
 imprime et non tu. Compter comme succes une assertion que le jeu ne met
 pas en jeu revient a revendiquer une couverture qu on n a pas.
 
+Second corollaire, ajoute le 3 aout 2026 : une fixture ecrite dans la
+meme erreur que le code qu elle teste mesure leur accord, pas la
+justesse.
+
+La journee en a donne deux formes. Fixed Cost Trap et Growth Subsidized
+Model lisaient trente et une clefs absentes de leur contrat, derriere un
+`const f: any` qui empechait tsc de le dire. Les fixtures des huit tests
+portaient les memes clefs inventees, six fois a l identique et sous le
+meme `as any` : la clef fausse du moteur trouvait la clef fausse du jeu
+d essai, les huit tests etaient verts, et les deux patterns rendaient un
+snapshot vide sur tous les dossiers, y compris ceux qui arrivent avec un
+business plan complet. Le cast ne desarmait pas un controle, il en
+desarmait deux, et le second est celui qui aurait rattrape le premier.
+
+L autre forme est la reimplementation. Le test du contrat de type
+d operation rejouait dans son propre fichier une copie de la garde
+post-parse, au motif que le moteur ne l exposait pas separement.
+Le passage aux composantes a change la garde dans le moteur sans toucher
+la copie, et quatorze assertions sont restees vertes en verifiant qu une
+logique s accordait avec elle-meme, plusieurs jours apres que le moteur
+avait cesse de l executer. Un test qui traverse une reecriture du module
+qu il teste sans bouger ne le teste pas, et c est un signe qu on peut
+chercher sans rien casser : il suffit de regarder si le commit qui a
+reecrit le module a touche le fichier de test.
+
+C est le pendant, cote jeu d essai, de la septieme discipline. Celle-ci
+dit qu une fixture prouve que le code fait ce qu on lui demande et non
+qu on lui a demande la bonne chose. Le corollaire descend d un cran : la
+fixture ne prouve meme plus ce que le code fait, parce qu elle a ete
+ecrite dans le meme systeme de croyance que lui, par la meme personne au
+meme moment. Le desaccord est le seul organe de mesure d un test, et
+deux ecritures de la meme hypothese n en produisent aucun.
+
+En pratique, deux exigences. Le jeu d essai entre par la porte de la
+production : il appelle la fonction exportee, et si elle ne l est pas,
+c est elle qu on exporte et non elle qu on recopie. Et il se soumet au
+meme controle de type que le code, sans cast de complaisance, faute de
+quoi le compilateur ne tombe ni du cote mesure ni du cote mesurant. Le
+controle qui reste, quand ces deux-la manquent, est de casser
+volontairement une lecture et de compter ce qui rougit ; un chiffre nul
+n est pas un test solide, c est un test absent.
+
 ## Discipline des regles ecrites
 
 Quand une regle est ecrite dans un commentaire, elle doit etre portee
