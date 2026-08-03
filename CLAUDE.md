@@ -179,6 +179,36 @@ avec elle. La provenance fonde, elle ne limite pas, donc elle suit, en
 retrait typographique. Rien n est cache, l ordre seul change, et
 l ordre decide de ce que le lecteur comprend.
 
+## Discipline de verification
+
+Trois regles, nees le 3 aout 2026 apres cinq runs complets dans la
+journee, dont deux ont servi a decouvrir qu un correctif ne faisait
+rien. Un run complet coute une vingtaine de dollars et dix minutes ;
+il ne doit plus servir a explorer.
+
+**Un correctif n est pas fait tant qu il n a pas ete exerce sur les
+donnees reelles du dernier run persiste.** Pas sur une fixture
+construite. Les deux corrections inertes du 3 aout, l arbitrage de
+classe d actif et la detection d evenements posterieurs, ont passe
+leurs tests et n ont rien fait en production : leurs fixtures portaient
+mon hypothese sur la forme des donnees au lieu de la lecture des
+donnees. L arbitrage attendait un indice sectoriel logiciel quand la
+route lui passait deja une classe industrielle ; la detection lisait
+quatre listes du moteur Equipe quand l evenement vivait dans le moteur
+Fragilite, sans annee sur la ligne. Une fixture prouve que le code fait
+ce qu on lui demande, elle ne prouve pas qu on lui a demande la bonne
+chose.
+
+**La stabilite se mesure moteur par moteur, hors ligne, jamais par le
+pipeline complet.** Rejouer l extraction seule trois fois sur un deck
+coute quelques centimes ; le pipeline entier coute vingt dollars pour
+la meme information, et il melange la variance du moteur mesure a
+celle de tous les autres. L outil est `scripts/engine-stability.ts`.
+
+**Un run complet ne se lance que pour confirmer ce qui a deja ete
+etabli hors ligne, jamais pour explorer.** Si l on ne sait pas d avance
+ce que le run doit montrer, c est qu il ne faut pas le lancer.
+
 ## Conventions de commit
 
 Tag obligatoire en prefixe : feat / fix / refactor / docs / test /
