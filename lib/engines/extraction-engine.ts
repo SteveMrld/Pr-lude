@@ -24,6 +24,8 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
   "marketPitch": "la promesse de marché en 2-3 phrases",
   "productDescription": "description du produit ou service en 2-3 phrases",
   "businessModel": "modèle économique en 1-2 phrases",
+  "documentDate": "date de rédaction du document au format YYYY-MM-DD, ou YYYY-MM si seul le mois est donné, ou YYYY si seule l'année l'est. Null si le document ne la porte pas.",
+  "documentDateEvidence": "citation courte du document (max 200 caractères) qui fonde la date retenue, ou null",
   "traction": {
     "metrics": ["liste des métriques chiffrées présentées"],
     "revenue": "ARR ou CA si présenté",
@@ -71,6 +73,19 @@ Marqueurs de cession et de LBO réellement observés dans les documents traités
 - le vocabulaire de sortie : "cession", "carve-out", "rationalisation de portefeuille", "sortie du sponsor"
 - un pourcentage de capital cédé plutôt qu'un montant recherché
 
+DATE DU DOCUMENT
+
+Cherche la date de rédaction, pas la date des chiffres. Elle se lit rarement en toutes lettres et se trouve presque toujours ailleurs que dans le corps du texte :
+- en pied de page ou en page de garde, souvent au format "March 2025", "Q1 2026", "mars 2025"
+- dans une mention "as of", "au", "arrêté au", "situation au"
+- dans le nom du document lui-même quand il porte un mois et une année
+- dans la mention du conseil mandaté : "prepared by X, January 2026"
+- dans une date de confidentialité ou de diffusion : "strictly confidential, February 2026"
+
+Ce qui N'EST PAS la date du document : l'année du dernier exercice présenté, l'année de fondation de la société, l'horizon d'un business plan, la date d'un événement cité. Un document qui présente un exercice 2021 réalisé peut avoir été écrit en 2023.
+
+Rends la précision que le document donne et pas davantage. Si seul le mois et l'année figurent, rends YYYY-MM. Si seule l'année figure, rends YYYY. N'invente pas un jour.
+
 RÈGLE ANTI-DIVINATION, identique à celle qui gouverne lastActualYear dans le moteur d'extraction financière. Le type n'est retenu que si une citation textuelle courte du document le fonde, et cette citation va dans operationTypeEvidence. Sans citation extractible, operationType = "non-etabli" ET operationTypeEvidence = null. Ne déduis jamais le type de l'absence d'un marqueur, de la taille de la société, de son âge ni de son secteur : une société établie n'est pas une cession par défaut, une jeune société n'est pas une levée par défaut.
 
 Si operationType vaut "non-etabli", laisse seller, stakeForSale et sellSideAdvisor vides plutôt que de les remplir par inférence.
@@ -83,11 +98,34 @@ export async function extractFromDeck(pdfBase64: string): Promise<ExtractionOutp
   const rawResponse = await callClaudeWithPDF(SYSTEM_PROMPT, userPrompt, pdfBase64, 6000, MODEL, 0);
   const result = parseJSON<ExtractionOutput>(rawResponse);
 
+  return appliquerGardesExtraction(result);
+}
+
+/**
+ * Gardes de contrat appliquees a la sortie du modele. Pures et
+ * exportees pour etre verifiables sans appel au modele : ce sont elles
+ * qui decident ce que le pipeline accepte de tenir pour lu.
+ */
+export function appliquerGardesExtraction(result: ExtractionOutput): ExtractionOutput {
   // Garde de contrat sur le type d operation. Le pipeline ne fabrique
   // jamais cette valeur : il accepte ce que le modele rend quand une
   // citation la fonde, et retombe sur 'non-etabli' sinon. Un type sans
   // preuve serait pire que pas de type, puisqu il ferait calculer la
   // VC inverse et la dilution sur une hypothese.
+  // Garde de contrat sur la date du document, meme forme que celle du
+  // type d operation. Une date sans citation est une date plausible,
+  // pas une date lue, et le module de validite d operation s en sert
+  // pour decider si un evenement lui est posterieur : une date inventee
+  // y produirait une reserve inventee.
+  const res: any = result;
+  const dateEvidence = typeof res.documentDateEvidence === 'string' && res.documentDateEvidence.trim().length > 0
+    ? res.documentDateEvidence.trim()
+    : null;
+  const dateBrute = typeof res.documentDate === 'string' ? res.documentDate.trim() : '';
+  const dateValide = /^\d{4}(-\d{2}(-\d{2})?)?$/.test(dateBrute) && Number(dateBrute.slice(0, 4)) >= 1990;
+  res.documentDate = (dateEvidence !== null && dateValide) ? dateBrute : null;
+  res.documentDateEvidence = res.documentDate === null ? null : dateEvidence;
+
   const fr: any = result.fundraise ?? (result.fundraise = {} as any);
   const TYPES = ['levee', 'cession-partielle', 'cession-totale', 'lbo', 'non-etabli'];
   const evidence = typeof fr.operationTypeEvidence === 'string' && fr.operationTypeEvidence.trim().length > 0

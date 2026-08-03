@@ -21,6 +21,15 @@ export type OperationType =
 
 export interface ExtractionOutput {
   companyName: string;
+  /**
+   * Date de redaction du document, au format YYYY, YYYY-MM ou
+   * YYYY-MM-DD selon la precision qu il porte. Null quand il ne la
+   * donne pas. Ce n est pas l annee du dernier exercice presente : un
+   * document qui qualifie 2021 de realise peut avoir ete ecrit en 2023.
+   */
+  documentDate?: string | null;
+  /** Citation qui fonde la date. Null quand documentDate est null. */
+  documentDateEvidence?: string | null;
   sector: string;
   subSector: string;
   geographicHub: string;
