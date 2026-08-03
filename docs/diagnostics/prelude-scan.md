@@ -25,7 +25,7 @@ qu a produire la liste de lecture.
 - [x] 4. Deux catalogues du meme produit qui ne se confrontent jamais
 - [x] 5. Le correctif branche en aval du point de perte
 - [x] 6. Le dispositif rendu inatteignable par une couche transverse
-- [ ] Question laterale : ce qu il faudrait pour exercer Trajectoire
+- [x] Question laterale : ce qu il faudrait pour exercer Trajectoire
 
 Base : HEAD `a139335`, arbre propre.
 
@@ -671,3 +671,115 @@ distinguent dans les fiches persistees, pas dans le code. La
 verification tient en une lecture des fiches sectorielles regenerees
 par declencheur `admin` et de leur taux d aboutissement, et elle est a
 faire avant de decider quoi que ce soit.
+
+## Question laterale : ce qu il faudrait pour exercer Trajectoire
+
+La question posait que le moteur n a jamais tourne faute de dossier en
+portefeuille. La lecture du code deplace le diagnostic : le drapeau
+portefeuille ne bloque qu un des deux chemins, et ce qui bloque l autre
+est plus interessant.
+
+### Deux chemins, un seul bloque par le portefeuille
+
+Le chemin automatique est le cron `trajectory-reanalysis`. Il liste les
+dossiers marques `in_portfolio`, retient ceux dont le dernier snapshot
+a plus de 180 jours, relance le sous-ensemble reutilisable du pipeline
+et persiste une version. Celui-la exige effectivement un dossier en
+portefeuille, et il en exigeait deux autres choses : que le cron
+atteigne son handler, ce qui n etait pas le cas jusqu a la correction
+du middleware, et que le dernier snapshot ait plus de six mois, ce
+qu aucun dossier ne peut avoir tant qu aucun snapshot n existe.
+
+Le chemin a la demande est la route
+`GET /api/analyses/[id]/trajectory`. Il ne regarde jamais
+`in_portfolio`. Il lit les versions du dossier dans
+`analyses_versions`, en extrait un snapshot chacune, et compare. Le
+portefeuille n a rien a voir avec lui.
+
+### Ce qui bloque vraiment : la premiere analyse est detruite, pas versionnee
+
+`persist-analysis.ts:148` cree une version uniquement en cas de
+collision, c est-a-dire quand un dossier du meme nom d entreprise
+existe deja. Et la version qu il cree porte `snapshotJson:
+input.result`, le resultat du run **nouveau**, apres quoi
+`updateAnalysisLive` ecrase la ligne vivante avec ce meme resultat
+nouveau.
+
+La consequence se deroule ainsi. Le premier run cree une ligne
+`analyses` et zero version. Le deuxieme run du meme nom cree une
+version portant le resultat du deuxieme run, et ecrase la ligne vivante
+avec ce meme resultat. Le resultat du premier run n a donc jamais ete
+versionne et vient d etre detruit. Le troisieme run cree une deuxieme
+version, et c est seulement la que la route dispose de deux termes.
+
+Trois runs complets pour une premiere comparaison, a une vingtaine de
+dollars et dix minutes chacun, alors que deux suffiraient si le
+versionnement figeait l etat sortant plutot que l etat entrant. Et la
+premiere analyse de chaque dossier du depot est perdue sans retour,
+ce qui vaut pour le passe autant que pour l avenir.
+
+La route porte bien une branche degeneree quand aucune version n existe,
+mais elle est exclusive : des qu il existe au moins une version, la
+chaine se construit sur les seules versions et la ligne vivante n y
+entre pas. Un dossier a une version rend donc un snapshot unique et
+aucune comparaison, alors que la ligne vivante en fournirait un second.
+
+### Le protocole le moins cher
+
+Il existe deja et ne coute aucun appel au modele.
+`POST /api/analyses/[id]/versions` sans corps fige le `resultJson`
+courant en version, ce que son propre commentaire nomme « fige une
+version a l etat actuel sans re-run ».
+
+Sur n importe quel dossier deja analyse : geler l etat courant en
+version, ce qui coute zero et sauve au passage une premiere analyse de
+la destruction, puis relancer le pipeline une fois. Deux versions
+existent, la route rend une comparaison, et le moteur est exerce de
+bout en bout pour un seul run.
+
+Pour exercer aussi le chemin cron sans attendre six mois, le meme
+dossier marque `in_portfolio` via `PATCH /api/analyses/[id]`, et le
+seuil du selecteur abaisse le temps d un declenchement manuel. Le
+selecteur accepte deja un seuil en parametre, `thresholdDays`, avec 180
+par defaut.
+
+### A faire d abord, dans cet ordre
+
+Le defaut du snapshot decrit au motif 2 est sur ce chemin exactement.
+Exercer Trajectoire aujourd hui produirait, sur le premier dossier dont
+un pattern applicable n a pas abouti, une trajectoire portant des
+patterns sains a zero et une degradation fantome au run suivant. La
+premiere trajectoire jamais produite par la plateforme serait fausse
+d une maniere que sa forme ne trahit pas.
+
+L ordre est donc : corriger les trois replis de `snapshot-extractor.ts`
+d abord, verifier que le trigger Postgres
+`trajectory_snapshot_after_version_insert` du schema
+`supabase-trajectory-snapshots-schema.sql` est bien applique en
+production, puis geler une version et relancer un run.
+
+Le schema porte aussi une fonction `backfill_trajectory_snapshots`,
+qui projetterait les versions deja existantes vers la table de
+snapshots. Elle merite d etre regardee avant tout run : s il existe
+deja des dossiers a plusieurs versions dans la base, la matiere de la
+premiere trajectoire est peut-etre deja la, et le run ne serait meme
+pas necessaire.
+
+### Un point secondaire, deja note
+
+`listPortfolioLatestSnapshots` expose un filtre `fragiliteVerdicts`
+cable jusqu a la requete SQL et qu aucun appelant ne passe. Sans
+consequence tant que la vue portefeuille n existe pas, a brancher le
+jour ou elle existera.
+
+## Ce que ce scan n a pas couvert
+
+Les quarante props React optionnelles jamais passees ont ete traitees
+en classe et non une a une. La confrontation des sept fiches
+doctrinales de `docs/patterns/` avec les SYSTEM_PROMPT qu elles sont
+censees fonder n a pas ete faite : elle est de nature editoriale et
+appartient a la calibration. Le risque des quatre routes qui
+travaillent apres avoir repondu n a pas ete mesure en production, faute
+d acces aux fiches persistees depuis le depot. Et l application
+effective de la migration `heartbeat_at` en production reste a
+verifier ailleurs qu ici.
