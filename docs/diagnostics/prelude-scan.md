@@ -23,7 +23,7 @@ qu a produire la liste de lecture.
 - [x] 2. La valeur posee par un repli la ou un choix etait requis
 - [x] 3. La regle ecrite dans un commentaire, appliquee a une ligne
 - [x] 4. Deux catalogues du meme produit qui ne se confrontent jamais
-- [ ] 5. Le correctif branche en aval du point de perte
+- [x] 5. Le correctif branche en aval du point de perte
 - [x] 6. Le dispositif rendu inatteignable par une couche transverse
 - [ ] Question laterale : ce qu il faudrait pour exercer Trajectoire
 
@@ -474,6 +474,115 @@ passage unique que la discipline des regles ecrites cite en premier :
 l enregistrement se fait dans le client Anthropic, sur l appel, et non
 sur une liste de sites d appel. A defaut, le test qui compare le
 declare au reel, dont ce scan vient d ecrire la version jetable.
+
+## 5. Le correctif branche en aval du point ou la donnee s est perdue
+
+Verifie 6 sites sur 30 candidats. Deux hypotheses refutees, une
+occurrence retenue.
+
+Ce motif ne se scanne pas davantage que le troisieme : il faut savoir
+ou une donnee s abime et ou on la repare, et seuls les commentaires qui
+racontent une reparation donnent un point de depart. Trente en parlent,
+six ont ete ouverts.
+
+### La regle d alignement par annee s arrete a la note
+
+`lib/note/financial-table-alignment.ts` existe parce qu un tableau de
+la note affichait des valeurs decalees d un an. Son en-tete raconte le
+cas : sur le dossier InHairCare, `revenueProjection` portait huit
+entrees de 2019 a 2026 et `ebitdaProjection` sept entrees de 2020 a
+2026, l alignement se faisait par position, et la note affichait EBITDA
+2024 a 0,402 quand la vraie valeur de 2024 valait 0,138. Le module pose
+le contrat juste : `unionYears` construit l en-tete, `alignSeriesToYears`
+projette chaque serie sur les annees de reference, et l alignement se
+fait par cle annee et non par position.
+
+Le contrat n a ete branche que sur le tableau. Il est juste, il est
+teste, et il vit dans `lib/note/`, c est-a-dire dans le rendu, alors
+que la perte se produit chez tout consommateur qui suppose que
+l indice d une serie designe une annee.
+
+`lib/engines/dd-financial-engine.ts` fait exactement cette supposition,
+et il ne rend pas un tableau, il rend des drapeaux de due diligence.
+
+Sa primitive de resolution d annee, `getCurrentYearProjection` ligne
+119, cherche l annee exacte puis, si elle ne la trouve pas, retourne
+`projection[0]`, la premiere entree de la serie, quelle que soit son
+annee. Sa jumelle `getNextYearProjection` ligne 133 ne cherche rien du
+tout : elle retourne `projection[1]`, sans arithmetique d annee. L annee
+suivante y est definie comme le second element du tableau.
+
+Trois tests deterministes consomment ces deux primitives, et le
+troisieme est le plus expose. `testGrowthTrajectory` ligne 395 resout
+`proj0` par la premiere regle et `proj1` par la seconde, puis calcule
+`(proj1 - proj0) / proj0` et nomme le resultat « BP croissance Y+1 ».
+Les deux termes sont resolus par des regles incompatibles : rien ne
+garantit qu ils soient consecutifs, ni meme dans l ordre. Sur une serie
+de la forme InHairCare ou l annee de reference du grand livre tombe sur
+un indice avance, `proj0` vaut cette annee-la et `proj1` vaut la
+deuxieme entree de la serie, soit une annee anterieure. La croissance
+projetee sort negative, elle est confrontee a la croissance reelle
+observee sur le grand livre, et le test qualifie l ecart en points.
+
+`testGrossMarginGap` ligne 190 porte la meme faute sous une forme
+residuelle : apres avoir resolu `projected`, il recherche la valeur par
+annee, puis retombe sur `fd.grossMarginProjection[0]?.value`, puis sur
+`0`. Le meme fichier, aux lignes 211 a 214, porte le journal d une
+seance de debogage laissee en place, dont une variable `projectedPct`
+calculee et jamais utilisee, et un commentaire qui suppose une unite :
+« ici on suppose pct direct ». La discipline de precision dit qu un
+montant sans unite n est pas un montant. Ici l unite est supposee en
+commentaire, et la supposition decide de la severite d un test de DD.
+
+La correction n est pas de reparer `dd-financial-engine.ts` sur place.
+La lecture d une serie a une annee donnee est ecrite quatre fois dans
+le depot, et c est la vraie racine :
+
+- `lib/note/financial-table-alignment.ts`, exportee et testee, la seule
+  qui soit un module partage ;
+- `pickProjectionValueAtYear` dans `valuation-engine.ts:822`, privee ;
+- `pickProjectionValueAtYear` dans `indicators-engine.ts:145`, privee,
+  et pas identique a la precedente : celle de valuation ecarte une
+  valeur non numerique par `!isNaN(v)`, celle d indicators ne le fait
+  pas et rend `NaN` la ou l autre rend `null` ;
+- `getCurrentYearProjection` / `getNextYearProjection` dans
+  `dd-financial-engine.ts:119`, positionnelles.
+
+Quatre implementations d une meme primitive, dont deux se croient
+identiques et divergent sur le cas non numerique, et une troisieme qui
+resout par position. C est le motif des catalogues qui ne se
+confrontent jamais, applique a du code au lieu de donnees. La
+correction est d exporter une primitive unique et de brancher les
+quatre sites dessus, ce qui elimine du meme coup la divergence
+`NaN`/`null` que personne n a encore rencontree.
+
+### Deux hypotheses refutees, et c est utile de le dire
+
+J ai suppose que le correctif du heartbeat, commite la veille, laissait
+les lignes anterieures a la migration avec un `heartbeat_at` a NULL,
+qu aucune comparaison ne satisfait, donc invisibles au balayage a
+jamais. C est faux, et la migration
+`supabase-heartbeat-at-migration.sql` traite le cas de front : backfill
+par `COALESCE(progress->>'heartbeatAt', started_at, created_at)`
+trigger desactive, puis `SET NOT NULL`, avec le raisonnement ecrit
+explicitement, « une ligne sans heartbeat ne serait jamais balayee ».
+Reste une verification qui ne se fait pas depuis le depot : savoir si
+la migration a ete appliquee en production. Le code en depend, et son
+absence rendrait le balayage inerte.
+
+J ai suppose ensuite que `computeEngineAvailability` pouvait etre
+appele sur la sortie de `protectEngineRoots`, ce que son propre
+commentaire interdit puisque la protection remplace les moteurs absents
+par des objets vides et les rend indistinguables des presents. C est
+faux aussi : `orchestrator.ts:589` le rappelle sur les racines brutes,
+pas sur `E`.
+
+Un defaut mineur subsiste a cote du premier : la documentation de
+`markStaleRunningAsFailed`, `analysis-store.ts:1310`, annonce encore un
+balayage « dont `updated_at` est anterieur au seuil » alors que la
+requete filtre sur `heartbeat_at`. Le commentaire contredit le code
+qu il surplombe, dans la fonction meme dont la voisine explique
+pourquoi `updated_at` ne mesure rien.
 
 ## 6. Le dispositif rendu inatteignable par une couche transverse
 
