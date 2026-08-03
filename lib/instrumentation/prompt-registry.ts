@@ -33,6 +33,12 @@
 // ============================================================
 
 import { createHash } from 'crypto';
+import { DIMENSION_KEYS } from '../engines/sectoral-intelligence/types';
+import {
+  buildDimensionSystemPrompt,
+  buildAggregatorSystemPrompt,
+} from '../engines/sectoral-intelligence/dimension-prompts';
+import { buildAggregatorSystemPrompt as buildInterSectorSystemPrompt } from '../engines/sectoral-intelligence/inter-sector-aggregator';
 import * as m_blindspot_engine from '../engines/blindspot-engine';
 import * as m_causal_engine from '../engines/causal-engine';
 import * as m_contrarian_engine from '../engines/contrarian-engine';
@@ -116,6 +122,46 @@ function sha256(content: string): string {
  * Triees par module puis par nom, de sorte que l ordre de declaration
  * n influe pas sur le hash agrege.
  */
+// ============================================================
+// PROMPTS CONSTRUITS PAR FONCTION
+// ------------------------------------------------------------
+// Le parcours ci-dessus collecte les exportations dont le nom porte
+// SYSTEM_PROMPT et dont la valeur est une chaine. Trois prompts
+// n entrent pas dans cette forme : ceux de sectoral-intelligence, qui
+// se construisent par fonction parce qu il y en a un par dimension.
+//
+// Les ignorer aurait rendu la correction du registre creuse. Les deux
+// moteurs sectoriels viennent d entrer dans LLM_ENGINES parce que
+// leurs fiches sont injectees en tete du prompt de la plupart des
+// moteurs ; s ils y entraient sans empreinte de prompt, modifier un
+// prompt sectoriel continuerait de ne pas bouger enginesHash, et la
+// correction n aurait deplace que le symptome.
+//
+// Les trois builders sont purs et deterministes : meme code, meme
+// sortie. Leur hash est donc stable entre deux runs du meme code et
+// bouge des qu un prompt change, ce que la doctrine de ce module
+// exige. Et ils sont lus par import, pas sur le disque, donc ils
+// survivent au build comme le reste du registre.
+// ============================================================
+
+const PROMPTS_CONSTRUITS: Array<{ module: string; name: string; build: () => string }> = [
+  ...DIMENSION_KEYS.map((k) => ({
+    module: 'sectoral-intelligence/regenerator',
+    name: `DIMENSION_SYSTEM_PROMPT[${k}]`,
+    build: () => buildDimensionSystemPrompt(k),
+  })),
+  {
+    module: 'sectoral-intelligence/regenerator',
+    name: 'AGGREGATOR_SYSTEM_PROMPT',
+    build: buildAggregatorSystemPrompt,
+  },
+  {
+    module: 'sectoral-intelligence/inter-sector-aggregator',
+    name: 'INTER_SECTOR_SYSTEM_PROMPT',
+    build: buildInterSectorSystemPrompt,
+  },
+];
+
 export function collectPromptFingerprints(): PromptFingerprint[] {
   const out: PromptFingerprint[] = [];
   for (const [mod, ns] of MODULES) {
@@ -125,6 +171,10 @@ export function collectPromptFingerprints(): PromptFingerprint[] {
       if (typeof value !== 'string') continue;
       out.push({ module: mod, name, hash: sha256(value), chars: value.length });
     }
+  }
+  for (const p of PROMPTS_CONSTRUITS) {
+    const value = p.build();
+    out.push({ module: p.module, name: p.name, hash: sha256(value), chars: value.length });
   }
   out.sort((a, b) => (a.module + a.name).localeCompare(b.module + b.name));
   return out;
@@ -151,6 +201,12 @@ export function collectPromptTexts(): Array<{ module: string; name: string; text
       if (typeof value !== 'string') continue;
       out.push({ module: mod, name, text: value });
     }
+  }
+  // Les prompts construits passent aussi par la garde de
+  // confidentialite : un nom de dossier ecrit en dur dans un prompt
+  // sectoriel serait aussi disqualifiant qu ailleurs.
+  for (const p of PROMPTS_CONSTRUITS) {
+    out.push({ module: p.module, name: p.name, text: p.build() });
   }
   return out;
 }

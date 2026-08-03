@@ -46,6 +46,7 @@ import {
 } from '../engines/engine-budget';
 import { PATTERN_LLM_OPTIONS } from '../engines/fragility-structurelle/pattern-interface';
 import { collectPromptFingerprints, promptsDoctrineHash } from './prompt-registry';
+import { PROMPT_VERSION as SECTORAL_PROMPT_VERSION } from '../engines/sectoral-intelligence/dimension-prompts';
 
 // ============================================================
 // SCHEMA VERSION
@@ -339,6 +340,63 @@ const LLM_ENGINES: EngineRegistryEntry[] = [
   { id: 'dd-financial', path: 'lib/engines/dd-financial-engine.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE },
   { id: 'dd-contractual', path: 'lib/engines/dd-contractual-engine.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE },
   { id: 'dd-technical', path: 'lib/engines/dd-technical-engine.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE },
+  // Sectoral intelligence.
+  //
+  // Ces deux moteurs ne tournent pas dans le run d analyse, et c est
+  // par ce raisonnement qu ils manquaient au registre : on les a lus
+  // comme une chaine annexe. Ils ne le sont pas. Ils fabriquent les
+  // fiches sectorielles, et buildSectoralPromptBlock injecte ces
+  // fiches en tete du prompt utilisateur de la plupart des moteurs,
+  // les sept patterns de Fragilite compris. Une regeneration de fiche
+  // change donc ce que lisent les moteurs sans rien changer a leurs
+  // propres prompts.
+  //
+  // Consequence exacte sur ce que ce module promet : enginesHash
+  // restait identique entre deux runs qui n avaient pas lu la meme
+  // chose, et la couche de calibration rangeait ces deux runs dans le
+  // meme segment. La promesse de reproductibilite etait fausse sur cet
+  // axe, et c est un axe qu un acheteur institutionnel teste, puisque
+  // c est la seule facon de verifier qu une note se rejoue.
+  //
+  // Le fichier porte deja, en tete, le recit d un enginesHash « aveugle
+  // a tout ce qu il pretendait tracer ». Le defaut avait ete corrige
+  // pour les prompts des moteurs et laisse entier pour les generateurs
+  // de ce qu on injecte dans ces prompts.
+  { id: 'sectoral-dimension', path: 'lib/engines/sectoral-intelligence/regenerator.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE, promptVersion: SECTORAL_PROMPT_VERSION },
+  { id: 'sectoral-inter-aggregator', path: 'lib/engines/sectoral-intelligence/inter-sector-aggregator.ts', model: 'primary', temperature: TEMPERATURE_DIALECTIQUE, promptVersion: SECTORAL_PROMPT_VERSION },
+];
+
+/**
+ * Moteurs qui appellent le modele et n entrent pas dans l empreinte du
+ * run d analyse. L exclusion est declaree et motivee ici plutot que
+ * laissee a l oubli : le test de registre echoue sur tout appelant qui
+ * ne figure ni dans LLM_ENGINES ni dans cette table.
+ *
+ * C est la difference entre un registre tenu a la main, qui rediverge,
+ * et un registre dont l ecart au reel est verifie. Celui-ci avait
+ * diverge dans les deux mois qui ont suivi sa correction precedente.
+ */
+/**
+ * Chemins declares au registre, exposes pour que le test de couverture
+ * confronte le declare au reel sans reimplementer la lecture du
+ * tableau. Le registre reste prive : ce qui sort est la seule chose
+ * que la verification a besoin de lire.
+ */
+export const LLM_ENGINES_PATHS: ReadonlyArray<string> = LLM_ENGINES.map((e) => e.path);
+
+export const LLM_CALLERS_HORS_STAMP: ReadonlyArray<{ path: string; motif: string }> = [
+  {
+    path: 'lib/cron/milestone-detection-runner.ts',
+    motif: 'Tache planifiee de detection de jalons. Ne participe a aucun run '
+      + 'd analyse : sa sortie alimente les jalons d un dossier deja instruit, '
+      + 'jamais le prompt d un moteur.',
+  },
+  {
+    path: 'lib/engines/structuration-entree/index.ts',
+    motif: 'Moteur servi a la demande par /api/analyses/[id]/structuration, '
+      + 'hors du pipeline. Sa sortie n entre dans le prompt d aucun moteur du '
+      + 'run. Entrera au registre le jour ou il rejoindra le pipeline.',
+  },
 ];
 
 // ============================================================

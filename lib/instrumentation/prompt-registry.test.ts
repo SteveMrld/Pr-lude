@@ -15,6 +15,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { DIMENSION_KEYS } from '../engines/sectoral-intelligence/types';
 import {
   collectPromptFingerprints,
   promptsDoctrineHash,
@@ -72,14 +73,39 @@ console.log('\n[Suite 1] exhaustivite du registre');
     `aucun module du registre absent du depot${enTrop.length ? ' : ' + enTrop.join(', ') : ''}`,
   );
 
+  // Le registre porte deux familles d empreintes et il faut les
+  // compter separement, sans quoi l une masque l autre. Les prompts
+  // declares en constante se comptent dans le depot ; les prompts
+  // construits par fonction n y ont aucune declaration a compter, et
+  // les additionner a l attendu ferait passer le test pour un ecart
+  // qu il ne mesure plus.
   const fps = collectPromptFingerprints();
+  const construits = fps.filter((f) => f.module.startsWith('sectoral-intelligence/'));
+  const constantes = fps.filter((f) => !f.module.startsWith('sectoral-intelligence/'));
+
   const declarations = depot.reduce((n, m) => {
     const src = readFileSync(join(__dirname, '..', 'engines', `${m}.ts`), 'utf8');
     return n + (src.match(/^export const \w*SYSTEM_PROMPT\w*\s*=/gm) || []).length;
   }, 0);
   check(
-    fps.length === declarations,
-    `autant d empreintes que de declarations (${fps.length} contre ${declarations})`,
+    constantes.length === declarations,
+    `autant d empreintes que de declarations (${constantes.length} contre ${declarations})`,
+  );
+
+  // Les prompts construits : un par dimension sectorielle, plus le
+  // resume editorial de fiche, plus l agregation inter-sectorielle. Le
+  // compte est derive de DIMENSION_KEYS et non ecrit en dur, pour
+  // qu ajouter une dimension ne fasse pas passer ce test a cote d elle.
+  check(
+    construits.length === DIMENSION_KEYS.length + 2,
+    `les prompts sectoriels construits sont couverts (${construits.length} contre ${DIMENSION_KEYS.length + 2})`,
+  );
+
+  // Ils portent une empreinte reelle, pas une chaine vide qui
+  // passerait le compte sans rien mesurer.
+  check(
+    construits.every((f) => f.chars > 200 && /^[0-9a-f]{16}$/.test(f.hash)),
+    'chaque prompt construit porte une empreinte substantielle',
   );
 }
 
