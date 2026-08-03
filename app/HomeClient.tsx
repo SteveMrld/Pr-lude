@@ -3600,6 +3600,41 @@ export default function HomeClient({
                     invite a reflechir avant d aller plus loin
                 Toujours affiche pour la transparence : le partner doit
                 voir que le pre-scan a tourne et savoir ce qu il a dit. */}
+            {result.operationValidity?.mention && (() => {
+              const ov = result.operationValidity;
+              const provisoire = ov.natureDeLaLecture === 'prose-provisoire';
+              return (
+                <div style={{
+                  marginBottom: 24,
+                  padding: '20px 24px',
+                  background: 'rgba(192, 138, 63, 0.08)',
+                  borderLeft: '3px solid rgba(192, 138, 63, 0.6)',
+                  borderRadius: 2,
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#c08a3f',
+                    fontWeight: 600,
+                    marginBottom: 10,
+                  }}>
+                    Validité de l&apos;opération · à vérifier
+                    {ov.interditLaDiscussionDePrix ? ' · aucune fourchette recommandée' : ''}
+                  </div>
+                  <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink)' }}>
+                    {ov.mention}
+                  </div>
+                  {provisoire && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-tertiary)', marginTop: 10, fontStyle: 'italic' }}>
+                      Détection provisoire : les événements externes sont aujourd&apos;hui relus dans la prose des
+                      moteurs, faute d&apos;exister comme donnée datée. La date et la nature sont à recouper.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {result.preScan && (() => {
               const ps = result.preScan;
               // Un pre-scan qui n a pas pu s executer n est ni favorable

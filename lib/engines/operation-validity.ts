@@ -102,6 +102,17 @@ export interface OperationValidityOutput {
   /** True si la reserve repose, meme partiellement, sur de la prose. */
   reposeSurDeLaProse: boolean;
   /**
+   * Nature de la lecture qui fonde la reserve. C est la cause au sens
+   * ou la grappe 3 l entend, appliquee non pas a une non-production
+   * mais a une production : le lecteur doit savoir si la reserve
+   * s appuie sur une donnee ou sur une phrase.
+   *
+   * `prose-provisoire` est un etat de transition, pas un mode de
+   * fonctionnement. Il disparait quand le moteur Equipe produit
+   * EvenementDate au lieu de le decrire.
+   */
+  natureDeLaLecture: 'donnee-structuree' | 'prose-provisoire' | 'sans-objet';
+  /**
    * True quand la reserve interdit de discuter un prix. Reserve aux
    * operations ou l evenement peut signifier que l operation n existe
    * plus, c est-a-dire les cessions et les LBO.
@@ -175,6 +186,7 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
       operationType: type,
       evenementsPosterieurs: [],
       reposeSurDeLaProse: false,
+      natureDeLaLecture: input.evenements.some((e) => e.luDansLaProse) ? 'prose-provisoire' : 'donnee-structuree',
       interditLaDiscussionDePrix: false,
       mention: null,
       motif: `Aucun evenement externe posterieur a l ancre retenue (${ancre.annee}). ${ancre.declaration}`,
@@ -192,6 +204,7 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
     operationType: type,
     evenementsPosterieurs: posterieurs,
     reposeSurDeLaProse: prose,
+    natureDeLaLecture: prose ? 'prose-provisoire' : 'donnee-structuree',
     interditLaDiscussionDePrix: sortie,
     mention: redigerMention(type, sortie, ancre, posterieurs, financiers, prose),
     motif: `${posterieurs.length} evenement(s) externe(s) posterieur(s) a ${ancre.annee}. ${ancre.declaration}`
@@ -222,6 +235,7 @@ function sansVerdict(
     operationType: type,
     evenementsPosterieurs: [],
     reposeSurDeLaProse: false,
+    natureDeLaLecture: 'sans-objet',
     interditLaDiscussionDePrix: false,
     mention: null,
     motif,
