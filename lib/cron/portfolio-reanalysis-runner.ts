@@ -125,6 +125,17 @@ export async function runAutoReanalysis(
         // lui, un echec de pattern pose sur error_logs une ligne
         // orpheline, non joignable au dossier reanalyse.
         analysisId,
+        // Quatrieme argument : la re-analyse ne rejoue pas le moteur
+        // Friction d Execution, qui n est pas dans le sous-ensemble
+        // reutilisable. On passe donc explicitement l absence plutot
+        // que de rejouer la friction du run precedent, qui daterait de
+        // six mois et ne dirait rien d une simultaneite aujourd hui.
+        //
+        // Consequence assumee : la combinaison qui depend de cette
+        // friction ne se declenche pas sur une re-analyse. Ne pas
+        // constater n est pas constater l absence, et l ecrire ici vaut
+        // mieux que de laisser un repli le decider.
+        Promise.resolve(null),
       );
     } catch (err: any) {
       console.warn(

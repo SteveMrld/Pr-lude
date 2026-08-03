@@ -14,6 +14,7 @@
 // ============================================================
 
 import type { RelevanceMatrix } from '../relevance-matrix';
+import type { ExecutionFrictionOutput } from '../types';
 import {
   PATTERN_IDS,
   type PatternId,
@@ -62,65 +63,163 @@ export function registerPattern(module: PatternModule): void {
 // ou plus produit un signal de couverture renforce.
 // ============================================================
 
+/**
+ * Contexte remis a chaque combinaison. Il porte les sorties des sept
+ * patterns et celle du moteur Friction d Execution.
+ *
+ * La friction y figure parce qu une combinaison l exigeait dans sa
+ * prose sans que rien ne l evalue. Le champ est requis et non
+ * optionnel : un champ optionnel jamais passe est precisement le
+ * defaut que cette correction ferme, et il s en trouve deja assez dans
+ * ce depot pour ne pas en ajouter un.
+ */
+export interface ContexteCombinaisons {
+  patterns: Record<PatternId, PatternAnalysisOutput | null>;
+  /** Null quand le moteur est tombe, n a pas tourne, ou n est pas
+   *  disponible sur ce chemin d appel. Une combinaison qui en depend
+   *  ne se declenche alors pas : on ne suppose pas une simultaneite
+   *  qu on n a pas pu constater. */
+  executionFriction: ExecutionFrictionOutput | null;
+}
+
 interface CombinaisonDiagnostique {
   nom: string;
+  /** Patterns cites, pour l affichage et la tracabilite de la
+   *  combinaison. Ne decide plus du declenchement. */
   patterns: PatternId[];
+  /**
+   * Condition de declenchement, en code.
+   *
+   * Elle etait auparavant deduite de `patterns` et `seuilMin`, ce qui
+   * couvrait six combinaisons sur sept. La septieme, « Exposition
+   * reglementaire convergente », enoncait sa condition reelle dans son
+   * champ `rationale` : un declenchement conditionne a ce que Friction
+   * d Execution detecte simultanement une friction reglementaire
+   * actuelle. Cette condition n etait evaluee nulle part, et ne
+   * pouvait pas l etre puisque l orchestrateur ne recevait pas la
+   * sortie de ce moteur. Elle a survecu parce qu elle vivait dans une
+   * chaine de caracteres, que le compilateur ne lit pas.
+   *
+   * Le cout etait editorial avant d etre technique : `rationale` est
+   * rendu tel quel au partner sous « Convergences detectees », en
+   * severite alerte. Le partner lisait donc une simultaneite constatee
+   * la ou rien n avait ete verifie. Un score mal calibre se discute ;
+   * une affirmation de fait produite par une absence de verification
+   * se paie au comite.
+   *
+   * En predicat, la condition est du code : le compilateur exige son
+   * contexte, et l ecart entre ce qu une combinaison affirme et ce
+   * qu elle verifie ne peut plus s ouvrir en silence.
+   */
+  declenche: (ctx: ContexteCombinaisons) => boolean;
   rationale: string;
   severite: 'attention' | 'alerte' | 'drapeau-rouge';
-  /** Seuil minimum de score sur chaque pattern pour declencher.
-   *  Default 60. */
-  seuilMin?: number;
+}
+
+/** Seuil de declenchement par defaut, inchange. */
+const SEUIL_COMBINAISON_DEFAUT = 60;
+
+/**
+ * Score d un pattern, ou null s il n a pas abouti ou n est pas
+ * applicable. Meme lecture que l agregation : un pattern sans score ne
+ * compte pas, il ne compte pas pour zero.
+ */
+function scorePattern(ctx: ContexteCombinaisons, id: PatternId): number | null {
+  const p = ctx.patterns[id];
+  if (!p) return null;
+  if (p.applicabilite === 'not-applicable') return null;
+  if (typeof p.globalScore !== 'number') return null;
+  return p.globalScore;
+}
+
+/** Tous les patterns cites atteignent le seuil. */
+function tousAuSeuil(ctx: ContexteCombinaisons, ids: PatternId[], seuil = SEUIL_COMBINAISON_DEFAUT): boolean {
+  return ids.every((id) => {
+    const s = scorePattern(ctx, id);
+    return s !== null && s >= seuil;
+  });
+}
+
+/**
+ * Friction reglementaire actuelle constatee par le moteur Friction
+ * d Execution.
+ *
+ * Deux conditions, et la seconde porte le mot « actuelle ». Le moteur
+ * doit s etre declenche, sinon ses axes sont vides et son silence
+ * n est pas un constat. Et son axe `product_regulation` doit atteindre
+ * le seuil que le moteur lui-meme place a l entree de friction_high,
+ * cinquante-cinq, decrit dans son prompt comme « plusieurs frictions
+ * concomitantes ». En deca, il y a une revendication de certification
+ * dans le pitch, pas une friction observee.
+ *
+ * Le drapeau `regulated_certification` ne suffit pas seul : il dit que
+ * le dossier evolue en terrain reglemente, ce qui est une
+ * caracteristique et non un evenement.
+ */
+const SEUIL_FRICTION_REGLEMENTAIRE_ACTUELLE = 55;
+
+function frictionReglementaireActuelle(ctx: ContexteCombinaisons): boolean {
+  const ef = ctx.executionFriction;
+  if (!ef || ef.triggered !== true) return false;
+  const axe = (ef.axes ?? []).find((a) => a.axis === 'product_regulation');
+  if (!axe || typeof axe.score !== 'number') return false;
+  return axe.score >= SEUIL_FRICTION_REGLEMENTAIRE_ACTUELLE;
 }
 
 const COMBINAISONS_CONFIG: CombinaisonDiagnostique[] = [
   {
     nom: 'Trajectoire WeWork',
     patterns: ['growth-subsidized-model', 'fixed-cost-trap'],
+    declenche: (ctx) => tousAuSeuil(ctx, ['growth-subsidized-model', 'fixed-cost-trap']),
     rationale: 'Combinaison historique : croissance subventionnee non viable plus base de couts incompressibles. La marge unitaire negative ne peut pas etre absorbee par scale, et les couts fixes ne peuvent pas etre reduits par layoff. Trajectoire mecanique vers la restructuration sauf intervention strategique majeure.',
     severite: 'drapeau-rouge',
-    seuilMin: 60,
   },
   {
     nom: 'Fin de cycle quasi-mecanique',
     patterns: ['growth-subsidized-model', 'commoditization-drift'],
+    declenche: (ctx) => tousAuSeuil(ctx, ['growth-subsidized-model', 'commoditization-drift']),
     rationale: 'Marge unitaire deja negative ET pricing power en erosion par les outils IA. La hausse de pricing necessaire pour restaurer l unit economics est rendue impossible par la commoditisation simultanee. La trajectoire converge vers la faillite ou le pivot complet.',
     severite: 'drapeau-rouge',
-    seuilMin: 60,
   },
   {
     nom: 'Wrapper sans differenciation',
     patterns: ['infrastructure-hostage', 'commoditization-drift'],
+    declenche: (ctx) => tousAuSeuil(ctx, ['infrastructure-hostage', 'commoditization-drift']),
     rationale: 'Captivite totale : depend d un fournisseur dominant ET le fournisseur peut cannibaliser directement la value proposition. Pattern Jasper et Copy.ai face a OpenAI. Sortie strategique tres etroite.',
     severite: 'drapeau-rouge',
-    seuilMin: 60,
   },
   {
     nom: 'Pattern Britishvolt',
     patterns: ['scale-mirage-risk', 'fixed-cost-trap'],
+    declenche: (ctx) => tousAuSeuil(ctx, ['scale-mirage-risk', 'fixed-cost-trap'], 55),
     rationale: 'Industrialisation prematuree plus engagements operationnels long terme. Le capex industriel est deja perdu si la demande ne suit pas, et les couts d operation ne peuvent pas etre reduits a hauteur de la sous-utilisation.',
     severite: 'alerte',
-    seuilMin: 55,
   },
   {
     nom: 'Pattern Northvolt',
     patterns: ['scale-mirage-risk', 'capital-structure-fragility'],
+    declenche: (ctx) => tousAuSeuil(ctx, ['scale-mirage-risk', 'capital-structure-fragility']),
     rationale: 'Industrialisation prematuree plus cap table fragile. Le retard d industrialisation rend mecaniquement necessaire un down round, mais la cap table fragile ne supportera pas la dilution sans declencher des protections defavorables aux fondateurs et common.',
     severite: 'drapeau-rouge',
-    seuilMin: 60,
   },
   {
     nom: 'Exposition triple WeWork',
     patterns: ['capital-structure-fragility', 'growth-subsidized-model', 'fixed-cost-trap'],
+    declenche: (ctx) => tousAuSeuil(ctx, ['capital-structure-fragility', 'growth-subsidized-model', 'fixed-cost-trap'], 55),
     rationale: 'Cap table fragile plus fragilite economique double : la cap table ne supportera pas la periode de stress economique, et le stress est probable du fait de Growth Subsidized et Fixed Cost Trap. Trajectoire WeWork integrale.',
     severite: 'drapeau-rouge',
-    seuilMin: 55,
   },
   {
     nom: 'Exposition reglementaire convergente',
     patterns: ['regulatory-time-bomb'],
-    rationale: 'Pattern declenche en propre quand le moteur Friction d Execution Bloc 1 detecte simultanement une friction regulation actuelle. Le management subit deja un frottement et n est pas prepare pour le suivant.',
+    // La condition que le rationale enonce, enfin evaluee. Les deux
+    // termes sont exiges : le pattern au seuil, et une friction
+    // reglementaire actuelle constatee par l autre moteur.
+    declenche: (ctx) =>
+      tousAuSeuil(ctx, ['regulatory-time-bomb'])
+      && frictionReglementaireActuelle(ctx),
+    rationale: 'Le pattern Risque reglementaire date depasse le seuil d alerte, et le moteur Friction d Execution constate simultanement une friction reglementaire actuelle sur l axe regulation produit. Le management subit deja un frottement et n est pas prepare pour le suivant.',
     severite: 'alerte',
-    seuilMin: 60,
   },
 ];
 
@@ -142,7 +241,25 @@ const COMBINAISONS_CONFIG: CombinaisonDiagnostique[] = [
 export async function analyzeFragiliteStructurelle(
   input: PatternInput,
   relevanceMatrix: RelevanceMatrix | null,
-  analysisId: string | null = null,
+  analysisId: string | null,
+  /**
+   * Sortie du moteur Friction d Execution, remise sous forme de
+   * promesse et non de valeur.
+   *
+   * La forme n est pas un detail de commodite. Une combinaison en a
+   * besoin, et elle n est evaluee qu apres les sept appels de
+   * patterns : attendre la friction avant de lancer les patterns
+   * ajouterait sa duree au chemin critique du run pour une valeur
+   * consommee tout a la fin. La promesse est donc creee en parallele
+   * par l appelant et attendue ici, juste avant la detection, ou elle
+   * est presque toujours deja resolue.
+   *
+   * Le parametre est requis. Un appelant qui n a pas ce moteur passe
+   * explicitement Promise.resolve(null), ce qui est une decision
+   * ecrite plutot qu un oubli : un parametre optionnel jamais passe
+   * est exactement le defaut que cette correction ferme.
+   */
+  executionFriction: Promise<ExecutionFrictionOutput | null>,
 ): Promise<FragiliteStructurelleAnalysisOutput> {
   // Recuperation des verdicts matrice. Si pas de matrice, on traite
   // tous les patterns comme partial par defaut, ce qui est un
@@ -260,7 +377,25 @@ export async function analyzeFragiliteStructurelle(
   };
 
   // Detection des combinaisons diagnostiques
-  const combinaisons = detectCombinaisons(patterns);
+  // La friction est attendue ici et pas plus tot : les sept patterns
+  // ont deja tourne, donc la promesse lancee en parallele par
+  // l appelant est resolue ou sur le point de l etre.
+  //
+  // Un echec du moteur ne doit pas faire tomber Fragilite, qui est
+  // non-bloquant par conception. Une friction indisponible vaut null,
+  // et la combinaison qui en depend ne se declenche pas : on ne
+  // suppose pas une simultaneite qu on n a pas pu constater.
+  let frictionResolue: ExecutionFrictionOutput | null = null;
+  try {
+    frictionResolue = await executionFriction;
+  } catch {
+    frictionResolue = null;
+  }
+
+  const combinaisons = detectCombinaisons({
+    patterns,
+    executionFriction: frictionResolue,
+  });
 
   // Verdict global derive du score, des combinaisons et de la
   // couverture. Regle asymetrique : un verdict d alerte reste
@@ -292,28 +427,18 @@ export async function analyzeFragiliteStructurelle(
 // ============================================================
 
 function detectCombinaisons(
-  patterns: Record<PatternId, PatternAnalysisOutput | null>,
+  ctx: ContexteCombinaisons,
 ): FragiliteStructurelleAnalysisOutput['combinaisons'] {
   const detectees: FragiliteStructurelleAnalysisOutput['combinaisons'] = [];
 
   for (const config of COMBINAISONS_CONFIG) {
-    const seuil = config.seuilMin ?? 60;
-    const tousAuSeuil = config.patterns.every((pid) => {
-      const p = patterns[pid];
-      return p
-        && p.applicabilite !== 'not-applicable'
-        && p.globalScore !== null
-        && p.globalScore >= seuil;
+    if (!config.declenche(ctx)) continue;
+    detectees.push({
+      nom: config.nom,
+      patterns: config.patterns,
+      rationale: config.rationale,
+      severite: config.severite,
     });
-
-    if (tousAuSeuil) {
-      detectees.push({
-        nom: config.nom,
-        patterns: config.patterns,
-        rationale: config.rationale,
-        severite: config.severite,
-      });
-    }
   }
 
   return detectees;
@@ -466,3 +591,17 @@ export function _setRegistryForTests(registry: Partial<Record<PatternId, Pattern
 export function _getRegistryForTests(): Partial<Record<PatternId, PatternModule>> {
   return { ...PATTERN_REGISTRY };
 }
+
+/**
+ * Expose la detection de combinaisons pour la suite deterministe.
+ *
+ * Elle etait purement interne, et c est une raison de plus pour
+ * laquelle la condition manquante a tenu : la seule facon de
+ * l atteindre passait par sept appels au modele, donc hors de la suite
+ * deterministe. La detection est pure, elle ne demande qu un contexte.
+ */
+export const _internalCombinaisons = {
+  detectCombinaisons,
+  SEUIL_FRICTION_REGLEMENTAIRE_ACTUELLE,
+  COMBINAISONS_CONFIG,
+};

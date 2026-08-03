@@ -11,6 +11,7 @@
 import {
   analyzeFragiliteStructurelle,
   _setRegistryForTests,
+  _internalCombinaisons,
 } from './orchestrator';
 import {
   type PatternModule,
@@ -110,7 +111,7 @@ const mockInput: PatternInput = {
   console.log('\n=== Test 1 : aucun pattern enregistre ===');
   _setRegistryForTests({});
 
-  const result = await analyzeFragiliteStructurelle(mockInput, null);
+  const result = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
 
   check('globalFragilityScore = 0', result.globalFragilityScore, 0);
   check('verdict = sain (pas de pattern actif)', result.verdict, 'sain');
@@ -129,7 +130,7 @@ const mockInput: PatternInput = {
     'growth-subsidized-model': buildMockModule('growth-subsidized-model', 40, 'attention'),
   });
 
-  const r2 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r2 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   check('un pattern actif', r2.patterns['growth-subsidized-model']?.applicabilite, 'full');
   check('score global = 40', r2.globalFragilityScore, 40);
   check('verdict = attention (35-54)', r2.verdict, 'attention');
@@ -144,7 +145,7 @@ const mockInput: PatternInput = {
     'fixed-cost-trap': buildMockModule('fixed-cost-trap', 70, 'alerte'),
   });
 
-  const r3 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r3 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   check('combinaison detectee', r3.combinaisons.length, 1);
   check('combinaison = Trajectoire WeWork', r3.combinaisons[0]?.nom, 'Trajectoire WeWork');
   check('combinaison severe', r3.combinaisons[0]?.severite, 'drapeau-rouge');
@@ -160,7 +161,7 @@ const mockInput: PatternInput = {
     'fixed-cost-trap': buildMockModule('fixed-cost-trap', 60, 'alerte'),
   });
 
-  const r4 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r4 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   // Trajectoire WeWork (subsidized + fixed-cost) ET exposition triple WeWork (les trois)
   checkTrue('au moins deux combinaisons detectees', r4.combinaisons.length >= 2);
   const noms = r4.combinaisons.map((c) => c.nom);
@@ -176,7 +177,7 @@ const mockInput: PatternInput = {
     'fixed-cost-trap': buildMockModule('fixed-cost-trap', 70, 'alerte', true), // shouldFail
   });
 
-  const r5 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r5 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   check('growth-subsidized reste actif', r5.patterns['growth-subsidized-model']?.applicabilite, 'full');
   check('fixed-cost-trap fallback en non-applicable', r5.patterns['fixed-cost-trap']?.applicabilite, 'not-applicable');
   // Combinaison Trajectoire WeWork ne se declenche plus parce qu un pattern est tombe
@@ -193,7 +194,7 @@ const mockInput: PatternInput = {
     'scale-mirage-risk': buildMockModule('scale-mirage-risk', 50, 'attention'),
   });
 
-  const r6 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r6 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   check('trois recommandations distinctes', r6.recommandationsDD.length, 3);
   checkTrue('reco 1 mentionne growth-subsidized', r6.recommandationsDD[0].includes('growth-subsidized-model'));
   checkTrue('reco 2 mentionne infrastructure-hostage', r6.recommandationsDD.some((r) => r.includes('infrastructure-hostage')));
@@ -214,7 +215,7 @@ const mockInput: PatternInput = {
     },
   } as any;
 
-  const r7 = await analyzeFragiliteStructurelle(mockInput, matriceMock);
+  const r7 = await analyzeFragiliteStructurelle(mockInput, matriceMock, null, Promise.resolve(null));
   check('matrice none -> pattern non applicable', r7.patterns['growth-subsidized-model']?.applicabilite, 'not-applicable');
   check('rationale matrice respecte', r7.patterns['growth-subsidized-model']?.applicabiliteRationale, 'Hors-scope mock');
   check('cause = matrix', r7.patterns['growth-subsidized-model']?.nonApplicabilityCause, 'matrix');
@@ -234,7 +235,7 @@ const mockInput: PatternInput = {
     'scale-mirage-risk': buildMockModule('scale-mirage-risk', 33, 'attention', true),
   });
 
-  const r8 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r8 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   check('coverage.failed = 6', r8.coverage?.failed, 6);
   check('coverage.contributing = 1', r8.coverage?.contributing, 1);
   check('coverage.total = 7', r8.coverage?.total, 7);
@@ -260,7 +261,7 @@ const mockInput: PatternInput = {
     'scale-mirage-risk': buildMockModule('scale-mirage-risk', 0, 'sain', true),
   });
 
-  const r9 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r9 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   check('coverage.failed = 7', r9.coverage?.failed, 7);
   check('coverage.contributing = 0', r9.coverage?.contributing, 0);
   check('globalFragilityScore = 0 (weightTotal 0)', r9.globalFragilityScore, 0);
@@ -282,7 +283,7 @@ const mockInput: PatternInput = {
     'scale-mirage-risk': buildMockModule('scale-mirage-risk', 0, 'sain', true),
   });
 
-  const r10 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r10 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   check('coverage.failed = 6', r10.coverage?.failed, 6);
   check('globalFragilityScore = 60', r10.globalFragilityScore, 60);
   check('verdict = alerte, non degrade en non-concluant', r10.verdict, 'alerte');
@@ -307,7 +308,7 @@ const mockInput: PatternInput = {
     },
   } as any;
 
-  const r11 = await analyzeFragiliteStructurelle(mockInput, matriceAllNone);
+  const r11 = await analyzeFragiliteStructurelle(mockInput, matriceAllNone, null, Promise.resolve(null));
   check('coverage.failed = 0 (matrix != erreur)', r11.coverage?.failed, 0);
   check('coverage.contributing = 0', r11.coverage?.contributing, 0);
   check('verdict = sain (aucune erreur, aucun pattern actif)', r11.verdict, 'sain');
@@ -339,7 +340,7 @@ const mockInput: PatternInput = {
     'infrastructure-hostage': buildDelayedModule('infrastructure-hostage', 30, true),
   });
 
-  const r12 = await analyzeFragiliteStructurelle(mockInput, null);
+  const r12 = await analyzeFragiliteStructurelle(mockInput, null, null, Promise.resolve(null));
   const gs = r12.patterns['growth-subsidized-model'];
   const ih = r12.patterns['infrastructure-hostage'];
   checkTrue('analyzeMs pose sur pattern qui aboutit', typeof gs?.analyzeMs === 'number' && gs.analyzeMs >= 40 && gs.analyzeMs < 500);
@@ -385,6 +386,154 @@ const mockInput: PatternInput = {
   // ============================================================
   // FIN
   // ============================================================
-  console.log(`\n${pass}/${pass + fail} tests passes`);
+  
+// ============================================================
+// COMBINAISONS : la condition enoncee est la condition evaluee
+// ------------------------------------------------------------
+// « Exposition reglementaire convergente » enonce dans son rationale
+// un declenchement conditionne a ce que Friction d Execution constate
+// simultanement une friction reglementaire actuelle. Cette condition
+// n etait evaluee nulle part et ne pouvait pas l etre, l orchestrateur
+// ne recevant pas ce moteur. Elle a survecu parce qu elle vivait dans
+// une chaine de caracteres.
+//
+// Le cout etait editorial : le rationale est rendu tel quel au partner
+// sous « Convergences detectees », en severite alerte. Il affirmait
+// une simultaneite que rien n avait verifiee.
+// ============================================================
+
+console.log('\n=== Combinaisons : la condition reglementaire ===');
+{
+  const { detectCombinaisons, SEUIL_FRICTION_REGLEMENTAIRE_ACTUELLE } = _internalCombinaisons;
+
+  const patternAuSeuil = (score: number): any => ({
+    patternId: 'regulatory-time-bomb',
+    applicabilite: 'full',
+    globalScore: score,
+    verdict: 'alerte',
+  });
+
+  const patternsBase = (score: number): any => ({
+    'regulatory-time-bomb': patternAuSeuil(score),
+  });
+
+  const friction = (scoreAxe: number | null, triggered = true): any => ({
+    triggered,
+    axes: scoreAxe === null ? [] : [{ axis: 'product_regulation', score: scoreAxe, evidence: '', implication: '', ddQuestions: [] }],
+    verdict: 'friction_high',
+    flags: {},
+    globalScore: 60,
+    questionsToInstruct: [],
+    synthesis: '',
+    nonProductionCause: null,
+  });
+
+  const nom = 'Exposition reglementaire convergente';
+  const trouve = (d: any[]) => d.some((c) => c.nom === nom);
+
+  // Le cas qui se declenchait a tort : pattern au seuil, aucune
+  // friction constatee. C etait le comportement d avant la correction.
+  check(
+    'pattern seul au seuil : ne declenche plus',
+    trouve(detectCombinaisons({ patterns: patternsBase(70), executionFriction: null })),
+    false,
+  );
+
+  // Les deux termes reunis.
+  check(
+    'pattern au seuil et friction reglementaire actuelle : declenche',
+    trouve(detectCombinaisons({
+      patterns: patternsBase(70),
+      executionFriction: friction(SEUIL_FRICTION_REGLEMENTAIRE_ACTUELLE),
+    })),
+    true,
+  );
+
+  // Chaque terme seul ne suffit pas.
+  check(
+    'friction sans pattern au seuil : ne declenche pas',
+    trouve(detectCombinaisons({
+      patterns: patternsBase(40),
+      executionFriction: friction(80),
+    })),
+    false,
+  );
+  check(
+    'friction sous le seuil : ne declenche pas',
+    trouve(detectCombinaisons({
+      patterns: patternsBase(70),
+      executionFriction: friction(SEUIL_FRICTION_REGLEMENTAIRE_ACTUELLE - 1),
+    })),
+    false,
+  );
+
+  // Un moteur qui n a pas tourne ne constate rien. Ses axes sont vides
+  // et son silence n est pas une information.
+  check(
+    'moteur non declenche : ne declenche pas',
+    trouve(detectCombinaisons({
+      patterns: patternsBase(70),
+      executionFriction: friction(90, false),
+    })),
+    false,
+  );
+  check(
+    'moteur sans axe regulation : ne declenche pas',
+    trouve(detectCombinaisons({
+      patterns: patternsBase(70),
+      executionFriction: friction(null),
+    })),
+    false,
+  );
+
+  // Le rationale rendu au partner doit decrire ce que le code fait.
+  // C est ce qui manquait : il decrivait une condition non evaluee.
+  const detectee = detectCombinaisons({
+    patterns: patternsBase(70),
+    executionFriction: friction(70),
+  }).find((c) => c.nom === nom);
+  checkTrue(
+    'le rationale nomme le moteur qui a constate',
+    (detectee?.rationale ?? '').includes('Friction d Execution'),
+  );
+  checkTrue(
+    'le rationale nomme l axe constate',
+    (detectee?.rationale ?? '').includes('regulation produit'),
+  );
+}
+
+console.log('\n=== Combinaisons : les six autres restent sur les seuls patterns ===');
+{
+  const { detectCombinaisons, COMBINAISONS_CONFIG } = _internalCombinaisons;
+
+  const p = (score: number): any => ({ applicabilite: 'full', globalScore: score, verdict: 'alerte' });
+  const patterns: any = {
+    'growth-subsidized-model': p(70),
+    'fixed-cost-trap': p(70),
+    'commoditization-drift': p(70),
+    'infrastructure-hostage': p(70),
+    'scale-mirage-risk': p(70),
+    'capital-structure-fragility': p(70),
+    'regulatory-time-bomb': p(70),
+  };
+
+  // Sans friction, les six combinaisons qui ne la citent pas doivent
+  // toutes se declencher : la correction ne devait rien eteindre
+  // d autre que la septieme.
+  const detectees = detectCombinaisons({ patterns, executionFriction: null });
+  check('six combinaisons sur sept se declenchent sans friction', detectees.length, 6);
+  check('le catalogue en porte toujours sept', COMBINAISONS_CONFIG.length, 7);
+
+  // Un pattern sans score abouti ne compte pas pour zero, il ne compte
+  // pas. Meme lecture que l agregation.
+  const sansScore: any = { ...patterns, 'fixed-cost-trap': { applicabilite: 'full', globalScore: null, verdict: null } };
+  const d2 = detectCombinaisons({ patterns: sansScore, executionFriction: null });
+  checkTrue(
+    'une combinaison citant un pattern non abouti ne se declenche pas',
+    !d2.some((c) => c.nom === 'Trajectoire WeWork'),
+  );
+}
+
+console.log(`\n${pass}/${pass + fail} tests passes`);
   process.exit(fail > 0 ? 1 : 0);
 })();

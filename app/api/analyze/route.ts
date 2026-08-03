@@ -1425,6 +1425,13 @@ export async function POST(req: NextRequest) {
                     },
                     relevanceMatrix,
                     analysisId,
+                    // Quatrieme argument : la promesse du moteur
+                    // Friction d Execution, lancee plus haut en
+                    // parallele. Une combinaison diagnostique la
+                    // consomme, apres les sept patterns. La passer en
+                    // promesse plutot qu en valeur evite d ajouter la
+                    // duree de la friction au chemin critique du run.
+                    executionFrictionPromise,
                   );
                   sendDone('fragility-structurelle', r);
                   return r;
