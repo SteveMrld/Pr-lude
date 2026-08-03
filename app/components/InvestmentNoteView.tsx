@@ -29,6 +29,9 @@ import {
   libelleMontant,
   libelleContrepartie,
   estCession,
+  composantesDe,
+  libelleNature,
+  porte,
   MENTION_LBO,
   MENTION_TYPE_NON_ETABLI,
 } from '@/lib/note/operation-vocabulary';
@@ -3662,12 +3665,12 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             dossier, ecrite comme une production et non comme un
             avertissement technique : dire ce que le document ne contient
             pas est un resultat d instruction. */}
-        {e.fundraise?.operationType === 'lbo' && (
+        {porte(e.fundraise, 'dette') && (
           <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 12, padding: '8px 12px', borderLeft: '2px solid var(--ocre-brule)', background: 'rgba(107, 91, 58, 0.05)' }}>
             {MENTION_LBO}
           </div>
         )}
-        {(!e.fundraise?.operationType || e.fundraise.operationType === 'non-etabli') && (
+        {composantesDe(e.fundraise).length === 0 && (
           <div style={{ fontSize: 12.5, lineHeight: 1.6, marginBottom: 12, padding: '8px 12px', borderLeft: '2px solid var(--muted)', color: 'var(--ink-soft)' }}>
             {MENTION_TYPE_NON_ETABLI}
           </div>
@@ -3677,7 +3680,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <tr>
               <td className="note-label">Nature de l&apos;opération</td>
               <td className="note-value">
-                {OPERATION_LABELS[(e.fundraise?.operationType as any) ?? 'non-etabli']}
+                {libelleNature(e.fundraise)}
                 {e.fundraise?.operationTypeEvidence && (
                   <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
                     « {e.fundraise.operationTypeEvidence} »
@@ -3690,10 +3693,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <td className="note-value">{e.fundraise?.stage || '—'}</td>
             </tr>
             <tr>
-              <td className="note-label">{libelleMontant(e.fundraise?.operationType)}</td>
+              <td className="note-label">{libelleMontant(e.fundraise)}</td>
               <td className="note-value">{e.fundraise?.amount || '—'}</td>
             </tr>
-            {estCession(e.fundraise?.operationType) && (
+            {estCession(e.fundraise) && (
               <>
                 <tr>
                   <td className="note-label">Cédant</td>
@@ -3710,9 +3713,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <td className="note-value">{e.fundraise?.valuation || 'non précisée'}</td>
             </tr>
             <tr>
-              <td className="note-label">{libelleContrepartie(e.fundraise?.operationType)}</td>
+              <td className="note-label">{libelleContrepartie(e.fundraise)}</td>
               <td className="note-value">
-                {estCession(e.fundraise?.operationType)
+                {estCession(e.fundraise)
                   ? (e.fundraise?.sellSideAdvisor || 'non précisé')
                   : (e.fundraise?.leadInvestor || 'non précisé')}
               </td>

@@ -64,14 +64,19 @@ console.log('\n[Suite 3] ce qui n est pas une date est refuse');
 
 console.log('\n[Suite 4] la garde du type d operation n a pas bouge');
 {
+  // Le type n est plus lu du modele depuis le passage aux composantes :
+  // il est derive. Une composante citee produit donc le type.
   const lbo = appliquerGardesExtraction(sortie({
-    fundraise: { operationType: 'lbo', operationTypeEvidence: 'Provide liquidity to the sponsors' },
+    fundraise: { operationComponents: [
+      { kind: 'cession', evidence: 'Provide liquidity to the sponsors' },
+      { kind: 'dette', evidence: 'limited debt component' },
+    ] },
   }));
-  check(lbo.fundraise!.operationType === 'lbo', 'un type cite reste retenu');
+  check(lbo.fundraise!.operationType === 'lbo', 'des composantes citees derivent le type');
   const sans = appliquerGardesExtraction(sortie({
-    fundraise: { operationType: 'lbo', operationTypeEvidence: null, seller: 'X', stakeForSale: '100%' },
+    fundraise: { operationComponents: [{ kind: 'cession', evidence: '' }], seller: 'X', stakeForSale: '100%' },
   }));
-  check(sans.fundraise!.operationType === 'non-etabli', 'un type sans citation retombe a non-etabli');
+  check(sans.fundraise!.operationType === 'non-etabli', 'une composante sans citation ne compte pas');
   check((sans.fundraise as any).seller === '' && (sans.fundraise as any).stakeForSale === '',
     'et les cases propres aux operations non-levee sont videes');
 }
@@ -80,7 +85,7 @@ console.log('\n[Suite 5] les deux gardes sont independantes');
 {
   const r = appliquerGardesExtraction(sortie({
     documentDate: '2023-11', documentDateEvidence: 'March 2023, strictly confidential',
-    fundraise: { operationType: 'lbo', operationTypeEvidence: null },
+    fundraise: { operationComponents: [{ kind: 'cession', evidence: '' }] },
   }));
   check((r as any).documentDate === '2023-11', 'une date citee survit a un type refuse');
   check(r.fundraise!.operationType === 'non-etabli', 'et le type refuse reste refuse');

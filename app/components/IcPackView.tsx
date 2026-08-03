@@ -16,7 +16,7 @@
 
 import React from 'react';
 import { computeTopRisks } from '@/lib/compute-top-risks';
-import { OPERATION_LABELS, libelleMontant } from '@/lib/note/operation-vocabulary';
+import { libelleMontant, libelleNature } from '@/lib/note/operation-vocabulary';
 import {
   IC_VOTE_RESULTS,
   IC_VOTE_RESULT_LABELS,
@@ -281,14 +281,14 @@ export default function IcPackView({
         <div className="ic-fact-grid">
           <div className="ic-fact">
             <div className="ic-fact-label">Nature</div>
-            <div className="ic-fact-value">{OPERATION_LABELS[(fundraise.operationType as any) ?? 'non-etabli']}</div>
+            <div className="ic-fact-value">{libelleNature(fundraise)}</div>
           </div>
           <div className="ic-fact">
             <div className="ic-fact-label">Stade</div>
             <div className="ic-fact-value">{fundraise.stage || 'Non précisé'}</div>
           </div>
           <div className="ic-fact">
-            <div className="ic-fact-label">{libelleMontant(fundraise.operationType)}</div>
+            <div className="ic-fact-label">{libelleMontant(fundraise)}</div>
             <div className="ic-fact-value">{fundraise.amount || 'Non précisé'}</div>
           </div>
           <div className="ic-fact">

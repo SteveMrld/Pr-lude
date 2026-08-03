@@ -1,4 +1,5 @@
 import { callClaudeWithPDF, parseJSON, MODEL } from './anthropic-client';
+import { deriverTypeDepuisComposantes } from './operation-components';
 import type { ExtractionOutput } from './types';
 
 export const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction de la plateforme Prélude. Ton seul rôle est de lire un pitch deck PDF et d'extraire les informations factuelles présentes, structurées en JSON.
@@ -33,7 +34,10 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
     "customers": "nombre de clients si présenté"
   },
   "fundraise": {
-    "operationType": "'levee' | 'cession-partielle' | 'cession-totale' | 'lbo' | 'non-etabli'",
+    "operationComponents": [
+      { "kind": "'cash-in' | 'cession' | 'dette'", "evidence": "citation courte du document (max 200 caractères) qui fonde CETTE composante", "perimetre": "montant ou périmètre annoncé pour cette composante, ou null" }
+    ],
+    "operationType": "'levee' | 'cession-partielle' | 'cession-totale' | 'lbo' | 'non-etabli' — dérivé des composantes, ne le renseigne pas toi-même",
     "operationTypeEvidence": "citation courte du document (max 200 caractères) qui fonde le type retenu, ou null",
     "stage": "stade de maturité avec granularité fine : utilise EXACTEMENT l'une des valeurs suivantes selon les indices du document : 'pre-seed' (avant tout produit, friends and family), 'seed' (POC ou pré-PMF, ARR < 500K€), 'series-A-early' (PMF naissant, ARR 500K à 2M€ ou pré-revenue avec traction significative), 'series-A-late' (post-PMF confirmé, ARR 2 à 10M€, expansion commerciale en cours), 'series-B' (ARR 10 à 30M€, internationalisation), 'series-C' (ARR 30 à 100M€), 'series-D' (ARR > 100M€), 'growth' (société établie, late-stage), 'pre-IPO' (préparation cotation). Si le document dit juste 'Series A' sans précision, utilise 'series-A-early' par défaut. Si le document dit 'pre-B' ou 'A+' ou 'post-PMF', utilise 'series-A-late'. Un stade reste un stade quelle que soit l'opération : une société cédée a une maturité, renseigne-la.",
     "amount": "montant de l'opération, dont la nature dépend du type : montant levé ou recherché sur une levée, prix ou valeur d'entreprise annoncés sur une cession ou un LBO. Chaîne vide si le document ne le donne pas. N'y range JAMAIS une description d'opération ni un pourcentage de capital : ces informations ont leurs propres champs.",
@@ -57,6 +61,18 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
 # RÈGLES TYPE D'OPÉRATION
 
 Ce document n'est pas nécessairement un pitch deck de levée de fonds. Un mémorandum d'information de cession ou de LBO n'est pas une levée, et le confondre fausse toute la lecture en aval.
+
+COMPOSANTES DE L OPERATION
+
+Une opération peut porter plusieurs composantes à la fois, et c est le cas courant. Un mémorandum qui organise la sortie de deux fonds et injecte du cash de croissance porte une composante « cession » ET une composante « cash-in ». Tu ne choisis pas entre les deux : tu rends les deux, chacune avec sa propre citation.
+
+  cash-in : de l argent entre dans la société. Augmentation de capital, apport, "inject X in cash-in", "primary".
+  cession : des titres existants changent de main, l argent va aux cédants. "provide liquidity to", "secondary", "cession de X% du capital", "sortie de l investisseur".
+  dette : une composante de levier finance l opération. "debt component", "dette d acquisition", "unitranche", "LBO".
+
+Ne rends une composante que si une citation textuelle la fonde. Une composante sans citation est refusée par la suite du traitement, donc la produire ne sert à rien. À l inverse, ne tais pas une composante réelle parce qu une autre te semble dominante : c est précisément la faute que ce champ corrige.
+
+Si aucune composante n est établie, rends une liste vide.
 
 Les valeurs de operationType :
 - "levee" : la société cherche des fonds propres. Marqueurs : tour nommé (seed, Series A/B/C), montant recherché, investisseur lead, dilution, table de capitalisation post-money.
@@ -127,21 +143,43 @@ export function appliquerGardesExtraction(result: ExtractionOutput): ExtractionO
   res.documentDateEvidence = res.documentDate === null ? null : dateEvidence;
 
   const fr: any = result.fundraise ?? (result.fundraise = {} as any);
-  const TYPES = ['levee', 'cession-partielle', 'cession-totale', 'lbo', 'non-etabli'];
-  const evidence = typeof fr.operationTypeEvidence === 'string' && fr.operationTypeEvidence.trim().length > 0
-    ? fr.operationTypeEvidence.trim()
-    : null;
-  fr.operationType = (evidence !== null && TYPES.includes(fr.operationType) && fr.operationType !== 'non-etabli')
-    ? fr.operationType
-    : 'non-etabli';
-  fr.operationTypeEvidence = fr.operationType === 'non-etabli' ? null : evidence;
-  if (fr.operationType === 'non-etabli') {
-    // Sans type etabli, les cases propres aux operations non-levee ne
-    // peuvent porter qu une inference. On les vide plutot que de les
-    // laisser remplies sur une base qu on vient de refuser.
+
+  // Garde de contrat sur les composantes. Elle s applique autant de
+  // fois qu il y a de composantes : chacune porte sa citation, chacune
+  // est retenue ou refusee pour elle-meme. C est la meme regle
+  // anti-divination qu avant, appliquee au bon grain.
+  const KINDS = ['cash-in', 'cession', 'dette'];
+  const brutes = Array.isArray(fr.operationComponents) ? fr.operationComponents : [];
+  const vues = new Set<string>();
+  fr.operationComponents = brutes
+    .filter((c: any) => {
+      if (!c || typeof c !== 'object') return false;
+      if (!KINDS.includes(c.kind)) return false;
+      const cite = typeof c.evidence === 'string' && c.evidence.trim().length > 0;
+      if (!cite) return false;
+      if (vues.has(c.kind)) return false;
+      vues.add(c.kind);
+      return true;
+    })
+    .map((c: any) => ({
+      kind: c.kind,
+      evidence: String(c.evidence).trim().slice(0, 200),
+      perimetre: typeof c.perimetre === 'string' && c.perimetre.trim().length > 0
+        ? c.perimetre.trim().slice(0, 200) : null,
+    }));
+
+  // operationType est derive des composantes et n est plus lu du
+  // modele. Il subsiste pour les analyses persistees avant ce
+  // changement ; il n est jamais la source.
+  const derive = deriverTypeDepuisComposantes(fr.operationComponents);
+  fr.operationType = derive.type;
+  fr.operationTypeEvidence = derive.evidence;
+  if (fr.operationComponents.length === 0) {
     fr.seller = '';
     fr.stakeForSale = '';
     fr.sellSideAdvisor = '';
   }
   return result;
 }
+
+

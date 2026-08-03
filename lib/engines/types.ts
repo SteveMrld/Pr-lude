@@ -19,6 +19,38 @@ export type OperationType =
   | 'lbo'
   | 'non-etabli';
 
+/**
+ * Composante d une operation, au sens ou le metier l entend.
+ *
+ * Le type unique ne savait pas representer ce que les documents disent.
+ * Mesure hors ligne du 3 aout 2026, deux passes de l extraction sur le
+ * meme memorandum : `levee` sur l une, `lbo` sur l autre, les deux avec
+ * une citation reelle. Le document organise a la fois la sortie de deux
+ * fonds et un cash-in de croissance ; le modele choisissait entre deux
+ * verites parce qu on ne lui laissait pas dire les deux. Une operation
+ * mixte est du langage du metier, pas une ambiguite a trancher.
+ *
+ *   cash-in  : de l argent entre dans la societe, augmentation de
+ *              capital ou apport en compte courant.
+ *   cession  : des titres existants changent de main, l argent va aux
+ *              cedants et non a la societe.
+ *   dette    : une composante de levier finance l operation.
+ */
+export type OperationComponentKind = 'cash-in' | 'cession' | 'dette';
+
+export interface OperationComponent {
+  kind: OperationComponentKind;
+  /**
+   * Citation courte qui fonde CETTE composante. La garde s applique
+   * autant de fois qu il y a de composantes : une composante sans
+   * citation n existe pas, exactement comme un type sans citation
+   * n existait pas.
+   */
+  evidence: string;
+  /** Perimetre ou montant tel que le document l annonce, ou null. */
+  perimetre?: string | null;
+}
+
 export interface ExtractionOutput {
   companyName: string;
   /**
@@ -65,6 +97,18 @@ export interface ExtractionOutput {
      * different de ne pas avoir cherche.
      */
     operationType: OperationType;
+    /**
+     * Composantes de l operation, source de verite unique depuis le
+     * 3 aout 2026. Une operation peut en porter plusieurs, et c est le
+     * cas courant sur les memorandums qui organisent une sortie
+     * partielle avec reinvestissement.
+     *
+     * `operationType` subsiste au-dessus, derive des composantes, pour
+     * les analyses persistees avant ce changement. Il n est jamais la
+     * source : tout consommateur ecrit apres cette date lit les
+     * composantes.
+     */
+    operationComponents?: OperationComponent[];
     /**
      * Citation textuelle courte qui fonde le type. La valeur et sa
      * preuve voyagent ensemble, sur le modele de lastActualYear et

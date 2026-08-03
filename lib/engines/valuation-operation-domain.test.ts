@@ -59,7 +59,7 @@ for (const op of ['cession-partielle', 'cession-totale', 'lbo'] as OperationType
   check(vc(out).applicable === false, `${op} : VC inverse non applicable`);
   check(vc(out).notApplicableCause === 'doctrine', `${op} : cause doctrine, ni incident ni absence`);
   check(
-    /pas d entree au capital/.test(vc(out).notApplicableReason || ''),
+    /aucun capital n entre dans la societe/.test(vc(out).notApplicableReason || ''),
     `${op} : le motif dit pourquoi la methode ne s applique pas`,
   );
 }

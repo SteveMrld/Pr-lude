@@ -416,6 +416,14 @@ interface ValuationInput {
    * a ferme.
    */
   operationType?: OperationType | null | undefined;
+  /**
+   * Composantes de l operation, source de verite depuis le 3 aout 2026.
+   * Le moteur ne demande plus « quel type est-ce » mais « cette methode
+   * s applique-t-elle a une composante presente ». L inversion compte :
+   * sur une operation mixte, la dilution et la VC inverse redeviennent
+   * applicables, sur la composante cash-in et sur elle seule.
+   */
+  operationComponents?: Array<{ kind: string; evidence: string; perimetre?: string | null }> | null;
 }
 
 /**
@@ -542,7 +550,19 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // que rendu par un champ vide, qu un lecteur confondrait avec un
   // dossier sans ticket annonce. Sur une cession partielle elle garde
   // un sens, la question du pourcentage cede restant posee.
-  const dilutionHorsDomaine = input.operationType === 'cession-totale';
+  // La dilution suppose une augmentation de capital, donc une
+  // composante cash-in. Sans elle, elle est hors domaine ; avec elle,
+  // elle se calcule, meme si l operation comporte aussi une cession.
+  const composantes = input.operationComponents ?? null;
+  // Sans composantes, on garde exactement la regle de la grappe 4 :
+  // seule la cession totale mettait la dilution hors domaine, une
+  // cession partielle pouvant accompagner une augmentation de capital.
+  // Les composantes rendent cette nuance calculable au lieu de la
+  // supposer ; elles ne doivent pas durcir retroactivement les analyses
+  // qui n en portent pas.
+  const dilutionHorsDomaine = composantes
+    ? !composantes.some((c) => c.kind === 'cash-in')
+    : input.operationType === 'cession-totale';
   const dilutionAnalysis = (!dilutionHorsDomaine && preMoneyRange && ticket.equity)
     ? buildDilutionAnalysis(preMoneyRange, ticket.equity)
     : null;
@@ -1173,16 +1193,28 @@ function computeByVcMethod(
   // pipeline n extrait pas. Ce n est ni un incident ni une absence de
   // donnee : c est une methode appliquee hors de ce qu elle sait
   // mesurer.
+  // La VC inverse deduit ce qu un investisseur peut payer POUR ENTRER
+  // au capital. Elle s applique donc a la composante cash-in, et a elle
+  // seule. La regle n est plus « ce type la neutralise » mais « cette
+  // methode s applique a cette composante » : sur une operation mixte,
+  // la composante cash-in existe, donc la methode s applique.
+  const comps = input.operationComponents ?? null;
+  const cashIn = comps ? comps.some((c) => c.kind === 'cash-in') : null;
   const op = input.operationType;
-  if (op === 'cession-partielle' || op === 'cession-totale' || op === 'lbo') {
-    const libelle = op === 'lbo' ? 'un LBO' : 'une cession';
+  const horsDomaine = cashIn === null
+    ? (op === 'cession-partielle' || op === 'cession-totale' || op === 'lbo')
+    : !cashIn;
+  if (horsDomaine) {
+    const quoi = comps && comps.length > 0
+      ? 'cette operation, qui ne comporte aucune composante de cash-in'
+      : (op === 'lbo' ? 'un LBO' : 'une cession');
     return {
       method: 'vc-method',
       nature: 'pre_money',
       label: 'Methode VC inverse',
       applicable: false,
       notApplicableCause: 'doctrine',
-      notApplicableReason: `La VC inverse ne s applique pas a ${libelle}. Elle deduit le pre-money qu un investisseur peut payer pour atteindre son IRR cible en entrant au capital, or il n y a pas d entree au capital dans cette operation. Les multiples sectoriels restent applicables, ce sont des multiples de transaction autant que de tour.`,
+      notApplicableReason: `La VC inverse ne s applique pas a ${quoi}. Elle deduit le pre-money qu un investisseur peut payer pour atteindre son IRR cible en entrant au capital, or aucun capital n entre dans la societe. Les multiples sectoriels restent applicables, ce sont des multiples de transaction autant que de tour.`,
     };
   }
 

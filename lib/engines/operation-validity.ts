@@ -140,6 +140,14 @@ export const MARGE_MILLESIME_ANNEES = 2;
 
 export interface OperationValidityInput {
   operationType: OperationType | null | undefined;
+  /**
+   * Composantes de l operation. Quand elles existent, la reserve porte
+   * sur la composante que l evenement met en cause et non sur
+   * l operation entiere : une levee posterieure conteste le cash-in,
+   * elle ne dit rien de la sortie des fonds ; un changement de controle
+   * conteste la cession.
+   */
+  operationComponents?: Array<{ kind: string; evidence: string; perimetre?: string | null }> | null;
   /** Date de redaction, format YYYY, YYYY-MM ou YYYY-MM-DD. */
   documentDate: string | null | undefined;
   /** Millesime de reference du moteur de valorisation, repli d ancre. */
@@ -194,8 +202,34 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
   }
 
   const prose = posterieurs.some((e) => e.luDansLaProse);
-  const sortie = TYPES_DE_SORTIE.has(type);
   const financiers = posterieurs.filter((e) => e.nature === 'financement');
+
+  // Quelle composante l evenement met-il en cause. Un evenement de
+  // financement conteste le cash-in, un changement de controle conteste
+  // la cession, une procedure collective conteste tout. La reserve
+  // porte sur elle et la mention la nomme, plutot que d etre globale ou
+  // absente.
+  const comps = input.operationComponents ?? null;
+  const principalPourCause = financiers[0] ?? posterieurs[0];
+  const porteComposante = (k: string) => comps ? comps.some((c) => c.kind === k) : null;
+  // Un evenement de financement conteste le cash-in quand il en existe
+  // un. Quand il n en existe pas, il conteste l operation elle-meme :
+  // sur une cession pure, une levee posterieure signifie que le vendeur
+  // a trouve son financement ailleurs.
+  const composanteVisee = principalPourCause.nature === 'procedure-collective' ? 'toutes'
+    : principalPourCause.nature === 'changement-de-controle' ? 'cession'
+    : porteComposante('cash-in') === false ? 'cession'
+    : 'cash-in';
+
+  // Le prix ne se refuse que si la composante mise en cause est celle
+  // qui porte le prix, c est-a-dire la cession. Sur une operation mixte
+  // qu une levee posterieure conteste, les cedants peuvent encore
+  // vendre : la reserve se leve, le prix reste discutable.
+  const sortie = comps
+    ? (composanteVisee === 'toutes'
+        ? porteComposante('cession') === true
+        : composanteVisee === 'cession' && porteComposante('cession') === true)
+    : TYPES_DE_SORTIE.has(type);
 
   return {
     verdict: 'a-verifier',
@@ -206,7 +240,7 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
     reposeSurDeLaProse: prose,
     natureDeLaLecture: prose ? 'prose-provisoire' : 'donnee-structuree',
     interditLaDiscussionDePrix: sortie,
-    mention: redigerMention(type, sortie, ancre, posterieurs, financiers, prose),
+    mention: redigerMention(type, sortie, ancre, posterieurs, financiers, prose, comps, composanteVisee),
     motif: `${posterieurs.length} evenement(s) externe(s) posterieur(s) a ${ancre.annee}. ${ancre.declaration}`
       + (prose ? ' Detection provisoire par lecture de la prose des moteurs, en attendant que les evenements existent comme donnee.' : ''),
   };
@@ -357,6 +391,8 @@ function redigerMention(
   posterieurs: EvenementDate[],
   financiers: EvenementDate[],
   prose: boolean,
+  comps: Array<{ kind: string }> | null,
+  composanteVisee: string,
 ): string {
   const principal = financiers[0] ?? posterieurs[0];
   const quand = principal.mois
@@ -364,16 +400,37 @@ function redigerMention(
     : String(principal.annee);
   const fait = faitSeul(principal.intitule);
 
-  // 1. La decision, avant toute preuve.
+  // 1. La decision, avant toute preuve. Sur une operation a plusieurs
+  // composantes, elle nomme celle qui est mise en cause : une reserve
+  // globale dirait plus que ce qui est etabli, et aucune reserve
+  // tairait ce qui l est.
+  const mixte = comps !== null && comps.some((c) => c.kind === 'cash-in') && comps.some((c) => c.kind === 'cession');
+  const nomComposante = composanteVisee === 'cash-in' ? 'le cash-in demande'
+    : composanteVisee === 'cession' ? 'la cession de titres'
+    : 'l operation entiere';
   const decision = sortie
     ? `Le prix n est pas discute sur ce dossier, et c est une decision.`
+    : mixte
+    ? `Une reserve porte sur une composante de l operation, ${nomComposante}, et non sur l operation entiere. Elle n empeche pas de discuter le prix.`
     : `Une reserve porte sur l actualite de l operation, et elle n empeche pas de discuter le prix.`;
 
   // 2. Sa raison, en une phrase qui nomme l operation en clair.
   const consequence = sortie
     ? `Si cet evenement a eu lieu, le vendeur a trouve son financement ailleurs et l operation decrite n a plus le meme objet. En discuter le prix reviendrait a valoriser une transaction dont on ignore si elle existe encore.`
     : `Cet evenement peut signifier que le tour decrit a deja ete realise, auquel cas le dossier instruit une operation passee.`;
-  const raison = `Le document instruit ${nommerOperation(type)}, or un evenement lui est posterieur : ${fait}, ${quand}. ${consequence}`;
+  // La nature se dit depuis les composantes quand elles existent : le
+  // type herite dirait « une cession » sur une levee pure des lors
+  // qu il aurait ete derive autrement.
+  const parComposantes = comps === null ? null
+    : mixte ? 'une operation mixte, cession de titres et cash-in de croissance'
+    : comps.some((c) => c.kind === 'cession') ? 'une cession'
+    : comps.some((c) => c.kind === 'cash-in') ? 'une levee de fonds'
+    : 'une operation a effet de levier';
+  const objet = `Le document instruit ${parComposantes ?? nommerOperation(type)}`;
+  const consequenceMixte = mixte && composanteVisee === 'cash-in'
+    ? `Si cet evenement a eu lieu, la societe a trouve son financement ailleurs et la composante cash-in du document n a plus d objet. La cession de titres, elle, peut rester d actualite : c est ce qu il faut verifier.`
+    : consequence;
+  const raison = `${objet}, or un evenement lui est posterieur : ${fait}, ${quand}. ${consequenceMixte}`;
 
   // 3. Ce que la reserve n invalide pas.
   const portee = sortie
@@ -383,6 +440,8 @@ function redigerMention(
   // 4. Ce qui leve la reserve, avec un geste et un horizon.
   const geste = sortie
     ? `etablir aupres du vendeur ou de son conseil que le mandat reste ouvert et que le perimetre annonce n a pas change`
+    : mixte
+    ? `etablir aupres du vendeur et de la societe quelles composantes de l operation subsistent, et a quels termes`
     : `etablir aupres de la societe que le tour decrit est toujours en cours et que ses termes n ont pas change`;
   const levee = `Ce qui leverait la reserve : ${geste}. Un element date de moins de ${FRAICHEUR_CONFIRMATION_MOIS} mois suffit${sortie ? ', et la fourchette redevient alors directement utilisable' : ''}.`;
 

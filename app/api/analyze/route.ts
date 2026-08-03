@@ -1675,6 +1675,7 @@ export async function POST(req: NextRequest) {
           ]);
           const operationValidity = evaluerValiditeOperation({
             operationType: extraction?.fundraise?.operationType ?? null,
+            operationComponents: (extraction as any)?.fundraise?.operationComponents ?? null,
             documentDate: (extraction as any)?.documentDate ?? null,
             millesimeReference: financialData?.lastActualYear ?? null,
             evenements: evenementsExternes,
@@ -1703,6 +1704,7 @@ export async function POST(req: NextRequest) {
             // Nature de l operation, pour neutraliser les methodes hors
             // de leur domaine. Non-etabli ne neutralise rien.
             operationType: extraction?.fundraise?.operationType ?? null,
+            operationComponents: (extraction as any)?.fundraise?.operationComponents ?? null,
             // Ancrage temporel de la regle de millesime. Le moteur ne
             // lit plus l horloge : a defaut de mention explicite de
             // realise dans le deck, c est la date de reception du
