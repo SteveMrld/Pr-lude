@@ -530,6 +530,68 @@ celle de tous les autres. L outil est `scripts/engine-stability.ts`.
 etabli hors ligne, jamais pour explorer.** Si l on ne sait pas d avance
 ce que le run doit montrer, c est qu il ne faut pas le lancer.
 
+## Ce qui fonde une conclusion n est pas toujours ce qui l accompagne
+
+Une mesure qui conclut sans que son echantillon le permette doit nommer
+ce qui la fonde vraiment. Le chiffre mis en avant et la raison de croire
+sont deux choses, et les confondre fait passer une conclusion juste pour
+une conclusion prouvee par le mauvais organe.
+
+La regle est nee le 3 aout 2026 de la reprise du tirage d extraction sur
+Woodpecker. Trois passes en serie ont rendu trois sorties sans echec, et
+la tentation etait d ecrire que le tirage etait gueri. Elle ne l aurait
+pas prouve : avec zero echec sur trois tirages, la borne haute du taux
+reel reste vers soixante pour cent, et trois passes ne separent donc pas
+un tirage gueri d un tirage a un tiers. Ce qui fondait la conclusion
+etait ailleurs, dans les trois durees relevees, cinquante-sept a
+soixante-quinze secondes contre une fenetre de trois cents, soit un
+facteur quatre de marge, et dans la lecture du code qui etablit que
+l ancien plafond etait de soixante secondes par tentative avec une
+reprise, ce qui rend compte des deux minutes constatees.
+
+Le compteur d echecs etait la mauvaise grandeur, la duree etait la
+bonne, et les deux repondaient a la meme question. C est le cas general :
+quand l evenement est un seuil pose sur une grandeur continue et que le
+seuil est connu, la grandeur se mesure en trois tirages, l evenement
+demande un ordre de grandeur de plus.
+
+En pratique, une conclusion tiree d un petit echantillon s ecrit en deux
+temps. D abord ce que l echantillon borne, avec sa borne. Ensuite ce qui
+fonde reellement la conclusion, qui est souvent une lecture de code ou
+une grandeur intermediaire, et qui doit etre nomme comme tel. Une
+conclusion juste appuyee sur le mauvais chiffre se defait au premier
+contre-exemple, alors que la meme conclusion appuyee sur ce qui la fonde
+tient.
+
+## Un test peut mentir sur sa couverture dans les deux sens
+
+Un nom de test qui designe un module qu il ne touche pas produit deux
+erreurs opposees, et on ne voit d ordinaire que la premiere. Le parent
+nomme parait couvert alors qu il ne l est pas ; le module reellement
+teste parait nu alors qu il est couvert. L inventaire se trompe deux
+fois par ligne fausse.
+
+Le constat est du 3 aout 2026. Quatre tests portaient le nom de leur
+parent et testaient un sous-module pur voisin. Le releve de depart
+nommait `version-stamp` parmi les modules sans test, et c etait faux
+dans l autre sens : `version-stamp` etait couvert par treize assertions
+vivant sous le nom `prediction-records-store.test.ts`, et c est
+`prediction-records-store` qui n avait rien. Ecrire les tests d apres le
+releve aurait donc double la couverture d un module deja couvert et
+laisse l autre nu, en croyant corriger.
+
+La raison pour laquelle seule la premiere erreur se voit est qu elle
+seule laisse une trace : un module sans test se cherche et se trouve. Un
+module couvert sous un autre nom ne se cherche pas, puisque rien ne
+manque. C est la meme dissymetrie que le heartbeat, ou le battement
+present est un fait et le battement absent n est un evenement pour
+personne.
+
+En pratique, un releve de couverture se fait sur les imports et jamais
+sur les noms de fichiers, et il rend deux listes plutot qu une : les
+modules sans assertion, et les assertions dont le nom ne designe pas ce
+qu elles importent. La seconde liste est celle qui corrige la premiere.
+
 ## Conventions de commit
 
 Tag obligatoire en prefixe : feat / fix / refactor / docs / test /
