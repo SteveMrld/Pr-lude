@@ -85,17 +85,43 @@ export const MOTEURS_LLM = [
   'fragiliteStructurelle', 'finalRecommendation',
 ] as const;
 
-/** Moteurs rejouables, dans leur ordre de dependance. */
-export const MOTEURS_DETERMINISTES = [
-  'relevanceMatrix', 'operationValidity', 'benchmarks',
-  'mechanicalScore', 'valuation', 'indicators',
-] as const;
+/**
+ * Graphe de dependances des moteurs deterministes.
+ *
+ * C est une donnee de l architecture avant d etre un outil de rejeu :
+ * c est la seule representation explicite de ce que le pipeline fait,
+ * aujourd hui implicite dans les deux mille cinq cents lignes de la
+ * route. Un lecteur qui veut savoir ce que la valorisation consomme le
+ * lit ici et nulle part ailleurs.
+ *
+ * `lit` nomme les sections du result_json dont la sortie depend
+ * reellement. Un test de mutation le verrouille : modifier une section
+ * declaree doit changer la sortie, sinon la declaration est fausse.
+ * Sans cette garde, la liste serait une declaration sans appui, c est-a-
+ * dire exactement ce que la discipline des regles ecrites interdit.
+ */
+export const GRAPHE_DETERMINISTE: ReadonlyArray<{ moteur: string; lit: string[] }> = [
+  { moteur: 'relevanceMatrix', lit: ['extraction'] },
+  { moteur: 'operationValidity', lit: ['extraction', 'team', 'fragiliteStructurelle', 'financialData'] },
+  { moteur: 'benchmarks', lit: ['extraction', 'financialData'] },
+  { moteur: 'mechanicalScore', lit: ['team', 'market', 'macro', 'financialCoherence', 'contrarianAnalysis', 'blindspotAnalysis'] },
+  { moteur: 'valuation', lit: ['extraction', 'financialData', 'relevanceMatrix', 'operationValidity', 'mechanicalScore'] },
+  { moteur: 'indicators', lit: ['extraction', 'financialData', 'relevanceMatrix'] },
+];
+
+/** Moteurs rejouables, dans leur ordre de dependance. Derive du graphe
+ *  et non recopie : l ordre de la liste EST l ordre topologique. */
+export const MOTEURS_DETERMINISTES = GRAPHE_DETERMINISTE.map((g) => g.moteur) as readonly string[];
 
 export interface RejeuTrace {
   recalcules: string[];
   reprisTelQuel: string[];
   refuses: string[];
   rejoueLe: string;
+  /** Empreinte du code qui a reconstitue, entrees volontairement vides. */
+  stampRejeu?: any;
+  /** Empreinte du run d origine, conservee pour la comparaison. */
+  stampOrigine?: any;
 }
 
 /**
@@ -186,11 +212,30 @@ export async function reassembler(
     } as any);
   }
 
+  // Empreinte du code qui a reconstitue la note. Sans elle, le
+  // resultat porterait le version stamp du run d origine, c est-a-dire
+  // l empreinte d un code qui ne l a pas produit. Meme raisonnement que
+  // la trace elle-meme, applique a la provenance du code.
+  //
+  // Les entrees sont vides a dessein : le rejeu ne relit pas le deck,
+  // et pretendre le contraire serait plus faux que de le taire. Ce que
+  // ce stamp affirme est le code, pas les entrees.
+  let stampRejeu: any = null;
+  try {
+    const { buildVersionStamp } = await import('../lib/instrumentation/version-stamp');
+    stampRejeu = buildVersionStamp({
+      inputs: { deckBase64: null, deckBytes: 0, pitchText: null, bpText: null, additionalFiles: [] },
+      runMode: { frozen: true, asOf: r.meta?.asOf ?? null },
+    } as any);
+  } catch { stampRejeu = null; }
+
   const trace: RejeuTrace = {
     recalcules: aRejouer,
     reprisTelQuel: Object.keys(r).filter((k) => k !== 'meta' && !aRejouer.includes(k as any)),
     refuses: [],
-    rejoueLe: 'stamp-non-rejoue',
+    rejoueLe: stampRejeu?.capturedAt ?? 'inconnu',
+    stampRejeu,
+    stampOrigine: source?.meta?.versionStamp ?? null,
   };
   // La trace vit dans le resultat : une note reassemblee doit dire
   // qu elle l est, et laquelle de ses sections vient du run d origine.
