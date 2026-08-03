@@ -160,6 +160,25 @@ ce qui est la meme faute a un cran de subtilite : la valeur est bien
 la, mais on lui prete une finesse qu elle n a pas, et cette finesse
 seule suffit a faire basculer une conclusion.
 
+## Discipline de provenance
+
+Une mention de provenance ne doit jamais etre la seule chose qui
+distingue une decision d une panne. Si le lecteur en a besoin pour
+savoir si l outil a decide, la decision n a pas ete ecrite.
+
+La regle est nee le 3 aout 2026 sur la reserve de validite d operation,
+et elle porte sur la place autant que sur le contenu. La mention etait
+exacte, elle disait que la reserve reposait sur une lecture de prose et
+non sur une donnee structuree. Placee en troisieme phrase d un
+paragraphe qui refusait de discuter un prix, elle devenait un aveu de
+faiblesse au milieu meme de la justification, et un partner y lisait un
+echec la ou il fallait lire un arbitrage.
+
+Ce qui fonde une affirmation se lit apres elle, ce qui la limite se lit
+avec elle. La provenance fonde, elle ne limite pas, donc elle suit, en
+retrait typographique. Rien n est cache, l ordre seul change, et
+l ordre decide de ce que le lecteur comprend.
+
 ## Conventions de commit
 
 Tag obligatoire en prefixe : feat / fix / refactor / docs / test /
