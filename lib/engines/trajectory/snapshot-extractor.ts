@@ -131,11 +131,18 @@ export function extractSnapshot(analysis: AnalysisPayloadForSnapshot): Trajector
     ?? analysis.globalScore;
   if (typeof globalScore !== 'number') return null;
 
-  // Verdict : meme logique
-  const verdict = (analysis.mechanicalScore?.verdict
+  // Verdict : meme logique. La cascade des trois termes cherche la
+  // valeur la ou elle peut etre, ce qui est juste. Le quatrieme la
+  // fabriquait : une analyse sans verdict devenait une analyse qui
+  // recommande d approfondir, et la comparaison entre deux snapshots
+  // partait d un terme que personne n avait rendu. Sans verdict
+  // exploitable, il n y a pas de point de trajectoire du tout, pour
+  // la meme raison qu il n y en a pas sans score global.
+  const verdictBrut = analysis.mechanicalScore?.verdict
     ?? analysis.finalRecommendation?.verdict
-    ?? analysis.verdict
-    ?? 'approfondir') as Verdict;
+    ?? analysis.verdict;
+  if (typeof verdictBrut !== 'string' || verdictBrut.trim().length === 0) return null;
+  const verdict = verdictBrut as Verdict;
 
   // Dimensions : une dimension non evaluee n entre pas dans la
   // trajectoire. Le repli sur globalScore qui existait ici fabriquait
@@ -176,17 +183,27 @@ export function extractSnapshot(analysis: AnalysisPayloadForSnapshot): Trajector
   const narrativeDriftVerdict: PatternVerdict | null = nd?.verdict ?? null;
 
   // Patterns Phase 4 : on extrait pour chacun le score, le verdict
-  // et l applicabilite. Patterns absents du payload sont marques
-  // not-applicable avec score 0. Si le payload porte les trois
-  // axes (cas patterns Phase 4 modernes), on extrait aussi le
-  // triplet pour le drill-down ; sinon le champ `axes` est omis.
+  // et l applicabilite. Si le payload porte les trois axes (cas
+  // patterns Phase 4 modernes), on extrait aussi le triplet pour le
+  // drill-down ; sinon le champ `axes` est omis.
+  //
+  // Un pattern applicable dont le detecteur n a pas abouti porte
+  // score et verdict a null, jamais zero et 'sain'. C est la meme
+  // regle que celle appliquee aux dimensions quarante lignes plus
+  // haut, et pour le meme motif : le repli fabriquait un point
+  // qu aucun detecteur n avait produit, et le comparateur ne peut pas
+  // distinguer ce fantome d une mesure. La difference est le sens de
+  // l erreur. Sur une dimension le fantome valait 50 et se lisait
+  // comme une progression au run suivant ; ici il vaut zero avec un
+  // verdict sain, et il se lit comme une degradation brutale une fois
+  // le detecteur revenu, apres avoir declare le dossier indemne.
   const patterns: TrajectorySnapshot['patterns'] = {};
   for (const patternId of PATTERN_IDS) {
     const p = fs?.patterns?.[patternId];
     if (p && p.applicabilite && p.applicabilite !== 'not-applicable') {
       const entry: NonNullable<TrajectorySnapshot['patterns'][PatternId]> = {
-        score: p.globalScore ?? 0,
-        verdict: p.verdict ?? 'sain',
+        score: typeof p.globalScore === 'number' ? p.globalScore : null,
+        verdict: p.verdict ?? null,
         applicabilite: p.applicabilite,
       };
       const axes = extractAxes(p);

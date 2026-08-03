@@ -168,7 +168,7 @@ export function buildPatternDeltaAnnotation(
   const dateStr = formatPreviousDate(comparison.before.analyzedAt);
 
   // Transition newly-applicable
-  if (d.verdictTransition.type === 'newly-applicable') {
+  if (d.verdictTransition?.type === 'newly-applicable') {
     const to = d.verdictTransition.to;
     return {
       kind: 'newly-applicable',
@@ -177,7 +177,7 @@ export function buildPatternDeltaAnnotation(
   }
 
   // Transition newly-not-applicable
-  if (d.verdictTransition.type === 'newly-not-applicable') {
+  if (d.verdictTransition?.type === 'newly-not-applicable') {
     return {
       kind: 'newly-not-applicable',
       text: `Pattern désormais non applicable. Le pré-screen actuel le retire du périmètre alors qu il était actif lors de l analyse précédente.`,

@@ -91,10 +91,21 @@ export interface TrajectorySnapshot {
    *  et, optionnellement, le triplet axe par axe pour le
    *  drill-down. Le champ `axes` est optionnel pour preserver la
    *  compatibilite avec les snapshots historiques produits avant
-   *  l extension axe-par-axe. */
+   *  l extension axe-par-axe.
+   *
+   *  `score` et `verdict` sont nullables pour la meme raison que les
+   *  six dimensions ci-dessus, et il a fallu deux fois pour l ecrire
+   *  deux fois. Un pattern applicable dont le detecteur n a pas abouti
+   *  porte un globalScore null au contrat de Fragilite : c est un etat
+   *  prevu, pas une impossibilite defensive. Le convertir en zero avec
+   *  un verdict 'sain' faisait entrer dans la trajectoire un bulletin
+   *  de sante qu aucun detecteur n avait signe, et le retour en ligne
+   *  du detecteur au run suivant se lisait comme une degradation de
+   *  soixante-dix points. Dans le sens le plus couteux qui soit pour
+   *  un moteur dont l objet est de detecter ce qui casse. */
   patterns: Partial<Record<PatternId, {
-    score: number;
-    verdict: PatternVerdict;
+    score: number | null;
+    verdict: PatternVerdict | null;
     applicabilite: PatternApplicability;
     axes?: PatternAxesSnapshot;
   }>>;
@@ -201,7 +212,13 @@ export interface TrajectoryComparison {
    *  casser. */
   patternsDeltas: Partial<Record<PatternId, {
     scoreDelta: ScoreDelta | null;
-    verdictTransition: PatternVerdictTransition;
+    /** Null quand l un des deux snapshots porte un pattern instruit
+     *  sans verdict abouti. Une transition suppose deux etats connus ;
+     *  sans eux, ne rien dire est la seule lecture juste. Le contrat
+     *  est declare ici mais il n est pas verifie par le compilateur :
+     *  le depot tourne en `strict: false`, donc null passe partout.
+     *  Ce sont les trois consommateurs et les tests qui le portent. */
+    verdictTransition: PatternVerdictTransition | null;
     axesDeltas?: PatternAxesDelta;
   }>>;
   /** Combinaisons diagnostiques apparues entre before et after. */

@@ -180,16 +180,30 @@ function comparePatterns(
       continue;
     }
 
-    const fromVerdict: PatternVerdict = beforeP?.verdict ?? 'non-applicable';
-    const toVerdict: PatternVerdict = afterP?.verdict ?? 'non-applicable';
-    const verdictTransition = computePatternVerdictTransition(fromVerdict, toVerdict);
+    // Un pattern absent du snapshot n a pas ete instruit : sa
+    // transition part de 'non-applicable', ce qui est exact. Un
+    // pattern present mais dont le verdict est null a ete instruit
+    // sans aboutir, ce qui est different et ne doit pas se lire comme
+    // une non-applicabilite : on ne calcule alors aucune transition
+    // plutot que d en inventer une.
+    const fromVerdict: PatternVerdict | null = beforeP ? beforeP.verdict : 'non-applicable';
+    const toVerdict: PatternVerdict | null = afterP ? afterP.verdict : 'non-applicable';
+    const verdictTransition = fromVerdict !== null && toVerdict !== null
+      ? computePatternVerdictTransition(fromVerdict, toVerdict)
+      : null;
 
-    // Score delta uniquement si les deux snapshots ont un score (donc
-    // le pattern etait applicable des deux cotes)
+    // Score delta uniquement si les deux snapshots portent un score.
+    // Le test sur l applicabilite ne suffisait pas : un pattern
+    // applicable dont le detecteur n a pas abouti portait un zero
+    // fabrique, et le delta se calculait contre lui. On teste donc la
+    // presence de la valeur, pas la presence du pattern.
     let scoreDelta: ScoreDelta | null = null;
     let axesDeltas: PatternAxesDelta | undefined;
-    if (beforeP?.applicabilite !== 'not-applicable' && afterP?.applicabilite !== 'not-applicable'
-        && beforeP && afterP) {
+    if (beforeP && afterP
+        && beforeP.applicabilite !== 'not-applicable'
+        && afterP.applicabilite !== 'not-applicable'
+        && typeof beforeP.score === 'number'
+        && typeof afterP.score === 'number') {
       scoreDelta = computeScoreDelta(beforeP.score, afterP.score);
       axesDeltas = compareAxes(beforeP, afterP);
     }

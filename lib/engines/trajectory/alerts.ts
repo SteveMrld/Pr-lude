@@ -181,6 +181,11 @@ export function evaluateTrajectoryAlerts(
   for (const [patternId, delta] of Object.entries(comparison.patternsDeltas)) {
     if (!delta) continue;
     const t = delta.verdictTransition;
+    // Pas de transition : le pattern a ete instruit sans aboutir d un
+    // des deux cotes. Une alerte posee sur une transition inexistante
+    // serait exactement le fantome que la correction du snapshot
+    // supprime, reintroduit un etage plus haut.
+    if (!t) continue;
     if (t.type === 'newly-applicable' && (t.to === 'alerte' || t.to === 'drapeau-rouge')) {
       alerts.push({
         cran: 2,
@@ -203,6 +208,7 @@ export function evaluateTrajectoryAlerts(
   for (const [patternId, delta] of Object.entries(comparison.patternsDeltas)) {
     if (!delta) continue;
     const t = delta.verdictTransition;
+    if (!t) continue;
     if (t.from === 'sain' && (t.to === 'attention' || t.to === 'alerte')) {
       alerts.push({
         cran: 3,

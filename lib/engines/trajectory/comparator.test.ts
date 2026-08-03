@@ -542,5 +542,51 @@ console.log('\n=== Test 20 : axesDeltas omis pour pattern non applicable d un co
   check('scoreDelta null car non applicable a t-1', driftDelta?.scoreDelta, null);
 }
 
+// ============================================================
+// Verrou : aucun delta contre une absence
+// ------------------------------------------------------------
+// Pendant du verrou pose dans snapshot-extractor. Le comparateur
+// testait l applicabilite du pattern et non la presence de sa valeur,
+// ce qui suffisait tant que l extracteur fabriquait un zero. Il ne
+// suffit plus, et c est voulu : la garde doit porter sur ce qu on
+// compare, pas sur ce qui autorisait a comparer.
+// ============================================================
+
+console.log('\n=== Verrou : pattern applicable sans valeur ===');
+{
+  const before = mockSnapshot({
+    analyzedAt: '2026-02-01T00:00:00Z',
+    patterns: {
+      // Instruit sans aboutir au premier run.
+      'fixed-cost-trap': { score: null, verdict: null, applicabilite: 'full' },
+      'growth-subsidized-model': { score: 40, verdict: 'attention', applicabilite: 'full' },
+    },
+  });
+  const after = mockSnapshot({
+    analyzedAt: '2026-08-01T00:00:00Z',
+    patterns: {
+      // Detecteur revenu en ligne : sans la correction, ce couple
+      // produisait une aggravation de 70 points et une transition
+      // 'sain' -> 'alerte' que rien n avait mesuree.
+      'fixed-cost-trap': { score: 70, verdict: 'alerte', applicabilite: 'full' },
+      'growth-subsidized-model': { score: 55, verdict: 'alerte', applicabilite: 'full' },
+    },
+  });
+
+  const c = compareAnalyses(before, after);
+  const fct = c.patternsDeltas['fixed-cost-trap'];
+  const gsm = c.patternsDeltas['growth-subsidized-model'];
+
+  check('aucun delta de score contre une absence', fct?.scoreDelta, null);
+  check('aucune transition de verdict contre une absence', fct?.verdictTransition, null);
+  check('aucun delta d axes contre une absence', fct?.axesDeltas, undefined);
+
+  // Le pattern voisin, lui, est mesure des deux cotes : il doit
+  // continuer a produire son delta. Une garde qui eteint tout serait
+  // aussi fausse que le fantome qu elle remplace.
+  check('le pattern mesure des deux cotes garde son delta', gsm?.scoreDelta?.delta, 15);
+  check('et sa transition', gsm?.verdictTransition?.type, 'downgraded');
+}
+
 console.log(`\n${pass}/${pass + fail} tests passes`);
 process.exit(fail > 0 ? 1 : 0);

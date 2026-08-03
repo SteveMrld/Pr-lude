@@ -356,5 +356,81 @@ console.log('\n=== Test 14 : axes ignores pour pattern non applicable ===');
   check('axes pas portes pour pattern non applicable', p?.axes, undefined);
 })();
 
+// ============================================================
+// Un pattern applicable et non abouti n est pas un zero sain
+// ------------------------------------------------------------
+// Verrou de la correction du 3 aout 2026. Le repli `p.globalScore ?? 0`
+// et `p.verdict ?? 'sain'` faisait entrer dans la trajectoire un
+// bulletin de sante qu aucun detecteur n avait signe. Aucun test ne
+// l exercait, ce qui explique qu il ait survecu a la correction du
+// meme defaut sur les dimensions, ecrite quarante lignes plus haut
+// dans le module.
+//
+// C est le ?? 50 de TOLSON, deplace des dimensions vers les patterns
+// et retourne dans son sens le plus couteux : la, un moteur tombe
+// donnait un fantome a 50 que le run suivant lisait comme une
+// progression ; ici il donne un zero declare sain, et le detecteur
+// revenu en ligne se lit comme un effondrement.
+// ============================================================
+
+console.log('\n=== Verrou : pattern applicable sans score abouti ===');
+(() => {
+  const payload: any = {
+    analysisId: 'a-verrou',
+    analyzedAt: '2026-08-03T00:00:00Z',
+    mechanicalScore: { globalScore: 61, verdict: 'approfondir' },
+    fragiliteStructurelle: {
+      globalFragilityScore: 44,
+      verdict: 'attention',
+      patterns: {
+        // Applicable, instruit, et sans resultat : c est l etat que le
+        // contrat de Fragilite prevoit par `globalScore: number | null`.
+        'fixed-cost-trap': {
+          globalScore: null,
+          verdict: null,
+          applicabilite: 'full',
+        },
+        // Applicable et abouti, pour que le test distingue les deux.
+        'growth-subsidized-model': {
+          globalScore: 71,
+          verdict: 'alerte',
+          applicabilite: 'full',
+        },
+      },
+    },
+  };
+
+  const snap = extractSnapshot(payload);
+  const tombe = snap?.patterns['fixed-cost-trap'];
+  const abouti = snap?.patterns['growth-subsidized-model'];
+
+  check('pattern non abouti : score null et non zero', tombe?.score, null);
+  check('pattern non abouti : verdict null et non sain', tombe?.verdict, null);
+  check('pattern non abouti : applicabilite conservee', tombe?.applicabilite, 'full');
+  check('pattern abouti : score conserve', abouti?.score, 71);
+  check('pattern abouti : verdict conserve', abouti?.verdict, 'alerte');
+})();
+
+// ============================================================
+// Un run sans verdict global n est pas un run qui dit approfondir
+// ============================================================
+
+console.log('\n=== Verrou : verdict global absent ===');
+(() => {
+  const payload: any = {
+    analysisId: 'a-sans-verdict',
+    analyzedAt: '2026-08-03T00:00:00Z',
+    mechanicalScore: { globalScore: 58 },
+  };
+  check('sans verdict, pas de point de trajectoire', extractSnapshot(payload), null);
+
+  const avec: any = {
+    analysisId: 'a-avec-verdict',
+    analyzedAt: '2026-08-03T00:00:00Z',
+    mechanicalScore: { globalScore: 58, verdict: 'refuser' },
+  };
+  check('avec verdict, point produit', extractSnapshot(avec)?.verdict, 'refuser');
+})();
+
 console.log(`\n${pass}/${pass + fail} tests passes`);
 process.exit(fail > 0 ? 1 : 0);
