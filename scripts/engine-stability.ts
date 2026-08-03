@@ -48,12 +48,21 @@ function arg(nom: string, defaut = ''): string {
   return a ? a.slice(nom.length + 3) : defaut;
 }
 
-async function sql(q: string): Promise<any[]> {
-  const ref = (E.SUPABASE_URL || E.NEXT_PUBLIC_SUPABASE_URL).match(/^https:\/\/([a-z0-9]+)\./)![1];
-  const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${E.SUPABASE_PAT}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ query: q }),
+/**
+ * Lecture de la table des analyses.
+ *
+ * Elle passait par l API de gestion Supabase et son jeton personnel, qui
+ * repond 401 depuis le 3 aout 2026. Le telechargement du deck, lui,
+ * passait deja par la cle de service et fonctionnait : l outil dependait
+ * donc de deux identifiants pour un seul besoin, et tombait entierement
+ * quand le moins utilise des deux expirait. Les deux lectures passent
+ * maintenant par la meme porte que le Storage.
+ */
+async function lireAnalyses(params: string): Promise<any[]> {
+  const url = E.NEXT_PUBLIC_SUPABASE_URL || E.SUPABASE_URL;
+  const key = E.SUPABASE_SERVICE_ROLE_KEY;
+  const r = await fetch(`${url}/rest/v1/analyses?${params}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
   });
   const t = await r.text();
   if (!r.ok) throw new Error(`HTTP ${r.status} ${t.slice(0, 200)}`);
@@ -61,17 +70,17 @@ async function sql(q: string): Promise<any[]> {
 }
 
 async function chargerDeck(motif: string): Promise<{ nom: string; b64: string }> {
-  const [d] = await sql(`
-    select source_filename, (uploaded_files -> 0 ->> 'storagePath') as chemin
-    from public.analyses
-    where source_filename ilike '%${motif.replace(/'/g, "''")}%'
-      and jsonb_array_length(coalesce(uploaded_files, '[]'::jsonb)) > 0
-    order by created_at desc limit 1;
-  `);
+  const lignes = await lireAnalyses(
+    `select=source_filename,uploaded_files&source_filename=ilike.*${encodeURIComponent(motif)}*`
+    + '&order=created_at.desc&limit=40',
+  );
+  const d = lignes.find((l) => Array.isArray(l.uploaded_files) && l.uploaded_files.length > 0);
   if (!d) throw new Error(`aucun deck ne correspond a « ${motif} »`);
+  const chemin = d.uploaded_files[0]?.storagePath;
+  if (!chemin) throw new Error(`le dossier « ${d.source_filename} » ne porte pas de chemin de Storage`);
   const url = E.NEXT_PUBLIC_SUPABASE_URL || E.SUPABASE_URL;
   const key = E.SUPABASE_SERVICE_ROLE_KEY;
-  const r = await fetch(`${url}/storage/v1/object/dossier-uploads/${d.chemin}`, {
+  const r = await fetch(`${url}/storage/v1/object/dossier-uploads/${chemin}`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
   });
   if (!r.ok) throw new Error(`Storage HTTP ${r.status}`);
@@ -89,6 +98,15 @@ const CHAMPS: Record<string, string[]> = {
     'fundraise.operationType', 'fundraise.stage', 'fundraise.amount',
     'fundraise.seller', 'fundraise.stakeForSale',
     'traction.revenue',
+    // Les composantes sont depuis le 3 aout la source citee du type
+    // d operation, et leur stabilite n avait jamais ete mesuree. Elles
+    // sont suivies par trois lectures separees et non par la
+    // comparaison de leur JSON, parce que le JSON melange ce qui agit
+    // et ce qui se lit : un changement de mot dans une citation y
+    // compterait comme un changement de composante.
+    'composantes/natures',
+    'composantes/nombre',
+    'composantes/citations',
   ],
   market: [
     'marketSizing.tam.value', 'marketSizing.sam.value', 'marketSizing.som.value',
@@ -98,7 +116,41 @@ const CHAMPS: Record<string, string[]> = {
   macro: ['globalScore', 'timingVerdict', 'countercyclicalOpportunity'],
 };
 
+/**
+ * Lectures derivees, pour les champs dont la grandeur qui agit n est
+ * pas le champ lui-meme.
+ *
+ * Les composantes d operation en sont le cas type. Leur tableau porte
+ * deux choses de nature differente : les natures, qui derivent le type
+ * d operation et decident donc du domaine de la dilution, et les
+ * citations, qui ne commandent rien et se lisent dans la note. Comparer
+ * le JSON entier ferait compter un synonyme dans une citation comme une
+ * instabilite de la nature, c est-a-dire mesurer le canal visible en
+ * croyant mesurer le canal muet.
+ */
+const DERIVES: Record<string, (o: any) => any> = {
+  'composantes/natures': (o) => {
+    const c = o?.fundraise?.operationComponents;
+    if (!Array.isArray(c) || c.length === 0) return '(aucune)';
+    return c.map((x: any) => x?.kind).sort().join(' + ');
+  },
+  'composantes/nombre': (o) => {
+    const c = o?.fundraise?.operationComponents;
+    return Array.isArray(c) ? c.length : 0;
+  },
+  'composantes/citations': (o) => {
+    const c = o?.fundraise?.operationComponents;
+    if (!Array.isArray(c) || c.length === 0) return '(aucune)';
+    return c
+      .map((x: any) => `${x?.kind}: ${String(x?.evidence ?? '').replace(/\s+/g, ' ').trim()}`)
+      .sort()
+      .join(' | ');
+  },
+};
+
 function lire(o: any, chemin: string): any {
+  const derive = DERIVES[chemin];
+  if (derive) return derive(o);
   return chemin.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
 }
 
@@ -156,16 +208,14 @@ function resumer(v: any): string {
   // ferait echouer une fois sur trois pour rien.
   let extraction: any = null;
   if (moteur !== 'extraction') {
-    const [e] = await sql(`
-      select result_json -> 'extraction' as ext, id, (created_at at time zone 'Europe/Paris') as d
-      from public.analyses
-      where source_filename ilike '%${motif.replace(/'/g, "''")}%'
-        and result_json -> 'extraction' is not null
-      order by created_at desc limit 1;
-    `);
+    const lignes = await lireAnalyses(
+      `select=id,created_at,ext:result_json->extraction&source_filename=ilike.*${encodeURIComponent(motif)}*`
+      + '&order=created_at.desc&limit=40',
+    );
+    const e = lignes.find((l) => l.ext);
     if (!e) throw new Error('aucune extraction persistee pour ce deck : lancer d abord --engine=extraction');
     extraction = e.ext;
-    console.log(`Extraction lue dans le run ${String(e.id).slice(0, 8)} du ${String(e.d).slice(0, 19)}`);
+    console.log(`Extraction lue dans le run ${String(e.id).slice(0, 8)} du ${String(e.created_at).slice(0, 19)}`);
     console.log(`  secteur=${extraction.sector} | type=${extraction.fundraise?.operationType}\n`);
   }
 
