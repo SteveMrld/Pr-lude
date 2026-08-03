@@ -696,7 +696,10 @@ Le chemin a la demande est la route
 `analyses_versions`, en extrait un snapshot chacune, et compare. Le
 portefeuille n a rien a voir avec lui.
 
-### Ce qui bloque vraiment : la premiere analyse est detruite, pas versionnee
+### Defaut a part entiere : la premiere analyse est detruite, pas versionnee
+
+Consigne comme defaut et non comme constat de contexte, sur decision du
+3 aout 2026. Non corrige, volontairement : le chiffrage suit.
 
 `persist-analysis.ts:148` cree une version uniquement en cas de
 collision, c est-a-dire quand un dossier du meme nom d entreprise
@@ -764,6 +767,55 @@ snapshots. Elle merite d etre regardee avant tout run : s il existe
 deja des dossiers a plusieurs versions dans la base, la matiere de la
 premiere trajectoire est peut-etre deja la, et le run ne serait meme
 pas necessaire.
+
+### Ce que couterait la correction du versionnement
+
+Chiffrage demande avant decision, la correction n etant pas faite.
+
+Le geste minimal tient en peu de lignes. Dans `persist-analysis.ts`, sur
+collision, verser l etat sortant en version avant que
+`updateAnalysisLive` ne l ecrase, au lieu de verser l etat entrant. Le
+fichier a une suite deterministe, `persist-analysis.test.ts`, quarante-
+cinq assertions, ou la reformulation se verrouille sans base.
+
+Ce n est pas la partie couteuse. Trois consequences le sont davantage,
+et aucune ne se lit depuis ce fichier.
+
+La route de trajectoire change de forme. Elle construit aujourd hui la
+chaine sur les seules versions et ignore la ligne vivante des qu il en
+existe une. Si les versions deviennent le passe et `analyses` le
+present, la ligne vivante doit entrer dans la chaine comme dernier
+terme, faute de quoi la derniere analyse d un dossier cesse d etre
+comparee. C est une dizaine de lignes, mais c est un changement de
+contrat de lecture, et tout consommateur de `/trajectory` en depend.
+
+Le declencheur Postgres suit la meme bascule.
+`trajectory_snapshot_after_version_insert` est pose `AFTER INSERT ON
+analyses_versions` : il projette donc le passe, jamais le present. Le
+cron de re-analyse lit `getLatestSnapshot`, qui interroge
+`trajectory_snapshots`, et son eligibilite se calcule sur la date du
+dernier snapshot. Sous le nouveau contrat, ce dernier snapshot daterait
+toujours d un run de retard, et le seuil de cent quatre-vingts jours
+serait evalue sur une date systematiquement trop ancienne, donc le cron
+declencherait trop tot. Il faut soit projeter aussi la ligne vivante,
+soit deplacer le critere du cron sur `analyses.analyzed_at`. La seconde
+est plus simple et plus juste, mais elle touche le selecteur et son
+test.
+
+Enfin, et c est le seul point irreversible : rien ne recupere les
+premieres analyses deja detruites. La correction protege les dossiers a
+venir et les dossiers encore a un seul run. Pour les dossiers deja
+re-analyses, le premier etat est perdu, et aucune trajectoire ne pourra
+jamais partir de leur origine. Ce cout est deja paye, il augmente a
+chaque re-run, et c est le seul argument de calendrier du dossier.
+
+L ordre de grandeur, hors imprevu : la reformulation de
+`persist-analysis` et son verrou, la route et son contrat, le critere
+du cron et son selecteur, plus une relecture des consommateurs de
+`/trajectory`. Rien qui demande un run complet, tout se verrouille hors
+ligne. Ce qui coute n est pas l ecriture, c est que trois contrats
+bougent ensemble et qu ils ne se lisent pas depuis le fichier ou le
+defaut se voit.
 
 ### Un point secondaire, deja note
 
