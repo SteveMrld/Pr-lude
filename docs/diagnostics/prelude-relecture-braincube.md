@@ -143,3 +143,79 @@ anti-divination. Le second devient une grappe, ecrite dans
 Entre les deux, le module `operation-validity` rend un verdict a partir
 d une ancre reconstituee et d une detection provisoire sur prose,
 declaree comme dette jusque dans la note affichee au lecteur.
+
+## Mesure de stabilite : quels moteurs, et dans quel ordre
+
+La stabilite se mesure moteur par moteur avec `scripts/engine-stability.ts`.
+Deux moteurs sont mesures, l extraction et le marche. Les suivants
+sont priorises par ce que leur sortie commande, et non par leur poids
+dans la note.
+
+**Priorite un, la matrice de pertinence.** Elle est deterministe, donc
+sa stabilite ne fait aucun doute, mais son entree ne l est pas : elle
+recoit `sector` et `subSector` de l extraction, tous deux stables sur
+les deux passes mesurees, et le `productionChain` qu elle derive du
+texte complet. C est ce dernier qu il faut mesurer, parce qu il
+commande la classe d actif, donc les multiples, donc la fourchette. Un
+`hardware-physical` qui basculerait en `pure-software` d une passe a
+l autre changerait la valorisation d un facteur cinq. La mesure ne
+coute rien, elle ne demande aucun appel au modele : il suffit de
+rejouer la matrice sur les extractions persistees du corpus et de
+compter les classes obtenues.
+
+**Priorite deux, l extraction financiere.** Elle produit
+`lastActualYear`, qui est l ancre de toute la regle de millesime, et
+les projections qui servent de base aux multiples. Une instabilite d un
+an sur le millesime deplacerait la base de calcul et donc la fourchette
+entiere. C est le seul moteur dont une variance d une unite change un
+chiffre affiche.
+
+**Priorite trois, le pre-scan.** Deja mesure au brief 28, vingt-deux
+dossiers sur trois passes, mais avant les corrections du brief 30. La
+mesure est a refaire une fois que les comparaisons deterministes ont
+remplace les jugements, pour etablir ce qui reste de variance et
+decider du vote, qui attend toujours ce chiffre.
+
+**Priorite quatre, l equipe.** Sa prose alimente la detection
+provisoire d evenements. Tant que celle-ci existe, la stabilite de ce
+que le moteur Equipe mentionne conditionne la reserve de validite
+d operation. La priorite tombera avec la grappe des evenements
+structures.
+
+**Non prioritaires** : les sept patterns de fragilite, le contrarien,
+l aveuglement, le causal. Leur sortie est une prose qui ne commande
+aucun autre moteur, et leur variance se lit deja dans le score
+mecanique, qui est stable sur les mesures faites.
+
+## Dette : un run sur trois meurt a l extraction
+
+Sur ce document de plus de cent pages et douze megaoctets, l appel
+d extraction depasse la fenetre de soixante secondes du client
+Anthropic, deux fois de suite puisque `maxRetries` vaut un, et le run
+meurt a deux minutes avec « Request timed out ».
+
+Observe quatre fois le 3 aout 2026 : un run complet sur trois lances,
+et une passe sur trois du harnais de stabilite. Le taux est donc de
+l ordre du tiers, sur ce document. Il n a jamais ete observe sur les
+decks legers du corpus.
+
+Ce que l on en sait. La fenetre de soixante secondes a ete posee en
+juillet contre un incident inverse, des appels qui coincaient dix
+minutes. Le plafond convient a un deck de vingt pages et pas a un
+memorandum de cent. L echec est desormais compte dans le registre
+d appels, avec ses 120 409 millisecondes pour zero token, donc il est
+visible ; il n est pas rattrape.
+
+Deux consequences a ne pas confondre. Quand l echec survient dans le
+pipeline, la ligne reste en `running` indefiniment, parce que
+`markAnalysisFailed` est appelee sans `await` sur une fonction
+serverless qui se termine, et parce que le balayage des mort-nees exige
+un `stage` a `started` et un objet `engines` vide, ce qui ne couvre pas
+une analyse morte apres avoir demarre. Une ligne fantome du 3 aout est
+restee ainsi plus de six heures.
+
+Trois pistes, aucune retenue. Un plafond de timeout par moteur, indexe
+sur la taille du document. Une reprise dediee a l extraction, distincte
+du `maxRetries` global. Ou un decoupage du document avant appel, qui
+reglerait aussi la limite de cent pages du pre-scan, mais qui est un
+chantier a part entiere.
