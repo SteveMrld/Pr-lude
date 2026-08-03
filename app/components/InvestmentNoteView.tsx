@@ -17,6 +17,7 @@ import CalibrationSummary from './CalibrationSummary';
 import PortfolioPositionChart from './PortfolioPositionChart';
 import SectionFallbackLine from './SectionFallbackLine';
 import { renderFactors } from '@/lib/engines/relevance-matrix-factors';
+import type { TechClaimTest } from '@/lib/engines/types';
 import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralRadar } from './note/SectoralRadar';
 import {
@@ -248,6 +249,53 @@ function FoldableSection({
         }
       `}</style>
     </details>
+  );
+}
+
+/**
+ * Une ligne de test du moteur de coherence tech.
+ *
+ * Le test peut ne pas avoir ete produit, faute d'une entree ou par
+ * panne de l'etape qui le calcule. Ce cas se rend comme ce qu'il est,
+ * une absence de conclusion, et non comme un score neutre teinte en
+ * vert ou en rouge : une pastille coloree sur un test qui n'a pas eu
+ * lieu fait lire au partner un verdict que le moteur n'a pas rendu.
+ *
+ * Le motif de non-production suit l'observation en retrait, parce
+ * qu'il la fonde et ne la limite pas.
+ *
+ * `cause` absent vaut « produit » : c'est la lecture juste des
+ * analyses persistees sous le contrat anterieur, ou le champ n'existait
+ * pas et ou un score seul signifiait un test reel.
+ */
+function TechClaimTestRow({
+  name,
+  test,
+  invertPass,
+}: {
+  name: string;
+  test: TechClaimTest;
+  invertPass?: boolean;
+}) {
+  const nonProduit = !!test.cause || test.score === null || test.passed === null;
+  const classe = nonProduit
+    ? 'nonproduit'
+    : (invertPass ? !test.passed : test.passed)
+      ? 'pass'
+      : 'fail';
+  return (
+    <div className="tech-claim-row">
+      <div className="tech-claim-test-name">{name}</div>
+      <div className={`tech-claim-test-score ${classe}`}>
+        {nonProduit ? 'n. p.' : `${test.score}/100`}
+      </div>
+      <div className="tech-claim-test-obs">
+        {test.observation}
+        {nonProduit && test.causeMotif && (
+          <div className="tech-claim-test-cause">Non produit, {test.causeMotif}.</div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -3570,27 +3618,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <p key={i} className="note-paragraph">{enrichProse(p)}</p>
             ))}
             <div className="tech-claim-tests">
-              <div className="tech-claim-row">
-                <div className="tech-claim-test-name">Budget vs équipe</div>
-                <div className={`tech-claim-test-score ${tcc.tests.budgetVsTeam.passed ? 'pass' : 'fail'}`}>
-                  {tcc.tests.budgetVsTeam.score}/100
-                </div>
-                <div className="tech-claim-test-obs">{tcc.tests.budgetVsTeam.observation}</div>
-              </div>
-              <div className="tech-claim-row">
-                <div className="tech-claim-test-name">Traçabilité de l&apos;actif</div>
-                <div className={`tech-claim-test-score ${tcc.tests.assetTraceability.passed ? 'pass' : 'fail'}`}>
-                  {tcc.tests.assetTraceability.score}/100
-                </div>
-                <div className="tech-claim-test-obs">{tcc.tests.assetTraceability.observation}</div>
-              </div>
-              <div className="tech-claim-row">
-                <div className="tech-claim-test-name">Contre-factuel (pari sans la tech)</div>
-                <div className={`tech-claim-test-score ${tcc.tests.counterFactual.passed ? 'fail' : 'pass'}`}>
-                  {tcc.tests.counterFactual.score}/100
-                </div>
-                <div className="tech-claim-test-obs">{tcc.tests.counterFactual.observation}</div>
-              </div>
+              <TechClaimTestRow name="Budget vs équipe" test={tcc.tests.budgetVsTeam} />
+              <TechClaimTestRow name="Traçabilité de l’actif" test={tcc.tests.assetTraceability} />
+              <TechClaimTestRow name="Contre-factuel (pari sans la tech)" test={tcc.tests.counterFactual} invertPass />
             </div>
             <div className={`tech-claim-verdict tech-claim-verdict-${tcc.verdict}`}>
               <strong>Verdict :</strong>{' '}
@@ -5929,9 +5959,22 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           color: var(--warn, #b14842);
           background: rgba(177, 72, 66, 0.08);
         }
+        .tech-claim-test-score.nonproduit {
+          color: var(--ink-soft);
+          background: var(--hairline-soft, rgba(0, 0, 0, 0.05));
+          font-size: 12px;
+          letter-spacing: 0.06em;
+        }
         .tech-claim-test-obs {
           color: var(--ink-soft);
           font-style: italic;
+        }
+        .tech-claim-test-cause {
+          margin-top: 4px;
+          font-style: normal;
+          font-size: 11.5px;
+          letter-spacing: 0.02em;
+          color: var(--ink-faint, var(--ink-soft));
         }
         .tech-claim-verdict {
           padding: 14px 18px;

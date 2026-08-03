@@ -30,7 +30,7 @@
 // 0 sinon.
 // ============================================================
 
-import type { ExtractionOutput, FinancialDataExtraction, TechClaimCoherenceOutput } from './types';
+import type { ExtractionOutput, FinancialDataExtraction, TechClaimCoherenceOutput, TechClaimTest } from './types';
 import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
 import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { normalizeFrText } from '../data/text-normalize';
@@ -65,7 +65,7 @@ const TECH_MOAT_KEYWORDS = [
   'data proprietaire', 'donnees proprietaires', 'données propriétaires',
 ];
 
-interface BudgetSignal {
+export interface BudgetSignal {
   detected: boolean;
   percentage: number | null;
   amountEur: number | null;
@@ -192,7 +192,7 @@ function parseAmountEur(amountStr: string | null | undefined): number | null {
 // tech annoncee dans le pitch (CTO, lead, ingenieurs nommes ou cites).
 // ============================================================
 
-interface TeamTechSignals {
+export interface TeamTechSignals {
   hasCTO: boolean;
   hasTechLead: boolean;
   techProfilesCount: number;
@@ -238,7 +238,36 @@ function detectTeamTechSignals(extraction: ExtractionOutput): TeamTechSignals {
   };
 }
 
-function runBudgetVsTeamTest(
+/** Test non produit parce que le moteur ne s applique pas au dossier. */
+const TEST_NON_APPLICABLE: TechClaimTest = {
+  score: null,
+  passed: null,
+  cause: 'absence',
+  causeMotif: 'moteur non applicable : le dossier ne revendique pas de differenciateur technologique',
+  observation: 'Test non applicable.',
+  implication: '',
+};
+
+/**
+ * Le test budget contre equipe, declare non produit faute de montant.
+ * Le motif dit ce que le pipeline sait, l extraction n a pas rendu le
+ * montant, et non ce que le document contient, qu on ignore ici.
+ */
+function testBudgetNonProduit(
+  budgetSignal: BudgetSignal,
+): TechClaimCoherenceOutput['tests']['budgetVsTeam'] {
+  const part = budgetSignal.percentage !== null ? `${budgetSignal.percentage}% de l operation` : 'une part de l operation';
+  return {
+    score: null,
+    passed: null,
+    cause: 'absence',
+    causeMotif: 'montant de l operation non extrait du dossier',
+    observation: `Le pitch fleche ${part} sur la tech, mais le montant de l operation n a pas ete extrait : le budget tech ne peut pas etre chiffre, et sa confrontation au dimensionnement de l equipe n a pas ete produite.`,
+    implication: 'Test a rejouer une fois le montant de l operation renseigne. En l etat il ne conclut ni dans un sens ni dans l autre, et il ne compte pas dans le score du moteur.',
+  };
+}
+
+export function runBudgetVsTeamTest(
   budgetSignal: BudgetSignal,
   teamSignals: TeamTechSignals,
 ): TechClaimCoherenceOutput['tests']['budgetVsTeam'] {
@@ -247,7 +276,26 @@ function runBudgetVsTeamTest(
   const COST_PER_ENGINEER_PER_MONTH = 8000;
   const RUNWAY_MONTHS = 36;
 
-  if (!budgetSignal.detected || budgetSignal.amountEur === null) {
+  // Deux situations que la branche unique confondait, et elles n ont
+  // pas la meme nature.
+  //
+  // Le pitch qui ne fleche aucun budget tech est une observation sur le
+  // document : le moteur a ete declenche par la revendication de moat,
+  // il n y a pas de pourcentage a convertir, et evaluer sur l equipe
+  // seule est un jugement fonde. C est le cas traite plus bas.
+  //
+  // Le pitch qui fleche un pourcentage sans que le montant du tour soit
+  // extrait est une lacune du pipeline, pas une propriete du dossier.
+  // Le test ne peut pas etre produit, et rendre malgre tout un score
+  // faisait passer une donnee manquante pour un resultat : le meme test
+  // avec le montant peut rendre 25 ou 50 en echec, sans lui il rendait
+  // 60 en reussite. Une entree absente ne doit jamais deplacer un
+  // verdict du cote qui passe.
+  if (budgetSignal.detected && budgetSignal.amountEur === null) {
+    return testBudgetNonProduit(budgetSignal);
+  }
+
+  if (!budgetSignal.detected) {
     // Pas de budget detecte mais le moteur peut quand meme avoir ete declenche
     // par la revendication de moat (sans budget chiffre). On evalue alors sur
     // l equipe seule.
@@ -267,7 +315,16 @@ function runBudgetVsTeamTest(
     };
   }
 
-  const sustainableEngineers = budgetSignal.amountEur / (COST_PER_ENGINEER_PER_MONTH * RUNWAY_MONTHS);
+  // Les deux sorties precedentes ont couvert le montant absent et le
+  // budget non fleche : ce qui reste porte necessairement un montant.
+  // La garde le dit au compilateur sans cast de complaisance, et elle
+  // garde un sens au-dela du typage : si un remaniement rendait ce
+  // point atteignable sans montant, il rendrait un test non produit
+  // plutot que de calculer sur un zero invente.
+  const budgetEur = budgetSignal.amountEur;
+  if (budgetEur === null) return testBudgetNonProduit(budgetSignal);
+
+  const sustainableEngineers = budgetEur / (COST_PER_ENGINEER_PER_MONTH * RUNWAY_MONTHS);
   const declaredTech = teamSignals.techProfilesCount;
 
   // Cas 1 : budget paye plus d ingenieurs que l equipe ne l annonce
@@ -277,7 +334,7 @@ function runBudgetVsTeamTest(
     return {
       score: 25,
       passed: false,
-      observation: `Budget de ${Math.round(budgetSignal.amountEur / 1000)}k EUR theoriquement suffisant pour ${sustainableEngineers.toFixed(1)} ETP sur 36 mois, mais aucun profil tech identifie dans l equipe annoncee.`,
+      observation: `Budget de ${Math.round(budgetEur / 1000)}k EUR theoriquement suffisant pour ${sustainableEngineers.toFixed(1)} ETP sur 36 mois, mais aucun profil tech identifie dans l equipe annoncee.`,
       implication: 'L allocation tech finance des recrutements futurs non visibles dans le pitch. Demander le plan de recrutement detaille (roles, niveau, calendrier) avant de valider la coherence.',
     };
   }
@@ -286,7 +343,7 @@ function runBudgetVsTeamTest(
     return {
       score: 50,
       passed: false,
-      observation: `Budget de ${Math.round(budgetSignal.amountEur / 1000)}k EUR finance ${sustainableEngineers.toFixed(1)} ETP sur 36 mois. Equipe tech annoncee : ${declaredTech} profil(s). Decalage de ${Math.round(sustainableEngineers - declaredTech)} ETP a justifier.`,
+      observation: `Budget de ${Math.round(budgetEur / 1000)}k EUR finance ${sustainableEngineers.toFixed(1)} ETP sur 36 mois. Equipe tech annoncee : ${declaredTech} profil(s). Decalage de ${Math.round(sustainableEngineers - declaredTech)} ETP a justifier.`,
       implication: 'Soit l equipe va etre etoffee (montrer le plan), soit une partie du budget tech va a autre chose (outils, infra, prestations). Clarifier la decomposition.',
     };
   }
@@ -303,7 +360,7 @@ function runBudgetVsTeamTest(
   return {
     score: 75,
     passed: true,
-    observation: `Budget tech (${Math.round(budgetSignal.amountEur / 1000)}k EUR sur 36 mois) coherent avec l equipe tech annoncee (${declaredTech} profil(s), CTO ${teamSignals.hasCTO ? 'present' : 'absent'}).`,
+    observation: `Budget tech (${Math.round(budgetEur / 1000)}k EUR sur 36 mois) coherent avec l equipe tech annoncee (${declaredTech} profil(s), CTO ${teamSignals.hasCTO ? 'present' : 'absent'}).`,
     implication: 'Le budget tech soutient une equipe identifiable. La coherence numerique est OK, reste a valider la qualite des profils et de la stack.',
   };
 }
@@ -363,7 +420,7 @@ Secteur : ${extraction.sector || '?'} / ${extraction.subSector || '?'}
 Stade declare : ${extraction.fundraise?.stage || '?'} · Montant annonce : ${extraction.fundraise?.amount || '?'}
 
 # REVENDICATION TECH DÉTECTÉE
-Budget tech : ${budgetSignal.detected ? `${budgetSignal.percentage}% de la levée, soit ~${budgetSignal.amountEur ? Math.round(budgetSignal.amountEur / 1000) + 'k EUR' : 'montant non chiffré'}` : 'non chiffré dans le pitch'}
+Budget tech : ${budgetSignal.detected ? `${budgetSignal.percentage}% de la levée, soit ~${budgetSignal.amountEur !== null ? Math.round(budgetSignal.amountEur / 1000) + 'k EUR' : 'montant non chiffré'}` : 'non chiffré dans le pitch'}
 ${budgetSignal.evidence ? `Extrait pitch : "${budgetSignal.evidence}"` : ''}
 Mots-clés moat : ${moatSignal.detected ? moatSignal.keywords.join(', ') : 'aucun'}
 ${moatSignal.evidence ? `Extrait pitch : "${moatSignal.evidence}"` : ''}
@@ -390,18 +447,55 @@ Audite la traçabilité de l'actif tech revendiqué et le contre-factuel (le par
 // Verdict global
 // ============================================================
 
+/** Un test compte s il a ete produit. Un test non produit n a pas de valeur. */
+export function testProduit(t: TechClaimTest | null | undefined): boolean {
+  return !!t && typeof t.score === 'number' && !t.cause;
+}
+
+/**
+ * Moyenne ponderee sur les seuls tests produits, avec renormalisation
+ * des poids restants.
+ *
+ * Sortir un test de la ponderation et laisser les poids inchanges
+ * reviendrait a lui attribuer zero, ce qui est la faute meme qu on
+ * corrige, prise par l autre bout : un test absent tirerait le score
+ * vers le bas au lieu de le tirer vers le haut. Ni l un ni l autre. Le
+ * score doit valoir ce que valent les tests qui ont eu lieu.
+ *
+ * Rend null si aucun test n a ete produit, parce qu il n y a alors rien
+ * a moyenner et qu un chiffre serait invente.
+ */
+export function moyennePonderee(
+  parts: Array<{ valeur: number | null; poids: number }>,
+): number | null {
+  const retenus = parts.filter((p) => p.valeur !== null);
+  const total = retenus.reduce((s, p) => s + p.poids, 0);
+  if (retenus.length === 0 || total <= 0) return null;
+  return Math.round(retenus.reduce((s, p) => s + (p.valeur as number) * p.poids, 0) / total);
+}
+
 function computeVerdict(
   triggered: boolean,
-  budgetVsTeamScore: number,
-  assetTraceabilityScore: number,
-  counterFactualScore: number,
+  budgetVsTeamScore: number | null,
+  assetTraceabilityScore: number | null,
+  counterFactualScore: number | null,
 ): TechClaimCoherenceOutput['verdict'] {
   if (!triggered) return 'not_applicable';
 
   // Note : counterFactualScore eleve = pari tient SANS la tech = signal
   // negatif pour la revendication tech. On l inverse dans le calcul.
-  const techIsRealMoat = 100 - counterFactualScore;
-  const compositeScore = (budgetVsTeamScore + assetTraceabilityScore + techIsRealMoat) / 3;
+  const techIsRealMoat = counterFactualScore === null ? null : 100 - counterFactualScore;
+  const compositeScore = moyennePonderee([
+    { valeur: budgetVsTeamScore, poids: 1 },
+    { valeur: assetTraceabilityScore, poids: 1 },
+    { valeur: techIsRealMoat, poids: 1 },
+  ]);
+
+  // Aucun test produit : le moteur s est declenche mais n a rien pu
+  // instruire. Le dire par not_applicable est moins faux que de rendre
+  // un verdict de storytelling, qui accuserait le dossier d une lacune
+  // qui est celle du pipeline.
+  if (compositeScore === null) return 'not_applicable';
 
   if (compositeScore >= 65) return 'tech_credible';
   if (compositeScore >= 40) return 'tech_partially_substantiated';
@@ -440,10 +534,14 @@ export async function analyzeTechClaimCoherence(
         moatClaimDetected: moatSignal,
       },
       claimSummary: 'Le dossier ne revendique pas de moat technologique significatif et ne flèche pas de budget tech notable. Le moteur de coherence tech ne s applique pas.',
+      // Trois tests non produits, et non trois tests reussis a zero.
+      // `passed: true` sur un test qui n a pas eu lieu etait un
+      // acquiescement par defaut : la note affichait trois pastilles
+      // vertes pour un moteur qui n avait rien instruit.
       tests: {
-        budgetVsTeam: { score: 0, passed: true, observation: 'Test non applicable.', implication: '' },
-        assetTraceability: { score: 0, passed: true, observation: 'Test non applicable.', implication: '' },
-        counterFactual: { score: 0, passed: true, observation: 'Test non applicable.', implication: '' },
+        budgetVsTeam: TEST_NON_APPLICABLE,
+        assetTraceability: TEST_NON_APPLICABLE,
+        counterFactual: TEST_NON_APPLICABLE,
       },
       globalScore: 0,
       verdict: 'not_applicable',
@@ -471,20 +569,26 @@ export async function analyzeTechClaimCoherence(
         moatClaimDetected: moatSignal,
       },
       claimSummary: 'Revendication tech detectee dans le pitch (mots-cles ou budget) mais audit LLM en echec, jugement partiel.',
+      // Deux tests qui n ont pas tourne ne valent pas cinquante. Le
+      // demi-score etait un jugement mediant fabrique par la panne, et
+      // il entrait tel quel dans la note. Une panne se declare, elle ne
+      // se moyenne pas.
       tests: {
         budgetVsTeam,
         assetTraceability: {
-          score: 50, passed: false,
-          observation: 'Audit non disponible (LLM en echec).',
+          score: null, passed: null,
+          cause: 'panne', causeMotif: 'appel au modele en echec',
+          observation: 'Audit non disponible (appel au modele en echec).',
           implication: 'A reanalyser apres relance du moteur.',
         },
         counterFactual: {
-          score: 50, passed: false,
-          observation: 'Audit non disponible (LLM en echec).',
+          score: null, passed: null,
+          cause: 'panne', causeMotif: 'appel au modele en echec',
+          observation: 'Audit non disponible (appel au modele en echec).',
           implication: 'A reanalyser apres relance du moteur.',
         },
       },
-      globalScore: budgetVsTeam.score,
+      globalScore: budgetVsTeam.score ?? 0,
       verdict: 'tech_partially_substantiated',
       questionsToInstruct: [
         'Quels sont les actifs technologiques precis qui justifient la revendication de moat tech ?',
@@ -508,12 +612,16 @@ export async function analyzeTechClaimCoherence(
   // Score global = moyenne ponderee des trois tests, en inversant counterFactual
   // (un score eleve sur counterFactual = pari tient sans la tech = signal
   // negatif pour la revendication tech).
-  const techIsRealMoat = 100 - counterFactual.score;
-  const globalScore = Math.round(
-    (budgetVsTeam.score * 0.30) +
-    (assetTraceability.score * 0.40) +
-    (techIsRealMoat * 0.30),
-  );
+  const techIsRealMoat = counterFactual.score === null ? null : 100 - counterFactual.score;
+  const globalScore = moyennePonderee([
+    { valeur: budgetVsTeam.score, poids: 0.30 },
+    { valeur: assetTraceability.score, poids: 0.40 },
+    { valeur: techIsRealMoat, poids: 0.30 },
+    // Aucun test produit : le couple (0, not_applicable) est deja la
+    // convention du moteur pour « rien a dire », posee par la sortie
+    // non declenchee. Le zero n est donc pas un score invente, il est
+    // le marqueur que computeVerdict lit dans le meme sens.
+  ]) ?? 0;
 
   return {
     triggered: true,

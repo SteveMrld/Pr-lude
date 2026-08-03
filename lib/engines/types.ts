@@ -856,11 +856,37 @@ export interface FinancialCoherenceOutput {
 // la note d investissement ait teste cette revendication.
 // ============================================================
 
+/**
+ * Un test de coherence tech, produit ou non produit.
+ *
+ * Le troisieme etat existe parce qu un test prive de son entree rendait
+ * jusqu ici un score, et un score du cote qui passe. Quand le montant du
+ * tour manquait, budgetVsTeam rendait 60 avec passed vrai, la ou le meme
+ * test avec le montant pouvait rendre 25 ou 50 en echec : la donnee
+ * manquante ameliorait la note. Un test non produit doit se declarer tel
+ * et sortir de la ponderation, jamais prendre une valeur par defaut, qui
+ * est toujours une valeur inventee.
+ *
+ * `score` et `passed` valent null exactement quand `cause` est non null.
+ * Les analyses persistees avant cette brique portent un score et pas de
+ * cause : leur lecture vaut « produit », ce qui est la lecture juste de
+ * donnees ecrites sous le contrat anterieur.
+ */
 export interface TechClaimTest {
-  score: number; // 0-100
-  passed: boolean;
+  /** 0-100. Null quand le test n a pas ete produit. */
+  score: number | null;
+  /** Null quand le test n a pas ete produit. */
+  passed: boolean | null;
   observation: string;
   implication: string;
+  /**
+   * Motif de non-production. 'absence' quand une entree necessaire
+   * manque, 'panne' quand l etape qui produit le test a echoue. Absent
+   * ou null sur un test produit.
+   */
+  cause?: 'absence' | 'panne' | null;
+  /** Ce que le pipeline sait de la non-production, en clair. */
+  causeMotif?: string | null;
 }
 
 export interface TechClaimCoherenceOutput {
