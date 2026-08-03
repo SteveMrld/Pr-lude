@@ -3785,7 +3785,20 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             </tr>
             <tr>
               <td className="note-label">{libelleMontant(e.fundraise)}</td>
-              <td className="note-value">{e.fundraise?.amount || '—'}</td>
+              <td className="note-value">
+                {e.fundraise?.amount || '—'}
+                {/* La citation suit la valeur en retrait, sur le modele
+                    de la nature d operation : elle fonde le montant, elle
+                    ne le limite pas. Sans elle, la seule facon de savoir
+                    si un montant a ete lu ou suppose etait d ouvrir le
+                    JSON, ce qui revient a dire que la note ne portait pas
+                    ce qui fonde son propre chiffre. */}
+                {e.fundraise?.amountEvidence && (
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    « {e.fundraise.amountEvidence} »
+                  </span>
+                )}
+              </td>
             </tr>
             {estCession(e.fundraise) && (
               <>
@@ -3801,7 +3814,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             )}
             <tr>
               <td className="note-label">Valuation</td>
-              <td className="note-value">{e.fundraise?.valuation || 'non précisée'}</td>
+              <td className="note-value">
+                {e.fundraise?.valuation || 'non précisée'}
+                {e.fundraise?.valuationEvidence && (
+                  <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                    « {e.fundraise.valuationEvidence} »
+                  </span>
+                )}
+              </td>
             </tr>
             <tr>
               <td className="note-label">{libelleContrepartie(e.fundraise)}</td>
