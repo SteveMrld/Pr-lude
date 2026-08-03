@@ -550,6 +550,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   // des outputs Bloc 1 deja persistes en base. Resultat identique a un
   // recalcul serveur, instantane, et la section 1.7 apparait correctement
   // dans toutes les anciennes notes sans avoir a regenerer le pipeline.
+  // Le repli se declare. Il applique les regles d aujourd hui a des
+  // donnees d hier, ce que la discipline de non-retroactivite interdit,
+  // et il ne passe ni matrice de pertinence, ni composantes
+  // d operation, ni verdict de validite. Il produit donc une fourchette
+  // que le run d origine n aurait pas produite. On ne le corrige pas en
+  // lui passant les bonnes entrees : cela le rendrait plus credible
+  // sans le rendre plus vrai. On le nomme.
+  const valuationRejouee = !r.valuation && !!r.extraction;
   const valuation = React.useMemo(() => {
     if (r.valuation) return r.valuation;
     if (!r.extraction) return null;
@@ -596,6 +604,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
   // deploiement). Lit financialData, extraction, et saasMetrics pour
   // que NDR et Magic Number soient calcules quand les donnees
   // d extraction LLM dediee sont disponibles.
+  const indicatorsRejoues = !r.indicators && !!r.extraction;
   const indicators = React.useMemo(() => {
     if (r.indicators) return r.indicators;
     if (!r.extraction) return null;
@@ -2152,6 +2161,26 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 )}
               </div>
 
+              {/* Provenance du chiffre, en dernier et en retrait quand il
+                  s agit d une reconstitution. Voir la discipline de
+                  provenance : elle fonde, elle ne limite pas, donc elle
+                  suit. Mais elle ne doit jamais etre la seule chose qui
+                  distingue un chiffre d origine d un chiffre reconstitue,
+                  d ou la mention explicite plutot qu un simple asterisque. */}
+              {valuationRejouee && (
+                <div style={{
+                  fontSize: 11, lineHeight: 1.55, marginBottom: 12, padding: '8px 10px',
+                  background: 'rgba(138, 129, 117, 0.08)', borderLeft: '2px solid rgba(138, 129, 117, 0.5)',
+                  color: 'var(--muted)', fontStyle: 'italic',
+                }}>
+                  Fourchette reconstituee, non produite par le run d origine. Cette analyse est anterieure
+                  au moteur de valorisation : les chiffres ci-dessous sont recalcules a la lecture, avec les
+                  regles actuelles, sur des donnees qui ne les portaient pas. La classe d actif n a pas ete
+                  arbitree, la nature de l operation n a pas ete instruite, et aucune regle de domaine n a
+                  ete appliquee. A relancer avant toute discussion de prix.
+                </div>
+              )}
+
               {/* Synthese editoriale */}
               <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14, color: 'var(--ink-soft)' }}>
                 {valuation.synthesis}
@@ -2459,6 +2488,38 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   </span>
                 )}
               </div>
+
+              {indicatorsRejoues && (
+                <div style={{
+                  fontSize: 11, lineHeight: 1.55, marginBottom: 12, padding: '8px 10px',
+                  background: 'rgba(138, 129, 117, 0.08)', borderLeft: '2px solid rgba(138, 129, 117, 0.5)',
+                  color: 'var(--muted)', fontStyle: 'italic',
+                }}>
+                  Indicateurs reconstitues, non produits par le run d origine. Cette analyse est anterieure
+                  au moteur d indicateurs : ils sont recalcules a la lecture, avec les regles actuelles, sur
+                  des donnees qui ne les portaient pas.
+                </div>
+              )}
+
+              {/* Provenance du chiffre, en dernier et en retrait quand il
+                  s agit d une reconstitution. Voir la discipline de
+                  provenance : elle fonde, elle ne limite pas, donc elle
+                  suit. Mais elle ne doit jamais etre la seule chose qui
+                  distingue un chiffre d origine d un chiffre reconstitue,
+                  d ou la mention explicite plutot qu un simple asterisque. */}
+              {valuationRejouee && (
+                <div style={{
+                  fontSize: 11, lineHeight: 1.55, marginBottom: 12, padding: '8px 10px',
+                  background: 'rgba(138, 129, 117, 0.08)', borderLeft: '2px solid rgba(138, 129, 117, 0.5)',
+                  color: 'var(--muted)', fontStyle: 'italic',
+                }}>
+                  Fourchette reconstituee, non produite par le run d origine. Cette analyse est anterieure
+                  au moteur de valorisation : les chiffres ci-dessous sont recalcules a la lecture, avec les
+                  regles actuelles, sur des donnees qui ne les portaient pas. La classe d actif n a pas ete
+                  arbitree, la nature de l operation n a pas ete instruite, et aucune regle de domaine n a
+                  ete appliquee. A relancer avant toute discussion de prix.
+                </div>
+              )}
 
               {/* Synthese editoriale */}
               <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 14, color: 'var(--ink-soft)' }}>

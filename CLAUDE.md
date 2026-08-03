@@ -160,6 +160,38 @@ ce qui est la meme faute a un cran de subtilite : la valeur est bien
 la, mais on lui prete une finesse qu elle n a pas, et cette finesse
 seule suffit a faire basculer une conclusion.
 
+## Discipline des regles ecrites
+
+Quand une regle est ecrite dans un commentaire, elle doit etre portee
+par le code ou verrouillee par un test. Sinon elle ne vaut que pour la
+ligne qui la porte.
+
+La regle est nee le 3 aout 2026 d un constat repete. Le repli de
+recalcul de la valorisation porte, sur son champ `asOf`, un commentaire
+qui enonce la regle generale : « un rejeu ne doit pas produire une
+fourchette que le run d origine n aurait pas produite ». La regle est
+juste, elle est ecrite au bon endroit, et elle n a ete appliquee qu a
+cette ligne. Le meme repli neglige la matrice de pertinence, les
+composantes d operation et les regles de domaine, et produit donc
+exactement ce que son propre commentaire interdit.
+
+C est le troisieme cas de la semaine et les deux autres ont coute
+davantage. Le parametre optionnel `opts?.emit` des fetchers portait six
+evenements cables et aucun emetteur, depuis l origine. Le parametre
+`measure` des moteurs etait passe onze fois sur quarante-quatre sites.
+Dans les trois cas la conception etait juste et la discipline a cede,
+parce qu une regle qui depend de celui qui l applique ne tient pas.
+
+Trois formes de portage, par ordre de solidite. Le point de passage
+unique, qui rend l oubli impossible : le registre d appels au modele
+branche sur le client plutot que sur les sites d appel. La garde de
+contrat, qui refuse ce qui ne respecte pas la regle : la citation
+obligatoire, le perimetre obligatoire. Et a defaut le test qui compare
+le declare au reel, sur le modele du registre de prompts, qui echoue le
+jour ou les deux divergent.
+
+Un commentaire seul n est aucune des trois.
+
 ## Discipline de non-retroactivite des contrats
 
 Un contrat plus fin ne requalifie pas les donnees produites sous le
