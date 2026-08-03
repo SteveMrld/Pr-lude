@@ -12,6 +12,7 @@
  */
 
 import { normalizeFrText } from '../data/text-normalize';
+import { motifChampNonLu, causeChamp } from './motif-lecture';
 import type {
   ExtractionOutput,
   FinancialDataExtraction,
@@ -245,9 +246,22 @@ function generateValuationSummary(
   deviationPercent: number | null,
   verdict: BenchmarkPositioning['preMoney']['verdict'],
   benchmarkSegment: string,
+  motifValeur: string,
 ): string {
+  // Deux causes qui sortaient par une seule phrase, reliees par un
+  // « ou » qui laissait le lecteur choisir. Elles n appellent pas la
+  // meme suite : une valorisation non lue se redemande au dossier, un
+  // benchmark absent est une limite de la table de reference et rien
+  // ne se redemande. Et la premiere ne dit plus que le dossier est
+  // muet, ce que le moteur n a aucun moyen de savoir.
   if (verdict === 'no_data' || dossierValue === null || benchmarkMedian === null) {
-    return "Valorisation pre-money non extractible du dossier ou benchmark indisponible pour ce stade.";
+    if (dossierValue === null && benchmarkMedian === null) {
+      return `Positionnement non calcule : ${motifValeur}, et aucun benchmark de valorisation n est disponible pour ce stade.`;
+    }
+    if (dossierValue === null) {
+      return `Positionnement non calcule : ${motifValeur}. Le benchmark de stade, lui, est disponible.`;
+    }
+    return 'Positionnement non calcule : aucun benchmark de valorisation n est disponible pour ce stade.';
   }
   const sign = (deviationPercent ?? 0) >= 0 ? '+' : '';
   switch (verdict) {
@@ -275,9 +289,16 @@ function generateDealSizeSummary(
   benchmarkMedian: number | null,
   deviationPercent: number | null,
   verdict: BenchmarkPositioning['dealSize']['verdict'],
+  motifValeur: string,
 ): string {
   if (verdict === 'no_data' || dossierValue === null || benchmarkMedian === null) {
-    return "Montant du tour non extractible du dossier ou benchmark indisponible.";
+    if (dossierValue === null && benchmarkMedian === null) {
+      return `Positionnement non calcule : ${motifValeur}, et aucun benchmark de taille de tour n est disponible pour ce stade.`;
+    }
+    if (dossierValue === null) {
+      return `Positionnement non calcule : ${motifValeur}. Le benchmark de stade, lui, est disponible.`;
+    }
+    return 'Positionnement non calcule : aucun benchmark de taille de tour n est disponible pour ce stade.';
   }
   const sign = (deviationPercent ?? 0) >= 0 ? '+' : '';
   const absDev = Math.abs(deviationPercent ?? 0).toFixed(0);
@@ -349,11 +370,19 @@ export async function analyzeBenchmarks(
     financialData?.currentRound?.amount || extraction.fundraise?.amount,
   );
 
+  // Les deux motifs disent ce que la lecture a fait, par le point de
+  // passage partage avec le moteur de valorisation. « Non extractible
+  // du dossier » affirmait sur le dossier une impossibilite dont le
+  // moteur ne sait rien : le document peut porter le chiffre que la
+  // lecture a manque, et c est le cas qu il faut pouvoir redemander.
+  const motifPreMoney = motifChampNonLu('valorisation', causeChamp(extraction, 'valorisation'));
+  const motifDealSize = motifChampNonLu('montant', causeChamp(extraction, 'montant'));
+
   if (dossierPreMoney === null) {
-    warnings.push('Pre-money non extractible du dossier.');
+    warnings.push(`Pre-money : ${motifPreMoney}.`);
   }
   if (dossierDealSize === null) {
-    warnings.push('Montant du tour non extractible du dossier.');
+    warnings.push(`Montant du tour : ${motifDealSize}.`);
   }
 
   // 2. Selection du benchmark approprie
@@ -464,6 +493,7 @@ export async function analyzeBenchmarks(
         preMoneyDeviation,
         preMoneyVerdict,
         benchmarkSegment,
+        motifPreMoney,
       ),
     },
     dealSize: {
@@ -476,6 +506,7 @@ export async function analyzeBenchmarks(
         dealSizeBenchmark,
         dealSizeDeviation,
         dealSizeVerdict,
+        motifDealSize,
       ),
     },
     marketContext: {

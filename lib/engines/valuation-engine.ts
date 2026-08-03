@@ -46,6 +46,7 @@ import {
   normalizeYear,
 } from '@/lib/analysis/reference-year';
 import type { NonProductionCause, NonProductionCauseOrNull } from '@/lib/engines/non-production';
+import { motifChampNonLu, causeChamp } from '@/lib/engines/motif-lecture';
 
 // ============================================================
 // MILLESIME DE REFERENCE DES MULTIPLES
@@ -599,6 +600,15 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
       : `Dilution sans support : aucune fourchette en valeur des capitaux propres avant tour n a pu etre produite pour ce dossier, faute d inputs pour les methodes qui en rendent une. La dilution ne se calcule pas sur la fourchette en valeur d entreprise disponible.`)
     : (preMoneyRange && ticket.total && !ticket.equity)
     ? `Dilution non calculable : le tour annonce ${formatEur(ticket.total)} sous la forme "${ticket.raw}", qui melange capital et un autre instrument sans donner la repartition. Une dilution calculee sur le montant total sur-estimerait la part obtenue par le fonds. A chiffrer avec la societe avant toute discussion de prix.`
+    // Une fourchette pre-money existe et aucun ticket n a ete lu. Le
+    // cas sortait par le silence, qui est le patron ferme a la grappe
+    // 3 et que le lecteur confond avec une dilution sans probleme. Le
+    // motif de lecture etait deja calcule dans parseTicket depuis
+    // l origine et personne ne le lisait : une garde inerte, de la
+    // meme famille que celles du quatrieme bloc, sauf qu ici c est le
+    // resultat et non la garde qui restait sans consommateur.
+    : (preMoneyRange && ticket.total === null)
+    ? `Dilution non calculable : ${ticket.causeMotif}. La fourchette de valorisation, elle, est etablie ; c est le ticket qui manque pour en tirer un pourcentage. A redemander au dossier avant toute discussion de prix.`
     : null;
   // Trois causes distinctes, et non deux. Hors domaine sur une cession
   // totale, c est une decision. Sans support parce que les methodes
@@ -1073,7 +1083,14 @@ interface MontantLu {
   motif: string | null;
 }
 
-const MONTANT_AUCUN: MontantLu = { value: null, cause: 'absence', motif: 'aucun montant annonce' };
+/**
+ * Aucun libelle a lire. Le motif dit ce que le pipeline sait, aucun
+ * montant n a ete extrait, et non ce que le document contient, qu il
+ * n a aucun moyen de savoir : « aucun montant annonce » est faux du
+ * dossier qui en porte un que la lecture a manque, et c est cette
+ * phrase que le partner lisait dans la note.
+ */
+const MONTANT_AUCUN: MontantLu = { value: null, cause: 'absence', motif: 'aucun montant extrait du dossier' };
 
 function lireMontant(raw: any): MontantLu {
   if (raw == null || raw === '') return MONTANT_AUCUN;
@@ -1831,9 +1848,13 @@ export interface TicketBreakdown {
  * part en capital. Ne repartit jamais un montant mixte.
  */
 function parseTicket(extraction: ExtractionOutput | null | undefined): TicketBreakdown {
+  // Le motif dit ce que la lecture a fait, pas ce que le dossier
+  // contient, et il le dit par le point de passage partage avec le
+  // moteur de benchmarks pour que les deux phrases ne divergent pas.
   const empty: TicketBreakdown = {
     total: null, equity: null, mixed: false, raw: null,
-    cause: 'absence', causeMotif: 'aucun montant annonce',
+    cause: 'absence',
+    causeMotif: motifChampNonLu('montant', causeChamp(extraction, 'montant')),
   };
   if (!extraction) return empty;
   const ext: any = extraction;
