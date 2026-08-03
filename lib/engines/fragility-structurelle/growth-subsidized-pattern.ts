@@ -46,6 +46,7 @@ import {
   PATTERN_LLM_OPTIONS,
 } from './pattern-interface';
 import { registerPattern } from './orchestrator';
+import { buildFinancialReadout, renderFinancialReadout } from './financial-readout';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
 import {
@@ -266,46 +267,23 @@ globalScore Growth Subsidized.`;
 // CONSTRUCTION DU PROMPT UTILISATEUR
 // ============================================================
 
-interface FinancialSnapshot {
-  revenue?: number;
-  grossMargin?: number;
-  contributionMargin?: number;
-  burnMonthly?: number;
-  runwayMonths?: number;
-  capitalRaised?: number;
-  cacPayback?: number;
-  ltvCacRatio?: number;
-  growthRateQoq?: number;
-}
-
-function extractFinancialSnapshot(financialData: FinancialDataExtraction | null | undefined): FinancialSnapshot {
-  if (!financialData) return {};
-  // FinancialDataExtraction est un type avec des champs heterogenes selon
-  // l implementation actuelle. On extrait par best-effort, sans planter en
-  // cas d absence de champ. Le LLM aura le rationale de la donnee disponible
-  // ou non.
-  const f: any = financialData;
-  return {
-    revenue: f?.revenue ?? f?.arr ?? f?.annualRevenue,
-    grossMargin: f?.grossMargin ?? f?.grossMarginPercent,
-    contributionMargin: f?.contributionMargin ?? f?.unitMargin,
-    burnMonthly: f?.monthlyBurn ?? f?.burnRate,
-    runwayMonths: f?.runwayMonths ?? f?.runway,
-    capitalRaised: f?.totalCapitalRaised ?? f?.cumulativeFunding,
-    cacPayback: f?.cacPayback ?? f?.cacPaybackMonths,
-    ltvCacRatio: f?.ltvCacRatio,
-    growthRateQoq: f?.qoqGrowthRate ?? f?.growthRate,
-  };
-}
+// Le snapshot local a disparu, pour la meme raison que celui de Fixed
+// Cost Trap. Il declarait neuf champs et les alimentait par dix-huit
+// lectures a travers un `const f: any` : `revenue`, `arr`,
+// `annualRevenue`, `grossMargin`, `contributionMargin`, `monthlyBurn`,
+// `burnRate`, `runway`, `totalCapitalRaised`, `cacPayback`,
+// `ltvCacRatio`, `qoqGrowthRate` et leurs jumelles. Aucune n existe au
+// contrat. Le pattern qui juge l unit economics n a donc jamais recu
+// de chiffre d unit economics, alors que le contrat en porte cinq dans
+// `unitEconomics`.
+//
+// Son commentaire disait « on extrait par best-effort, sans planter en
+// cas d absence de champ ». Le best-effort tenait : il n a jamais
+// plante, et il n a jamais rien lu.
 
 function buildUserPrompt(input: PatternInput): string {
   const e = input.extraction;
-  const fs = extractFinancialSnapshot(input.financialData);
-
-  const lignesFinanciales = Object.entries(fs)
-    .filter(([_, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `- ${k} : ${v}`)
-    .join('\n');
+  const lignesFinanciales = renderFinancialReadout(buildFinancialReadout(input.financialData));
 
   const stage = e.fundraise?.stage ?? 'inconnu';
   const sector = e.sector ?? 'inconnu';
@@ -333,7 +311,7 @@ ${e.businessModel ?? '(non fourni)'}
 
 # DONNÉES FINANCIÈRES DISPONIBLES
 
-${lignesFinanciales || '(aucune donnée financière structurée disponible, analyse sur la base des éléments qualitatifs)'}
+${lignesFinanciales}
 
 # RÉSUMÉ GÉNÉRAL
 
@@ -342,8 +320,14 @@ ${(e as any).rawSummary ?? '(non fourni)'}
 # TA TÂCHE
 
 Analyse ce dossier sur le pattern Growth Subsidized Model selon les trois axes
-détaillés dans tes instructions. Retourne uniquement le JSON conforme au
-format obligatoire, sans préambule.`;
+détaillés dans tes instructions.
+
+Si le bloc financier ci-dessus déclare n avoir aucune valeur, tu n as pas de
+matière pour juger une unit economics : retourne applicabilite='not-applicable'
+plutôt qu un score posé sur le pitch. Un pattern sans donnée le déclare, il ne
+rend pas un verdict.
+
+Retourne uniquement le JSON conforme au format obligatoire, sans préambule.`;
 }
 
 // ============================================================

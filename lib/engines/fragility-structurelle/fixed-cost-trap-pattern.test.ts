@@ -9,10 +9,15 @@ import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
 import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
 import type { PatternAnalysisOutput, PatternInput } from './types';
+import {
+  FIXTURE_FINANCIERE_MINIMALE,
+  FIXTURE_FINANCIERE_COMPLETE,
+  FIXTURE_FINANCIERE_VIDE,
+} from './financial-fixture';
 
 // Donnees financieres minimales pour passer le pre-check universel
 // (revenue ou burn requis depuis la doctrine de gating axe central).
-const MINIMAL_FIN = { revenue: 5000000, monthlyBurn: 200000 } as any;
+const MINIMAL_FIN = FIXTURE_FINANCIERE_MINIMALE;
 
 let pass = 0, fail = 0;
 
@@ -117,18 +122,40 @@ console.log('\n=== Test 6b : pre-check sans financialData -> not-applicable ==='
   check('shouldRun false', result.shouldRun, false);
 }
 
-console.log('\n=== Test 7 : extractBurnSnapshot ===');
+console.log('\n=== Test 7 : lecture financiere, trois etats distincts ===');
 {
-  const snap = _internal.extractBurnSnapshot({
-    monthlyBurn: 1000000,
-    runwayMonths: 12,
-    totalCommitments: 50000000,
-    capex: 20000000,
-  } as any);
-  check('monthlyBurn extrait', snap.monthlyBurn, 1000000);
-  check('runway extrait', snap.runwayMonths, 12);
-  check('totalCommitments extrait', snap.totalCommitments, 50000000);
-  check('capex extrait', snap.capexCumulated, 20000000);
+  // Ce test remplace l ancien Test 7, qui exercait extractBurnSnapshot
+  // sur une fixture `as any` portant monthlyBurn, totalCommitments et
+  // capex a la racine. Aucune de ces clefs n existe au contrat : le
+  // test passait au vert pendant que la production rendait {}. La
+  // fixture porte desormais le type, et le compilateur refuse toute
+  // clef inventee avant meme que le test ne tourne.
+  //
+  // Les valeurs attendues sont discriminantes : 218K€/mois et 23 mois
+  // n existent qu ici, donc une sortie qui les porte ne peut les tenir
+  // que de cette entree, jamais d un repli.
+  const complet = _internal.buildFinancialReadout(FIXTURE_FINANCIERE_COMPLETE);
+  check('burn mensuel lu tel que le document le porte', complet.tour.burnMensuel, '218K€/mois');
+  check('runway lu', complet.tour.runwayMois, '23');
+  check('montant du tour lu', complet.tour.montant, '12,9M€');
+  check('CAC lu depuis unitEconomics', complet.unitEconomics.cac, '12,7K€');
+  check('serie de charges operationnelles lue', complet.series.opex?.points[0]?.valeur, 7.41);
+  check('serie d effectifs lue', complet.series.effectifs?.points[0]?.valeur, 43);
+  check('lecture non vide', _internal.readoutEstVide(complet), false);
+
+  // Aucune unite n est inventee : le burn reste une chaine, il n est
+  // pas converti en nombre. La discipline de precision interdit de
+  // preter a une donnee une finesse qu elle ne porte pas.
+  checkTrue('le burn n est pas converti en nombre', typeof complet.tour.burnMensuel === 'string');
+
+  const vide = _internal.buildFinancialReadout(FIXTURE_FINANCIERE_VIDE);
+  check('bloc present mais sans valeur', vide.present, true);
+  check('bloc present et vide detecte', _internal.readoutEstVide(vide), true);
+  check('marqueur d absence du producteur lu comme absence', vide.tour.burnMensuel, null);
+
+  const absent = _internal.buildFinancialReadout(null);
+  check('bloc absent', absent.present, false);
+  check('bloc absent vaut vide', _internal.readoutEstVide(absent), true);
 }
 
 console.log('\n=== Test 8 : buildUserPrompt structure ===');
@@ -138,14 +165,50 @@ console.log('\n=== Test 8 : buildUserPrompt structure ===');
       sector: 'Real estate',
       marketPitch: 'Coworking avec bureaux operationnels.',
     }),
-    financialData: { monthlyBurn: 500000, runwayMonths: 18 } as any,
+    financialData: FIXTURE_FINANCIERE_COMPLETE,
   };
   const prompt = _internal.buildUserPrompt(input);
   checkTrue('mentionne entreprise', prompt.includes('TestCo'));
   checkTrue('mentionne stade Series B', prompt.includes('Series B'));
-  checkTrue('mentionne monthly burn', prompt.includes('500000'));
-  checkTrue('mentionne runway', prompt.includes('18'));
-  checkTrue('contient DONNÉES BURN ET ENGAGEMENTS', prompt.includes('DONNÉES BURN ET ENGAGEMENTS'));
+  // Valeurs discriminantes : elles n existent qu a l entree, donc leur
+  // presence dans le prompt prouve le branchement et pas une identite
+  // entre une source et son repli.
+  checkTrue('le prompt porte le burn du dossier', prompt.includes('218K€/mois'));
+  checkTrue('le prompt porte le runway du dossier', prompt.includes('23 mois'));
+  checkTrue('le prompt porte les charges operationnelles', prompt.includes('7.41'));
+  checkTrue('le prompt porte le ratio LTV/CAC', prompt.includes('3,8:1'));
+  checkTrue('contient le bloc financier', prompt.includes('DONNÉES FINANCIÈRES DU DOSSIER'));
+  // L axe identitaire du pattern n est porte par aucun champ du
+  // contrat. Le prompt doit le dire au modele plutot que de le laisser
+  // conclure de l absence que les engagements n existent pas.
+  checkTrue('avertit que les engagements ne sont pas extraits', prompt.includes('ne les cherche pas encore'));
+}
+
+console.log('\n=== Test 8b : un dossier sans valeur ne se lit pas comme un dossier pauvre ===');
+{
+  const vide: PatternInput = {
+    extraction: mockExtraction({ sector: 'Real estate' }),
+    financialData: FIXTURE_FINANCIERE_VIDE,
+  };
+  const promptVide = _internal.buildUserPrompt(vide);
+  checkTrue(
+    'bloc present et vide nomme comme tel',
+    promptVide.includes('existe mais ne porte aucune valeur'),
+  );
+
+  const sansBloc: PatternInput = {
+    extraction: mockExtraction({ sector: 'Real estate' }),
+    financialData: null,
+  };
+  const promptSansBloc = _internal.buildUserPrompt(sansBloc);
+  checkTrue(
+    'absence totale de bloc nommee distinctement',
+    promptSansBloc.includes("aucun bloc de donnees financieres n a ete extrait"),
+  );
+  checkTrue(
+    'les deux absences ne rendent pas la meme phrase',
+    promptVide !== promptSansBloc,
+  );
 }
 
 console.log('\n=== Test 9 : llmOutputToPatternOutput ===');

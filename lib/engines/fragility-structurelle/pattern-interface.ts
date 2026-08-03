@@ -26,6 +26,7 @@ import type {
   NonApplicabilityCause,
 } from './types';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
+import { buildFinancialReadout, readoutEstVide } from './financial-readout';
 
 // ============================================================
 // OPTIONS D APPEL LLM PARTAGEES PAR LES SEPT PATTERNS
@@ -187,48 +188,23 @@ export function buildNotApplicableOutput(
  * Sert de garde universelle avant appel LLM ; si false, le pattern
  * doit retourner not-applicable avec rationale explicite.
  *
- * La verification cible la structure canonique reellement produite
- * par financial-extraction-engine (revenueProjection, currentRound,
- * unitEconomics, rawNotes). Un fallback sur des champs flat
- * (revenue, monthlyBurn) est conserve pour rester compatible avec
- * les mocks heritage utilises dans les tests unitaires de chaque
- * pattern.
+ * La garde delegue a `buildFinancialReadout`, seul lecteur du contrat
+ * financier pour les patterns. Elle portait auparavant sa propre
+ * lecture, par `const f: any`, doublee d un repli sur des champs plats
+ * (`revenue`, `monthlyBurn`, `arr`) dont son commentaire disait qu ils
+ * ne correspondaient « a aucune production reelle » et servaient les
+ * mocks des tests. Ce repli est ce qui faisait passer la garde aux
+ * huit tests de patterns tout en la faisant echouer autrement en
+ * production, et il rendait la divergence invisible : la suite verte
+ * mesurait la compatibilite des mocks avec eux-memes.
+ *
+ * Une garde et le lecteur qu elle protege doivent lire la meme chose,
+ * sans quoi elle autorise ce que l autre ne sait pas lire.
  */
 export function hasMinimalFinancialSignal(
   financialData?: FinancialDataExtraction | null,
 ): boolean {
-  if (!financialData) return false;
-  const f: any = financialData;
-
-  // Structure canonique : presence de projections de revenu chiffrees
-  if (Array.isArray(f.revenueProjection) && f.revenueProjection.length > 0) {
-    return true;
-  }
-
-  // Structure canonique : tour en cours avec montant ou burn renseigne
-  const cr = f.currentRound;
-  if (cr && typeof cr === 'object') {
-    if (typeof cr.amount === 'string' && cr.amount.trim().length > 0) return true;
-    if (typeof cr.monthlyBurn === 'string' && cr.monthlyBurn.trim().length > 0) return true;
-  }
-
-  // Structure canonique : unit economics avec CAC ou LTV declares
-  const ue = f.unitEconomics;
-  if (ue && typeof ue === 'object') {
-    if (typeof ue.estimatedCAC === 'string' && ue.estimatedCAC.trim().length > 0) return true;
-    if (typeof ue.estimatedLTV === 'string' && ue.estimatedLTV.trim().length > 0) return true;
-  }
-
-  // Structure canonique : notes brutes suffisantes pour un raisonnement
-  if (typeof f.rawNotes === 'string' && f.rawNotes.length > 100) return true;
-
-  // Fallback legacy : champs flat utilises par les mocks de test
-  // (revenue, monthlyBurn, etc.). Ne correspond a aucune production
-  // reelle mais conservation indispensable pour la suite deterministe.
-  const revenue = f.revenue ?? f.arr ?? f.annualRevenue;
-  const burn = f.monthlyBurn ?? f.burnRate ?? f.monthly_burn ?? f.burn;
-  return (revenue !== null && revenue !== undefined)
-    || (burn !== null && burn !== undefined);
+  return !readoutEstVide(buildFinancialReadout(financialData));
 }
 
 // ============================================================

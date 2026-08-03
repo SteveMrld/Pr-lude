@@ -51,6 +51,12 @@ import { registerPattern } from './orchestrator';
 import type { ExtractionOutput, FinancialDataExtraction } from '../types';
 import { buildSectoralPromptBlock } from '../sectoral-injection';
 import {
+  buildFinancialReadout,
+  renderFinancialReadout,
+  readoutEstVide,
+  AVERTISSEMENT_ENGAGEMENTS_NON_EXTRAITS,
+} from './financial-readout';
+import {
   buildArchetypePromptBlock,
   decorateCounterArchetype,
   stageToStade,
@@ -305,41 +311,21 @@ vendor bail rigide contre revenu variable).`;
 // CONSTRUCTION DU PROMPT UTILISATEUR
 // ============================================================
 
-interface FinancialBurnSnapshot {
-  monthlyBurn?: number;
-  fixedBurnEstimated?: number;
-  runwayMonths?: number;
-  totalCommitments?: number;
-  offBalanceRatio?: number;
-  capexCumulated?: number;
-  payroll?: number;
-  rentAnnual?: number;
-  contractualMinimums?: number;
-}
-
-function extractBurnSnapshot(financialData: FinancialDataExtraction | null | undefined): FinancialBurnSnapshot {
-  if (!financialData) return {};
-  const f: any = financialData;
-  return {
-    monthlyBurn: f?.monthlyBurn ?? f?.burnRate,
-    fixedBurnEstimated: f?.fixedBurn ?? f?.fixedCosts,
-    runwayMonths: f?.runwayMonths ?? f?.runway,
-    totalCommitments: f?.totalCommitments ?? f?.offBalanceCommitments,
-    capexCumulated: f?.capex ?? f?.cumulativeCapex,
-    payroll: f?.payroll ?? f?.salaryExpense,
-    rentAnnual: f?.rentAnnual ?? f?.annualRent,
-    contractualMinimums: f?.contractualMinimums,
-  };
-}
+// Le snapshot local a disparu. Il declarait neuf champs et les lisait
+// sur treize clefs absentes du contrat, a travers un `const f: any`
+// qui rendait les treize lectures muettes a la compilation. Le
+// resultat etait `{}` sur tous les dossiers, y compris ceux qui
+// arrivent avec un business plan complet, et le pattern jugeait la
+// rigidite contractuelle sur le seul pitch depuis sa mise en service.
+//
+// La lecture passe desormais par lib/engines/fragility-structurelle/
+// financial-readout.ts, qui lit le contrat a travers son type. Le
+// detail du diagnostic est en tete de ce module.
 
 function buildUserPrompt(input: PatternInput): string {
   const e = input.extraction;
-  const burn = extractBurnSnapshot(input.financialData);
-
-  const lignesBurn = Object.entries(burn)
-    .filter(([_, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `- ${k} : ${v}`)
-    .join('\n');
+  const readout = buildFinancialReadout(input.financialData);
+  const lignesBurn = renderFinancialReadout(readout);
 
   const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
@@ -362,9 +348,13 @@ ${e.productDescription ?? '(non fourni)'}
 
 ${e.businessModel ?? '(non fourni)'}
 
-# DONNÉES BURN ET ENGAGEMENTS DISPONIBLES
+# DONNÉES FINANCIÈRES DU DOSSIER
 
-${lignesBurn || '(aucune donnée structurelle de burn ni d engagement long terme disponible, analyse sur la base des éléments qualitatifs du pitch et du résumé)'}
+${lignesBurn}
+
+# ENGAGEMENTS LONG TERME
+
+${AVERTISSEMENT_ENGAGEMENTS_NON_EXTRAITS}
 
 # RÉSUMÉ GÉNÉRAL
 
@@ -373,12 +363,25 @@ ${(e as any).rawSummary ?? '(non fourni)'}
 # TA TÂCHE
 
 Analyse ce dossier sur le pattern Fixed Cost Trap selon les trois axes
-détaillés dans tes instructions. Si les données structurelles de burn et
-d engagement sont absentes, base ton analyse sur les indices qualitatifs
-(présence de bureaux, capex industriel mentionné, structure salariée
-déclarée, contrats long terme évoqués) et marque l applicabilité en partial
-ou weak-signal selon le niveau de matière disponible. Retourne uniquement
-le JSON conforme au format obligatoire, sans préambule.`;
+détaillés dans tes instructions.
+
+Sur l applicabilité, distingue trois états et ne les confonds pas. Si le
+bloc financier ci-dessus porte des valeurs et que la prose documente des
+engagements long terme, l applicabilité est full. Si le bloc porte des
+valeurs mais que rien, ni chiffre ni prose, ne documente d engagement
+contractuel long terme, l axe identitaire du pattern n a pas d objet :
+marque weak-signal et dis dans applicabiliteRationale que la rigidité
+observée est économique et non contractuelle. Si le bloc déclare
+n avoir aucune valeur, tu n as pas de matière : retourne
+applicabilite='not-applicable' et n invente pas un verdict à partir du
+seul pitch.
+
+Un pattern sans donnée le déclare, il ne rend pas un verdict. Un score
+posé sur rien se lit comme un score posé sur quelque chose, et c est
+exactement ce que la note d instruction ne doit jamais produire.
+
+Retourne uniquement le JSON conforme au format obligatoire, sans
+préambule.`;
 }
 
 // ============================================================
@@ -580,6 +583,11 @@ export const _internal = {
   buildUserPrompt,
   llmOutputToPatternOutput,
   isApplicable,
-  extractBurnSnapshot,
   SYSTEM_PROMPT,
+  // Le lecteur financier est expose ici plutot que reimporte par le
+  // test, pour que celui-ci exerce exactement ce que le pattern
+  // exerce. Un test qui importe sa propre copie du lecteur mesure le
+  // lecteur, pas le branchement du pattern dessus.
+  buildFinancialReadout,
+  readoutEstVide,
 };

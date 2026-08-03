@@ -14,6 +14,7 @@ import { _getRegistryForTests, _setRegistryForTests } from './orchestrator';
 import { applyCentralAxisGating } from './pattern-interface';
 import type { ExtractionOutput } from '../types';
 import type { PatternAnalysisOutput, PatternInput } from './types';
+import { FIXTURE_FINANCIERE_COMPLETE } from './financial-fixture';
 
 let pass = 0, fail = 0;
 
@@ -81,11 +82,7 @@ function mockExtraction(opts: Partial<ExtractionOutput> = {}): ExtractionOutput 
 
 console.log('\n=== Test 2 : isApplicable input complet ===');
 {
-  const result = _internal.isApplicable(mockExtraction(), {
-    revenue: 5000000,
-    grossMargin: 0.65,
-    monthlyBurn: 500000,
-  } as any);
+  const result = _internal.isApplicable(mockExtraction(), FIXTURE_FINANCIERE_COMPLETE);
   check('input complet -> level full', result.level, 'full');
   checkTrue('input complet -> shouldRun true', result.shouldRun);
   checkTrue('rationale non vide', result.rationale.length > 10);
@@ -123,20 +120,21 @@ console.log('\n=== Test 5 : buildUserPrompt structure ===');
 {
   const input: PatternInput = {
     extraction: mockExtraction(),
-    financialData: {
-      revenue: 5000000,
-      grossMargin: 0.65,
-      monthlyBurn: 500000,
-      runwayMonths: 18,
-    } as any,
+    financialData: FIXTURE_FINANCIERE_COMPLETE,
   };
   const prompt = _internal.buildUserPrompt(input);
   checkTrue('prompt mentionne le nom de l entreprise', prompt.includes('TestCo'));
   checkTrue('prompt mentionne le stade', prompt.includes('Series B'));
   checkTrue('prompt mentionne le pitch', prompt.includes('SaaS B2B'));
-  checkTrue('prompt mentionne le revenu', prompt.includes('5000000'));
-  checkTrue('prompt mentionne le burn mensuel', prompt.includes('500000'));
-  checkTrue('prompt mentionne le runway', prompt.includes('18'));
+  // Le pattern juge l unit economics et n en recevait aucune : les
+  // cinq champs de unitEconomics existent au contrat et le snapshot
+  // `as any` les ignorait tous. Valeurs discriminantes.
+  checkTrue('prompt porte le CAC du dossier', prompt.includes('12,7K€'));
+  checkTrue('prompt porte la LTV du dossier', prompt.includes('48,3K€'));
+  checkTrue('prompt porte le ratio LTV/CAC', prompt.includes('3,8:1'));
+  checkTrue('prompt porte la serie de revenu', prompt.includes('3.17'));
+  checkTrue('prompt porte le burn mensuel du dossier', prompt.includes('218K€/mois'));
+  checkTrue('prompt porte le runway du dossier', prompt.includes('23 mois'));
   checkTrue('prompt mentionne le business model', prompt.includes('Subscription B2B SaaS'));
 }
 
@@ -151,7 +149,10 @@ console.log('\n=== Test 6 : buildUserPrompt sans financialData ===');
     financialData: null,
   };
   const prompt = _internal.buildUserPrompt(input);
-  checkTrue('prompt indique aucune donnée financière', prompt.toLowerCase().includes('aucune donnée financière'));
+  checkTrue(
+    'absence de bloc nommee pour ce qu elle est',
+    prompt.includes("aucun bloc de donnees financieres n a ete extrait"),
+  );
   checkTrue('prompt reste exploitable (mentionne le pitch)', prompt.includes('SaaS B2B'));
 }
 

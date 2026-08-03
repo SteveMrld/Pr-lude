@@ -8,8 +8,9 @@ import { applyCentralAxisGating } from './pattern-interface';
 import { buildArchetypePromptBlock } from '../archetype-selector';
 import type { ExtractionOutput } from '../types';
 import type { PatternAnalysisOutput, PatternInput } from './types';
+import { FIXTURE_FINANCIERE_MINIMALE } from './financial-fixture';
 
-const MINIMAL_FIN = { revenue: 5000000, monthlyBurn: 200000 } as any;
+const MINIMAL_FIN = FIXTURE_FINANCIERE_MINIMALE;
 
 let pass = 0, fail = 0;
 
