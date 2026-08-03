@@ -322,7 +322,16 @@ function faitSeul(intitule: string): string {
   const sansDate = coupe
     .replace(/\s*(annonc[ée]e?|datée?|survenue?|intervenue?)?\s*(en|au|le)?\s*(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)?\s*20[0-4]\d\s*$/i, '')
     .trim();
-  const fait = (sansDate.length >= 12 ? sansDate : coupe).slice(0, 140);
+  const brut = sansDate.length >= 12 ? sansDate : coupe;
+  // La coupe se fait sur une frontiere de proposition, pas au
+  // caractere : tronquer au milieu d un mot donne « le cash-in vise
+  // dans l, » et ruine une phrase destinee a un lecteur.
+  let fait = brut;
+  if (brut.length > 130) {
+    const pivot = brut.slice(0, 130).lastIndexOf(', ');
+    fait = pivot > 40 ? brut.slice(0, pivot) : brut.slice(0, brut.slice(0, 130).lastIndexOf(' '));
+  }
+  fait = fait.replace(/[\s,;:]+$/, '');
   return fait.charAt(0).toLowerCase() + fait.slice(1);
 }
 
@@ -414,10 +423,25 @@ const MOIS_EN_LETTRES: Record<number, string> = {
 // mention concluait.
 // ============================================================
 
-const MARQUEURS_FINANCEMENT = /\b(lev[ée]e|leve|tour de table|series\s+[a-e]\b|refinancement|introduction en bourse|ipo)\b/i;
-const MARQUEURS_CONTROLE = /\b(rachat|rachet[ée]|acquisition|acquise?\s+par|cession|repris\s+par|prise de controle)\b/i;
-const MARQUEURS_DIRIGEANT = /\b(nomination|nomm[ée]\s+(?:ceo|directeur|president)|depart du|remplac[ée]\s+au poste)\b/i;
-const MARQUEURS_PROCEDURE = /\b(redressement judiciaire|liquidation|sauvegarde|procedure collective|cessation de paiement)\b/i;
+// Les marqueurs exigent un evenement et non une mention. « levee » ne
+// suffit pas, « levee de 83m » ou « a leve 83 millions » oui : la
+// premiere version, plus permissive, rendait vingt et un evenements sur
+// le run de gel dont la quasi-totalite etaient des phrases descriptives
+// contenant un mot de financement et une annee de fondation.
+const MARQUEURS_FINANCEMENT = /\b(?:lev[ée]e de\s+\d|a lev[ée]\s+\d|tour de (?:table|financement)\s|series\s+[a-e]\b|refinancement|introduction en bourse|\bipo\b|boucl[ée]\s+(?:un|une|son)\s+(?:tour|lev))/i;
+const MARQUEURS_CONTROLE = /\b(?:rachat de|rachet[ée]e? par|acquisition de|acquise? par|cession de|repris(?:e)? par|prise de controle)\b/i;
+const MARQUEURS_DIRIGEANT = /\b(?:nomination de|nomm[ée]\s+(?:ceo|directeur|president)|depart du|remplac[ée]\s+au poste)\b/i;
+const MARQUEURS_PROCEDURE = /\b(?:redressement judiciaire|liquidation judiciaire|proc[ée]dure de sauvegarde|procedure collective|cessation de paiement)\b/i;
+
+/**
+ * Contextes ou une annee ne date pas l evenement mais autre chose : la
+ * fondation, l anciennete, un exercice comptable. Une annee prise dans
+ * ces contextes n est pas une date d evenement.
+ */
+const ANNEE_NON_EVENEMENTIELLE = /\b(?:fond[ée]e?\s+en|cr[ée][ée]e?\s+en|depuis|exercice|fy\s*\d|dec-|d[ée]cembre\s+20\d\d\s*(?:a|A)\b)\s*$/i;
+
+/** Distance maximale, en caracteres, entre le marqueur et l annee. */
+const PROXIMITE_MAX = 90;
 
 const MOIS_FR: Record<string, number> = {
   janvier: 1, fevrier: 2, mars: 3, avril: 4, mai: 5, juin: 6,
@@ -425,11 +449,44 @@ const MOIS_FR: Record<string, number> = {
 };
 
 /**
+ * Collecte les chaines de prose d une sortie de moteur, quelle que soit
+ * sa forme.
+ *
+ * Le defaut ferme, mesure sur le run de gel du 3 aout : la detection ne
+ * lisait que quatre listes du moteur Equipe. L evenement qu elle
+ * cherchait, « la levee de 83m€ finalement conclue en novembre 2023 »,
+ * vivait dans le moteur Fragilite structurelle. Et les trois lignes du
+ * moteur Equipe qui mentionnaient bien la levee ne portaient aucune
+ * annee, donc la detection aurait echoue meme sur le bon moteur.
+ *
+ * Enumerer des chemins de champs reproduisait la faute qu on corrige :
+ * une chose n existe dans la mesure que si quelqu un a pense a l y
+ * mettre. Le parcours est donc structurel, il descend dans l objet et
+ * prend toute chaine assez longue pour porter une phrase.
+ */
+export function collecterProse(source: unknown, profondeurMax = 6): string[] {
+  const out: string[] = [];
+  const vu = new Set<unknown>();
+  const descendre = (o: unknown, p: number): void => {
+    if (p > profondeurMax || o === null || o === undefined) return;
+    if (typeof o === 'string') { if (o.trim().length >= 25) out.push(o); return; }
+    if (typeof o !== 'object') return;
+    if (vu.has(o)) return;
+    vu.add(o);
+    if (Array.isArray(o)) { for (const v of o) descendre(v, p + 1); return; }
+    for (const v of Object.values(o as Record<string, unknown>)) descendre(v, p + 1);
+  };
+  descendre(source, 0);
+  return out;
+}
+
+/**
  * Reconstitue des evenements dates depuis la prose des moteurs.
  * Provisoire, voir l en-tete de section.
  */
 export function detecterEvenementsDansLaProse(lignes: string[]): EvenementDate[] {
   const out: EvenementDate[] = [];
+  const dejaVus = new Set<string>();
   for (const brut of lignes) {
     if (typeof brut !== 'string' || brut.trim().length === 0) continue;
     const ligne = brut.trim();
@@ -443,19 +500,45 @@ export function detecterEvenementsDansLaProse(lignes: string[]): EvenementDate[]
     else if (MARQUEURS_DIRIGEANT.test(sansAccent)) nature = 'dirigeant';
     if (!nature) continue;
 
-    const anneeMatch = /\b(20[0-4]\d)\b/.exec(ligne);
-    if (!anneeMatch) continue;
-    const annee = Number(anneeMatch[1]);
+    // L annee doit etre proche du marqueur, sinon elle date autre
+    // chose que lui. Sur le run de gel, « fondee en 2007 » et un mot de
+    // financement vingt lignes plus loin produisaient un evenement de
+    // 2007 qui n existait pas.
+    const posMarqueur = sansAccent.search(
+      nature === 'procedure-collective' ? MARQUEURS_PROCEDURE
+      : nature === 'financement' ? MARQUEURS_FINANCEMENT
+      : nature === 'changement-de-controle' ? MARQUEURS_CONTROLE
+      : MARQUEURS_DIRIGEANT,
+    );
+    let annee = 0;
+    let posAnnee = -1;
+    for (const m of Array.from(ligne.matchAll(/\b(20[0-4]\d)\b/g))) {
+      const idx = m.index ?? 0;
+      if (Math.abs(idx - posMarqueur) > PROXIMITE_MAX) continue;
+      if (ANNEE_NON_EVENEMENTIELLE.test(ligne.slice(Math.max(0, idx - 22), idx))) continue;
+      annee = Number(m[1]);
+      posAnnee = idx;
+    }
+    if (!annee) continue;
 
+    // Bordure de mot obligatoire : sans elle, « mai » se lit dans
+    // « jamais », « domaine » ou « semaine », et un evenement de
+    // novembre ressortait date de mai.
     let mois: number | null = null;
     for (const [nom, n] of Object.entries(MOIS_FR)) {
-      if (sansAccent.includes(nom)) { mois = n; break; }
+      if (new RegExp(`\\b${nom}\\b`).test(sansAccent)) { mois = n; break; }
     }
 
     const src = /\[web\s*:\s*([^\]]+)\]/i.exec(ligne);
 
+    const intitule = ligne.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+    // Le meme fait revient dans plusieurs champs d un meme moteur, et
+    // dans plusieurs moteurs. Une reserve ne se compte qu une fois.
+    const clef = `${nature}|${annee}|${mois ?? ''}|${intitule.slice(0, 60).toLowerCase()}`;
+    if (dejaVus.has(clef)) continue;
+    dejaVus.add(clef);
     out.push({
-      intitule: ligne.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180),
+      intitule,
       annee,
       mois,
       nature,

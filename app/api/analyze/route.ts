@@ -36,7 +36,7 @@ import {
   buildSkippedBlindspotOutput,
   buildSkippedCausalOutput,
 } from '@/lib/engines/skipped-outputs';
-import { detecterEvenementsDansLaProse, evaluerValiditeOperation } from '@/lib/engines/operation-validity';
+import { collecterProse, detecterEvenementsDansLaProse, evaluerValiditeOperation } from '@/lib/engines/operation-validity';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { extractSaasMetrics } from '@/lib/engines/saas-metrics-engine';
@@ -1661,11 +1661,17 @@ export async function POST(req: NextRequest) {
           // Les evenements sont aujourd hui reconstitues par lecture de
           // la prose du moteur Equipe, faute d exister comme donnee.
           // C est provisoire et declare comme tel jusque dans la note.
+          // La prose est collectee structurellement sur les moteurs qui
+          // consultent des sources externes, et non par enumeration de
+          // champs. La premiere version ne lisait que quatre listes du
+          // moteur Equipe, et l evenement qu elle cherchait vivait dans
+          // le moteur Fragilite structurelle : enumerer des chemins
+          // reproduisait la faute qu on corrige, une chose n existant
+          // dans la mesure que si quelqu un a pense a l y mettre.
           const evenementsExternes = detecterEvenementsDansLaProse([
-            ...((team as any)?.greenFlags ?? []),
-            ...((team as any)?.redFlags ?? []),
-            ...((team as any)?.declaredVsVerified?.verifiedClaims ?? []),
-            ...((team as any)?.declaredVsVerified?.discrepancies ?? []),
+            ...collecterProse(team),
+            ...collecterProse(fragiliteStructurelle),
+            ...collecterProse(narrativeDrift),
           ]);
           const operationValidity = evaluerValiditeOperation({
             operationType: extraction?.fundraise?.operationType ?? null,

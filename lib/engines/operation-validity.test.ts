@@ -136,13 +136,27 @@ console.log('\n[Suite 5] la detection provisoire, portee et limites');
     'Fondation en 2007 par trois ingenieurs francais confirmee [web : site]',
     'Rachat de la filiale allemande en 2024 [web : presse]',
     'Redressement judiciaire prononce en mars 2025',
-    'Nomination d un nouveau CEO en 2024',
+    'Nomination de Marie Dupont au poste de CEO en 2024 [web : presse]',
     'Une levee sans annee mentionnee',
     '',
   ]);
   const natures = detecte.map((e) => e.nature).sort();
   check(natures.join(',') === 'changement-de-controle,dirigeant,procedure-collective',
     `trois natures reconnues, la fondation et la levee sans annee sont ecartees (${natures.join(',')})`);
+  // La precision exigee depuis le run de gel : un mot de financement ne
+  // suffit plus, il faut un evenement. « une levee sans annee » et « la
+  // structure de financement est legere » ne sont pas des evenements.
+  const bruit = detecterEvenementsDansLaProse([
+    'La structure de financement cumulee est legere pour un SaaS fonde en 2007',
+    'Braincube est un editeur SaaS en production commerciale eprouvee depuis 2023',
+  ]);
+  check(bruit.length === 0, `les phrases descriptives ne produisent pas d evenement (obtenu ${bruit.length})`);
+  // Et le cas reel du run de gel doit sortir, avec son mois.
+  const reel = detecterEvenementsDansLaProse([
+    'La levee de 83m€ finalement conclue en novembre 2023 avec Scottish Equity Partners et Bpifrance [web : ladn.eu]',
+  ]);
+  check(reel.length === 1 && reel[0].annee === 2023 && reel[0].mois === 11,
+    `l evenement reel du run de gel est detecte au mois (${JSON.stringify(reel[0] && [reel[0].annee, reel[0].mois])})`);
   check(detecte.every((e) => e.luDansLaProse), 'tout ce qu elle rend est marque comme lu dans la prose');
 
   // Le faux positif connu et accepte : une donnee de traction prise

@@ -1780,7 +1780,21 @@ function arbitrerClasseActif(
   extraction: ExtractionOutput,
 ): { retenue: string; trace: AssetClassArbitration | null } {
   const parLaChaine = deriveAssetClass(productionChain, rawAssetClass, searchableText);
-  const indice = normalizeAssetClass(rawAssetClass);
+
+  // La lecture du dossier se prend sur le champ `sector` seul et non
+  // sur l indice recu en argument.
+  //
+  // Le defaut ferme, mesure sur le run de gel du 3 aout : la route
+  // passe `normalizeAssetClass(sector + ' ' + subSector)`. Sur ce
+  // dossier, `normalizeAssetClass('SaaS')` rend saas-b2b, mais la
+  // concatenation avec « Plateforme IIoT pour la fabrication
+  // intelligente » rend industrial-hardware. L indice arrivait donc
+  // deja industriel, l arbitrage ne se declenchait jamais, et la
+  // correction restait inerte sur le cas meme qui l avait motivee.
+  //
+  // Adosser la regle a l indice revenait a demander aux champs
+  // declares de confirmer une lecture qui les avait deja perdus.
+  const indice = normalizeAssetClass((extraction as any)?.sector ?? rawAssetClass);
 
   // L arbitrage ne se pose que si le dossier lit un modele logiciel et
   // que la chaine conclut a une classe industrielle.
