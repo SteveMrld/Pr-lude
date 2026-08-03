@@ -338,6 +338,42 @@ anterieure a l identique quand il est absent. La branche ancienne n est
 pas un repli degrade, c est la lecture juste des donnees anciennes, et
 elle se supprime le jour ou plus aucune donnee ancienne n est lue.
 
+## Portee d un moteur : la sortie qu on lit et celle qui agit
+
+La portee d un module s etablit en enumerant ses consommateurs, jamais
+en suivant celle de ses sorties qu on a sous les yeux.
+
+Le cas est du 3 aout 2026, dans la relecture de la note Braincube. Les
+sept patterns de fragilite y etaient classes non prioritaires pour la
+stabilite, au motif que leur sortie est une prose qui ne commande aucun
+autre moteur. C est exact du chainage : aucun moteur ne lit leur texte,
+et leur variance textuelle ne se propage nulle part. C est faux du
+score, ou le verdict de chaque pattern entre dans le calcul mecanique,
+qui entre dans la recommandation finale, qui est la premiere page que le
+partner lit. Leur variance n etait donc pas neutre, elle etait
+seulement invisible a l endroit ou on la cherchait.
+
+La faute a une cause qui la rend recurrente plutot qu accidentelle. Un
+moteur qui produit a la fois de la prose et un nombre a deux publics. La
+prose est ce qu on lit, ce qu on relit, ce qu on corrige ; le nombre
+voyage sans etre lu. Le canal visible est celui qu on juge, le canal
+muet est celui qui agit, et rien dans l experience de relecture ne
+signale le second.
+
+C est la meme famille que le constat de l indicateur en bout de chaine,
+ou un taux d echec attribue au dernier maillon mesurait en realite
+l etat de son amont. Dans les deux cas la lecture est juste et l objet
+est faux, et dans les deux cas aucune relecture du raisonnement ne le
+revele, puisque le raisonnement se tient. Seul un detour par le code le
+montre.
+
+En pratique, avant de declarer un moteur sans effet, enumerer les champs
+qu il exporte et, pour chacun, qui les lit. Le detour coute une
+recherche. Le corollaire vaut pour tout classement de priorite de
+stabilite : le rang d un moteur y est une affirmation sur ses
+consommateurs, donc une affirmation verifiable, donc une affirmation a
+verifier plutot qu a sentir.
+
 ## Collision de deux exigences sur un meme texte
 
 Quand deux exigences differentes reposent sur la meme chaine de
