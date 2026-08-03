@@ -20,7 +20,7 @@ qu a produire la liste de lecture.
 ## Etat d avancement
 
 - [x] 1. Le champ optionnel jamais renseigne
-- [ ] 2. La valeur posee par un repli la ou un choix etait requis
+- [x] 2. La valeur posee par un repli la ou un choix etait requis
 - [x] 3. La regle ecrite dans un commentaire, appliquee a une ligne
 - [x] 4. Deux catalogues du meme produit qui ne se confrontent jamais
 - [ ] 5. Le correctif branche en aval du point de perte
@@ -156,6 +156,119 @@ dans `lib/trajectory-store.ts:265`, est cable jusqu a la requete SQL
 (`query.in('fragilite_verdict', ...)`) et aucun appelant ne le passe.
 Sans consequence tant que la vue portefeuille ne filtre pas, et cette
 question rejoint celle du moteur Trajectoire traitee plus bas.
+
+## 2. La valeur posee par un repli la ou un choix etait requis
+
+Verifie 9 sites sur 187 candidats, un defaut retenu et un signale.
+
+Le scan cherche par arbre syntaxique les expressions `a ?? L` et
+`a || L` ou `L` est un litteral. Il en trouve 1291 dans `lib/`, dont
+1104 tombent sur une valeur neutralisante (zero, chaine vide, tableau
+ou objet vide) qui declare l absence au lieu de la combler. Restent 187
+replis qui posent une valeur : un nombre non nul, ou une chaine en
+forme de valeur d enum. C est dans ceux-la que le motif vit, et la
+lecture seule tranche, parce qu un repli legitime et un repli fautif
+ont exactement la meme forme.
+
+Le tri suivant est fait sur la destination : un repli qui alimente une
+chaine de prompt (« non precise », « aucun ») remplit un trou de
+lecture et n engage rien. Un repli qui alimente un score, un verdict ou
+une comparaison engage une conclusion. Neuf sites de la seconde
+categorie ont ete ouverts.
+
+### Le snapshot de Trajectoire fabrique des patterns sains
+
+`lib/engines/trajectory/snapshot-extractor.ts` extrait d une analyse le
+point qui servira de terme de comparaison a la Trajectoire. Trois de
+ses replis posent une valeur la ou l absence etait la reponse.
+
+Le plus grave est ligne 189. Dans la branche ou le pattern est
+applicable, l entree est construite ainsi :
+
+    score: p.globalScore ?? 0,
+    verdict: p.verdict ?? 'sain',
+
+`PatternAnalysisOutput.globalScore` est declare `number | null` a
+`fragility-structurelle/types.ts:225`. Le null n est donc pas une
+impossibilite defensive, c est un etat prevu : le pattern etait
+applicable et n a pas produit de score. Le repli le convertit en zero,
+et son verdict absent en « sain ».
+
+Un pattern de fragilite applicable qui n a pas abouti est donc
+enregistre comme un pattern sain a zero. C est la direction la plus
+couteuse possible pour un moteur dont l objet est de detecter ce qui
+casse : la panne se lit comme un bulletin de sante.
+
+La consequence se propage au comparateur.
+`trajectory/comparator.ts:190` calcule un delta de score des que les
+deux snapshots portent le pattern comme applicable, et le zero fantome
+en est un. Un pattern tombe au run de mars puis abouti a 70 en aout
+produit une degradation de 70 points, et une transition de verdict de
+« sain » vers « alerte », alors que rien n a bouge dans le dossier. La
+Trajectoire raconte au partner une deterioration qui n est que le
+retour en ligne d un detecteur.
+
+Ce qui rend le cas net, c est que la correction est deja ecrite dans le
+meme fichier, quarante lignes plus haut, pour les dimensions du score
+mecanique. Le commentaire des lignes 140 a 147 raconte precisement ce
+bug : « le repli sur globalScore qui existait ici fabriquait des
+points : un moteur tombe donnait un fantome a 50 que le run suivant, ou
+le moteur avait abouti a 63, transformait en une amelioration de 13
+points ». La lecon a ete tiree, ecrite, et appliquee au bloc qui l avait
+fait naitre. Le bloc des patterns, deux ecrans plus bas, porte le meme
+defaut sous une autre forme.
+
+Meme fichier ligne 135, le verdict global :
+
+    analysis.mechanicalScore?.verdict ?? analysis.finalRecommendation?.verdict
+      ?? analysis.verdict ?? 'approfondir'
+
+La cascade des trois premiers termes est juste, elle cherche la valeur
+la ou elle peut etre. Le quatrieme la fabrique. Une analyse sans
+verdict devient une analyse qui recommande d approfondir, et la
+comparaison de verdicts entre deux snapshots part d un terme qui n a
+jamais ete rendu.
+
+L orchestrateur de Fragilite, sur le meme champ, fait l inverse et le
+fait bien : `orchestrator.ts:237` ecrit `if (p.globalScore === null)
+continue;` et sort le pattern de la moyenne ponderee au lieu de le
+compter a zero. Deux consommateurs du meme champ nullable, deux
+lectures opposees, et c est celle qui alimente la Trajectoire qui se
+trompe.
+
+La correction est de rendre `null` sur les trois sites et de laisser le
+comparateur faire ce qu il sait deja faire avec un null, puisqu il ne
+calcule pas de delta contre une absence. Elle demande de verifier que
+le type de snapshot autorise le null sur `score` et `verdict`, ce que
+le champ voisin `fragiliteVerdict` fait deja.
+
+### Signale sans etre compte : la presence de donnees financieres presumee
+
+`financial-coherence-engine.ts:332` pose `hasFinancialData:
+llmAnalysis.hasFinancialData ?? true`. Une omission du modele est donc
+lue comme une affirmation que le dossier porte des donnees financieres.
+
+Le score ne s en trouve pas immediatement fausse, parce que la garde de
+`score-calculator.ts:712` est conjonctive : elle exige aussi que
+`dataSource` ne vaille pas `'none'` et que le score de coherence
+depasse zero. Mais la ligne suivante du meme moteur,
+`dataSource: llmAnalysis.dataSource ?? (financialData.hasBP ? 'bp' :
+'deck')`, ne peut jamais rendre `'none'`. Des trois conditions, deux
+sont donc alimentees par des replis qui affirment la presence, et il
+n en reste qu une qui mesure. Je le signale plutot que de le compter :
+la garde tient aujourd hui par son troisieme terme, et elle tient
+seule.
+
+### Declare et borne, donc pas un defaut
+
+`market-engine.ts:603` normalise `perceivedSize`, `realIntensity` et
+`saturation` sur des valeurs par defaut quand le modele les omet. Le
+commentaire declare le procede, nomme le dossier qui l a motive (Hello
+Planet), et annonce un warning au monitoring. Les trois valeurs
+choisies sont les termes medians de leurs echelles respectives. On peut
+discuter le principe, qui efface un « non tranche » que la discipline
+de precision demanderait plutot de conserver, mais c est un arbitrage
+ecrit et instrumente, pas un repli qui se cache.
 
 ## 3. La regle ecrite dans un commentaire, appliquee a une seule ligne
 
