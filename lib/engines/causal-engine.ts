@@ -8,6 +8,7 @@ import type {
   ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput,
   MacroAnalysisOutput, PatternMatchingOutput, CausalReversalOutput
 } from './types';
+import { champ } from './champ-absent';
 
 export const SYSTEM_PROMPT = `Tu es le Moteur de Retournement Causal de la plateforme Prélude. C'est le moteur final analytique avant l'orchestration. Tu reçois les outputs de tous les moteurs précédents et tu produis :
 1. Le scoring détaillé des sept angles morts
@@ -127,12 +128,12 @@ export async function performCausalReversal(
   measure?: LlmMeasure,
 ): Promise<CausalReversalOutput> {
 
-  const userPrompt = `Données consolidées du dossier ${extraction?.companyName ?? '?'} :
+  const userPrompt = `Données consolidées du dossier ${champ(extraction?.companyName, '?')} :
 
 # Extraction
-Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Secteur : ${champ(extraction?.sector, '?')} / ${champ(extraction?.subSector, '?')}
 Géographie : ${formatExtractionGeography(extraction)}
-Stade declare : ${extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${extraction?.fundraise?.amount ?? '?'}
+Stade declare : ${champ(extraction?.fundraise?.stage, '?')} · Montant annonce : ${champ(extraction?.fundraise?.amount, '?')}
 
 # Équipe
 Couverture systémique : ${team.systemicCoverage?.score ?? '?'}/100 - ${team?.systemicCoverage?.rationale ?? '?'}

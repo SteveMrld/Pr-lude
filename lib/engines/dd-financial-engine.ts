@@ -37,6 +37,7 @@ import { callClaude, parseJSON, MODEL } from './anthropic-client';
 import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { normalizeFrText } from '../data/text-normalize';
 import { pickValueAtYear } from '@/lib/analysis/financial-series';
+import { champ } from './champ-absent';
 
 // ============================================================
 // Types
@@ -691,8 +692,8 @@ export async function analyzeDDFinancial(
   // Synthese editoriale via LLM
   const userPrompt = `Données du dossier :
 
-Société : ${extraction.companyName ?? '?'}
-Secteur : ${extraction.sector ?? '?'} / ${extraction.subSector ?? '?'}
+Société : ${champ(extraction.companyName, '?')}
+Secteur : ${champ(extraction.sector, '?')} / ${champ(extraction.subSector, '?')}
 
 Résultats des 7 tests :
 

@@ -56,6 +56,7 @@ import {
   type ArchetypeAxis,
   type DossierStade,
 } from '../archetype-selector';
+import { champ } from '../champ-absent';
 
 const ARCHETYPE_AXIS: ArchetypeAxis = 'growth-subsidized';
 
@@ -285,29 +286,29 @@ function buildUserPrompt(input: PatternInput): string {
   const e = input.extraction;
   const lignesFinanciales = renderFinancialReadout(buildFinancialReadout(input.financialData));
 
-  const stage = e.fundraise?.stage ?? 'inconnu';
-  const sector = e.sector ?? 'inconnu';
+  const stage = champ(e.fundraise?.stage, 'inconnu');
+  const sector = champ(e.sector, 'inconnu');
 
   const sectoralBlock = buildSectoralPromptBlock(input.sectoralContext, 'fragility-structurelle');
 
   return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communiqué'}
+Entreprise : ${champ(e.companyName, 'non communiqué')}
 Secteur : ${sector}
 Stade : ${stage}
-Pays : ${e.country ?? 'non communiqué'}
+Pays : ${champ(e.country, 'non communiqué')}
 
 # PITCH
 
-${e.marketPitch ?? '(non fourni)'}
+${champ(e.marketPitch, '(non fourni)')}
 
 # PRODUIT
 
-${e.productDescription ?? '(non fourni)'}
+${champ(e.productDescription, '(non fourni)')}
 
 # MODÈLE ÉCONOMIQUE
 
-${e.businessModel ?? '(non fourni)'}
+${champ(e.businessModel, '(non fourni)')}
 
 # DONNÉES FINANCIÈRES DISPONIBLES
 

@@ -19,6 +19,7 @@ import { formatExtractionGeography } from './fund-context';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
 import type { ExtractionOutput, TeamAnalysisOutput, MarketAnalysisOutput, MacroAnalysisOutput, PatternMatchingOutput } from './types';
+import { champ } from './champ-absent';
 
 // Calcul algorithmique de proximité structurelle entre dossier et cas du corpus
 function computeStructuralProximity(
@@ -569,8 +570,8 @@ REGLES D USAGE GENERALES
 
   const userPrompt = `Données d'extraction du dossier :
 
-Société : ${extraction?.companyName ?? '?'}
-Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Société : ${champ(extraction?.companyName, '?')}
+Secteur : ${champ(extraction?.sector, '?')} / ${champ(extraction?.subSector, '?')}
 Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
 

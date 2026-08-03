@@ -43,6 +43,7 @@ import type { ExtractionOutput } from './types';
 import type { CapTableExtraction } from '../cap-table-parser';
 import { callClaude, callClaudeWithPDF, parseJSON, MODEL } from './anthropic-client';
 import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
+import { champ } from './champ-absent';
 
 // ============================================================
 // Types
@@ -541,8 +542,8 @@ async function generateSynthesis(
     ? `Cap table : fondateurs ${capTable.totals.founderPercentage.toFixed(1)} pct, investisseurs ${capTable.totals.investorPercentage.toFixed(1)} pct, pool d options ${capTable.totals.optionPoolPercentage.toFixed(1)} pct. Drapeaux : ${capTable.flags.map(f => f.message).join(' / ') || 'aucun'}.`
     : 'Cap table : non fourni ou non parsable.';
 
-  const userPrompt = `Société : ${extraction.companyName ?? '?'}
-Secteur : ${extraction.sector ?? '?'}
+  const userPrompt = `Société : ${champ(extraction.companyName, '?')}
+Secteur : ${champ(extraction.sector, '?')}
 
 Clauses non standards et points d'attention extraits :
 ${clausesSummary}

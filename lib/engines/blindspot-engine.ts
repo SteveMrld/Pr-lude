@@ -15,6 +15,7 @@ import {
   buildSectoralPromptBlock,
   type SectoralContext,
 } from './sectoral-injection';
+import { champ } from './champ-absent';
 
 export const SYSTEM_PROMPT = `Tu es le Moteur de Vigilance Critique de la plateforme Prélude. Ta mission est de détecter les patterns récurrents d'erreur de jugement qui mènent les fonds VC à investir dans des dossiers structurellement insoutenables.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -313,16 +314,16 @@ historique en evidence.
 
   const sectoralBlock = buildSectoralPromptBlock(sectoralContext, 'blindspot');
 
-  const userPrompt = `Analyse des lecture de vigilance critique sur le dossier ${extraction?.companyName ?? '?'} :
+  const userPrompt = `Analyse des lecture de vigilance critique sur le dossier ${champ(extraction?.companyName, '?')} :
 
 ${sectoralBlock}${failuresBlock}
 # CONTEXTE DOSSIER
-Société : ${extraction?.companyName ?? '?'}
-Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Société : ${champ(extraction?.companyName, '?')}
+Secteur : ${champ(extraction?.sector, '?')} / ${champ(extraction?.subSector, '?')}
 Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
-Tour de financement : ${extraction?.fundraise?.stage ?? '?'}
-Montant levé : ${extraction?.fundraise?.amount ?? '?'}
+Tour de financement : ${champ(extraction?.fundraise?.stage, '?')}
+Montant levé : ${champ(extraction?.fundraise?.amount, '?')}
 Valorisation : ${extraction.fundraise.valuation || 'non précisée'}
 Lead investor : ${extraction.fundraise.leadInvestor || 'non précisé'}
 Co-investisseurs : ${(extraction.fundraise.coInvestors || []).join(', ') || 'non précisés'}
@@ -334,13 +335,13 @@ Clients : ${extraction.traction.customers || 'non communiqués'}
 Métriques citées : ${(extraction.traction.metrics || []).join(' · ') || 'aucune'}
 
 # MODÈLE ÉCONOMIQUE
-${extraction?.businessModel ?? '?'}
+${champ(extraction?.businessModel, '?')}
 
 # PRODUIT
-${extraction?.productDescription ?? '?'}
+${champ(extraction?.productDescription, '?')}
 
 # PITCH MARCHÉ
-${extraction?.marketPitch ?? '?'}
+${champ(extraction?.marketPitch, '?')}
 
 # CONCURRENTS CITÉS
 ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
@@ -363,7 +364,7 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 - Discrepancies : ${(team.declaredVsVerified?.discrepancies || []).join(' · ') || 'aucune'}
 
 # RÉSUMÉ BRUT DOSSIER
-${extraction?.rawSummary ?? '?'}
+${champ(extraction?.rawSummary, '?')}
 
 # COMPOSITION FONDATEURS (pour check S1 - biais financement féminin)
 ${extraction.founders.map(f => `- ${f.name} (${f.role})`).join('\n')}

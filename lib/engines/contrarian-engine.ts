@@ -14,6 +14,7 @@ import {
   buildSectoralPromptBlock,
   type SectoralContext,
 } from './sectoral-injection';
+import { champ } from './champ-absent';
 
 export const SYSTEM_PROMPT = `Tu es le Moteur de Singularités et Signaux Contrariens de la plateforme Prélude. Ta mission est d'identifier ce qui justifie d'investir DESPITE les drapeaux rouges, les signaux qu'aucun outil de scoring standard ne capture.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -183,14 +184,14 @@ export async function analyzeContrarian(
   // vrai chantier. Il n est pas ouvert ici : on garde le consommateur
   // parce que la source ne l est pas encore.
 
-  const userPrompt = `Analyse des singularités et signaux contrariens sur le dossier ${extraction?.companyName ?? '?'} :
+  const userPrompt = `Analyse des singularités et signaux contrariens sur le dossier ${champ(extraction?.companyName, '?')} :
 
 ${sectoralBlock}# CONTEXTE DOSSIER
-Société : ${extraction?.companyName ?? '?'}
-Secteur : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
+Société : ${champ(extraction?.companyName, '?')}
+Secteur : ${champ(extraction?.sector, '?')} / ${champ(extraction?.subSector, '?')}
 Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded && extraction.yearFounded > 0 ? extraction.yearFounded : "non renseignée"}
-Stade declare : ${extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${extraction?.fundraise?.amount ?? '?'}
+Stade declare : ${champ(extraction?.fundraise?.stage, '?')} · Montant annonce : ${champ(extraction?.fundraise?.amount, '?')}
 
 # FONDATEURS
 ${(Array.isArray(extraction.founders) ? extraction.founders : []).map(f => `- ${f.name} (${f.role}) : ${f.background}`).join('\n') || 'Aucun fondateur identifié dans le dossier.'}
@@ -203,13 +204,13 @@ ${(Array.isArray(extraction.founders) ? extraction.founders : []).map(f => `- ${
 - Green flags : ${(team.greenFlags || []).join(' · ')}
 
 # PRODUIT ET THÈSE
-${extraction?.productDescription ?? '?'}
+${champ(extraction?.productDescription, '?')}
 
 # PITCH MARCHÉ ARTICULÉ
-${extraction?.marketPitch ?? '?'}
+${champ(extraction?.marketPitch, '?')}
 
 # MODÈLE ÉCONOMIQUE
-${extraction?.businessModel ?? '?'}
+${champ(extraction?.businessModel, '?')}
 
 # CONCURRENTS CITÉS
 ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
@@ -229,7 +230,7 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 - Tendances structurelles : ${(macro.structuralTrends || []).join(' · ')}
 
 # RÉSUMÉ BRUT DOSSIER
-${extraction?.rawSummary ?? '?'}
+${champ(extraction?.rawSummary, '?')}
 
 ${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extraction?.fundraise?.stage))}
 

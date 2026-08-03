@@ -42,6 +42,7 @@ import {
   TEST_LABELS,
   type TestId,
 } from './financial-coherence-archetype';
+import { champ } from './champ-absent';
 
 // ============================================================
 // SYSTEM PROMPT
@@ -510,13 +511,13 @@ Le modele economique de ce dossier (${archetypeLabel}) n est pas evalue par les 
 - Taille moyenne de contrat / commande : ${financialData.unitEconomics.averageContractValue || 'non communiquee'}
 - Visibilite carnet : ${financialData.marketAssumptions.targetCustomersByYearN || 'non communiquee'} clients/contrats cibles en annee N`;
 
-  return `Tests de coherence financiere sur le dossier ${extraction?.companyName ?? '?'} :
+  return `Tests de coherence financiere sur le dossier ${champ(extraction?.companyName, '?')} :
 
 # CONTEXTE
-Societe : ${extraction?.companyName ?? '?'}
-Secteur (libelle pitch) : ${extraction?.sector ?? '?'} / ${extraction?.subSector ?? '?'}
-Modele economique declare : ${extraction?.businessModel ?? '?'}
-Stade declare : ${extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${extraction?.fundraise?.amount ?? '?'}
+Societe : ${champ(extraction?.companyName, '?')}
+Secteur (libelle pitch) : ${champ(extraction?.sector, '?')} / ${champ(extraction?.subSector, '?')}
+Modele economique declare : ${champ(extraction?.businessModel, '?')}
+Stade declare : ${champ(extraction?.fundraise?.stage, '?')} · Montant annonce : ${champ(extraction?.fundraise?.amount, '?')}
 
 # ARCHETYPE (precalcule deterministe par la matrice de pertinence)
 Archetype : ${archetype} - ${archetypeLabel}

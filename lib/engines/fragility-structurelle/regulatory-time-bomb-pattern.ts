@@ -57,6 +57,7 @@ import {
   type ArchetypeAxis,
   type DossierStade,
 } from '../archetype-selector';
+import { champ } from '../champ-absent';
 
 const PATTERN_ID: PatternId = 'regulatory-time-bomb';
 const ARCHETYPE_AXIS: ArchetypeAxis = 'regulatory-time-bomb';
@@ -415,9 +416,9 @@ function extractRegulatorySnapshot(extraction: ExtractionOutput): RegulatorySnap
   return {
     reguleKeywords,
     complianceSignals,
-    stage: extraction.fundraise?.stage ?? 'inconnu',
-    sector: extraction.sector ?? 'inconnu',
-    country: extraction.country ?? 'inconnu',
+    stage: champ(extraction.fundraise?.stage, 'inconnu'),
+    sector: champ(extraction.sector, 'inconnu'),
+    country: champ(extraction.country, 'inconnu'),
   };
 }
 
@@ -428,22 +429,22 @@ function buildUserPrompt(input: PatternInput): string {
 
   return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communiqué'}
+Entreprise : ${champ(e.companyName, 'non communiqué')}
 Secteur : ${snap.sector}
 Stade : ${snap.stage}
 Pays : ${snap.country}
 
 # PITCH
 
-${e.marketPitch ?? '(non fourni)'}
+${champ(e.marketPitch, '(non fourni)')}
 
 # PRODUIT
 
-${e.productDescription ?? '(non fourni)'}
+${champ(e.productDescription, '(non fourni)')}
 
 # MODÈLE ÉCONOMIQUE
 
-${e.businessModel ?? '(non fourni)'}
+${champ(e.businessModel, '(non fourni)')}
 
 # SIGNAUX RÉGLEMENTAIRES DÉTECTÉS AU PRE-SCREEN
 

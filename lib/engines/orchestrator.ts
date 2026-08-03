@@ -21,6 +21,7 @@ import {
   DIMENSION_LABELS,
 } from './score-calculator';
 import { ENGINE_LLM_BUDGET, ORCHESTRATE_MAX_TOKENS, looksTruncated, addCall, type LlmMeasure } from './engine-budget';
+import { champ } from './champ-absent';
 
 export const SYSTEM_PROMPT = `Tu es le Moteur d'Orchestration de la plateforme Prélude. Tu es le moteur final qui agrège les outputs des huit moteurs précédents et produit la recommandation finale du partner avec PROBABILITÉS CHIFFRÉES PAR DIMENSION et résolution de la TENSION DIALECTIQUE entre signaux de vigilance et signaux de singularité.
 ${SOURCE_TAGGING_INSTRUCTION}
@@ -653,11 +654,11 @@ export function buildOrchestratorUserPrompt(p: {
   };
 
 
-  return `Synthèse des 8 moteurs sur le dossier ${E.extraction?.companyName ?? '?'} :
+  return `Synthèse des 8 moteurs sur le dossier ${champ(E.extraction?.companyName, '?')} :
 
 ${conflictBlock}${annotationsBlock}${socleBlock}# CONTEXTE
-${E.extraction?.sector ?? '?'} / ${E.extraction?.subSector ?? '?'} · ${formatExtractionGeography(E.extraction)}
-Stade declare : ${E.extraction?.fundraise?.stage ?? '?'} · Montant annonce : ${E.extraction?.fundraise?.amount ?? '?'}
+${champ(E.extraction?.sector, '?')} / ${champ(E.extraction?.subSector, '?')} · ${formatExtractionGeography(E.extraction)}
+Stade declare : ${champ(E.extraction?.fundraise?.stage, '?')} · Montant annonce : ${champ(E.extraction?.fundraise?.amount, '?')}
 Valorisation : ${E.extraction.fundraise?.valuation || 'non précisée'}
 
 # MOTEUR ÉQUIPE

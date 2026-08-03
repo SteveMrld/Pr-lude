@@ -47,6 +47,7 @@ import {
   type ArchetypeAxis,
   type DossierStade,
 } from '../archetype-selector';
+import { champ } from '../champ-absent';
 
 const PATTERN_ID: PatternId = 'capital-structure-fragility';
 const ARCHETYPE_AXIS: ArchetypeAxis = 'capital-structure-fragility';
@@ -343,7 +344,7 @@ function extractCapTableSnapshot(extraction: ExtractionOutput): CapTableSnapshot
     capTableSignals,
     preferenceSignals,
     cleanupSignals,
-    stage: extraction.fundraise?.stage ?? 'inconnu',
+    stage: champ(extraction.fundraise?.stage, 'inconnu'),
     numberOfRounds,
   };
 }
@@ -355,19 +356,19 @@ function buildUserPrompt(input: PatternInput): string {
 
   return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communiqué'}
-Secteur : ${e.sector ?? 'inconnu'}
+Entreprise : ${champ(e.companyName, 'non communiqué')}
+Secteur : ${champ(e.sector, 'inconnu')}
 Stade : ${snap.stage}
 Nombre estimé de tours cumulés : ${snap.numberOfRounds}
-Pays : ${e.country ?? 'non communiqué'}
+Pays : ${champ(e.country, 'non communiqué')}
 
 # PITCH
 
-${e.marketPitch ?? '(non fourni)'}
+${champ(e.marketPitch, '(non fourni)')}
 
 # MODÈLE ÉCONOMIQUE
 
-${e.businessModel ?? '(non fourni)'}
+${champ(e.businessModel, '(non fourni)')}
 
 # SIGNAUX CAP TABLE DÉTECTÉS AU PRE-SCREEN
 

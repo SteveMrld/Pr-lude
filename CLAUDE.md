@@ -310,6 +310,48 @@ jour ou les deux divergent.
 
 Un commentaire seul n est aucune des trois.
 
+## Une garde inerte est plus dangereuse qu une garde absente
+
+Une garde qui a la forme d une garde et ne se declenche jamais est pire
+que pas de garde du tout, parce qu une garde absente laisse un trou
+qu un releve finit par trouver, tandis qu une garde inerte occupe la
+place et fait cesser la recherche.
+
+Le cas est du 3 aout 2026. Le prompt d extraction impose depuis
+l origine « si une information n est pas presente dans le deck, retourne
+une chaine vide ». Les moteurs en aval se gardaient contre null :
+`${extraction.fundraise?.amount ?? '?'}`. La coalescence nulle ne
+rattrape pas la chaine vide, donc la garde ne s est jamais declenchee
+sur le seul cas qu elle visait, et le modele recevait « Montant
+annonce : » suivi de rien. Ce qu un modele fait d une ligne tronquee
+n est pas neutre : il ne voit pas un champ vide, il voit une phrase
+interrompue, et il la comble comme le reste de sa lecture. La garde
+ecrite pour eviter exactement cela le favorisait. Le releve a rendu
+quatre-vingt-dix-huit sites sur seize modules, dont les sept patterns de
+fragilite, la ou l inventaire de depart en comptait six.
+
+La faute ne se voit pas a la relecture, et c est ce qui la definit. Le
+code nomme le bon champ, pose le bon defaut, et il ne lui manque que
+d etre vrai. Il n y a rien a chercher, puisque rien ne manque. C est la
+dissymetrie du battement present et du battement absent, transposee au
+code : l oubli laisse une trace, le simulacre n en laisse aucune.
+
+La forme generale se lit sans son cas. Un operateur de defaut est un
+contrat entre deux modules sur ce que veut dire « pas de valeur », et
+les deux doivent en avoir la meme definition. Quand le producteur dit
+chaine vide et que le consommateur teste null, ils sont d accord sur
+l intention et en desaccord sur l objet, ce qui est le pire des trois
+etats possibles : le desaccord franc casse et se repare, l accord
+fonctionne, l accord apparent dure.
+
+En pratique, deux exigences. La definition d absence vit a un seul
+endroit, une fonction que les sites appellent, et non un operateur
+recopie ; ainsi la corriger les corrige tous. Et un test parcourt les
+sources pour refuser la forme fautive a un nouveau site, faute de quoi
+le point de passage n empeche que les oublis de celui qui le connait.
+Le meme test doit prouver qu il voit la faute quand on la lui donne :
+un verrou qui ne cherche rien est vert pour la mauvaise raison.
+
 ## Discipline de non-retroactivite des contrats
 
 Un contrat plus fin ne requalifie pas les donnees produites sous le

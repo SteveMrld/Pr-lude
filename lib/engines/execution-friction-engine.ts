@@ -46,6 +46,7 @@ import type {
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
 import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { formatExtractionGeography } from './fund-context';
+import { champ } from './champ-absent';
 
 // ============================================================
 // Detection deterministe des 8 flags
@@ -375,11 +376,11 @@ export async function analyzeExecutionFriction(
 
   const userPrompt = `Données du dossier :
 
-Société : ${extraction.companyName ?? '?'}
-Secteur : ${extraction.sector ?? '?'} / ${extraction.subSector ?? '?'}
+Société : ${champ(extraction.companyName, '?')}
+Secteur : ${champ(extraction.sector, '?')} / ${champ(extraction.subSector, '?')}
 Géographie : ${formatExtractionGeography(extraction)}
 Année fondation : ${extraction.yearFounded ?? 'non renseignée'}
-Stage / montant : ${extraction.fundraise?.stage ?? '?'} / ${extraction.fundraise?.amount ?? '?'}
+Stage / montant : ${champ(extraction.fundraise?.stage, '?')} / ${champ(extraction.fundraise?.amount, '?')}
 
 Pitch / produit :
 ${extraction.productDescription || ''}

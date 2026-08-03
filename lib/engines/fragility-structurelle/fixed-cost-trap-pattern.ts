@@ -63,6 +63,7 @@ import {
   type ArchetypeAxis,
   type DossierStade,
 } from '../archetype-selector';
+import { champ } from '../champ-absent';
 
 const ARCHETYPE_AXIS: ArchetypeAxis = 'fixed-cost-trap';
 
@@ -331,22 +332,22 @@ function buildUserPrompt(input: PatternInput): string {
 
   return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communiqué'}
-Secteur : ${e.sector ?? 'inconnu'}
-Stade : ${e.fundraise?.stage ?? 'inconnu'}
-Pays : ${e.country ?? 'non communiqué'}
+Entreprise : ${champ(e.companyName, 'non communiqué')}
+Secteur : ${champ(e.sector, 'inconnu')}
+Stade : ${champ(e.fundraise?.stage, 'inconnu')}
+Pays : ${champ(e.country, 'non communiqué')}
 
 # PITCH
 
-${e.marketPitch ?? '(non fourni)'}
+${champ(e.marketPitch, '(non fourni)')}
 
 # PRODUIT
 
-${e.productDescription ?? '(non fourni)'}
+${champ(e.productDescription, '(non fourni)')}
 
 # MODÈLE ÉCONOMIQUE
 
-${e.businessModel ?? '(non fourni)'}
+${champ(e.businessModel, '(non fourni)')}
 
 # DONNÉES FINANCIÈRES DU DOSSIER
 

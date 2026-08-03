@@ -52,6 +52,7 @@ import {
   type ArchetypeAxis,
   type DossierStade,
 } from '../archetype-selector';
+import { champ } from '../champ-absent';
 
 const PATTERN_ID: PatternId = 'commoditization-drift';
 const ARCHETYPE_AXIS: ArchetypeAxis = 'commoditization-drift';
@@ -289,8 +290,8 @@ function extractMoatSnapshot(extraction: ExtractionOutput): MoatSnapshot {
   return {
     moatClaims,
     aiAttackSignals,
-    stage: extraction.fundraise?.stage ?? 'inconnu',
-    sector: extraction.sector ?? 'inconnu',
+    stage: champ(extraction.fundraise?.stage, 'inconnu'),
+    sector: champ(extraction.sector, 'inconnu'),
   };
 }
 
@@ -301,22 +302,22 @@ function buildUserPrompt(input: PatternInput): string {
 
   return `${sectoralBlock}# DOSSIER À ANALYSER
 
-Entreprise : ${e.companyName ?? 'non communiqué'}
+Entreprise : ${champ(e.companyName, 'non communiqué')}
 Secteur : ${snap.sector}
 Stade : ${snap.stage}
-Pays : ${e.country ?? 'non communiqué'}
+Pays : ${champ(e.country, 'non communiqué')}
 
 # PITCH
 
-${e.marketPitch ?? '(non fourni)'}
+${champ(e.marketPitch, '(non fourni)')}
 
 # PRODUIT
 
-${e.productDescription ?? '(non fourni)'}
+${champ(e.productDescription, '(non fourni)')}
 
 # MODÈLE ÉCONOMIQUE
 
-${e.businessModel ?? '(non fourni)'}
+${champ(e.businessModel, '(non fourni)')}
 
 # SIGNAUX DÉFENSIBILITÉ ET ATTAQUE IA AU PRE-SCREEN
 
