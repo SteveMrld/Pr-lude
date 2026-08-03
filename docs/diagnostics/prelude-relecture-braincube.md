@@ -129,8 +129,17 @@ drag-along, tag-along, anti-dilution ratchet ». Sur un LBO ce n est pas
 absurde, un sponsor equity signe un pacte, mais le registre est celui
 du venture et il detonne.
 
-## Bloc 5 du brief 30, en attente d arbitrage
+## Bloc 5 du brief 30, traite
 
 Le rapprochement entre un evenement posterieur au document et
-l operation decrite est etabli comme non faisable en l etat. Le detail
-de la lecture et la proposition d emplacement sont rendus separement.
+l operation decrite etait impossible faute de deux termes : la date de
+redaction du document, qui n existait nulle part, et l evenement date
+comme donnee, qui n existait qu en prose.
+
+Le premier est livre, `documentDate` avec sa citation sous la regle
+anti-divination. Le second devient une grappe, ecrite dans
+`prelude-grappe-evenements.md` et non traitee.
+
+Entre les deux, le module `operation-validity` rend un verdict a partir
+d une ancre reconstituee et d une detection provisoire sur prose,
+declaree comme dette jusque dans la note affichee au lecteur.
