@@ -133,6 +133,28 @@ Le corollaire vaut aussi : une mesure qui ne trouve aucun trou est
 moins suspecte, mais elle merite la meme lecture structurelle quand
 elle sert a affirmer qu un correctif couvre tout.
 
+Second corollaire, ajoute le 3 aout 2026 : une mesure faite avec un
+instrument de la meme nature que ce qu elle evalue ne borne rien.
+
+Le detecteur d evenements cherche un fait date dans de la prose par
+expression reguliere. Pour mesurer son taux de faux positifs, j ai
+classe ses sorties en faits et en constats, par expression reguliere.
+La mesure a rendu dix-huit pour cent de faux positifs, et elle a classe
+« le pitch articule un scenario chiffre vers la profitabilite » comme
+un fait date. Le taux reel est donc superieur, d un montant que cette
+mesure ne peut pas donner, puisqu elle echoue exactement la ou l objet
+mesure echoue.
+
+Une telle mesure garde une valeur : elle etablit un plancher et elle
+compare un avant a un apres, ce qui suffit a dire qu un resserrage a
+ameliore quelque chose. Elle ne donne pas de niveau. La regle est donc
+d annoncer le chiffre comme un plancher et jamais comme un taux, et de
+dire par quoi la mesure est bornee.
+
+Quand un jugement est necessaire pour mesurer un jugement, la seule
+sortie est une lecture humaine sur un echantillon, ou une mesure
+indirecte par une consequence observable qui, elle, se compte.
+
 ## Discipline de precision
 
 Une precision non donnee ne doit pas produire une severite qu elle ne
