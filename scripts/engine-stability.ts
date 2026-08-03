@@ -169,21 +169,90 @@ function resumer(v: any): string {
     console.log(`  secteur=${extraction.sector} | type=${extraction.fundraise?.operationType}\n`);
   }
 
-  const sorties = await Promise.all(
-    Array.from({ length: passes }, (_, i) =>
-      passe(moteur, deck.b64, extraction)
-        .then((r) => { console.log(`  passe ${i + 1} rendue`); return r; })
-        .catch((e: any) => { console.error(`  passe ${i + 1} en echec : ${String(e.message).slice(0, 100)}`); return null; }),
-    ),
-  );
+  /**
+   * Deux regimes, et le choix n est pas une commodite d execution.
+   *
+   * En parallele, les N passes partent ensemble : c est le plus rapide
+   * et c est ce qu il faut pour mesurer une dispersion de valeurs, ou
+   * seul compte le fait que chaque passe soit un tirage independant.
+   *
+   * En serie, une passe attend la precedente. C est le seul regime qui
+   * mesure un taux d echec, parce que la production n envoie jamais
+   * deux extractions du meme dossier en meme temps : trois appels
+   * concurrents de douze megaoctets se disputent une fenetre et une
+   * limite de debit que l appel unique ne rencontre pas. Mesurer le
+   * tirage d un timeout en parallele reviendrait a mesurer autre chose
+   * que ce que le partner subit, sur un support qui n est pas le sien.
+   */
+  const serie = arg('serial', 'false') === 'true';
+  console.log(`Regime : ${serie ? 'serie (une passe a la fois, regime de production)' : 'parallele'}\n`);
+
+  /**
+   * La duree de chaque passe est relevee, et pas seulement son issue.
+   *
+   * Compter les echecs d un appel qui meurt par depassement de fenetre
+   * est la mauvaise mesure : l echec est un seuil pose sur une duree, et
+   * le seuil est connu. Trois passes ne separent pas un tirage a un
+   * tiers d un tirage a zero, alors que trois durees disent
+   * immediatement quelle marge separe le pire cas de la fenetre. C est
+   * la meme substitution que partout ailleurs, mesurer la grandeur qui
+   * produit l evenement plutot que l evenement.
+   */
+  const echecs: string[] = [];
+  const durees: number[] = [];
+  const lancer = (i: number) => {
+    const t0 = process.hrtime.bigint();
+    const ms = () => Number(process.hrtime.bigint() - t0) / 1e6;
+    return passe(moteur, deck.b64, extraction)
+      .then((r) => { const d = ms(); durees.push(d); console.log(`  passe ${i + 1} rendue en ${Math.round(d)} ms`); return r; })
+      .catch((e: any) => {
+        const d = ms();
+        const m = String(e?.message ?? e).slice(0, 120);
+        console.error(`  passe ${i + 1} en echec apres ${Math.round(d)} ms : ${m}`);
+        echecs.push(`${Math.round(d)} ms : ${m}`);
+        return null;
+      });
+  };
+
+  let sorties: any[];
+  if (serie) {
+    sorties = [];
+    for (let i = 0; i < passes; i++) sorties.push(await lancer(i));
+  } else {
+    sorties = await Promise.all(Array.from({ length: passes }, (_, i) => lancer(i)));
+  }
   const ok = sorties.filter(Boolean);
-  console.log(`\n${ok.length}/${passes} passes exploitables.\n`);
-  if (ok.length < 2) { console.error('Pas assez de passes pour mesurer une dispersion.'); process.exit(1); }
+  console.log(`\n${ok.length}/${passes} passes exploitables, ${echecs.length} echec(s).`);
+  for (const m of echecs) console.log(`  echec : ${m}`);
+  if (durees.length) {
+    const tri = [...durees].sort((a, b) => a - b);
+    console.log(`  durees rendues (ms) : ${tri.map(Math.round).join(', ')}  | pire ${Math.round(tri[tri.length - 1])} ms`);
+  }
+  console.log();
+  // Le tirage se rend meme quand la dispersion ne se mesure pas : les
+  // echecs sont l information demandee quand la question porte sur eux,
+  // et sortir en silence les perdrait.
+  if (ok.length < 2) {
+    console.error(`Pas assez de passes pour mesurer une dispersion. Tirage : ${ok.length}/${passes} rendues.`);
+    const dirE = join(process.cwd(), 'scripts', 'audit-output');
+    if (!existsSync(dirE)) mkdirSync(dirE, { recursive: true });
+    writeFileSync(
+      join(dirE, `stabilite-${moteur}-${motif.replace(/\W+/g, '')}.json`),
+      JSON.stringify({ deck: deck.nom, moteur, regime: serie ? 'serie' : 'parallele', passesLancees: passes, passesRendues: ok.length, echecs, dureesMs: durees.map(Math.round), champs: {} }, null, 2),
+    );
+    process.exit(1);
+  }
 
   console.log('champ'.padEnd(34) + 'valeurs distinctes  stable');
   console.log('-'.repeat(74));
   let stables = 0;
-  const detail: any = { deck: deck.nom, moteur, passes: ok.length, champs: {} };
+  const detail: any = {
+    deck: deck.nom, moteur,
+    regime: serie ? 'serie' : 'parallele',
+    passesLancees: passes, passesRendues: ok.length, echecs,
+    dureesMs: durees.map(Math.round),
+    passes: ok.length, champs: {},
+  };
   for (const c of CHAMPS[moteur]) {
     const vals = ok.map((o) => lire(o, c));
     const distinctes = Array.from(new Set(vals.map((v) => JSON.stringify(v ?? null))));
