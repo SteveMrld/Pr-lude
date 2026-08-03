@@ -603,14 +603,29 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
       : `Dilution sans support : aucune fourchette en valeur des capitaux propres avant tour n a pu etre produite pour ce dossier, faute d inputs pour les methodes qui en rendent une. La dilution ne se calcule pas sur la fourchette en valeur d entreprise disponible.`)
     : (preMoneyRange && ticket.total && !ticket.equity)
     ? `Dilution non calculable : le tour annonce ${formatEur(ticket.total)} sous la forme "${ticket.raw}", qui melange capital et un autre instrument sans donner la repartition. Une dilution calculee sur le montant total sur-estimerait la part obtenue par le fonds. A chiffrer avec la societe avant toute discussion de prix.`
-    // Une fourchette pre-money existe et aucun ticket n a ete lu. Le
-    // cas sortait par le silence, qui est le patron ferme a la grappe
-    // 3 et que le lecteur confond avec une dilution sans probleme. Le
-    // motif de lecture etait deja calcule dans parseTicket depuis
-    // l origine et personne ne le lisait : une garde inerte, de la
-    // meme famille que celles du quatrieme bloc, sauf qu ici c est le
-    // resultat et non la garde qui restait sans consommateur.
-    : (preMoneyRange && ticket.total === null)
+    // Une fourchette pre-money existe et un montant a ete refuse faute
+    // de citation. Le cas sortait par le silence, qui est le patron
+    // ferme a la grappe 3 et que le lecteur confond avec une dilution
+    // sans probleme.
+    //
+    // ARBITRAGE, rendu le 3 aout 2026 contre une exigence anterieure.
+    // La premiere ecriture de cette branche declarait le motif des lors
+    // qu aucun ticket n avait ete lu, ce qui a rendu rouge une garde de
+    // `valuation-ticket.test.ts` posant l exigence inverse : « un
+    // dossier sans ticket ne doit pas porter un avertissement de
+    // non-calcul ». Les deux exigences sont justes et elles portent sur
+    // le meme silence.
+    //
+    // La sortie est de monter d un cran. Ce qui les separe n est pas le
+    // ticket, c est la raison de son absence. Un dossier qui n annonce
+    // aucun montant n a rien a declarer, et l avertissement y serait du
+    // bruit : l exigence anterieure garde raison. Un dossier dont le
+    // montant a ete rendu puis refuse faute de citation a quelque chose
+    // a aller rechercher, et le taire est la faute que ce bloc ferme.
+    // La cause de lecture, qui n existait pas quand la premiere
+    // exigence a ete ecrite, rend cette distinction calculable au lieu
+    // de la laisser a l arbitrage de l ordre des commits.
+    : (preMoneyRange && ticket.total === null && causeChamp(input.extraction, 'montant') === 'non-cite')
     ? `Dilution non calculable : ${ticket.causeMotif}. La fourchette de valorisation, elle, est etablie ; c est le ticket qui manque pour en tirer un pourcentage. A redemander au dossier avant toute discussion de prix.`
     : null;
   // Trois causes distinctes, et non deux. Hors domaine sur une cession

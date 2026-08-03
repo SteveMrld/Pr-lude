@@ -75,6 +75,184 @@ export interface EvenementDate {
   luDansLaProse: boolean;
 }
 
+// ============================================================
+// RANG DE FONDATION, ET REGROUPEMENT PAR FAIT
+// ------------------------------------------------------------
+// Une reserve peut etre juste et sa justification irrecevable. C est ce
+// qui s est produit sur le run du 3 aout 2026 : quatre evenements
+// declares posterieurs, dont trois etaient la meme levee de 83 millions
+// d euros de novembre 2023, fait date et sourcé, et un quatrieme qui
+// n etait pas un evenement du tout. La mention servie au partner citait
+// le quatrieme.
+//
+// Ce quatrieme etait « Anti-fragilite collective 68/100 (niveau 60-75).
+// Les deux fondateurs actifs ont quitte des postes salaries stables dans
+// des groupes industriels de premier rang (Johnson Controls, S », un
+// constat du moteur Equipe avec son score en tete, tronque en cours de
+// mot, a qui le detecteur avait attache une date et une source qui ne
+// sont pas les siennes. Un partner qui lit cela sous une reserve conclut
+// que l outil est casse, alors que la raison de la reserve est juste.
+//
+// Trois defauts cumules, et chacun se corrige a un endroit different.
+//
+// Pas de regroupement : trois formulations d un meme fait comptaient
+// pour trois evenements, ce qui gonflait le decompte et donnait au
+// hasard de l ordre le choix de la citation. Le regroupement se fait sur
+// le fait et non sur la formulation, et les sources s additionnent :
+// trois articles sur une meme levee font une entree a trois sources, ce
+// qui est plus solide qu une entree, pas trois fois la meme chose.
+//
+// Pas de hierarchie : la mention prenait le premier venu. Elle prend
+// desormais le mieux fonde.
+//
+// Et un rang qui ne servait a rien : `luDansLaProse` etait deja porte
+// par chaque evenement et declare dans la sortie, sans jamais peser sur
+// le choix de celui qu on cite. Une information qui existe et
+// n influence rien est la forme meme des defauts de cette semaine.
+//
+// La regle : un evenement issu d une lecture de prose ne peut jamais
+// etre l evenement cite quand un evenement mieux fonde existe, et un
+// jugement de moteur ne peut jamais etre cite du tout. Quand rien n est
+// mieux fonde qu un jugement, la mention le dit au lieu de citer
+// l artefact comme s il valait preuve.
+// ============================================================
+
+/**
+ * Ce sur quoi un evenement repose, du mieux fonde au moins.
+ *
+ * `jugement-de-moteur` n est pas un cran de plus sur la meme echelle,
+ * c est une disqualification : ce n est pas un evenement mal source,
+ * c est autre chose qu un evenement.
+ */
+export type RangFondation =
+  | 'donnee-structuree'
+  | 'prose-datee'
+  | 'prose-indatee'
+  | 'jugement-de-moteur';
+
+const RANGS: RangFondation[] = ['donnee-structuree', 'prose-datee', 'prose-indatee', 'jugement-de-moteur'];
+
+/** Un fait, c est-a-dire un evenement et toutes les sources qui le portent. */
+export interface FaitDate {
+  intitule: string;
+  annee: number;
+  mois: number | null;
+  nature: EvenementNature;
+  /** Toutes les sources qui portent ce meme fait, dedupliquees. */
+  sources: string[];
+  luDansLaProse: boolean;
+  rang: RangFondation;
+}
+
+/**
+ * Marqueurs d un jugement de moteur dans un intitule.
+ *
+ * Le score sur cent est le signal dur : aucun evenement externe ne
+ * s enonce « 68/100 », et c est une propriete de la forme et non du
+ * vocabulaire, donc elle ne derive pas avec les tournures du modele.
+ * La mention de niveau la double sur les moteurs qui bornent leurs
+ * scores. La liste de noms de dimensions est le maillon faible et elle
+ * est ecrite comme tel : elle attrape ce que la forme laisse passer, et
+ * elle demandera a etre tenue.
+ */
+const MARQUEURS_DE_JUGEMENT: RegExp[] = [
+  /\b\d{1,3}\s*\/\s*100\b/,
+  /\bniveau\s+\d{1,3}\s*-\s*\d{1,3}/i,
+  /\b(anti[- ]fragilit|couverture systemique|couverture systémique|transposition d|obsession fondateur|intensite besoin|intensité besoin|signaux organiques|defensibilite|défensibilité)/i,
+];
+
+/** True quand l intitule porte lui-meme la date que l evenement declare. */
+function porteSaDate(e: EvenementDate): boolean {
+  const t = e.intitule.toLowerCase();
+  if (!new RegExp(`\\b${e.annee}\\b`).test(t)) return false;
+  if (e.mois === null) return true;
+  const mois = MOIS_EN_LETTRES[e.mois];
+  return mois ? t.includes(mois) || t.includes(mois.replace('evrier', 'évrier').replace('aout', 'août')) : true;
+}
+
+/**
+ * Rang de fondation d un evenement, lu sur ce qu il porte et non sur ce
+ * qu on suppose de sa provenance.
+ */
+export function rangDe(e: EvenementDate): RangFondation {
+  if (MARQUEURS_DE_JUGEMENT.some((rx) => rx.test(e.intitule))) return 'jugement-de-moteur';
+  if (!e.luDansLaProse) return 'donnee-structuree';
+  return porteSaDate(e) ? 'prose-datee' : 'prose-indatee';
+}
+
+/** True quand le fait peut etre cite au partner. */
+export function citable(f: FaitDate): boolean {
+  return f.rang !== 'jugement-de-moteur';
+}
+
+/**
+ * Clef de regroupement : le fait, pas la formulation.
+ *
+ * Deux enonces disent le meme fait quand ils portent la meme nature, la
+ * meme date, et les memes nombres significatifs. Le montant est ce qui
+ * identifie une levee, et il survit a la reecriture : « Levee de 83
+ * millions d euros annoncee en novembre 2023 » et « La levee de 83
+ * millions d euros realisee en novembre 2023 aurait pu financer une
+ * diversification cloud » ont la meme clef.
+ *
+ * Limite assumee et ecrite : deux faits distincts de meme nature, meme
+ * mois et sans aucun nombre se regrouperaient a tort. Le repli sur les
+ * mots significatifs reduit le cas sans le fermer. Ce qui le fermerait
+ * est un identifiant d evenement, qui viendra avec la donnee structuree
+ * et pas avant.
+ */
+export function clefDeFait(e: EvenementDate): string {
+  const t = e.intitule.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const nombres = Array.from(t.matchAll(/\d+(?:[.,]\d+)?/g))
+    .map((m) => m[0].replace(',', '.'))
+    // L annee de l evenement identifie sa date, pas son contenu.
+    .filter((n) => n !== String(e.annee))
+    .sort();
+  const base = `${e.nature}|${e.annee}|${e.mois ?? '-'}`;
+  if (nombres.length > 0) return `${base}|n:${nombres.join('.')}`;
+  const mots = Array.from(new Set(t.match(/[a-z]{5,}/g) ?? [])).sort().slice(0, 6);
+  return `${base}|m:${mots.join('.')}`;
+}
+
+/**
+ * Regroupe les evenements en faits, chacun avec ses sources, et les
+ * ordonne du mieux fonde au moins puis du plus recent au plus ancien.
+ *
+ * L intitule retenu pour un fait est celui de son evenement le mieux
+ * fonde, et a rang egal le plus court : parmi trois formulations d une
+ * meme levee, celle qui dit la levee sans la commenter.
+ */
+export function regrouperFaits(evenements: EvenementDate[]): FaitDate[] {
+  const paquets = new Map<string, EvenementDate[]>();
+  for (const e of evenements) {
+    const k = clefDeFait(e);
+    const p = paquets.get(k);
+    if (p) p.push(e); else paquets.set(k, [e]);
+  }
+  const faits: FaitDate[] = [];
+  for (const groupe of Array.from(paquets.values())) {
+    const classes = [...groupe].sort((a, b) => {
+      const d = RANGS.indexOf(rangDe(a)) - RANGS.indexOf(rangDe(b));
+      return d !== 0 ? d : a.intitule.length - b.intitule.length;
+    });
+    const tete = classes[0];
+    faits.push({
+      intitule: tete.intitule,
+      annee: tete.annee,
+      mois: tete.mois ?? groupe.find((g) => g.mois !== null)?.mois ?? null,
+      nature: tete.nature,
+      sources: Array.from(new Set(groupe.map((g) => g.source).filter((s): s is string => !!s))),
+      luDansLaProse: groupe.every((g) => g.luDansLaProse),
+      rang: rangDe(tete),
+    });
+  }
+  return faits.sort((a, b) => {
+    const d = RANGS.indexOf(a.rang) - RANGS.indexOf(b.rang);
+    if (d !== 0) return d;
+    return (b.annee - a.annee) || ((b.mois ?? 0) - (a.mois ?? 0));
+  });
+}
+
 /** Ancre temporelle retenue, et par quel chemin. */
 export interface AncreOperation {
   annee: number;
@@ -97,8 +275,18 @@ export interface OperationValidityOutput {
   cause: NonProductionCauseOrNull;
   ancre: AncreOperation | null;
   operationType: OperationType | null;
-  /** Evenements retenus comme posterieurs a l ancre. */
+  /**
+   * Evenements retenus comme posterieurs a l ancre, un par mention et
+   * donc avec ses doublons. Conserve tel quel pour l audit : c est ce
+   * que le detecteur a rendu.
+   */
   evenementsPosterieurs: EvenementDate[];
+  /**
+   * Les memes, regroupes par fait et classes du mieux fonde au moins.
+   * C est cette liste qui fonde la mention et le decompte ; l autre
+   * sert a retrouver ce qui a ete regroupe.
+   */
+  faits: FaitDate[];
   /** True si la reserve repose, meme partiellement, sur de la prose. */
   reposeSurDeLaProse: boolean;
   /**
@@ -193,6 +381,7 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
       ancre,
       operationType: type,
       evenementsPosterieurs: [],
+      faits: [],
       reposeSurDeLaProse: false,
       natureDeLaLecture: input.evenements.some((e) => e.luDansLaProse) ? 'prose-provisoire' : 'donnee-structuree',
       interditLaDiscussionDePrix: false,
@@ -201,16 +390,27 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
     };
   }
 
-  const prose = posterieurs.some((e) => e.luDansLaProse);
-  const financiers = posterieurs.filter((e) => e.nature === 'financement');
+  // Les evenements deviennent des faits : trois articles sur une meme
+  // levee font une entree a trois sources, et le decompte cesse de
+  // gonfler avec les reformulations. Le tri place le mieux fonde en
+  // tete, de sorte que le choix de ce qu on cite ne depende plus de
+  // l ordre dans lequel le detecteur a rendu ses lignes.
+  const faits = regrouperFaits(posterieurs);
+  const faitsCitables = faits.filter(citable);
+  const prose = faits.some((e) => e.luDansLaProse);
+  const financiers = faitsCitables.filter((e) => e.nature === 'financement');
 
   // Quelle composante l evenement met-il en cause. Un evenement de
   // financement conteste le cash-in, un changement de controle conteste
   // la cession, une procedure collective conteste tout. La reserve
   // porte sur elle et la mention la nomme, plutot que d etre globale ou
   // absente.
+  // Le fait qui fonde la cause est le mieux fonde des citables, et a
+  // defaut le mieux fonde tout court : quand rien n est citable, la
+  // composante visee reste a determiner, seule la mention change de
+  // forme.
   const comps = input.operationComponents ?? null;
-  const principalPourCause = financiers[0] ?? posterieurs[0];
+  const principalPourCause = financiers[0] ?? faitsCitables[0] ?? faits[0];
   const porteComposante = (k: string) => comps ? comps.some((c) => c.kind === k) : null;
   // Un evenement de financement conteste le cash-in quand il en existe
   // un. Quand il n en existe pas, il conteste l operation elle-meme :
@@ -246,11 +446,18 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
     ancre,
     operationType: type,
     evenementsPosterieurs: posterieurs,
+    faits,
     reposeSurDeLaProse: prose,
     natureDeLaLecture: prose ? 'prose-provisoire' : 'donnee-structuree',
     interditLaDiscussionDePrix: sortie,
-    mention: redigerMention(type, sortie, ancre, posterieurs, financiers, prose, comps, composanteVisee),
-    motif: `${posterieurs.length} evenement(s) externe(s) posterieur(s) a ${ancre.annee}. ${ancre.declaration}`
+    mention: redigerMention(type, sortie, ancre, faits, financiers, prose, comps, composanteVisee),
+    // Le decompte porte sur les faits et non sur leurs formulations :
+    // annoncer quatre evenements quand il y en a un et un artefact
+    // surestime ce qui est etabli, et c est le chiffre que le partner
+    // retient de la phrase.
+    motif: `${faits.length} fait(s) externe(s) posterieur(s) a ${ancre.annee}`
+      + (faits.length !== posterieurs.length ? ` (${posterieurs.length} mentions regroupees)` : '')
+      + `. ${ancre.declaration}`
       + (prose ? ' Detection provisoire par lecture de la prose des moteurs, en attendant que les evenements existent comme donnee.' : ''),
   };
 }
@@ -277,6 +484,7 @@ function sansVerdict(
     ancre: null,
     operationType: type,
     evenementsPosterieurs: [],
+    faits: [],
     reposeSurDeLaProse: false,
     natureDeLaLecture: 'sans-objet',
     interditLaDiscussionDePrix: false,
@@ -397,13 +605,20 @@ function redigerMention(
   type: OperationType,
   sortie: boolean,
   ancre: AncreOperation,
-  posterieurs: EvenementDate[],
-  financiers: EvenementDate[],
+  faits: FaitDate[],
+  financiers: FaitDate[],
   prose: boolean,
   comps: Array<{ kind: string }> | null,
   composanteVisee: string,
 ): string {
-  const principal = financiers[0] ?? posterieurs[0];
+  const citables = faits.filter(citable);
+  const principal = financiers[0] ?? citables[0] ?? faits[0];
+  // Rien de citable : tout ce que le detecteur a rendu est un jugement
+  // de moteur et non un evenement. La reserve ne peut alors s appuyer
+  // sur rien qui se montre, et la mention doit le dire. Citer
+  // l artefact reviendrait a lui preter une valeur de preuve qu il n a
+  // pas, ce qui est la faute que ce bloc ferme.
+  const rienDeCitable = citables.length === 0;
   const quand = principal.mois
     ? `${MOIS_EN_LETTRES[principal.mois]} ${principal.annee}`
     : String(principal.annee);
@@ -439,7 +654,9 @@ function redigerMention(
   const consequenceMixte = mixte && composanteVisee === 'cash-in'
     ? `Si cet evenement a eu lieu, la societe a trouve son financement ailleurs et la composante cash-in du document n a plus d objet. La cession de titres, elle, peut rester d actualite : c est ce qu il faut verifier.`
     : consequence;
-  const raison = `${objet}, or un evenement lui est posterieur : ${fait}, ${quand}. ${consequenceMixte}`;
+  const raison = rienDeCitable
+    ? `${objet}, et la detection a signale une activite posterieure a l ancre sans qu aucun element rendu ne soit un fait datable. Ce qui a ete releve est un jugement produit par un autre moteur de la plateforme, pas un evenement du dossier : il n est pas cite ici parce qu il ne vaut pas preuve. La reserve porte donc sur un doute a lever, et non sur un fait etabli.`
+    : `${objet}, or un evenement lui est posterieur : ${fait}, ${quand}. ${consequenceMixte}`;
 
   // 3. Ce que la reserve n invalide pas.
   const portee = sortie
@@ -458,9 +675,20 @@ function redigerMention(
   const origineAncre = ancre.origine === 'date-du-document'
     ? `la date de redaction est lue dans le document, ${ancre.annee}.`
     : `le document ne porte pas sa date de redaction, estimee a ${ancre.annee} au plus tot depuis le dernier exercice qu il qualifie de realise.`;
+  // Les sources s enumerent : trois articles sur une meme levee sont un
+  // appui plus solide qu un seul, et le taire perdait l information que
+  // le regroupement vient precisement d etablir.
+  const sources = principal.sources;
+  const listeSources = sources.length === 0 ? null
+    : sources.length === 1 ? `[${sources[0]}]`
+    : `[${sources.slice(0, -1).join('], [')}] et [${sources[sources.length - 1]}]`;
   const provenance = `Sur quoi repose cette reserve : ${origineAncre}`
-    + (principal.source ? ` L evenement a ete releve dans les sources publiques consultees [${principal.source}]` : ' L evenement a ete releve dans les sources consultees')
-    + (prose ? `, sa date et sa nature restent a recouper.` : `.`);
+    + (rienDeCitable
+      ? ' Aucun fait datable n a ete releve dans les sources consultees.'
+      : listeSources
+        ? ` Le fait a ete releve dans ${sources.length > 1 ? `${sources.length} sources publiques consultees` : 'les sources publiques consultees'} ${listeSources}`
+        : ' L evenement a ete releve dans les sources consultees')
+    + (rienDeCitable ? '' : (prose ? `, sa date et sa nature restent a recouper.` : `.`));
 
   return [decision, raison, portee, levee, provenance].join(' ');
 }
