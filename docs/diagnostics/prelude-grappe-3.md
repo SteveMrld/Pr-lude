@@ -471,3 +471,29 @@ obligatoire, auditer site par site les valeurs posees par repli, et ne
 pas considerer que le compilateur vert vaut relecture. C est le prix de
 la methode, et il est faible compare a ce qu elle evite, mais il doit
 etre paye explicitement plutot que suppose.
+
+## Extension du 3 aout 2026 : la cause appliquee a une production
+
+La grappe a pose la cause structuree sur les non-productions : un
+moteur qui ne rend rien declare pourquoi, `doctrine`, `incident` ou
+`absence`, et aucun consommateur en aval ne lit un message pour
+decider.
+
+Le module de validite d operation etend le principe plutot qu il ne le
+reprend, et la nuance merite d etre notee parce qu elle ouvre un usage
+que la grappe n avait pas prevu. Son champ `natureDeLaLecture` porte
+une cause sur une **production** : la reserve est bien rendue, elle
+existe, et ce que la cause declare n est pas son absence mais ce sur
+quoi elle repose, une donnee structuree ou une lecture de prose
+provisoire.
+
+La question que la grappe avait tranchee etait « pourquoi rien n a ete
+produit ». Celle-ci est « sur quoi repose ce qui a ete produit ». Les
+deux appellent la meme reponse de forme, un champ typé a cote du
+message, jamais une phrase a interpreter, et pour la meme raison : un
+lecteur en aval doit pouvoir en decider sans lire de la prose.
+
+Consequence pratique : la valeur `prose-provisoire` est un etat de
+transition et non un mode de fonctionnement. Sa presence dans le code
+est le meilleur indicateur que la grappe evenement externe structure
+reste ouverte, et elle disparait avec elle.

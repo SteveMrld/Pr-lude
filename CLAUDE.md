@@ -133,6 +133,33 @@ Le corollaire vaut aussi : une mesure qui ne trouve aucun trou est
 moins suspecte, mais elle merite la meme lecture structurelle quand
 elle sert a affirmer qu un correctif couvre tout.
 
+## Discipline de precision
+
+Une precision non donnee ne doit pas produire une severite qu elle ne
+fonde pas.
+
+La regle est nee le 3 aout 2026 sur l ancre temporelle du module de
+validite d operation, mais elle ne lui appartient pas. Un document qui
+porte « 2023 » sans mois n autorise pas a le traiter comme s il datait
+de janvier : le lire ainsi ferait declencher une reserve sur tout
+evenement de l annee, alors que le document a pu etre ecrit en
+decembre. L ancre se pose donc en fin d annee, et seul un evenement
+clairement ulterieur declenche quelque chose.
+
+Le principe se formule sans son cas : quand une donnee arrive moins
+precise que le calcul qui la consomme, l arrondi se fait du cote qui
+retient la conclusion, pas du cote qui la produit. Une date partielle
+s arrondit vers le tard quand on cherche ce qui lui est posterieur, et
+vers le tot quand on cherche ce qui lui est anterieur. Un montant sans
+unite n est pas un montant. Un stade non revendique n est pas un stade
+deduit du chiffre d affaires.
+
+C est le pendant de la regle anti-divination, qui interdit d inventer
+une valeur absente. Celle-ci interdit d inventer une precision absente,
+ce qui est la meme faute a un cran de subtilite : la valeur est bien
+la, mais on lui prete une finesse qu elle n a pas, et cette finesse
+seule suffit a faire basculer une conclusion.
+
 ## Conventions de commit
 
 Tag obligatoire en prefixe : feat / fix / refactor / docs / test /
