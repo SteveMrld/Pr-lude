@@ -285,11 +285,61 @@ function resoudreAncre(
 }
 
 /**
- * La formulation est une question posee au lecteur, jamais une
- * conclusion. Le module sait qu un evenement est posterieur ; il ne
- * sait pas si l operation a survecu, et rien dans les donnees ne le lui
- * dirait. Ecrire « l operation n existe probablement plus » depasserait
- * ce qui est etabli.
+ * Delai en deca duquel un element de confirmation est tenu pour recent.
+ *
+ * CONVENTIONNEL, et rien dans le code ne le fonde. Il est pose parce
+ * que l absence de convention laisserait le lecteur sans action : « a
+ * verifier » sans horizon ne se traduit par aucun geste. Trois mois est
+ * l ordre de grandeur d un mandat de cession vivant. A discuter avec un
+ * praticien, pas a deriver d une donnee.
+ */
+export const FRAICHEUR_CONFIRMATION_MOIS = 3;
+
+/**
+ * Nom de l operation en prose. Un type technique n a rien a faire dans
+ * un texte adresse a un lecteur : le partner lit une cession, pas
+ * `cession-totale`. Les trois types de sortie se disent « cession »
+ * parce que c est ce que la reserve met en cause, la capacite du
+ * vendeur a ceder ailleurs.
+ */
+function nommerOperation(type: OperationType): string {
+  if (type === 'levee') return 'une levee de fonds';
+  if (type === 'cession-partielle') return 'une cession partielle';
+  return 'une cession';
+}
+
+/**
+ * Rend l intitule au fait qu il porte, sans la lecture editoriale que
+ * le moteur d origine y a jointe. Le moteur Equipe presente une levee
+ * comme un signal favorable ; reprendre sa phrase entiere dans un
+ * paragraphe qui s en sert pour refuser donne deux tons contradictoires
+ * dans la meme ligne.
+ */
+function faitSeul(intitule: string): string {
+  const coupe = (intitule.split(/\s+:\s+/)[0] || intitule).replace(/\s+/g, ' ').trim();
+  // La date est donnee separement par la phrase : la laisser dans
+  // l intitule la ferait dire deux fois.
+  const sansDate = coupe
+    .replace(/\s*(annonc[ée]e?|datée?|survenue?|intervenue?)?\s*(en|au|le)?\s*(janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)?\s*20[0-4]\d\s*$/i, '')
+    .trim();
+  const fait = (sansDate.length >= 12 ? sansDate : coupe).slice(0, 140);
+  return fait.charAt(0).toLowerCase() + fait.slice(1);
+}
+
+/**
+ * La mention se lit en quatre mouvements : la decision, sa raison, ce
+ * qu elle n invalide pas, ce qui la leve. La provenance vient en
+ * dernier et en retrait.
+ *
+ * L ordre n est pas cosmetique. La premiere version donnait la preuve
+ * avant la decision, ne disait jamais que le reste de la note tenait,
+ * et placait la mention de provenance en troisieme argument, ou elle se
+ * lisait comme un aveu de faiblesse au milieu meme du paragraphe cense
+ * justifier un refus. Un partner qui voit une note refuser de conclure
+ * y lit une panne s il ne lit pas d abord que c est une decision.
+ *
+ * La formulation ne conclut toujours pas : elle dit que le prix ne se
+ * discute pas, jamais que l operation est morte.
  */
 function redigerMention(
   type: OperationType,
@@ -301,25 +351,47 @@ function redigerMention(
 ): string {
   const principal = financiers[0] ?? posterieurs[0];
   const quand = principal.mois
-    ? `${String(principal.mois).padStart(2, '0')}/${principal.annee}`
+    ? `${MOIS_EN_LETTRES[principal.mois]} ${principal.annee}`
     : String(principal.annee);
-  const source = principal.source ? ` [${principal.source}]` : '';
+  const fait = faitSeul(principal.intitule);
 
-  const tete = financiers.length > 0
-    ? `Un evenement de financement posterieur a la date probable du document a ete trouve : ${principal.intitule} (${quand})${source}.`
-    : `Un evenement posterieur a la date probable du document a ete trouve : ${principal.intitule} (${quand})${source}.`;
+  // 1. La decision, avant toute preuve.
+  const decision = sortie
+    ? `Le prix n est pas discute sur ce dossier, et c est une decision.`
+    : `Une reserve porte sur l actualite de l operation, et elle n empeche pas de discuter le prix.`;
 
-  // L asymetrie porte sur la question posee, pas seulement sur le ton.
-  const question = sortie
-    ? `Verifier si l operation instruite est toujours d actualite : le vendeur a pu trouver preneur ailleurs depuis.`
-    : `Verifier si l operation instruite est toujours d actualite : cet evenement peut signifier que le tour decrit a deja ete realise.`;
+  // 2. Sa raison, en une phrase qui nomme l operation en clair.
+  const consequence = sortie
+    ? `Si cet evenement a eu lieu, le vendeur a trouve son financement ailleurs et l operation decrite n a plus le meme objet. En discuter le prix reviendrait a valoriser une transaction dont on ignore si elle existe encore.`
+    : `Cet evenement peut signifier que le tour decrit a deja ete realise, auquel cas le dossier instruit une operation passee.`;
+  const raison = `Le document instruit ${nommerOperation(type)}, or un evenement lui est posterieur : ${fait}, ${quand}. ${consequence}`;
 
-  const reserve = prose
-    ? ` Cette reserve repose sur une lecture de la prose des moteurs et non sur une donnee structuree : la date et la nature de l evenement sont a recouper avant d en tirer une conclusion.`
-    : '';
+  // 3. Ce que la reserve n invalide pas.
+  const portee = sortie
+    ? `Le reste de la note tient. Les methodes, les multiples et la fourchette restent calcules et affiches plus bas : ce qui est suspendu, c est la recommandation, pas l analyse.`
+    : `Le reste de la note tient, fourchette comprise.`;
 
-  return `${tete} ${question}${reserve} ${ancre.declaration}`;
+  // 4. Ce qui leve la reserve, avec un geste et un horizon.
+  const geste = sortie
+    ? `etablir aupres du vendeur ou de son conseil que le mandat reste ouvert et que le perimetre annonce n a pas change`
+    : `etablir aupres de la societe que le tour decrit est toujours en cours et que ses termes n ont pas change`;
+  const levee = `Ce qui leverait la reserve : ${geste}. Un element date de moins de ${FRAICHEUR_CONFIRMATION_MOIS} mois suffit${sortie ? ', et la fourchette redevient alors directement utilisable' : ''}.`;
+
+  // 5. La provenance, en dernier. Verifiable sans etre un argument.
+  const origineAncre = ancre.origine === 'date-du-document'
+    ? `la date de redaction est lue dans le document, ${ancre.annee}.`
+    : `le document ne porte pas sa date de redaction, estimee a ${ancre.annee} au plus tot depuis le dernier exercice qu il qualifie de realise.`;
+  const provenance = `Sur quoi repose cette reserve : ${origineAncre}`
+    + (principal.source ? ` L evenement a ete releve dans les sources publiques consultees [${principal.source}]` : ' L evenement a ete releve dans les sources consultees')
+    + (prose ? `, sa date et sa nature restent a recouper.` : `.`);
+
+  return [decision, raison, portee, levee, provenance].join(' ');
 }
+
+const MOIS_EN_LETTRES: Record<number, string> = {
+  1: 'janvier', 2: 'fevrier', 3: 'mars', 4: 'avril', 5: 'mai', 6: 'juin',
+  7: 'juillet', 8: 'aout', 9: 'septembre', 10: 'octobre', 11: 'novembre', 12: 'decembre',
+};
 
 // ============================================================
 // DETECTION PROVISOIRE SUR PROSE

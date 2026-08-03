@@ -497,3 +497,33 @@ Consequence pratique : la valeur `prose-provisoire` est un etat de
 transition et non un mode de fonctionnement. Sa presence dans le code
 est le meilleur indicateur que la grappe evenement externe structure
 reste ouverte, et elle disparait avec elle.
+
+## Regle de place de la provenance, 3 aout 2026
+
+Une mention de provenance se place en dernier et en retrait, jamais
+dans le corps de l argument qu elle documente.
+
+La regle sort de la premiere formulation de la reserve de validite
+d operation. La contrainte etait juste, dire au lecteur sur quoi la
+reserve reposait, et la mention etait exacte : « cette reserve repose
+sur une lecture de la prose des moteurs et non sur une donnee
+structuree ». Placee en troisieme phrase d un paragraphe qui refusait
+de discuter un prix, elle devenait un aveu de faiblesse au milieu meme
+de la justification. Un partner qui lit une note refuser de conclure y
+cherche d abord si l outil a decide ou s il a echoue ; une phrase sur
+la fragilite de la lecture, a cet endroit, repond echoue.
+
+Deplacee en fin de mention et en retrait typographique, la meme phrase
+reste verifiable et cesse d etre un argument. Rien n est cache, l ordre
+seul change, et l ordre decide de ce que le lecteur comprend.
+
+La regle vaut pour toutes les mentions de provenance de la plateforme,
+tags de source, empreintes, mentions de fraicheur de benchmark,
+declarations d ancre. Elle se formule ainsi : ce qui fonde une
+affirmation se lit apres elle, ce qui la limite se lit avec elle. La
+provenance fonde, elle ne limite pas, donc elle suit.
+
+Corollaire de redaction : une mention de provenance ne doit jamais
+etre la seule chose qui distingue une decision d une panne. Si le
+lecteur a besoin de la provenance pour savoir si l outil a decide, la
+decision n a pas ete ecrite.

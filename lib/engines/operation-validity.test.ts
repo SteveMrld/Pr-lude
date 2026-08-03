@@ -44,8 +44,18 @@ console.log('\n[Suite 1] le cas qui a ouvert le module');
   check(r.verdict === 'a-verifier', 'la reserve est levee sur le LBO');
   check(r.interditLaDiscussionDePrix === true, 'et elle interdit la discussion de prix');
   check(r.reposeSurDeLaProse === true, 'la sortie declare qu elle repose sur de la prose');
-  check(r.mention!.includes('Verifier si l operation instruite est toujours d actualite'),
-    'la mention pose une question');
+  check(r.mention!.startsWith('Le prix n est pas discute sur ce dossier, et c est une decision.'),
+    'la mention ouvre sur la decision et non sur la preuve');
+  check(r.mention!.includes('Le reste de la note tient'),
+    'elle dit ce que la reserve n invalide pas');
+  check(r.mention!.includes('Ce qui leverait la reserve'),
+    'elle dit ce qu il faut etablir pour lever la reserve');
+  check(r.mention!.indexOf('Sur quoi repose cette reserve') > r.mention!.indexOf('Ce qui leverait'),
+    'la provenance vient en dernier et non en argument');
+  check(!/lbo|cession-totale|cession-partielle|non-etabli/.test(r.mention!),
+    'aucun type technique dans la prose adressee au lecteur');
+  check(!r.mention!.includes('validation externe de la traction'),
+    'la queue editoriale du moteur d origine est coupee');
   check(!/n existe plus|n existe probablement plus|caduque/i.test(r.mention!),
     'et ne conclut jamais');
 }
@@ -60,11 +70,14 @@ console.log('\n[Suite 2] la regle est asymetrique par type');
     'mais elle n interdit pas la discussion de prix');
   check(levee.mention!.includes('le tour decrit a deja ete realise'),
     'et la question porte sur le tour deja realise');
+  check(levee.mention!.includes('Le reste de la note tient, fourchette comprise'),
+    'sur une levee, la fourchette reste explicitement utilisable');
 
   for (const t of ['cession-partielle', 'cession-totale', 'lbo'] as const) {
     const r = evaluerValiditeOperation({ ...base, operationType: t });
     check(r.interditLaDiscussionDePrix === true, `${t} : le prix se refuse`);
-    check(r.mention!.includes('trouver preneur ailleurs'), `${t} : la question porte sur le vendeur`);
+    check(r.mention!.includes('le vendeur a trouve son financement ailleurs'), `${t} : la raison porte sur le vendeur`);
+    check(r.mention!.includes('mandat reste ouvert'), `${t} : le geste attendu est nomme`);
   }
 }
 
