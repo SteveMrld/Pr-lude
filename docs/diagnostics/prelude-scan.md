@@ -22,7 +22,7 @@ qu a produire la liste de lecture.
 - [x] 1. Le champ optionnel jamais renseigne
 - [ ] 2. La valeur posee par un repli la ou un choix etait requis
 - [ ] 3. La regle ecrite dans un commentaire, appliquee a une ligne
-- [ ] 4. Deux catalogues du meme produit qui ne se confrontent jamais
+- [x] 4. Deux catalogues du meme produit qui ne se confrontent jamais
 - [ ] 5. Le correctif branche en aval du point de perte
 - [x] 6. Le dispositif rendu inatteignable par une couche transverse
 - [ ] Question laterale : ce qu il faudrait pour exercer Trajectoire
@@ -156,6 +156,112 @@ dans `lib/trajectory-store.ts:265`, est cable jusqu a la requete SQL
 (`query.in('fragilite_verdict', ...)`) et aucun appelant ne le passe.
 Sans consequence tant que la vue portefeuille ne filtre pas, et cette
 question rejoint celle du moteur Trajectoire traitee plus bas.
+
+## 4. Deux catalogues du meme produit qui ne se confrontent jamais
+
+Cinq paires confrontees, une divergente. Cinq candidats bruts sur la
+paire divergente, trois retenus apres verification.
+
+Chaque confrontation est faite en important les deux catalogues et en
+parcourant leurs entrees, ou en les extrayant de l arbre syntaxique
+quand ils ne sont pas exportes. Aucune n est faite par comptage de
+litteraux.
+
+### Les quatre paires qui tiennent
+
+Les ids emis par le flux SSE, `SSE_EMITTED_ENGINE_IDS` dans
+`lib/pipeline-toile/mapping.ts`, contre les appels reels a `sendStart`
+et `sendDone` dans `app/api/analyze/route.ts` : dix-sept contre
+dix-sept, exactement les memes.
+
+Le fait merite d etre dit precisement parce qu il est bon, et la
+maniere dont il l est ne tient a rien. Le catalogue declare sa propre
+source de verite en commentaire : « Source de verite : grep dans
+`app/api/analyze/route.ts`. A maintenir si un nouveau `sendStart` est
+introduit. » Le test de coherence annonce juste en dessous confronte
+bien quelque chose, mais c est la topologie de la toile, derivee
+dynamiquement, et non la route. La seule chose qui garde le catalogue
+aligne sur ce que la route emet est la memoire de celui qui ajoutera
+le dix-huitieme moteur. C est un cas de la discipline des regles
+ecrites : la regle est juste, elle est ecrite au bon endroit, et rien
+ne la porte. La confrontation manquante tient en vingt lignes, sur le
+modele du test qui compare deja le matcher du middleware aux six
+chemins de `vercel.json`.
+
+Les identifiants de patterns dans `COMBINAISONS_CONFIG`
+(`lib/engines/fragility-structurelle/orchestrator.ts:75`) sont typees
+`PatternId[]`, donc confrontees au registre par le compilateur. Rien a
+faire.
+
+Les trois catalogues sectoriels sont alignes : treize fiches dans
+`sectoral-intelligence/types.ts`, treize slugs couverts par les
+mots-cle de `SLUG_MATCHERS`, douze slugs atteignables par arbitrage de
+classe d actif. Aucun orphelin dans aucun sens. Le seul ecart est
+`crypto-blockchain`, qu aucune classe d actif n impose et que les
+mots-cle atteignent, ce qui est coherent.
+
+Les sept fiches doctrinales de `docs/patterns/` correspondent une a une
+aux sept modules implementes. La confrontation qui compterait vraiment,
+celle du contenu de la fiche avec le SYSTEM_PROMPT dont CLAUDE.md dit
+qu elle est la source de verite, est une comparaison de prose a prose
+et ne se mecanise pas. Elle appartient a la calibration, pas a un
+scanner.
+
+### La paire divergente : le registre des appels au modele
+
+`LLM_ENGINES`, dans `lib/instrumentation/version-stamp.ts:307`, declare
+vingt-neuf moteurs avec leur chemin, leur modele et leur temperature.
+Son objet est de produire `enginesHash`, l empreinte qui segmente les
+runs pour la calibration : deux runs qui ne partagent pas leurs prompts
+ne doivent pas se comparer. Confronte a la realite, c est-a-dire aux
+fichiers qui appellent effectivement `callClaude`,
+`callClaudeWithUsage`, `callClaudeWithPDF` ou `getClient`, il en manque
+trois.
+
+Deux des cinq candidats bruts sont des faux positifs de mon propre
+scan, et je les donne parce qu ils disent ou le scan est fragile.
+`.tmp-run/p1.ts` est un fichier de travail ignore par git, que je
+n excluais pas. `lib/analysis-store.ts` porte une fonction locale
+`getClient` qui rend un client Supabase : une collision de nom, pas un
+appel au modele. Un scan par nom d appel ne distingue pas les deux, et
+c est exactement le genre d entree qui gonfle une liste non verifiee.
+
+Les trois qui restent :
+
+`lib/engines/sectoral-intelligence/regenerator.ts` et
+`inter-sector-aggregator.ts` produisent les fiches sectorielles. Ces
+fiches ne sont pas un produit annexe : `buildSectoralPromptBlock` les
+injecte en tete du prompt utilisateur de la plupart des moteurs, y
+compris des sept patterns de Fragilite. Une modification du prompt du
+regenerateur change donc ce que voient les moteurs, et ne change pas
+`enginesHash`. Les deux runs se rangent dans le meme segment de
+calibration alors qu ils n ont pas lu la meme chose.
+
+`lib/engines/structuration-entree/index.ts` appelle `callClaude` et
+n est pas dans le registre. Il n est pas non plus dans
+`app/api/analyze/route.ts` : il est servi a la demande par
+`app/api/analyses/[id]/structuration/route.ts`, donc hors du run
+principal. Son absence du stamp est defendable pour cette raison, et je
+la signale sans la compter comme une faute.
+
+`lib/cron/milestone-detection-runner.ts` appelle `callClaude` depuis la
+tache planifiee de detection de jalons. Meme raisonnement : hors run
+d analyse, hors perimetre du stamp. Signale, non compte.
+
+Le cas materiel est donc celui des deux moteurs sectoriels, et il a
+deja eu lieu une fois dans ce meme fichier. Le commentaire de la ligne
+218 raconte un `enginesHash` qui etait « aveugle a tout ce qu il
+pretendait tracer ». Le defaut a ete corrige pour les prompts des
+moteurs et laisse entier pour les generateurs de ce qu on injecte dans
+ces prompts.
+
+La correction n est pas d ajouter deux lignes au tableau. Un registre
+tenu a la main redivergera, et celui-ci l a fait dans les deux mois qui
+ont suivi sa correction precedente. La forme qui tient est le point de
+passage unique que la discipline des regles ecrites cite en premier :
+l enregistrement se fait dans le client Anthropic, sur l appel, et non
+sur une liste de sites d appel. A defaut, le test qui compare le
+declare au reel, dont ce scan vient d ecrire la version jetable.
 
 ## 6. Le dispositif rendu inatteignable par une couche transverse
 
