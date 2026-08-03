@@ -239,12 +239,31 @@ export interface ValuationMethodResult {
  * retenues, de sorte qu une fourchette a une seule methode ne soit pas
  * amputee du poids des methodes de l autre nature.
  */
+/**
+ * Ce qui separe les bornes brutes des methodes des bornes affichees.
+ * Deux regles s appliquaient sans etre dites, sur le chiffre le plus
+ * visible du produit : un lecteur qui multipliait la base par le
+ * multiple bas ne retrouvait pas le plancher affiche.
+ */
+export interface RangeDerivation {
+  /** Bornes telles que les methodes les produisent, avant enveloppe. */
+  brut: { min: number; max: number };
+  /** Facteurs de l enveloppe de plausibilite appliquee au central. */
+  enveloppe: { planchier: number; plafond: number; minimum: number; maximumResserre: number };
+  /** True si l enveloppe a effectivement deplace une borne. */
+  enveloppeAppliquee: boolean;
+  /** Phrase destinee au lecteur, refaisable a la main. */
+  explication: string;
+}
+
 export interface ConsolidatedRange {
   nature: ValuationNature;
   min: number;
   central: number;
   max: number;
   /** Methodes retenues et poids effectifs, sommant a 1. */
+  /** Null quand les bornes affichees sont celles des methodes. */
+  derivation?: RangeDerivation | null;
   contributions: Array<{ method: string; label: string; weight: number }>;
 }
 
@@ -686,7 +705,18 @@ function computeBySectorMultiples(
     ? ` Benchmark sectoriel calibre il y a ${freshnessMonths} mois (asOf ${range.asOf}), a recroiser.`
     : '';
 
-  const baseRationale = `Multiple ${range.multipleType.toUpperCase()} ${range.min}x-${range.max}x applique sur ${formatEur(baseMetric)}, ${range.multipleType.toUpperCase()} du millesime ${basis.year}. ${basis.declaration}`;
+  // Le central n est pas le milieu de la plage : il est deplace vers le
+  // haut ou le bas selon un signal de qualite tire des scores equipe et
+  // marche. La regle etait invisible sur le chiffre que tout le monde
+  // lit en premier. Elle se dit, avec ses trois termes, pour qu un
+  // lecteur puisse refaire le calcul.
+  const centralBrut = central;
+  const sens = qualitySignal > 0.5 ? 'vers le haut' : qualitySignal < 0.5 ? 'vers le bas' : 'nulle part';
+  const noteCentral = Math.round(adjustedCentral) === Math.round(centralBrut)
+    ? ''
+    : ` Le point central n est pas le milieu de la plage : le milieu vaut ${formatEur(centralBrut)}, et un signal de qualite de ${Math.round(qualitySignal * 100) / 100}, tire des scores equipe et marche, le deplace ${sens} de 60 pour cent de la distance au plafond, soit ${formatEur(adjustedCentral)}.`;
+
+  const baseRationale = `Multiple ${range.multipleType.toUpperCase()} ${range.min}x-${range.max}x applique sur ${formatEur(baseMetric)}, ${range.multipleType.toUpperCase()} du millesime ${basis.year}. ${basis.declaration}${noteCentral}`;
   const rationale = range.notes
     ? `${baseRationale} ${range.notes}${freshnessNote}`
     : `${baseRationale}${freshnessNote}`;
@@ -1627,11 +1657,32 @@ function consolidateRanges(
     if (min > central * ENVELOPPE_MIN_DOWN) min = central * ENVELOPPE_MIN_DOWN;
     if (max < central * ENVELOPPE_MIN_UP) max = central * ENVELOPPE_MIN_UP;
 
+    // Les bornes brutes, avant toute enveloppe : celles qu un lecteur
+    // obtient en multipliant la base par les multiples cites.
+    const brutMin = group.length === 1 ? group[0].range!.min : Math.min(...centrals);
+    const brutMax = group.length === 1 ? group[0].range!.max : Math.max(...centrals);
+    const deplace = Math.round(brutMin) !== Math.round(min) || Math.round(brutMax) !== Math.round(max);
+    const explication = deplace
+      ? `Bornes brutes des methodes : ${formatEur(brutMin)} a ${formatEur(brutMax)}. `
+        + `Une enveloppe de plausibilite les resserre ensuite autour du central, entre ${ENVELOPPE_MAX_DOWN} et ${ENVELOPPE_MAX_UP} fois celui-ci, `
+        + `et garantit au minimum plus ou moins 20 pour cent : la fourchette affichee est donc ${formatEur(min)} a ${formatEur(max)}. `
+        + `L ecart au plancher vient de cette regle, pas des multiples.`
+      : `Bornes affichees identiques aux bornes brutes des methodes, l enveloppe de plausibilite n a rien deplace.`;
+
     out.push({
       nature,
       min: Math.round(min),
       central: Math.round(central),
       max: Math.round(max),
+      derivation: {
+        brut: { min: Math.round(brutMin), max: Math.round(brutMax) },
+        enveloppe: {
+          planchier: ENVELOPPE_MAX_DOWN, plafond: ENVELOPPE_MAX_UP,
+          minimum: ENVELOPPE_MIN_DOWN, maximumResserre: ENVELOPPE_MIN_UP,
+        },
+        enveloppeAppliquee: deplace,
+        explication,
+      },
       contributions: group.map((m) => ({
         method: m.method,
         label: m.label,
@@ -1810,6 +1861,12 @@ function buildSynthesis(args: {
   });
 
   let synth = phrases.join(' ');
+
+  // Une regle qui deplace une borne affichee doit se lire dans la
+  // synthese et pas seulement dans un champ technique.
+  for (const r of args.ranges) {
+    if (r.derivation?.enveloppeAppliquee) synth += ` ${r.derivation.explication}`;
+  }
   synth += ` Niveau de fiabilite ${confidenceLabel}, base sur ${args.applicableMethods.length} methode${args.applicableMethods.length > 1 ? 's' : ''} applicable${args.applicableMethods.length > 1 ? 's' : ''}.`;
 
   if (args.ranges.length > 1) {
