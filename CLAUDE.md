@@ -155,6 +155,28 @@ Quand un jugement est necessaire pour mesurer un jugement, la seule
 sortie est une lecture humaine sur un echantillon, ou une mesure
 indirecte par une consequence observable qui, elle, se compte.
 
+Troisieme corollaire, ajoute le 3 aout 2026 : mesurer sur la bonne
+table n est pas un detail d execution, c est la question elle-meme.
+
+Pour savoir ce que l absence du cron de detection de jalons avait
+coute, j ai mesure `analysis_outcomes`, qui portait onze lignes de
+juillet. Le selecteur lit `realized_outcomes`, qui est vide. Les deux
+noms se ressemblent, les deux tables parlent de dossiers dont l issue
+est connue, et la premiere mesure aurait conclu sur onze dossiers dont
+aucun n entre dans le champ du cron. La conclusion n a pas ete affinee
+en lisant quelle table le code interroge, elle a change de nature.
+
+La faute est de la meme famille que les precedentes, avec un cran de
+plus : les autres portaient sur la maniere de lire l objet, celle-ci
+sur l identite de l objet. Une mesure irreprochable sur le mauvais
+support ne se detecte par aucune relecture de sa methode, puisque sa
+methode est juste. Le seul controle est de remonter du code au support,
+jamais du nom au support.
+
+En pratique, avant de mesurer ce qu un module produit ou omet, lire
+dans le module quelle table, quel champ, quelle date il interroge, et
+mesurer exactement ceux-la. Le detour coute une lecture de fonction.
+
 ## Discipline de precision
 
 Une precision non donnee ne doit pas produire une severite qu elle ne
@@ -292,6 +314,63 @@ Ce qui fonde une affirmation se lit apres elle, ce qui la limite se lit
 avec elle. La provenance fonde, elle ne limite pas, donc elle suit, en
 retrait typographique. Rien n est cache, l ordre seul change, et
 l ordre decide de ce que le lecteur comprend.
+
+## Limite structurelle de la surveillance interne
+
+Un heartbeat prouve la vie, il ne signale pas la mort. Aucun dispositif
+interne ne corrige cela, et il faut le tenir pour une limite de
+conception et non pour une dette a resorber.
+
+Le constat est ne le 3 aout 2026 de la decouverte que les six taches
+planifiees declarees dans `vercel.json` n avaient jamais atteint leur
+handler, interceptees par le middleware d authentification et
+redirigees en 307 vers `/login`. La question qui suit n est pas
+pourquoi la panne est survenue, elle est pourquoi elle a dure.
+
+Le battement present est un fait positif que l on peut ecrire. Le
+battement absent n est un evenement pour personne : aucun processus ne
+se declenche parce que rien ne s est produit. Il faut donc un tiers
+qui, a un moment qu il choisit, constate le silence.
+
+Et ce tiers ne peut pas vivre dans la plateforme qu il surveille. Un
+cron de surveillance branche sur `/api/cron/monitor` aurait ete
+redirige en 307 comme les six autres et aurait garde exactement le meme
+silence. C est la forme generale du second corollaire de la discipline
+de mesure : un instrument de la meme nature que son objet ne borne
+rien. Ici l instrument ne partage pas seulement la nature de l objet,
+il partage son mode de defaillance.
+
+L instrumentation ne manquait d ailleurs pas. Le cron de nettoyage
+ecrivait sa trace d invocation dans `error_logs` avant meme d evaluer
+l autorisation, avec un commentaire annoncant qu elle servait de
+heartbeat. Elle a fonctionne : c est son absence totale qui a permis
+d etablir la panne. Elle a mis une semaine, et seulement parce qu un
+humain est alle la lire en cherchant autre chose. Le defaut n etait pas
+dans l ecriture, il etait dans la lecture, et aucune table mieux tenue
+n y aurait rien change.
+
+La seule reponse qui tienne est un interrupteur d homme mort chez un
+tiers : chaque tache reussie envoie un signal a un service exterieur,
+et c est ce service, qui ne depend ni de Vercel ni de Supabase ni du
+middleware, qui alerte quand le signal cesse. L inversion est tout le
+sujet. Ce n est plus la plateforme qui doit avoir la presence d esprit
+de signaler sa propre panne, c est le silence qui devient l evenement.
+C est le seul dispositif qui aurait alerte le 8 juin, jour de la
+premiere ligne restee bloquee, plutot que le 3 aout.
+
+Son cout est une dependance externe, et il n est pas seulement
+technique. Un tiers qui sait quand Prelude se tait sait aussi quand
+Prelude travaille, sur quelle cadence et avec quelles interruptions,
+pour une plateforme vendue a des fonds institutionnels sur sa rigueur.
+La question est de gouvernance avant d etre d ingenierie, et elle se
+tranche a ce niveau, pas dans un ticket.
+
+En attendant cet arbitrage, la mesure interne utile est la lecture
+placee la ou tourne quelque chose qui ne depend pas des taches
+planifiees : le rendu d une page que des humains ouvrent. Elle ne
+detecte rien tant que personne ne regarde, ce qui est une garantie
+faible, et il faut la presenter comme telle plutot que la laisser tenir
+lieu de surveillance.
 
 ## Discipline de verification
 
