@@ -130,6 +130,17 @@ export interface ParseEngineOutputOptions {
    */
   contractRetries?: number;
   /**
+   * True quand le contrat du moteur decrit sa sortie ASSEMBLEE et non
+   * la sortie brute du modele. Le contrat n est alors pas verifie ici :
+   * le moteur appelle verifierContrat sur son resultat final.
+   *
+   * Ce n est pas un affaiblissement du contrat mais un deplacement de
+   * son point d evaluation. Un predicat qui accepterait les deux formes
+   * serait un contournement : il rendrait le contrat vrai en le rendant
+   * plus faible, et cesserait de refuser ce qu il doit refuser.
+   */
+  contratApresRecombinaison?: boolean;
+  /**
    * Puits de tracabilite du parse, typiquement le LlmMeasure du
    * moteur. Le mode de la derniere tentative y est depose comme
    * avant, pour que pipeline_engines_status continue de porter
@@ -153,6 +164,16 @@ export interface ParseEngineOutputOptions {
  * pipeline_engines_status, pas le libelle affiche. Un moteur absent de
  * la table tombe sur le contrat generique, non-null et non-vide.
  */
+/**
+ * Verifie le contrat minimal d un moteur sur une sortie donnee et leve
+ * si elle ne le satisfait pas. Destine aux moteurs qui recombinent et
+ * verifient donc leur sortie assemblee, apres l appel.
+ */
+export function verifierContrat<T>(engine: string, value: T): T {
+  if (passesMinimalContract(engine, value)) return value;
+  throw new EngineContractError(engine, 'direct', value, 1);
+}
+
 export async function parseEngineOutput<T = any>(
   engine: string,
   produce: (attempt: number) => Promise<string>,
@@ -164,6 +185,20 @@ export async function parseEngineOutput<T = any>(
   for (let attempt = 1; attempt <= retries + 1; attempt++) {
     const raw = await produce(attempt);
     const { value, parseMode } = parseJSONWithMode<T>(raw, options.trace);
+
+    // Certains moteurs recombinent : leur contrat decrit la sortie
+    // assemblee et non la sortie brute du modele. Le vérifier ici
+    // reviendrait a exiger du modele des champs que le code produit
+    // apres lui. Ces moteurs declarent `contratApresRecombinaison` et
+    // appellent verifierContrat eux-memes sur leur sortie finale.
+    //
+    // Le defaut ferme : financialCoherence exigeait `archetype` et
+    // `globalCoherenceScore`, tous deux calcules par le code apres
+    // l appel, et `tests` sous forme de tableau la ou le type declare
+    // un Record. Le contrat echouait donc a chaque run depuis qu il
+    // existait, sur six dossiers du corpus, et le releve le comptait
+    // comme un echec de moteur.
+    if (options.contratApresRecombinaison) return value;
 
     if (passesMinimalContract(engine, value)) return value;
 

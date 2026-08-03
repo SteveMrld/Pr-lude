@@ -542,6 +542,28 @@ function stripCiteTags(text: string): string {
 // L API Anthropic n expose pas de seed reproductible (contrairement
 // a OpenAI) donc temperature=0 est la seule levier disponible.
 // ============================================================
+/**
+ * Fenetre d appel indexee sur le poids du document.
+ *
+ * Le client porte soixante secondes par tentative, valeur posee en
+ * juillet contre l incident inverse, des appels qui coincaient dix
+ * minutes. Elle convient a un deck de vingt pages et pas a un
+ * memorandum de cent : mesure du 3 aout, deux runs sur cinq du meme
+ * document de douze megaoctets sont morts a l extraction, apres deux
+ * tentatives de soixante secondes.
+ *
+ * La fenetre suit donc la taille. Le palier est grossier a dessein :
+ * une formule fine donnerait l illusion d un calibrage qu aucune mesure
+ * ne fonde, alors que trois paliers suffisent a couvrir l ecart entre
+ * un teaser et un memorandum de due diligence.
+ */
+export function fenetreSelonTaille(pdfBase64: string): number {
+  const mo = (pdfBase64?.length ?? 0) * 0.75 / 1024 / 1024;
+  if (mo >= 8) return 300_000;
+  if (mo >= 3) return 180_000;
+  return 60_000;
+}
+
 export async function callClaudeWithPDF(
   systemPrompt: string,
   userPrompt: string,
@@ -549,6 +571,7 @@ export async function callClaudeWithPDF(
   maxTokens = 3000,
   model: string = MODEL,
   temperature?: number,
+  timeoutMs?: number,
 ): Promise<string> {
   const client = getClient();
   const requestParams: any = {
@@ -570,7 +593,12 @@ export async function callClaudeWithPDF(
   if (temperature !== undefined) {
     requestParams.temperature = temperature;
   }
-  const response = await client.messages.create(requestParams);
+  // La fenetre par appel prime sur celle du client. Sans elle, le
+  // plafond global de soixante secondes s applique a un document que le
+  // modele met deux minutes a lire, et l appel meurt avant d avoir eu
+  // une chance.
+  const fenetre = timeoutMs ?? fenetreSelonTaille(pdfBase64);
+  const response = await client.messages.create(requestParams, { timeout: fenetre } as any);
   const textBlock = response.content.find(c => c.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {
     throw new Error('Réponse Claude vide ou invalide');

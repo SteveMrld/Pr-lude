@@ -21,7 +21,7 @@
 // ============================================================
 
 import { applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
-import { parseEngineOutput } from './engine-output-contract';
+import { parseEngineOutput, verifierContrat } from './engine-output-contract';
 import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -312,7 +312,7 @@ export async function analyzeFinancialCoherence(
     );
     addCall(measure, startedAt, usage, 7000);
     return text;
-  }, { trace: measure, contractRetries: 0 });
+  }, { trace: measure, contractRetries: 0, contratApresRecombinaison: true });
 
   // Recombinaison deterministe : on assemble les tests applicables
   // (issus du LLM) avec les stubs non applicables (construits cote
@@ -353,7 +353,10 @@ export async function analyzeFinancialCoherence(
     console.warn('[financial-coherence-engine] tagging audit:', audit.message);
   }
 
-  return output;
+  // Le contrat se verifie ici, sur la sortie assemblee, et non sur la
+  // sortie brute du modele : il exige `archetype` et
+  // `globalCoherenceScore`, tous deux produits par le code au-dessus.
+  return verifierContrat('financialCoherence', output);
 }
 
 // ============================================================
