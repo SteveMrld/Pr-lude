@@ -9,20 +9,46 @@
 // markAnalysisFailed lui-meme) reste indefiniment en 'running' et
 // pollue l Historique.
 //
-// AUTH DUALE : le CRON_SECRET reste la voie primaire, mais on
-// accepte aussi les invocations dont le User-Agent commence par
-// 'vercel-cron/' (Vercel signe systematiquement ses appels cron
-// avec ce user-agent, cf docs Vercel Cron). Cette voie de secours
-// evite le 401 silencieux quand l operateur a oublie de configurer
-// CRON_SECRET dans les env vars du projet Vercel, cas de figure
-// qui laisse toutes les analyses coincees se cumuler sans qu aucun
-// log serveur ne le signale.
+// AUTH : Bearer CRON_SECRET en comparaison stricte, refus en
+// production quand le secret est absent. Meme convention que les
+// cinq autres crons.
 //
-// La surface d attaque residuelle du fallback UA est nulle en
-// pratique : un appel spoofe ne peut que declencher un balayage
-// deja idempotent, il ne peut ni lire, ni supprimer, ni exposer
-// de donnees. On ne descend pas plus bas en garantie de securite
-// qu on ne montait en garantie de disponibilite.
+// Cette route a porte, du 27 juillet au 3 aout 2026, une auth duale
+// qui acceptait aussi tout appel dont le User-Agent commencait par
+// 'vercel-cron/'. Elle a ete retiree, et la justification qui
+// l accompagnait avec elle, parce que cette justification etait
+// fausse sur les deux points ou elle rassurait.
+//
+// Elle soutenait qu un appel spoofe ne peut que declencher un
+// balayage deja idempotent, incapable de lire, de supprimer ou
+// d exposer. Le balayage n est pas idempotent : son seuil arrivait
+// par la query string, borne en bas a cinq minutes, quand le
+// pipeline declare maxDuration = 800, soit treize minutes et vingt
+// secondes, et n ecrit son progress qu aux transitions de moteur,
+// certains annonces a cent vingt secondes. Un appel a
+// ?thresholdMinutes=5 basculait donc en 'failed' des analyses
+// vivantes, avec un completed_at pose et un error_message qui
+// impute la panne a un timeout Vercel jamais survenu. Rien ne
+// ramene de 'failed' vers 'running'. L exactitude du reste de la
+// phrase, ni lire ni supprimer ni exposer, ne compensait pas :
+// elle donnait au lecteur la confiance de ne pas verifier le seul
+// terme qui etait faux.
+//
+// Elle supposait ensuite que le silence du cron venait d un 401,
+// donc d un CRON_SECRET mal configure. La cause reelle etait le
+// middleware d authentification, dont le matcher couvrait
+// /api/cron/* et redirigeait les six taches en 307 vers /login,
+// sans jamais atteindre aucun handler. Le rapport qui a motive
+// l auth duale portait pourtant deja la preuve qui l infirme : il
+// notait qu error_logs ne contenait aucune entree pour aucun des
+// six crons. Un 401 en aurait laisse une, puisque le log ci-dessous
+// precede la garde. Zero trace ne designe pas une garde qui refuse,
+// mais une requete qui n arrive pas.
+//
+// Un en-tete que l appelant choisit librement n est pas une preuve
+// d identite, et une voie de secours ouverte pour compenser un
+// diagnostic errone laisse une porte ouverte apres que le
+// diagnostic a ete corrige.
 //
 // OBSERVABILITE : chaque invocation (autorisee ou refusee) est
 // tracee dans la table error_logs avec severity 'info' ou 'error'.
@@ -32,73 +58,42 @@
 // La serie temporelle des entrees info dans error_logs sert de
 // heartbeat pour valider que le cron tourne bien a la frequence
 // configuree dans vercel.json.
+//
+// Ce log a fait son travail : c est son absence totale, sur toute
+// la vie de la table, qui a permis d etablir que le handler n avait
+// jamais ete atteint plutot que d avoir refuse. Il se paie d un
+// canal d ecriture accessible a un anonyme, qui peut faire grossir
+// error_logs a raison d une ligne par requete refusee. On l accepte
+// parce que la panne qu il rend visible est muette par nature,
+// alors qu une table qui grossit se voit.
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isPersistenceEnabled, markStaleRunningAsFailed } from '@/lib/analysis-store';
+import {
+  isPersistenceEnabled,
+  markStaleRunningAsFailed,
+  STALE_SWEEP_THRESHOLD_MINUTES,
+} from '@/lib/analysis-store';
+import { evaluateCronAuth } from '@/lib/cron/auth';
 import { logError } from '@/lib/error-logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_THRESHOLD_MINUTES = 30;
-const VERCEL_CRON_UA_PREFIX = 'vercel-cron/';
+// Le seuil d immobilite et la garde d authentification vivent tous
+// deux hors de ce fichier, dans lib/analysis-store.ts et
+// lib/cron/auth.ts. Ce n est pas un rangement : un route.ts de Next
+// ne peut exporter que ses handlers, donc tout ce qui reste ici est
+// hors d atteinte d un test, et ce qui echappe aux tests derive. La
+// garde de cette route avait diverge des cinq autres, et le seuil
+// s etait laisse piloter par la query string.
 const LOG_SOURCE = 'cron.cleanup-stale-running';
-
-interface AuthResult {
-  authorized: boolean;
-  reason: string;
-}
-
-/**
- * Evalue l autorisation d une requete cron avec priorite au
- * CRON_SECRET puis fallback sur le user-agent Vercel. Retourne
- * une paire (autorise, raison lisible) pour que le log downstream
- * puisse tracer la cause exacte, ce qui evite les diagnostics a
- * l aveugle sur les 401.
- */
-function evaluateAuth(req: NextRequest): AuthResult {
-  const secret = process.env.CRON_SECRET;
-  const authHeader = req.headers.get('authorization') || '';
-  const userAgent = req.headers.get('user-agent') || '';
-  const isVercelCron = userAgent.startsWith(VERCEL_CRON_UA_PREFIX);
-
-  if (secret) {
-    if (authHeader === `Bearer ${secret}`) {
-      return { authorized: true, reason: 'CRON_SECRET valide' };
-    }
-    if (isVercelCron) {
-      return {
-        authorized: true,
-        reason: 'CRON_SECRET defini mais header Authorization absent ou faux, invocation acceptee sur user-agent vercel-cron',
-      };
-    }
-    return {
-      authorized: false,
-      reason: 'CRON_SECRET defini cote serveur, header Authorization absent ou incorrect cote appelant',
-    };
-  }
-
-  if (isVercelCron) {
-    return {
-      authorized: true,
-      reason: 'CRON_SECRET absent cote serveur, invocation acceptee sur user-agent vercel-cron',
-    };
-  }
-  if (process.env.NODE_ENV !== 'production') {
-    return { authorized: true, reason: 'CRON_SECRET absent, mode dev' };
-  }
-  return {
-    authorized: false,
-    reason: 'CRON_SECRET absent cote serveur en production et user-agent non vercel-cron',
-  };
-}
 
 export async function GET(req: NextRequest) {
   const triggeredAt = new Date().toISOString();
   const userAgent = req.headers.get('user-agent') || '';
-  const auth = evaluateAuth(req);
+  const auth = evaluateCronAuth(req);
 
   // Trace durable de chaque invocation, quel qu en soit le sort.
   // Cette entree est le heartbeat qui prouve que Vercel appelle
@@ -137,10 +132,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'persistence-disabled' }, { status: 503 });
   }
 
-  const thresholdParam = req.nextUrl.searchParams.get('thresholdMinutes');
-  const threshold = thresholdParam
-    ? Math.max(5, Math.min(1440, Number.parseInt(thresholdParam, 10) || DEFAULT_THRESHOLD_MINUTES))
-    : DEFAULT_THRESHOLD_MINUTES;
+  // Le seuil ne se lit plus depuis la query string. Un balayage qui
+  // ecrit un statut terminal irreversible ne prend pas ses bornes de
+  // son appelant.
+  const threshold = STALE_SWEEP_THRESHOLD_MINUTES;
 
   const { swept, ids } = await markStaleRunningAsFailed(threshold);
 

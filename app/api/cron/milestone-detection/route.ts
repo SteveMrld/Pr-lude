@@ -29,6 +29,7 @@ import {
   type DetectionCandidate,
 } from '@/lib/cron/milestone-detection-selector';
 import { runMilestoneDetection } from '@/lib/cron/milestone-detection-runner';
+import { isCronAuthorized } from '@/lib/cron/auth';
 
 export const runtime = 'nodejs';
 // Le scan LLM avec web_search peut prendre 15-30s par dossier. On
@@ -37,17 +38,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return process.env.NODE_ENV !== 'production';
-  }
-  const auth = req.headers.get('authorization');
-  return auth === `Bearer ${secret}`;
-}
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (!isPersistenceEnabled()) {

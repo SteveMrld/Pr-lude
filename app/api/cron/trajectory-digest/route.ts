@@ -16,17 +16,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isPersistenceEnabled } from '@/lib/analysis-store';
 import { runWeeklyDigest } from '@/lib/cron/trajectory-weekly-digest';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
+import { isCronAuthorized } from '@/lib/cron/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return process.env.NODE_ENV !== 'production';
-  const auth = req.headers.get('authorization');
-  return auth === `Bearer ${secret}`;
-}
 
 async function resolveEmail(userId: string): Promise<string | null> {
   const fallback = process.env.PRELUDE_PARTNER_EMAIL || null;
@@ -49,7 +44,7 @@ function dossierUrl(analysisId: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (!isPersistenceEnabled()) {

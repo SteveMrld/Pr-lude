@@ -1219,15 +1219,69 @@ export async function sweepDeadBornAnalyses(
 }
 
 /**
+ * Duree maximale d un run du pipeline, en minutes. Recopie du
+ * maxDuration = 800 declare par app/api/analyze/route.ts.
+ */
+export const MAX_PIPELINE_DURATION_MINUTES = 800 / 60;
+
+/**
+ * Plancher absolu du seuil d immobilite. Aucun appelant ne peut
+ * balayer en dessous, quelle que soit la valeur qu il demande.
+ *
+ * Une ligne 'running' plus jeune que la duree maximale d un run
+ * peut etre un run vivant : le progress ne s ecrit qu aux
+ * transitions de moteur, et certains moteurs durent deux minutes.
+ * Balayer sous ce plancher bascule en 'failed' des analyses en
+ * cours, de facon irreversible, et leur attribue un timeout qui
+ * n a pas eu lieu.
+ *
+ * Le plancher vit ici et non dans la route parce que c est ici que
+ * l ecriture se produit. Une regle posee au point de passage tient
+ * sans dependre de qui l applique ; la meme regle posee dans un
+ * commentaire de handler n aurait valu que pour ce handler, et le
+ * seuil est deja arrive par une query string une fois.
+ */
+export const MIN_STALE_THRESHOLD_MINUTES = 20;
+
+/**
+ * Seuil effectivement applique par le cron cleanup-stale-running.
+ * Politique, et non garantie : c est MIN_STALE_THRESHOLD_MINUTES qui
+ * tient le plancher, quoi que vaille cette constante.
+ *
+ * Trente minutes tiennent le double de la duree maximale d un run,
+ * ce qui absorbe une ecriture de progress retardee sans laisser
+ * trainer une ligne morte plus d un ou deux cycles du cron des
+ * quinze minutes. La valeur vit ici et non dans la route parce qu un
+ * fichier route.ts de Next ne peut rien exporter d autre que ses
+ * handlers, et qu une constante intestable finit par deriver.
+ */
+export const STALE_SWEEP_THRESHOLD_MINUTES = 30;
+
+/**
+ * Ramene tout seuil demande au-dessus du plancher. Pure, exportee
+ * pour etre verifiable sans base.
+ */
+export function enforceStaleThreshold(thresholdMinutes: number): number {
+  if (!Number.isFinite(thresholdMinutes)) return MIN_STALE_THRESHOLD_MINUTES;
+  return Math.max(MIN_STALE_THRESHOLD_MINUTES, thresholdMinutes);
+}
+
+/**
  * Bascule en 'failed' toutes les analyses running dont updated_at
  * est anterieur au seuil. Utilise pour le cron cleanup-stale-running.
  * Retourne le nombre de lignes basculees. Message d erreur explicite
  * pour differencier ces failures des erreurs metier.
+ *
+ * Le seuil recu est ramene au plancher avant tout usage, y compris
+ * dans le message ecrit en base : une analyse ne doit pas se voir
+ * imputer une immobilite plus courte que celle reellement exigee
+ * pour la balayer.
  */
 export async function markStaleRunningAsFailed(
-  thresholdMinutes: number,
+  requestedThresholdMinutes: number,
 ): Promise<{ swept: number; ids: string[] }> {
   if (!isPersistenceEnabled()) return { swept: 0, ids: [] };
+  const thresholdMinutes = enforceStaleThreshold(requestedThresholdMinutes);
   const stale = await listStaleRunningAnalyses(thresholdMinutes);
   if (stale.length === 0) return { swept: 0, ids: [] };
   const message =

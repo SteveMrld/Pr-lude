@@ -27,6 +27,7 @@ import {
   type ReanalysisCandidate,
 } from '@/lib/cron/portfolio-reanalysis-selector';
 import { runAutoReanalysis } from '@/lib/cron/portfolio-reanalysis-runner';
+import { isCronAuthorized } from '@/lib/cron/auth';
 import {
   evaluateForAnalysis,
   dispatchImmediateIfNeeded,
@@ -38,20 +39,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    // En l absence de secret configure, on autorise pour permettre
-    // les triggers manuels en dev. Sur Vercel Pro, le secret doit
-    // etre defini : sans lui, n importe qui peut declencher le job.
-    return process.env.NODE_ENV !== 'production';
-  }
-  const auth = req.headers.get('authorization');
-  return auth === `Bearer ${secret}`;
-}
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (!isPersistenceEnabled()) {

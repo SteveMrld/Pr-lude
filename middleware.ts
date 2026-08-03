@@ -22,6 +22,22 @@ const PUBLIC_PATHS = [
   '/demo', // future page demo PEN Group en lecture seule
 ];
 
+// Les taches planifiees declarees dans vercel.json sont appelees par
+// l infrastructure Vercel, qui ne porte aucun cookie de session. Sous
+// ENABLE_AUTH, le middleware les traitait comme des routes protegees
+// et les redirigeait en 307 vers /login : les six crons n ont jamais
+// atteint leur handler depuis leur mise en service. Un 307 n est pas
+// une erreur, rien ne le remonte, et la tache passe pour active.
+//
+// La bonne garde d une tache planifiee n est pas la session mais le
+// CRON_SECRET, que chaque route verifie elle-meme en premiere ligne
+// de son handler. Le middleware doit donc s ecarter, pas arbitrer.
+export const CRON_PATH_PREFIX = '/api/cron/';
+
+export function isCronPath(pathname: string): boolean {
+  return pathname === '/api/cron' || pathname.startsWith(CRON_PATH_PREFIX);
+}
+
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) return true;
   // Ressources Next/static, favicons, etc.
@@ -31,12 +47,21 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // Sortie anticipee avant toute lecture de session. Le matcher plus
+  // bas exclut deja /api/cron/, donc cette branche ne devrait pas etre
+  // atteinte en production ; elle est la defense qui survit a une
+  // reecriture du matcher, laquelle est une expression reguliere que
+  // personne ne relit. Les deux mecanismes tombent independamment.
+  if (isCronPath(pathname)) {
+    return NextResponse.next();
+  }
+
   const authEnabled = process.env.ENABLE_AUTH === 'true';
   if (!authEnabled) {
     return NextResponse.next();
   }
-
-  const { pathname } = req.nextUrl;
 
   // La landing reste publique pour pouvoir presenter Prelude sans login.
   // Mais on doit quand meme creer la session si elle existe (pour
@@ -93,9 +118,15 @@ export async function middleware(req: NextRequest) {
   return response;
 }
 
+// Le matcher doit rester une chaine litterale : Next l analyse
+// statiquement au build et refuse toute valeur calculee. La branche
+// api/cron/ y figure donc en dur, et middleware.test.ts verifie qu elle
+// couvre bien les six chemins declares dans vercel.json, en lisant ce
+// fichier plutot qu en faisant confiance a la memoire de celui qui
+// ajoutera la septieme tache.
 export const config = {
   matcher: [
-    // Match toutes les routes sauf assets explicites
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.webp).*)',
+    // Match toutes les routes sauf assets explicites et taches planifiees
+    '/((?!api/cron/|_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.webp).*)',
   ],
 };
