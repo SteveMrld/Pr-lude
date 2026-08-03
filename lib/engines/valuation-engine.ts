@@ -38,6 +38,7 @@ import {
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 import type { AssetClassArbitration, RelevanceMatrix } from '@/lib/engines/relevance-matrix';
+import type { OperationValidityOutput } from '@/lib/engines/operation-validity';
 import type { OperationType } from '@/lib/engines/types';
 import {
   deriveDossierReferenceYearWithReason,
@@ -287,6 +288,13 @@ export interface ValuationOutput {
    * pour cent de valeur d entreprise et 35 pour cent de pre-money
    * additionnes sous une etiquette qui n en decrivait qu une.
    */
+  /**
+   * Renseigne quand le moteur refuse de discuter un prix parce que la
+   * validite de l operation est a verifier. Cause `doctrine` au sens de
+   * la grappe 3 : c est une decision et non un incident.
+   */
+  priceRefusedCause?: NonProductionCauseOrNull;
+  priceRefusedReason?: string | null;
   recommendedRange: {
     min: number;
     central: number;
@@ -362,6 +370,13 @@ interface ValuationInput {
    * Craft, mai 2026 : trois classificateurs independants tous biaises
    * vers saas-b2b en silence, on consolide. */
   relevanceMatrix?: RelevanceMatrix | null | undefined;
+  /**
+   * Verdict de validite de l operation. Quand il interdit la discussion
+   * de prix, le moteur ne propose pas de fourchette recommandee : une
+   * operation qui n existe peut-etre plus ne se discute pas en prix,
+   * et un chiffre assorti d un avertissement se lit comme un chiffre.
+   */
+  operationValidity?: OperationValidityOutput | null | undefined;
   /** Date de reception du deck au format YYYY-MM-DD, saisie par le
    * partner en page d entree et persistee en colonne as_of. Sert
    * d ancrage temporel a la branche 2 de la regle de millesime. Une
@@ -591,9 +606,24 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     input.relevanceMatrix?.assetClassArbitration ?? null, stage,
   );
 
+  // Une operation dont la validite est a verifier ne se discute pas en
+  // prix. La fourchette et les methodes restent lisibles, pour que le
+  // partner puisse instruire s il etablit que l operation tient, mais
+  // aucune valeur n est recommandee : proposer un chiffre assorti d un
+  // avertissement revient a proposer un chiffre.
+  const validite = input.operationValidity ?? null;
+  const prixRefuse = validite?.interditLaDiscussionDePrix === true;
+  if (prixRefuse && validite?.mention) {
+    warnings.unshift(
+      `Aucune fourchette n est recommandee sur ce dossier. ${validite.mention}`,
+    );
+  }
+
   return {
     ranges,
-    recommendedRange,
+    recommendedRange: prixRefuse ? null : recommendedRange,
+    priceRefusedCause: prixRefuse ? 'doctrine' as NonProductionCause : null,
+    priceRefusedReason: prixRefuse ? (validite?.mention ?? null) : null,
     confidence,
     methods,
     dilutionAnalysis,

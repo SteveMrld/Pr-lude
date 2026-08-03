@@ -36,6 +36,7 @@ import {
   buildSkippedBlindspotOutput,
   buildSkippedCausalOutput,
 } from '@/lib/engines/skipped-outputs';
+import { detecterEvenementsDansLaProse, evaluerValiditeOperation } from '@/lib/engines/operation-validity';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { extractSaasMetrics } from '@/lib/engines/saas-metrics-engine';
@@ -1651,12 +1652,35 @@ export async function POST(req: NextRequest) {
             engineStatuses: enginesRecorder.snapshot(),
           });
 
+          // Validite de l operation instruite. Deterministe, sans appel
+          // au modele. Precede la valorisation parce qu une operation
+          // qui n existe peut-etre plus ne se discute pas en prix : la
+          // peremption de la base est une question de prix, celle de
+          // l operation est une question d objet.
+          //
+          // Les evenements sont aujourd hui reconstitues par lecture de
+          // la prose du moteur Equipe, faute d exister comme donnee.
+          // C est provisoire et declare comme tel jusque dans la note.
+          const evenementsExternes = detecterEvenementsDansLaProse([
+            ...((team as any)?.greenFlags ?? []),
+            ...((team as any)?.redFlags ?? []),
+            ...((team as any)?.declaredVsVerified?.verifiedClaims ?? []),
+            ...((team as any)?.declaredVsVerified?.discrepancies ?? []),
+          ]);
+          const operationValidity = evaluerValiditeOperation({
+            operationType: extraction?.fundraise?.operationType ?? null,
+            documentDate: (extraction as any)?.documentDate ?? null,
+            millesimeReference: financialData?.lastActualYear ?? null,
+            evenements: evenementsExternes,
+          });
+
           // Calcul de fourchette de valorisation (deterministe, pas d appel
           // LLM). Croise multiples sectoriels, methode VC inverse, Berkus
           // et Scorecard selon les inputs disponibles. Voir
           // lib/engines/valuation-engine.ts pour les methodes et
           // lib/data/sector-benchmarks.ts pour les plages publiques.
           const valuation = computeValuation({
+            operationValidity,
             extraction,
             financial: financialCoherence,
             financialData,
@@ -2095,6 +2119,7 @@ export async function POST(req: NextRequest) {
             // detail des methodes utilisees (multiples sectoriels, VC
             // method, Berkus, Scorecard) avec leur rationale.
             valuation,
+            operationValidity,
             // Sept indicateurs deal type (Burn multiple, Rule of 40, NDR,
             // Magic Number, Payback CAC, Marge brute, Revenue par
             // employe) confrontes aux benchmarks sectoriels par stade.
