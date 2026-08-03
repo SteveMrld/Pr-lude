@@ -50,9 +50,11 @@ function resultat(): any {
     financialData: {
       lastActualYear: 2021, lastActualYearEvidence: 'colonne 2021a',
       revenueProjection: [{ year: 2021, value: 13.5 }],
-      // benchmarks lit financialData.currentRound.amount et rien
-      // d autre : sans lui, la dependance declaree n est pas exercee.
-      currentRound: { amount: '10 M€' },
+      // benchmarks lit financialData.currentRound.amount, avec repli
+      // sur extraction.fundraise.amount. Le montant doit donc DIFFERER
+      // du repli, sinon vider financialData rend la meme sortie et la
+      // dependance parait fausse alors qu elle est seulement masquee.
+      currentRound: { amount: '25 M€' },
     },
     // La prose du moteur Equipe doit porter un evenement date, sinon la
     // dependance d operationValidity a cette section n est pas exercee.
