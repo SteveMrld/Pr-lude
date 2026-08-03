@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
-import { unionYears, alignSeriesToYears } from '@/lib/note/financial-table-alignment';
+import { unionYears, alignSeriesToYears } from '@/lib/analysis/financial-series';
 import {
   sectionFallbackCopy,
   sanitizeNarrative,
@@ -1252,7 +1252,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         {fd && fd.revenueProjection?.length > 0 && (() => {
           // Alignement par annee, pas par position. Voir
-          // lib/note/financial-table-alignment.ts pour la doctrine et
+          // lib/analysis/financial-series.ts pour la doctrine et
           // les tests. L en-tete est l union triee des annees de
           // toutes les series presentes ; chaque ligne est alignee par
           // cle annee sur cette union. Cellule absente rendue vide.

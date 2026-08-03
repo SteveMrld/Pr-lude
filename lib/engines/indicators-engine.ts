@@ -38,6 +38,7 @@ import {
   type IndicatorThresholds,
 } from '@/lib/data/indicator-benchmarks';
 import { normalizeAssetClass, normalizeStage, type ValuationStage } from '@/lib/data/sector-benchmarks';
+import { pickValueAtYear } from '@/lib/analysis/financial-series';
 import type { ExtractionOutput, FinancialDataExtraction, FinancialCoherenceOutput } from '@/lib/engines/types';
 import type { SaasMetricsExtraction } from '@/lib/engines/saas-metrics-engine';
 import type { IndustrialMetricsExtraction } from '@/lib/engines/industrial-metrics-engine';
@@ -142,15 +143,18 @@ export interface IndicatorsOutput {
  * applique : les projections sont en millions d EUR par convention
  * du moteur financial-extraction-engine).
  */
+// Copie privee remplacee par la primitive partagee. Elle divergeait
+// de celle de valuation-engine sur un point que personne n avait vu :
+// elle ne gardait pas contre une valeur non numerique et rendait donc
+// NaN la ou l autre rendait null. Un NaN traverse ensuite tous les
+// calculs sans lever, et sort en indicateur d apparence normale. La
+// primitive retient la garde.
 function pickProjectionValueAtYear(
   projection: Array<{ year: string; value: number; source: string }> | undefined,
   year: number,
   unitMultiplier = 1_000_000,
 ): number | null {
-  if (!projection) return null;
-  const found = projection.find((p) => parseInt(String(p.year), 10) === year);
-  if (!found) return null;
-  return found.value * unitMultiplier;
+  return pickValueAtYear(projection, year, unitMultiplier);
 }
 
 /**

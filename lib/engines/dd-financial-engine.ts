@@ -36,6 +36,7 @@ import type { LedgerExtraction } from '../ledger-parser';
 import { callClaude, parseJSON, MODEL } from './anthropic-client';
 import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { normalizeFrText } from '../data/text-normalize';
+import { pickValueAtYear } from '@/lib/analysis/financial-series';
 
 // ============================================================
 // Types
@@ -116,26 +117,66 @@ function parseNumberFromString(s: string | null | undefined): number | null {
   return value;
 }
 
+// ============================================================
+// RESOLUTION D ANNEE
+// ------------------------------------------------------------
+// Ces deux fonctions resolvaient par position. getCurrentYearProjection
+// cherchait l annee du grand livre, et faute de correspondance rendait
+// projection[0], la premiere entree de la serie, quelle que soit son
+// annee. getNextYearProjection ne cherchait rien : elle rendait
+// projection[1], sans aucune arithmetique d annee. L annee suivante y
+// etait definie comme le second element du tableau.
+//
+// Trois tests deterministes les consomment, et le troisieme etait le
+// plus expose. testGrowthTrajectory resolvait ses deux termes par ces
+// deux regles incompatibles, puis nommait leur ecart « BP croissance
+// Y+1 » et le confrontait a la croissance reelle du grand livre. Rien
+// ne garantissait que les deux termes soient consecutifs, ni meme dans
+// l ordre : sur une serie ou l annee du grand livre tombe a un indice
+// avance, la pente projetee sortait negative et l ecart etait qualifie
+// en points, en severite.
+//
+// La regle d alignement par cle annee existait deja, testee, dans ce
+// qui s appelait lib/note/financial-table-alignment. Elle avait ete
+// branchee la ou le symptome se voyait, un tableau decale d un an dans
+// la note, et laissee la ou il ne se voyait pas, un drapeau de due
+// diligence. Elle est desormais la seule implementation du depot et
+// ce fichier l appelle comme les autres.
+//
+// Consequence assumee : faute de correspondance exacte, on ne resout
+// plus rien et le test remonte not_assessable. Comparer le reel d un
+// exercice a la projection d un autre exercice n est pas une mesure
+// degradee, c est une mesure fausse, et la discipline de precision
+// impose de retenir la conclusion plutot que de la produire.
+// ============================================================
+
+function projectionAtYear(
+  projection: Array<{ year: string; value: number; source: string }>,
+  year: number,
+): { year: string; valueEur: number } | null {
+  const valeur = pickValueAtYear(projection, year, 1_000_000);
+  if (valeur === null) return null;
+  return { year: String(year), valueEur: valeur };
+}
+
 function getCurrentYearProjection(
   projection: Array<{ year: string; value: number; source: string }>,
   refDate: Date,
 ): { year: string; valueEur: number } | null {
-  if (!projection || projection.length === 0) return null;
-  const refYear = refDate.getFullYear();
-  // Cherche la projection pour l annee courante (ou la premiere disponible)
-  const exact = projection.find(p => p.year === String(refYear));
-  if (exact) return { year: exact.year, valueEur: exact.value * 1_000_000 };
-  // Sinon prendre la premiere (souvent l annee 1 du BP)
-  const first = projection[0];
-  return { year: first.year, valueEur: first.value * 1_000_000 };
+  return projectionAtYear(projection, refDate.getFullYear());
 }
 
+/**
+ * Exercice suivant celui du grand livre. C est bien N+1 en annees et
+ * non l entree suivante du tableau : deux series du meme dossier
+ * peuvent ne pas commencer la meme annee, et une serie peut sauter un
+ * exercice.
+ */
 function getNextYearProjection(
   projection: Array<{ year: string; value: number; source: string }>,
+  refDate: Date,
 ): { year: string; valueEur: number } | null {
-  if (!projection || projection.length < 2) return null;
-  const second = projection[1];
-  return { year: second.year, valueEur: second.value * 1_000_000 };
+  return projectionAtYear(projection, refDate.getFullYear() + 1);
 }
 
 // ============================================================
@@ -193,29 +234,49 @@ function testGrossMarginGap(
   ledger: LedgerExtraction,
 ): DDFinancialTest {
   const refDate = ledger.periodEnd ? new Date(ledger.periodEnd) : new Date();
-  const projected = getCurrentYearProjection(fd.grossMarginProjection, refDate);
+  const exercice = refDate.getFullYear();
   const real = ledger.realGrossMargin.pctOfRevenue;
 
-  if (!projected || real === null) {
+  if (real === null) {
     return {
       testId: 'T2',
       testName: 'Marge brute projetee vs reelle',
       severity: 'not_assessable',
-      bpValue: projected ? `BP : ${formatPct(projected.valueEur / 10000)}` : 'BP : marge brute non extractible',
-      realValue: real !== null ? `Grand livre : ${formatPct(real)}` : 'Grand livre : marge brute non calculable',
+      bpValue: 'BP : non confronte, faute de marge reelle a comparer',
+      realValue: 'Grand livre : marge brute non calculable',
       gapPct: null,
-      evidence: 'Donnees insuffisantes pour confronter la marge brute projetee a la realite comptable.',
-      ddQuestion: 'Pouvez-vous fournir la decomposition detaillee de la marge brute projetee (CA - achats - services exterieurs) ?',
+      evidence: 'Le grand livre ne permet pas de calculer une marge brute reelle sur douze mois.',
+      ddQuestion: 'Pouvez-vous fournir un grand livre couvrant douze mois complets, avec les classes 60, 61 et 62 detaillees ?',
     };
   }
 
-  // Note: grossMarginProjection.value est en pct (selon comment) - ici on suppose pct direct
-  const projectedPct = projected.valueEur / 1_000_000; // si stocke en value*1M, on retire le multiplicateur
-  // Actually selon types.ts: grossMarginProjection est `{value: number}` avec commentaire "pct"
-  // Donc value est deja un pourcentage, pas une valeur en millions. On corrige.
-  const projPctActual = fd.grossMarginProjection.find(p => p.year === projected.year)?.value
-                     ?? fd.grossMarginProjection[0]?.value
-                     ?? 0;
+  // La marge brute est une part et non un montant : le contrat la
+  // documente en points de pourcentage, sans le signe. On la lit donc
+  // sans multiplicateur, a l annee du grand livre et a aucune autre.
+  //
+  // Ce bloc portait trois defauts que la correction supprime ensemble.
+  // Une variable projectedPct calculee et jamais utilisee, vestige
+  // d une seance de debogage restee dans le fichier avec son journal
+  // en commentaires. Un repli sur grossMarginProjection[0], soit la
+  // marge d une annee quelconque presentee comme celle de l exercice
+  // compare. Et un dernier repli sur 0, qui transformait une lecture
+  // impossible en une marge projetee nulle : sur un dossier a 60 % de
+  // marge reelle, l ecart sortait a 60 points et le test rendait
+  // red_flag sans qu aucune projection ait ete lue.
+  const projPctActual = pickValueAtYear(fd.grossMarginProjection, exercice);
+  if (projPctActual === null) {
+    return {
+      testId: 'T2',
+      testName: 'Marge brute projetee vs reelle',
+      severity: 'not_assessable',
+      bpValue: `BP : aucune marge brute projetee pour l exercice ${exercice}`,
+      realValue: `Grand livre : ${formatPct(real)}`,
+      gapPct: null,
+      evidence: 'Le business plan ne porte pas de marge brute sur l exercice couvert par le grand livre. '
+        + 'Confronter la realite d un exercice a la projection d un autre ne mesure rien.',
+      ddQuestion: `Pouvez-vous fournir la marge brute projetee pour l exercice ${exercice}, avec sa decomposition (CA - achats - services exterieurs) ?`,
+    };
+  }
 
   const gapPoints = real - projPctActual;
   const absGapPoints = Math.abs(gapPoints);
@@ -232,10 +293,10 @@ function testGrossMarginGap(
     testId: 'T2',
     testName: 'Marge brute projetee vs reelle',
     severity,
-    bpValue: `BP ${projected.year} : ${formatPct(projPctActual)}`,
+    bpValue: `BP ${exercice} : ${formatPct(projPctActual)}`,
     realValue: `Grand livre 12M : ${formatPct(real)}`,
     gapPct: gapPoints,
-    evidence: `Le BP projette ${formatPct(projPctActual)} de marge brute pour ${projected.year}. La marge brute reelle calculee sur le grand livre 12 mois (produits - achats classe 60 - services exterieurs classe 61 et 62) ressort a ${formatPct(real)}. Ecart : ${gapPoints >= 0 ? '+' : ''}${gapPoints.toFixed(1)} points (${direction}).`,
+    evidence: `Le BP projette ${formatPct(projPctActual)} de marge brute pour ${exercice}. La marge brute reelle calculee sur le grand livre 12 mois (produits - achats classe 60 - services exterieurs classe 61 et 62) ressort a ${formatPct(real)}. Ecart : ${gapPoints >= 0 ? '+' : ''}${gapPoints.toFixed(1)} points (${direction}).`,
     ddQuestion: real < 0
       ? 'Marge brute reelle negative : les charges directes excedent les produits. Quel est le plan operationnel pour basculer en marge positive et a quel horizon ?'
       : severity === 'aligned'
@@ -401,7 +462,7 @@ function testGrowthTrajectory(
   const observedGrowthYoY = ledger.realRevenue.growthRate; // % YoY sur le grand livre
 
   const proj0 = getCurrentYearProjection(fd.revenueProjection, refDate);
-  const proj1 = getNextYearProjection(fd.revenueProjection);
+  const proj1 = getNextYearProjection(fd.revenueProjection, refDate);
 
   if (!proj0 || !proj1) {
     return {
@@ -727,3 +788,25 @@ function makeNotApplicable(reason: string): DDFinancialOutput {
     synthesis: '',
   };
 }
+
+// ============================================================
+// EXPOSITION POUR TESTS DETERMINISTES
+// ------------------------------------------------------------
+// Le moteur n avait aucun fichier de test, ce qui explique qu une
+// resolution d annee par position ait tenu jusqu au 3 aout 2026 : rien
+// n exercait ces fonctions, et le seul chemin qui les atteignait
+// passait par un appel LLM, donc hors de la suite deterministe.
+//
+// Les sept tests du moteur sont purs, ils ne demandent qu un
+// financialData et un grand livre. Il n y avait pas de raison
+// technique a leur absence de couverture, seulement l ordre dans
+// lequel les choses ont ete ecrites.
+// ============================================================
+
+export const _internal = {
+  testRevenueGap,
+  testGrossMarginGap,
+  testGrowthTrajectory,
+  getCurrentYearProjection,
+  getNextYearProjection,
+};

@@ -36,6 +36,7 @@ import {
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
+import { pickValueAtYear } from '@/lib/analysis/financial-series';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 import type { AssetClassArbitration, RelevanceMatrix } from '@/lib/engines/relevance-matrix';
 import type { OperationValidityOutput } from '@/lib/engines/operation-validity';
@@ -819,18 +820,18 @@ function computeBySectorMultiples(
  * declaree, ce qui est precisement ce que la declaration doit rendre
  * impossible.
  */
+// La copie privee de cette fonction a disparu au profit de la
+// primitive partagee lib/analysis/financial-series.ts. Elle etait la
+// plus prudente des trois exemplaires du depot, et c est son
+// comportement qui a ete retenu : ecarter le non numerique et rendre
+// null. Le multiplicateur reste decide ici, ou l on sait que le
+// contrat porte les montants en millions d euros.
 function pickProjectionValueAtYear(
   projection: Array<{ year: string; value: number; source: string }> | undefined,
   year: number | null,
   unitMultiplier = 1_000_000,
 ): number | null {
-  if (!projection || projection.length === 0 || year === null) return null;
-  for (const p of projection) {
-    const y = parseInt(String(p.year), 10);
-    const v = Number(p.value);
-    if (y === year && !isNaN(v)) return v * unitMultiplier;
-  }
-  return null;
+  return pickValueAtYear(projection, year, unitMultiplier);
 }
 
 /**

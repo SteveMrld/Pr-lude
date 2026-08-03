@@ -1,5 +1,5 @@
 // ============================================================
-// Tests deterministes financial-table-alignment.ts
+// Tests deterministes financial-series.ts
 // ------------------------------------------------------------
 // Suite doctrinale : les assertions portent sur QUELLE valeur tombe
 // sous QUELLE annee, pas sur la longueur des lignes. Une suite qui
@@ -10,7 +10,7 @@
 // 2024 a 0.402 alors que la vraie valeur est 0.138.
 // ============================================================
 
-import { unionYears, alignSeriesToYears, type YearValueEntry } from './financial-table-alignment';
+import { unionYears, alignSeriesToYears, pickValueAtYear, seriesYears, type YearValueEntry } from './financial-series';
 
 let pass = 0, fail = 0;
 function check(cond: boolean, label: string) {
@@ -176,6 +176,73 @@ const rev = [{ year: '2020', value: 1 }, { year: '2021', value: 2 }];
 const gross = [{ year: '2020', value: 80 }, { year: '2021', value: 82 }];
 const uMatch = unionYears(rev, gross);
 check(uMatch.length === 2 && uMatch[0] === '2020' && uMatch[1] === '2021', 'series identiques : union = 2 annees');
+
+
+// ============================================================
+// pickValueAtYear : l unique lecture ponctuelle du depot
+// ------------------------------------------------------------
+// Elle remplace trois copies privees et une resolution positionnelle.
+// Les deux copies se croyaient identiques et divergeaient sur un seul
+// point, la valeur non numerique : valuation-engine rendait null,
+// indicators-engine rendait NaN. Un NaN traverse ensuite tous les
+// calculs sans rien lever et ressort en indicateur d apparence
+// normale, ce qui est le pire des deux comportements. C est donc la
+// garde qui a ete retenue.
+// ============================================================
+
+console.log('\n--- pickValueAtYear ---');
+{
+  const serie: YearValueEntry[] = [
+    { year: '2019', value: 0.41 },
+    { year: 2020, value: 0.83 },
+    { year: '2021', value: 1.29 },
+  ];
+
+  check(pickValueAtYear(serie, 2020) === 0.83, 'lit la valeur a l annee demandee');
+  check(pickValueAtYear(serie, 2019) === 0.41, 'lit la premiere annee sans ambiguite');
+  check(pickValueAtYear(serie, 2021) === 1.29, 'lit la derniere annee');
+
+  // Le coeur du defaut corrige : aucune retombee sur une autre annee.
+  check(pickValueAtYear(serie, 2024) === null, 'annee absente : null, pas la premiere entree');
+  check(pickValueAtYear(serie, 2018) === null, 'annee anterieure a la serie : null');
+
+  check(pickValueAtYear([], 2020) === null, 'serie vide : null');
+  check(pickValueAtYear(null, 2020) === null, 'serie absente : null');
+  check(pickValueAtYear(undefined, 2020) === null, 'serie indefinie : null');
+  check(pickValueAtYear(serie, null) === null, 'annee absente en entree : null');
+
+  // Le mixte string/number est absorbe : la deserialisation JSON peut
+  // rendre l un ou l autre, et l appelant ne doit pas avoir a le
+  // savoir.
+  check(pickValueAtYear(serie, 2020) === 0.83, 'annee stockee en number lue comme les autres');
+
+  // La divergence resolue.
+  const avecNaN: YearValueEntry[] = [{ year: '2022', value: Number.NaN }];
+  check(pickValueAtYear(avecNaN, 2022) === null, 'valeur non numerique : null et jamais NaN');
+  const avecInfini: YearValueEntry[] = [{ year: '2022', value: Number.POSITIVE_INFINITY }];
+  check(pickValueAtYear(avecInfini, 2022) === null, 'valeur infinie : null');
+
+  // Le multiplicateur est une decision de l appelant. Le defaut vaut 1
+  // pour que le module ne porte aucune hypothese d unite : une marge
+  // en points de pourcentage et un revenu en millions passent par la
+  // meme fonction.
+  check(pickValueAtYear(serie, 2020, 1_000_000) === 830_000, 'multiplicateur applique quand il est demande');
+  check(pickValueAtYear(serie, 2020) === 0.83, 'aucun multiplicateur par defaut');
+}
+
+console.log('\n--- seriesYears ---');
+{
+  const serie: YearValueEntry[] = [
+    { year: '2021', value: 1 },
+    { year: 2019, value: 2 },
+    { year: 'inconnu', value: 3 },
+    { year: '2019', value: 4 },
+  ];
+  const annees = seriesYears(serie);
+  check(annees.length === 2, 'les annees non parseables sont ecartees et les doublons fusionnes');
+  check(annees[0] === 2019 && annees[1] === 2021, 'tri numerique ascendant');
+  check(seriesYears(null).length === 0, 'serie absente : aucune annee');
+}
 
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);
