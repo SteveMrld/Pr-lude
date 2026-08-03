@@ -19,7 +19,7 @@ qu a produire la liste de lecture.
 
 ## Etat d avancement
 
-- [ ] 1. Le champ optionnel jamais renseigne
+- [x] 1. Le champ optionnel jamais renseigne
 - [ ] 2. La valeur posee par un repli la ou un choix etait requis
 - [ ] 3. La regle ecrite dans un commentaire, appliquee a une ligne
 - [ ] 4. Deux catalogues du meme produit qui ne se confrontent jamais
@@ -28,6 +28,134 @@ qu a produire la liste de lecture.
 - [ ] Question laterale : ce qu il faudrait pour exercer Trajectoire
 
 Base : HEAD `a139335`, arbre propre.
+
+## 1. Le champ optionnel jamais renseigne
+
+Verifie 18 candidats sur 79, plus une classe entiere eliminee en bloc.
+
+Le scan est fait par l arbre syntaxique et non par le texte, faute de
+quoi il aurait mesure des mentions et non des ecritures. Il collecte
+d un cote les proprietes optionnelles declarees, de l autre tous les
+sites d ecriture possibles d une propriete de ce nom : affectation
+dans un litteral d objet, forme abregee, affectation de membre,
+declaration de classe. Sur 520 fichiers, 956 declarations optionnelles
+pour 603 noms distincts. Quatre-vingt-dix-neuf noms sortent : 79 que
+rien n ecrit nulle part, 9 que seuls des tests ecrivent.
+
+Le rapprochement se fait par nom, ce qui est grossier mais fautif dans
+le bon sens : si un nom n apparait dans aucun site d ecriture du depot,
+il n est ecrit pour aucun type. Le scan ne peut donc pas manquer une
+occurrence, il peut seulement en inventer, d ou la verification.
+
+### Une classe entiere de faux positifs, et pourquoi elle etait prevue
+
+Dix des 79 noms sont des champs de sortie de moteur declares dans
+`lib/engines/types.ts` : `aiVelocity`, `declaredVsVerified`,
+`evaluability`, `assetClassMatch`, `cautionLevel`,
+`pitchAlignmentNote`, `assessorDisagreementRationale`,
+`structuringPlan`, `weakSignalsChecks`, `horizon`. Aucun n est ecrit en
+TypeScript nulle part, et tous sont pourtant remplis a chaque run.
+
+La raison est que le scan mesurait le mauvais support, ce qui est la
+faute que la discipline de mesure nomme au troisieme corollaire. Ces
+champs ne sont pas ecrits par du code, ils sont parses depuis le JSON
+que rend le modele, et leur veritable site d ecriture est le squelette
+JSON du SYSTEM_PROMPT de leur moteur. Verification faite sur les dix :
+`cautionLevel` occupe six lignes du prompt de `pattern-engine.ts`, dont
+une regle d or qui impose de le remplir pour chaque comparable ;
+`weakSignalsChecks` demande trois a six entrees dans
+`reference-checks-engine.ts` ; `structuringPlan` est conditionne au
+verdict dans `orchestrator.ts`. Les dix sont demandes.
+
+Ce n est pas un defaut du scan, c est la limite qu il fallait connaitre
+avant de le lancer : pour tout champ traversant la frontiere du modele,
+un scan de code TypeScript ne dit rien, et seule la lecture du prompt
+tranche. Je le consigne parce que le prochain scanner refera l erreur
+sinon, et parce qu un rapport qui aurait cite ces dix noms aurait rendu
+dix faux positifs sur ses premieres lignes.
+
+Meme sort pour les options de seuil de `milestone-detection-selector.ts`
+et `sectoral-regeneration-selector.ts`, dont le commentaire de
+signature declare l intention : « override des seuils pour les tests,
+en prod les valeurs par defaut s appliquent ». Une couture de test
+declaree comme telle n est pas un champ oublie.
+
+Restent une quarantaine de props React optionnelles jamais passees, que
+je n ai pas ouvertes une a une : `printMode`, `compactMode`,
+`onNodeClick`, `ariaLabel` et leurs voisines. Ce sont des surfaces
+d interface inertes, sans portee doctrinale, et je le dis comme une
+appreciation de classe et non comme une verification.
+
+### Le vrai cas : le moteur Fixed Cost Trap ne recoit aucune donnee financiere
+
+Le candidat `offBalanceRatio`, declare ligne 313 de
+`lib/engines/fragility-structurelle/fixed-cost-trap-pattern.ts`, m a
+conduit a l interface qui le porte. En la lisant, ce n est pas un champ
+qui manque, ce sont les neuf.
+
+`FinancialBurnSnapshot` declare neuf champs. Son unique constructeur,
+`extractBurnSnapshot`, en renseigne huit, chacun par un couple de
+replis sur `financialData` : `f?.monthlyBurn ?? f?.burnRate`,
+`f?.runwayMonths ?? f?.runway`, `f?.totalCommitments ??
+f?.offBalanceCommitments`, et ainsi de suite. Or l objet est traverse
+par un cast `const f: any = financialData`, et `FinancialDataExtraction`
+ne porte aucune de ces treize clefs. Ni `monthlyBurn`, ni `burnRate`,
+ni `runwayMonths`, ni `capex`, ni `payroll`, ni `rentAnnual`, ni
+`contractualMinimums`. Le moteur d extraction financiere les produit
+sous une autre forme : `runwayMonths` et `monthlyBurn` n existent
+qu imbriques dans `currentRound`, et comme chaines de caracteres, du
+genre « 200K€/mois ».
+
+Le cast `any` est ce qui rend l ensemble silencieux au typage. Sans
+lui, `tsc` aurait refuse les treize lectures.
+
+Verification faite en exercant la fonction sur un objet conforme au
+squelette JSON que le moteur d extraction demande au modele, et non sur
+une fixture batie a l appui de l hypothese, ce qui aurait mesure ma
+lecture des donnees au lieu des donnees. Le snapshot rendu est `{}`,
+zero champ sur neuf, et le bloc correspondant du prompt vaut :
+
+    # DONNÉES BURN ET ENGAGEMENTS DISPONIBLES
+
+    (aucune donnée structurelle de burn ni d engagement long terme
+    disponible, analyse sur la base des éléments qualitatifs du pitch
+    et du résumé)
+
+Ce bloc est le seul que le pattern recoive, sur tous les dossiers,
+depuis toujours, y compris ceux qui arrivent avec un business plan
+complet. Fixed Cost Trap mesure la rigidite contractuelle face a un
+choc de demande, son cas canonique est WeWork, et il l a toujours
+jugee sur le pitch.
+
+Le repli est ce qui a rendu la panne invisible, et de la plus mauvaise
+maniere. La phrase de repli est vraie : il n y a effectivement aucune
+donnee dans le snapshot. Elle est simplement vraie pour la mauvaise
+raison, et un lecteur du prompt genere conclut a un dossier pauvre en
+donnees financieres la ou il faut conclure a un lecteur qui regarde au
+mauvais endroit. C est le pendant, cote production, de la discipline
+des jeux d essai : une absence indistinguable d une absence legitime ne
+se detecte par aucune relecture de sortie.
+
+La correction est de lire `financialData` la ou il est reellement
+ecrit, ce qui suppose de parser les chaines de `currentRound` en
+nombres, avec la reserve d usage sur les unites. Elle suppose surtout
+de retirer le cast `any` en premier, avant d ecrire la moindre ligne de
+lecture : c est lui la cause, les treize clefs fantomes n en sont que
+la consequence, et toute correction ecrite en le laissant en place
+pourra se tromper a nouveau sans que rien ne le dise. Les champs que
+l extraction ne produit pas du tout, dont `offBalanceRatio`,
+`contractualMinimums` et `capexCumulated`, sont un second sujet :
+soit le moteur d extraction financiere apprend a les chercher, soit
+ils sortent de l interface. Ils ne peuvent pas y rester declares sans
+producteur.
+
+### Cas mineur retenu
+
+`fragiliteVerdicts`, filtre optionnel de `listPortfolioLatestSnapshots`
+dans `lib/trajectory-store.ts:265`, est cable jusqu a la requete SQL
+(`query.in('fragilite_verdict', ...)`) et aucun appelant ne le passe.
+Sans consequence tant que la vue portefeuille ne filtre pas, et cette
+question rejoint celle du moteur Trajectoire traitee plus bas.
 
 ## 6. Le dispositif rendu inatteignable par une couche transverse
 
