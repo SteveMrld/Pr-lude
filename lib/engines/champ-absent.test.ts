@@ -78,7 +78,7 @@ console.log('\n[Suite 3] aucune coalescence nulle ne subsiste en face d un champ
   const racine = path.resolve(__dirname, '..', '..');
   const violations: string[] = [];
 
-  function parcourir(dir: string) {
+  const parcourir = (dir: string): void => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) {
@@ -98,7 +98,7 @@ console.log('\n[Suite 3] aucune coalescence nulle ne subsiste en face d un champ
         if (motif.test(l)) violations.push(`${path.relative(racine, p)}:${i + 1}`);
       });
     }
-  }
+  };
   for (const sous of ['lib', 'app', 'scripts']) {
     const d = path.join(racine, sous);
     if (fs.existsSync(d)) parcourir(d);

@@ -50,8 +50,19 @@ check('500k', parseEurAmount('500k') === 500_000);
 check('500 K', parseEurAmount('500 K') === 500_000);
 check('1.2 milliard', parseEurAmount('1.2 milliard') === 1_200_000_000);
 check('2 milliards EUR', parseEurAmount('2 milliards EUR') === 2_000_000_000);
-check('nombre brut 5000000 (>= 100k assume EUR)',
-  parseEurAmount('5000000') === 5000000);
+// Le prefill acceptait un nombre nu au-dessus de cent mille comme un
+// montant en euros. La lecture commune le refuse : sans unite ni devise,
+// il n y a pas de montant, et la regle a ete mesuree sur le corpus. La
+// case du formulaire reste donc vide, ce qui coute moins qu un nombre
+// pre-rempli qui se trouve faux dans un formulaire qu un humain valide.
+check('nombre brut 5000000 sans devise : refuse',
+  parseEurAmount('5000000') === null);
+check('le meme avec sa devise : lu',
+  parseEurAmount('5000000 EUR') === 5000000);
+// Le defaut du bloc : un fragment de date n est pas un montant.
+check('Dec-22a ne rend pas vingt-deux', parseEurAmount('Dec-22a') === null);
+check('Dec-22a : 1,2 M€ rend le montant et non la periode',
+  parseEurAmount('Dec-22a : 1,2 M€') === 1_200_000);
 check('nombre brut 50 (ambigu, rejette)',
   parseEurAmount('50') === null);
 check('string vide', parseEurAmount('') === null);

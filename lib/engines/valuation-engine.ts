@@ -47,6 +47,9 @@ import {
 } from '@/lib/analysis/reference-year';
 import type { NonProductionCause, NonProductionCauseOrNull } from '@/lib/engines/non-production';
 import { motifChampNonLu, causeChamp } from '@/lib/engines/motif-lecture';
+// Une seule lecture de montant pour toute la plateforme : trois
+// implementations divergeaient sur le cas sale, en silence.
+import { lireMontant, type MontantLu } from '@/lib/engines/lecture-montant';
 
 // ============================================================
 // MILLESIME DE REFERENCE DES MULTIPLES
@@ -1042,124 +1045,6 @@ function extractBaseMetric(
   }
 
   return null;
-}
-
-/**
- * Lecture d un montant financier, avec sa cause de non-lecture.
- *
- * Le defaut ferme : « Cession de 100% du capital » rendait 100 M EUR.
- * La forme precedente prenait le premier nombre du libelle, ignorait ce
- * qui le suivait, et convertissait par defaut tout nombre sous mille en
- * millions. Un pourcentage devenait donc un montant, et une part de
- * capital devenait un ticket.
- *
- * Mesure sur le corpus au 3 aout 2026 : sur trente-trois dossiers
- * portant un candidat de ticket, cinq annoncent une part de capital et
- * un annonce un nombre de parcs cedes. Six dossiers sur trente-trois
- * portaient donc un ticket fabrique, dont quatre cessions totales.
- *
- * Trois regles, dans cet ordre.
- *
- * Un nombre immediatement suivi d un signe pourcent n est pas un
- * montant, et la lecture passe au suivant plutot que d abandonner le
- * libelle entier : « cession de 100% du capital pour 12 M EUR » porte
- * bien un montant. C est aussi ce qui evite de perdre le ticket de
- * Crowdaa, ou un pourcentage de discount suit le montant recherche.
- *
- * L unite d une fourchette porte sur ses deux bornes. « 10-15m » lit
- * dix millions et non dix, parce que le suffixe trouve plus loin dans
- * la meme expression s applique a la borne basse.
- *
- * Sans unite ni devise, il n y a pas de montant. La conversion par
- * defaut vers les millions est supprimee : elle transformait un nombre
- * quelconque en somme d argent, ce qui est une divination au sens de la
- * grappe 4. Verifie sur le corpus, aucune valeur legitime n en
- * dependait, les quarante-huit candidats non vides portant tous soit un
- * suffixe soit une devise.
- */
-interface MontantLu {
-  value: number | null;
-  cause: NonProductionCauseOrNull;
-  motif: string | null;
-}
-
-/**
- * Aucun libelle a lire. Le motif dit ce que le pipeline sait, aucun
- * montant n a ete extrait, et non ce que le document contient, qu il
- * n a aucun moyen de savoir : « aucun montant annonce » est faux du
- * dossier qui en porte un que la lecture a manque, et c est cette
- * phrase que le partner lisait dans la note.
- */
-const MONTANT_AUCUN: MontantLu = { value: null, cause: 'absence', motif: 'aucun montant extrait du dossier' };
-
-function lireMontant(raw: any): MontantLu {
-  if (raw == null || raw === '') return MONTANT_AUCUN;
-  if (typeof raw === 'number') {
-    return raw > 0
-      ? { value: raw, cause: null, motif: null }
-      : { value: null, cause: 'absence', motif: 'montant nul ou negatif' };
-  }
-  if (typeof raw !== 'string') return MONTANT_AUCUN;
-
-  // Les espaces ne sont supprimes qu entre chiffres, la ou ils separent
-  // les milliers. Les supprimer partout collait le suffixe au mot
-  // suivant : « 15m de cash-in » devenait « 15mde », donc quinze
-  // milliards. Le suffixe doit finir sur autre chose qu une lettre.
-  const s = raw.toLowerCase()
-    .replace(/[\u00a0\u202f]/g, ' ')
-    .replace(/(\d)[ ](?=\d{3}(?!\d))/g, '$1')
-    .replace(/,(\d)/g, '.$1');
-  const jetons = Array.from(s.matchAll(/(\d+(?:\.\d+)?)\s*((?:mds?|m|k|b)(?![a-z]))?\s*(%)?/g));
-  if (jetons.length === 0) {
-    return { value: null, cause: 'absence', motif: 'aucun nombre dans le libelle' };
-  }
-
-  const nonPourcent = jetons.filter((j) => j[3] !== '%');
-  if (nonPourcent.length === 0) {
-    return {
-      value: null,
-      cause: 'absence',
-      motif: 'le libelle exprime une part et non un montant',
-    };
-  }
-
-  const premier = nonPourcent[0];
-  const value = parseFloat(premier[1]);
-  if (isNaN(value) || value <= 0) {
-    return { value: null, cause: 'absence', motif: 'nombre non exploitable' };
-  }
-
-  // L unite peut vivre sur la borne haute d une fourchette, mais
-  // seulement si les deux bornes sont contigues. Chercher un suffixe
-  // n importe ou dans le libelle ferait lire « 500 000 recherches,
-  // plafond 7M » comme cinq cent mille millions.
-  let suffixe = premier[2];
-  if (suffixe === undefined) {
-    const idx = nonPourcent.indexOf(premier);
-    const suivant = nonPourcent[idx + 1];
-    if (suivant && suivant[2] !== undefined) {
-      const finPremier = (premier.index ?? 0) + premier[0].length;
-      const entre = s.slice(finPremier, suivant.index ?? finPremier);
-      if (/^\s*(?:-|–|—|a|à|to|\/)\s*$/.test(entre)) suffixe = suivant[2];
-    }
-  }
-
-  if (suffixe === 'md' || suffixe === 'mds' || suffixe === 'b') {
-    return { value: value * 1_000_000_000, cause: null, motif: null };
-  }
-  if (suffixe === 'm') return { value: value * 1_000_000, cause: null, motif: null };
-  if (suffixe === 'k') return { value: value * 1_000, cause: null, motif: null };
-
-  const devise = /€|eur|\$|usd|£|gbp/.test(s);
-  if (devise && value >= 1000) return { value, cause: null, motif: null };
-
-  return {
-    value: null,
-    cause: 'absence',
-    motif: devise
-      ? `montant de ${value} sans ordre de grandeur, non interpretable`
-      : 'nombre sans unite ni devise, donc pas un montant',
-  };
 }
 
 /**

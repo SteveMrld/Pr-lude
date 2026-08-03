@@ -34,6 +34,7 @@ import type { ExtractionOutput, FinancialDataExtraction, TechClaimCoherenceOutpu
 import { callClaude, parseJSON, FAST_MODEL } from './anthropic-client';
 import { TEMPERATURE_DIALECTIQUE } from './engine-budget';
 import { normalizeFrText } from '../data/text-normalize';
+import { lireMontant } from './lecture-montant';
 
 // ============================================================
 // Detection des triggers (deterministe)
@@ -163,24 +164,24 @@ function detectMoatClaim(rawText: string): MoatSignal {
 }
 
 /**
- * Parse un montant texte (ex "1,5M€", "1.5M EUR", "1500k€") en
- * nombre absolu en EUR. Retourne null si parse impossible.
+ * Convertit un montant lu vers des euros.
+ *
+ * La lecture ne se fait plus ici. Ce moteur portait la troisieme
+ * implementation, qui convertissait par defaut vers les millions tout
+ * nombre sans unite : le budget technologique se calculait donc parfois
+ * sur un fragment de date pris pour un montant du tour. Ce que ce
+ * moteur a en propre est la parite, et il ne garde que la parite.
+ *
+ * Heuristique 0.92 pour un montant lu en dollars. Un montant sans devise
+ * est tenu pour des euros, ce qui est la lecture par defaut d un dossier
+ * europeen et n invente pas d ordre de grandeur.
  */
 function parseAmountEur(amountStr: string | null | undefined): number | null {
-  if (!amountStr) return null;
-  const s = amountStr.toLowerCase().replace(/[\s,]/g, '.');
-  const match = s.match(/([\d.]+)\s*(k|m|md|bn|b)?\s*(€|eur|\$|usd)?/);
-  if (!match) return null;
-  let value = parseFloat(match[1]);
-  if (isNaN(value)) return null;
-  const unit = (match[2] || '').toLowerCase();
-  const currency = (match[3] || '').toLowerCase();
-  if (unit === 'k') value = value * 1_000;
-  else if (unit === 'md' || unit === 'bn' || unit === 'b') value = value * 1_000_000_000;
-  else value = value * 1_000_000; // M par defaut
-  // Conversion approximative USD -> EUR si necessaire (heuristique 0.92)
-  if (currency === '$' || currency === 'usd') value = value * 0.92;
-  return Math.round(value);
+  const lu = lireMontant(amountStr);
+  if (lu.value === null) return null;
+  if (lu.devise === 'USD') return Math.round(lu.value * 0.92);
+  if (lu.devise === 'GBP') return Math.round(lu.value * 1.17);
+  return Math.round(lu.value);
 }
 
 // ============================================================

@@ -18,6 +18,7 @@ import type {
   Decision,
   RealizedOutcomeInput,
 } from './reconciliation-store';
+import { lireMontant } from './engines/lecture-montant';
 
 /**
  * Mapping deterministe stage Kanban -> decision realisee :
@@ -38,37 +39,30 @@ export function deriveDecisionFromStage(stage: string): Decision | null {
 }
 
 /**
- * Parse une chaine libre representant un montant en EUR vers un
- * nombre. Tolerant aux formats francais et anglais : "5M EUR",
- * "12 millions €", "$10M", "500k", "1.5 milliard". Retourne null
- * en cas d ambiguite (nombre nu < 100k EUR, pas d unite ni de
- * separateur de milliers).
+ * Parse une chaine libre representant un montant en EUR vers un nombre.
  *
- * Heuristique : on extrait le premier nombre, on regarde si une
- * unite (k, m, b, millions, milliards) suit dans une fenetre courte.
- * Si pas d unite et nombre >= 100k, on suppose deja en EUR brut.
+ * La lecture est celle de `lib/engines/lecture-montant`, qui est
+ * desormais la seule de la plateforme. Cette fonction en etait la
+ * quatrieme implementation, et elle divergeait sur deux points.
+ *
+ * Elle savait lire les unites ecrites en toutes lettres, « 12 millions
+ * EUR », que les trois autres ignoraient : cette lecture a ete reprise
+ * dans le module commun plutot que perdue avec la fonction.
+ *
+ * Elle acceptait en revanche un nombre nu au-dessus de cent mille comme
+ * un montant en euros. Ce n est pas une difference d implementation mais
+ * un desaccord de doctrine, et il se tranche du cote mesure : sans unite
+ * ni devise, il n y a pas de montant. Un tel libelle rend donc null, et
+ * la case du formulaire de reconciliation reste vide pour que le partner
+ * la remplisse. Une case vide dans un formulaire qu un humain valide
+ * coute moins qu un nombre pre-rempli qui se trouve faux.
+ *
+ * La devise n est pas convertie ici, comme elle ne l etait pas avant :
+ * la valeur va dans un champ que le partner relit.
  */
 export function parseEurAmount(s: string | null | undefined): number | null {
-  if (!s || typeof s !== 'string') return null;
-  const cleaned = s
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/,/g, '.')
-    .replace(/\s+/g, ' ');
-  // Match nombre + unite optionnelle immediatement apres ou separee d un espace
-  const match = cleaned.match(/(\d+(?:\.\d+)?)\s*(milliards?|millions?|m\b|b\b|k\b)?/);
-  if (!match) return null;
-  const n = parseFloat(match[1]);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  const unit = match[2] || '';
-  if (/^milliards?$|^b$/.test(unit)) return Math.round(n * 1_000_000_000);
-  if (/^millions?$|^m$/.test(unit)) return Math.round(n * 1_000_000);
-  if (/^k$/.test(unit)) return Math.round(n * 1_000);
-  // Pas d unite : seulement si le nombre est suffisamment gros pour
-  // etre plausiblement un montant en EUR brut (au moins 100k).
-  if (n >= 100_000) return Math.round(n);
-  return null;
+  const lu = lireMontant(s);
+  return lu.value === null ? null : Math.round(lu.value);
 }
 
 /**

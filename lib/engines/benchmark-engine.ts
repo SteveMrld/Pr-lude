@@ -13,6 +13,7 @@
 
 import { normalizeFrText } from '../data/text-normalize';
 import { motifChampNonLu, causeChamp } from './motif-lecture';
+import { lireMontant } from './lecture-montant';
 import type {
   ExtractionOutput,
   FinancialDataExtraction,
@@ -198,43 +199,24 @@ function detectRegion(extraction: ExtractionOutput): 'US' | 'Europe' | 'Other' |
 }
 
 /**
- * Parse un montant de levée extrait du dossier vers un nombre en millions USD.
- * Tolerant a plusieurs formats : "10M€", "$5M", "5 millions", etc.
+ * Convertit un montant lu vers des millions de dollars.
  *
- * Note: pour la conversion EUR -> USD, on utilise un taux conservateur de 1.07
- * (moyenne 2024-2026). Si le format est ambigu, on retourne null.
+ * La lecture elle-meme n est plus faite ici. Elle vivait dans ce moteur
+ * en une deuxieme implementation qui convertissait par defaut vers les
+ * millions tout nombre nu compris entre un et dix mille : « Dec-22a »,
+ * en-tete de colonne au millesime, y valait vingt-deux millions. Ce que
+ * ce moteur a en propre est la parite, pas la lecture, et il ne garde
+ * donc que la parite.
+ *
+ * Taux conservateur de 1.07, moyenne 2024-2026. Un montant lu sans
+ * devise n est pas converti : lui en supposer une serait inventer la
+ * moitie du chiffre.
  */
 function parseAmountToMillionsUsd(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const s = raw.toLowerCase().replace(/\s/g, '');
-
-  // Detecte la devise (defaut USD si absent)
-  const isEur = s.includes('€') || s.includes('eur');
-  const conversionRate = isEur ? 1.07 : 1.0;
-
-  // Cherche un nombre suivi optionnellement de M / K / B / millions / milliards
-  const match = s.match(/(\d+(?:[.,]\d+)?)\s*(m|k|b|md|million|milliard|billion|thousand)?/);
-  if (!match) return null;
-
-  const num = parseFloat(match[1].replace(',', '.'));
-  const unit = match[2] || '';
-
-  let valueMillions: number;
-  if (unit === 'k' || unit === 'thousand') {
-    valueMillions = num / 1000;
-  } else if (unit === 'b' || unit === 'md' || unit.includes('milliard') || unit === 'billion') {
-    valueMillions = num * 1000;
-  } else if (unit === 'm' || unit.includes('million')) {
-    valueMillions = num;
-  } else {
-    // pas d unite : on assume millions par defaut si > 1, sinon on ne sait pas
-    if (num >= 1 && num < 10000) {
-      valueMillions = num;
-    } else {
-      return null;
-    }
-  }
-  return valueMillions * conversionRate;
+  const lu = lireMontant(raw);
+  if (lu.value === null) return null;
+  const taux = lu.devise === 'EUR' ? 1.07 : lu.devise === 'GBP' ? 1.27 : 1.0;
+  return (lu.value * taux) / 1_000_000;
 }
 
 /**
