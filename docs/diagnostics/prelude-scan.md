@@ -21,7 +21,7 @@ qu a produire la liste de lecture.
 
 - [x] 1. Le champ optionnel jamais renseigne
 - [ ] 2. La valeur posee par un repli la ou un choix etait requis
-- [ ] 3. La regle ecrite dans un commentaire, appliquee a une ligne
+- [x] 3. La regle ecrite dans un commentaire, appliquee a une ligne
 - [x] 4. Deux catalogues du meme produit qui ne se confrontent jamais
 - [ ] 5. Le correctif branche en aval du point de perte
 - [x] 6. Le dispositif rendu inatteignable par une couche transverse
@@ -156,6 +156,105 @@ dans `lib/trajectory-store.ts:265`, est cable jusqu a la requete SQL
 (`query.in('fragilite_verdict', ...)`) et aucun appelant ne le passe.
 Sans consequence tant que la vue portefeuille ne filtre pas, et cette
 question rejoint celle du moteur Trajectoire traitee plus bas.
+
+## 3. La regle ecrite dans un commentaire, appliquee a une seule ligne
+
+Verifie 8 candidats sur 26, une occurrence retenue.
+
+Ce motif ne se scanne pas : une regle enoncee en prose ne se distingue
+d un commentaire descriptif que par la lecture. Le scan sert seulement
+a fabriquer la liste, par les tournures normatives (« ne doit jamais »,
+« doit toujours », « tout consommateur », « systematiquement »), qui
+rendent 26 emplacements. J en ai ouvert huit, choisis sur la portee
+apparente de la regle.
+
+### La combinaison qui affirme au partner ce que rien n a verifie
+
+`COMBINAISONS_CONFIG`, dans
+`lib/engines/fragility-structurelle/orchestrator.ts:75`, porte sept
+combinaisons diagnostiques. La septieme, « Exposition reglementaire
+convergente », enonce sa propre condition de declenchement dans son
+champ `rationale` :
+
+> Pattern declenche en propre quand le moteur Friction d Execution
+> Bloc 1 detecte simultanement une friction regulation actuelle.
+
+Cette condition n est evaluee nulle part. `detectCombinaisons` recoit
+un seul argument, `patterns`, et sa boucle ne teste que le score de
+chaque pattern liste contre `seuilMin`. La combinaison ne liste qu un
+pattern, `regulatory-time-bomb`, donc elle se declenche des que ce seul
+pattern atteint 60, sans aucun egard pour Friction d Execution.
+
+L orchestrateur ne pourrait d ailleurs pas l evaluer :
+`analyzeFragiliteStructurelle` prend `input`, `relevanceMatrix` et
+`analysisId`, et la sortie de Friction d Execution ne figure dans
+aucun des trois. La regle n est pas mal appliquee, elle est inapplicable
+en l etat, et personne ne l a remarque parce qu elle est ecrite dans
+une chaine de caracteres que le compilateur ne lit pas.
+
+Ce qui fait passer le cas d une negligence a une faute editoriale est
+la destination de cette chaine. `comb.rationale` est rendu tel quel
+dans la note, sous l intitule « Convergences detectees », a
+`app/components/InvestmentNoteView.tsx:3339`. Le partner lit donc, en
+severite alerte, qu une friction reglementaire actuelle a ete detectee
+simultanement par un autre moteur. Rien ne l a ete. C est une
+affirmation de fait produite par une absence de verification, ce qui
+est plus grave qu un score mal calibre : un score se discute, une
+affirmation fausse dans une note d instruction se paie au comite.
+
+Deux corrections possibles et elles ne se valent pas. Passer la sortie
+de Friction d Execution a l orchestrateur de Fragilite et evaluer la
+condition, ce qui est ce que la doctrine dit. Ou retirer cette entree
+de `COMBINAISONS_CONFIG`, puisqu une combinaison d un seul terme n est
+pas une convergence et que le pattern remonte deja son propre verdict
+dans la section qui lui revient. La seconde est la plus honnete tant
+que la premiere n est pas faite, parce qu elle supprime l affirmation
+plutot que de la laisser sans fondement.
+
+Le remede de fond est le meme que pour les autres cas de ce motif :
+une regle de declenchement qui vit dans un champ de prose n est portee
+par rien. Si `CombinaisonDiagnostique` portait un predicat au lieu
+d une liste de patterns, la condition serait du code, le compilateur
+exigerait ses entrees, et l ecart entre ce que la combinaison affirme
+et ce qu elle verifie ne pourrait pas s ouvrir.
+
+### Deux regles verifiees et correctement portees
+
+L arbitrage de classe d actif contre la chaine de production, dont
+`lib/engines/relevance-matrix.ts:1685` enonce qu « elle ne doit jamais
+contredire » l autre, est effectivement porte partout. Les cinq sites
+qui derivent une classe ont ete lus : `valuation-engine.ts:441` et
+`indicators-engine.ts:1331` preferent la classe arbitree de la matrice
+et ne retombent sur `normalizeAssetClass` que si la matrice est absente,
+ce qui est la double branche que la non-retroactivite demande ;
+`route.ts:927` alimente la matrice en indice brut, l arbitrage se
+faisant a l interieur. Le cas Platypus Craft cite en commentaire ne
+peut plus se reproduire par ces chemins.
+
+La regle « tout consommateur ecrit apres cette date lit les
+composantes », posee sur `operationComponents` a
+`lib/engines/types.ts:108`, est tenue par les trois consommateurs
+serveurs, qui portent chacun les deux branches :
+`valuation-engine.ts:556` et `1201`, `operation-validity.ts:212`,
+`note/operation-vocabulary.ts:31`.
+
+### Le cas qui ne compte pas, et pourquoi
+
+Le rejeu client de la valorisation,
+`app/components/InvestmentNoteView.tsx:561`, ne passe ni matrice de
+pertinence, ni composantes d operation, ni verdict de validite, et
+applique donc les regles d aujourd hui a des donnees d hier. C est
+exactement le motif, et je ne le compte pas : le commentaire qui le
+precede le dit deja mot pour mot, y compris qu on choisit de ne pas le
+corriger et pourquoi. « On ne le corrige pas en lui passant les bonnes
+entrees : cela le rendrait plus credible sans le rendre plus vrai. On
+le nomme. »
+
+C est la difference que ce motif demande de tenir. Une regle qu un
+commentaire enonce sans que rien ne la porte est un defaut. Une limite
+qu un commentaire nomme, avec sa raison et son arbitrage, est une
+decision. La premiere se corrige, la seconde se relit le jour ou son
+cout change.
 
 ## 4. Deux catalogues du meme produit qui ne se confrontent jamais
 
