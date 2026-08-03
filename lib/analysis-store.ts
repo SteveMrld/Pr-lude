@@ -833,7 +833,25 @@ export async function updateAnalysisProgress(
     if (input.yearFounded !== undefined) patch.year_founded = input.yearFounded;
     if (input.roundType !== undefined) patch.round_type = input.roundType;
     if (input.roundAmountEur !== undefined) patch.round_amount_eur = input.roundAmountEur;
-    if (input.progress !== undefined) patch.progress = input.progress;
+    if (input.progress !== undefined) {
+      patch.progress = input.progress;
+      // Seul point d ecriture de heartbeat_at dans tout le depot, et
+      // c est ce qui fait la valeur de la colonne. Un progress recu
+      // signifie que le pipeline vit : c est la definition meme du
+      // signe de vie, il n y a donc rien a decider ici.
+      //
+      // La colonne n est pas derivee de progress.heartbeatAt, elle est
+      // posee ici a l instant de l ecriture. Deriver du JSON ferait
+      // dependre la mesure de ce que le pipeline pense a y mettre, et
+      // le jour ou il cesserait d y penser la colonne se figerait sans
+      // que rien ne le dise. Le JSON garde son champ pour la reprise
+      // apres coupure SSE, qui est un autre usage.
+      //
+      // Toute autre ecriture sur cette colonne la ramenerait a ce
+      // qu etait updated_at. analysis-store.heartbeat.test.ts echoue
+      // le jour ou un second site apparait.
+      patch.heartbeat_at = new Date().toISOString();
+    }
     const { error } = await supabase.from('analyses').update(patch).eq('id', analysisId);
     if (error) {
       console.warn('[analysis-store] updateAnalysisProgress erreur :', error.message);
@@ -1068,15 +1086,29 @@ export interface StaleRunningRow {
   userId: string;
   companyName: string;
   startedAt: string | null;
+  /**
+   * Conserve pour le diagnostic seul. Ne jamais s en servir pour
+   * juger de l immobilite : le trigger analyses_updated_at_trigger le
+   * remet a now() a chaque UPDATE, migration de masse comprise.
+   */
   updatedAt: string;
+  /** Dernier signe de vie du pipeline. C est ce champ qui juge. */
+  heartbeatAt: string;
 }
 
 /**
  * Balaie toutes les analyses coincees en status='running' dont le
- * dernier updated_at est plus ancien que thresholdMinutes. Retourne
+ * dernier heartbeat_at est plus ancien que thresholdMinutes. Retourne
  * la liste avant bascule pour permettre le logging cote appelant.
  * Passe par le client admin (service_role) parce que le cron n a
  * pas de contexte user.
+ *
+ * Le critere etait updated_at et ne mesurait pas ce qu on lui
+ * demandait : un trigger BEFORE UPDATE le repose a chaque ecriture,
+ * d ou qu elle vienne. Deux analyses du 8 juin 2026 portaient ainsi
+ * un updated_at au 2 aout, identique a la microseconde, parce qu une
+ * ecriture de masse les avait traversees. Une ligne morte redevenait
+ * fraiche et sortait du champ du balayage sans que rien ne l indique.
  */
 export async function listStaleRunningAnalyses(
   thresholdMinutes: number,
@@ -1087,10 +1119,10 @@ export async function listStaleRunningAnalyses(
     const cutoff = new Date(Date.now() - thresholdMinutes * 60_000).toISOString();
     const { data, error } = await supabase
       .from('analyses')
-      .select('id, user_id, company_name, started_at, updated_at')
+      .select('id, user_id, company_name, started_at, updated_at, heartbeat_at')
       .eq('status', 'running')
-      .lt('updated_at', cutoff)
-      .order('updated_at', { ascending: true })
+      .lt('heartbeat_at', cutoff)
+      .order('heartbeat_at', { ascending: true })
       .limit(500);
     if (error) {
       console.error('[analysis-store] listStaleRunningAnalyses erreur :', error);
@@ -1102,6 +1134,7 @@ export async function listStaleRunningAnalyses(
       companyName: row.company_name || '(sans nom)',
       startedAt: row.started_at || null,
       updatedAt: row.updated_at,
+      heartbeatAt: row.heartbeat_at,
     }));
   } catch (err) {
     console.error('[analysis-store] listStaleRunningAnalyses exception :', err);
@@ -1173,6 +1206,13 @@ export const DEAD_BORN_THRESHOLD_MINUTES = 4;
  * Ne touche pas au cron cleanup-stale-running : les deux gardes
  * cohabitent, celle-ci sur les mort-nees, celle-la sur les pipelines
  * interrompus en cours d execution.
+ *
+ * Juge sur heartbeat_at pour la meme raison que l autre balayage. Le
+ * defaut etait ici plus insidieux encore : une mort-nee est par
+ * definition une ligne dont le pipeline n a jamais rien ecrit, donc
+ * la seule chose qui pouvait faire bouger son updated_at etait une
+ * ecriture venue d ailleurs, c est-a-dire exactement celle qu il ne
+ * fallait pas prendre pour un signe de vie.
  */
 export async function sweepDeadBornAnalyses(
   thresholdMinutes: number = DEAD_BORN_THRESHOLD_MINUTES,
@@ -1183,9 +1223,9 @@ export async function sweepDeadBornAnalyses(
     const cutoff = new Date(Date.now() - thresholdMinutes * 60_000).toISOString();
     const { data, error } = await supabase
       .from('analyses')
-      .select('id, progress, updated_at')
+      .select('id, progress, updated_at, heartbeat_at')
       .eq('status', 'running')
-      .lt('updated_at', cutoff)
+      .lt('heartbeat_at', cutoff)
       .limit(200);
     if (error) {
       console.error('[analysis-store] sweepDeadBornAnalyses erreur :', error);
@@ -1302,7 +1342,7 @@ export async function markStaleRunningAsFailed(
         updated_at: nowIso,
       })
       .eq('status', 'running')
-      .lt('updated_at', cutoff)
+      .lt('heartbeat_at', cutoff)
       .select('id');
     if (error) {
       console.error('[analysis-store] markStaleRunningAsFailed erreur :', error);
