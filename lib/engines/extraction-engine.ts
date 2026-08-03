@@ -41,7 +41,9 @@ Format de réponse OBLIGATOIRE (JSON pur, sans markdown, sans backticks, sans te
     "operationTypeEvidence": "citation courte du document (max 200 caractères) qui fonde le type retenu, ou null",
     "stage": "stade de maturité avec granularité fine : utilise EXACTEMENT l'une des valeurs suivantes selon les indices du document : 'pre-seed' (avant tout produit, friends and family), 'seed' (POC ou pré-PMF, ARR < 500K€), 'series-A-early' (PMF naissant, ARR 500K à 2M€ ou pré-revenue avec traction significative), 'series-A-late' (post-PMF confirmé, ARR 2 à 10M€, expansion commerciale en cours), 'series-B' (ARR 10 à 30M€, internationalisation), 'series-C' (ARR 30 à 100M€), 'series-D' (ARR > 100M€), 'growth' (société établie, late-stage), 'pre-IPO' (préparation cotation). Si le document dit juste 'Series A' sans précision, utilise 'series-A-early' par défaut. Si le document dit 'pre-B' ou 'A+' ou 'post-PMF', utilise 'series-A-late'. Un stade reste un stade quelle que soit l'opération : une société cédée a une maturité, renseigne-la.",
     "amount": "montant de l'opération, dont la nature dépend du type : montant levé ou recherché sur une levée, prix ou valeur d'entreprise annoncés sur une cession ou un LBO. Chaîne vide si le document ne le donne pas. N'y range JAMAIS une description d'opération ni un pourcentage de capital : ces informations ont leurs propres champs.",
+    "amountEvidence": "citation courte du document (max 200 caractères) qui fonde le montant retenu, ou null",
     "valuation": "valorisation telle que le document la présente, dont la nature dépend du type : pré-money ou post-money sur une levée, valeur d'entreprise ou d'equity sur une cession ou un LBO. Précise laquelle si le document le dit.",
+    "valuationEvidence": "citation courte du document (max 200 caractères) qui fonde la valorisation retenue, ou null",
     "leadInvestor": "investisseur lead d'une levée si annoncé. Sur une cession ou un LBO, laisse vide : le conseil du vendeur va dans sellSideAdvisor.",
     "coInvestors": ["liste des co-investisseurs si annoncés"],
     "seller": "sur une cession ou un LBO, entité qui cède : groupe coté qui se sépare d'une filiale, industriel qui cède une activité, fonds sponsor en sortie. Chaîne vide sur une levée.",
@@ -105,6 +107,16 @@ Rends la précision que le document donne et pas davantage. Si seul le mois et l
 RÈGLE ANTI-DIVINATION, identique à celle qui gouverne lastActualYear dans le moteur d'extraction financière. Le type n'est retenu que si une citation textuelle courte du document le fonde, et cette citation va dans operationTypeEvidence. Sans citation extractible, operationType = "non-etabli" ET operationTypeEvidence = null. Ne déduis jamais le type de l'absence d'un marqueur, de la taille de la société, de son âge ni de son secteur : une société établie n'est pas une cession par défaut, une jeune société n'est pas une levée par défaut.
 
 Si operationType vaut "non-etabli", laisse seller, stakeForSale et sellSideAdvisor vides plutôt que de les remplir par inférence.
+
+MONTANT ET VALORISATION
+
+La même règle anti-divination gouverne amount et valuation, et pour la même raison : ce sont les deux champs de ce bloc dont un nombre est ensuite extrait pour entrer dans un calcul. Le ticket du tour, la dilution, le multiple d'entrée et le budget technologique en descendent tous. Un montant plausible mais non lu y produit une dilution plausible mais fausse, présentée au partner comme un fait négociable.
+
+Chaque valeur retenue va donc avec sa citation. Le montant dans amount, la phrase ou la ligne du document qui le porte dans amountEvidence. La valorisation dans valuation, ce qui la fonde dans valuationEvidence. Sans citation extractible, rends la chaîne vide et null : la suite du traitement refuse de toute façon une valeur non citée, donc la produire ne sert à rien.
+
+Une citation est une reprise du document, pas une reformulation. "levée de 4 M€ en Series A" est une citation si le document porte ces mots. "le deck annonce un tour de 4 millions" n'en est pas une.
+
+Ne déduis jamais le montant d'un besoin exprimé, d'un plan d'embauche, d'une somme de postes budgétaires ni d'un total de tableau que le document ne présente pas comme le montant de l'opération. Ne déduis jamais la valorisation d'un montant et d'un pourcentage de capital : ce calcul appartient à l'aval, qui sait le poser et le qualifier.
 `;
 
 export async function extractFromDeck(pdfBase64: string): Promise<ExtractionOutput> {
@@ -167,6 +179,44 @@ export function appliquerGardesExtraction(result: ExtractionOutput): ExtractionO
       perimetre: typeof c.perimetre === 'string' && c.perimetre.trim().length > 0
         ? c.perimetre.trim().slice(0, 200) : null,
     }));
+
+  // Garde de contrat sur le montant et la valorisation, meme forme que
+  // celle du type d operation et de la date. Ces deux champs sont les
+  // seuls du bloc dont un nombre est extrait pour entrer dans un
+  // calcul : le ticket et la dilution du moteur de valorisation, le
+  // multiple d entree des benchmarks, le budget tech, le vecteur
+  // structurel. Ils etaient les seuls sans preuve ni garde, ce qui
+  // laissait une valeur plausible produire une dilution plausible, que
+  // le partner lit comme un fait negociable.
+  //
+  // La garde rend aussi lisible une difference que l aval ne pouvait
+  // pas faire. Un document muet et un montant manque par le modele
+  // rendaient tous deux une chaine vide, et l aval en tirait « aucun
+  // montant annonce », qui est une affirmation sur le document que le
+  // pipeline n a aucun moyen de fonder. La cause de lecture separe
+  // desormais ce que le modele n a pas rendu de ce qu il a rendu sans
+  // pouvoir le citer, sans que ni l un ni l autre ne prononce le
+  // document muet.
+  const citation = (v: unknown): string | null =>
+    typeof v === 'string' && v.trim().length > 0 ? v.trim().slice(0, 200) : null;
+
+  const lireChiffre = (valeur: unknown, preuve: unknown) => {
+    const cite = citation(preuve);
+    const brut = typeof valeur === 'string' ? valeur.trim() : '';
+    if (brut.length === 0) return { valeur: '', evidence: null, cause: 'non-rendu' as const };
+    if (cite === null) return { valeur: '', evidence: null, cause: 'non-cite' as const };
+    return { valeur: brut, evidence: cite, cause: null };
+  };
+
+  const montant = lireChiffre(fr.amount, fr.amountEvidence);
+  fr.amount = montant.valeur;
+  fr.amountEvidence = montant.evidence;
+  fr.amountCause = montant.cause;
+
+  const valorisation = lireChiffre(fr.valuation, fr.valuationEvidence);
+  fr.valuation = valorisation.valeur;
+  fr.valuationEvidence = valorisation.evidence;
+  fr.valuationCause = valorisation.cause;
 
   // operationType est derive des composantes et n est plus lu du
   // modele. Il subsiste pour les analyses persistees avant ce

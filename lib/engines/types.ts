@@ -51,6 +51,26 @@ export interface OperationComponent {
   perimetre?: string | null;
 }
 
+/**
+ * Etat de lecture d un champ chiffre de l extraction.
+ *
+ * Le pipeline ne peut pas savoir si un document est muet. Il sait ce
+ * que le modele lui a rendu, et ce que la garde a accepte. Ces deux
+ * valeurs disent exactement cela et rien de plus.
+ *
+ *   'non-rendu' : le modele n a rendu aucune valeur. Le document peut
+ *                 en porter une que la lecture a manquee. C est
+ *                 precisement ce qu un motif de refus n a pas le droit
+ *                 d affirmer dans un sens ou dans l autre.
+ *   'non-cite'  : le modele a rendu une valeur qu aucune citation ne
+ *                 fonde. Elle est refusee. Le document en porte donc
+ *                 vraisemblablement une, et la lecture a echoue a la
+ *                 rattacher a une ligne.
+ *
+ * Null quand la valeur a ete lue et citee.
+ */
+export type LectureChampCause = 'non-rendu' | 'non-cite';
+
 export interface ExtractionOutput {
   companyName: string;
   /**
@@ -83,8 +103,42 @@ export interface ExtractionOutput {
   };
   fundraise: {
     stage: string;
+    /**
+     * Montant de l operation tel que le document l annonce. Chaine vide
+     * quand le document ne le donne pas, ou quand aucune citation ne le
+     * fonde.
+     *
+     * C est, avec `valuation`, l un des deux seuls champs de ce bloc qui
+     * fait entrer un nombre dans un calcul : le ticket et la dilution du
+     * moteur de valorisation, le multiple du moteur de benchmarks, le
+     * budget tech, le vecteur structurel. Ils etaient aussi les deux
+     * seuls sans citation ni garde, alors que `documentDate` et
+     * `operationComponents`, dont la portee est moindre, en portent une
+     * depuis le 3 aout 2026.
+     *
+     * La citation ne sert pas qu a refuser une valeur non fondee. Elle
+     * rend lisible une difference qui etait jusqu ici indiscernable en
+     * aval : un document muet rend une chaine vide sans citation, un
+     * document qui porte un montant que le modele a manque rend la meme
+     * chaine vide, et rien ne permettait de les distinguer. La cause de
+     * non-lecture qui en decoule est ce que les motifs de refus doivent
+     * dire, plutot que d affirmer que le document ne porte rien.
+     */
     amount: string;
+    /** Citation qui fonde le montant. Null quand `amount` est vide. */
+    amountEvidence?: string | null;
+    /**
+     * Pourquoi `amount` est vide. Null quand il ne l est pas, et absent
+     * sur les analyses persistees avant le 3 aout 2026, ou la question
+     * n etait pas posee. Cette absence n est pas une reponse : un
+     * consommateur qui ne trouve pas le champ ne conclut rien.
+     */
+    amountCause?: LectureChampCause | null;
     valuation?: string;
+    /** Citation qui fonde la valorisation. Null quand `valuation` est vide. */
+    valuationEvidence?: string | null;
+    /** Pourquoi `valuation` est vide. Meme lecture que `amountCause`. */
+    valuationCause?: LectureChampCause | null;
     leadInvestor?: string;
     coInvestors?: string[];
     /**
