@@ -511,6 +511,13 @@ const ANNEE_NON_EVENEMENTIELLE = /\b(?:fond[ée]e?\s+en|cr[ée][ée]e?\s+en|depu
 /** Distance maximale, en caracteres, entre le marqueur et l annee. */
 const PROXIMITE_MAX = 90;
 
+/**
+ * Syntagme temporel : une date portee par la phrase et rattachee a un
+ * evenement, par opposition a une annee qui traine. « en novembre
+ * 2023 », « au premier trimestre 2024 », « mars 2025 ».
+ */
+const SYNTAGME_TEMPOREL = /(?:\b(?:en|au|le|depuis|courant|fin|d[ée]but|d\s*ici)\s+(?:(?:janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\s+)?20[0-4]\d\b)|(?:\b(?:janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\s+20[0-4]\d\b)/gi;
+
 const MOIS_FR: Record<string, number> = {
   janvier: 1, fevrier: 2, mars: 3, avril: 4, mai: 5, juin: 6,
   juillet: 7, aout: 8, septembre: 9, octobre: 10, novembre: 11, decembre: 12,
@@ -578,13 +585,31 @@ export function detecterEvenementsDansLaProse(lignes: string[]): EvenementDate[]
       : nature === 'changement-de-controle' ? MARQUEURS_CONTROLE
       : MARQUEURS_DIRIGEANT,
     );
+    // Un evenement porte SA date, dans un syntagme temporel colle a
+    // lui : « conclue en novembre 2023 », « annoncee en 2024 ». Une
+    // annee qui traine dans le voisinage ne date pas l evenement.
+    //
+    // Le resserrage vient du faux positif d In Haircare, ou « un tour
+    // documente existe » franchissait le detecteur parce qu une annee
+    // 2025 se trouvait quelque part dans la meme phrase. Mesure avant
+    // resserrage : trente-trois pour cent des evenements retenus
+    // etaient des constats d analyse et non des faits.
+    //
+    // La contrainte de proposition compte autant que celle de forme :
+    // les moteurs ecrivent des phrases a deux volets separes par deux
+    // points, dont le second porte souvent une date qui ne date pas le
+    // premier.
     let annee = 0;
     let posAnnee = -1;
-    for (const m of Array.from(ligne.matchAll(/\b(20[0-4]\d)\b/g))) {
+    for (const m of Array.from(ligne.matchAll(SYNTAGME_TEMPOREL))) {
       const idx = m.index ?? 0;
       if (Math.abs(idx - posMarqueur) > PROXIMITE_MAX) continue;
+      const entre = ligne.slice(Math.min(idx, posMarqueur), Math.max(idx, posMarqueur));
+      if (/[.;:]|\s[-–—]\s/.test(entre)) continue;
+      const an = /20[0-4]\d/.exec(m[0]);
+      if (!an) continue;
       if (ANNEE_NON_EVENEMENTIELLE.test(ligne.slice(Math.max(0, idx - 22), idx))) continue;
-      annee = Number(m[1]);
+      annee = Number(an[0]);
       posAnnee = idx;
     }
     if (!annee) continue;
