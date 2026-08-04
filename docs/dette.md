@@ -172,16 +172,32 @@ le code.
 
 ---
 
-## Le pre-scan tombe a cent pages, et rien ne mesure la page
+## Le pre-scan est desarme la ou l'arret economiserait le plus
 
 Ouvert le 3 aout 2026.
 
-L'API n'accepte pas le meme nombre de pages selon le modele qui lit :
-six cents pour un modele a large fenetre, cent pour un modele a deux
-cent mille jetons de contexte. Le depot passe par deux modeles.
-`MODEL` vaut `claude-sonnet-4-6`, `FAST_MODEL` vaut
+Un seul moteur tombe au-dela de cent pages, et ce qui rend le defaut
+couteux n'est pas ce nombre, c'est lequel. Le pre-scan est le triage
+d'entree : six tests eliminatoires universels, plus quatre tests de fit
+these quand un profil de fonds est fourni, pour deux centimes et huit
+secondes. Son economie entiere repose sur l'arret precoce, sur le fait
+de refuser un dossier avant de payer les trente moteurs qui suivent.
+Au-dela de cent pages il ne s'execute pas, et la categorie de document
+qui depasse cent pages est le memorandum de due diligence volumineux,
+c'est-a-dire le dossier dont l'instruction complete coute le plus cher.
+Le gating knockout est donc desarme exactement la ou l'arret
+economiserait le plus, et il fonctionne sur les teasers de vingt pages
+ou l'economie est la plus faible. Un moteur perdu sur trente et un
+serait une perte proportionnelle ; celui-ci est une perte inversement
+correlee a l'enjeu.
+
+D'ou vient le plafond. L'API n'accepte pas le meme nombre de pages selon
+le modele qui lit : six cents pour un modele a large fenetre, cent pour
+un modele a deux cent mille jetons de contexte. Le depot passe par deux
+modeles. `MODEL` vaut `claude-sonnet-4-6`, `FAST_MODEL` vaut
 `claude-haiku-4-5-20251001`, et c'est le second qui porte le plafond de
-cent pages.
+cent pages. Le choix du modele rapide pour le pre-scan est le bon choix,
+puisqu'il fonde son cout ; le plafond en est la contrepartie non prevue.
 
 La mesure a ete faite sur l'objet et non sur son nom : en interrogeant
 `getEngineFingerprints()`, trente et un moteurs portent une empreinte,
@@ -192,15 +208,6 @@ autres appels PDF, extraction, extraction financiere, metriques SaaS,
 metriques industrielles, contractuel, passent tous par `MODEL` et
 tiennent jusqu'a six cents pages. Le moteur perdu est donc un et il est
 nomme, ce qui vaut mieux que la proportion.
-
-Ce que cela coute. Le pre-scan est le triage d'entree : six tests
-eliminatoires universels, plus quatre tests de fit these quand un profil
-de fonds est fourni. Au-dela de cent pages il ne s'execute pas, et il ne
-s'execute jamais sur la seule categorie de dossier ou il aurait le plus
-de valeur, le memorandum de due diligence volumineux, celui dont
-l'instruction complete coute le plus cher. Le gating knockout, dont
-l'economie entiere repose sur le fait d'arreter tot un dossier qui ne
-passe pas, est desarme exactement la ou l'arret economiserait le plus.
 
 Ce qui est deja fait, et pourquoi cela ne suffit pas. Le defaut ne
 provoque plus de silence : `runPreScan` attrape l'erreur et rend un
