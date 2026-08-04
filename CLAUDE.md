@@ -134,26 +134,9 @@ moins suspecte, mais elle merite la meme lecture structurelle quand
 elle sert a affirmer qu un correctif couvre tout.
 
 Second corollaire, ajoute le 3 aout 2026 : une mesure faite avec un
-instrument de la meme nature que ce qu elle evalue ne borne rien.
-
-Le detecteur d evenements cherche un fait date dans de la prose par
-expression reguliere. Pour mesurer son taux de faux positifs, j ai
-classe ses sorties en faits et en constats, par expression reguliere.
-La mesure a rendu dix-huit pour cent de faux positifs, et elle a classe
-« le pitch articule un scenario chiffre vers la profitabilite » comme
-un fait date. Le taux reel est donc superieur, d un montant que cette
-mesure ne peut pas donner, puisqu elle echoue exactement la ou l objet
-mesure echoue.
-
-Une telle mesure garde une valeur : elle etablit un plancher et elle
-compare un avant a un apres, ce qui suffit a dire qu un resserrage a
-ameliore quelque chose. Elle ne donne pas de niveau. La regle est donc
-d annoncer le chiffre comme un plancher et jamais comme un taux, et de
-dire par quoi la mesure est bornee.
-
-Quand un jugement est necessaire pour mesurer un jugement, la seule
-sortie est une lecture humaine sur un echantillon, ou une mesure
-indirecte par une consequence observable qui, elle, se compte.
+instrument de la meme nature que ce qu elle evalue ne borne rien. Il a
+sa section propre plus bas, parce qu il a rencontre depuis une seconde
+forme qui ne parle plus de mesure du tout.
 
 Troisieme corollaire, ajoute le 3 aout 2026 : mesurer sur la bonne
 table n est pas un detail d execution, c est la question elle-meme.
@@ -176,6 +159,61 @@ jamais du nom au support.
 En pratique, avant de mesurer ce qu un module produit ou omet, lire
 dans le module quelle table, quel champ, quelle date il interroge, et
 mesurer exactement ceux-la. Le detour coute une lecture de fonction.
+
+## Un instrument qui ne borne pas son objet
+
+Un dispositif de controle peut etre exact et ne rien apprendre. La
+faute ne porte alors ni sur sa methode ni sur son resultat, mais sur le
+rapport entre lui et ce qu il pretend tenir, et c est pourquoi elle
+survit a toutes les relectures : il n y a rien a corriger dans ce qu on
+lit.
+
+La premiere forme est la mesure faite avec un instrument de la meme
+nature que son objet. Le detecteur d evenements cherche un fait date
+dans de la prose par expression reguliere. Pour mesurer son taux de
+faux positifs, j ai classe ses sorties en faits et en constats, par
+expression reguliere. La mesure a rendu dix-huit pour cent, et elle a
+classe « le pitch articule un scenario chiffre vers la profitabilite »
+comme un fait date. Le taux reel est donc superieur, d un montant que
+cette mesure ne peut pas donner, puisqu elle echoue exactement la ou
+l objet mesure echoue.
+
+Une telle mesure garde une valeur : elle etablit un plancher et elle
+compare un avant a un apres, ce qui suffit a dire qu un resserrage a
+ameliore quelque chose. Elle ne donne pas de niveau. La regle est donc
+d annoncer le chiffre comme un plancher et jamais comme un taux, et de
+dire par quoi la mesure est bornee. Quand un jugement est necessaire
+pour mesurer un jugement, la seule sortie est une lecture humaine sur
+un echantillon, ou une mesure indirecte par une consequence observable
+qui, elle, se compte.
+
+La seconde forme est le cachet lu au mauvais endroit, et elle ne parle
+plus de mesure mais d identite. Le champ `temperature` du version stamp
+valait `api-default` pour les trente moteurs. La valeur etait exacte :
+aucun site d appel ne construisait le parametre, ni `callClaude` ni
+`callClaudeWithUsage` ne savaient le porter. Le cachet disait donc la
+verite sans rien apprendre a personne, et deux runs a temperatures
+differentes auraient rendu le meme `enginesHash`. Comme la calibration
+segmente sur ces empreintes, deux instruments se seraient melanges dans
+le meme segment sans que rien ne le signale. Le cachet etait lu la ou
+la valeur est declaree, et non la ou elle est decidee.
+
+Les deux formes ont le meme squelette. Un dispositif de controle
+n a de pouvoir que par sa difference avec ce qu il controle, et il perd
+ce pouvoir de deux facons : en partageant le mode de defaillance de son
+objet, ou en etant preleve en amont de l endroit ou l objet se decide.
+Dans les deux cas il rend un resultat juste, ce qui est precisement le
+probleme, puisqu un resultat faux se remarque. Le heartbeat de la
+plateforme est la meme chose vue une troisieme fois, ou l instrument ne
+partage pas seulement la nature de son objet mais son mode de panne.
+
+En pratique, deux questions se posent devant tout controle avant de
+croire ce qu il rend. Par quoi echouerait-il, et est-ce la meme chose
+qui ferait echouer ce qu il mesure. Et ou la grandeur qu il rapporte
+est-elle decidee, par rapport a l endroit ou il la prend. Une reponse
+franche a la premiere degrade le chiffre en plancher ; une reponse
+franche a la seconde deplace le point de prelevement, ce qui est
+toujours possible et generalement peu couteux.
 
 ## Discipline de precision
 
@@ -505,10 +543,9 @@ qui, a un moment qu il choisit, constate le silence.
 Et ce tiers ne peut pas vivre dans la plateforme qu il surveille. Un
 cron de surveillance branche sur `/api/cron/monitor` aurait ete
 redirige en 307 comme les six autres et aurait garde exactement le meme
-silence. C est la forme generale du second corollaire de la discipline
-de mesure : un instrument de la meme nature que son objet ne borne
-rien. Ici l instrument ne partage pas seulement la nature de l objet,
-il partage son mode de defaillance.
+silence. C est le cas limite de l instrument qui ne borne pas son
+objet, decrit plus haut : ici l instrument ne partage pas seulement la
+nature de l objet, il partage son mode de defaillance.
 
 L instrumentation ne manquait d ailleurs pas. Le cron de nettoyage
 ecrivait sa trace d invocation dans `error_logs` avant meme d evaluer

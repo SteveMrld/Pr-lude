@@ -169,3 +169,62 @@ correctif. Ecarter tout nombre de quatre chiffres compris entre 1900 et
 tombe legitimement dans cette plage. La frequence relative des deux
 n'est pas mesuree sur le corpus, et c'est cette mesure qui manque, pas
 le code.
+
+---
+
+## Le pre-scan tombe a cent pages, et rien ne mesure la page
+
+Ouvert le 3 aout 2026.
+
+L'API n'accepte pas le meme nombre de pages selon le modele qui lit :
+six cents pour un modele a large fenetre, cent pour un modele a deux
+cent mille jetons de contexte. Le depot passe par deux modeles.
+`MODEL` vaut `claude-sonnet-4-6`, `FAST_MODEL` vaut
+`claude-haiku-4-5-20251001`, et c'est le second qui porte le plafond de
+cent pages.
+
+La mesure a ete faite sur l'objet et non sur son nom : en interrogeant
+`getEngineFingerprints()`, trente et un moteurs portent une empreinte,
+quatre appellent le modele rapide, et un seul de ces quatre envoie le
+PDF plutot que du texte. C'est `lib/engines/prescan-engine.ts:296`, qui
+passe `pitchDeckBase64` a `callClaudeWithPDF` avec `FAST_MODEL`. Les
+autres appels PDF, extraction, extraction financiere, metriques SaaS,
+metriques industrielles, contractuel, passent tous par `MODEL` et
+tiennent jusqu'a six cents pages. Le moteur perdu est donc un et il est
+nomme, ce qui vaut mieux que la proportion.
+
+Ce que cela coute. Le pre-scan est le triage d'entree : six tests
+eliminatoires universels, plus quatre tests de fit these quand un profil
+de fonds est fourni. Au-dela de cent pages il ne s'execute pas, et il ne
+s'execute jamais sur la seule categorie de dossier ou il aurait le plus
+de valeur, le memorandum de due diligence volumineux, celui dont
+l'instruction complete coute le plus cher. Le gating knockout, dont
+l'economie entiere repose sur le fait d'arreter tot un dossier qui ne
+passe pas, est desarme exactement la ou l'arret economiserait le plus.
+
+Ce qui est deja fait, et pourquoi cela ne suffit pas. Le defaut ne
+provoque plus de silence : `runPreScan` attrape l'erreur et rend un
+pre-scan non produit, et `motifIncident` reconnait la forme
+`maximum of N PDF pages` pour ecrire « Document au-dela de la limite de
+cent pages acceptee par le modele ». Le partner lit donc pourquoi le
+triage manque. Il le lit apres coup, apres avoir paye l'appel, et rien
+en amont ne le lui epargne : aucun code du depot ne compte les pages
+d'un PDF. Le releve est net, ni `numPages`, ni `page_count`, ni
+`pdf-lib`, ni `pdfjs` n'apparaissent dans `lib/`, `app/` et `scripts/`.
+La seule grandeur que le depot lit d'un PDF est sa taille en octets,
+dans `fenetreSelonTaille`, qui regle un delai d'attente et ne borne rien.
+
+Non ferme parce que les trois sorties coutent chacune quelque chose et
+qu'aucune n'est evidemment la bonne. Faire tourner le pre-scan sur
+`MODEL` supprime le plafond et supprime aussi la raison d'etre du
+moteur, qui est de trier a cinq fois moins cher que le pipeline qu'il
+protege. Decouper le document et n'envoyer que les cent premieres pages
+change ce que le moteur juge sans le dire : un test eliminatoire rendu
+sur un extrait n'est pas le meme test, et il faudrait qu'il le declare.
+Compter les pages en amont pour choisir le modele selon la taille est le
+plus honnete et introduit une dependance de lecture de PDF que le depot
+n'a pas, plus un arbitrage de cout qui n'est pas le mien a rendre.
+
+Ce qui manque pour trancher est un chiffre : la part des dossiers du
+corpus qui depasse cent pages. Elle n'est pas mesuree, et elle se mesure
+sans lancer un seul run.
