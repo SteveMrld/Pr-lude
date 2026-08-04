@@ -301,3 +301,31 @@ Non ferme parce que rien ne se corrige : le code fait ce qu'on lui
 demande, et ce qui manque est un dossier, pas une ligne. La bande sera
 d'ailleurs a remesurer le jour ou la table des sorties ou celle des
 multiples bouge, puisque ses deux bornes en descendent.
+
+La question ouverte, et elle est plus large que la couverture. Une regle
+dont le domaine se reduit a une bande de huit cent mille euros, bornee
+en haut par une autre garde et en bas par la taille du ticket, merite
+qu'on demande si elle vaut son existence. Deux lectures se tiennent et
+la mesure ne tranche pas entre elles. Ou bien c'est une garde utile dont
+le domaine est etroit parce que la garde de taille a pris tout le
+terrain au-dessus, et elle reste le seul filet dans la bande residuelle,
+auquel cas son etroitesse est le signe que les deux regles se partagent
+correctement le travail. Ou bien c'est une garde qui ne se declenchera
+jamais en pratique, parce qu'aucun dossier reel ne tombe dans huit cent
+mille euros de fenetre, et elle occupe alors la place d'un controle sans
+en faire le travail, ce que la doctrine du depot tient pour pire qu'une
+garde absente.
+
+Ce qui separe les deux lectures est un chiffre qu'on n'a pas : la
+distribution du chiffre d'affaires et du ticket sur le corpus, croisee
+avec la classe et le stade. Elle se mesure sur les analyses persistees,
+sans lancer un run, et elle dirait combien de dossiers deja instruits
+seraient tombes dans la bande. Un compte nul sur vingt-six dossiers ne
+prouverait pas grand-chose, mais un compte nul sur un corpus de plusieurs
+centaines trancherait.
+
+Tant que ce chiffre manque, la regle reste, et elle reste pour une raison
+qu'il faut ecrire plutot que sous-entendre : son cout est nul quand elle
+ne se declenche pas, et le prix d'une garde inutile est inferieur a celui
+d'un ecart d'un facteur dix laisse au lecteur. Ce n'est pas une preuve
+qu'elle est utile, c'est un arbitrage assume en attendant de savoir.

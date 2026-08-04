@@ -242,6 +242,43 @@ ce qui est la meme faute a un cran de subtilite : la valeur est bien
 la, mais on lui prete une finesse qu elle n a pas, et cette finesse
 seule suffit a faire basculer une conclusion.
 
+## Une regle de conformite porte sur le code, pas sur le commit
+
+Un controle qui verifie qu on execute bien ce qu on a relu doit comparer
+ce qui produit le resultat, jamais ce qui date le depot.
+
+La regle est nee le 3 aout 2026, a l entree du dernier run de gel. Le
+premier etage de la relecture exigeait que `app.commitSha` porte un sha
+precis, sous peine d arret. Entre l ecriture de cette exigence et le
+lancement, deux commits n avaient touche que `docs/`. Le sha ne
+correspondait donc plus, et la regle demandait d arreter un run dont le
+code etait identique a l octet pres a celui qu elle protegeait : meme
+`enginesHash`, memes empreintes de prompts, memes hachages de fichiers
+sources. Elle aurait fait perdre vingt dollars et dix minutes pour une
+divergence qui n existait pas.
+
+La faute est de prendre un identifiant pour la chose qu il designe. Un
+sha de commit date un etat du depot entier, documentation comprise ; ce
+qu on veut verrouiller est l etat du code qui va s executer. Les deux
+coincident presque toujours, ce qui rend la confusion invisible jusqu au
+jour ou un commit de prose les separe. C est la meme famille que la
+mesure faite sur la mauvaise table : la methode est irreprochable et
+l objet est faux, donc aucune relecture du controle ne le revele.
+
+Le dispositif juste existe deja et il est dans le depot. Le version
+stamp calcule des empreintes par moteur, un `enginesHash` et un hachage
+de doctrine des prompts, precisement pour dire si deux runs ont
+rencontre le meme code. C est lui l objet de comparaison, et le sha n en
+est qu une approximation commode.
+
+En pratique, une regle de conformite s ecrit sur l empreinte quand elle
+existe. Quand elle s ecrit quand meme sur un sha, par commodite, elle
+doit porter sa clause de sortie : un sha different dont le diff ne
+touche aucun fichier execute satisfait la regle, et la preuve tient en
+une commande. Ce qui ne doit jamais arriver, c est qu un run soit arrete
+ou lance sur la foi d un identifiant que personne n a remonte jusqu au
+code.
+
 ## Discipline des jeux d essai
 
 Un repli qui rend la meme valeur que sa source rend la source invisible
