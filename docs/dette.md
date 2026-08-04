@@ -235,3 +235,69 @@ n'a pas, plus un arbitrage de cout qui n'est pas le mien a rendre.
 Ce qui manque pour trancher est un chiffre : la part des dossiers du
 corpus qui depasse cent pages. Elle n'est pas mesuree, et elle se mesure
 sans lancer un seul run.
+
+---
+
+## La regle de divergence n'a jamais ete exercee sur des donnees reelles
+
+Ouvert le 3 aout 2026. Dette de couverture, pas de correction.
+
+La regle est celle de `determineConfidence` : au-dela d'un rapport de
+cinq entre les points centraux des fourchettes consolidees, la confiance
+ne peut plus etre haute, au-dela de dix elle tombe a faible, et la
+divergence se declare en avertissement. Elle est couverte par ses tests
+et par eux seuls. Le rejeu du run de gel `b299ab62` sur le moteur
+corrige ne l'exerce pas, et l'echec est structurel plutot
+qu'accidentel : la garde de domaine retire la fourchette pre-money avant
+que la divergence ait deux points centraux a comparer. Le rapport vaut
+donc un, la regle ne se declenche pas, et la seule chose qu'on puisse
+dire du couple d'origine est un calcul sur des nombres perimes,
+216 765 648 sur 6 574 097, soit trente-trois. C'est une arithmetique sur
+l'ancienne sortie, pas un chemin parcouru par le code actuel.
+
+Le profil de dossier qui l'exercerait a ete mesure en balayant
+`computeValuation` elle-meme, et non en rejouant sa regle dans un script
+a cote. Sur `saas-b2b` au stade series-a, avec un ticket de dix millions
+et la table de sorties actuelle :
+
+- rapport superieur a dix, donc confiance ramenee a faible : chiffre
+  d'affaires du millesime retenu entre 4,2 et 5,0 M EUR ;
+- rapport entre cinq et dix, donc plafond ramene a moyen : entre 2,1 et
+  4,1 M EUR.
+
+A 4,2 M EUR de chiffre d'affaires la valeur d'entreprise centrale vaut
+67,0 M et la pre-money 6,6 M, soit un rapport de 10,2. A 5,0 M EUR,
+79,8 M contre 6,6 M, rapport 12,1.
+
+Deux choses rendent cette bande etroite, et elles se lisent dans les
+chiffres. D'abord son plafond n'est pas une propriete de la regle, c'est
+la garde de domaine : au-dela de 5,0 M EUR la valeur d'entreprise
+depasse la sortie mediane de 80 M et la VC inverse sort, donc la
+divergence n'a plus rien a comparer. Les deux regles sont adjacentes et
+non independantes, et la seconde n'agit que dans la bande immediatement
+sous la premiere. Ensuite le plancher depend du ticket et pas du
+dossier : la VC inverse ignore le chiffre d'affaires, sa pre-money vaut
+la sortie mediane ramenee par le multiple cible moins le ticket, donc
+c'est la taille du ticket qui creuse l'ecart. Avec un ticket de trois
+millions au lieu de dix, la meme table ne produit aucune bande a dix :
+le maximum atteint est 5,9 sur le meme dossier a 5,0 M EUR.
+
+La branche « faible » de la regle a donc, sur cette classe et ce stade,
+un domaine reel d'environ huit cent mille euros de chiffre d'affaires,
+et seulement pour un ticket eleve au regard des sorties du secteur. Ce
+n'est pas une raison de la retirer, c'est une raison de ne pas la
+declarer verifiee : un seuil dont on n'a jamais vu le declenchement en
+production est un seuil dont on connait le code et pas l'effet.
+
+Le profil a chercher au depot est donc precis : dossier logiciel B2B au
+stade series-a, chiffre d'affaires du dernier exercice realise entre
+quatre et cinq millions d'euros, ticket demande de l'ordre de dix
+millions. Un dossier de ce profil ferme cette entree en un run, et il
+ferme aussi la question de l'affichage, puisqu'il est le seul cas ou la
+note doit imprimer a la fois deux fourchettes de natures differentes,
+l'avertissement de divergence et une confiance basse.
+
+Non ferme parce que rien ne se corrige : le code fait ce qu'on lui
+demande, et ce qui manque est un dossier, pas une ligne. La bande sera
+d'ailleurs a remesurer le jour ou la table des sorties ou celle des
+multiples bouge, puisque ses deux bornes en descendent.
