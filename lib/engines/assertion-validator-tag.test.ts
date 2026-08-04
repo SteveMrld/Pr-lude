@@ -22,7 +22,10 @@
 
 import {
   finDeSegment,
+  debutDeSegment,
   tagEnglobant,
+  tagNommeUneSourceExterne,
+  positionsDeMontant,
   porteUnTagDeSource,
   findCurrencyMismatch,
   findInventedDates,
@@ -109,11 +112,29 @@ console.log('\n[Suite 4] la famille de tags est celle du controle, et pas une se
   check(w.length === 0, 'une annee tagguee pitch n est pas signalee');
 }
 {
-  // Le meme tag ne couvre pas un montant, puisque ce qu on lui reproche
-  // serait justement d etre absent du pitch.
+  // Cette assertion a change, et l arbitrage est rendu ici plutot que
+  // subi. Elle exigeait qu un montant tagge [pitch] reste signale, par
+  // emprunt du raisonnement tenu sur les noms propres. Les deux
+  // controles ne reprochent pas la meme chose : le controle des noms
+  // reproche une absence des donnees extraites, que [pitch] contredit
+  // sans la lever ; celui-ci reproche une devise etrangere sans
+  // conversion ni provenance, et [pitch] y repond. Le releve sur le
+  // corpus l a rendu visible en donnant douze alertes de la forme
+  // « TAM declare = 25 Mds$ mondial [pitch] », ou il n y a rien a
+  // convertir.
   const t = "Le ticket ressort a $12M [pitch] sur cette operation.";
-  const w = findCurrencyMismatch(t, 'EUR', 'test');
-  check(w.length === 1, 'un montant tagge pitch reste signale');
+  check(findCurrencyMismatch(t, 'EUR', 'test').length === 0,
+    'un montant tagge pitch est declare lu dans le deck, dans ses unites');
+  const u = "Le ticket ressort a $12M sur cette operation.";
+  check(findCurrencyMismatch(u, 'EUR', 'test').length === 1,
+    'le meme montant sans tag reste signale');
+}
+{
+  // Et la difference de famille tient toujours, la ou elle a un sens.
+  const t = "Le concurrent Kolibri [pitch] domine le segment sur ce perimetre.";
+  check(findUnknownNames(t, new Set(['concurrent']), 'test')
+    .some((x) => /Kolibri/.test(x.message)),
+    'un nom propre tagge pitch reste a verifier');
 }
 
 console.log('\n[Suite 5] ce qui est ecrit dans un tag est le nom de la source');
@@ -148,15 +169,109 @@ console.log('\n[Suite 5] ce qui est ecrit dans un tag est le nom de la source');
     'apres la fermeture, aucun tag englobant');
   check(tagEnglobant("du texte avant [web : x]", 3) === null,
     'avant l ouverture non plus');
-  // La lecture est structurelle, la decision est de famille, et les deux
-  // ne vivent pas au meme endroit : `tagEnglobant` rend le groupe de
-  // crochets quel qu il soit, et « c est source » se tranche a un seul
-  // endroit, celui qui connait les familles.
+  // Cette assertion a change, et elle a change dans l autre sens.
+  // Elle exigeait d abord qu un crochet dont l en-tete n est pas un mot
+  // de provenance connu ne vaille pas declaration de source. Elle avait
+  // ete ecrite sur l intuition que les crochets de la prose se
+  // repartissent en tags reconnus et en crochets quelconques. Le releve
+  // des crochets sur trente-huit analyses persistees dit le contraire :
+  // deux cent vingt-neuf en-tetes distincts, et la queue est faite de
+  // noms de sources ecrits en clair, `[FMI WEO]`, `[Atomico SoET 2025]`,
+  // `[base verifiee]`. Un crochet quelconque n existe pas dans ce
+  // corpus. L assertion avait donc tort et non la mesure.
   const q = "un [libelle quelconque] du texte";
   check(tagEnglobant(q, 8) === '[libelle quelconque]',
-    'un crochet qui n ouvre pas un tag de source est rendu tel quel');
-  check(!porteUnTagDeSource(q, 8),
-    'et il ne vaut pas declaration de source');
+    'un crochet est rendu tel quel, quel que soit son en-tete');
+  check(porteUnTagDeSource(q, 8),
+    'et une position a l interieur est une designation de source');
+}
+
+console.log('\n[Suite 6] un tag nomme une source des lors qu il ne nomme pas que le pitch');
+{
+  for (const t of ['[web : Crunchbase]', '[inference]', '[corpus]', '[FMI WEO]',
+    '[Atomico SoET 2025]', '[base verifiee]', '[benchmark externe]',
+    '[worldbank-gdp]', '[PitchBook Q1 2026]', '[moteur fragilite]']) {
+    check(tagNommeUneSourceExterne(t), `${t} nomme une source exterieure`);
+  }
+  for (const t of ['[pitch]', '[pitch contexte]', '[pitch notes complementaires]',
+    '[pitch non verifie]', '[]']) {
+    check(!tagNommeUneSourceExterne(t), `${t} ne nomme que le document`);
+  }
+  // Une seule clause hors pitch suffit : le tag mixte declare bien une
+  // lecture externe en plus de la lecture du deck.
+  for (const t of ['[pitch + web : Viadeo]', '[pitch vs web : acteureco.fr]',
+    '[pitch + inference]']) {
+    check(tagNommeUneSourceExterne(t), `${t} declare aussi une lecture externe`);
+  }
+}
+{
+  // Copie du run 0d0ab2b3 : la prose imbrique les crochets, et la
+  // declaration qui compte est la plus interieure.
+  const t = "Udemy for Business est le comparable sectoriel le plus precis pour ce "
+    + "dossier [pitch comparable au 30% Udemy instructeurs [inference]], meme canal.";
+  check(porteUnTagDeSource(t, 0),
+    'un tag imbrique dans un tag de pitch declare tout de meme la source');
+  check(!findUnknownNames(t, new Set(['comparable']), 'test')
+    .some((x) => /Udemy/.test(x.message)),
+    'et le nom qu il couvre n est pas signale');
+}
+{
+  // Et la consequence sur le point de passage unique : un montant source
+  // par un tag hors inventaire n est plus signale.
+  const t = "le tour ressort tres inferieur a la mediane de marche de $190m "
+    + "pour le stade detecte (Series D+) [benchmark externe].";
+  check(porteUnTagDeSource(t, t.indexOf('$190m')),
+    'un montant tagge [benchmark externe] est source');
+  check(findCurrencyMismatch(t, 'EUR', 'test').length === 0,
+    'et il ne ressort plus en alerte de devise');
+  const u = t.replace(' [benchmark externe]', '');
+  check(findCurrencyMismatch(u, 'EUR', 'test').length === 1,
+    'la ou le meme montant sans aucun tag reste signale');
+}
+
+console.log('\n[Suite 7] un symbole se lit avant le nombre comme apres, et une annee n est pas un montant');
+{
+  const t = "Le TAM 500 Mds$ 2025 est confirme par les sources web a perimetre comparable.";
+  const p = positionsDeMontant(t, 'USD');
+  check(p.length === 1, `un seul montant lu et non deux (${p.length})`);
+  check(t.slice(p[0], p[0] + 8) === '500 Mds$',
+    `le montant lu est la forme suffixee (${JSON.stringify(t.slice(p[0], p[0] + 8))})`);
+}
+{
+  check(positionsDeMontant('mesure faite en $ 2025 sur le perimetre', 'USD').length === 0,
+    'un symbole suivi d une annee nue ne rend aucun montant');
+  check(positionsDeMontant('un ticket de $2025M sur le fonds', 'USD').length === 1,
+    'mais la meme annee suivie d une magnitude est un montant');
+  check(positionsDeMontant('la mediane de marche de $190m pour le stade', 'USD').length === 1,
+    'la forme prefixee reste lue');
+  const e = positionsDeMontant('un tour de 10 M€ leve en 2024', 'EUR');
+  check(e.length === 1 && e[0] === 11, `la forme suffixee en euros aussi (${JSON.stringify(e)})`);
+  check(positionsDeMontant('un tour de €10.7m leve en 2024', 'EUR').length === 1,
+    'et la forme prefixee en euros');
+}
+{
+  // La mention de conversion se cherche dans le segment, pas a une
+  // distance. Les deux sens comptent, et le jeu d essai les exerce.
+  const proche = "le tour vaut environ $12m sur ce perimetre.";
+  check(findCurrencyMismatch(proche, 'EUR', 'test').length === 0,
+    'une mention de conversion dans le segment desamorce');
+  const loin = "le tour se compare a la mediane de marche des societes du meme stade, "
+    + "soit une reference etablie sur un echantillon large et documente, de $12m.";
+  check(findCurrencyMismatch(loin, 'EUR', 'test').length === 0,
+    'meme a plus de quarante caracteres, des lors que le segment tient');
+  const autrePhrase = "la conversion vaut environ deux pour un. Le tour ressort a $12m.";
+  check(findCurrencyMismatch(autrePhrase, 'EUR', 'test').length === 1,
+    'et une mention de la phrase precedente ne desamorce plus');
+}
+{
+  // Le verrou voit-il la faute quand on la lui donne. Un controle qui ne
+  // cherche rien est vert pour la mauvaise raison.
+  check(findCurrencyMismatch("le tour ressort a $12m sur le perimetre.", 'EUR', 'test').length === 1,
+    'un montant nu, sans tag ni conversion, est bien signale');
+  check(debutDeSegment("premiere phrase. seconde phrase", 20) === 16,
+    'le debut de segment est bien pris apres la ponctuation forte');
+  check(debutDeSegment("un taux de 12.5% dans la phrase", 25) === 0,
+    'et une decimale ne le deplace pas');
 }
 
 console.log(`\n${pass} pass, ${fail} fail`);

@@ -204,9 +204,69 @@ export function extractProperNouns(text: string): ProperNoun[] {
 // lui reproche est justement d etre absent du pitch : le tag serait
 // alors l affirmation qu on controle. Une annee tagguee `[pitch]` est en
 // revanche declaree lue dans le document, ce qui est la reponse
-// attendue. La liste tranche, donc elle se garde et se date.
-const TAG_HORS_PITCH = /\[(web|inf[ée]rence|corpus)[^\]]*\]/i;
-const TAG_AVEC_PITCH = /\[(web|inf[ée]rence|corpus|pitch)[^\]]*\]/i;
+// attendue. Cet arbitrage-la tranche, donc il se garde.
+//
+// Ce qui ne se garde pas est l inventaire des mots qui nomment une
+// provenance. Il valait `web`, `inference` et `corpus`, ecrits en
+// regardant la prose d un run ; le releve des crochets sur trente-huit
+// analyses persistees en rend deux cent vingt-neuf en-tetes distincts et
+// quinze mille six cents occurrences, dont pres de mille que ces trois
+// mots ne couvrent pas : `[FMI WEO]`, `[Atomico SoET 2025]`, `[base
+// verifiee]`, `[benchmark externe]`, `[PitchBook Q1 2026]`, `[worldbank-
+// gdp]`. Un montant correctement source par l un d eux ressortait
+// signale. Allonger la liste aurait reconduit sa nature, puisqu elle
+// enumere ce que son auteur avait vu un jour donne.
+//
+// La propriete observable qui les distingue ne porte pas sur le mot mais
+// sur la structure : un tag est une declaration de provenance, et la
+// seule provenance que la note puisse nommer sans citer quoi que ce soit
+// est le document lui-meme. Un tag nomme donc une source exterieure des
+// lors qu une de ses clauses ne commence pas par `pitch`. Un moteur qui
+// citerait demain `[Eurostat]` entre sans qu on y pense, et `[pitch
+// contexte]` reste dehors sans qu on l exclue.
+
+/** Ce que les connecteurs separent a l interieur d un tag. */
+const CONNECTEURS = /\s*(?:\+|\/|;|&|\bvs\b|\bet\b)\s*/i;
+
+/**
+ * Les groupes de crochets d un texte, contenu compris, a toutes les
+ * profondeurs.
+ *
+ * La prose imbrique, et le releve sur le corpus en donne l exemple :
+ * « [pitch comparable au 30% Udemy instructeurs [inference]] ». Une
+ * lecture par expression reguliere plate coupe au premier crochet
+ * fermant et ne voit que le groupe exterieur, donc elle manque la
+ * declaration qui compte. La pile rend les deux, et il suffit qu un seul
+ * nomme une source.
+ */
+function tagsDe(text: string): string[] {
+  const groupes: string[] = [];
+  const pile: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '[') { pile.push(i); continue; }
+    if (text[i] === ']' && pile.length > 0) groupes.push(text.slice(pile.pop()!, i + 1));
+  }
+  return groupes;
+}
+
+/**
+ * True quand le tag nomme une source autre que le document instruit.
+ *
+ * La lecture est structurelle : on decoupe le contenu sur les
+ * connecteurs et on regarde le premier mot de chaque clause. Une seule
+ * clause hors pitch suffit, parce que `[pitch + web : Viadeo]` declare
+ * bien une lecture externe en plus de la lecture du deck.
+ */
+export function tagNommeUneSourceExterne(tag: string): boolean {
+  const contenu = tag.replace(/^\[|\]$/g, '').trim();
+  if (!contenu) return false;
+  return contenu
+    .split(CONNECTEURS)
+    .some((clause) => {
+      const premier = clause.trim().split(/[\s:,]+/)[0] ?? '';
+      return premier.length > 0 && premier.toLowerCase() !== 'pitch';
+    });
+}
 
 /**
  * Fin du segment qui commence a `from` : premiere ponctuation forte hors
@@ -232,6 +292,37 @@ export function finDeSegment(text: string, from: number): number {
     }
   }
   return text.length;
+}
+
+/**
+ * Debut du segment qui contient `to`, symetrique de `finDeSegment`.
+ *
+ * Les regles qui cherchent quelque chose EN AMONT d une position, comme
+ * la mention de conversion qui accompagne un montant en devise
+ * etrangere, le faisaient par un comptage de caracteres. C est la meme
+ * faute que la fenetre de quatre-vingts caracteres corrigee en aval, et
+ * elle se trompe dans les deux sens : elle traverse la ponctuation forte
+ * et va chercher un « soit » qui appartient a la phrase precedente, et
+ * elle s arrete au milieu d une phrase longue ou le « environ » se
+ * trouve un peu plus haut.
+ */
+export function debutDeSegment(text: string, to: number): number {
+  let crochets = 0;
+  let parentheses = 0;
+  for (let i = Math.min(to, text.length) - 1; i >= 0; i--) {
+    const c = text[i];
+    if (c === ']') { crochets++; continue; }
+    if (c === '[') { if (crochets > 0) crochets--; continue; }
+    if (c === ')') { parentheses++; continue; }
+    if (c === '(') { if (parentheses > 0) parentheses--; continue; }
+    if (crochets > 0 || parentheses > 0) continue;
+    if (c === '\n' || c === '\r' || c === ';') return i + 1;
+    if (c === '.' || c === '!' || c === '?') {
+      if (c === '.' && /\d/.test(text[i - 1] ?? '') && /\d/.test(text[i + 1] ?? '')) continue;
+      return i + 1;
+    }
+  }
+  return 0;
 }
 
 /**
@@ -277,10 +368,11 @@ export function porteUnTagDeSource(
   // tag il n y a pas d affirmation a arbitrer, seulement le nom de la
   // source. « [pitch, slide 12] » ne pretend pas que « slide » soit
   // etabli, il dit ou l on a lu.
-  const englobant = tagEnglobant(text, from);
-  if (englobant !== null && TAG_AVEC_PITCH.test(englobant)) return true;
+  if (tagEnglobant(text, from) !== null) return true;
   const segment = text.slice(from, finDeSegment(text, from));
-  return (avecPitch ? TAG_AVEC_PITCH : TAG_HORS_PITCH).test(segment);
+  const tags = tagsDe(segment);
+  if (tags.length === 0) return false;
+  return avecPitch ? true : tags.some(tagNommeUneSourceExterne);
 }
 
 // =============================================================================
@@ -338,9 +430,62 @@ export function findUnknownNames(
   return warnings;
 }
 
+/**
+ * Symboles de chaque devise, du plus long au plus court : l alternation
+ * doit essayer « US$ » avant « $ », faute de quoi elle coupe le premier
+ * en deux.
+ */
+const SYMBOLES: Record<'EUR' | 'USD', string> = {
+  USD: 'US\\$|USD|\\$',
+  EUR: '€|EUR',
+};
+
+/** Magnitudes ecrites entre le nombre et son symbole : 500 Mds$, 10 M€. */
+const MAGNITUDE = '(?:mds|md|m|bn|b|k)';
+
+/**
+ * Les positions ou le texte porte un montant libelle dans `devise`.
+ *
+ * Un symbole se lit indifferemment avant le nombre, « $190m », ou apres,
+ * « 500 Mds$ », et la seconde forme est la plus frequente en francais.
+ * Ne lire que la premiere faisait deux fautes d un coup, et la seconde
+ * est la plus couteuse : elle manquait le montant suffixe, et elle
+ * prenait le symbole suffixe pour le prefixe de ce qui suivait. « Le TAM
+ * 500 Mds$ 2025 » ressortait donc comme un montant de deux mille
+ * vingt-cinq dollars, en premiere page de la note, avec un extrait qui
+ * montrait une annee la ou le lecteur attendait une somme.
+ *
+ * D ou la seconde regle : un nombre de quatre chiffres compris entre
+ * 1900 et 2100, sans magnitude derriere lui, est une annee et non un
+ * montant. C est la discipline de precision prise par son bon cote,
+ * l arrondi va vers ce qui retient la conclusion.
+ */
+export function positionsDeMontant(text: string, devise: 'EUR' | 'USD'): number[] {
+  const s = SYMBOLES[devise];
+  const positions = new Set<number>();
+  let m: RegExpExecArray | null;
+
+  const prefixe = new RegExp(`(?:${s})\\s?(\\d[\\d\\s.,]*)`, 'gi');
+  while ((m = prefixe.exec(text)) !== null) {
+    const nu = m[1].replace(/[\s.,]+$/, '');
+    const finNombre = m.index + m[0].length - (m[1].length - nu.length);
+    if (/^\d{4}$/.test(nu)) {
+      const n = parseInt(nu, 10);
+      const suite = text.slice(finNombre, finNombre + 5);
+      if (n >= 1900 && n <= 2100 && !new RegExp(`^\\s?${MAGNITUDE}\\b`, 'i').test(suite)) continue;
+    }
+    positions.add(m.index);
+  }
+
+  const suffixe = new RegExp(`(\\d[\\d\\s.,]*)\\s?${MAGNITUDE}?\\s?(?:${s})`, 'gi');
+  while ((m = suffixe.exec(text)) !== null) positions.add(m.index);
+
+  return Array.from(positions).sort((a, b) => a - b);
+}
+
 // Detecte les conversions de devise non taggees. Si le pitch est en
-// EUR (ou inversement), un montant en USD doit etre tagge [web]
-// (conversion) ou [inference], sinon c est suspect.
+// EUR (ou inversement), un montant en USD doit porter un tag qui nomme
+// une source exterieure, sinon c est suspect.
 export function findCurrencyMismatch(
   text: string,
   pitchCurrency: 'EUR' | 'USD' | 'unknown',
@@ -349,31 +494,30 @@ export function findCurrencyMismatch(
   if (!text || pitchCurrency === 'unknown') return [];
   const warnings: ValidationWarning[] = [];
 
-  // On cherche les montants en USD si le pitch est EUR, et inversement
-  const targetSymbols = pitchCurrency === 'EUR'
-    ? [/(\$|USD|US\$)\s?\d/g]
-    : [/€\s?\d|EUR\s?\d/g];
+  // On cherche les montants en USD si le pitch est EUR, et inversement.
+  for (const idx of positionsDeMontant(text, pitchCurrency === 'EUR' ? 'USD' : 'EUR')) {
+    // Ce controle prend la famille avec pitch, et c est un arbitrage
+    // rendu contre celui du 4 aout, qui avait emprunte son raisonnement
+    // au controle des noms propres. Les deux ne reprochent pas la meme
+    // chose. Le controle des noms reproche a un nom d etre absent des
+    // donnees extraites, si bien qu un tag `[pitch]` contredit
+    // l extraction et ne peut pas laver le nom. Celui-ci reproche une
+    // devise etrangere sans conversion ni provenance : quand le deck
+    // annonce lui-meme un TAM en dollars, `[pitch]` repond exactement a
+    // la question posee, et il n y a rien a convertir.
+    if (porteUnTagDeSource(text, idx, true)) continue;
+    // Une mention de conversion se cherche dans le segment qui precede,
+    // et non a une distance donnee.
+    const before = text.slice(debutDeSegment(text, idx), idx);
+    if (/(environ|soit|~|equivalent|equiv\.|approximativement)/i.test(before)) continue;
 
-  for (const re of targetSymbols) {
-    let m;
-    re.lastIndex = 0;
-    while ((m = re.exec(text)) !== null) {
-      const idx = m.index;
-      // Le montant est-il couvert par un tag de source, ou qu il ferme.
-      if (porteUnTagDeSource(text, idx)) continue;
-      // Verifier presence d une mention de conversion ('environ',
-      // 'soit', '~', 'equivalent') dans les 30 chars precedents
-      const before = text.slice(Math.max(0, idx - 40), idx);
-      if (/(environ|soit|~|equivalent|equiv\.|approximativement)/i.test(before)) continue;
-
-      warnings.push({
-        category: 'currency_mismatch',
-        severity: 'warning',
-        field,
-        message: `Montant cite dans une devise differente du pitch (pitch en ${pitchCurrency}) sans tag de source ni mention de conversion. Convertir explicitement ou tagguer la source du montant.`,
-        excerpt: text.slice(Math.max(0, idx - 30), Math.min(text.length, idx + 40)),
-      });
-    }
+    warnings.push({
+      category: 'currency_mismatch',
+      severity: 'warning',
+      field,
+      message: `Montant cite dans une devise differente du pitch (pitch en ${pitchCurrency}) sans tag de source ni mention de conversion. Convertir explicitement ou tagguer la source du montant.`,
+      excerpt: text.slice(Math.max(0, idx - 30), Math.min(text.length, idx + 40)),
+    });
   }
   return warnings;
 }
