@@ -36,7 +36,7 @@ import {
   buildSkippedBlindspotOutput,
   buildSkippedCausalOutput,
 } from '@/lib/engines/skipped-outputs';
-import { collecterProse, detecterEvenementsDansLaProse, evaluerValiditeOperation } from '@/lib/engines/operation-validity';
+import { collecterProseDesSourcesExternes, detecterEvenementsDansLaProse, evaluerValiditeOperation } from '@/lib/engines/operation-validity';
 import { computeValuation } from '@/lib/engines/valuation-engine';
 import { computeIndicators } from '@/lib/engines/indicators-engine';
 import { extractSaasMetrics } from '@/lib/engines/saas-metrics-engine';
@@ -1666,26 +1666,50 @@ export async function POST(req: NextRequest) {
           // l operation est une question d objet.
           //
           // Les evenements sont aujourd hui reconstitues par lecture de
-          // la prose du moteur Equipe, faute d exister comme donnee.
-          // C est provisoire et declare comme tel jusque dans la note.
-          // La prose est collectee structurellement sur les moteurs qui
-          // consultent des sources externes, et non par enumeration de
-          // champs. La premiere version ne lisait que quatre listes du
-          // moteur Equipe, et l evenement qu elle cherchait vivait dans
-          // le moteur Fragilite structurelle : enumerer des chemins
-          // reproduisait la faute qu on corrige, une chose n existant
-          // dans la mesure que si quelqu un a pense a l y mettre.
-          const evenementsExternes = detecterEvenementsDansLaProse([
-            ...collecterProse(team),
-            ...collecterProse(fragiliteStructurelle),
-            ...collecterProse(narrativeDrift),
-          ]);
+          // la prose des moteurs, faute d exister comme donnee. C est
+          // provisoire et declare comme tel jusque dans la note.
+          //
+          // La collecte ne nomme plus les moteurs. Elle l a fait deux
+          // fois et s est trompee deux fois : d abord quatre listes du
+          // moteur Equipe, alors que l evenement vivait dans Fragilite
+          // structurelle ; puis trois moteurs choisis en regardant un run
+          // early stage, alors que le parcours growth neutralise le
+          // premier des trois. Le run du 4 aout 2026 a ainsi rendu une
+          // note sans reserve sur un dossier dont le moteur Marche
+          // portait deux evenements datables qu aucune des trois entrees
+          // ne pouvait atteindre. Une liste ecrite pour un parcours ne
+          // decrit pas l autre.
+          //
+          // Le critere est desormais une propriete des donnees : un
+          // evenement du monde exterieur ne peut venir que d un moteur
+          // qui a cite le monde exterieur. Il se deplace donc avec le
+          // pipeline sans que personne y pense.
+          // Les sorties de moteurs disponibles a ce point du pipeline.
+          // L objet ne selectionne pas : il rassemble, et c est la
+          // fonction de collecte qui ecarte les moteurs sans citation
+          // externe. Ce qui vient apres ce point ne peut pas y figurer,
+          // valorisation, indicateurs et synthese finale consommant
+          // eux-memes la validite. Le verrou de
+          // `operation-validity-sources.test.ts` compare cet objet a la
+          // composition du `result` final et echoue le jour ou un moteur
+          // ajoute au second manque au premier.
+          const sectionsProduites = {
+            preScan, extraction, financialData, team, market, macro, benchmarks,
+            patternMatching, causalReversal, blindspotAnalysis, contrarianAnalysis,
+            financialCoherence, techClaimCoherence, executionFriction,
+            mechanicalScore, referenceChecks, saasMetrics, industrialMetrics,
+            relevanceMatrix, narrativeDrift, fragiliteStructurelle, sectoralContext,
+            conflictOfInterest,
+          };
+          const { lignes: proseExterne, moteursLus } = collecterProseDesSourcesExternes(sectionsProduites as any);
+          const evenementsExternes = detecterEvenementsDansLaProse(proseExterne);
           const operationValidity = evaluerValiditeOperation({
             operationType: extraction?.fundraise?.operationType ?? null,
             operationComponents: (extraction as any)?.fundraise?.operationComponents ?? null,
             documentDate: (extraction as any)?.documentDate ?? null,
             millesimeReference: financialData?.lastActualYear ?? null,
             evenements: evenementsExternes,
+            moteursLus,
           });
 
           // Calcul de fourchette de valorisation (deterministe, pas d appel

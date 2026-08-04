@@ -150,7 +150,7 @@ export async function reassembler(
   const { computeIndicators } = await import('../lib/engines/indicators-engine');
   const { computeMechanicalScore } = await import('../lib/engines/score-calculator');
   const { analyzeBenchmarks } = await import('../lib/engines/benchmark-engine');
-  const { evaluerValiditeOperation, detecterEvenementsDansLaProse, collecterProse } =
+  const { evaluerValiditeOperation, detecterEvenementsDansLaProse, collecterProseDesSourcesExternes } =
     await import('../lib/engines/operation-validity');
 
   const ext = r.extraction;
@@ -163,17 +163,19 @@ export async function reassembler(
     );
   }
   if (aRejouer.includes('operationValidity')) {
-    const evenements = detecterEvenementsDansLaProse([
-      ...collecterProse(r.team),
-      ...collecterProse(r.fragiliteStructurelle),
-      ...collecterProse(r.narrativeDrift),
-    ]);
+    // Meme collecte que la route, appelee et non recopiee. Une seconde
+    // ecriture de la meme regle aurait diverge le jour ou l une des deux
+    // change, ce qui est precisement ce qui vient d arriver a la liste
+    // de trois moteurs.
+    const { lignes, moteursLus } = collecterProseDesSourcesExternes(r);
+    const evenements = detecterEvenementsDansLaProse(lignes);
     r.operationValidity = evaluerValiditeOperation({
       operationType: ext?.fundraise?.operationType ?? null,
       operationComponents: ext?.fundraise?.operationComponents ?? null,
       documentDate: ext?.documentDate ?? null,
       millesimeReference: r.financialData?.lastActualYear ?? null,
       evenements,
+      moteursLus,
     });
   }
   if (aRejouer.includes('benchmarks')) {

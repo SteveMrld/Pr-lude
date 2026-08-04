@@ -150,7 +150,7 @@ console.log('\n[Suite 5] la reserve porte sur la composante mise en cause');
   const ev = detecterEvenementsDansLaProse(['La levee de 83m€ finalement conclue en novembre 2023 [web : ladn.eu]']);
   const mixte = evaluerValiditeOperation({
     operationType: 'lbo', operationComponents: MIXTE.operationComponents,
-    documentDate: null, millesimeReference: 2021, evenements: ev,
+    documentDate: null, millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'],
   });
   check(mixte.mention!.includes('le cash-in demande'), 'la mention nomme la composante contestee');
   check(mixte.mention!.includes('non sur l operation entiere'), 'et dit qu elle ne porte pas sur le reste');
@@ -160,7 +160,7 @@ console.log('\n[Suite 5] la reserve porte sur la composante mise en cause');
 
   const cessionSeule = evaluerValiditeOperation({
     operationType: 'cession-totale', operationComponents: [{ kind: 'cession', evidence: 'a' }],
-    documentDate: null, millesimeReference: 2021, evenements: ev,
+    documentDate: null, millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'],
   });
   check(cessionSeule.interditLaDiscussionDePrix === true,
     'sans composante cash-in, la meme levee suspend bien le prix');

@@ -267,7 +267,23 @@ export interface AncreOperation {
   declaration: string;
 }
 
-export type VerdictValidite = 'aucune-reserve' | 'a-verifier' | 'non-applicable';
+/**
+ * `aucune-reserve` est une affirmation sur le monde : des sources ont
+ * ete lues et rien de posterieur n y figure. `non-instruit` est une
+ * affirmation sur la lecture : aucune source n a ete lue, donc le
+ * pipeline ne sait rien, ni dans un sens ni dans l autre.
+ *
+ * Les confondre est la faute que la grappe 3 a fermee sur les
+ * non-productions, portee ici sur une conclusion. Un moteur qui n a pas
+ * produit et un moteur qui a produit « rien » sortaient par le meme
+ * canal, et le canal etait lu comme le second ; ici une recherche qui
+ * n a pas eu lieu et une recherche infructueuse sortaient par le meme
+ * verdict, et le verdict etait lu comme la seconde. Le lecteur d une
+ * note qui ne porte aucune reserve conclut qu aucun evenement n a ete
+ * releve, ce qui est une affirmation que le pipeline n est pas en
+ * position de faire quand il n a interroge personne.
+ */
+export type VerdictValidite = 'aucune-reserve' | 'a-verifier' | 'non-applicable' | 'non-instruit';
 
 export interface OperationValidityOutput {
   verdict: VerdictValidite;
@@ -341,6 +357,16 @@ export interface OperationValidityInput {
   /** Millesime de reference du moteur de valorisation, repli d ancre. */
   millesimeReference: number | null | undefined;
   evenements: EvenementDate[];
+  /**
+   * Moteurs dont la prose a effectivement ete lue pour y chercher un
+   * evenement. Obligatoire, et non optionnel, pour la meme raison que la
+   * cause de non-production : un champ facultatif serait renseigne aux
+   * endroits qu on a en tete le jour ou on l ecrit, et un appelant qui
+   * l oublie ferait conclure a l absence d evenement une analyse ou
+   * personne n a cherche. Liste vide et champ absent doivent se
+   * distinguer, donc le type l exige.
+   */
+  moteursLus: string[];
 }
 
 /**
@@ -370,6 +396,23 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
     );
   }
 
+  // Aucune source lue : le verdict porte sur la lecture et non sur le
+  // monde. Le test precede volontairement l examen des evenements, parce
+  // qu une liste d evenements vide se lit de deux facons opposees selon
+  // qu on ait cherche ou non, et que seule cette information tranche.
+  if (input.moteursLus.length === 0) {
+    return {
+      ...sansVerdict(
+        'absence',
+        'Aucun moteur consultant des sources externes n a produit de prose sur ce dossier, donc aucune recherche d evenement posterieur n a eu lieu. Le pipeline ne dit pas qu il n existe pas d evenement posterieur : il dit qu il n a interroge aucune source pour le savoir. Sur le parcours growth, la cause ordinaire est la neutralisation des moteurs qui consultent l exterieur.',
+        type,
+      ),
+      verdict: 'non-instruit',
+      ancre,
+      mention: 'Validite de l operation non instruite : aucune source externe n a ete consultee sur ce dossier, donc l absence de reserve ci-dessous ne vaut pas absence d evenement posterieur. A recouper manuellement avant toute conclusion sur l actualite de l operation.',
+    };
+  }
+
   const posterieurs = input.evenements
     .filter((e) => estPosterieur(e, ancre))
     .sort((a, b) => (b.annee - a.annee) || ((b.mois ?? 0) - (a.mois ?? 0)));
@@ -386,7 +429,11 @@ export function evaluerValiditeOperation(input: OperationValidityInput): Operati
       natureDeLaLecture: input.evenements.some((e) => e.luDansLaProse) ? 'prose-provisoire' : 'donnee-structuree',
       interditLaDiscussionDePrix: false,
       mention: null,
-      motif: `Aucun evenement externe posterieur a l ancre retenue (${ancre.annee}). ${ancre.declaration}`,
+      // Le motif nomme ce qui a ete lu. Sans cela, « aucun evenement
+      // posterieur » se lit comme une propriete du dossier alors que
+      // c est le resultat d une lecture bornee, et le lecteur ne peut
+      // pas savoir si la recherche etait large ou etroite.
+      motif: `Aucun evenement externe posterieur a l ancre retenue (${ancre.annee}), sur ${input.moteursLus.length} moteur${input.moteursLus.length > 1 ? 's' : ''} consultant des sources externes (${input.moteursLus.join(', ')}). ${ancre.declaration}`,
     };
   }
 
@@ -781,6 +828,67 @@ export function collecterProse(source: unknown, profondeurMax = 6): string[] {
   };
   descendre(source, 0);
   return out;
+}
+
+/**
+ * Marque d une citation de source externe dans la prose d un moteur.
+ * C est la seule chose observable qui distingue un moteur ayant regarde
+ * dehors d un moteur ayant raisonne sur le document.
+ */
+const MARQUE_SOURCE_EXTERNE = /\[web\s*:/i;
+
+/**
+ * Sections dont la prose ne peut pas fonder un evenement, quelles que
+ * soient leurs citations. `operationValidity` est la sortie de ce module
+ * meme : la lire reviendrait a detecter dans sa propre mention le fait
+ * qu elle vient d ecrire, et le decompte se nourrirait lui-meme au
+ * rejeu.
+ */
+const SECTIONS_EXCLUES: ReadonlySet<string> = new Set(['operationValidity', 'meta']);
+
+/**
+ * Collecte la prose des moteurs qui ont consulte des sources externes,
+ * et rend aussi la liste de ceux qui ont ete lus.
+ *
+ * Pourquoi une liste de moteurs ne convenait pas. La route enumerait
+ * Equipe, Fragilite structurelle et Narrative Drift. Cette liste a ete
+ * ecrite en regardant un run early stage, et le parcours growth
+ * neutralise le moteur Equipe, qui portait trois des quatre evenements
+ * du seul cas connu. Le releve du 4 aout 2026 mesure la suite : sur le
+ * run growth, le moteur Marche portait cinquante-trois lignes de prose,
+ * onze citations externes et deux evenements datables, qu aucune des
+ * trois entrees de la liste ne pouvait atteindre. Sur le run early, les
+ * moteurs Pattern Matching, Retournement causal et Contrarien en
+ * portaient trois de plus. Une liste ecrite pour un parcours ne decrit
+ * pas l autre, et une liste ecrite pour un run ne decrit pas le suivant.
+ *
+ * Le critere retenu est une propriete des donnees et non un nom : un
+ * evenement du monde exterieur ne peut venir que d un moteur qui a
+ * regarde le monde exterieur, et cela se lit a ses citations. Un moteur
+ * ajoute demain qui cite ses sources entre sans qu on y pense ; un
+ * moteur qui raisonne sur le seul document reste dehors sans qu on ait
+ * a l exclure. Le critere se deplace donc tout seul avec le pipeline,
+ * ce qu une liste ne fait pas.
+ *
+ * La sortie porte les moteurs lus parce que le nombre de sources lues
+ * est la difference entre « aucun evenement n existe » et « aucune
+ * recherche n a eu lieu ». Le consommateur ne doit pas avoir a la
+ * deduire.
+ */
+export function collecterProseDesSourcesExternes(
+  sections: Record<string, unknown>,
+): { lignes: string[]; moteursLus: string[] } {
+  const lignes: string[] = [];
+  const moteursLus: string[] = [];
+  for (const nom of Object.keys(sections).sort()) {
+    if (SECTIONS_EXCLUES.has(nom)) continue;
+    const prose = collecterProse(sections[nom]);
+    if (prose.length === 0) continue;
+    if (!prose.some((l) => MARQUE_SOURCE_EXTERNE.test(l))) continue;
+    moteursLus.push(nom);
+    lignes.push(...prose);
+  }
+  return { lignes, moteursLus };
 }
 
 /**

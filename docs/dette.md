@@ -393,14 +393,68 @@ cite le premier, nomme ses deux sources et place la provenance en fin de
 paragraphe. Il fait exactement ce qu'on lui demande. Il n'a simplement
 jamais eu l'occasion de le faire en production.
 
-Non ferme parce que la sortie n'est pas evidente et qu'elle engage la
-doctrine. Faire dependre une reserve de la citation spontanee d'un
-moteur de jugement est le vice de conception, pas le symptome : il
-faudrait une source de faits qui ne soit pas un sous-produit d'une
-analyse, c'est-a-dire une recherche d'evenements posterieurs conduite
-pour elle-meme, avec sa propre requete et son propre budget. Le cout est
-un appel de plus par dossier. En attendant, la note ne doit pas ecrire
-qu'aucun evenement n'a ete releve quand elle devrait ecrire qu'aucune
-recherche d'evenement n'a ete conduite pour elle-meme : la premiere
-formulation est une affirmation sur le monde, la seconde une
-affirmation sur la lecture, et seule la seconde est vraie.
+Deux corrections ont ete apportees le 4 aout, et ce qui reste ouvert est
+nomme apres elles. La collecte ne nomme plus de moteurs : elle retient
+ceux dont la prose porte une citation de source externe, ce qui est une
+propriete des donnees et non un nom, donc un critere qui se deplace avec
+le pipeline. Exercee sur le run growth persiste, elle lit six moteurs la
+ou l'ancienne liste en lisait un et demi. Et le verdict distingue
+desormais `aucune-reserve`, qui suppose des sources lues, de
+`non-instruit`, qui declare qu'aucune ne l'a ete ; le motif du premier
+nomme les moteurs consultes, de sorte qu'une affirmation d'absence porte
+toujours sa borne.
+
+Ce qui reste ouvert est le vice de conception, que ces deux corrections
+ne touchent pas. Faire dependre une reserve de la citation spontanee
+d'un moteur de jugement reste fragile : le 4 aout, le moteur Fragilite
+a tourne normalement, avec un volume de prose equivalent au run
+precedent, et n'a pas cite la levee une seule fois. Aucune borne de
+collecte ne rattrape cela. Il faudrait une source de faits qui ne soit
+pas un sous-produit d'une analyse, c'est-a-dire une recherche
+d'evenements posterieurs conduite pour elle-meme, avec sa propre requete
+et son propre budget. Le cout est un appel de plus par dossier, et c'est
+un arbitrage a rendre.
+
+---
+
+## Motif : un controle affaibli la ou son enjeu est maximal
+
+Ouvert le 4 aout 2026. Ce n'est pas une dette, c'est la forme commune de
+deux d'entre elles, ecrite pour qu'on la reconnaisse la prochaine fois.
+
+Deux entrees de ce registre ont la meme structure, et elle n'est pas
+celle qu'on cherche d'ordinaire. Un controle n'est pas absent, il n'est
+pas faux, il ne se declenche pas au hasard : il est correlativement
+affaibli avec l'enjeu qu'il protege. Le pre-scan tombe au-dela de cent
+pages, donc il trie les teasers de vingt pages ou l'economie de l'arret
+precoce est la plus faible, et disparait sur les memorandums de due
+diligence ou elle serait la plus forte. La reserve de validite se
+nourrit de moteurs que le parcours growth neutralise, donc elle protege
+les levees early stage, dont le document circule peu, et s'affaiblit sur
+les cessions et les LBO, dont le document circule des mois et qui sont
+les seules operations qu'un evenement posterieur peut annuler.
+
+Ce qui rend le motif difficile a voir est que chaque cas se justifie
+localement. Le modele rapide fonde le cout du pre-scan. Le parcours
+growth allege un pipeline pour des dossiers ou quatre moteurs early
+stage n'ont pas d'objet. Aucune des deux decisions n'est fautive, et
+c'est leur croisement avec un enjeu qui l'est. Une revue de code ne le
+trouve pas, parce qu'il n'existe dans aucun fichier ; il n'apparait
+qu'en posant, pour chaque controle, la question de savoir sur quelle
+population il ne s'applique pas et si cette population est la plus
+exposee.
+
+La recherche d'une troisieme occurrence a ete conduite et n'a rien rendu
+de solide, ce qui se declare plutot que se tait. Le soupcon portait sur
+les verifications de reference, alimentees par trois moteurs que le
+growth neutralise ; la mesure sur les deux runs persistes rend trois
+fiches fondateurs de part et d'autre et seize fiches clients sur growth
+contre six sur early, donc la sortie ne se degrade pas. Le releve est
+mince, un dossier et deux runs, et il ne borne rien au-dela de ce cas.
+
+La question a poser aux controles restants est ecrite ici pour la
+prochaine fois : sur quels dossiers ce controle ne s'applique-t-il pas,
+et ces dossiers sont-ils ceux ou il servirait le plus. Quand la reponse
+est oui, l'affaiblissement doit etre declare dans la note plutot que
+subi, ce qui est exactement ce que le verdict `non-instruit` fait pour
+la validite d'operation.

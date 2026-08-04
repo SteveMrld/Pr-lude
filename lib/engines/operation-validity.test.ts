@@ -39,7 +39,7 @@ console.log('\n[Suite 1] le cas qui a ouvert le module');
   check(ev[0].luDansLaProse === true, 'et marque comme lu dans la prose');
 
   const r = evaluerValiditeOperation({
-    operationType: 'lbo', documentDate: null, millesimeReference: 2021, evenements: ev,
+    operationType: 'lbo', documentDate: null, millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'],
   });
   check(r.verdict === 'a-verifier', 'la reserve est levee sur le LBO');
   check(r.interditLaDiscussionDePrix === true, 'et elle interdit la discussion de prix');
@@ -63,7 +63,7 @@ console.log('\n[Suite 1] le cas qui a ouvert le module');
 console.log('\n[Suite 2] la regle est asymetrique par type');
 {
   const ev = detecterEvenementsDansLaProse([LIGNE_BRAINCUBE]);
-  const base = { documentDate: null, millesimeReference: 2021, evenements: ev };
+  const base = { documentDate: null, millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'] };
   const levee = evaluerValiditeOperation({ ...base, operationType: 'levee' });
   check(levee.verdict === 'a-verifier', 'sur une levee la reserve est levee aussi');
   check(levee.interditLaDiscussionDePrix === false,
@@ -85,18 +85,18 @@ console.log('\n[Suite 3] l ancre declare par quel chemin elle vient');
 {
   const ev = detecterEvenementsDansLaProse([LIGNE_BRAINCUBE]);
   const lu = evaluerValiditeOperation({
-    operationType: 'lbo', documentDate: '2023-06', millesimeReference: 2021, evenements: ev,
+    operationType: 'lbo', documentDate: '2023-06', millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'],
   });
   check(lu.ancre?.origine === 'date-du-document', 'la date lue prime sur le repli');
   check(lu.verdict === 'a-verifier', 'juin 2023 precede novembre 2023');
 
   const apres = evaluerValiditeOperation({
-    operationType: 'lbo', documentDate: '2024-06', millesimeReference: 2021, evenements: ev,
+    operationType: 'lbo', documentDate: '2024-06', millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'],
   });
   check(apres.verdict === 'aucune-reserve', 'un document de 2024 est posterieur a l evenement');
 
   const repli = evaluerValiditeOperation({
-    operationType: 'lbo', documentDate: null, millesimeReference: 2021, evenements: ev,
+    operationType: 'lbo', documentDate: null, millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'],
   });
   check(repli.ancre?.origine === 'millesime-plus-deux', 'sans date lue, le repli sert');
   check(repli.ancre?.annee === 2021 + MARGE_MILLESIME_ANNEES, 'et vaut le millesime plus deux ans');
@@ -106,7 +106,7 @@ console.log('\n[Suite 3] l ancre declare par quel chemin elle vient');
   // Une annee seule pose l ancre en fin d annee : une precision non
   // donnee ne doit pas produire une severite qu elle ne fonde pas.
   const anneeSeule = evaluerValiditeOperation({
-    operationType: 'lbo', documentDate: '2023', millesimeReference: null, evenements: ev,
+    operationType: 'lbo', documentDate: '2023', millesimeReference: null, evenements: ev, moteursLus: ['equipe'],
   });
   check(anneeSeule.ancre?.mois === 12, 'document date a l annee : ancre en decembre');
   check(anneeSeule.verdict === 'aucune-reserve',
@@ -117,14 +117,14 @@ console.log('\n[Suite 4] ce qui ne produit pas de verdict le declare');
 {
   const ev = detecterEvenementsDansLaProse([LIGNE_BRAINCUBE]);
   const sansType = evaluerValiditeOperation({
-    operationType: 'non-etabli', documentDate: null, millesimeReference: 2021, evenements: ev,
+    operationType: 'non-etabli', documentDate: null, millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'],
   });
   check(sansType.verdict === 'non-applicable', 'sans type etabli : pas de verdict');
   check(sansType.cause === 'absence', 'de cause absence');
   check(sansType.mention === null, 'et aucune mention');
 
   const sansAncre = evaluerValiditeOperation({
-    operationType: 'lbo', documentDate: null, millesimeReference: null, evenements: ev,
+    operationType: 'lbo', documentDate: null, millesimeReference: null, evenements: ev, moteursLus: ['equipe'],
   });
   check(sansAncre.verdict === 'non-applicable', 'sans ancre : pas de verdict');
   check(sansAncre.cause === 'absence', 'de cause absence');
@@ -173,7 +173,7 @@ console.log('\n[Suite 5] la detection provisoire, portee et limites');
 console.log('\n[Suite 6] determinisme');
 {
   const ev = detecterEvenementsDansLaProse([LIGNE_BRAINCUBE]);
-  const entree = { operationType: 'lbo' as const, documentDate: null, millesimeReference: 2021, evenements: ev };
+  const entree = { operationType: 'lbo' as const, documentDate: null, millesimeReference: 2021, evenements: ev, moteursLus: ['equipe'] };
   check(JSON.stringify(evaluerValiditeOperation(entree)) === JSON.stringify(evaluerValiditeOperation(entree)),
     'deux evaluations rendent exactement la meme sortie');
 }

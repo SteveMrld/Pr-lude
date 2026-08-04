@@ -60,6 +60,10 @@ const DU_RUN = [ARTEFACT, LEVEE_A, LEVEE_B, LEVEE_C];
 
 const COMPOSANTES = [{ kind: 'cession' }, { kind: 'cash-in' }, { kind: 'dette' }];
 
+// Le cast `as any` sur l objet entier a ete retire. Il masquait le
+// champ `moteursLus` devenu obligatoire, si bien que le compilateur ne
+// disait rien et que le test cassait a l execution : exactement le
+// cast de complaisance qui desarme les deux controles a la fois.
 function evaluer(evenements: EvenementDate[]) {
   return evaluerValiditeOperation({
     operationType: 'lbo',
@@ -67,7 +71,8 @@ function evaluer(evenements: EvenementDate[]) {
     documentDate: null,
     millesimeReference: 2021,
     evenements,
-  } as any);
+    moteursLus: ['equipe', 'fragiliteStructurelle'],
+  });
 }
 
 console.log('\n[Suite 1] un jugement de moteur n est pas un evenement');
