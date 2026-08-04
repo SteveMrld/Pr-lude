@@ -374,6 +374,62 @@ propriete, il se decide. La question est donc de savoir si la liste
 constate ou si elle tranche. Une liste qui constate se remplace ; une
 liste qui tranche se garde et se date.
 
+## Borner une cause ne protege pas quand l effet depend d autre chose
+
+Une garde qui limite l intensite d une cause ne protege de rien si
+l effet redoute ne depend pas de cette intensite. Il faut alors chercher
+de quoi il depend reellement, et c est presque toujours une proximite
+plutot qu une amplitude.
+
+La regle est nee le 4 aout 2026 sur la comparabilite d un verdict.
+Le probleme etait qu un score calcule sur une assiette partielle, quatre
+dimensions sur six, pouvait rendre un verdict different de celui qu une
+assiette pleine aurait rendu. La garde attendue etait un plancher de
+poids evalue : en dessous d un certain poids, ne plus rendre de verdict.
+C etait borner la cause par son intensite, et la mesure l a refuse.
+
+Sur les onze analyses dont les six dimensions avaient ete evaluees, en
+retirant une puis deux dimensions, deux cent trente et un cas : le
+deplacement du score est petit, mediane un demi-point, maximum cinq.
+Mais pres de cinq pour cent des cas changent de verdict, et ces bascules
+ne decroissent pas avec le poids. Il y en a a quatre-vingt-cinq pour
+cent de poids comme a soixante-trois. La raison se voit une fois
+formulee : une bascule ne demande pas un grand deplacement, elle demande
+un score proche d un seuil. Un plancher aurait donc laisse passer des
+bascules au-dessus de lui et refuse des verdicts stables en dessous,
+c est-a-dire echoue dans les deux sens a la fois.
+
+La forme generale se lit sans son cas. Quand un effet se produit par
+franchissement d un seuil, il depend du produit de deux grandeurs, le
+deplacement possible et la distance au seuil, et borner la premiere seule
+ne dit rien. La garde juste compare les deux. Elle a une propriete qu un
+plancher n a pas : elle est inerte quand le deplacement est nul, et elle
+se declenche a n importe quelle intensite des lors que la marge est plus
+petite. Elle n est donc pas monotone dans la cause, ce qui est
+exactement ce qui la rend correcte et ce qui la faisait paraitre
+compliquee.
+
+En pratique, devant une garde a ecrire, nommer l effet redoute puis
+demander de quoi il depend, plutot que de borner ce qui saute aux yeux.
+Si l effet est un franchissement, la reponse comporte toujours un terme
+de position que l intensite seule ignore.
+
+Corollaire de methode, et c est la faute la plus difficile a voir
+puisque tout devient vert. Trois assertions du verrou de comparabilite
+avaient ete ecrites sur l intuition qu un score a mi-bande resterait
+comparable a soixante-cinq pour cent de poids. La mesure disait le
+contraire. Il y avait deux facons de rendre la suite verte : changer le
+test, ou baisser la constante jusqu a ce que l assertion passe. La
+seconde aurait produit une suite verte, une garde plus permissive, et
+aucune trace du desaccord. Ajuster une borne pour obtenir la reponse
+attendue est calibrer l instrument sur la conclusion, et cela ne laisse
+aucun signe : le test ne rougit pas, le code ne ment pas, il ne reste
+qu une constante dont plus personne ne sait qu elle a ete choisie apres
+coup. La regle est donc qu une constante mesuree ne se retouche jamais
+pour faire passer une assertion. Soit l assertion avait tort et elle
+change, soit la mesure etait mauvaise et elle se refait, et dans les
+deux cas cela s ecrit.
+
 ## Discipline des jeux d essai
 
 Un repli qui rend la meme valeur que sa source rend la source invisible
