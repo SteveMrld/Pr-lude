@@ -273,21 +273,46 @@ Deux choses rendent cette bande etroite, et elles se lisent dans les
 chiffres. D'abord son plafond n'est pas une propriete de la regle, c'est
 la garde de domaine : au-dela de 5,0 M EUR la valeur d'entreprise
 depasse la sortie mediane de 80 M et la VC inverse sort, donc la
-divergence n'a plus rien a comparer. Les deux regles sont adjacentes et
-non independantes, et la seconde n'agit que dans la bande immediatement
-sous la premiere. Ensuite le plancher depend du ticket et pas du
-dossier : la VC inverse ignore le chiffre d'affaires, sa pre-money vaut
-la sortie mediane ramenee par le multiple cible moins le ticket, donc
-c'est la taille du ticket qui creuse l'ecart. Avec un ticket de trois
-millions au lieu de dix, la meme table ne produit aucune bande a dix :
-le maximum atteint est 5,9 sur le meme dossier a 5,0 M EUR.
+divergence n'a plus rien a comparer. Ensuite le plancher depend du
+ticket et pas du dossier : la VC inverse ignore le chiffre d'affaires,
+sa pre-money vaut la sortie mediane ramenee par le multiple cible moins
+le ticket, donc c'est la taille du ticket qui creuse l'ecart. Avec un
+ticket de trois millions au lieu de dix, la meme table ne produit aucune
+bande a dix : le maximum atteint est 5,9 sur le meme dossier a 5,0 M EUR.
 
-La branche « faible » de la regle a donc, sur cette classe et ce stade,
-un domaine reel d'environ huit cent mille euros de chiffre d'affaires,
-et seulement pour un ticket eleve au regard des sorties du secteur. Ce
-n'est pas une raison de la retirer, c'est une raison de ne pas la
-declarer verifiee : un seuil dont on n'a jamais vu le declenchement en
-production est un seuil dont on connait le code et pas l'effet.
+Mais lire cette etroitesse comme un partage de terrain entre deux gardes
+adjacentes serait une erreur, et c'est celle qu'une premiere version de
+cette entree a commise. Les deux gardes ne se partagent pas un terrain,
+elles se relaient selon la classe d'actif. La bande etroite est une
+propriete de `saas-b2b`, ou les multiples sectoriels sont eleves et la
+sortie mediane basse, donc ou la garde de taille couvre presque tout.
+Sur une classe dont les multiples sont plus bas, la valeur d'entreprise
+ne depasse plus la sortie mediane, la garde de taille ne se declenche
+jamais, et la regle de divergence devient le seul controle.
+
+La mesure le montre sur le meme document. L'extraction du run de gel,
+passee dans `computeValuation` en forcant la classe, rend en `saas-b2b`
+une valeur d'entreprise centrale de 215,2 M, la garde de taille tombe,
+aucune dilution n'est produite. En `industrial-hardware` elle rend
+36,9 M, la sortie mediane de la classe est au-dessus, la garde ne se
+declenche pas, la VC inverse reste applicable avec une pre-money de
+4,5 M, et la dilution centrale ressort a soixante-neuf pour cent. Sur
+cette branche la divergence vaut 8,2, l'avertissement est emis et la
+confiance est ramenee de haute a moyenne. Le meme dossier, selon sa
+classe, tombe dans le domaine de l'une ou de l'autre.
+
+La regle de divergence n'est donc pas une garde qui ne se declenchera
+jamais, et la question ouverte plus bas trouve la sa reponse : elle
+couvre exactement la branche ou la garde de taille est aveugle. Ce qui
+reste vrai est qu'elle n'a pas ete vue s'exercer en production, et
+qu'un seuil dont on connait le code et pas l'effet reste a verifier.
+
+Ce qu'il faut noter, et qui limite ce soulagement : a 8,2 la divergence
+declare et plafonne, elle n'empeche pas la dilution de soixante-neuf
+pour cent de s'imprimer. Elle informe le lecteur, elle ne le protege
+pas. Le veritable amont de ce chiffre n'est ni la VC inverse ni la
+divergence, c'est l'instabilite de l'arbitrage de classe d'actif, qui a
+sa propre entree.
 
 Le profil a chercher au depot est donc precis : dossier logiciel B2B au
 stade series-a, chiffre d'affaires du dernier exercice realise entre
@@ -302,30 +327,10 @@ demande, et ce qui manque est un dossier, pas une ligne. La bande sera
 d'ailleurs a remesurer le jour ou la table des sorties ou celle des
 multiples bouge, puisque ses deux bornes en descendent.
 
-La question ouverte, et elle est plus large que la couverture. Une regle
-dont le domaine se reduit a une bande de huit cent mille euros, bornee
-en haut par une autre garde et en bas par la taille du ticket, merite
-qu'on demande si elle vaut son existence. Deux lectures se tiennent et
-la mesure ne tranche pas entre elles. Ou bien c'est une garde utile dont
-le domaine est etroit parce que la garde de taille a pris tout le
-terrain au-dessus, et elle reste le seul filet dans la bande residuelle,
-auquel cas son etroitesse est le signe que les deux regles se partagent
-correctement le travail. Ou bien c'est une garde qui ne se declenchera
-jamais en pratique, parce qu'aucun dossier reel ne tombe dans huit cent
-mille euros de fenetre, et elle occupe alors la place d'un controle sans
-en faire le travail, ce que la doctrine du depot tient pour pire qu'une
-garde absente.
-
-Ce qui separe les deux lectures est un chiffre qu'on n'a pas : la
-distribution du chiffre d'affaires et du ticket sur le corpus, croisee
-avec la classe et le stade. Elle se mesure sur les analyses persistees,
-sans lancer un run, et elle dirait combien de dossiers deja instruits
-seraient tombes dans la bande. Un compte nul sur vingt-six dossiers ne
-prouverait pas grand-chose, mais un compte nul sur un corpus de plusieurs
-centaines trancherait.
-
-Tant que ce chiffre manque, la regle reste, et elle reste pour une raison
-qu'il faut ecrire plutot que sous-entendre : son cout est nul quand elle
-ne se declenche pas, et le prix d'une garde inutile est inferieur a celui
-d'un ecart d'un facteur dix laisse au lecteur. Ce n'est pas une preuve
-qu'elle est utile, c'est un arbitrage assume en attendant de savoir.
+Ce qui reste a mesurer, et qui se mesure sans lancer un run : la
+distribution du chiffre d'affaires, du ticket et de la classe sur les
+analyses persistees, qui dirait combien de dossiers deja instruits
+seraient tombes dans le domaine de la regle. La question n'est plus de
+savoir si la regle sert, la mesure de la classe y a repondu ; elle est
+de savoir a quelle frequence, ce qui decide s'il faut la calibrer plutot
+que de la laisser en l'etat.

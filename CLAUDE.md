@@ -279,6 +279,41 @@ une commande. Ce qui ne doit jamais arriver, c est qu un run soit arrete
 ou lance sur la foi d un identifiant que personne n a remonte jusqu au
 code.
 
+Le corollaire se prend par l autre bout et il coute plus cher, parce
+qu il fabrique des defauts qui n existent pas. Deux runs a des commits
+differents ne sont pas deux tirages du meme systeme, et les comparer
+pour mesurer une variance mesure le changement de code, pas la variance.
+
+Le cas est du 3 aout 2026. Le meme memorandum, analyse a seize heures
+d intervalle, ressortait classe `industrial-hardware` puis `saas-b2b`,
+et la conclusion evidente etait une instabilite de l arbitrage de classe
+d actif, assez grave pour interdire un gel puisque la fourchette varie
+d un facteur six entre les deux classes. La lecture des cinq extractions
+persistees a rendu l inverse : `sector` vaut « SaaS » sur les cinq,
+`subSector` et `businessModel` disent la meme chose, la chaine de
+production detectee vaut `hardware-physical` sur les cinq, et les trois
+champs qui lisent du logiciel sont les memes partout. L entree ne bouge
+pas. Ce qui a bouge est le code : `arbitrerClasseActif` est apparu au
+commit `d533d92` et n est devenu effectif qu au commit `24b9142`, entre
+les deux runs. Le premier run n avait pas d arbitrage, le second en a
+un, et la trace persistee ne figure que dans le second. Ce ne sont pas
+deux tirages, ce sont deux systemes.
+
+Le releve etendu au corpus le confirme et donne la bonne question.
+Quatre dossiers ont ete analyses plusieurs fois ; toutes les bascules de
+classe observees coincident avec un changement de commit, et les seules
+paires de runs partageant un meme sha rendent la meme classe. Le releve
+est mince, deux paires seulement, donc il etablit un plancher et pas un
+taux, et il faut l annoncer ainsi. Mais il suffit a dire que la question
+n etait pas « ce dossier a-t-il bascule » mais « la bascule survit-elle
+a commit constant », et que personne ne l avait posee sous cette forme.
+
+En pratique, avant d attribuer une variance a un moteur, lire le
+`commitSha` des runs compares. S ils different, la seule mesure valide
+est un rejeu a code egal, et le stamp existe precisement pour rendre
+cette lecture possible. Une variance mesuree entre deux versions n est
+pas une variance, c est un diff.
+
 ## Discipline des jeux d essai
 
 Un repli qui rend la meme valeur que sa source rend la source invisible
