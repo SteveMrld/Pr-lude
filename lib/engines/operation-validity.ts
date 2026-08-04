@@ -249,7 +249,27 @@ export function regrouperFaits(evenements: EvenementDate[]): FaitDate[] {
   return faits.sort((a, b) => {
     const d = RANGS.indexOf(a.rang) - RANGS.indexOf(b.rang);
     if (d !== 0) return d;
-    return (b.annee - a.annee) || ((b.mois ?? 0) - (a.mois ?? 0));
+    const parDate = (b.annee - a.annee) || ((b.mois ?? 0) - (a.mois ?? 0));
+    if (parDate !== 0) return parDate;
+    // A rang et date egaux, le plus court l emporte. Sans ce
+    // departage, l ordre restait celui de la collecte, donc celui des
+    // moteurs, et le fait cite dependait d un detail d implementation
+    // sans rapport avec sa qualite. Le run du 4 aout 2026 l a montre :
+    // l elargissement de la collecte a change l ordre, et la mention a
+    // cite « 17 ans de co-direction documentee, 324 sites deployes sur
+    // six continents » a la place de « Levee de 83 millions d euros
+    // annoncee en novembre 2023 », qui figurait pourtant dans la meme
+    // liste avec sa source.
+    //
+    // La longueur n est pas un critere de verite, c est un critere de
+    // forme, et c est bien ce qu on cherche : un enonce court est un
+    // fait, un enonce long est une enumeration de faits dont un seul
+    // porte la date. La regle etait deja appliquee a l interieur d un
+    // groupe, ou elle choisit la formulation la plus nue d un meme
+    // fait ; elle manquait entre groupes. Un enonce compose passe en
+    // outre la borne de cent trente caracteres de `faitSeul` et s y
+    // fait couper, ce qui retirait justement la partie informative.
+    return a.intitule.length - b.intitule.length;
   });
 }
 

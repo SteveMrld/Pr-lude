@@ -159,5 +159,29 @@ console.log('\n[Suite 6] le cas nominal n est pas abime');
   check(/1 fait\(s\)/.test(r.motif) && !/regroupees/.test(r.motif), 'et le motif ne parle pas de regroupement');
 }
 
+
+console.log('\n[Suite 7] a rang et date egaux, le fait le plus nu est cite');
+{
+  // Cas reel du run du 4 aout 2026. Trois enonces de financement, meme
+  // rang et meme date : une enumeration ou la levee est noyee, la levee
+  // seule, et la levee suivie d un commentaire. L ordre de collecte
+  // placait l enumeration en tete, et la mention citait « 17 ans de
+  // co-direction documentee, 324 sites deployes sur six continents ».
+  const ev: any[] = [
+    { intitule: '17 ans de co-direction documentee , 324 sites deployes sur six continents , Net Retention Rate de 123% et une levee de 83 millions d euros en novembre 2023 confirmant la traction', annee: 2023, mois: 11, nature: 'financement', source: 'web : crunchbase', luDansLaProse: true },
+    { intitule: 'Levee de 83 millions d euros annoncee en novembre 2023', annee: 2023, mois: 11, nature: 'financement', source: 'web : usinenouvelle.com', luDansLaProse: true },
+    { intitule: 'Levee de 83 millions d euros annoncee en novembre 2023 : signal de traction et de credibilite marche significatif pour une societe de ce profil', annee: 2023, mois: 11, nature: 'financement', source: 'web : usinenouvelle.com', luDansLaProse: true },
+  ];
+  const faits = regrouperFaits(ev as any);
+  check(faits[0].intitule === 'Levee de 83 millions d euros annoncee en novembre 2023',
+    `le fait de tete est l enonce le plus nu (${faits[0].intitule.slice(0, 60)})`);
+  check(faits[0].intitule.length <= 130,
+    'et il tient sous la borne de troncature, donc il sera cite entier');
+
+  const out = evaluer(ev as any);
+  check(/83 millions/.test(String(out.mention)), 'la mention cite bien la levee');
+  check(!/co-direction|324 sites/.test(String(out.mention)), 'et non l enumeration qui la contenait');
+}
+
 console.log(`\n${pass} pass, ${fail} fail\n`);
 process.exit(fail > 0 ? 1 : 0);
