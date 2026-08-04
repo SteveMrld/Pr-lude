@@ -91,23 +91,58 @@ console.log('\n[Suite 3] la note dit operation mixte');
 
 console.log('\n[Suite 4] cette methode s applique a cette composante');
 {
+  // La taille du dossier est ici volontairement coherente avec la sortie
+  // mediane de saas-b2b. Le jeu d essai portait 13,5 M EUR de chiffre
+  // d affaires, ce qui place la valeur d entreprise trente fois au-dessus
+  // de cette sortie et fait tomber la garde de taille, laquelle ne
+  // repond pas a la question que cette suite pose. Ce qu on verrouille
+  // ici est la composante et non la taille : le chiffre descend donc
+  // sous la mediane pour que la seule variable restante soit la presence
+  // ou l absence d un cash-in.
   const base: any = {
-    extraction: { sector: 'SaaS', fundraise: { stage: 'series-a', amount: '10 M€' }, traction: { revenue: '13,5 m€ (CA 2021 realise)' } },
-    financialData: { lastActualYear: 2021, lastActualYearEvidence: '2021a', revenueProjection: [{ year: 2021, value: 13.5 }] },
+    extraction: { sector: 'SaaS', fundraise: { stage: 'series-a', amount: '10 M€' }, traction: { revenue: '1,2 m€ (CA 2021 realise)' } },
+    financialData: { lastActualYear: 2021, lastActualYearEvidence: '2021a', revenueProjection: [{ year: 2021, value: 1.2 }] },
     relevanceMatrix: { assetClass: 'saas-b2b', assetClassArbitration: null },
     asOf: '2026-08-03', teamScore: 70, marketScore: 61,
   };
   const mixte = computeValuation({ ...base, operationComponents: MIXTE.operationComponents });
   const vcMixte = mixte.methods.find((m) => m.method === 'vc-method');
   check(vcMixte?.applicable === true, 'sur une operation mixte, la VC inverse s applique a la composante cash-in');
+  check(vcMixte?.notApplicableGuard === null, 'et aucune garde ne l a retiree');
   check(!!mixte.dilutionAnalysis, 'et la dilution redevient calculable');
 
   const cession = computeValuation({ ...base, operationComponents: [{ kind: 'cession', evidence: 'a' }] });
   const vcCession = cession.methods.find((m) => m.method === 'vc-method');
   check(vcCession?.applicable === false && vcCession?.notApplicableCause === 'doctrine',
     'sans composante cash-in, la VC inverse reste hors domaine');
+  check(vcCession?.notApplicableGuard === 'domaine-operation',
+    'et c est la garde de type d operation qui l a retiree, nommement');
   check(!cession.dilutionAnalysis && cession.dilutionNotComputableCause === 'doctrine',
     'et la dilution aussi');
+
+  // L autre cas, celui que la suite ne posait pas : la composante
+  // cash-in est bien la, et c est la taille du dossier qui met la
+  // methode hors domaine. Les deux gardes repondent a deux questions,
+  // une methode peut etre dans son domaine par le type et hors domaine
+  // par la taille, et la sortie doit permettre de le lire.
+  const gros: any = {
+    ...base,
+    extraction: { ...base.extraction, traction: { revenue: '13,5 m€ (CA 2021 realise)' } },
+    financialData: { ...base.financialData, revenueProjection: [{ year: 2021, value: 13.5 }] },
+  };
+  const trop = computeValuation({ ...gros, operationComponents: MIXTE.operationComponents });
+  const vcTrop = trop.methods.find((m) => m.method === 'vc-method');
+  check(vcTrop?.applicable === false, 'meme avec un cash-in, la taille peut mettre la methode hors domaine');
+  check(vcTrop?.notApplicableGuard === 'domaine-taille',
+    'et la garde nommee est celle de la taille, pas celle du type');
+  check(vcTrop?.notApplicableGuard !== vcCession?.notApplicableGuard,
+    'les deux gardes se distinguent dans la sortie et pas seulement dans la prose');
+  check(vcTrop?.notApplicableCause === vcCession?.notApplicableCause,
+    'alors qu elles partagent la meme cause de non-production, ce qui est la raison d etre du champ');
+  check(/taille du dossier/.test(String(vcTrop?.notApplicableReason)),
+    'le motif de la garde de taille ne parle pas de composante');
+  check(/composante de cash-in/.test(String(vcCession?.notApplicableReason)),
+    'et celui de la garde de type ne parle pas de taille');
 }
 
 console.log('\n[Suite 5] la reserve porte sur la composante mise en cause');

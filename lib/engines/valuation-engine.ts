@@ -199,6 +199,45 @@ export const VALUATION_NATURE_LABELS: Record<ValuationNature, string> = {
 };
 
 /**
+ * Garde doctrinale qui a retire une methode, quand il y en a une.
+ *
+ * `notApplicableCause` dit de quelle famille releve la non-production,
+ * et il en existe trois : la donnee manque, le systeme a echoue, ou la
+ * doctrine a tranche. Ce champ-ci dit laquelle des doctrines a tranche,
+ * et il existe parce que deux gardes ne repondent pas a la meme
+ * question. La garde de type demande si l operation fait entrer du
+ * capital, ce qui conditionne l applicabilite de la VC inverse ; la
+ * garde de taille demande si la sortie de reference du secteur est
+ * coherente avec ce que la societe vaut deja, ce qui conditionne la
+ * validite de son resultat. Une methode peut etre dans son domaine par
+ * le type et hors domaine par la taille : ce ne sont pas deux reponses
+ * contradictoires a une meme question, ce sont deux questions.
+ *
+ * Sans ce champ, les deux verdicts se lisent tous les deux comme
+ * `doctrine` et ne se distinguent que dans une prose que les
+ * consommateurs n ont pas le droit de lire. Un test qui verrouille la
+ * premiere garde deviendrait alors indistinguable d un test qui
+ * verrouille la seconde, et c est exactement ce qui s est produit le
+ * 3 aout 2026.
+ *
+ * Null quand la methode aboutit, et null aussi quand la cause n est pas
+ * doctrinale : une donnee absente n est pas une garde.
+ */
+export type ValuationGuard =
+  /** Aucune composante de cash-in : rien n entre au capital. */
+  | 'domaine-operation'
+  /** Sortie de reference du secteur sous la valeur actuelle du dossier. */
+  | 'domaine-taille'
+  /** Le stade exclut la methode (seed pre-revenue, Berkus et Scorecard hors seed). */
+  | 'domaine-stade'
+  /** Le millesime de la base n a pas pu etre etabli, la base est refusee. */
+  | 'domaine-millesime'
+  /** Le ticket excede la post-money implicite : la methode ne rend rien de plausible. */
+  | 'domaine-ticket'
+  /** Le referentiel neutralise ou ne couvre pas le couple classe et stade. */
+  | 'domaine-referentiel';
+
+/**
  * Resultat d une methode de valorisation individuelle. Plusieurs
  * methodes peuvent s appliquer simultanement (ex : multiples ET
  * VC method), mais seules celles de meme nature sont consolidees
@@ -226,6 +265,12 @@ export interface ValuationMethodResult {
    * consommateurs lisent ce champ et jamais notApplicableReason.
    */
   notApplicableCause: NonProductionCauseOrNull;
+  /**
+   * Laquelle des gardes doctrinales a retire la methode. Obligatoire et
+   * non optionnelle, pour la meme raison que la cause : le type force
+   * chaque site a se prononcer plutot qu a heriter d un defaut.
+   */
+  notApplicableGuard: ValuationGuard | null;
   /** La fourchette pre-money en euros, si applicable. */
   range?: { min: number; central: number; max: number };
   /** Inputs utilises par la methode (pour transparence). */
@@ -504,6 +549,14 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // l entree pour ne pas imprimer un rationnel saas-b2b decalibre
   // alors que la methode ne pese rien dans la fourchette finale.
   const isSeedPreRevenue = stage === 'seed' && !multiplesResult.applicable;
+  // La valeur que le dossier vaut deja, quand les multiples ont su la
+  // produire. Elle est passee a la VC inverse, qui n a aucun autre moyen
+  // de savoir quelle taille de societe elle est en train de modeliser :
+  // c est la seule grandeur du moteur qui regarde ce que la societe
+  // fait, et la VC inverse ne la regarde jamais d elle-meme.
+  const valeurActuelle = multiplesResult.applicable && multiplesResult.nature === 'enterprise_value'
+    ? multiplesResult.range?.central ?? null
+    : null;
   const vcMethodResult = isSeedPreRevenue
     ? {
         method: 'vc-method' as const,
@@ -511,9 +564,10 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
         label: 'Methode VC inverse',
         applicable: false,
         notApplicableCause: 'doctrine' as const,
+        notApplicableGuard: 'domaine-stade' as const,
         notApplicableReason: 'Methode reservee aux dossiers avec revenue exploitable. Au seed pre-revenue, la fourchette est ancree sur Berkus et Scorecard, qui valorisent l equipe et l opportunite avant traction commerciale, plutot que sur des exits sectoriels que la jeune entreprise n a pas encore les moyens de viser.',
       }
-    : computeByVcMethod(input, assetClass, stage);
+    : computeByVcMethod(input, assetClass, stage, valeurActuelle);
 
   // ---------- Methode 3 : Berkus / Scorecard (seed only)
   const berkusResult = stage === 'seed' ? computeByBerkus(input, basis) : nonApplicableBerkus();
@@ -538,7 +592,10 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
     : null;
 
   // ---------- Confiance globale
-  const confidence = determineConfidence(applicableMethods, assetClass, stage);
+  // Les fourchettes consolidees entrent dans le calcul : une confiance
+  // qui ignore le desaccord entre les methodes qu elle compte n est pas
+  // une confiance, c est un decompte.
+  const confidence = determineConfidence(applicableMethods, assetClass, stage, ranges);
 
   // ---------- Analyse de dilution si ticket mentionne
   // La dilution se calcule sur une pre-money et sur elle seule :
@@ -713,6 +770,9 @@ function computeBySectorMultiples(
       label: 'Multiples sectoriels',
       applicable: false,
       notApplicableCause: absence === 'absente' ? 'incident' : 'doctrine',
+      // Une lacune du referentiel est un incident et non une garde : ce
+      // n est pas la doctrine qui a tranche, c est la table qui manque.
+      notApplicableGuard: absence === 'absente' ? null : 'domaine-referentiel',
       notApplicableReason: absence === 'neutralisee'
         ? `Les multiples ne s appliquent pas a ${assetClass} au stade ${stage} : la plage est explicitement neutralisee dans le referentiel, par exemple parce qu une societe a ce stade n a pas d agregat stable a multiplier. C est une decision de calibration, pas une lacune.`
         : absence === 'classe-inconnue'
@@ -733,6 +793,7 @@ function computeBySectorMultiples(
       label: 'Multiples sectoriels',
       applicable: false,
       notApplicableCause: 'doctrine',
+      notApplicableGuard: 'domaine-millesime',
       notApplicableReason: `${basis.declaration} ${basis.refusalReason ?? ''}`.trim(),
       inputs: {
         baseYear: null,
@@ -753,6 +814,7 @@ function computeBySectorMultiples(
       label: 'Multiples sectoriels',
       applicable: false,
       notApplicableCause: 'absence',
+      notApplicableGuard: null,
       notApplicableReason: `Aucun ${range.multipleType.toUpperCase()} exploitable au millesime ${basis.year} ni dans la traction declaree du pitch. La methode des multiples requiert une metrique de revenu mesurable a la base retenue, et ne se replie pas sur une annee voisine.`,
       inputs: {
         baseYear: basis.year,
@@ -806,6 +868,7 @@ function computeBySectorMultiples(
     label: 'Multiples sectoriels',
     applicable: true,
     notApplicableCause: null,
+    notApplicableGuard: null,
     range: {
       min: Math.round(min),
       central: Math.round(adjustedCentral),
@@ -1102,6 +1165,14 @@ function computeByVcMethod(
   input: ValuationInput,
   assetClass: string,
   stage: ValuationStage,
+  /**
+   * Valeur d entreprise centrale tiree des multiples sectoriels sur le
+   * meme run, ou null si les multiples n ont rien produit. La VC inverse
+   * ne peut pas la calculer elle-meme : elle ne lit aucun agregat de la
+   * societe. Sans elle, la garde de taille ne se pose pas et la methode
+   * repond comme avant.
+   */
+  valeurActuelle: number | null,
 ): ValuationMethodResult {
   // Hors domaine sur cession et LBO. La methode modelise le rendement
   // d un investisseur qui entre au capital et calcule le pre-money
@@ -1132,7 +1203,48 @@ function computeByVcMethod(
       label: 'Methode VC inverse',
       applicable: false,
       notApplicableCause: 'doctrine',
+      notApplicableGuard: 'domaine-operation',
       notApplicableReason: `La VC inverse ne s applique pas a ${quoi}. Elle deduit le pre-money qu un investisseur peut payer pour atteindre son IRR cible en entrant au capital, or aucun capital n entre dans la societe. Les multiples sectoriels restent applicables, ce sont des multiples de transaction autant que de tour.`,
+    };
+  }
+
+  // Seconde garde, et elle ne repond pas a la meme question que la
+  // premiere. Celle du dessus demande si l operation fait entrer du
+  // capital, ce qui conditionne l applicabilite de la methode ; celle-ci
+  // demande si le resultat qu elle rendrait decrit bien cette societe,
+  // ce qui conditionne sa validite. Une operation peut faire entrer du
+  // capital et rester hors de portee du modele, et c est le cas ordinaire
+  // du dossier plus mature que la mediane de sa classe.
+  //
+  // La VC inverse est aveugle a la taille de la societe. Elle part d une
+  // sortie mediane de secteur, la ramene par un multiple cible et en
+  // soustrait le ticket ; a aucun moment elle ne regarde ce que la
+  // societe fait. Les multiples sectoriels, sur le meme run, ne regardent
+  // que cela. Les deux methodes peuvent donc diverger d un facteur trente
+  // sans qu aucune des deux ne se trompe dans son propre cadre, et c est
+  // ce qui s est produit le 3 aout 2026 : une sortie de base de 80 M EUR
+  // pour saas-b2b, contre une valeur d entreprise de 216 M EUR tiree d un
+  // ARR de 13,5 M EUR. La VC inverse modelisait une autre societe que
+  // celle du dossier, et la note imprimait sa dilution en premiere page.
+  //
+  // La garde ne recalibre rien. Elle constate que le modele est hors de
+  // son domaine quand sa sortie de reference passe sous ce que le dossier
+  // vaut deja : une societe ne sort pas dans cinq ans en dessous de sa
+  // valeur d aujourd hui, et si le modele le suppose, ce n est pas cette
+  // societe qu il decrit. Elle vaut pour tout dossier dont la maturite
+  // depasse la mediane de sa classe, pas seulement pour celui qui l a
+  // revelee, et elle se deplace toute seule si la table des sorties
+  // change.
+  const sortieDeReference = getExitScenarios(assetClass, stage);
+  if (sortieDeReference !== null && valeurActuelle !== null && sortieDeReference.base < valeurActuelle) {
+    return {
+      method: 'vc-method',
+      nature: 'pre_money',
+      label: 'Methode VC inverse',
+      applicable: false,
+      notApplicableCause: 'doctrine',
+      notApplicableGuard: 'domaine-taille',
+      notApplicableReason: `Methode hors domaine par la taille du dossier. Elle part d une sortie mediane de ${formatEur(sortieDeReference.base)} pour la classe ${assetClass}, inferieure a la valeur d entreprise de ${formatEur(valeurActuelle)} que les multiples sectoriels tirent deja du chiffre d affaires actuel. Le modele suppose donc une sortie sous la valeur d aujourd hui, ce qui decrit une autre societe que celle-ci. Sa pre-money serait mecaniquement basse et la dilution qui en descend, fausse dans le sens qui sur-estime la part obtenue par le fonds.`,
     };
   }
 
@@ -1157,6 +1269,7 @@ function computeByVcMethod(
       // produit malgre tout, c est une lacune de referentiel et non une
       // donnee absente du dossier.
       notApplicableCause: 'incident',
+      notApplicableGuard: null,
       notApplicableReason: `Aucun scenario d exit n est calibre pour ${assetClass} au stade ${stage}, alors que le referentiel devrait en porter pour les vingt et une classes du catalogue. C est une lacune du referentiel et non une decision.`,
     };
   }
@@ -1197,6 +1310,7 @@ function computeByVcMethod(
       label: 'Methode VC inverse',
       applicable: false,
       notApplicableCause: 'doctrine',
+      notApplicableGuard: 'domaine-ticket',
       notApplicableReason: `Le ticket propose (${formatEur(ticket)}) excede la post-money implicite (${formatEur(postCentral)}) necessaire pour atteindre IRR ${Math.round(targetIRR * 100)}% sur ${horizonYears} ans avec les exits calibres ${assetClass}. Soit le ticket est trop ambitieux, soit la these sous-jacente vise des exits superieurs aux medianes du segment.`,
     };
   }
@@ -1215,6 +1329,7 @@ function computeByVcMethod(
     label: 'Methode VC inverse',
     applicable: true,
     notApplicableCause: null,
+    notApplicableGuard: null,
     range: {
       min: Math.round(preMin),
       central: Math.round(preCentral),
@@ -1334,6 +1449,7 @@ function computeByBerkus(input: ValuationInput, basis: ValuationBasis): Valuatio
     label: 'Methode Berkus',
     applicable: true,
     notApplicableCause: null,
+    notApplicableGuard: null,
     range: {
       min: Math.round(min),
       central: Math.round(central),
@@ -1357,6 +1473,7 @@ function nonApplicableBerkus(): ValuationMethodResult {
     label: 'Methode Berkus',
     applicable: false,
     notApplicableCause: 'doctrine',
+    notApplicableGuard: 'domaine-stade',
     notApplicableReason: 'La methode Berkus s applique uniquement au stade seed pre-revenue.',
   };
 }
@@ -1410,6 +1527,7 @@ function computeByScorecard(input: ValuationInput): ValuationMethodResult {
     label: 'Methode Scorecard (Bill Payne)',
     applicable: true,
     notApplicableCause: null,
+    notApplicableGuard: null,
     range: {
       min: Math.round(min),
       central: Math.round(central),
@@ -1435,6 +1553,7 @@ function nonApplicableScorecard(): ValuationMethodResult {
     label: 'Methode Scorecard (Bill Payne)',
     applicable: false,
     notApplicableCause: 'doctrine',
+    notApplicableGuard: 'domaine-stade',
     notApplicableReason: 'La methode Scorecard s applique uniquement au stade seed.',
   };
 }
@@ -1461,10 +1580,10 @@ function buildNonApplicableValuation(
     : `Asset class ${assetClass}.`;
   const reason = `${assetMsg} ${stageMsg} Methodes de valorisation neutralisees pour eviter une fourchette cale sur des benchmarks saas-b2b par defaut.`;
   const methods: ValuationMethodResult[] = [
-    { method: 'sector-multiples', nature: 'enterprise_value', label: 'Multiples sectoriels', applicable: false, notApplicableCause: 'doctrine', notApplicableReason: reason },
-    { method: 'vc-method', nature: 'pre_money', label: 'Methode VC inverse', applicable: false, notApplicableCause: 'doctrine', notApplicableReason: reason },
-    { method: 'berkus', nature: 'pre_money', label: 'Methode Berkus', applicable: false, notApplicableCause: 'doctrine', notApplicableReason: reason },
-    { method: 'scorecard', nature: 'pre_money', label: 'Methode Scorecard (Bill Payne)', applicable: false, notApplicableCause: 'doctrine', notApplicableReason: reason },
+    { method: 'sector-multiples', nature: 'enterprise_value', label: 'Multiples sectoriels', applicable: false, notApplicableCause: 'doctrine', notApplicableGuard: 'domaine-referentiel', notApplicableReason: reason },
+    { method: 'vc-method', nature: 'pre_money', label: 'Methode VC inverse', applicable: false, notApplicableCause: 'doctrine', notApplicableGuard: 'domaine-referentiel', notApplicableReason: reason },
+    { method: 'berkus', nature: 'pre_money', label: 'Methode Berkus', applicable: false, notApplicableCause: 'doctrine', notApplicableGuard: 'domaine-referentiel', notApplicableReason: reason },
+    { method: 'scorecard', nature: 'pre_money', label: 'Methode Scorecard (Bill Payne)', applicable: false, notApplicableCause: 'doctrine', notApplicableGuard: 'domaine-referentiel', notApplicableReason: reason },
   ];
   const warnings: string[] = [];
   if (assetClass === 'unclassified' && stage === 'unknown') {
@@ -1674,18 +1793,71 @@ function consolidateRanges(
   return out;
 }
 
+/**
+ * Seuils de divergence entre methodes, au-dela desquels la confiance ne
+ * peut plus etre celle du nombre de methodes applicables.
+ *
+ * CONVENTIONNELS, et rien dans le code ne les fonde, sur le modele de
+ * FRAICHEUR_CONFIRMATION_MOIS. Ce qui les fonde est un raisonnement, et
+ * il se discute : l ecart entre une valeur d entreprise et une pre-money
+ * est la dette nette. Un facteur trois est courant sur une operation a
+ * levier, un facteur cinq est deja une structure lourde, et un facteur
+ * dix voudrait dire que la dette nette represente quatre-vingt-dix pour
+ * cent de la valeur d entreprise, ce qui ne decrit plus une societe
+ * qu on valorise mais une societe en difficulte. Passe ce point, l ecart
+ * ne s explique plus par la nature des grandeurs, il s explique par le
+ * fait qu une des deux methodes est hors de son domaine.
+ */
+const DIVERGENCE_CONFIANCE_MODEREE = 5;
+const DIVERGENCE_CONFIANCE_FAIBLE = 10;
+
+/**
+ * Rapport entre le plus grand et le plus petit point central des
+ * fourchettes produites. 1 quand il n y en a qu une.
+ */
+export function divergenceEntreMethodes(
+  ranges: Array<{ central: number }>,
+): number {
+  const centraux = ranges.map((r) => r.central).filter((c) => Number.isFinite(c) && c > 0);
+  if (centraux.length < 2) return 1;
+  return Math.max(...centraux) / Math.min(...centraux);
+}
+
+/**
+ * Confiance globale.
+ *
+ * Le compte des methodes applicables ne suffit pas, et c est le defaut
+ * ferme le 3 aout 2026 : deux methodes applicables sur une classe a
+ * confiance sectorielle haute rendaient `high` alors que leurs deux
+ * fourchettes differaient d un facteur trente. Le moteur tenait les deux
+ * chiffres et ne les comparait jamais. Un accord entre methodes est ce
+ * qui fonde une confiance ; un desaccord de cet ordre est en soi un
+ * signal, et il doit degrader la confiance plutot que d etre laisse au
+ * lecteur, qui n a pas les deux nombres sous les yeux au meme moment.
+ *
+ * La divergence ne peut que faire descendre. Deux methodes qui
+ * s accordent ne fondent pas a elles seules une confiance haute, la
+ * qualite de la table sectorielle continue de commander le plafond.
+ */
 function determineConfidence(
   methods: ValuationMethodResult[],
   assetClass: string,
   stage: ValuationStage,
+  ranges: Array<{ central: number }>,
 ): 'high' | 'medium' | 'low' {
   const applicableCount = methods.filter((m) => m.applicable).length;
   const sector = getSectorMultiples(assetClass, stage);
   const sectorConfidence = sector?.range.confidence;
 
-  if (applicableCount >= 2 && sectorConfidence === 'high') return 'high';
-  if (applicableCount >= 1 && sectorConfidence !== 'low') return 'medium';
-  return 'low';
+  const base: 'high' | 'medium' | 'low' =
+    applicableCount >= 2 && sectorConfidence === 'high' ? 'high'
+    : applicableCount >= 1 && sectorConfidence !== 'low' ? 'medium'
+    : 'low';
+
+  const divergence = divergenceEntreMethodes(ranges);
+  if (divergence >= DIVERGENCE_CONFIANCE_FAIBLE) return 'low';
+  if (divergence >= DIVERGENCE_CONFIANCE_MODEREE) return base === 'high' ? 'medium' : base;
+  return base;
 }
 
 // ============================================================
@@ -1882,6 +2054,23 @@ function collectWarnings(
   if (ranges.length > 1) {
     warnings.push(
       `Deux natures de valeur en sortie, ${ranges.map((r) => VALUATION_NATURE_LABELS[r.nature]).join(' et ')}, qui ne se comparent pas terme a terme. L ecart entre elles est la dette nette, absente du contrat d extraction financiere : le pipeline ne lit ni dette, ni tresorerie, ni BFR. Aucune fourchette unique n est recommandee.`,
+    );
+  }
+
+  // La divergence se declare, en plus de degrader la confiance. La
+  // degradation seule laisserait le lecteur devant un indicateur bas
+  // sans savoir ce qui l a fait baisser, et un indicateur dont on ne
+  // connait pas la cause ne se corrige pas. La phrase dit le rapport et
+  // ce qu il signifie : passe un certain ecart, la dette nette n est
+  // plus une explication suffisante, et c est une des deux methodes qui
+  // sort de son domaine.
+  const divergence = divergenceEntreMethodes(ranges);
+  if (divergence >= DIVERGENCE_CONFIANCE_MODEREE) {
+    warnings.push(
+      `Les methodes divergent d un facteur ${divergence.toFixed(0)} entre leurs points centraux. `
+      + (divergence >= DIVERGENCE_CONFIANCE_FAIBLE
+        ? `A cet ordre de grandeur, la difference de nature entre les fourchettes ne suffit plus a l expliquer : il faudrait que la dette nette represente l essentiel de la valeur d entreprise. L hypothese la plus economique est qu une des deux methodes est appliquee hors de son domaine, et la fourchette ne doit pas etre utilisee sans arbitrage manuel. La confiance est ramenee a faible pour ce seul motif.`
+        : `L ecart reste explicable par la structure de l operation, mais il est assez large pour que la confiance ne soit pas tenue pour haute sur le seul compte des methodes applicables.`),
     );
   }
 
