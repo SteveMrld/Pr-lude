@@ -334,3 +334,73 @@ seraient tombes dans le domaine de la regle. La question n'est plus de
 savoir si la regle sert, la mesure de la classe y a repondu ; elle est
 de savoir a quelle frequence, ce qui decide s'il faut la calibrer plutot
 que de la laisser en l'etat.
+
+---
+
+## La reserve de validite parait ou disparait selon le tirage et le parcours
+
+Ouvert le 4 aout 2026. C'est l'entree qui interdit le gel.
+
+Le meme document, analyse deux fois a dix-sept heures d'intervalle,
+porte une reserve de validite d'operation sur le premier run et aucune
+sur le second. Un partner qui lit le second y lit qu'aucun evenement
+posterieur n'a ete releve. Ce n'est pas ce que le moteur sait, c'est ce
+qu'il a recu.
+
+Ce qui alimente la reserve, lu dans la route et non suppose :
+`detecterEvenementsDansLaProse` est appelee sur la prose de trois
+moteurs et de trois seulement, Equipe, Fragilite structurelle et
+Narrative Drift (`app/api/analyze/route.ts:1678`). Le fait est ensuite
+classe et le mieux fonde est cite. La chaine est bonne. Sa fragilite est
+que ses trois sources sont des moteurs LLM, donc que l'existence meme du
+fait depend de ce qu'ils ont choisi de citer ce jour-la.
+
+La mesure, faite en rejouant le detecteur source par source sur les deux
+resultats persistes :
+
+- run du 3 aout, parcours early stage. Equipe rend 140 lignes de prose,
+  six mentions de la levee de 83 millions, trois evenements detectes.
+  Fragilite rend 198 lignes, deux mentions, un evenement. Total quatre.
+- run du 4 aout, parcours growth. Equipe rend 4 lignes, c'est le talon
+  d'un moteur neutralise, zero evenement. Fragilite rend 192 lignes,
+  volume comparable au run precedent, et zero mention de la levee, donc
+  zero evenement. Narrative Drift rend 27 lignes dans les deux cas et
+  n'a jamais rien detecte.
+
+Deux causes independantes se sont donc additionnees. Le parcours growth
+neutralise le moteur Equipe, qui portait trois des quatre evenements :
+c'est structurel et previsible. Et le moteur Fragilite, qui a tourne
+normalement avec un volume de prose equivalent, n'a pas cite la levee la
+seconde fois : c'est de la variance de tirage sur le choix des faits
+externes, a code constant pour ce moteur, ce que le diff entre les deux
+commits confirme puisqu'il ne touche ni Fragilite ni la couche web. Une
+seule des deux causes aurait laisse au moins un evenement. Les deux
+ensemble ont rendu zero.
+
+Pourquoi c'est plus grave que ce que la formulation laisse croire. Le
+parcours growth est celui des memorandums de cession et de LBO,
+c'est-a-dire exactement les operations les plus susceptibles d'avoir ete
+depassees par un evenement posterieur, puisque leur document circule
+pendant des mois. La reserve est donc affaiblie sur le parcours ou elle
+protegerait le plus, ce qui est la meme forme que le plafond de cent
+pages du pre-scan : un controle desarme la ou son enjeu est maximal.
+
+Ce n'est pas un defaut du correctif de classement des faits, et il faut
+l'ecrire pour ne pas le chercher au mauvais endroit. Rejoue sur les
+donnees reelles du run du 3 aout, le moteur corrige range la levee en
+`prose-datee` et le jugement du moteur Equipe en `jugement-de-moteur`,
+cite le premier, nomme ses deux sources et place la provenance en fin de
+paragraphe. Il fait exactement ce qu'on lui demande. Il n'a simplement
+jamais eu l'occasion de le faire en production.
+
+Non ferme parce que la sortie n'est pas evidente et qu'elle engage la
+doctrine. Faire dependre une reserve de la citation spontanee d'un
+moteur de jugement est le vice de conception, pas le symptome : il
+faudrait une source de faits qui ne soit pas un sous-produit d'une
+analyse, c'est-a-dire une recherche d'evenements posterieurs conduite
+pour elle-meme, avec sa propre requete et son propre budget. Le cout est
+un appel de plus par dossier. En attendant, la note ne doit pas ecrire
+qu'aucun evenement n'a ete releve quand elle devrait ecrire qu'aucune
+recherche d'evenement n'a ete conduite pour elle-meme : la premiere
+formulation est une affirmation sur le monde, la seconde une
+affirmation sur la lecture, et seule la seconde est vraie.
