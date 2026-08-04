@@ -28,6 +28,9 @@ import {
 import {
   OPERATION_LABELS,
   libelleMontant,
+  montantAffiche,
+  cedantAffiche,
+  LIBELLE_COMPOSANTE,
   libelleContrepartie,
   estCession,
   composantesDe,
@@ -3786,25 +3789,74 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
             <tr>
               <td className="note-label">{libelleMontant(e.fundraise)}</td>
               <td className="note-value">
-                {e.fundraise?.amount || '—'}
-                {/* La citation suit la valeur en retrait, sur le modele
-                    de la nature d operation : elle fonde le montant, elle
-                    ne le limite pas. Sans elle, la seule facon de savoir
-                    si un montant a ete lu ou suppose etait d ouvrir le
-                    JSON, ce qui revient a dire que la note ne portait pas
-                    ce qui fonde son propre chiffre. */}
-                {e.fundraise?.amountEvidence && (
-                  <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                    « {e.fundraise.amountEvidence} »
-                  </span>
-                )}
+                {(() => {
+                  // La lecture descend d un cran quand le champ
+                  // d operation est vide et qu un perimetre de composante
+                  // porte une somme citee. Elle ne remonte pas la valeur
+                  // dans `amount` : le perimetre porte sur une composante
+                  // et non sur l operation, et le recopier effacerait
+                  // cette difference de portee.
+                  const m = montantAffiche(e.fundraise);
+                  if (m.provenance === 'absent') return '—';
+                  return (
+                    <>
+                      {m.valeur}
+                      {m.provenance === 'perimetre-de-composante' && (
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                          Lu sur la composante {LIBELLE_COMPOSANTE[m.composante ?? ''] ?? m.composante} : le
+                          document ne porte pas de montant d ensemble, ce chiffre est celui de cette composante.
+                        </span>
+                      )}
+                      {/* La citation suit la valeur en retrait, sur le
+                          modele de la nature d operation : elle fonde le
+                          montant, elle ne le limite pas. */}
+                      {m.citation && (
+                        <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                          « {m.citation} »
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
               </td>
             </tr>
             {estCession(e.fundraise) && (
               <>
                 <tr>
                   <td className="note-label">Cédant</td>
-                  <td className="note-value">{e.fundraise?.seller || 'non précisé'}</td>
+                  <td className="note-value">
+                    {(() => {
+                      // `seller` est un champ de synthese : il derive d un
+                      // tirage a l autre et a nomme une personne physique
+                      // comme cedante a part entiere sur un run et pas sur
+                      // l autre. On ne l imprime que cite. Sinon on rend la
+                      // citation de la composante de cession, qui est un
+                      // champ de copie donc stable, et le lecteur y lit les
+                      // cedants dans les termes du document.
+                      const c = cedantAffiche(e.fundraise);
+                      if (c.provenance === 'champ-cite') {
+                        return (
+                          <>
+                            {c.valeur}
+                            <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                              « {c.citation} »
+                            </span>
+                          </>
+                        );
+                      }
+                      if (c.provenance === 'citation-de-composante') {
+                        return (
+                          <>
+                            Dans les termes du document
+                            <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                              « {c.citation} »
+                            </span>
+                          </>
+                        );
+                      }
+                      return 'non précisé';
+                    })()}
+                  </td>
                 </tr>
                 <tr>
                   <td className="note-label">Périmètre cédé</td>

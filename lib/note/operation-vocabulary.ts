@@ -131,3 +131,115 @@ export const MENTION_LBO =
 /** Mention portee quand le type n a pas pu etre etabli. */
 export const MENTION_TYPE_NON_ETABLI =
   "La nature de l operation n a pas pu etre etablie a partir du document : aucune citation ne fonde une levee, une cession ni un LBO. Les methodes de valorisation tournent donc sans neutralisation, et le vocabulaire ci-dessous reste neutre. A confirmer avec le partner avant de lire les chiffres comme ceux d un tour de table.";
+
+/**
+ * Un perimetre de composante porte indifferemment une part du capital
+ * (« totalite des parts », « 100% ») ou une somme (« €10-15m »). Seul
+ * le second peut tenir lieu de montant d operation, et le distinguer se
+ * fait sur la forme et non sur le nom de la composante : une cession
+ * peut porter un prix, un cash-in peut porter une quote-part.
+ */
+export function perimetreEstMontant(perimetre: unknown): boolean {
+  if (typeof perimetre !== 'string') return false;
+  const p = perimetre.trim();
+  if (p.length === 0) return false;
+  // Une part de capital n est pas un montant, meme chiffree.
+  if (/%|pour ?cent|totalit|majorit|minorit|integralit/i.test(p)) return false;
+  // Une somme porte une devise, sous forme de symbole, de code, ou de
+  // suffixe de magnitude accole a un nombre.
+  return /[€$£]|\b(?:eur|usd|gbp|k€|m€)\b|\d\s?(?:k|m|md|bn|mds?)\b/i.test(p);
+}
+
+/**
+ * Provenance du montant affiche au tableau d operation.
+ *
+ * `amount` reste le champ de reference et n est jamais reecrit : la
+ * valeur d un perimetre de composante ne dit pas la meme chose, elle
+ * porte sur une composante et non sur l operation, et la recopier
+ * effacerait cette difference. La lecture descend donc d un cran et le
+ * declare, plutot que de remonter la valeur d un cran et de mentir sur
+ * sa portee.
+ *
+ * Le cas est du 4 aout 2026 : sur un memorandum qui ecrit « Inject
+ * 10-15m in cash-in to support the next growth phase », l extraction a
+ * rendu `amount` vide avec la cause `non-rendu`, tandis que la
+ * composante cash-in portait « 10-15m » avec sa citation. Le tableau
+ * affichait une ligne vide en premiere page alors que la donnee etait
+ * dans le resultat, a un champ de la.
+ */
+export type ProvenanceMontant = 'champ-operation' | 'perimetre-de-composante' | 'absent';
+
+export function montantAffiche(fundraise: any): {
+  valeur: string | null;
+  citation: string | null;
+  provenance: ProvenanceMontant;
+  /** Composante dont le perimetre a ete lu, quand c est le cas. */
+  composante: string | null;
+} {
+  const amount = typeof fundraise?.amount === 'string' ? fundraise.amount.trim() : '';
+  if (amount.length > 0) {
+    return {
+      valeur: amount,
+      citation: typeof fundraise?.amountEvidence === 'string' && fundraise.amountEvidence.trim().length > 0
+        ? fundraise.amountEvidence : null,
+      provenance: 'champ-operation',
+      composante: null,
+    };
+  }
+  for (const c of composantesDe(fundraise)) {
+    if (!perimetreEstMontant((c as any).perimetre)) continue;
+    return {
+      valeur: String((c as any).perimetre).trim(),
+      citation: typeof (c as any).evidence === 'string' && (c as any).evidence.trim().length > 0
+        ? (c as any).evidence : null,
+      provenance: 'perimetre-de-composante',
+      composante: c.kind,
+    };
+  }
+  return { valeur: null, citation: null, provenance: 'absent', composante: null };
+}
+
+/** Libelle de la composante, pour declarer d ou vient un montant lu bas. */
+export const LIBELLE_COMPOSANTE: Record<string, string> = {
+  'cash-in': 'cash-in',
+  cession: 'cession',
+  dette: 'dette',
+};
+
+/**
+ * Cedant affiche au tableau d operation.
+ *
+ * Le champ `seller` est un champ de synthese : le modele le redige a
+ * partir de sa lecture, et la mesure de stabilite du depot etablit que
+ * les champs de synthese derivent d un tirage a l autre la ou les
+ * champs de copie tiennent caractere pour caractere. Sur le dossier
+ * gele, il a rendu « Iris Capital, Next47, equipe fondatrice (dont
+ * Helene Olphe-Galliard) » sur un run et « Iris Capital, Next47, Helene
+ * Olphe-Galliard, equipe fondatrice » sur un autre, donc une personne
+ * physique nommee comme cedante a part entiere selon le tirage, dans un
+ * document vendu a des fonds.
+ *
+ * La citation de la composante `cession` est un champ de copie : elle
+ * est stable, elle est verifiable, et le cedant s y lit ou nulle part.
+ * On la prefere donc au champ redige des que celui-ci n est pas lui-meme
+ * cite, plutot que d imprimer un nom propre que rien ne fonde.
+ */
+export type ProvenanceCedant = 'champ-cite' | 'citation-de-composante' | 'absent';
+
+export function cedantAffiche(fundraise: any): {
+  valeur: string | null;
+  citation: string | null;
+  provenance: ProvenanceCedant;
+} {
+  const seller = typeof fundraise?.seller === 'string' ? fundraise.seller.trim() : '';
+  const evidence = typeof fundraise?.sellerEvidence === 'string' ? fundraise.sellerEvidence.trim() : '';
+  if (seller.length > 0 && evidence.length > 0) {
+    return { valeur: seller, citation: evidence, provenance: 'champ-cite' };
+  }
+  const cession = composantesDe(fundraise).find((c) => c.kind === 'cession');
+  const citation = typeof (cession as any)?.evidence === 'string' ? (cession as any).evidence.trim() : '';
+  if (citation.length > 0) {
+    return { valeur: null, citation, provenance: 'citation-de-composante' };
+  }
+  return { valeur: null, citation: null, provenance: 'absent' };
+}
