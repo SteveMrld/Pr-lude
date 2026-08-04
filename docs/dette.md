@@ -458,3 +458,71 @@ et ces dossiers sont-ils ceux ou il servirait le plus. Quand la reponse
 est oui, l'affaiblissement doit etre declare dans la note plutot que
 subi, ce qui est exactement ce que le verdict `non-instruit` fait pour
 la validite d'operation.
+
+---
+
+## Chantier : recalibrer les quatre moteurs early stage pour le growth
+
+Ouvert le 4 aout 2026. Chantier chiffre, pas defaut a corriger.
+
+Le parcours growth neutralise quatre moteurs, et le code dit pourquoi
+sans detour : « Moteur Equipe : skip en parcours growth, calibre early
+stage », et les trois mots identiques pour Pattern Matching, Aveuglement
+et Retournement causal. Aucun de ces commentaires n'affirme que la
+dimension compte moins sur une cession ou un LBO. Tous disent que le
+moteur est calibre ailleurs. L'exclusion est donc faute de moteur
+adapte, et non par doctrine, ce qui est exactement la distinction qui
+decide ou porte le correctif.
+
+Le sens commercial va d'ailleurs a rebours de l'exclusion. Un sponsor de
+LBO parie sur la continuite du management ; la qualite de l'equipe
+fondatrice y pese au moins autant qu'en levee, souvent davantage, parce
+que le fonds sortant part et que celui qui entre achete une equipe en
+place. Exclure Equipe du growth revient a retirer du calcul la dimension
+qui porte le risque principal de l'operation la plus risquee.
+
+Ce que l'exclusion coute aujourd'hui, mesure et non estime. Le parcours
+growth exclut Equipe (poids 0,20) et Vigilance critique (0,15), donc il
+tourne par construction a soixante-cinq pour cent du poids. A cette
+assiette, la garde de comparabilite etablit qu'aucun verdict des bandes
+centrales ne se compare a un verdict early stage, puisque le
+deplacement possible, 8,75 points, depasse la demi-bande de 7,5. Toute
+note growth porte donc desormais la reserve de non-comparabilite. C'est
+la bonne reponse en attendant, et c'est aussi la mesure de ce que le
+chantier vaut : il rend au parcours growth la capacite de conclure.
+
+**Ordre par enjeu, et cout par moteur.**
+
+Equipe d'abord. C'est le poids le plus lourd des deux exclues, 0,20,
+c'est la dimension dont l'absence a fait basculer le verdict du dossier
+du 4 aout, et c'est la seule des quatre qui consulte des sources
+externes, donc la seule dont l'absence prive aussi la reserve de
+validite d'operation de sa principale source de faits. La recalibrer
+resout deux entrees de ce registre a la fois. Cout : une demi-journee de
+doctrine pour reecrire les criteres en termes de management en place
+plutot que de fondateurs en amorcage, plus une passe de calibration sur
+dossiers de reference growth, dont le corpus ne porte aujourd'hui que
+trois memorandums de cession ou de LBO. Le budget du moteur est deja
+pose, fenetre de 180 secondes et une recherche web autorisee.
+
+Vigilance critique ensuite, poids 0,15. Elle complete l'assiette a cent
+pour cent avec Equipe, ce qui suffit a retirer la reserve de
+comparabilite sans toucher aux deux autres moteurs. Sa calibration porte
+sur la lecture du discours fondateur, qui n'a pas d'equivalent direct
+dans un memorandum de banque d'affaires ; c'est le moteur dont la
+transposition demande le plus de doctrine nouvelle et le moins de
+technique. Cout : une journee, dont l'essentiel en ecriture de fiche.
+
+Pattern Matching et Retournement causal ne pesent pas dans le score
+mecanique et viennent donc apres, malgre leur valeur editoriale. Leur
+absence appauvrit la note sans deplacer le verdict, ce qui les met hors
+du chemin critique. Cout indicatif : une demi-journee chacun, la
+difficulte etant de reecrire les archetypes early en archetypes de
+sortie.
+
+**Ce qui se fait avant tout code.** Le corpus growth est trop mince pour
+calibrer quoi que ce soit : trois memorandums, dont deux du meme
+dossier. Rassembler une dizaine de documents de cession et de LBO est le
+prealable, et il ne coute pas de developpement. Calibrer sur trois
+dossiers reproduirait la faute que ce registre documente ailleurs, un
+instrument regle sur le cas qui l'a revele.

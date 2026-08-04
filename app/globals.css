@@ -2410,12 +2410,47 @@ ul, ol { list-style: none; }
 /* Base du score : sur combien de dimensions il a ete calcule. Affichee
    seulement quand l assiette est partielle, un score plein n a rien a
    declarer de plus que lui-meme. */
+/* L assiette est la condition de validite du chiffre le plus visible
+   de la note. Elle etait en douze pixels italiques sous une jauge, a
+   cote d un verdict en cinquante-deux : un rapport de plus de quatre
+   entre une affirmation et ce qui la borne. Elle passe au corps de
+   lecture courante et perd l italique, qui la lisait comme un aparte. */
 .note-syn-score-basis {
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.5;
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  border-left: 2px solid var(--ocre-brule);
+  padding-left: 12px;
+}
+
+/* Reserve de comparabilite, rendue sous le verdict et non sous le
+   score, parce qu elle porte sur le mot et non sur le chiffre. Le
+   verdict lui-meme est mis en retrait typographique quand il ne se
+   compare pas : le lecteur pressé doit voir a l oeil que quelque chose
+   le borne, avant meme d avoir lu la raison. */
+.note-syn-verdict.verdict-non-comparable {
+  opacity: 0.72;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 8px;
+  text-decoration-color: var(--ocre-brule);
+}
+.note-syn-verdict-reserve {
+  margin-top: 14px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  border-left: 2px solid var(--ocre-brule);
+  padding-left: 12px;
+}
+.note-syn-verdict-reserve-tete {
+  display: block;
+  font-family: var(--serif);
+  font-size: 17px;
   color: var(--ocre-brule);
-  font-style: italic;
+  margin-bottom: 4px;
 }
 /* Troisieme etat : aucun score produit. Traitement volontairement
    distinct de la jauge, pour qu il soit impossible de lire une absence

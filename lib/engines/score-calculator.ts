@@ -216,6 +216,82 @@ export const VERDICT_THRESHOLDS = {
 } as const;
 
 /**
+ * Dispersion maximale observee entre une dimension et le reste d un
+ * meme dossier, en points. Sert a borner de combien un verdict peut se
+ * deplacer du seul fait qu une dimension n a pas ete evaluee.
+ *
+ * COMMENT ELLE A ETE OBTENUE, ET POURQUOI PAS AU JUGEMENT
+ *
+ * Un verdict rendu sur une assiette partielle est un verdict rendu par
+ * un instrument hors de sa calibration : les seuils 45 / 60 / 75 ont
+ * ete poses sur une assiette pleine. La question mesurable est de
+ * combien la renormalisation peut deplacer le score.
+ *
+ * Le deplacement vaut exactement (1 - w) x (Se - Sm), ou w est le poids
+ * evalue, Se le score renormalise des dimensions evaluees et Sm la
+ * moyenne ponderee des manquantes. Se et w sont connus au moment du
+ * calcul ; Sm ne l est pas, mais sa distance a Se se borne par la
+ * dispersion des dimensions a l interieur d un meme dossier.
+ *
+ * Mesure du 4 aout 2026 sur les onze analyses persistees dont les six
+ * dimensions ont ete evaluees, en retirant une puis deux dimensions et
+ * en comparant le score renormalise au score plein, soit 231 cas :
+ * deplacement median 0,5 point, p90 2,7, p95 3,7, maximum 5,2. La
+ * constante ci-dessous est le plus petit multiplicateur rond tel que
+ * 25 x (1 - w) domine chacun des 231 deplacements observes.
+ *
+ * CE QUE LA MESURE A REFUTE
+ *
+ * L instrument attendu etait un plancher de poids evalue, sous lequel
+ * on cesserait de rendre un verdict. La mesure le refuse : les bascules
+ * de verdict ne decroissent pas avec le poids. Elles surviennent a
+ * w = 0,85 comme a w = 0,63, parce qu une bascule ne demande pas un
+ * grand deplacement, elle demande un score proche d un seuil. Un
+ * plancher de poids aurait donc laisse passer des bascules au-dessus de
+ * lui et refuse des verdicts parfaitement stables en dessous.
+ *
+ * Le critere retenu ne porte donc pas sur le poids seul mais sur la
+ * distance du score au seuil le plus proche, comparee au deplacement
+ * que l assiette autorise. Il ne se declenche que quand l assiette
+ * pouvait effectivement changer le verdict, et il est inerte a w = 1.
+ *
+ * BORNE DE LA MESURE : onze dossiers. C est un plancher, pas un taux,
+ * et la constante est a remesurer quand le corpus grandit. Elle est
+ * volontairement conservatrice dans le sens qui retient la conclusion.
+ */
+export const DISPERSION_MAX_OBSERVEE = 25;
+
+/**
+ * De combien le verdict peut se deplacer, en points, sur une assiette
+ * de poids `evaluatedWeight`. Zero sur une assiette pleine.
+ */
+export function deplacementPossible(evaluatedWeight: number): number {
+  return Math.max(0, DISPERSION_MAX_OBSERVEE * (1 - evaluatedWeight));
+}
+
+/**
+ * Un verdict est comparable quand aucun seuil ne se trouve a portee du
+ * deplacement que l assiette autorise. Sinon le score reste juste, mais
+ * le mot qu on en tire ne l est plus, et c est le mot que le partner
+ * lit en premier.
+ */
+export function evaluerComparabilite(
+  globalScore: number,
+  evaluatedWeight: number,
+): { comparable: boolean; deplacement: number; seuilLePlusProche: number | null; marge: number } {
+  const deplacement = deplacementPossible(evaluatedWeight);
+  const seuils = [VERDICT_THRESHOLDS.investigate, VERDICT_THRESHOLDS.conditions, VERDICT_THRESHOLDS.invest];
+  let seuilLePlusProche: number | null = null;
+  let marge = Infinity;
+  for (const s of seuils) {
+    const d = Math.abs(globalScore - s);
+    if (d < marge) { marge = d; seuilLePlusProche = s; }
+  }
+  if (deplacement === 0) return { comparable: true, deplacement, seuilLePlusProche, marge };
+  return { comparable: marge > deplacement, deplacement, seuilLePlusProche, marge };
+}
+
+/**
  * Cause de non-evaluation d une dimension. Distingue ce qui releve
  * du pipeline (moteur tombe, coupe, ecarte) de ce qui releve du
  * dossier (donnees absentes). Le distinguo est doctrinal : on
@@ -393,6 +469,28 @@ export interface MechanicalScoreResult {
   formula: string;
   /** Seuils de verdict utilises, pour affichage et auditabilite. */
   thresholds: typeof VERDICT_THRESHOLDS;
+  /**
+   * Comparabilite du verdict. Obligatoire et non optionnel : un champ
+   * facultatif serait absent des consommateurs ecrits avant lui, et un
+   * verdict incomparable se lirait alors comme un verdict.
+   *
+   * `comparable: false` ne veut pas dire que le score est faux. Il veut
+   * dire que le mot qu on en tire depend d une dimension qui n a pas
+   * ete evaluee, donc qu il ne se compare pas a un verdict rendu sur
+   * assiette pleine. Le consommateur affiche alors la raison et
+   * l assiette, et non un verdict plus bas.
+   */
+  verdictComparability: {
+    comparable: boolean;
+    /** Deplacement que l assiette autorise, en points. */
+    deplacement: number;
+    /** Seuil de verdict le plus proche du score. */
+    seuilLePlusProche: number | null;
+    /** Distance du score a ce seuil. */
+    marge: number;
+    /** Phrase destinee au lecteur. Null quand le verdict est comparable. */
+    mention: string | null;
+  };
 }
 
 // ============================================================
@@ -831,6 +929,11 @@ export function computeMechanicalScore(input: {
       dimensions,
       formula: buildFormula(basis, null),
       thresholds: VERDICT_THRESHOLDS,
+      verdictComparability: {
+        comparable: false, deplacement: deplacementPossible(evaluatedWeight),
+        seuilLePlusProche: null, marge: 0,
+        mention: 'Aucun verdict n a ete rendu : le socle des dimensions evaluees est insuffisant.',
+      },
     };
   }
 
@@ -838,9 +941,27 @@ export function computeMechanicalScore(input: {
   const globalScore = Math.max(0, Math.min(100, Math.round(weightedSum / evaluatedWeight)));
   const verdict = deriveVerdict(globalScore);
 
+  const comp = evaluerComparabilite(globalScore, evaluatedWeight);
+  const nomsExclus = DIMENSION_KEYS
+    .filter((k) => !!dimensions[k].evaluationCause)
+    .map((k) => DIMENSION_LABELS[k]);
+  const verdictComparability = {
+    ...comp,
+    mention: comp.comparable ? null : (
+      `Verdict non comparable a un verdict rendu sur assiette pleine. Le score de ${globalScore} se tient a `
+      + `${comp.marge.toFixed(0)} point${comp.marge >= 2 ? 's' : ''} du seuil de ${comp.seuilLePlusProche}, `
+      + `alors que l assiette de ce run, ${Math.round(evaluatedWeight * 100)} pour cent du poids, autorise un `
+      + `deplacement de ${comp.deplacement.toFixed(1)} points. `
+      + `${nomsExclus.length > 0 ? `La ou les dimensions non evaluees, ${nomsExclus.join(' et ')}, auraient donc pu changer le mot rendu. ` : ''}`
+      + `Les seuils de verdict sont calibres sur une assiette pleine : les appliquer ici reviendrait a lire un instrument hors de sa calibration. `
+      + `Le score reste juste, c est le verdict qui ne se compare pas.`
+    ),
+  };
+
   return {
     globalScore,
     verdict,
+    verdictComparability,
     scoreStatus: 'computed',
     basis,
     archetype,

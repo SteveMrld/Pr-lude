@@ -68,10 +68,18 @@ const VERDICT_LABELS: Record<string, string> = {
  * ont ete instruits. Retourne null quand la base est pleine, il n y a
  * alors rien a signaler.
  */
+// Le label est repris du moteur et non refabrique. La version
+// precedente recomposait une phrase a partir de trois nombres, si bien
+// que le lecteur apprenait qu il manquait deux dimensions sur six et
+// jamais lesquelles. Le moteur, lui, les nomme : « Dimensions exclues :
+// Equipe ; Vigilance critique ». Sur un LBO, savoir que la dimension
+// absente est l equipe fondatrice est l information qui decide.
 function formatScoreBasis(basis: any): string | null {
   if (!basis || typeof basis.evaluatedCount !== 'number') return null;
   const total = basis.totalCount ?? 6;
   if (basis.evaluatedCount >= total) return null;
+  if (typeof basis.label === 'string' && basis.label.trim().length > 0) return basis.label;
+  // Repli pour les analyses anterieures au label, qui ne le portent pas.
   const weightPct = Math.round((basis.evaluatedWeight ?? 0) * 100);
   return `Calculé sur ${basis.evaluatedCount} dimensions sur ${total}, poids évalué cumulé ${weightPct} %.`;
 }
@@ -532,6 +540,9 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
   // La note doit le dire, pas afficher un chiffre repris ailleurs.
   const insufficientBasis = mech?.scoreStatus === 'insufficient-basis';
   const scoreBasisLine = formatScoreBasis(mech?.basis);
+  // Absent des analyses anterieures a la garde : la lecture degrade
+  // sans casser, et un run ancien reste lisible tel qu il a ete rendu.
+  const comparabilite: any = (mech as any)?.verdictComparability ?? null;
 
   // Score et verdict avec fallback mecanique cf brique 2 fix
   // orchestrate. On lit prioritairement finalRecommendation, sinon
@@ -618,9 +629,20 @@ export function NoteSynthesisHeader({ result }: NoteSynthesisHeaderProps) {
       <section className="note-syn-verdict-block">
         <div className="note-syn-verdict-side">
           <div className="note-syn-eyebrow">Verdict</div>
-          <div className={`note-syn-verdict verdict-${slug}`}>
+          <div className={`note-syn-verdict verdict-${slug}${comparabilite && !comparabilite.comparable ? ' verdict-non-comparable' : ''}`}>
             {verdictLabel}
           </div>
+          {/* La condition de validite du mot se lit avec le mot. En
+              douze pixels italiques sous la jauge, elle etait une note
+              de bas de page attachee au chiffre, alors qu elle porte
+              sur le verdict, qui est ce que le partner lit en premier
+              et souvent seul. */}
+          {comparabilite && !comparabilite.comparable && comparabilite.mention && (
+            <div className="note-syn-verdict-reserve">
+              <span className="note-syn-verdict-reserve-tete">Verdict non comparable</span>
+              {comparabilite.mention}
+            </div>
+          )}
         </div>
         <div className="note-syn-gauge-side">
           <div className="note-syn-eyebrow">Score global · seuils de decision</div>
