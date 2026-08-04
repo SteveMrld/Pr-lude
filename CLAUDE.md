@@ -314,6 +314,66 @@ est un rejeu a code egal, et le stamp existe precisement pour rendre
 cette lecture possible. Une variance mesuree entre deux versions n est
 pas une variance, c est un diff.
 
+## Retirer la declaration plutot que la mettre a jour
+
+Quand une liste ecrite a la main se revele incomplete, le reflexe est de
+la completer. C est presque toujours le mauvais geste : une liste
+incomplete ne l est pas par accident, elle l est parce qu elle enumere
+ce que son auteur avait en tete un jour donne, et la completer reconduit
+exactement cette propriete. Le bon geste est de chercher la propriete
+observable qui distingue les elements a retenir, et de supprimer la
+liste.
+
+La semaine du 3 aout 2026 en a donne trois cas, ce qui en fait un motif
+et non une anecdote.
+
+La detection d evenements enumerait quatre chemins de champs du moteur
+Equipe. L evenement cherche vivait dans le moteur Fragilite structurelle
+et aucun ajout de chemin raisonnable ne l aurait attrape. La liste a ete
+remplacee par un parcours structurel qui descend dans l objet et retient
+toute chaine assez longue pour porter une phrase.
+
+La garde de confidentialite des prompts nommait six noms de code de
+dossiers reels a interdire. Le nettoyage des prompts a retire ces noms,
+la garde s est retrouvee sans objet, et allonger la liste n aurait
+protege que contre les noms deja connus. Ce qui se verifie est desormais
+la forme du marqueur, un nom de code forme de Project suivi d un nom
+d animal ou de relief, ce qui couvre les six retires et tous les
+suivants sans nommer personne.
+
+La collecte des sources de la reserve de validite enumerait trois
+moteurs. La liste avait ete ecrite en regardant un run early stage ; le
+parcours growth neutralise le premier des trois, et la note est sortie
+sans reserve sur un dossier dont un quatrieme moteur portait deux
+mentions datables. Le critere est desormais que la prose du moteur porte
+une citation de source externe, propriete des donnees et non nom, si
+bien qu un moteur ajoute demain entre sans qu on y pense et qu un moteur
+qui raisonne sur le seul document reste dehors sans qu on l exclue.
+
+Les trois cas partagent leur forme. La liste est une declaration sur le
+monde, faite a un instant, par quelqu un qui regardait un cas ; elle
+vieillit des que le monde bouge, et rien ne signale son vieillissement
+puisqu elle continue de rendre des resultats plausibles. La propriete
+observable, elle, est evaluee a chaque execution sur les donnees
+presentes, donc elle se deplace avec ce qu elle decrit.
+
+Le test qui distingue les deux se pose avant d ecrire la liste : si un
+element etait ajoute au systeme demain, faudrait-il modifier cette
+liste pour qu il soit traite correctement. Si oui, la liste est une
+dette a echeance inconnue, et il faut chercher ce qui rend ses membres
+semblables plutot que les nommer.
+
+Deux reserves, parce que la regle n est pas absolue. Une propriete
+observable peut etre plus large que voulu, et il faut alors une
+exclusion explicite, courte et motivee : la collecte des sources exclut
+la sortie du module de validite lui-meme, sans quoi elle relirait au
+rejeu la mention qu elle vient d ecrire. Et certaines listes sont
+legitimes parce qu elles portent un arbitrage plutot qu un inventaire,
+comme les seuils de verdict : leur contenu ne se deduit d aucune
+propriete, il se decide. La question est donc de savoir si la liste
+constate ou si elle tranche. Une liste qui constate se remplace ; une
+liste qui tranche se garde et se date.
+
 ## Discipline des jeux d essai
 
 Un repli qui rend la meme valeur que sa source rend la source invisible
