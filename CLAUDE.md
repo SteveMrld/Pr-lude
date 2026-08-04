@@ -279,6 +279,17 @@ une commande. Ce qui ne doit jamais arriver, c est qu un run soit arrete
 ou lance sur la foi d un identifiant que personne n a remonte jusqu au
 code.
 
+La regle a depuis son organe, `scripts/conformite-relecture.ts`, ajoute
+le 4 aout 2026, parce qu un commentaire seul n est ni un point de
+passage, ni une garde de contrat, ni un test. Il lit la reference dans le
+version stamp du dernier run persiste plutot que dans une constante
+ecrite a la main, rend son verdict sur `doctrineHash`, `enginesHash` et
+`modelsHash`, et imprime le sha et les configs a cote du verdict sans
+leur donner de voix. La liste des fichiers qui different quand le sha
+bouge seul est une piece a conviction et non un juge : trancher a partir
+d elle demanderait de tenir a la main la liste des fichiers executes,
+c est-a-dire de reintroduire la faute par l autre bout.
+
 Le corollaire se prend par l autre bout et il coute plus cher, parce
 qu il fabrique des defauts qui n existent pas. Deux runs a des commits
 differents ne sont pas deux tirages du meme systeme, et les comparer
