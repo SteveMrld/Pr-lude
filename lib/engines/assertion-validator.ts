@@ -235,17 +235,50 @@ export function finDeSegment(text: string, from: number): number {
 }
 
 /**
+ * Le tag qui englobe la position `from`, quand elle tombe a l interieur
+ * d un tag, et null sinon.
+ *
+ * Ce qui est ecrit dans un tag n est pas une affirmation de la note,
+ * c est la designation de la source : « Viadeo » lu dans
+ * `[web : Viadeo]` est le nom du site interroge, pas un nom propre avance
+ * sans preuve. Le controle le comptait pourtant comme non tague, ce qui
+ * lui faisait reprocher a une citation d etre une citation.
+ */
+export function tagEnglobant(text: string, from: number): string | null {
+  let ouverture = -1;
+  for (let i = Math.min(from, text.length - 1); i >= 0; i--) {
+    if (text[i] === ']' && i < from) return null;
+    if (text[i] === '[') { ouverture = i; break; }
+  }
+  if (ouverture < 0) return null;
+  const fermeture = text.indexOf(']', ouverture);
+  if (fermeture < 0 || fermeture < from) return null;
+  return text.slice(ouverture, fermeture + 1);
+}
+
+/**
  * True quand une source est declaree pour ce qui commence a `from`.
  *
  * Point de passage unique des trois validations : la definition de
  * « c est source » vit ici et nulle part ailleurs, faute de quoi la
  * corriger une fois ne la corrige qu une fois.
+ *
+ * Deux facons d etre source, et la seconde n est pas une tolerance :
+ * porter un tag dans son segment, ou vivre a l interieur d un tag.
  */
 export function porteUnTagDeSource(
   text: string,
   from: number,
   avecPitch = false,
 ): boolean {
+  // La distinction de famille ne s applique pas au tag englobant, et ce
+  // n est pas un relachement. Elle arbitre ce qu une declaration de
+  // provenance vaut pour l affirmation qui la precede ; a l interieur du
+  // tag il n y a pas d affirmation a arbitrer, seulement le nom de la
+  // source. « [pitch, slide 12] » ne pretend pas que « slide » soit
+  // etabli, il dit ou l on a lu.
+  const englobant = tagEnglobant(text, from);
+  if (englobant !== null && TAG_AVEC_PITCH.test(englobant)) return true;
   const segment = text.slice(from, finDeSegment(text, from));
   return (avecPitch ? TAG_AVEC_PITCH : TAG_HORS_PITCH).test(segment);
 }

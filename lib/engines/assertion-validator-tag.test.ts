@@ -22,9 +22,11 @@
 
 import {
   finDeSegment,
+  tagEnglobant,
   porteUnTagDeSource,
   findCurrencyMismatch,
   findInventedDates,
+  findUnknownNames,
 } from './assertion-validator';
 
 let pass = 0, fail = 0;
@@ -112,6 +114,49 @@ console.log('\n[Suite 4] la famille de tags est celle du controle, et pas une se
   const t = "Le ticket ressort a $12M [pitch] sur cette operation.";
   const w = findCurrencyMismatch(t, 'EUR', 'test');
   check(w.length === 1, 'un montant tagge pitch reste signale');
+}
+
+console.log('\n[Suite 5] ce qui est ecrit dans un tag est le nom de la source');
+{
+  // Copie du run 5eb2ee0a, market.marketSizing.sam.methodology, ou le
+  // nom flagge n existe que dans le tag qui le declare.
+  const t = "Le nombre d acheteurs est estime a 4 millions "
+    + "[web : Points de Vente, oct. 2024], taux de penetration applique ensuite.";
+  const idx = t.indexOf('Points');
+  check(tagEnglobant(t, idx) === '[web : Points de Vente, oct. 2024]',
+    'la position dans le tag rend le tag qui l englobe');
+  check(porteUnTagDeSource(t, idx), 'et elle est donc source');
+  const w = findUnknownNames(t, new Set(['acheteurs']), 'test');
+  check(w.length === 0, `aucun nom propre signale dans le tag (${w.length})`);
+}
+{
+  const t = "Le parcours est documente [web : Viadeo]. Il co-fonde ensuite Kolibri.";
+  check(tagEnglobant(t, t.indexOf('Viadeo')) === '[web : Viadeo]',
+    'le nom lu dans son propre tag est reconnu comme designation de source');
+  check(tagEnglobant(t, t.indexOf('Kolibri')) === null,
+    'et un nom ecrit apres la fermeture du tag ne l est pas');
+  const w = findUnknownNames(t, new Set(['parcours']), 'test');
+  check(w.some((x) => /Kolibri/.test(x.message)),
+    'le nom hors tag du segment suivant reste signale');
+  check(!w.some((x) => /Viadeo/.test(x.message)),
+    'et le nom du tag ne l est pas');
+}
+{
+  const t = "une phrase sans aucun crochet";
+  check(tagEnglobant(t, 5) === null, 'sans crochet, aucun tag englobant');
+  check(tagEnglobant("[web : x] du texte apres", 15) === null,
+    'apres la fermeture, aucun tag englobant');
+  check(tagEnglobant("du texte avant [web : x]", 3) === null,
+    'avant l ouverture non plus');
+  // La lecture est structurelle, la decision est de famille, et les deux
+  // ne vivent pas au meme endroit : `tagEnglobant` rend le groupe de
+  // crochets quel qu il soit, et « c est source » se tranche a un seul
+  // endroit, celui qui connait les familles.
+  const q = "un [libelle quelconque] du texte";
+  check(tagEnglobant(q, 8) === '[libelle quelconque]',
+    'un crochet qui n ouvre pas un tag de source est rendu tel quel');
+  check(!porteUnTagDeSource(q, 8),
+    'et il ne vaut pas declaration de source');
 }
 
 console.log(`\n${pass} pass, ${fail} fail`);
