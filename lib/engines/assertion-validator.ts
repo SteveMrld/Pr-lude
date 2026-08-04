@@ -172,6 +172,85 @@ export function extractProperNouns(text: string): ProperNoun[] {
 }
 
 // =============================================================================
+// PORTEE D UN TAG DE SOURCE
+// =============================================================================
+// Les trois validations qui suivent posent toutes la meme question : ce
+// que je viens de lire est-il couvert par un tag de source. Elles y
+// repondaient chacune par un comptage de caracteres, quatre-vingts pour
+// les noms propres et les devises, soixante pour les annees, et ces
+// trois nombres etaient trois ecritures de la meme regle.
+//
+// Le defaut mesure sur le run du 4 aout 2026, dossier gele. La prose du
+// moteur de coherence financiere ecrit : « la mediane de croissance des
+// SaaS publics a scale ($100M+ ARR) etait de 12% en 2023 et projetee a
+// 29% pour 2024 [web : benchmarkit.ai, 2024 SaaS Performance Metrics] ».
+// Le montant est tagge, le tag ouvre soixante caracteres apres lui et
+// ferme cent treize apres lui. La fenetre de quatre-vingts coupait donc
+// le tag en deux, le motif exigeait le crochet fermant, et un montant
+// correctement source ressortait signale comme non source, en premiere
+// page de la note.
+//
+// Allonger la fenetre aurait reconduit sa nature : elle serait redevenue
+// trop courte au premier tag un peu long, sans que rien ne le signale.
+// Ce qui se lit ici n est donc plus une distance mais une portee. Un tag
+// gouverne ce qui le precede dans le meme segment, le segment se termine
+// a la ponctuation forte, et un point pris dans un crochet, dans une
+// parenthese ou entre deux chiffres ne termine rien : « benchmarkit.ai »
+// et « 12.5% » ne sont pas des fins de phrase.
+
+// Les familles de tags ne sont pas les memes partout, et cette
+// difference est un arbitrage et non un oubli. Un nom propre ou un
+// montant tagge `[pitch]` reste a verifier, puisque ce que la validation
+// lui reproche est justement d etre absent du pitch : le tag serait
+// alors l affirmation qu on controle. Une annee tagguee `[pitch]` est en
+// revanche declaree lue dans le document, ce qui est la reponse
+// attendue. La liste tranche, donc elle se garde et se date.
+const TAG_HORS_PITCH = /\[(web|inf[ée]rence|corpus)[^\]]*\]/i;
+const TAG_AVEC_PITCH = /\[(web|inf[ée]rence|corpus|pitch)[^\]]*\]/i;
+
+/**
+ * Fin du segment qui commence a `from` : premiere ponctuation forte hors
+ * crochet, hors parenthese et hors decimale. A defaut, la fin du texte.
+ */
+export function finDeSegment(text: string, from: number): number {
+  let crochets = 0;
+  let parentheses = 0;
+  for (let i = from; i < text.length; i++) {
+    const c = text[i];
+    if (c === '[') { crochets++; continue; }
+    if (c === ']') { if (crochets > 0) crochets--; continue; }
+    if (c === '(') { parentheses++; continue; }
+    if (c === ')') { if (parentheses > 0) parentheses--; continue; }
+    if (crochets > 0 || parentheses > 0) continue;
+    if (c === '\n' || c === '\r' || c === ';') return i;
+    if (c === '.' || c === '!' || c === '?') {
+      // Un point entre deux chiffres est une decimale, pas une fin de
+      // phrase. Le point d un sigle ou d un domaine vit dans un tag ou
+      // une parenthese, deja couverts par la profondeur.
+      if (c === '.' && /\d/.test(text[i - 1] ?? '') && /\d/.test(text[i + 1] ?? '')) continue;
+      return i;
+    }
+  }
+  return text.length;
+}
+
+/**
+ * True quand une source est declaree pour ce qui commence a `from`.
+ *
+ * Point de passage unique des trois validations : la definition de
+ * « c est source » vit ici et nulle part ailleurs, faute de quoi la
+ * corriger une fois ne la corrige qu une fois.
+ */
+export function porteUnTagDeSource(
+  text: string,
+  from: number,
+  avecPitch = false,
+): boolean {
+  const segment = text.slice(from, finDeSegment(text, from));
+  return (avecPitch ? TAG_AVEC_PITCH : TAG_HORS_PITCH).test(segment);
+}
+
+// =============================================================================
 // VALIDATIONS SPECIFIQUES
 // =============================================================================
 
@@ -213,10 +292,7 @@ export function findUnknownNames(
     // ou [corpus] : si oui on ne flagge pas (le LLM a explicitement
     // declare qu il ne vient pas du pitch)
     const idx = text.toLowerCase().indexOf(n.textLower);
-    if (idx >= 0) {
-      const after = text.slice(idx, Math.min(text.length, idx + n.text.length + 80));
-      if (/\[(web|inf[ée]rence|corpus)[^\]]*\]/i.test(after)) continue;
-    }
+    if (idx >= 0 && porteUnTagDeSource(text, idx)) continue;
 
     warnings.push({
       category: 'unknown_name',
@@ -250,9 +326,8 @@ export function findCurrencyMismatch(
     re.lastIndex = 0;
     while ((m = re.exec(text)) !== null) {
       const idx = m.index;
-      // Verifier presence d un tag dans les 80 chars suivants
-      const after = text.slice(idx, Math.min(text.length, idx + 80));
-      if (/\[(web|inf[ée]rence|corpus)[^\]]*\]/i.test(after)) continue;
+      // Le montant est-il couvert par un tag de source, ou qu il ferme.
+      if (porteUnTagDeSource(text, idx)) continue;
       // Verifier presence d une mention de conversion ('environ',
       // 'soit', '~', 'equivalent') dans les 30 chars precedents
       const before = text.slice(Math.max(0, idx - 40), idx);
@@ -300,8 +375,7 @@ export function findInventedDates(
 
     // Verifier presence d un tag
     const idx = m.index;
-    const after = text.slice(idx, Math.min(text.length, idx + 60));
-    if (/\[(web|inf[ée]rence|corpus|pitch)[^\]]*\]/i.test(after)) continue;
+    if (porteUnTagDeSource(text, idx, true)) continue;
 
     warnings.push({
       category: 'invented_date',
