@@ -1561,7 +1561,7 @@ export async function POST(req: NextRequest) {
               // une rejection reelle ici est bien un incident du moteur
               // lui-meme, pas une cascade a promouvoir.
               withEngineDeadline('team', 'team', teamPromise, undefined, engineDeadlineFor('team')),
-              withEngineDeadline('market', 'market', marketPromise),
+              withEngineDeadline('market', 'market', marketPromise, undefined, engineDeadlineFor('market')),
               withEngineDeadline('macro', 'macro', macroPromise),
               withEngineDeadline('financial-extraction', 'financialData', financialDataPromise),
               withEngineDeadline('saas-metrics', 'saasMetrics', saasMetricsPromise),

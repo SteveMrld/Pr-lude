@@ -131,6 +131,7 @@ export const TEMPERATURE_SCORE = 0;
  * diverger silencieusement.
  */
 export type BudgetedEngineKey =
+  | 'market'
   | 'team'
   | 'patternMatching'
   | 'blindspotAnalysis'
@@ -148,6 +149,11 @@ export type BudgetedEngineKey =
  * sur des litteraux disperses.
  */
 export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Object.freeze({
+  // 9000 tokens, Sonnet, une recherche web. Valeurs reprises telles
+  // quelles du litteral qui vivait au site d appel : le moteur entre
+  // dans la table le 5 aout 2026 sans changer de regime, pour que sa
+  // reprise de contrat se declare au meme endroit que sa fenetre.
+  market: Object.freeze({ timeout: 150_000, maxRetries: 0, maxWebSearches: 1, temperature: TEMPERATURE_SCORE }),
   // 8000 tokens, Sonnet, plus une recherche web dont le commentaire de
   // team-engine.ts:581-583 rappelle qu elle consomme le meme budget que
   // la generation dans le meme roundtrip HTTP. C est LA porte : les cinq
@@ -250,8 +256,77 @@ export const UPSTREAM_WATCHLIST: ReadonlyArray<{ engine: string; windowMs: numbe
 export const ENGINE_DEADLINE_SLACK_MS = 20_000;
 
 /** Deadline externe d un moteur budgete : sa fenetre plus le slack. */
+/**
+ * Reprises de contrat par moteur, distinctes des reprises SDK.
+ *
+ * LE NOMBRE DE REPRISES DEPEND DE LA NATURE DE L ECHEC
+ *
+ * `maxRetries` est la reprise du SDK : elle ne se declenche que sur une
+ * erreur de transport, timeout ou 429. Elle vaut zero partout, et
+ * l argument qui l a fixee est mesure : sur les moteurs qui depassaient
+ * leur fenetre, une seconde fenetre pleine n a jamais rien rachete,
+ * puisqu un moteur qui deborde a besoin de plus de temps et non d un
+ * second essai identique.
+ *
+ * `contractRetries` est d une autre nature. L appel a abouti, le modele
+ * a repondu, et c est le JSON qui est malforme. Un second tirage ne
+ * redemande pas la meme chose a un systeme deterministe, il redemande a
+ * un systeme qui echantillonne : la ou la reprise SDK ne rachete rien,
+ * celle-ci rachete tout. L argument de zero reprise ne se transporte
+ * donc pas d une famille a l autre, et c est la confusion qui a laisse
+ * Marche a zero.
+ *
+ * Le second terme de la decision est l asymetrie du cout. Sur le releve
+ * du graphe de dependances, sept moteurs portent une cascade en aval et
+ * tous etaient a zero reprise de contrat : Marche en emporte sept,
+ * Equipe et Macro cinq chacun, l extraction financiere quatre, Pattern
+ * deux, Aveuglement et Causal un. Un moteur de feuille qui rate son
+ * contrat coute sa propre section ; un moteur de porte coute la note.
+ * Les deux ne se calibrent pas de la meme facon.
+ *
+ * Marche passe a un le 5 aout 2026, apres le run b8d0e9ac ou son
+ * contrat est tombe sur un tirage isole, `parseMode: recovered`, zero
+ * clef rendue sur 5073 tokens. Six passes hors ligne, trois sans
+ * recherche web et trois avec, ont toutes abouti : l echec est
+ * intermittent et non systematique, ce qui est exactement le cas ou une
+ * reprise paie. Six tirages a zero echec bornent le taux sous quarante
+ * pour cent environ et ne disent pas mieux, ce qui suffit a decider mais
+ * pas a chiffrer.
+ *
+ * Equipe reste a zero et son moteur porte la raison, mesuree : il tourne
+ * autour de 150s pour une fenetre de 180s, donc une reprise se ferait
+ * couper par la deadline et transformerait un echec de contrat propre en
+ * depassement, signal plus pauvre. La distinction n est donc pas « porte
+ * contre feuille » mais « ce que la reprise coute au regard de la marge
+ * qui reste », et Marche a la marge qu Equipe n a pas : 92s mesures pour
+ * 150s de fenetre.
+ */
+export const ENGINE_CONTRACT_RETRIES: Record<BudgetedEngineKey, number> = Object.freeze({
+  market: 1,
+  team: 0,
+  patternMatching: 0,
+  blindspotAnalysis: 0,
+  contrarianAnalysis: 0,
+  causalReversal: 0,
+  referenceChecks: 0,
+  narrativeDrift: 0,
+  executionFriction: 0,
+  finalRecommendation: 0,
+});
+
+/**
+ * Deadline externe d un moteur, reprises de contrat comprises.
+ *
+ * La deadline derive du nombre de tentatives plutot que de la seule
+ * fenetre, faute de quoi ouvrir une reprise la ferait couper par la
+ * garde d a cote : le moteur aurait le droit de rejouer et pas le temps
+ * de le faire. C est le lien qu on ne veut pas voir dependre de qui
+ * l applique, d ou sa derivation ici plutot qu un second chiffre a tenir
+ * a la main.
+ */
 export function engineDeadlineFor(key: BudgetedEngineKey): number {
-  return ENGINE_LLM_BUDGET[key].timeout + ENGINE_DEADLINE_SLACK_MS;
+  const tentatives = ENGINE_CONTRACT_RETRIES[key] + 1;
+  return tentatives * ENGINE_LLM_BUDGET[key].timeout + ENGINE_DEADLINE_SLACK_MS;
 }
 
 // ============================================================
@@ -277,7 +352,7 @@ export const ENGINE_OVERHEAD_MS = 2_000;
  * une deadline de 200s ; market et macro restent a 150s de fenetre sous
  * la deadline par defaut de 200s. La porte vaut le maximum des trois.
  */
-export const GATE_WORST_CASE_MS = 200_000;
+export const GATE_WORST_CASE_MS = 320_000;
 
 /** Porte en pire cas par fenetres, borne par team qui est le plus lent
  *  des trois et le seul dont le rejet condamne la chaine. */
@@ -301,11 +376,54 @@ export const EXIT_MARGIN_MS = 30_000;
  */
 export const ORCHESTRATE_RESERVE_MS = ENGINE_LLM_BUDGET.finalRecommendation.timeout + EXIT_MARGIN_MS;
 
+/**
+ * Pire cas de convergence par deadlines externes.
+ *
+ * LA SOMME ADDITIONNAIT DEUX BRANCHES QUI S EXCLUENT
+ *
+ * Elle valait porte + pattern + causal + reference-checks, ce qui
+ * suppose que la porte consomme son pire cas ET que la chaine aval
+ * consomme le sien. Les deux ne peuvent pas arriver ensemble des lors
+ * qu un moteur de porte porte une reprise de contrat : la seconde
+ * tentative n existe que si la premiere a echoue, et si la porte
+ * echoue, les sept moteurs aval ne partent jamais et coutent zero. La
+ * branche ou Marche rejoue est donc celle ou la chaine aval est vide,
+ * et la branche ou la chaine aval tourne est celle ou Marche n a pas
+ * rejoue.
+ *
+ * Sommer les deux interdisait un correctif juste au nom d un scenario
+ * qui n existe pas. C est la forme generale d un pire cas trop
+ * conservateur : il ne se trompe jamais dans le sens qui casse, donc
+ * rien ne le contredit, et il finit par gouverner des decisions qu il
+ * n a pas les moyens d instruire.
+ *
+ * Le maximum des deux branches remplace leur somme. Il reste
+ * conservateur dans chaque branche, ou chaque moteur consomme sa
+ * deadline entiere.
+ */
 export function worstCaseConvergenceMs(): number {
-  return GATE_WORST_CASE_MS
+  // Branche nominale : la porte aboutit, la chaine aval se deroule.
+  const porteAboutit = gateSuccessWorstCaseMs()
     + engineDeadlineFor('patternMatching')
     + engineDeadlineFor('causalReversal')
     + engineDeadlineFor('referenceChecks');
+  // Branche d echec : la porte consomme toutes ses tentatives et rien
+  // ne part derriere elle.
+  const porteEchoue = GATE_WORST_CASE_MS;
+  return Math.max(porteAboutit, porteEchoue);
+}
+
+/**
+ * Duree de la porte quand elle aboutit, c est-a-dire sans reprise de
+ * contrat : une reprise n existe que sur un echec, et un echec de porte
+ * ne laisse rien partir derriere.
+ */
+export function gateSuccessWorstCaseMs(): number {
+  return Math.max(
+    ENGINE_LLM_BUDGET.team.timeout,
+    ENGINE_LLM_BUDGET.market.timeout,
+    150_000,
+  ) + ENGINE_DEADLINE_SLACK_MS;
 }
 
 /**
@@ -530,7 +648,12 @@ export function looksTruncated(raw: string): boolean {
  *  en pire cas de deadlines. Doit rester sous WAIT_DEADLINE_MS, sinon le
  *  moteur meurt sur sa garde d attente sans jamais appeler son LLM. */
 export function referenceChecksGateWorstCaseMs(): number {
-  return GATE_WORST_CASE_MS
+  // Meme correction de branche que worstCaseConvergenceMs : ce chemin
+  // n existe que si la porte a abouti, donc sans reprise de contrat.
+  // Le prendre sur GATE_WORST_CASE_MS ferait payer a reference-checks
+  // une seconde tentative de Marche dans le seul scenario ou lui-meme
+  // ne part jamais.
+  return gateSuccessWorstCaseMs()
     + engineDeadlineFor('patternMatching')
     + engineDeadlineFor('causalReversal');
 }

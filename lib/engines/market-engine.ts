@@ -1,7 +1,8 @@
 import { applyRunOptions, type EngineRunOptions, callClaudeWithUsage, MODEL } from './anthropic-client';
 import { readSourceHarvest } from '../data-fetchers/source-harvest';
 import { parseEngineOutput } from './engine-output-contract';
-import { addCall, TEMPERATURE_SCORE, type LlmMeasure } from './engine-budget';
+import { addCall, TEMPERATURE_SCORE, ENGINE_LLM_BUDGET, ENGINE_CONTRACT_RETRIES, type LlmMeasure } from './engine-budget';
+
 import { gatherMarketRealData, type MarketRealData } from '../data-fetchers/sources';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -577,14 +578,28 @@ Croise déclaré et vérifié pour produire l'analyse au format JSON structuré 
       userPrompt,
       9000,
       MODEL,
-      applyRunOptions(
-        { maxWebSearches: 1, timeout: 150_000, maxRetries: 0, temperature: TEMPERATURE_SCORE },
-        runOptions,
-      ),
+      applyRunOptions({ ...ENGINE_LLM_BUDGET.market }, runOptions),
     );
     addCall(measure, startedAt, usage, 9000);
     return text;
-  }, { trace: measure, contractRetries: 0 });
+    // Une reprise de contrat, et une seule. L echec du run b8d0e9ac
+    // n etait pas un depassement de fenetre mais un JSON malforme sur un
+    // tirage isole : six passes hors ligne, trois sans recherche web et
+    // trois avec, ont toutes abouti entre 76 et 93 secondes pour une
+    // fenetre de 150. La reprise SDK n aurait rien fait, elle ne se
+    // declenche que sur une erreur de transport ; celle-ci redemande un
+    // tirage a un systeme qui echantillonne, ce qui est exactement le
+    // cas ou une seconde passe rachete tout.
+    //
+    // Le second terme est l asymetrie : Marche est le moteur dont la
+    // chute emporte le plus de monde, sept moteurs en aval sur le
+    // releve du graphe. Un moteur de feuille qui rate son contrat coute
+    // sa section, celui-la coute la note.
+    //
+    // La deadline externe suit automatiquement, engineDeadlineFor
+    // derivant le nombre de tentatives : sans cela le moteur aurait le
+    // droit de rejouer et pas le temps de le faire.
+  }, { trace: measure, contractRetries: ENGINE_CONTRACT_RETRIES.market });
 
   // Audit du tagging des sources (Niveau 2.B)
   const audit = auditTagging(analysis, 'market-engine');

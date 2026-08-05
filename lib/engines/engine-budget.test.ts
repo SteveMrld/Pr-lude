@@ -25,6 +25,7 @@ import { join } from 'path';
 import {
   ENGINE_LLM_BUDGET,
   ENGINE_DEADLINE_SLACK_MS,
+  ENGINE_CONTRACT_RETRIES,
   engineDeadlineFor,
   worstCaseConvergenceMs,
   worstCaseConvergenceByWindowMs,
@@ -74,6 +75,9 @@ const EXPECTED: Record<BudgetedEngineKey, number> = {
   causalReversal: 180_000,
   referenceChecks: 70_000,
   narrativeDrift: 120_000,
+  // Entre dans la table le 5 aout 2026 avec ses valeurs litterales
+  // inchangees : c est la declaration qui bouge, pas le regime.
+  market: 150_000,
   // Ajoute le 5 aout 2026 : le moteur passait `{ temperature }` seul et
   // heritait des 60s du client avec une reprise, d ou sa sortie a
   // 120 397 ms sur le run b8d0e9ac.
@@ -91,11 +95,23 @@ checkTrue('Aucune fenetre ne reste au defaut client de 60s',
 checkTrue('Aucun moteur budgete ne garde de reprise',
   Object.values(ENGINE_LLM_BUDGET).every(o => o.maxRetries === 0));
 
-// La deadline externe derive de la fenetre, elle ne peut pas diverger.
+// La deadline externe derive de la fenetre ET du nombre de tentatives,
+// elle ne peut pas diverger. La relation a change le 5 aout 2026 : elle
+// valait fenetre + slack, ce qui aurait laisse un moteur porteur d une
+// reprise de contrat se faire couper avant de la prendre, c est-a-dire
+// avoir le droit de rejouer sans en avoir le temps.
 for (const key of Object.keys(EXPECTED) as BudgetedEngineKey[]) {
-  check(`${key} : deadline = fenetre + slack`,
-    engineDeadlineFor(key), ENGINE_LLM_BUDGET[key].timeout + ENGINE_DEADLINE_SLACK_MS);
+  const tentatives = ENGINE_CONTRACT_RETRIES[key] + 1;
+  check(`${key} : deadline = ${tentatives} tentative(s) x fenetre + slack`,
+    engineDeadlineFor(key), tentatives * ENGINE_LLM_BUDGET[key].timeout + ENGINE_DEADLINE_SLACK_MS);
 }
+
+// Une reprise de contrat ne s ouvre que la ou la marge la finance : le
+// verrou compare la fenetre au pire temps observe, pour qu on ne puisse
+// pas ouvrir une reprise sur un moteur qui remplit deja sa fenetre.
+check('Marche est le seul moteur a porter une reprise de contrat',
+  (Object.keys(ENGINE_CONTRACT_RETRIES) as BudgetedEngineKey[])
+    .filter(k => ENGINE_CONTRACT_RETRIES[k] > 0), ['market']);
 
 // ============================================================
 // SECTION 2. CABLAGE EFFECTIF AUX SITES D APPEL
@@ -269,13 +285,21 @@ checkTrue('Par fenetres, la garde d attente ne coupe pas reference-checks',
   porteRefChecks < WAIT_DEADLINE_MS);
 
 const porteRefChecksDeadlines = referenceChecksGateWorstCaseMs();
+// Inchange a 600s malgre la reprise de contrat de Marche, et c est le
+// point : ce chemin n existe que si la porte a abouti, donc sans
+// seconde tentative. Le calculer sur GATE_WORST_CASE_MS aurait rendu
+// 720s et fait croire que la garde d attente coupait reference-checks,
+// dans le seul scenario ou reference-checks ne part jamais.
 check('Porte de reference-checks par deadlines = 600s', porteRefChecksDeadlines, 600_000);
 checkTrue('Par deadlines aussi, la garde d attente ne coupe pas reference-checks',
   porteRefChecksDeadlines < WAIT_DEADLINE_MS);
 checkTrue('La garde d attente reste sous le budget de run',
   WAIT_DEADLINE_MS < RUN_BUDGET_MS);
 
-check('Terme de porte par deadlines', GATE_WORST_CASE_MS, 200_000);
+// 200s -> 320s, deux tentatives de 150s plus le slack : c est le prix
+// de la reprise de contrat de Marche, et il est paye par la branche ou
+// la porte echoue, donc celle ou rien ne part derriere elle.
+check('Terme de porte par deadlines', GATE_WORST_CASE_MS, 320_000);
 
 // ============================================================
 // SECTION 5. LA SYNTHESE FINALE ET LA COUCHE AMONT SURVEILLEE
@@ -347,6 +371,10 @@ const HOPS_ATTENDUS: Record<BudgetedEngineKey, number> = {
   narrativeDrift: 0,
   executionFriction: 0,
   finalRecommendation: 0,
+  // Marche interroge le web depuis toujours, au niveau 2.A comme
+  // Equipe. Le chiffre passe de un a deux moteurs budgetes parce que
+  // Marche entre dans la table, pas parce qu un moteur y gagne un hop.
+  market: 1,
 };
 
 for (const key of Object.keys(HOPS_ATTENDUS) as BudgetedEngineKey[]) {
@@ -356,13 +384,16 @@ for (const key of Object.keys(HOPS_ATTENDUS) as BudgetedEngineKey[]) {
 checkTrue('Aucun moteur budgete ne laisse le budget de recherche indefini',
   (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
     .every(k => typeof ENGINE_LLM_BUDGET[k].maxWebSearches === 'number'));
-checkTrue('Un seul moteur budgete interroge le web',
+checkTrue('Deux moteurs budgetes interrogent le web, et ce sont les deux du niveau 2.A',
   (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
-    .filter(k => ENGINE_LLM_BUDGET[k].maxWebSearches > 0).join(',') === 'team');
+    .filter(k => ENGINE_LLM_BUDGET[k].maxWebSearches > 0).sort().join(',') === 'market,team');
 
-// Les trois autres moteurs du niveau 2.A ne passent pas par la table,
+// Les deux autres moteurs du niveau 2.A ne passent pas par la table,
 // ils portent leurs options en litteral. Ils gardent leur hop unique.
-for (const f of ['market-engine', 'macro-engine', 'financial-coherence-engine']) {
+// Marche est sorti de cette liste le 5 aout 2026 : il lit desormais la
+// table, donc la contrainte de type l atteint et le balayage de source
+// n est plus l instrument juste pour lui.
+for (const f of ['macro-engine', 'financial-coherence-engine']) {
   checkTrue(`${f} : garde son hop unique du niveau 2.A`,
     read(`lib/engines/${f}.ts`).includes('maxWebSearches: 1'));
 }
@@ -440,20 +471,23 @@ check('client : le champ est emis sous condition de presence',
 // un moteur dialectique en sort sans decision.
 // ============================================================
 
-const DIMENSION_ENGINES: BudgetedEngineKey[] = ['team', 'blindspotAnalysis', 'contrarianAnalysis'];
+const DIMENSION_ENGINES: BudgetedEngineKey[] = ['team', 'market', 'blindspotAnalysis', 'contrarianAnalysis'];
 for (const key of DIMENSION_ENGINES) {
   check(`${key} : alimente une dimension, donc temperature 0`,
     ENGINE_LLM_BUDGET[key].temperature, TEMPERATURE_SCORE);
 }
-checkTrue('Les cinq moteurs hors dimension gardent le defaut API',
+// Marche alimente la dimension Marche : sa temperature est
+// TEMPERATURE_SCORE et elle l etait deja au litteral qu il portait.
+checkTrue('Les moteurs hors dimension gardent le defaut API',
   (Object.keys(ENGINE_LLM_BUDGET) as BudgetedEngineKey[])
     .filter(k => !DIMENSION_ENGINES.includes(k))
     .every(k => ENGINE_LLM_BUDGET[k].temperature === TEMPERATURE_DIALECTIQUE));
 
-// Les trois autres moteurs de dimension portent leurs options en
+// Les deux autres moteurs de dimension portent leurs options en
 // litteral, hors de la table. La contrainte de type ne les atteint pas,
-// donc elle est reportee ici sur le source.
-for (const f of ['market-engine', 'macro-engine', 'financial-coherence-engine']) {
+// donc elle est reportee ici sur le source. Marche est sorti de la
+// liste : sa temperature est desormais verifiee par le type.
+for (const f of ['macro-engine', 'financial-coherence-engine']) {
   checkTrue(`${f} : passe la temperature de score au site d appel`,
     read(`lib/engines/${f}.ts`).includes('temperature: TEMPERATURE_SCORE'));
 }
