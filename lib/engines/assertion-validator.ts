@@ -26,50 +26,58 @@ import { aucunePageAtteinte } from '../instrumentation/source-capture';
 // reellement trouve dans le pitch. Inclut les fondateurs, board, clients,
 // concurrents cites + une whitelist de noms generiques (institutions,
 // pays, fonds connus) qui passent toujours.
+//
+// LA LISTE DE CHAMPS A ETE RETIREE, MESURE DU 5 AOUT 2026
+//
+// Cette fonction enumerait neuf endroits de l extraction : fondateurs,
+// board, clients, concurrents, investisseurs, hub, pays, secteur,
+// sous-secteur, nom de societe. C etait une liste ecrite a la main, donc
+// une declaration sur ce que son auteur avait en tete un jour donne, et
+// elle ne couvrait ni `rawSummary`, ni `productDescription`, ni
+// `marketPitch`, ni `traction.metrics`, ni les revendications
+// techniques. Tout nom documente par le dossier mais lu ailleurs que
+// dans ces neuf champs ressortait donc signale comme non source.
+//
+// La mesure, par `scripts/mesure-faux-positifs-assertions.ts`, sur les
+// cinquante-deux notes persistees : quatorze mille six cent trente-six
+// alertes `unknown_name`, dont deux mille cinq cent quatre-vingt-quatre,
+// soit dix-sept et demi pour cent, portent un nom que la liste corrigee
+// reconnait, une fois les sigles deja retires en amont. Ce n est pas une
+// appreciation : le dossier documentait le nom et le validateur
+// l ignorait parce qu il regardait ailleurs.
+//
+// La propriete observable remplace la liste : est documente par le
+// dossier tout ce que l extraction porte, ou qu il se trouve. Un champ
+// ajoute demain a l extraction entre sans qu on y pense.
 export function buildAllowedNames(extraction: ExtractionOutput): Set<string> {
   const allowed = new Set<string>();
 
-  const add = (s?: string | null) => {
-    if (!s) return;
-    // Decoupe par mots de >=3 caracteres commencant par majuscule
-    const parts = s.split(/[\s,;()\/]+/).filter(p => p.length >= 3);
-    for (const p of parts) {
-      allowed.add(p.toLowerCase());
+  const add = (s: string) => {
+    const t = s.trim();
+    if (t.length === 0) return;
+    // Le nom entier, pour les bigrammes, puis ses mots.
+    allowed.add(t.toLowerCase());
+    // Deux decoupages et non un. Sans le tiret, « series-A-early » ne
+    // documente pas « series ». Avec le tiret seul, « Etats-Unis » lu
+    // dans une phrase ne se reconstitue plus, puisque la coupe detruit
+    // le compose. Les deux passes couvrent les deux cas, et la barre de
+    // trois caracteres empeche les fragments.
+    for (const p of t.split(/[\s,;()\/]+/)) {
+      if (p.length >= 3) allowed.add(p.toLowerCase());
     }
-    // Ajoute aussi le nom complet en lowercase pour matcher des bigrammes
-    allowed.add(s.toLowerCase().trim());
+    for (const p of t.split(/[\s,;()\/\-]+/)) {
+      if (p.length >= 3) allowed.add(p.toLowerCase());
+    }
   };
 
-  // Fondateurs : nom + role + background
-  for (const f of extraction.founders || []) {
-    add(f.name);
-    add(f.background);
-  }
-  // Board / advisors
-  for (const b of extraction.boardMembers || []) {
-    add(b.name);
-    add(b.affiliation);
-  }
-  // Clients nommes
-  for (const c of extraction.clientsNamed || []) {
-    add(c.name);
-    add(c.company);
-  }
-  // Concurrents cites
-  for (const c of extraction.competitorsCited || []) {
-    add(c);
-  }
-  // Investisseurs
-  if (extraction.fundraise) {
-    add(extraction?.fundraise?.leadInvestor);
-    for (const i of extraction?.fundraise?.coInvestors || []) add(i);
-  }
-  // Localisation et secteur
-  add(extraction.geographicHub);
-  add(extraction.country);
-  add(extraction.sector);
-  add(extraction.subSector);
-  add(extraction.companyName);
+  const parcourir = (noeud: unknown): void => {
+    if (typeof noeud === 'string') { add(noeud); return; }
+    if (Array.isArray(noeud)) { for (const n of noeud) parcourir(n); return; }
+    if (noeud && typeof noeud === 'object') {
+      for (const v of Object.values(noeud as Record<string, unknown>)) parcourir(v);
+    }
+  };
+  parcourir(extraction);
 
   return allowed;
 }
@@ -143,12 +151,97 @@ export interface ProperNoun {
   textLower: string;
 }
 
+/**
+ * True quand le mot est un sigle et non un nom propre.
+ *
+ * Deux a six caracteres, aucune minuscule, au moins une lettre. B2B,
+ * LLM, TAM, SAM, CTO, CFO, PME, BFR, FCF, CRM, DTC, GDP, S1-S10. Le
+ * releve du 5 aout 2026 sur le corpus persiste, par
+ * `scripts/mesure-faux-positifs-assertions.ts`, en compte cinq mille
+ * cent quatre-vingt-dix-sept signales comme noms propres non sources,
+ * soit trente-cinq et demi pour cent des alertes de cette famille.
+ *
+ * Un sigle n est pas une affirmation sur le monde, c est du vocabulaire.
+ * Reprocher a une note d ecrire « B2B » sans citer sa source est le
+ * genre de bruit qui fait cesser de lire un controle, et un controle
+ * qu on ne lit plus vaut moins qu un controle absent.
+ *
+ * La regle est de forme et non de vocabulaire, deliberement : une liste
+ * de sigles autorises serait a rallonger a chaque secteur nouveau, et
+ * elle vieillirait sans le dire. Les deux classes de lettres sont pour
+ * la meme raison des categories Unicode et non des intervalles ASCII
+ * etendus : « ŒUVRE » et « ÑANDÚ » ne sont pas des sigles, et un
+ * intervalle ecrit a la main les y ferait entrer un jour.
+ */
+const UNE_MAJUSCULE = new RegExp('\\p{Lu}', 'u');
+const UNE_MINUSCULE = new RegExp('\\p{Ll}', 'u');
+
+export function estUnSigle(mot: string): boolean {
+  const t = mot.trim();
+  if (t.length < 2 || t.length > 6) return false;
+  if (!UNE_MAJUSCULE.test(t)) return false;
+  return !UNE_MINUSCULE.test(t);
+}
+
+/**
+ * Le motif d un nom propre : une a quatre sequences commencant par une
+ * majuscule.
+ *
+ * LA CLASSE DE LETTRES A ETE RETIREE, MESURE DU 5 AOUT 2026
+ *
+ * Elle valait `[A-ZÉÈÀÂÊÎÔÛÄËÏÖÜÇ]` puis `[\wÉèàâêîôûäëïöüç'-]`, deux
+ * enumerations ecrites a la main. Elles omettaient « é », la lettre
+ * accentuee la plus frequente du francais : « Nestlé » etait coupe a
+ * « Nestl », et le validateur signalait comme nom propre non source une
+ * chaine tronquee que la recherche dans le dossier ne pouvait plus
+ * retrouver, puisque le dossier porte le nom entier. Le releve sur le
+ * corpus persiste en compte trois cent quatre-vingts.
+ *
+ * Ajouter « é » aurait reconduit la nature de la liste. Les memes
+ * enumerations ignorent « ñ », « ã », « í », « ø », « å » et « ł », donc
+ * Muñoz, São Paulo, García, Ørsted, Åkerlund et Kowalczyk se coupent
+ * exactement de la meme facon, et rien ne l aurait signale. Ce qui se
+ * lit ici est desormais une categorie Unicode : lettre majuscule, puis
+ * lettres, chiffres, tiret et apostrophe. Un alphabet rencontre demain
+ * entre sans qu on y pense.
+ *
+ * Le motif s assemble au lancement plutot que de s ecrire en litteral
+ * parce que le projet compile en cible es5, ou le drapeau `u` est
+ * refuse sur un litteral. La contrainte est celle du compilateur et non
+ * du moteur : Node et tout navigateur courant lisent ces classes.
+ */
+const MAJUSCULE = '\\p{Lu}';
+const CORPS_DE_MOT = "[\\p{L}\\p{N}_'\\-]";
+
+/**
+ * Ce que l ancienne classe acceptait a l interieur d un mot, conservee
+ * telle quelle et non redecrite.
+ *
+ * Elle ne sert plus a detecter, elle sert a reconnaitre le defaut
+ * qu elle a produit : une alerte portant sur un nom coupe ici est une
+ * troncature et non un homonyme. Le controle de corpus et le releve de
+ * faux positifs lui posent tous deux la question, et ils la posent au
+ * meme endroit pour qu aucune des deux copies ne vieillisse seule.
+ * Elle se supprime le jour ou plus aucune note produite sous elle n est
+ * lue.
+ */
+const ANCIENNE_CLASSE = /[\wÉèàâêîôûäëïöüç'-]/;
+const UNE_LETTRE = new RegExp('\\p{L}', 'u');
+
+/** True quand cette lettre coupait un mot en deux avant le correctif. */
+export function lettreIgnoreeParLAncienneClasse(c: string): boolean {
+  if (!c) return false;
+  return UNE_LETTRE.test(c) && !ANCIENNE_CLASSE.test(c);
+}
+const RE_NOM_PROPRE = new RegExp(
+  `(?:^|[\\s\\(])((?:${MAJUSCULE}${CORPS_DE_MOT}{1,}\\s?){1,4})`,
+  'gu',
+);
+
 export function extractProperNouns(text: string): ProperNoun[] {
   if (!text) return [];
   const found: ProperNoun[] = [];
-  // Sequence de 1-4 mots commencant par majuscule (apres un espace ou
-  // debut de chaine), incluant tirets et apostrophes
-  const re = /(?:^|[\s\(])((?:[A-ZÉÈÀÂÊÎÔÛÄËÏÖÜÇ][\wÉèàâêîôûäëïöüç'-]{1,}\s?){1,4})/g;
+  const re = new RegExp(RE_NOM_PROPRE.source, RE_NOM_PROPRE.flags);
   let m;
   while ((m = re.exec(text)) !== null) {
     const raw = m[1].trim().replace(/[.,;:!?]+$/, '');
@@ -167,6 +260,9 @@ export function extractProperNouns(text: string): ProperNoun[] {
     }
     // Skip les mots qui sont uniquement des stopwords
     if (words.every(w => STOPWORDS.has(w.toLowerCase()))) continue;
+    // Un sigle n est pas un nom propre : c est du vocabulaire metier, et
+    // le signaler comme non source noie les vraies alertes.
+    if (words.every(estUnSigle)) continue;
     found.push({ text: raw, textLower: raw.toLowerCase() });
   }
   return found;
