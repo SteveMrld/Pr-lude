@@ -538,11 +538,22 @@ qu on ne trouve pas ce qu on ne cherche pas. La garde rend vert, la
 liste est exhaustive, et l axe non verifie n existe nulle part comme
 question.
 
-Le motif se cherche partout ou une liste sert de perimetre a une
-verification. Deux exemples du meme jour : le releve de couverture qui
-enumere les moteurs sans test mais ne dit pas si le test importe bien ce
-que son nom designe, et le controleur de corpus qui applique un
-catalogue mais ne dit pas quelles proprietes n ont jamais ete exercees.
+Le releve des autres listes de perimetre du depot en a rendu une
+seconde, et elle est du meme jour. `ENGINES`, dans le test
+d instrumentation, enumere six moteurs et verifie sur chacun quatre
+axes : le canal d appel, l absence de l ancien canal qui jetait l usage,
+le puits de mesure, le depot de l appel. Onze moteurs deposent une
+mesure dans la route. Les cinq qui manquent sont Equipe, Marche, Macro,
+Coherence financiere et la synthese finale, c est-a-dire la porte
+entiere, celle dont la chute coute le plus. Les cinq respectent le
+contrat en fait ; rien ne le verifie.
+
+Cette seconde occurrence a une difference qui vaut d etre notee : son
+titre de section annonce « les six moteurs », donc elle declare son
+perimetre. C est le minimum, et cela suffit a ne pas tromper un lecteur
+attentif. Ce qui manque encore est la raison du decoupage, sans laquelle
+personne ne sait si les cinq autres sont dehors par arbitrage ou par
+oubli.
 
 En pratique, une garde qui parcourt une liste declare ce qu elle
 verifie, et surtout ce qu elle ne verifie pas, dans la liste elle-meme.
