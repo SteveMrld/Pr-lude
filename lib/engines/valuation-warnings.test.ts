@@ -174,5 +174,52 @@ console.log('\n[Suite 4] au seed pre-revenue, les methodes citees sont celles qu
   );
 }
 
+console.log('\n[Suite 5] le non-classement nomme une cause et non une alternative');
+
+{
+  // Le defaut ferme : le motif valait « sector libelle non couvert ou
+  // productionChain indeterminee ». La lecture de deriveAssetClass
+  // refute la seconde branche, toute chaine detectee rendant une classe
+  // concrete, et sur les deux notes Project Chamois la chaine valait
+  // unknown avant comme apres le correctif qui a resolu la classe. Un
+  // lecteur suivant le motif serait parti chercher un defaut de
+  // detection de chaine qui n existait pas.
+  //
+  // Le jeu d essai porte un libelle discriminant que rien d autre ne
+  // fournit, faute de quoi il ne prouverait pas que le motif lit le
+  // libelle du dossier plutot qu une constante.
+  const entree = buildInput({ stage: 'series-a' });
+  entree.extraction.sector = 'Sylviculture ornementale';
+  entree.extraction.subSector = 'Bonsais de competition';
+  entree.relevanceMatrix = { assetClass: 'unclassified' };
+  const out = computeValuation(entree);
+
+  const motif = out.methods.find((m) => m.method === 'sector-multiples')?.notApplicableReason ?? '';
+  const warning = out.warnings.find((w) => /Asset class non reconnue/.test(w)) ?? '';
+
+  check(out.recommendedRange === null, 'aucune fourchette quand la classe n est pas resolue');
+  check(/Sylviculture ornementale/.test(motif), 'le motif nomme le libelle sectoriel qui a echoue');
+  check(/Sylviculture ornementale/.test(warning), 'le warning nomme le meme libelle');
+  check(
+    !/productionChain/i.test(motif) && !/productionChain/i.test(warning),
+    'ni le motif ni le warning ne renvoient vers la chaine de production',
+  );
+  check(
+    !/couvert ou |ou .*indetermin/i.test(motif),
+    'le motif n enonce pas sa cause en alternative',
+  );
+
+  // Symetrie : sans aucun libelle, la cause change et le motif le dit,
+  // au lieu de citer une chaine vide entre guillemets.
+  const nu = buildInput({ stage: 'series-a' });
+  nu.extraction.sector = '';
+  nu.extraction.subSector = '';
+  nu.relevanceMatrix = { assetClass: 'unclassified' };
+  const motifNu = computeValuation(nu).methods
+    .find((m) => m.method === 'sector-multiples')?.notApplicableReason ?? '';
+  check(/aucun libelle sectoriel/.test(motifNu), 'sans libelle, le motif nomme l absence plutot qu une chaine vide');
+  check(!/« »/.test(motifNu), 'le motif ne cite pas une chaine vide entre guillemets');
+}
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

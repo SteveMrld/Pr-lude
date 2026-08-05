@@ -489,14 +489,19 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   const ext: any = input.extraction;
   const matrixAssetClass = input.relevanceMatrix?.assetClass;
   const stageRaw = ext?.fundraise?.stage || null;
+  // Le libelle sectoriel est resolu ici et non dans le constructeur du
+  // motif : c est exactement la chaine que la matrice a normalisee, donc
+  // celle dont l echec explique le non-classement. La reconstituer plus
+  // bas reviendrait a expliquer une decision par une autre lecture que
+  // celle qui l a prise.
+  const libelleSectoriel: string | null = ext
+    ? (`${ext.sector || ''} ${ext.subSector || ''}`.trim() || ext.sector || null)
+    : null;
   let assetClass: string;
   if (matrixAssetClass) {
     assetClass = matrixAssetClass;
   } else {
-    const assetClassRaw = ext
-      ? `${ext.sector || ''} ${ext.subSector || ''}`.trim() || ext.sector
-      : null;
-    assetClass = normalizeAssetClass(assetClassRaw);
+    assetClass = normalizeAssetClass(libelleSectoriel);
   }
   const stage = normalizeStage(stageRaw);
 
@@ -515,7 +520,7 @@ export function computeValuation(input: ValuationInput): ValuationOutput {
   // industrial-hardware retombait en saas-b2b silencieux et appliquait
   // des multiples ARR sur du hardware unitaire).
   if (assetClass === 'unclassified' || stage === 'unknown') {
-    return buildNonApplicableValuation(assetClass, stage, basis);
+    return buildNonApplicableValuation(assetClass, stage, basis, libelleSectoriel);
   }
 
   // Detection automatique du cas 'profitable-mature' : si on est en
@@ -1559,6 +1564,45 @@ function nonApplicableScorecard(): ValuationMethodResult {
 }
 
 /**
+ * La cause du non-classement, au singulier, avec le libelle qui l a
+ * produite.
+ *
+ * LE MOTIF NOMMAIT DEUX CAUSES LA OU IL N Y EN A QU UNE
+ *
+ * Il valait « sector libelle non couvert ou productionChain
+ * indeterminee », et la lecture de `deriveAssetClass` refute la seconde
+ * branche. Toute chaine de production detectee rend une classe concrete :
+ * hardware rend industrial-hardware a defaut, pure-software rend
+ * saas-b2b, regulated-service rend services-b2b. `unclassified` ne
+ * survit que par la branche `unknown`, qui rend l indice tel quel, et
+ * l indice ne vaut `unclassified` que si le libelle sectoriel n a pas
+ * ete reconnu. La chaine indeterminee est donc un rattrapage qui n a pas
+ * eu lieu, jamais une cause.
+ *
+ * L alternative n etait pas seulement inexacte, elle etait couteuse. Sur
+ * les deux notes Project Chamois, le libelle « Hospitalite » etait le
+ * mot francais que le prompt d extraction propose lui-meme et que le
+ * normaliseur ne connaissait qu en anglais ; la chaine de production
+ * valait `unknown` avant comme apres le correctif du 3 aout, et elle y
+ * vaut encore `unknown` alors que la classe se resout desormais. Un
+ * lecteur qui aurait suivi le motif serait parti chercher un defaut de
+ * detection de chaine qui n existait pas.
+ *
+ * C est la forme que la grappe 3 a fermee ailleurs : une non-production
+ * porte une cause, et une cause qui s enonce en disjonction n en est pas
+ * une. Le motif nomme donc le libelle qui a echoue, ce qui rend la
+ * correction possible sans rouvrir le code.
+ */
+function causeDuNonClassement(libelleSectoriel: string | null): string {
+  const libelle = (libelleSectoriel ?? '').trim();
+  if (!libelle) {
+    return 'le dossier ne porte aucun libelle sectoriel exploitable.';
+  }
+  const court = libelle.length > 90 ? `${libelle.slice(0, 90)}...` : libelle;
+  return `le libelle sectoriel « ${court} » n entre pas dans le referentiel de multiples.`;
+}
+
+/**
  * Construit un output valorisation explicitement non applicable quand
  * le couple (asset class, stade) ne fournit pas l ancrage benchmark
  * necessaire. Toutes les methodes ressortent applicable=false avec un
@@ -1571,12 +1615,13 @@ function buildNonApplicableValuation(
   assetClass: string,
   stage: ValuationStage | 'unknown',
   basis: ValuationBasis,
+  libelleSectoriel: string | null,
 ): ValuationOutput {
   const stageMsg = stage === 'unknown'
     ? 'Stade non identifie (libelle pitch atypique : bridge, tour intermediaire, pre-B, extension de seed, etc.).'
     : `Stade ${stage}.`;
   const assetMsg = assetClass === 'unclassified'
-    ? 'Asset class non reconnue par la matrice (sector libelle non couvert ou productionChain indeterminee).'
+    ? `Asset class non reconnue : ${causeDuNonClassement(libelleSectoriel)}`
     : `Asset class ${assetClass}.`;
   const reason = `${assetMsg} ${stageMsg} Methodes de valorisation neutralisees pour eviter une fourchette cale sur des benchmarks saas-b2b par defaut.`;
   const methods: ValuationMethodResult[] = [
@@ -1591,7 +1636,11 @@ function buildNonApplicableValuation(
   } else if (stage === 'unknown') {
     warnings.push(`Stade non identifie (libelle pitch atypique). Valorisation non calculable plutot que calee sur les benchmarks seed par defaut. A confirmer avec le partner : tour de seed, series-a, series-b ou growth ?`);
   } else if (assetClass === 'unclassified') {
-    warnings.push(`Asset class non reconnue. Valorisation non calculable plutot que calee sur des multiples saas-b2b decales. Voir matrix.productionChain pour le routage doctrinal : un dossier hardware-physical n est pas valorise comme un SaaS B2B.`);
+    // Le renvoi vers matrix.productionChain a ete retire pour la meme
+    // raison que la disjonction du motif : il envoyait le lecteur vers
+    // un champ qui n entre pas dans la garde et qui ne peut pas rendre
+    // compte du non-classement.
+    warnings.push(`Asset class non reconnue : ${causeDuNonClassement(libelleSectoriel)} Valorisation non calculable plutot que calee sur des multiples saas-b2b decales, le secteur dominant est a confirmer.`);
   }
   return {
     ranges: [],
