@@ -74,6 +74,10 @@ const EXPECTED: Record<BudgetedEngineKey, number> = {
   causalReversal: 180_000,
   referenceChecks: 70_000,
   narrativeDrift: 120_000,
+  // Ajoute le 5 aout 2026 : le moteur passait `{ temperature }` seul et
+  // heritait des 60s du client avec une reprise, d ou sa sortie a
+  // 120 397 ms sur le run b8d0e9ac.
+  executionFriction: 150_000,
 };
 
 for (const [key, timeout] of Object.entries(EXPECTED) as Array<[BudgetedEngineKey, number]>) {
@@ -113,6 +117,10 @@ const CALL_SITES: Array<{ file: string; key: BudgetedEngineKey }> = [
   { file: 'lib/engines/causal-engine.ts', key: 'causalReversal' },
   { file: 'lib/engines/reference-checks-engine.ts', key: 'referenceChecks' },
   { file: 'lib/engines/narrative-drift-engine.ts', key: 'narrativeDrift' },
+  // Entre le 5 aout 2026. Il figurait jusque-la dans SITES_A_DECLARER,
+  // ou seule sa temperature etait verifiee : c est precisement le trou
+  // par lequel il a herite des 60s du client sans que rien ne rougisse.
+  { file: 'lib/engines/execution-friction-engine.ts', key: 'executionFriction' },
 ];
 
 for (const { file, key } of CALL_SITES) {
@@ -337,6 +345,7 @@ const HOPS_ATTENDUS: Record<BudgetedEngineKey, number> = {
   causalReversal: 0,
   referenceChecks: 0,
   narrativeDrift: 0,
+  executionFriction: 0,
   finalRecommendation: 0,
 };
 
@@ -459,10 +468,22 @@ check('financial-extraction : les deux branches lisent le P&L a 0',
 
 // Aucun site d appel ne doit plus heriter du defaut en silence. Le
 // balayage porte sur les fichiers qui appellent le client partage.
+// CE QUE CETTE LISTE NE VERIFIE PAS, ET CE QUE CA A COUTE
+//
+// Elle porte les sites qui appellent le client partage sans passer par
+// la table de budget, et elle ne leur verifie que la temperature. La
+// fenetre n y est pas controlee. Le balayage de temperature avait ete
+// fait, le balayage de fenetre ne l avait pas ete, et la liste ne dit
+// pas la difference : elle a donc pu rester complete tout en laissant
+// passer exactement le defaut qu elle avait l air de fermer.
+//
+// Friction d execution en est sorti le 5 aout 2026, apres le run
+// b8d0e9ac ou il a expire a 120 397 ms faute de fenetre, et il est
+// desormais dans CALL_SITES. Les dix qui restent sont dans le meme cas
+// et attendent leur dimensionnement.
 const SITES_A_DECLARER = [
   'lib/engines/reference-aggregation-engine.ts',
   'lib/engines/tech-claim-coherence-engine.ts',
-  'lib/engines/execution-friction-engine.ts',
   'lib/engines/dd-financial-engine.ts',
   'lib/engines/dd-contractual-engine.ts',
   'lib/engines/dd-technical-engine.ts',

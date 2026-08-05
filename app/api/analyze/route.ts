@@ -1576,7 +1576,7 @@ export async function POST(req: NextRequest) {
               withEngineDeadline('contrarian', 'contrarianAnalysis', contrarianPromise, ['team', 'market', 'macro'], engineDeadlineFor('contrarianAnalysis')),
               withEngineDeadline('financial-coherence', 'financialCoherence', financialCoherencePromise, ['market', 'financialData']),
               withEngineDeadline('tech-claim', 'techClaimCoherence', techClaimPromise, ['financialData']),
-              withEngineDeadline('execution-friction', 'executionFriction', executionFrictionPromise, ['financialData']),
+              withEngineDeadline('execution-friction', 'executionFriction', executionFrictionPromise, ['financialData'], engineDeadlineFor('executionFriction')),
               withEngineDeadline('narrative-drift', 'narrativeDrift', narrativeDriftPromise, undefined, engineDeadlineFor('narrativeDrift')),
               withEngineDeadline('fragility-structurelle', 'fragiliteStructurelle', fragilityPromise, ['market', 'financialData']),
               withEngineDeadline('causal', 'causalReversal', causalPromise, ['team', 'market', 'macro', 'patternMatching'], engineDeadlineFor('causalReversal')),

@@ -44,6 +44,8 @@
 // pour ok dans l ancien systeme.
 // ============================================================
 
+import { isIncident } from '../engines/non-production';
+
 export type EngineStatus =
   | 'ok'
   | 'failed'
@@ -262,6 +264,43 @@ export function passesMinimalContract(engine: string, value: any): boolean {
  *  __skipped: true (voir lib/engines/skipped-outputs.ts). */
 export function isSkippedByRelevanceMatrix(value: any): boolean {
   return !!(value && typeof value === 'object' && value.__skipped === true);
+}
+
+/**
+ * True quand la sortie declare elle-meme un incident de production.
+ *
+ * UN CONTRAT MINIMAL NE DISTINGUE PAS UNE ANALYSE D UN REPLI
+ *
+ * Le cas est du 5 aout 2026, run b8d0e9ac. Friction d execution a vu
+ * son appel LLM expirer, a rattrape l exception et a rendu son objet de
+ * repli : zero axe, `globalScore: 0`, `nonProductionCause: 'incident'`.
+ * Son contrat minimal se lit `v.axes || v.globalScore !== undefined`, et
+ * le repli le satisfait deux fois, puisque `[]` est un objet et que 0
+ * n est pas `undefined`. Le moteur est donc remonte `ok` en ayant tout
+ * declare de sa propre panne, et le bulletin a compte sept moteurs
+ * aboutis dont un n avait rien produit.
+ *
+ * Resserrer ce contrat-la aurait traite le symptome : la faute n est pas
+ * dans le seuil, elle est dans l ordre de lecture. Un contrat minimal
+ * cherche une trace de production dans une sortie ; il n a rien a dire
+ * d une sortie qui declare n avoir rien produit, et le consulter dans ce
+ * cas revient a demander a un compteur de tokens si le moteur a compris
+ * la question.
+ *
+ * La declaration passe donc avant le contrat, et elle est lue sur le
+ * champ que le domaine definit pour cela plutot que sur le nom du
+ * moteur : tout moteur qui adopte la convention de repli est couvert, y
+ * compris ceux qui l adopteront. C est la meme regle que
+ * `lib/engines/non-production.ts` enonce pour ses consommateurs, la
+ * prose explique et le champ tranche, appliquee ici au statut.
+ *
+ * Seul `incident` requalifie. `doctrine` et `absence` sont des
+ * non-productions legitimes qui ont deja leurs statuts, et les faire
+ * basculer ici requalifierait des sorties produites sous un contrat qui
+ * ne posait pas la question.
+ */
+export function declareUnIncidentDeProduction(value: any): boolean {
+  return !!(value && typeof value === 'object' && isIncident(value.nonProductionCause ?? null));
 }
 
 // ============================================================
@@ -494,6 +533,20 @@ export class EngineStatusRecorder {
           status: 'skipped_not_applicable',
           durationMs: existing?.durationMs ?? 0,
           attempts: existing?.attempts ?? 1,
+        });
+        continue;
+      }
+      // La declaration du moteur passe avant son contrat minimal. Un
+      // repli qui porte nonProductionCause=incident a deja repondu a la
+      // question que le contrat pose, et il y a repondu mieux.
+      if (declareUnIncidentDeProduction(value)) {
+        this.entries.set(engine, {
+          engine,
+          status: 'failed',
+          durationMs: existing?.durationMs ?? 0,
+          attempts: existing?.attempts ?? 1,
+          errorMessage: existing?.errorMessage
+            ?? `[${engine}] sortie de repli declarant nonProductionCause=incident : le moteur n a pas produit son analyse.`,
         });
         continue;
       }

@@ -138,6 +138,7 @@ export type BudgetedEngineKey =
   | 'causalReversal'
   | 'referenceChecks'
   | 'narrativeDrift'
+  | 'executionFriction'
   | 'finalRecommendation';
 
 /**
@@ -180,6 +181,25 @@ export const ENGINE_LLM_BUDGET: Record<BudgetedEngineKey, EngineLlmOptions> = Ob
   // 4000 tokens, Sonnet. Sans dependance, demarre a t=0 en parallele de
   // la couche 1 (route.ts:1075-1077) : sa fenetre ne coute rien.
   narrativeDrift: Object.freeze({ timeout: 120_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
+  // 3500 tokens, Sonnet. Ajoute le 5 aout 2026 apres le run b8d0e9ac.
+  //
+  // Le moteur appelait `callClaude(..., { temperature })` sans fenetre
+  // ni reprise, donc il heritait du defaut du client partage, soixante
+  // secondes avec une reprise. Il est sorti a 120 397 ms, deux
+  // tentatives pleines, exactement la signature que l en-tete de ce
+  // fichier decrit pour les six moteurs corriges avant lui. La regle
+  // etait ecrite, elle valait pour les six qu on regardait ce jour-la,
+  // et celui-ci est reste dehors sans que rien ne le signale.
+  //
+  // 150s en une tentative. Le dimensionnement suit l ancrage de ce
+  // fichier, 4000 tokens Sonnet coutent 65 a 95s ici, donc 3500 tokens
+  // tiennent largement dessous ; la fenetre n est pas mesuree sur ce
+  // moteur et se dit telle. Elle ne retire rien : le budget effectif
+  // passe de 120s en deux tentatives a 150s en une, donc aucun cas qui
+  // aboutissait avant ne peut echouer maintenant. Zero reprise pour la
+  // meme raison que les six autres, une seconde fenetre pleine ne
+  // rachete pas un depassement structurel.
+  executionFriction: Object.freeze({ timeout: 150_000, maxRetries: 0, maxWebSearches: 0, temperature: TEMPERATURE_DIALECTIQUE }),
   // 5000 tokens, Sonnet. La synthese finale etait restee sur le defaut
   // client 60s / 1 reprise (orchestrator.ts:920, appel sans options) et
   // sortait a 121s sur le run 0142901d, laissant Facteurs decisifs vide.

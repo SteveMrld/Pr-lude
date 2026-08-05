@@ -15,6 +15,7 @@ import {
   EngineStatusRecorder,
   passesMinimalContract,
   isSkippedByRelevanceMatrix,
+  declareUnIncidentDeProduction,
   GAP_STATUSES,
 } from './engine-status-recorder';
 
@@ -124,6 +125,67 @@ console.log('\n[Suite 2] Contrats minimaux et cas TOLSON');
   const r = new EngineStatusRecorder();
   r.finalizeFromResult({ market: { perceivedSize: 'large' } }, { market: 'market' });
   check(r.snapshot().market?.status === 'ok', 'market avec perceivedSize => ok');
+}
+
+// ============================================================
+// Un repli qui declare son incident ne remonte pas ok
+// ------------------------------------------------------------
+// Le jeu d essai est la sortie reelle du run b8d0e9ac, recopiee du
+// repli de execution-friction-engine.ts et non reconstruite : zero axe,
+// globalScore a 0, verdict not_applicable, nonProductionCause incident.
+// Elle satisfait le contrat minimal du moteur deux fois, par v.axes qui
+// est un tableau vide donc truthy, et par v.globalScore qui vaut 0 donc
+// n est pas undefined. C est ce double passage qui l a fait remonter ok
+// dans le run, et c est pourquoi la fixture porte les deux champs.
+// ============================================================
+{
+  const repli = {
+    triggered: true,
+    nonProductionCause: 'incident',
+    flags: [],
+    axes: [],
+    globalScore: 0,
+    verdict: 'not_applicable',
+    synthesis: 'Le moteur a detecte 4 flags mais n a pas pu produire l analyse detaillee (erreur LLM).',
+  };
+  const r = new EngineStatusRecorder();
+  r.finalizeFromResult({ executionFriction: repli }, { executionFriction: 'executionFriction' });
+  const e = r.snapshot().executionFriction;
+  check(e?.status === 'failed', 'un repli declarant un incident remonte failed et non ok');
+  check(typeof e?.errorMessage === 'string' && e.errorMessage.length > 0,
+    'et il porte un message qui nomme la cause');
+
+  // Le contrat minimal, lui, se laisse convaincre : la preuve que la
+  // correction porte sur l ordre de lecture et pas sur le seuil.
+  check(passesMinimalContract('executionFriction', repli) === true,
+    'le contrat minimal accepte pourtant ce repli, ce que la declaration tranche avant lui');
+
+  // Symetrie : la meme sortie sans la declaration reste ok. Sans cette
+  // moitie, le test passerait aussi si la correction refusait tout.
+  const { nonProductionCause, ...produite } = repli;
+  const r2 = new EngineStatusRecorder();
+  r2.finalizeFromResult({ executionFriction: { ...produite, axes: [{ axis: 'a', score: 40 }] } },
+    { executionFriction: 'executionFriction' });
+  check(r2.snapshot().executionFriction?.status === 'ok',
+    'une sortie sans declaration d incident reste ok');
+
+  // La regle est lue sur le champ et non sur le nom du moteur : un
+  // moteur qui adopterait la convention demain est couvert.
+  const r3 = new EngineStatusRecorder();
+  r3.finalizeFromResult({ market: { perceivedSize: 'large', nonProductionCause: 'incident' } },
+    { market: 'market' });
+  check(r3.snapshot().market?.status === 'failed',
+    'la regle porte sur le champ, pas sur le moteur qui l a revelee');
+
+  // doctrine et absence ne requalifient pas : ce sont des
+  // non-productions legitimes qui ont deja leurs statuts.
+  const r4 = new EngineStatusRecorder();
+  r4.finalizeFromResult({ market: { perceivedSize: 'large', nonProductionCause: 'doctrine' } },
+    { market: 'market' });
+  check(r4.snapshot().market?.status === 'ok', 'doctrine ne requalifie pas');
+  check(declareUnIncidentDeProduction({ nonProductionCause: 'absence' }) === false,
+    'absence ne requalifie pas');
+  check(declareUnIncidentDeProduction(null) === false, 'null ne leve pas');
 }
 
 {
