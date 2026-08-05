@@ -526,3 +526,95 @@ dossier. Rassembler une dizaine de documents de cession et de LBO est le
 prealable, et il ne coute pas de developpement. Calibrer sur trois
 dossiers reproduirait la faute que ce registre documente ailleurs, un
 instrument regle sur le cas qui l'a revele.
+
+---
+
+## Chantier : la relation de corpus, et l'arbitrage a rendre avant de l'ecrire
+
+Ouvert le 5 aout 2026. Arbitrage a trancher, pas defaut a corriger. Rien
+n'est ecrit et rien ne doit l'etre avant que la question ci-dessous soit
+tranchee, parce qu'elle decide de la forme du code et non de son detail.
+
+Le catalogue de `lib/controle/proprietes.ts` sait dire d'une note si elle
+respecte une regle. Il ne sait rien dire de deux notes prises ensemble.
+La distinction n'est pas une lacune d'implementation : une propriete
+recoit une note et rien d'autre, et cette cloture est la condition qui
+permet au bulletin de fiabilite de l'appliquer a une note fraiche, au
+moment ou elle est produite, la ou le corpus n'existe pas encore.
+
+Le releve du 5 aout a etabli la frontiere par un echec. La garde de
+confidentialite, ecrite comme propriete de note, rend sept notes touchees
+et sept faux positifs : deux sur « Project Manager » et « Project
+Engineer », qui sont des intitules de poste, quatre sur leur propre nom
+de code sous une forme que le fichier source n'ecrit pas, « Projet
+Pegasus » pour un fichier nomme Pegasus. Cent pour cent, sur une
+propriete qu'on aurait juree fondee.
+
+**Ce que l'echec apprend, et qui vaut d'etre garde tel quel.** Le motif
+ne se repare pas en l'affinant. Distinguer un nom de code d'un mot
+commun demande de savoir quels noms appartiennent aux autres dossiers, et
+cette information n'existe qu'a un seul endroit. Les noms de code ne
+s'ecrivent pas, ils se derivent des `companyName` de toutes les autres
+analyses du corpus. C'est ce qui retire le motif au lieu de le deplacer :
+une liste ecrite a la main aurait ete la faute que ce registre documente
+partout ailleurs, tandis qu'une derivation se recalcule a chaque passage
+et fait entrer un dossier ingere demain sans qu'on y pense.
+
+**Ce que la relation couvrirait au-dela des noms de dossier.** La fuite
+de confidentialite est le cas d'entree et le seul qui menace directement
+une vente : un nom de code, un nom de client, un montant de levee ou un
+nom de fondateur d'un dossier apparaissant dans la note d'un autre. La
+meme signature repond a quatre autres questions que rien ne pose
+aujourd'hui. La variance a code egal, qui est un rapport entre deux runs
+du meme dossier au meme `enginesHash` et jamais une propriete d'un run.
+Le doublon d'ingestion, le meme deck entre deux fois sous deux noms de
+fichier, qui fausse tout denominateur du releve sans que rien ne le
+signale. La reutilisation de prose, un paragraphe identique entre deux
+dossiers sans rapport, signature d'un repli ou d'un gabarit et non d'une
+analyse. Et la derive de calibration, la distribution des verdicts par
+segment d'empreinte, qu'aucune lecture note a note ne peut voir puisque
+chaque note prise seule est plausible.
+
+**L'arbitrage, avec le cout des deux voies. Il n'est pas tranche.**
+
+Premiere voie, la relation reste interne et le bulletin ne la voit pas.
+Le controleur de corpus l'execute hors ligne, sans cout et sans reseau,
+et la note livree au fonds ne porte rien de ce que la relation constate.
+Ce que cela coute est doctrinal et c'est le plus cher des deux : le
+catalogue cesse d'avoir un seul consommateur. Le partage entre le
+controleur et le bulletin etait le garde-fou qui empechait le controle
+interne et le controle client de diverger, et celui que le client lit
+d'etre le moins tenu des deux. Une famille de controles qui n'existe que
+du cote interne rouvre exactement cet ecart, et elle le rouvre sur la
+famille dont l'enjeu commercial est le plus direct, puisqu'une fuite de
+confidentialite se decouvre chez le fonds ou nulle part.
+
+Seconde voie, le bulletin lit le corpus au moment de la production. La
+note fraiche est confrontee aux autres analyses avant d'etre rendue, et
+le controle que le client lit couvre alors la meme surface que le
+controle interne. Ce que cela coute est architectural : un acces Supabase
+entre dans le chemin de production d'une note, la ou il n'y en a pas
+aujourd'hui. Le pipeline gagne une dependance reseau sur un chemin qui
+n'en avait pas, une latence sur la derniere etape, et un mode de panne
+nouveau, celui ou la base repond mal et ou il faut decider si la note
+sort quand meme. Ce dernier point est le vrai sujet : un controle qui
+peut echouer silencieusement en production est precisement la garde
+inerte que ce registre documente ailleurs.
+
+Les deux voies sont tenables et le choix ne se deduit pas. Il se tranche.
+
+**Le vocabulaire se tranche avant la premiere ligne.** Une propriete rend
+un nombre de notes sur une portee. Une relation rend des paires, et une
+paire fautive touche deux notes dont une seule est en cause. Le mot
+« touche » ne s'y applique donc pas, et le taux qu'une relation rendrait
+n'a pas le meme denominateur que ceux du tableau de proprietes. Ecrire la
+premiere relation sans avoir tranche ce point produirait un chiffre qu'on
+lirait comme les autres alors qu'il ne dit pas la meme chose, ce qui est
+la faute que le dispositif entier a ete construit pour empecher.
+
+**Cout algorithmique, pour memoire, et il est le moindre des trois.**
+Cinquante-deux notes font mille trois cent vingt-six paires, ce qui passe
+en force brute. La comparaison portant sur de la prose, la force brute
+cesse de passer vers quelques centaines de notes, et un index
+d'empreintes la ramene au lineaire. Ce travail se fait une fois et ne
+conditionne aucune des deux voies.
