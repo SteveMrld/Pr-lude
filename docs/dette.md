@@ -123,6 +123,49 @@ Rien ne doit etre montre a un fonds avant cette lecture-la.
 
 ---
 
+## La classe d'actif n'est pas tranchee sur un dossier sur treize
+
+Ouvert le 5 aout 2026. Probleme d'entree et non de comparables, et il
+touche autant de dossiers que toutes les classes vides reunies.
+
+Quatre notes sur cinquante-trois, soit sept et demi pour cent, sortent
+avec `relevanceMatrix.assetClass` a `unclassified` ou absente. Sur ces
+dossiers, tout ce qui depend de la classe tombe : pas de multiples donc
+pas de fourchette de valorisation, pas de sortie de reference donc pas
+de VC inverse, et desormais pas de seau de comparables donc aucune base
+de chiffres verifies servie aux moteurs.
+
+Le chiffre corrige une lecture plus alarmante : ce n'est pas un dossier
+sur six. Et il ne domine pas les classes vides, qui touchent exactement
+quatre notes elles aussi.
+
+Ce qui ferait tomber ce taux, et ce n'est pas de la collecte. La classe
+se derive du seul couple `sector` plus `subSector`, deux champs de
+synthese que le modele redige. Trois pistes, par ordre de cout croissant
+et non arbitrees.
+
+La premiere est de faire porter au prompt d'extraction la liste des
+vingt et une classes normalisees et de lui demander de s'y ranger, au
+lieu de laisser un libelle libre que le normaliseur doit ensuite
+deviner. C'est le defaut Compagnie des Alpes generalise : le prompt
+proposait onze secteurs en francais et le normaliseur n'en connaissait
+que la version anglaise.
+
+La deuxieme est d'elargir la lecture au-dela des deux champs de
+synthese, vers `productDescription`, `businessModel` et `rawSummary`,
+qui portent la matiere que la synthese a resumee.
+
+La troisieme est de demander au modele sa classe et sa citation, comme
+pour le type d'operation : une classe sans citation retombe a
+`unclassified`, ce qui ne fait pas baisser le taux mais rend la cause
+lisible.
+
+Pas ferme aujourd'hui parce que le premier geste touche le prompt
+d'extraction, donc l'entree de tout le pipeline, et qu'il ne se mesure
+que sur un corpus rejoue.
+
+---
+
 ## Ce qu'il faut collecter, table par table
 
 Ouvert le 5 aout 2026 apres l'inventaire du corpus de reference. Ce
@@ -184,19 +227,81 @@ Le premier geste n'est donc pas de collecter mais de declarer : une
 cellule sans confiance se lit comme une cellule fiable, et il y en a
 deux sur trois. Declarer d'abord, collecter ensuite.
 
-### 4. `lib/data/verified-comparables.ts` — 124 fiches, sept classes vides
+### 4. `lib/data/verified-comparables.ts` — classe par classe
 
-La collecte ici depend d'un arbitrage qui n'est pas rendu, entre
-elargir les seaux a vingt et une classes ou poser une correspondance
-vers les sept existantes. La mesure qui l'eclaire : en normalisant les
-libelles libres des 124 fiches vers les vingt et une classes, sept
-restent vides — `defense`, `hospitality`, `adtech`, `foodtech`,
-`services-b2b`, `profitable-mature`, `sportstech` — et cinq sont tenues
-par une ou deux fiches, dont `healthtech` par la seule Olive AI, qui est
-un echec.
+**La ligne qui decide, et il n'y en a pas d'autre : la table est riche
+la ou le corpus ne va pas.** Trente fiches deeptech pour zero dossier,
+quinze marketplace pour zero, seize fintech pour un, pendant que
+`ecommerce-dtc` porte vingt-huit pour cent du corpus avec cinq fiches.
+La collecte se trie sur ce croisement et sur aucun autre critere.
 
-Tant que l'arbitrage n'est pas rendu, collecter des comparables revient
-a remplir des seaux dont on ne sait pas s'ils existeront.
+L'arbitrage de taxonomie est rendu depuis le 5 aout : correspondance des
+vingt et une classes vers les sept seaux, pas d'elargissement. La
+collecte enrichit donc les seaux existants, et une classe qui emprunte
+le seau d'une voisine profite de tout ce qu'on y ajoute.
+
+| classe | notes du corpus | fiches | cible | pourquoi |
+|---|---|---|---|---|
+| `ecommerce-dtc` | 15 (28 %) | 5 | 15 | premier du corpus, cinq fiches, dont deux echecs |
+| `industrial-hardware` | 11 (21 %) | 6 | 12 | second du corpus |
+| `hospitality` | 2 | 0 | 5 | vide et rencontree |
+| `healthtech` | 2 | 1 | 8 | la seule fiche est Olive AI, un echec |
+| `edtech` | 2 | 1 | 6 | Pluralsight seul |
+| `logistics` | 2 | 2 | 6 | |
+| `defense` | 1 | 0 | 5 | vide et rencontree, classe en croissance |
+| `services-b2b` | 1 | 0 | 5 | vide et rencontree |
+| `climate-tech` | 1 | 2 | 6 | |
+| `mediatech` | 1 | 3 | 5 | |
+| `saas-b2b` | 9 (17 %) | 22 | 22 | deja couverte, ne rien faire |
+| `ai-generative` | 1 | 14 | 14 | deja couverte |
+| `fintech` | 1 | 16 | 16 | deja couverte |
+
+Jamais rencontrees sur le corpus : `adtech`, `foodtech`,
+`profitable-mature`, `sportstech`, `proptech`, `cybersecurity`,
+`deeptech`, `marketplace-b2c`. **Ne rien collecter pour elles.** Les
+quatre dernieres sont pourtant les mieux fournies de la base, ce qui est
+exactement le desequilibre a ne pas aggraver. `proptech` en particulier
+n'apparait sur aucun dossier, donc WeWork comme unique comparable ne
+coute rien aujourd'hui.
+
+**Ce qu'une fiche doit porter pour etre utilisable par le moteur.** Sept
+champs, tous obligatoires, et la fiche est refusee si l'un manque.
+
+`name` : le nom exact de la societe, tel qu'elle s'ecrit elle-meme.
+
+`founded` : l'annee de fondation, en nombre.
+
+`sectorAssetClass` : la nature du business et le modele economique en
+clair, en une ligne, par exemple « marketplace B2C / hospitality /
+asset-light ». C'est ce libelle qui rattache la fiche a un seau.
+
+`keyMilestones` : deux a quatre jalons chiffres, chacun avec sa source
+entre crochets. Format conversationnel pour que le moteur puisse citer
+directement. Exemple : « Series A 2010 ~7M$ [TechCrunch]. IPO NASDAQ
+decembre 2020 pricing 68$/share [S-1 SEC] ». **Un jalon sans source
+entre crochets ne doit pas etre ecrit.** C'est la regle qui donne sa
+valeur a la base : le prompt interdit aux moteurs de citer un chiffre
+absent d'ici.
+
+`currentStatus` : l'etat aujourd'hui, en clair. Public avec son ticker,
+prive, acquis par qui et quand, ou disparu et quand.
+
+`notes` : les pieges d'hallucination connus sur cette societe. « Ne pas
+confondre X avec Y », « n'a jamais fait de series C », « la valorisation
+de 2021 a ete divisee par quatre en 2023 ». C'est le champ qui evite au
+moteur de repeter une erreur repandue.
+
+`outcome` : `success`, `failure`, `ongoing` ou `contested`. Il decide du
+registre dans lequel le moteur cite la fiche, et il doit etre triangule
+par une source primaire. Une trajectoire non concluante est `ongoing` et
+non `success`.
+
+**Regle de composition d'un seau.** Un seau utilisable ne peut pas etre
+fait que de reussites : un contre-exemple nomme vaut autant qu'un
+succes, et une fiche `failure` par tranche de quatre est un plancher
+raisonnable. Une classe tenue par une seule fiche qui est un echec, cas
+actuel de `healthtech` avec Olive AI, est pire qu'une classe vide, parce
+qu'elle a l'air d'etre une reponse.
 
 ### 5. `lib/corpus/database.ts` et `extended-database.ts`
 

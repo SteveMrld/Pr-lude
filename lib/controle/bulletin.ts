@@ -42,6 +42,7 @@
 // ============================================================
 
 import { PROPRIETES, type Propriete } from './proprietes';
+import { choisirSeauComparables } from '../engines/comparables-class';
 import { GAP_STATUSES } from '../orchestrator/engine-status-recorder';
 
 export interface Reserve {
@@ -276,6 +277,34 @@ export function construireBulletin(note: any, catalogue: Propriete[] = PROPRIETE
       titre: 'le releve par moteur n accompagne pas cette note',
       portee: 'un moteur tombe et un moteur sans objet y sont indiscernables',
       gravite: 'notable',
+    });
+  }
+
+  // ---------- Pertinence du seau de comparables ----------
+  // La correspondance des vingt et une classes vers les sept seaux est
+  // grossiere par construction : treize classes empruntent le seau
+  // d une voisine faute d en avoir un propre. C est approximatif et
+  // honnete, mais seulement si c est dit. Un comparable emprunte
+  // presente comme propre au dossier est une affirmation fausse.
+  //
+  // Le choix se recalcule ici plutot que de se lire dans la note : la
+  // fonction est deterministe et purement textuelle, donc elle rend sur
+  // une note persistee ce qu elle a rendu au run, sans qu il ait fallu
+  // persister un champ de plus.
+  const choixSeau = choisirSeauComparables(note?.extraction, note?.relevanceMatrix?.assetClass);
+  if (choixSeau.seau === null) {
+    reserves.push({
+      titre: 'aucun comparable de reference n a pu etre servi aux moteurs',
+      portee: choixSeau.cause === 'doctrine'
+        ? 'la classe du dossier n est pas au catalogue : c est une decision et non une panne, mais les comparables cites ne s appuient sur aucune base verifiee'
+        : 'ni la matrice ni la lecture du texte ne tranchent la classe du dossier : les comparables cites ne s appuient sur aucune base verifiee',
+      gravite: 'notable',
+    });
+  } else if (choixSeau.emprunte) {
+    reserves.push({
+      titre: `comparables empruntes au seau « ${choixSeau.seau} », la classe « ${choixSeau.classeArbitree} » n en a pas en propre`,
+      portee: 'l analogie est approximative et declaree comme telle : la base ne porte pas de comparables de cette classe, ceux qui sont cites viennent d une classe voisine au profil economique proche',
+      gravite: 'mineure',
     });
   }
 

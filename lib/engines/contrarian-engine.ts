@@ -1,7 +1,7 @@
 import { callClaudeWithUsage, MODEL } from './anthropic-client';
 import { parseEngineOutput } from './engine-output-contract';
 import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
-import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
+import { blocComparables } from './comparables-bloc';
 import { stageToStade } from './archetype-selector';
 import { SOURCE_TAGGING_INSTRUCTION, auditTagging } from './source-tagging';
 import { EDITORIAL_VOICE_INSTRUCTION } from './editorial-voice';
@@ -232,7 +232,7 @@ ${(extraction.competitorsCited || []).join(', ') || 'aucun'}
 # RÉSUMÉ BRUT DOSSIER
 ${champ(extraction?.rawSummary, '?')}
 
-${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extraction?.fundraise?.stage))}
+${blocComparables(extraction, stageToStade(extraction?.fundraise?.stage))}
 
 Détecte les 10 signaux de singularité contrarienne. Pour chaque signal, sois rigoureux : detected vrai uniquement si evidence factuelle dans le dossier. Calcule le score global contrarien. Identifie les comparables historiques pertinents en respectant la regle d asset class match ET la regle de chiffres verifies. Articule la recommandation contrarienne (ou son absence).
 

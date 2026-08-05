@@ -12,7 +12,7 @@ import {
   NOTABLE_EUROPEAN_ROUNDS_2025,
   EUROPEAN_DEEPTECH_2025,
 } from '../benchmarks';
-import { buildVerifiedComparablesBlock, detectAssetClass } from '../data/verified-comparables';
+import { blocComparables } from './comparables-bloc';
 import { stageToStade } from './archetype-selector';
 import { normalizeFrText } from '../data/text-normalize';
 import { formatExtractionGeography } from './fund-context';
@@ -610,7 +610,7 @@ ${top8.map(s => `- ${s.case.id} (${s.case.name}, ${s.case.yearOfRefusal}, ${s.ca
 ${europeanComparablesBlock}
 ${extendedCorpusBlock}
 
-${buildVerifiedComparablesBlock(detectAssetClass(extraction), stageToStade(extraction?.fundraise?.stage))}
+${blocComparables(extraction, stageToStade(extraction?.fundraise?.stage))}
 
 Identifie l'archétype dominant et raffine les 3 meilleurs comparables. Pour chaque comparable cité avec des chiffres précis, ces chiffres doivent venir de la base de chiffres vérifiés ci-dessus. Retourne uniquement le JSON structuré.`;
 
