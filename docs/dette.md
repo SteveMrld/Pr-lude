@@ -8,6 +8,66 @@ L'ordre est celui du dommage, pas celui de la date.
 
 ---
 
+## L'extraction rend des nombres qu'on ne retrouve pas dans le classeur
+
+Ouvert le 5 aout 2026, run b8d0e9ac. En tete du registre parce que
+c'est, de tout ce qu'il porte, le seul defaut qu'un fonds peut etablir
+tout seul en ouvrant deux fichiers.
+
+Le run Project Hello est le premier des cinquante-trois du corpus a
+avoir lu un business plan : `hasBP` vaut vrai, `fileSource` vaut `both`,
+et `revenueProjection` est peuplee avec `source: "bp"`, donc depuis le
+classeur et non depuis le teaser. Le chemin fonctionne. Ce qu'il rend ne
+se retrouve pas dans le document.
+
+Le classeur porte, sur sa feuille Management BP, une ligne « Chiffre
+d'affaires » a 153 250, 907 250, 1 059 750 et 1 059 750 euros pour 2025
+a 2028, et une ligne B2B a 121 250, 811 250, 963 750 et 963 750.
+L'extraction rend 0,101, 0,897, 0,963 et 0,963 million. Les deux
+dernieres annees tombent exactement sur la ligne B2B ; les deux
+premieres ne tombent sur aucune des deux. Le releve s'arrete la : je
+n'ai pas etabli d'ou viennent 0,101 et 0,897, et l'hypothese d'une
+lecture partielle n'est qu'une hypothese.
+
+Ce qui en fait le premier de ce registre est la nature de la faute, pas
+son ampleur. Toutes les autres entrees decrivent une chose que le
+produit ne fait pas, ou fait mal. Celle-ci decrit un nombre imprime dans
+une note d'instruction que le document source ne porte pas. Un partner
+qui ouvre le classeur a cote de la note ne trouve pas la ligne, et il
+n'a alors aucun moyen de distinguer une erreur de lecture d'une valeur
+inventee. C'est exactement le controle que fait une due diligence, il
+coute une minute, et il ne laisse aucune place a l'explication : la
+rigueur est le positionnement commercial entier de la plateforme.
+
+Un facteur aggravant est mesure et il est distinct. Le convertisseur
+aplatit le classeur en CSV puis coupe a 30 000 caracteres, en silence.
+Le classeur Hello rend 32 710 caracteres, donc il a ete coupe, et
+`bpChars` vaut exactement 30 000 dans le cachet du run. La coupe tombe
+dans le tableau de financement, apres le compte de resultat : le P&L
+survit, la ligne « Equity levee » a 275 000 et les positions de
+tresorerie sont perdues. Un BP coupe se lit donc exactement comme un BP
+complet. C'est la forme du chiffre juste sur une part qui se lit comme
+un chiffre sur le tout, et elle vaut d'etre fermee meme si elle n'est
+pas la cause de l'ecart ci-dessus.
+
+Ce qui se fait avant tout correctif, et avant toute demonstration. Il
+faut etablir d'ou viennent les nombres rendus, ce qui se fait hors ligne
+et sans run complet : rejouer `extractFinancialData` sur le CSV du
+classeur, avec et sans la coupe a 30 000, et comparer champ par champ
+aux lignes du document. Trois issues possibles et elles n'appellent pas
+le meme correctif. Si la coupe est en cause, elle se repare au
+convertisseur et se signale au lecteur. Si le modele lit la mauvaise
+ligne, c'est le prompt d'extraction financiere qui doit exiger le
+libelle de la ligne lue a cote de la valeur. Si les nombres ne viennent
+d'aucune ligne, c'est une invention, et alors la citation obligatoire
+qui existe deja pour le montant du tour doit s'etendre a toute valeur
+financiere extraite.
+
+Rien ne doit etre montre a un fonds avant que cette question soit
+tranchee. C'est le seul point de ce registre dont je dirais cela.
+
+---
+
 ## `seller` fait entrer et sortir une personne physique selon le tirage
 
 Ouvert le 3 aout 2026.
@@ -618,3 +678,49 @@ en force brute. La comparaison portant sur de la prose, la force brute
 cesse de passer vers quelques centaines de notes, et un index
 d'empreintes la ramene au lineaire. Ce travail se fait une fois et ne
 conditionne aucune des deux voies.
+
+---
+
+## Chantier : strictNullChecks, soixante erreurs et vingt-sept fichiers
+
+Ouvert le 5 aout 2026. Chantier chiffre, pas defaut a corriger.
+
+`tsconfig.json` porte `"strict": false`, donc `strictNullChecks` est
+inactif. L'en-tete de `lib/engines/engine-roots.ts` en tire deja la
+conclusion et la pose comme une contrainte de conception : « le
+compilateur ne signalera jamais cette famille de defauts, la discipline
+ne peut pas venir du typage, elle doit venir d'une mecanique
+explicite ». Le module a ete ecrit pour cela apres l'incident c487a8b2
+du 27 juillet, et il fonctionne.
+
+Le run b8d0e9ac a montre la limite de la mecanique explicite : elle
+n'empeche pas de l'oublier. `protectEngineRoots` etait appele dans le
+constructeur de prompt et pas dans le calcul du score, et la synthese
+s'est arretee sur `blindspotAnalysis.globalBlindspotScore` lu sur null.
+Une mecanique qui depend de celui qui l'applique ne tient pas, ce que ce
+depot a deja ecrit trois fois ailleurs.
+
+La mesure, faite le jour meme et non estimee : `npx tsc --noEmit
+--strictNullChecks` rend soixante erreurs sur vingt-sept fichiers, dont
+six dans l'orchestrateur. Ce n'est pas une refonte, c'est une journee.
+L'ordre de grandeur change la nature de la question : ce n'etait pas
+« faut-il un jour passer en strict », c'etait « pourquoi pas ».
+
+Ce que le passage achete, mesure sur le cas. Le releve des autres
+deferencements de sorties amont dans l'orchestrateur a ete fait par le
+compilateur sous ce drapeau plutot qu'a la main, et il a rendu une
+lecture non gardee que la recherche manuelle n'avait pas trouvee, la
+decote forcee de `successProbability`, cinquante lignes sous celle qui
+avait leve. Un balayage a la main aurait ferme la ligne qu'on regardait.
+
+Ce qu'il ne faut pas en attendre. Le compilateur voit les racines
+declarees nullables, il ne voit rien des parametres typees `any`, et le
+constructeur de prompt de l'orchestrateur les porte toutes. Passer en
+strict sans typer ces signatures laisserait quinze lectures amont
+invisibles. Le chantier est donc en deux temps et le second est le plus
+long, activer le drapeau puis retirer les `any` des signatures qui
+recoivent des sorties de moteur.
+
+Pas ferme aujourd'hui parce qu'il touche vingt-sept fichiers a la veille
+d'une demonstration, et qu'un correctif de typage large est exactement
+ce qu'on ne veut pas avoir a relire en meme temps qu'un run.
