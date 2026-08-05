@@ -217,7 +217,14 @@ export const PROPRIETES: Propriete[] = [
       + 'generiques et retire au dossier la fourchette qui fonde le prix.',
     eprouvee:
       'Mesuree sur cinquante notes le 5 aout : deux violations, les deux sur Project Chamois. Verification faite, la '
-      + 'classe y est bien unclassified et la fourchette de valorisation y est absente. Zero faux positif.',
+      + 'classe y est bien unclassified et la fourchette de valorisation y est absente. Zero faux positif. '
+      + 'La cause est fermee depuis le commit 4e0aaaf du 3 aout, et les deux notes sont anterieures, du 2 aout et du '
+      + '8 juin. Project Chamois est le dossier Compagnie des Alpes, dont le libelle « Hospitalite » etait le mot '
+      + 'francais que le prompt d extraction propose lui-meme et que le normaliseur ne connaissait qu en anglais. '
+      + 'Rejoue le 5 aout sur les deux extractions persistees, en passant par les deux etages que la route emprunte, '
+      + 'la concatenation sector plus subSector puis computeRelevanceMatrix, le code actuel rend hospitality sur les '
+      + 'deux. Les deux violations sont donc un solde historique et non une lacune ouverte, et le taux tombera au '
+      + 'premier run.',
     porte: (n) => !!n?.relevanceMatrix,
     constats: (n) => {
       const c = n.relevanceMatrix.assetClass;
