@@ -30,6 +30,7 @@ import {
 } from '@/lib/cron/milestone-detection-selector';
 import { runMilestoneDetection } from '@/lib/cron/milestone-detection-runner';
 import { isCronAuthorized } from '@/lib/cron/auth';
+import { battreCron } from '@/lib/cron/heartbeat';
 
 export const runtime = 'nodejs';
 // Le scan LLM avec web_search peut prendre 15-30s par dossier. On
@@ -40,7 +41,20 @@ export const dynamic = 'force-dynamic';
 
 
 export async function GET(req: NextRequest) {
-  if (!isCronAuthorized(req)) {
+  // Battement d invocation, ecrit avant la garde d autorisation : c est
+  // son absence totale qui a etabli la panne des crons du 3 aout 2026,
+  // et son absence sur les cinq autres qui l a rendue indetectable
+  // pendant huit semaines.
+  const autorise = isCronAuthorized(req);
+  await battreCron({
+    source: 'cron.milestone-detection',
+    autorisee: autorise,
+    motif: autorise ? 'garde passee' : 'garde refusee',
+    userAgent: req.headers.get('user-agent'),
+    aUnEnTeteAutorisation: !!req.headers.get('authorization'),
+  });
+
+  if (!autorise) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (!isPersistenceEnabled()) {

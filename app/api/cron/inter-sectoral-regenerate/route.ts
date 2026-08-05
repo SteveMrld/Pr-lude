@@ -26,6 +26,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logException } from '@/lib/error-logger';
 import { isCronAuthorized } from '@/lib/cron/auth';
+import { battreCron } from '@/lib/cron/heartbeat';
 import {
   aggregateInterSectoral,
 } from '@/lib/engines/sectoral-intelligence/inter-sector-aggregator';
@@ -45,7 +46,20 @@ export const dynamic = 'force-dynamic';
 
 
 export async function GET(req: NextRequest) {
-  if (!isCronAuthorized(req)) {
+  // Battement d invocation, ecrit avant la garde d autorisation : c est
+  // son absence totale qui a etabli la panne des crons du 3 aout 2026,
+  // et son absence sur les cinq autres qui l a rendue indetectable
+  // pendant huit semaines.
+  const autorise = isCronAuthorized(req);
+  await battreCron({
+    source: 'cron.inter-sectoral-regenerate',
+    autorisee: autorise,
+    motif: autorise ? 'garde passee' : 'garde refusee',
+    userAgent: req.headers.get('user-agent'),
+    aUnEnTeteAutorisation: !!req.headers.get('authorization'),
+  });
+
+  if (!autorise) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -54,6 +68,18 @@ export async function GET(req: NextRequest) {
 
   // Garde de date : on n agit qu en debut de trimestre.
   if (!isFirstDayOfQuarter(now)) {
+    // Meme raison que pour le cron sectoriel : sans ce verdict, une
+    // table vide depuis toujours est indiscernable d une tache morte.
+    // Elle l a ete jusqu au 5 aout 2026, ou il a fallu lire cette garde
+    // pour etablir que les quatre dates de declenchement annuelles
+    // etaient tombees pendant la panne des crons.
+    await battreCron({
+      source: 'cron.inter-sectoral-regenerate',
+      autorisee: true,
+      motif: 'passe terminee',
+      verdict: 'hors du premier jour de trimestre civil, rien a faire',
+      contexte: { prochainDeclenchement: '1er janvier, avril, juillet ou octobre' },
+    });
     return NextResponse.json({
       triggered_at: triggeredAt,
       status: 'skipped',

@@ -28,6 +28,7 @@ import {
 } from '@/lib/cron/portfolio-reanalysis-selector';
 import { runAutoReanalysis } from '@/lib/cron/portfolio-reanalysis-runner';
 import { isCronAuthorized } from '@/lib/cron/auth';
+import { battreCron } from '@/lib/cron/heartbeat';
 import {
   evaluateForAnalysis,
   dispatchImmediateIfNeeded,
@@ -41,7 +42,20 @@ export const dynamic = 'force-dynamic';
 
 
 export async function GET(req: NextRequest) {
-  if (!isCronAuthorized(req)) {
+  // Battement d invocation, ecrit avant la garde d autorisation : c est
+  // son absence totale qui a etabli la panne des crons du 3 aout 2026,
+  // et son absence sur les cinq autres qui l a rendue indetectable
+  // pendant huit semaines.
+  const autorise = isCronAuthorized(req);
+  await battreCron({
+    source: 'cron.trajectory-reanalysis',
+    autorisee: autorise,
+    motif: autorise ? 'garde passee' : 'garde refusee',
+    userAgent: req.headers.get('user-agent'),
+    aUnEnTeteAutorisation: !!req.headers.get('authorization'),
+  });
+
+  if (!autorise) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (!isPersistenceEnabled()) {

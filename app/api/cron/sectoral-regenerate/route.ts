@@ -26,6 +26,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logException } from '@/lib/error-logger';
 import { isCronAuthorized } from '@/lib/cron/auth';
+import { battreCron } from '@/lib/cron/heartbeat';
 import {
   SECTORS,
   getLatestBriefForSector,
@@ -36,6 +37,7 @@ import {
   selectEligibleSectorsForRegeneration,
   type SectorRegenCandidate,
   type SelectedSector,
+  DEFAULT_SECTOR_REGEN_THRESHOLD_DAYS,
 } from '@/lib/cron/sectoral-regeneration-selector';
 
 export const runtime = 'nodejs';
@@ -56,7 +58,20 @@ interface SectorRunResult {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isCronAuthorized(req)) {
+  // Battement d invocation, ecrit avant la garde d autorisation : c est
+  // son absence totale qui a etabli la panne des crons du 3 aout 2026,
+  // et son absence sur les cinq autres qui l a rendue indetectable
+  // pendant huit semaines.
+  const autorise = isCronAuthorized(req);
+  await battreCron({
+    source: 'cron.sectoral-regenerate',
+    autorisee: autorise,
+    motif: autorise ? 'garde passee' : 'garde refusee',
+    userAgent: req.headers.get('user-agent'),
+    aUnEnTeteAutorisation: !!req.headers.get('authorization'),
+  });
+
+  if (!autorise) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -99,6 +114,33 @@ export async function GET(req: NextRequest) {
     const r = await runOneSector(sel);
     results.push(r);
   }
+
+  // Verdict de la passe. C est ce qui distingue « je tourne et je n ai
+  // rien a faire » de « je suis mort », les deux se lisant pareil dans
+  // la table quand seule l invocation est tracee. Le 5 aout 2026, la
+  // question « la couche sectorielle echoue-t-elle en silence » n a pu
+  // etre tranchee qu en lisant le seuil du selecteur dans le code :
+  // quatre-vingt-dix jours contre quatre-vingt-quatre ecoules, donc
+  // rien d eligible. Ce verdict-la donne la reponse en une requete.
+  const prochaineEcheance = candidates
+    .map((c) => c.latestGeneratedAt ? new Date(c.latestGeneratedAt).getTime() : 0)
+    .filter((t) => t > 0)
+    .sort((a, b) => a - b)[0];
+  await battreCron({
+    source: 'cron.sectoral-regenerate',
+    autorisee: true,
+    motif: 'passe terminee',
+    verdict: eligible.length === 0
+      ? `aucun secteur eligible sur ${candidates.length} du catalogue, seuil de ${DEFAULT_SECTOR_REGEN_THRESHOLD_DAYS} jours non atteint`
+      : `${eligible.length} eligible(s) sur ${candidates.length}, ${results.length} traite(s)`,
+    contexte: {
+      catalogSize: candidates.length,
+      eligibleCount: eligible.length,
+      processedCount: results.length,
+      seuilJours: DEFAULT_SECTOR_REGEN_THRESHOLD_DAYS,
+      ficheLaPlusAncienne: prochaineEcheance ? new Date(prochaineEcheance).toISOString() : null,
+    },
+  });
 
   return NextResponse.json({
     triggered_at: triggeredAt.toISOString(),
