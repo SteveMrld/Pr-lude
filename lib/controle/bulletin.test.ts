@@ -103,12 +103,83 @@ console.log('\n[Suite 3] un moteur tombe ne se confond pas avec un moteur sans o
   check(b.production.moteursEnIncident === 2, `deux incidents (${b.production.moteursEnIncident})`);
   check(b.production.moteursSansObjet === 1, `un moteur sans objet (${b.production.moteursSansObjet})`);
   check(b.production.moteursAboutis === 1, `un moteur abouti (${b.production.moteursAboutis})`);
-  const inc = reserve(b, 'moteur(s) en incident');
+  const inc = reserve(b, 'panne(s)');
   const abs = reserve(b, 'moteur(s) sans objet');
   check(inc?.gravite === 'majeure' && abs?.gravite === 'mineure',
     'l incident est majeur, l absence est mineure : ce sont deux choses differentes');
   check((inc?.portee ?? '').includes('ne dit rien de la societe'),
     'la portee de l incident dit explicitement qu il ne renseigne pas sur le dossier');
+  check(b.production.moteursEnPanne.length === 2 && b.production.moteursParCascade === 0,
+    'deux pannes propres et aucune cascade quand rien n est failed-upstream');
+  check((inc?.titre ?? '').includes('market') && (inc?.titre ?? '').includes('macro'),
+    'et les moteurs tombes sont nommes plutot que comptes');
+}
+
+console.log('\n[Suite 3 bis] une panne et huit consequences ne font pas neuf pannes');
+{
+  // Le releve exact du run b8d0e9ac du 5 aout 2026, recopie et non
+  // reconstruit : Marche tombe sur son contrat de sortie, et les huit
+  // moteurs qui l attendent derriere la porte partent en
+  // failed-upstream. Le bulletin annoncait « 9 moteur(s) en incident »,
+  // ce qui decrit un dispositif qui s effondre la ou il y a un point
+  // unique a reparer.
+  const note = {
+    ...NOTE_COMPLETE,
+    meta: {
+      ...NOTE_COMPLETE.meta,
+      engineStatuses: {
+        team: { status: 'ok' },
+        macro: { status: 'ok' },
+        market: { status: 'failed' },
+        causalReversal: { status: 'failed-upstream' },
+        patternMatching: { status: 'failed-upstream' },
+        referenceChecks: { status: 'failed-upstream' },
+        blindspotAnalysis: { status: 'failed-upstream' },
+        contrarianAnalysis: { status: 'failed-upstream' },
+        financialCoherence: { status: 'failed-upstream' },
+        fragiliteStructurelle: { status: 'failed-upstream' },
+        narrativeDrift: { status: 'failed-upstream' },
+      },
+    },
+  };
+  const b = construireBulletin(note);
+  check(b.production.moteursEnPanne.length === 1, `une seule panne propre (${b.production.moteursEnPanne.length})`);
+  check(b.production.moteursEnPanne[0] === 'market', 'et elle est nommee : market');
+  check(b.production.moteursParCascade === 8, `huit consequences (${b.production.moteursParCascade})`);
+  check(b.production.moteursEnIncident === 9,
+    'le total reste neuf : il ne ment pas, il ne suffisait pas');
+
+  const r = reserve(b, 'panne(s)');
+  check((r?.titre ?? '').includes('1 panne(s) : market'), 'la reserve nomme la panne et non le total');
+  check((r?.titre ?? '').includes('8 moteur(s) tombe(s) avec'), 'et elle compte les consequences a part');
+  check((r?.portee ?? '').includes('point unique a reparer'),
+    'la portee dit que c est un point unique et non une defaillance generale');
+}
+
+console.log('\n[Suite 3 ter] une cascade sans panne relevee se declare');
+{
+  // Cas limite reel : le run b8d0e9ac ne renseigne failedDependencies
+  // sur aucune de ses huit entrees en cascade. Si la panne racine
+  // manquait aussi du releve, le bulletin n aurait rien a nommer, et
+  // c est ce silence-la qu il doit dire plutot que de compter.
+  const note = {
+    ...NOTE_COMPLETE,
+    meta: {
+      ...NOTE_COMPLETE.meta,
+      engineStatuses: {
+        team: { status: 'ok' },
+        blindspotAnalysis: { status: 'failed-upstream' },
+        contrarianAnalysis: { status: 'failed-upstream' },
+      },
+    },
+  };
+  const b = construireBulletin(note);
+  check(b.production.moteursEnPanne.length === 0 && b.production.moteursParCascade === 2,
+    'aucune panne propre, deux cascades');
+  const r = reserve(b, 'cascade sans qu aucune panne amont');
+  check(r?.gravite === 'majeure', 'la cascade orpheline reste une reserve majeure');
+  check((r?.portee ?? '').includes('ne nomme pas la cause'),
+    'et elle dit que le releve ne nomme pas la cause, au lieu de laisser croire a une panne');
 }
 
 console.log('\n[Suite 4] l assiette partielle et la comparabilite');

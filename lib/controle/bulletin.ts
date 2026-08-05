@@ -71,7 +71,12 @@ export interface Bulletin {
   production: {
     moteursAboutis: number;
     moteursSansObjet: number;
+    /** Total pannes + cascade. Conserve : il ne ment pas, il ne suffit pas. */
     moteursEnIncident: number;
+    /** Cles des moteurs tombes par leur propre defaut. */
+    moteursEnPanne: string[];
+    /** Moteurs tombes parce qu un amont manquait, jamais appeles. */
+    moteursParCascade: number;
     sourcesExternesEnIncident: string[];
   };
   /** Proprietes du catalogue que cette note viole. */
@@ -195,23 +200,60 @@ export function construireBulletin(note: any, catalogue: Propriete[] = PROPRIETE
   // est explicitement exclu parce que c est une decision doctrinale et
   // non un defaut. Recopier cette liste l aurait fait diverger le jour
   // ou l une des deux change.
+  // UNE PANNE ET HUIT CONSEQUENCES NE FONT PAS NEUF PANNES
+  //
+  // Le compte additionnait les quatre GAP_STATUSES. Sur le run b8d0e9ac
+  // il a rendu « 9 moteur(s) en incident » : Marche est tombe sur son
+  // contrat de sortie, et les huit moteurs qui l attendent derriere la
+  // porte sont partis en failed-upstream. Neuf pannes et une panne aux
+  // huit consequences ne se lisent pas du tout de la meme facon, la
+  // premiere decrit un dispositif qui s effondre, la seconde un point
+  // unique a reparer. Le releve portait la distinction, le bulletin la
+  // detruisait en sommant.
+  //
+  // C est le motif de l indicateur en bout de chaine, pris a l endroit
+  // ou il coute le plus : le bulletin est ce que le partner lit en tete
+  // de note.
+  //
+  // La cascade est nommee et le reste est deduit, plutot que l inverse.
+  // GAP_STATUSES garde son arbitrage, et un statut qui y serait ajoute
+  // demain tombe du cote des pannes propres, c est-a-dire du cote qui
+  // se voit, plutot que de disparaitre dans les consequences.
   const statuts: Record<string, any> = note?.meta?.engineStatuses ?? {};
   const incidents = new Set<string>(GAP_STATUSES as readonly string[]);
-  let moteursAboutis = 0, moteursSansObjet = 0, moteursEnIncident = 0;
-  for (const s of Object.values(statuts)) {
+  const CASCADE = 'failed-upstream';
+  const moteursEnPanne: string[] = [];
+  let moteursAboutis = 0, moteursSansObjet = 0, moteursParCascade = 0;
+  for (const [nom, s] of Object.entries(statuts)) {
     const st = String((s as any)?.status ?? '');
-    if (incidents.has(st)) moteursEnIncident++;
-    else if (st === 'skipped_not_applicable') moteursSansObjet++;
+    if (st === CASCADE) { moteursParCascade++; continue; }
+    if (incidents.has(st)) { moteursEnPanne.push(nom); continue; }
+    if (st === 'skipped_not_applicable') moteursSansObjet++;
     else if (st === 'ok') moteursAboutis++;
   }
+  // Le total reste expose : il ne ment pas, il ne suffit pas.
+  const moteursEnIncident = moteursEnPanne.length + moteursParCascade;
   const sourcesExternesEnIncident: string[] = Array.isArray(note?.meta?.sourceHarvest?.failedSources)
     ? note.meta.sourceHarvest.failedSources
     : [];
 
-  if (moteursEnIncident > 0) {
+  if (moteursEnPanne.length > 0) {
+    const cascade = moteursParCascade > 0
+      ? `, et ${moteursParCascade} moteur(s) tombe(s) avec`
+      : '';
     reserves.push({
-      titre: `${moteursEnIncident} moteur(s) en incident`,
-      portee: 'la lacune est celle du dispositif et non du dossier : ce qui manque ici ne dit rien de la societe',
+      titre: `${moteursEnPanne.length} panne(s) : ${moteursEnPanne.join(', ')}${cascade}`,
+      portee: moteursParCascade > 0
+        ? 'un point unique a reparer et ses consequences, non une defaillance generale : la lacune est celle du dispositif et ne dit rien de la societe'
+        : 'la lacune est celle du dispositif et non du dossier : ce qui manque ici ne dit rien de la societe',
+      gravite: 'majeure',
+    });
+  } else if (moteursParCascade > 0) {
+    // Une cascade sans panne identifiee est un defaut du releve
+    // lui-meme, et il se dit plutot que de se lire comme une panne.
+    reserves.push({
+      titre: `${moteursParCascade} moteur(s) tombe(s) en cascade sans qu aucune panne amont ne soit relevee`,
+      portee: 'le releve par moteur ne nomme pas la cause : la chaine est interrompue quelque part en amont sans qu on sache ou',
       gravite: 'majeure',
     });
   }
@@ -270,6 +312,8 @@ export function construireBulletin(note: any, catalogue: Propriete[] = PROPRIETE
       moteursAboutis,
       moteursSansObjet,
       moteursEnIncident,
+      moteursEnPanne,
+      moteursParCascade,
       sourcesExternesEnIncident,
     },
     proprietesEnDefaut,

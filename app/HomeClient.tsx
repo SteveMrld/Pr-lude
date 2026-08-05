@@ -3558,7 +3558,18 @@ export default function HomeClient({
                 <div style={{ opacity: 0.6, marginTop: 10, lineHeight: 1.5 }}>
                   {result.meta.bulletin.couverture.dimensionsEvaluees}/{result.meta.bulletin.couverture.dimensionsTotal} dimensions évaluées ·{' '}
                   {result.meta.bulletin.ancrage.pagesAtteintes} page(s) consultée(s), {result.meta.bulletin.ancrage.sourcesCitees} citée(s) ·{' '}
-                  {result.meta.bulletin.production.moteursAboutis} moteur(s) abouti(s), {result.meta.bulletin.production.moteursEnIncident} en incident, {result.meta.bulletin.production.moteursSansObjet} sans objet
+                  {result.meta.bulletin.production.moteursAboutis} moteur(s) abouti(s),{' '}
+                  {/* Une panne et ses consequences ne se comptent pas ensemble : le
+                      total seul faisait lire un effondrement la ou il y a un point
+                      unique a reparer. Le champ moteursEnPanne date du 5 aout 2026,
+                      d ou le repli sur le total pour les notes anterieures. */}
+                  {Array.isArray(result.meta.bulletin.production.moteursEnPanne)
+                    ? `${result.meta.bulletin.production.moteursEnPanne.length} en panne${
+                        result.meta.bulletin.production.moteursParCascade > 0
+                          ? ` (${result.meta.bulletin.production.moteursParCascade} tombé(s) avec)`
+                          : ''
+                      }`
+                    : `${result.meta.bulletin.production.moteursEnIncident} en incident`}, {result.meta.bulletin.production.moteursSansObjet} sans objet
                 </div>
               </div>
             )}
