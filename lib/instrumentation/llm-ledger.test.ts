@@ -36,7 +36,8 @@ function check(cond: boolean, label: string) {
 
 const appel = (over: Partial<Parameters<typeof recordLlmCall>[0]> = {}) => ({
   model: 'claude-sonnet-4-6', durationMs: 1200, inputTokens: 900,
-  outputTokens: 400, maxTokens: 4000, failed: false, ...over,
+  outputTokens: 400, cacheWriteTokens: 0, cacheReadTokens: 0,
+  maxTokens: 4000, failed: false, ...over,
 });
 
 (async () => {
@@ -132,6 +133,31 @@ const appel = (over: Partial<Parameters<typeof recordLlmCall>[0]> = {}) => ({
       check(l.totalInputTokens === 350 && l.totalOutputTokens === 150, 'tokens cumules');
       check(l.byModel['claude-sonnet-4-6'] === 2, 'deux appels sur le modele principal');
       check(l.byModel['claude-haiku-4-5-20251001'] === 1, 'un appel sur le modele rapide');
+    });
+  }
+
+  // ============================================================
+  console.log('\n[Suite 5] les tokens de cache comptent a part');
+  // ============================================================
+
+  {
+    // Le PDF du dossier ne figure pas dans input_tokens : il passe par
+    // le cache. Un registre qui ignore ces deux champs rend un cout
+    // partiel qui a la forme d un cout total, et c est ce chiffre-la
+    // qui a fait ecrire « une vingtaine de dollars » pour un run a
+    // trois ou quatre. Les valeurs sont discriminantes : aucune des
+    // quatre grandeurs n est egale a une autre.
+    await withLlmLedger(async () => {
+      recordLlmCall(appel({ inputTokens: 11, outputTokens: 22, cacheWriteTokens: 236000, cacheReadTokens: 0 }));
+      recordLlmCall(appel({ inputTokens: 33, outputTokens: 44, cacheWriteTokens: 0, cacheReadTokens: 236000 }));
+      const l = readLlmLedger();
+      check(l.totalInputTokens === 44, `l entree pleine reste separee (${l.totalInputTokens})`);
+      check(l.totalCacheWriteTokens === 236000, `l ecriture de cache est comptee (${l.totalCacheWriteTokens})`);
+      check(l.totalCacheReadTokens === 236000, `la relecture de cache est comptee (${l.totalCacheReadTokens})`);
+      check(
+        l.totalCacheWriteTokens + l.totalCacheReadTokens > l.totalInputTokens * 1000,
+        'sur un dossier a PDF, le cache domine l entree pleine de trois ordres de grandeur',
+      );
     });
   }
 

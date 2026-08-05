@@ -65,6 +65,7 @@ import { createHash } from 'crypto';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import { withSourceHarvest, readSourceHarvest, harvestIsSilent } from '@/lib/data-fetchers/source-harvest';
 import { withSourceCapture, readSourceCapture } from '@/lib/instrumentation/source-capture';
+import { construireBulletin } from '@/lib/controle/bulletin';
 import { withLlmLedger, readLlmLedger, ledgerIsSilent } from '@/lib/instrumentation/llm-ledger';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
@@ -2113,6 +2114,19 @@ export async function POST(req: NextRequest) {
               // qui la remplacait etait un tag ecrit de memoire par le
               // modele, c est-a-dire rien.
               sourceCapture: readSourceCapture(),
+              // Releve par moteur du run. Il etait calcule ici depuis
+              // toujours, passe a computeMechanicalScore, et persiste
+              // dans zero run sur cinquante-deux : le rejeu retombait
+              // donc systematiquement sur la branche prevue pour les
+              // runs anterieurs a l instrumentation, qui recalcule la
+              // disponibilite sur les racines. Cette branche ancienne
+              // etait devenue la seule, et ce qu elle perd est
+              // exactement la distinction entre un moteur tombe et un
+              // moteur sans objet, a laquelle la doctrine consacre une
+              // section entiere. Le contrôleur de corpus a besoin de
+              // cette distinction pour ne pas compter une absence comme
+              // un incident.
+              engineStatuses: enginesRecorder.snapshot(),
               // asOf vivait en colonne as_of et dans le version stamp,
               // jamais dans result_json. Les consommateurs qui rejouent
               // un moteur deterministe cote client (recalcul valuation
@@ -2233,6 +2247,39 @@ export async function POST(req: NextRequest) {
             // sectorielle en fin de note.
             sectoralContext,
           };
+
+          // ============================================================
+          // BULLETIN DE FIABILITE
+          // ------------------------------------------------------------
+          // Ce que la note ne sait pas, ecrit par la note elle-meme.
+          //
+          // Il se construit ici, en dernier, parce qu il lit tout le
+          // reste : la couverture du score, la capture des sources,
+          // l audit des assertions, le releve par moteur, le journal de
+          // recolte, et le catalogue de proprietes que le controleur de
+          // corpus applique aux notes deja persistees. Les deux
+          // dispositifs partagent leur catalogue a dessein : une
+          // propriete ajoutee pour un defaut trouve dans une note
+          // ancienne devient le jour meme une reserve que toute note
+          // neuve porte si elle la viole.
+          //
+          // Il n attribue aucune note de confiance. Un chiffre unique
+          // cacherait ce qu il resume, et une note qui se decerne une
+          // bonne note ne vaut rien devant un fonds : ce qui se vend est
+          // l enumeration des reserves avec ce que chacune empeche
+          // d affirmer.
+          //
+          // Non bloquant par construction : une erreur de construction
+          // du bulletin ne doit pas emporter une note aboutie.
+          try {
+            (result as any).meta.bulletin = construireBulletin(result);
+          } catch (err: any) {
+            logException('pipeline.bulletin', err, {
+              severity: 'warning',
+              analysisId,
+              context: { phase: 'post-pipeline-bulletin' },
+            });
+          }
 
           // ============================================================
           // STATUT TERMINAL : COMPLETED

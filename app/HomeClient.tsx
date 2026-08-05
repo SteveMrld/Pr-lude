@@ -3529,6 +3529,40 @@ export default function HomeClient({
               />
             ) : (
               <>
+            {/* Bulletin de fiabilite : ce que la note ne sait pas, en tete et
+                avant tout le reste. Il ne decerne aucune note de confiance, il
+                enumere des reserves avec ce que chacune empeche d affirmer.
+                C est ce qu un fonds achete : un instrument qui dit ses limites
+                plutot qu un outil qui a toujours raison. */}
+            {result.meta?.bulletin && (
+              <div style={{
+                marginBottom: 18, padding: '14px 18px',
+                background: 'rgba(120, 140, 200, 0.07)',
+                border: '1px solid rgba(120, 140, 200, 0.28)',
+                borderRadius: 6, fontSize: 12,
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 8, letterSpacing: 0.2 }}>
+                  Ce que cette note ne sait pas
+                </div>
+                <div style={{ opacity: 0.9, lineHeight: 1.6, marginBottom: 10 }}>
+                  {result.meta.bulletin.reserves.length === 0
+                    ? 'Aucune réserve : toutes les dimensions du score sont évaluées, les moteurs ont abouti, et les affirmations extérieures au dossier sont adossées à des pages consultées.'
+                    : `${result.meta.bulletin.reserves.filter((r: any) => r.gravite === 'majeure').length} réserve(s) majeure(s) sur ${result.meta.bulletin.reserves.length}.`}
+                </div>
+                {result.meta.bulletin.reserves.map((r: any, i: number) => (
+                  <div key={i} style={{ marginBottom: 8, paddingLeft: 10, borderLeft: `2px solid ${r.gravite === 'majeure' ? 'rgba(220,80,60,0.5)' : 'rgba(255,255,255,0.18)'}` }}>
+                    <div style={{ fontWeight: 500 }}>{r.titre}</div>
+                    <div style={{ opacity: 0.72, lineHeight: 1.5 }}>{r.portee}</div>
+                  </div>
+                ))}
+                <div style={{ opacity: 0.6, marginTop: 10, lineHeight: 1.5 }}>
+                  {result.meta.bulletin.couverture.dimensionsEvaluees}/{result.meta.bulletin.couverture.dimensionsTotal} dimensions évaluées ·{' '}
+                  {result.meta.bulletin.ancrage.pagesAtteintes} page(s) consultée(s), {result.meta.bulletin.ancrage.sourcesCitees} citée(s) ·{' '}
+                  {result.meta.bulletin.production.moteursAboutis} moteur(s) abouti(s), {result.meta.bulletin.production.moteursEnIncident} en incident, {result.meta.bulletin.production.moteursSansObjet} sans objet
+                </div>
+              </div>
+            )}
+
             {/* Bandeau audit des assertions : signale les noms / dates / devises
                 non sources detectes mecaniquement dans les outputs des moteurs.
                 Si > 5 warnings, encadre rouge ; sinon encadre ambre discret. */}

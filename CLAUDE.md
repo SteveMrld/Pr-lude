@@ -254,7 +254,7 @@ lancement, deux commits n avaient touche que `docs/`. Le sha ne
 correspondait donc plus, et la regle demandait d arreter un run dont le
 code etait identique a l octet pres a celui qu elle protegeait : meme
 `enginesHash`, memes empreintes de prompts, memes hachages de fichiers
-sources. Elle aurait fait perdre vingt dollars et dix minutes pour une
+sources. Elle aurait fait perdre un run entier et dix minutes pour une
 divergence qui n existait pas.
 
 La faute est de prendre un identifiant pour la chose qu il designe. Un
@@ -851,8 +851,9 @@ lieu de surveillance.
 
 Trois regles, nees le 3 aout 2026 apres cinq runs complets dans la
 journee, dont deux ont servi a decouvrir qu un correctif ne faisait
-rien. Un run complet coute une vingtaine de dollars et dix minutes ;
-il ne doit plus servir a explorer.
+rien. Un run complet coute trois a quatre dollars et demi et dix
+minutes ; il ne doit plus servir a explorer, mais pas pour la raison
+qu on croyait.
 
 **Un correctif n est pas fait tant qu il n a pas ete exerce sur les
 donnees reelles du dernier run persiste.** Pas sur une fixture
@@ -868,14 +869,118 @@ ce qu on lui demande, elle ne prouve pas qu on lui a demande la bonne
 chose.
 
 **La stabilite se mesure moteur par moteur, hors ligne, jamais par le
-pipeline complet.** Rejouer l extraction seule trois fois sur un deck
-coute quelques centimes ; le pipeline entier coute vingt dollars pour
+pipeline complet.** Rejouer un moteur seul coute entre deux et quinze
+centimes, mediane six ; le pipeline entier coute plusieurs dollars pour
 la meme information, et il melange la variance du moteur mesure a
-celle de tous les autres. L outil est `scripts/engine-stability.ts`.
+celle de tous les autres. Les outils sont `scripts/engine-stability.ts`
+pour la dispersion et `scripts/banc-moteurs.ts` pour les relations.
 
 **Un run complet ne se lance que pour confirmer ce qui a deja ete
 etabli hors ligne, jamais pour explorer.** Si l on ne sait pas d avance
 ce que le run doit montrer, c est qu il ne faut pas le lancer.
+
+## Un dispositif qui ne conclut pas ne s accumule pas
+
+Un outil de verification qui rend un tableau plutot qu un verdict
+depense l attention qu il devait economiser. C est le critere de
+conception de tout ce qui s ajoute au dispositif, et il prime sur la
+finesse de la mesure.
+
+Le constat est du 5 aout 2026. Trois outils existaient pour eprouver le
+pipeline hors production et aucun ne portait d assertion.
+`engine-stability` rejoue un moteur N fois et rend une dispersion champ
+par champ. `replay-partial` reconstitue une note en recalculant les
+moteurs deterministes et rend un JSON. Les fixtures de calibration
+decrivent des attentes sur des dossiers de reference. Les trois sont
+justes, et les trois exigent une lecture humaine pour qu on sache si
+quelque chose ne va pas. Un defaut trouve par leur intermediaire coute
+donc autant a redetecter la fois suivante qu il a coute la premiere
+fois, et rien ne se capitalise.
+
+Une propriete, elle, se paie une fois. Elle s ecrit apres un defaut
+constate, elle rend rouge ou vert, et elle s evalue sur tout le corpus
+persiste a chaque passage sans qu on la relise. C est ce qui transforme
+une observation faite sur une note en un taux mesure sur toutes, et
+c est la seule question qui n etait jamais posee : ce defaut touche
+combien de notes.
+
+Trois exigences suivent, et la deuxieme est celle qu on oublie.
+
+Toute propriete porte le defaut constate dont elle est nee. Sans cela
+c est une intuition, et une intuition qui rougit fait perdre plus de
+temps qu elle n en fait gagner.
+
+Toute propriete est eprouvee sur le corpus AVANT d entrer, et son taux
+de faux positifs est mesure puis ecrit a cote d elle. Le cas type est du
+5 aout : la propriete « la recommandation cite au moins un driver »
+rendait dix violations sur cinquante, et les dix portaient le drapeau du
+repli degrade, qui fonctionnait exactement comme prevu. Cent pour cent
+de faux positifs, sur une propriete plausible ecrite en trois minutes,
+qui aurait fait chercher un defaut inexistant dans dix notes. Une autre,
+sur les patterns de fragilite, comparait une etiquette a un litteral
+ecrit a la main qui ne correspondait a rien dans les donnees : elle
+rendait soixante-dix-sept pour cent de violations, toutes fausses, et
+elle commettait exactement la faute qu elle avait ete ecrite pour
+traquer.
+
+Toute propriete declare ce qu elle lit, parce que ce qu une violation
+prouve en depend. Une propriete qui lit une sortie deterministe mesure
+le code d aujourd hui. Une propriete qui lit de la prose mesure le code
+du jour ou le run a eu lieu, et son taux global n a aucun sens : il se
+rend segmente par empreinte de code, faute de quoi on mesure l etat des
+notes anciennes en croyant mesurer le produit. C est la meme regle que
+pour la variance, ou deux runs a des commits differents ne sont pas deux
+tirages du meme systeme.
+
+Le dispositif est `lib/controle/`, et son catalogue sert deux
+consommateurs a dessein. Le controleur de corpus l applique aux notes
+persistees, hors ligne et sans cout. Le bulletin de fiabilite l applique
+a la note qu on vient de produire, et la note le porte en tete. Sans ce
+partage les deux divergeraient, et celui que le client lit serait le
+moins tenu des deux.
+
+## Ce que coute un run, et comment un chiffre faux s installe
+
+Un run complet coute entre trois et quatre dollars et demi, et dix
+minutes. Le goulet n est pas la facture, c est l attention : les dix
+minutes de calcul, puis la demi-heure de lecture qui les suit et qui est
+le veritable detecteur de defauts.
+
+Le chiffre precedent, une vingtaine de dollars, etait faux d un facteur
+cinq a huit. Il a ete ecrit le 3 aout 2026 dans la discipline de
+verification, et il a oriente deux jours de decisions : ce qu on
+s autorisait a lancer, ce qu on renoncait a verifier, et jusqu a la
+forme des dispositifs qu on envisageait de construire pour l eviter.
+Personne ne l a jamais mesure. Il est ne d une estimation faite une
+fois, plausible, jamais confrontee, et il a acquis l autorite d une
+donnee par sa seule presence dans un document de reference.
+
+C est le motif, et il vaut au-dela du cout. Une estimation ecrite dans
+un document qui fait autorite cesse d etre lue comme une estimation des
+le lendemain. Elle ne porte plus la marque de son incertitude, personne
+ne se souvient qu elle n a pas ete mesuree, et elle est reprise par
+celui qui la relit comme un fait etabli, y compris par son auteur. La
+difference avec une mesure fausse est que la mesure fausse laisse une
+methode qu on peut relire ; l estimation ne laisse rien, donc rien ne
+peut la contredire.
+
+Le releve du 5 aout : sept runs portent le registre d appels, qui rend
+entre 1,18 et 1,64 dollar de tokens hors cache pour dix-huit a vingt-deux
+appels, et entre 454 et 636 secondes de duree. Le registre ne comptait
+pas les tokens de cache, par ou passe le PDF du dossier ; le PDF de
+Woodpecker a ete mesure a deux cent trente-six mille tokens par
+`count_tokens`, qui est gratuit, et il est porte par quatre appels.
+Selon que le cache tient sur la duree du run, cela ajoute 1,10 a 2,84
+dollars. Les deux champs manquants ont ete ajoutes au registre le meme
+jour : le cout est desormais exact et non plus encadre.
+
+En pratique, trois exigences. Un chiffre qui oriente une decision se
+mesure avant d etre ecrit, ou il porte la mention qu il ne l a pas ete.
+Une estimation qui survit plus d une journee dans un document de
+reference doit etre soit mesuree soit retiree. Et quand l instrument de
+mesure existe deja mais ne couvre qu une part de la grandeur, comme ce
+registre qui ignorait le cache, ce n est pas une approximation : c est un
+chiffre juste sur une part qui se lit comme un chiffre sur le tout.
 
 ## Ce qui fonde une conclusion n est pas toujours ce qui l accompagne
 

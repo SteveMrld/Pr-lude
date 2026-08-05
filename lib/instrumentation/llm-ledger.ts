@@ -43,8 +43,28 @@ export interface LlmCallRecord {
   model: string;
   /** Duree de l appel reseau seul, en ms. */
   durationMs: number;
+  /**
+   * Tokens d entree factures au plein tarif. Ce champ ne porte PAS les
+   * tokens caches : l API les compte a part, et un registre qui ignore
+   * cette part rend un cout qui ressemble a un cout sans en etre un.
+   */
   inputTokens: number;
   outputTokens: number;
+  /**
+   * Tokens ecrits dans le cache par cet appel, factures 1,25 fois le
+   * tarif d entree, et tokens relus du cache, factures 0,1 fois.
+   *
+   * Ils manquaient, et leur absence n etait pas neutre. Le pipeline
+   * envoie le PDF du dossier a quatre appels, et un memorandum de cent
+   * vingt-deux pages pese deux cent trente-six mille tokens, mesures le
+   * 5 aout 2026 par count_tokens. Le registre rendait 1,62 dollar par
+   * run Woodpecker et le cout reel se situe entre trois et quatre
+   * dollars et demi selon que le cache tient sur les dix minutes du run.
+   * Un chiffre juste sur une part du cout est un chiffre faux sur le
+   * cout, et il a servi a decider.
+   */
+  cacheWriteTokens: number;
+  cacheReadTokens: number;
   /** Plafond demande, quand l appelant en a pose un. */
   maxTokens: number | null;
   /** True quand l appel a leve. Les tokens sont alors a zero. */
@@ -59,6 +79,8 @@ export interface LlmLedger {
   failedCalls: number;
   totalInputTokens: number;
   totalOutputTokens: number;
+  totalCacheWriteTokens: number;
+  totalCacheReadTokens: number;
   totalDurationMs: number;
   /** Nombre d appels par modele, pour lire d un coup la repartition
    *  entre le modele principal et le rapide. */
@@ -94,11 +116,13 @@ export function recordLlmCall(record: LlmCallRecord): void {
 export function readLlmLedger(): LlmLedger {
   const calls = storage.getStore()?.calls ?? [];
   const byModel: Record<string, number> = {};
-  let inTok = 0, outTok = 0, dur = 0, failed = 0;
+  let inTok = 0, outTok = 0, wTok = 0, rTok = 0, dur = 0, failed = 0;
   for (const c of calls) {
     byModel[c.model] = (byModel[c.model] ?? 0) + 1;
     inTok += c.inputTokens;
     outTok += c.outputTokens;
+    wTok += c.cacheWriteTokens ?? 0;
+    rTok += c.cacheReadTokens ?? 0;
     dur += c.durationMs;
     if (c.failed) failed++;
   }
@@ -108,6 +132,8 @@ export function readLlmLedger(): LlmLedger {
     failedCalls: failed,
     totalInputTokens: inTok,
     totalOutputTokens: outTok,
+    totalCacheWriteTokens: wTok,
+    totalCacheReadTokens: rTok,
     totalDurationMs: dur,
     byModel,
   };

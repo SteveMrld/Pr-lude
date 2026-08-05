@@ -131,6 +131,11 @@ function instrumenter(client: Anthropic): Anthropic {
         durationMs: Date.now() - startedAt,
         inputTokens: response?.usage?.input_tokens ?? 0,
         outputTokens: response?.usage?.output_tokens ?? 0,
+        // Le PDF du dossier passe par le cache et ne figure pas dans
+        // input_tokens. Sans ces deux champs le registre rend un cout
+        // partiel qui a la forme d un cout total.
+        cacheWriteTokens: response?.usage?.cache_creation_input_tokens ?? 0,
+        cacheReadTokens: response?.usage?.cache_read_input_tokens ?? 0,
         maxTokens: typeof params?.max_tokens === 'number' ? params.max_tokens : null,
         failed: false,
       });
@@ -141,6 +146,8 @@ function instrumenter(client: Anthropic): Anthropic {
         durationMs: Date.now() - startedAt,
         inputTokens: 0,
         outputTokens: 0,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
         maxTokens: typeof params?.max_tokens === 'number' ? params.max_tokens : null,
         failed: true,
         error: String(err?.message ?? err ?? 'erreur inconnue').slice(0, 200),
