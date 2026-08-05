@@ -166,6 +166,76 @@ que sur un corpus rejoue.
 
 ---
 
+## Les dix sources qui nomment un document sans l'identifier
+
+Ouvert le 5 aout 2026, sur le lot 1 de collecte `ecommerce-dtc`. Se
+fermera quand les entites francaises seront traitees au format v1.0 du
+referentiel juridique.
+
+Sur les trente-deux refus de source du lot, vingt-deux annoncent une
+collecte a faire et partent en collecte. Les dix autres sont d'une autre
+nature : elles nomment un type de document sans l'identifier. « comptes
+agreges » sur les trois series de Cabaia, « comptes » sur Omie et
+Matches, « jugement » sur Poulehouse, « communique d'offre » sur About
+You.
+
+**Elles ne se ferment pas par un recollage** parce que la question
+qu'elles posent n'est pas ou trouver le document, c'est de quelle entite
+il est. Cabaia publie sous Valtex, Sezane sous Benda Bili, Typology sous
+Good Brands, Omie sous Foodyssey. « Les comptes de Cabaia » ne designe
+rien tant que Valtex n'est pas nomme, et chercher sous le nom commercial
+rend soit rien, soit les comptes d'une homonyme. Le referentiel juridique
+recense quatre entites candidates pour Missguided, dont une qui porte le
+nom de la marque et depose des comptes dormants : la selectionner aurait
+produit une serie vide ayant l'apparence d'une serie.
+
+Ce qui les fermera : `LEGAL_ENTITY` avec le registre et le numero,
+`ENTITY_BRAND_LINK` date entre la marque et l'entite, `REPORTING_SCOPE`
+pour distinguer social et consolide, et la reference `SOURCE` au niveau
+du fait. Les huit francaises ont leur perimetre juridique identifie et
+attendent leur mise au format v1.0, ce qui est la premiere etape du
+chantier corpus.
+
+Quatre du lot sont deja tombees a six : la reprise du 5 aout a nomme le
+communique Next, le communique Frasers et le document d'offre Zalando,
+qui etaient identifiables sans registre. Les six qui restent sont
+exactement les comptes deposes de societes francaises.
+
+---
+
+## Classe candidate : `retail-specialise`
+
+Ouverte le 5 aout 2026. Chiffree, non arbitree.
+
+Jimmy Fairly fait quatre-vingt-treize pour cent de son chiffre en
+boutique. Ce n'est ni de la vente directe en ligne, ni un service aux
+entreprises : c'est du commerce de detail specialise grand public, et le
+catalogue ne porte aucune classe pour cela. Les vingt et une existantes
+sont des classes de modele economique ou de secteur technologique, et la
+seule qui touche au commerce suppose la vente directe en ligne.
+
+**Ce que la classe couterait : neuf cellules a mesurer.** Quatre
+multiples sectoriels par stade, quatre seuils de KPI par stade, une
+sortie de reference. Plus un seau de comparables dans la correspondance,
+avec sa raison. Aucune de ces neuf valeurs n'existe aujourd'hui.
+
+**Pourquoi elle n'a pas ete ouverte.** Les inventer serait exactement la
+precision inventee qui vient d'etre retiree de `baseExits` : dix valeurs
+rondes pour vingt et une classes, posees a la main avec une source citee
+a cote. Un second defaut ne repare pas le premier.
+
+En attendant, Jimmy Fairly reste en `ecommerce-dtc` avec un piege qui
+dit que la classe est conservee faute de mieux et non parce qu'elle
+decrit le dossier. Le piege est faible et on le sait : le filtre de seau
+ne lit pas la prose. Il est vrai, ce que neuf cellules inventees ne
+seraient pas.
+
+La classe s'ouvre le jour ou une collecte peut financer ses neuf
+cellules, et pas avant. Deux dossiers du corpus la concerneraient
+aujourd'hui.
+
+---
+
 ## Deux lectures en attente, apres ce qui est engage
 
 Ouvertes le 5 aout 2026. Ce ne sont pas des dettes mais deux relevés a

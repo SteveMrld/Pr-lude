@@ -578,6 +578,79 @@ et l extrait. Pour un nombre c est le chiffre tel qu il est ecrit. Dans
 les deux cas, la reponse « non » ne demande pas de couper l acquisition,
 elle demande d ecrire la capture.
 
+## Un palliatif sur un axe qui ne se lit nulle part fabrique l autorite qu on vient de retirer
+
+Toutes les lacunes ne se comblent pas a moitie. Quand une information
+n existe sous aucune forme dans les donnees, un palliatif ne la degrade
+pas, il l invente, et il l invente avec l apparence d une mesure.
+
+La regle est nee le 5 aout 2026 de la comparaison entre deux axes qui
+paraissaient jumeaux. Les 124 fiches de comparables ne portent ni devise
+ni referentiel comptable, et les deux manques ont recu des reponses
+opposees.
+
+La devise a recu un palliatif, parce qu elle se lit. Un montant ecrit
+« ~615k$ » porte son symbole ; la marque se derive du texte, elle ne
+s invente pas, et le releve rend 111 fiches en dollars, 10 en euros, 2
+melangees et 5 illisibles. Les cinq illisibles sont marquees comme
+telles et leurs chiffres interdits de citation. Le palliatif degrade une
+information existante, il n en cree aucune.
+
+Le referentiel comptable n en a pas recu, parce qu il ne se lit nulle
+part. Aucun caractere d une fiche ne dit si un chiffre d affaires est en
+French GAAP, en IFRS, en UK GAAP ou en HGB. Ecrire « French GAAP » sur
+une fiche francaise par defaut serait une deduction depuis le pays, donc
+une identite supposee, et une identite supposee est indiscernable d une
+identite vraie tant que personne ne la verifie. Elle fabriquerait
+exactement l autorite que le retrait de la mention Crunchbase venait
+d enlever a une autre table le meme jour.
+
+Le silence, lui, se voit comme un silence. Un champ absent se remarque ;
+un champ rempli par defaut ne se remarque jamais, et c est toute la
+difference. Le premier laisse la question ouverte, le second la ferme
+sans l avoir posee.
+
+Le critere se formule sans son cas. Avant d ecrire un palliatif, demander
+si l information existe deja quelque part dans les donnees, meme sous
+une forme degradee. Si oui, le palliatif la revele et il est bon. Si
+non, il la produit, et ce qu il produit sera lu comme ce qu on aurait
+mesure.
+
+## La divergence entre deux lectures est le seul detecteur qui n a besoin d aucune source
+
+Quand aucune source ne permet de trancher, le desaccord entre deux
+lectures independantes du meme fait reste un signal, et c est souvent le
+seul.
+
+Le cas vient de la collecte de comparables du 5 aout 2026. Trois modeles
+ont ete interroges sur le meme prompt, sans qu aucun puisse etre verifie
+contre un registre. Le croisement de deux d entre eux a rendu sept
+lignes de verification prioritaire pour un cout nul : la devise de
+Typology, 10 M$ ou 10 M€ ; la structure de la serie A d Omie, quinze
+millions tout capital ou douze plus trois de dette ; l annee de
+fondation de Sezane, 2011 ou 2013.
+
+C est la meme forme que le desaccord comme seul organe de mesure d un
+test. Une fixture ecrite dans le meme systeme de croyance que le code
+qu elle teste mesure leur accord et non la justesse ; deux ecritures de
+la meme hypothese ne produisent aucun signal. Ici, deux lectures
+independantes en produisent un, et il porte exactement la ou l invention
+a eu lieu.
+
+Deux consequences pratiques.
+
+Le conflit se conserve, il ne s arbitre pas. Trancher au hasard entre
+10 M$ et 10 M€ detruirait le signal et fabriquerait une precision que ni
+l une ni l autre des lectures ne fonde. La ligne reste hors de la base
+tant que le conflit tient, et le conflit s ecrit dans son propre champ,
+jamais dans celui qui doit porter une preuve.
+
+L accord entre deux lectures ne prouve rien. Deux modeles peuvent se
+tromper de la meme facon, surtout sur une erreur repandue dans leur
+corpus commun, et c est precisement le cas ou une fiche a besoin de son
+champ de pieges. Le desaccord est un detecteur, l accord n est pas une
+confirmation.
+
 ## Une source citee a cote d un nombre n etablit pas que le nombre en vient
 
 La proximite typographique n est pas une provenance. Un commentaire qui
