@@ -3563,6 +3563,11 @@ export default function HomeClient({
                       <strong>{result.assertionAudit.byCategory.invented_date}</strong> date{result.assertionAudit.byCategory.invented_date > 1 ? 's' : ''} sans correspondance pitch
                     </span>
                   ) : null}
+                  {result.assertionAudit.byCategory.source_non_capturee ? (
+                    <span style={{ marginRight: 14 }}>
+                      <strong>{result.assertionAudit.byCategory.source_non_capturee}</strong> renvoi{result.assertionAudit.byCategory.source_non_capturee > 1 ? 's' : ''} à une source extérieure qu&apos;aucune page atteinte ne porte
+                    </span>
+                  ) : null}
                 </div>
                 <details style={{ marginTop: 10 }}>
                   <summary style={{ cursor: 'pointer', fontSize: 11, opacity: 0.7 }}>Voir le détail</summary>

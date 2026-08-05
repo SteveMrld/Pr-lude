@@ -703,6 +703,75 @@ l arbitrage se tranche et s ecrit, avec ce qu il coute au perdant. Ce
 qu on ne veut a aucun prix, c est qu il soit rendu par le hasard de
 l ordre des commits.
 
+## Acquerir un fait, ou dependre de sa disponibilite
+
+Le reseau et la reproductibilite ne s opposent pas. Ce qui s oppose est
+l acquisition d un fait et la dependance a sa disponibilite. Confondre
+les deux fait renoncer a l acquisition pour sauver une reproductibilite
+qu on n avait deja plus.
+
+La question posee le 5 aout 2026 etait de savoir s il fallait couper la
+recherche web pour qu un run soit rejouable. Elle etait mal posee. Un run
+qui interroge le reseau acquiert un fait, et un fait acquis ne redevient
+pas incertain parce que sa source a change depuis. Ce qui rend un run
+irrejouable n est pas d etre alle chercher, c est de n avoir rien
+rapporte de sa recherche.
+
+Le cas est le plus grave rencontre jusqu ici, parce que le dispositif
+fautif avait exactement la forme de celui qui manquait. La plateforme
+rendait, a cote de la prose, les pages reellement atteintes avec leur
+adresse et leur titre, et les citations rattachant un passage du texte a
+une page avec l extrait cite. `callClaude` ne gardait que les blocs de
+texte, les concatenait, retirait les balises de citation pour que la note
+ne les affiche pas, et jetait tout le reste au retour. La tracabilite
+arrivait et le pipeline la detruisait. Ce qui la remplacait etait une
+declaration du modele sur sa propre source, produite sur instruction du
+prompt : « mentionne brievement la source si tu peux la reconstituer ».
+Un tag `[web : crunchbase]` n a donc jamais ete une source. C est un
+souvenir, invérifiable par construction, et il avait la forme d une
+preuve. Le releve sur quarante analyses persistees rend cinquante-deux
+mille tags de provenance, dont quinze mille quatre cents annoncent une
+lecture web, et zero run portant la moindre URL.
+
+La regle se formule sans son cas. Une acquisition se capture au moment ou
+elle a lieu, avec ce qui permet de la reconnaitre plus tard : l identite
+de ce qui a ete lu, la date de la lecture, et l extrait sur lequel la
+conclusion repose. Capturee ainsi, elle cesse de dependre de la
+disponibilite de sa source : la page peut disparaitre, le fait reste
+opposable parce que la lecture est datee et citee. Non capturee, elle
+depend de sa source pour toujours, et une source ne repond pas deux fois
+la meme chose.
+
+Trois exigences suivent, et la premiere est celle qu on oublie. La
+capture vit a cote de la prose et non dedans, parce qu une trace logee
+dans le texte se retrouve un jour en collision avec le rendu, et que le
+rendu gagne toujours. Une instruction qui demande au modele de
+reconstituer sa provenance se retire, parce qu elle produit une
+affirmation de plus a verifier tout en donnant a croire que la
+tracabilite existe. Et une revendication de lecture que la capture ne
+porte pas devient non fondee, traitee comme telle par le controle : la
+propriete observable remplace la declaration, faute de quoi le tag
+continue de tenir lieu de preuve par la seule force de son apparence.
+
+Le corollaire est ce qu on promet au fonds, et il se dit plutot qu il ne
+se cache. Deux runs ouverts lances en meme temps peuvent trouver des
+choses differentes, parce que le monde bouge entre les deux et que c est
+exactement ce qu on leur demande. Ce qui est promis n est donc pas
+l identite des tirages, c est la verifiabilite du tirage rendu : tout
+fait exterieur porte l adresse d ou il vient, la date ou il a ete lu et
+le passage cite, et le fonds peut refaire le chemin. C est ce qu une due
+diligence teste, et c est tenable. Promettre l identite ne l est pas, et
+la promettre quand meme se paie au premier controle.
+
+La regle deborde les sources web, et c est la raison de l ecrire ici
+plutot que dans le module. Elle vaut pour toute donnee que le systeme va
+chercher ailleurs que dans le dossier : un registre d entreprises
+interroge, un cours releve, un document telecharge, la sortie d un moteur
+qu on ne rejouera pas. Le test est le meme partout : si la source
+disparaissait demain, resterait-il de quoi etablir ce qu elle a dit.
+Quand la reponse est non, ce n est pas la source qu il faut couper, c est
+la capture qu il faut ecrire.
+
 ## Discipline de provenance
 
 Une mention de provenance ne doit jamais etre la seule chose qui

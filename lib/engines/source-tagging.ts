@@ -11,6 +11,24 @@
 // Solution : imposer au LLM un tagging systematique a la fin de chaque
 // assertion factuelle, avec validation post-LLM qui flagge les outputs
 // faiblement tagges.
+//
+// LIMITE DU DISPOSITIF, ETABLIE LE 5 AOUT 2026
+//
+// Un tag est une declaration du modele sur sa propre lecture, et une
+// declaration n est pas une preuve. L instruction demandait en plus au
+// modele de nommer sa source « s il peut la reconstituer », ce qui
+// produisait des `[web : crunchbase]` invérifiables ayant exactement la
+// forme d une reference. Pendant ce temps la plateforme recevait de
+// vraies URL avec de vrais extraits cites, et les jetait au retour de
+// callClaude. La tracabilite arrivait et le pipeline la detruisait ;
+// ce qui la remplacait etait un souvenir.
+//
+// L instruction de reconstitution est retiree. Ce qui vaut preuve est
+// desormais la capture (lib/instrumentation/source-capture), relevee sur
+// la reponse entiere et persistee a cote de la prose. Le tag garde son
+// role, qui est de dire de quel registre releve une assertion ; il ne
+// tient plus lieu de reference.
+
 
 export const SOURCE_TAGGING_INSTRUCTION = `
 # CONTRAINTE STRICTE DE TAGGING DES SOURCES (NIVEAU 2.B)
@@ -25,10 +43,14 @@ Trois tags autorises et trois seulement :
   par la societe). Tu peux preciser la page si pertinent : [pitch p.4].
 
 - [web] : l information vient d une recherche web effectuee pendant
-  cette analyse. Mentionne brievement la source si tu peux la
-  reconstituer : [web : crunchbase], [web : presse], [web : openalex],
-  [web : github], [web : registres entreprises]. Si la source exacte
-  est imprecise, tagger simplement [web] reste acceptable.
+  cette analyse. Tagger [web] suffit et c est la forme attendue. Ne
+  reconstitue jamais le nom de la source de memoire : la provenance
+  exacte est relevee par la plateforme sur les pages reellement
+  atteintes, avec leur adresse, leur titre, la date de consultation et
+  l extrait cite. Un nom que tu reconstituerais serait une affirmation
+  de plus a verifier, pas une source, et il aurait la forme d une
+  preuve. Si tu n as pas effectivement lu une page pendant cette
+  analyse, l information n est pas [web].
 
 - [inference] : l information est une deduction logique a partir du
   pitch ou du web, mais elle n est pas DIRECTEMENT extraite. Exemple :

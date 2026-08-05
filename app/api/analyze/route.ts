@@ -64,6 +64,7 @@ import { createEngineLogCallbacks } from '@/lib/orchestrator/engine-log-callback
 import { createHash } from 'crypto';
 import { deriveDossierReferenceYearWithReason } from '@/lib/analysis/reference-year';
 import { withSourceHarvest, readSourceHarvest, harvestIsSilent } from '@/lib/data-fetchers/source-harvest';
+import { withSourceCapture, readSourceCapture } from '@/lib/instrumentation/source-capture';
 import { withLlmLedger, readLlmLedger, ledgerIsSilent } from '@/lib/instrumentation/llm-ledger';
 import { getAuthenticatedContext, isAuthEnabled } from '@/lib/auth';
 import { dispatchSlackNotifications } from '@/lib/slack-dispatch';
@@ -489,12 +490,18 @@ export async function POST(req: NextRequest) {
         // Tout le pipeline s execute a l interieur, donc chaque
         // interrogation de source y est enregistree sans qu aucun
         // moteur n ait a transmettre quoi que ce soit.
-        // Deux registres a portee de run, ouverts ensemble : la
-        // recolte des sources externes et les appels au modele. Le
-        // pipeline entier s execute dedans, donc tout appel y est
-        // enregistre sans qu aucun moteur ait a transmettre de
-        // collecteur.
-        return withLlmLedger(async () => withSourceHarvest(async () => {
+        // Trois registres a portee de run, ouverts ensemble : la
+        // recolte des sources externes, les appels au modele et la
+        // capture des pages web atteintes. Le pipeline entier s execute
+        // dedans, donc tout appel y est enregistre sans qu aucun moteur
+        // ait a transmettre de collecteur.
+        //
+        // La capture doit envelopper l audit des assertions autant que
+        // les appels : le validateur l interroge pour savoir si une
+        // revendication de lecture externe repose sur quelque chose.
+        // Fermee trop tot, elle rendrait une capture vide hors run, donc
+        // aucun signalement, ce qui est le pire des trois etats.
+        return withLlmLedger(async () => withSourceHarvest(async () => withSourceCapture(async () => {
 
         // Capture des startedAt par moteur pour calculer la duree a l envoi
         // de l event done. Permet aussi d emettre la duree dans le payload
@@ -2039,6 +2046,22 @@ export async function POST(req: NextRequest) {
             if (allWarnings.length > 0) {
               console.warn(`[assertion-audit] ${allWarnings.length} warnings across engines:`, byCategory);
             }
+
+            // Une capture vide n est pas un incident en soi : un run gele
+            // n atteint aucune page et c est ce qu on lui demande. Ce qui
+            // en est un, c est une capture vide sous une prose qui
+            // revendique quand meme des lectures exterieures. Le run
+            // affirme alors avoir lu ce qu il n a pas lu, et le cas doit
+            // se voir plutot que de reposer sur la lecture d un champ que
+            // personne n ouvre.
+            const revendicationsSansCapture = byCategory.source_non_capturee ?? 0;
+            if (revendicationsSansCapture > 0) {
+              logException(
+                'api.analyze.source-capture-absente',
+                new Error(`${revendicationsSansCapture} assertion(s) revendiquent une lecture exterieure alors qu aucune page n a ete atteinte pendant ce run. La provenance annoncee est une reconstitution du modele, pas une source.`),
+                { severity: 'warning', analysisId },
+              );
+            }
           } catch (err: any) {
             logException('pipeline.assertion-audit', err, {
               severity: 'warning',
@@ -2082,6 +2105,14 @@ export async function POST(req: NextRequest) {
               // point de passage unique, donc exhaustif par
               // construction et non par discipline.
               llmLedger: readLlmLedger(),
+              // Capture des pages web reellement atteintes : adresse,
+              // titre, date de consultation, extrait cite. Elle vit ici,
+              // a cote de la prose et non dedans, parce que deux
+              // exigences se disputaient les memes caracteres et que le
+              // rendu avait emporte l auditabilite sans arbitrage. Ce
+              // qui la remplacait etait un tag ecrit de memoire par le
+              // modele, c est-a-dire rien.
+              sourceCapture: readSourceCapture(),
               // asOf vivait en colonne as_of et dans le version stamp,
               // jamais dans result_json. Les consommateurs qui rejouent
               // un moteur deterministe cote client (recalcul valuation
@@ -2482,7 +2513,7 @@ export async function POST(req: NextRequest) {
           }
           try { controller.close(); } catch { /* deja close */ }
         }
-        })); // fin de withLlmLedger et withSourceHarvest : les deux portees se referment avec le run
+        }))); // fin de withLlmLedger, withSourceHarvest et withSourceCapture : les trois portees se referment avec le run
       },
     });
 

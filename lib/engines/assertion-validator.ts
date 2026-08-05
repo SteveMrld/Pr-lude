@@ -15,6 +15,7 @@
 // un output partiellement valide avec audit qu un crash.
 
 import type { ExtractionOutput } from './types';
+import { aucunePageAtteinte } from '../instrumentation/source-capture';
 
 // =============================================================================
 // LISTES DE NOMS AUTORISES
@@ -347,6 +348,87 @@ export function tagEnglobant(text: string, from: number): string | null {
   return text.slice(ouverture, fermeture + 1);
 }
 
+// ============================================================
+// UN TAG N EST PAS UNE SOURCE TANT QUE LA CAPTURE NE LE PORTE PAS
+// ------------------------------------------------------------
+// Le releve du 5 aout 2026. Un tag `[web : crunchbase]` etait accepte
+// comme provenance depuis l origine, alors qu il est produit par le
+// modele sur instruction du prompt : « mentionne brievement la source si
+// tu peux la reconstituer ». Une chaine ecrite de memoire ne peut pas
+// fonder ce qu elle accompagne, et elle avait exactement la forme d une
+// preuve.
+//
+// La propriete observable remplace la declaration. La capture du run
+// (lib/instrumentation/source-capture) porte les pages reellement
+// atteintes. Quand elle est vide, aucun appel du run n a lu quoi que ce
+// soit sur le reseau, donc aucune revendication de lecture externe ne
+// repose sur une lecture : le tag redevient ce qu il est, un souvenir,
+// et l assertion qu il accompagne est non fondee.
+//
+// La granularite est celle du run et non celle du moteur, parce que le
+// point de prelevement est le client, qui ne connait pas l appelant.
+// C est donc un plancher : une capture pleine n etablit pas que cette
+// assertion-ci vient d une page atteinte, elle etablit seulement que
+// des pages l ont ete. C est le cas vide qui tranche, et il couvre ce
+// qui compte aujourd hui, le run gele et le moteur a zero hop.
+
+/**
+ * Les provenances que la requete elle-meme porte, et elles seules.
+ *
+ * Liste d arbitrage, datee du 5 aout 2026, et non inventaire : son
+ * contenu ne se deduit d aucune propriete des donnees, il se decide.
+ * Une requete au modele transporte trois choses dont il peut tirer une
+ * assertion sans rien lire au dehors : le document instruit (`pitch`),
+ * son propre raisonnement (`inference`), et le corpus doctrinal inscrit
+ * dans les prompts (`corpus`). Toute autre provenance revendique une
+ * lecture qui a eu lieu ailleurs, donc qui doit se constater.
+ */
+const PROVENANCES_PORTEES_PAR_LA_REQUETE = new Set([
+  'pitch', 'inference', 'inférence', 'corpus',
+]);
+
+/**
+ * True quand le tag revendique une lecture faite hors de la requete.
+ *
+ * Meme lecture structurelle que `tagNommeUneSourceExterne`, un cran plus
+ * stricte : une seule clause suffit, et le premier mot de la clause est
+ * confronte aux provenances internes.
+ *
+ * Une clause sans lettre ne nomme rien et ne revendique donc rien. Le
+ * releve du 5 aout 2026 sur quarante analyses persistees a rendu
+ * cinquante-deux mille groupes de crochets, dont environ mille sept
+ * cents purement numeriques : `[0]`, `[1]`, `[2029]`, `[3]`. Ce sont des
+ * crochets de prose et non des declarations de provenance, et les
+ * compter aurait fait signaler une annee entre crochets comme une source
+ * exterieure non capturee. La regle porte sur la presence d une lettre,
+ * propriete des donnees, plutot que sur un inventaire des formes vues.
+ */
+export function tagRevendiqueUneLectureExterne(tag: string): boolean {
+  const contenu = tag.replace(/^\[|\]$/g, '').trim();
+  if (!contenu) return false;
+  return contenu
+    .split(CONNECTEURS)
+    .some((clause) => {
+      const premier = (clause.trim().split(/[\s:,]+/)[0] ?? '').toLowerCase();
+      // Classe explicite plutot que \p{L} : la cible de compilation du
+      // depot est anterieure a es6 et refuse les proprietes unicode.
+      if (premier.length === 0 || !/[a-zÀ-ɏ]/i.test(premier)) return false;
+      return !PROVENANCES_PORTEES_PAR_LA_REQUETE.has(premier);
+    });
+}
+
+/**
+ * Les tags du segment qui peuvent encore fonder quelque chose.
+ *
+ * Sans capture ouverte, tous : hors d un run on ignore ce qui a ete lu,
+ * et une precision non donnee ne doit pas produire une severite qu elle
+ * ne fonde pas.
+ */
+function tagsFondants(tags: string[]): string[] {
+  if (!aucunePageAtteinte()) return tags;
+  return tags.filter((t) => !tagRevendiqueUneLectureExterne(t));
+}
+
 /**
  * True quand une source est declaree pour ce qui commence a `from`.
  *
@@ -370,7 +452,7 @@ export function porteUnTagDeSource(
   // etabli, il dit ou l on a lu.
   if (tagEnglobant(text, from) !== null) return true;
   const segment = text.slice(from, finDeSegment(text, from));
-  const tags = tagsDe(segment);
+  const tags = tagsFondants(tagsDe(segment));
   if (tags.length === 0) return false;
   return avecPitch ? true : tags.some(tagNommeUneSourceExterne);
 }
@@ -380,11 +462,68 @@ export function porteUnTagDeSource(
 // =============================================================================
 
 export interface ValidationWarning {
-  category: 'unknown_name' | 'currency_mismatch' | 'invented_date' | 'unsupported_claim';
+  category:
+    | 'unknown_name'
+    | 'currency_mismatch'
+    | 'invented_date'
+    | 'unsupported_claim'
+    | 'source_non_capturee';
   severity: 'critical' | 'warning' | 'info';
   field: string; // chemin dans l output, ex 'redFlags[2]'
   message: string;
   excerpt: string; // extrait du texte concerne
+}
+
+/**
+ * Les tags d un texte avec la position de leur crochet ouvrant.
+ *
+ * Meme pile que `tagsDe`, qui ne rend que le contenu : le controle des
+ * revendications de lecture a besoin de savoir ou le tag se trouve pour
+ * rendre le segment qu il pretend fonder.
+ */
+function tagsAvecPosition(text: string): Array<{ tag: string; debut: number; fin: number }> {
+  const groupes: Array<{ tag: string; debut: number; fin: number }> = [];
+  const pile: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '[') { pile.push(i); continue; }
+    if (text[i] === ']' && pile.length > 0) {
+      const debut = pile.pop()!;
+      groupes.push({ tag: text.slice(debut, i + 1), debut, fin: i });
+    }
+  }
+  return groupes;
+}
+
+/**
+ * Signale les revendications de lecture externe que la capture du run ne
+ * porte pas.
+ *
+ * Les trois controles historiques ne se declenchent que sur un nom
+ * propre, un montant en devise etrangere ou une annee. Une assertion
+ * taguee `[web]` qui ne porte aucun des trois passait donc sans bruit,
+ * et c est le cas majoritaire. Le signalement doit exister par lui-meme,
+ * faute de quoi le retrait du tag comme preuve ne changerait rien a ce
+ * que le lecteur voit.
+ *
+ * Inerte hors run et inerte des qu une page a ete atteinte : ce controle
+ * ne cherche pas a savoir si l assertion vient de la bonne page, ce que
+ * le point de prelevement ne permet pas de dire. Il tranche le seul cas
+ * ou la reponse est certaine.
+ */
+export function findSourcesNonCapturees(text: string, field: string): ValidationWarning[] {
+  if (!text || !aucunePageAtteinte()) return [];
+  const warnings: ValidationWarning[] = [];
+  for (const { tag, debut, fin } of tagsAvecPosition(text)) {
+    if (!tagRevendiqueUneLectureExterne(tag)) continue;
+    warnings.push({
+      category: 'source_non_capturee',
+      severity: 'critical',
+      field,
+      message: `Le tag ${tag} revendique une lecture exterieure au dossier, alors qu aucune page n a ete atteinte pendant ce run. La provenance n est donc pas constatee : l assertion repose sur une reconstitution du modele et non sur une source. La retirer ou la retrograder en [inference].`,
+      excerpt: text.slice(debutDeSegment(text, debut), Math.min(text.length, fin + 1)).slice(-220),
+    });
+  }
+  return warnings;
 }
 
 // Detecte les noms propres dans un texte qui ne sont pas dans la liste
@@ -645,6 +784,7 @@ export function auditAssertions(
         allWarnings.push(...findCurrencyMismatch(node, pitchCurrency, path));
       }
       allWarnings.push(...findInventedDates(node, pitchYears, path));
+      allWarnings.push(...findSourcesNonCapturees(node, path));
       return;
     }
     if (Array.isArray(node)) {

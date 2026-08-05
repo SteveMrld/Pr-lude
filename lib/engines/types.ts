@@ -1162,7 +1162,12 @@ export interface OrchestratedResult {
     bySeverity: Record<string, number>;
     warnings: Array<{
       engine: string;
-      category: 'unknown_name' | 'currency_mismatch' | 'invented_date' | 'unsupported_claim';
+      category:
+        | 'unknown_name'
+        | 'currency_mismatch'
+        | 'invented_date'
+        | 'unsupported_claim'
+        | 'source_non_capturee';
       severity: 'critical' | 'warning' | 'info';
       field: string;
       message: string;

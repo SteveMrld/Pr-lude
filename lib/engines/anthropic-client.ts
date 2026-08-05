@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { recordLlmCall } from '../instrumentation/llm-ledger';
+import { recordWebSources } from '../instrumentation/source-capture';
 
 let _client: Anthropic | null = null;
 
@@ -105,6 +106,13 @@ export function getClient(): Anthropic {
  * re-leve, de sorte qu un appel qui echoue ne disparaisse pas du
  * registre, ce que l ancienne mesure par addCall faisait puisqu elle
  * n etait appelee qu apres un retour reussi.
+ *
+ * C est aussi ici que les sources web sont capturees, et pour la meme
+ * raison que la mesure : c est le seul endroit qui voit la reponse
+ * entiere. Les helpers exportes ne gardent que les blocs `text` et
+ * jettent tout le reste au retour, y compris les URL, les titres et les
+ * extraits cites que la plateforme rend a cote de la prose. Preleve un
+ * cran plus haut, le releve serait deja perdu.
  */
 function instrumenter(client: Anthropic): Anthropic {
   const messages = client.messages;
@@ -113,6 +121,11 @@ function instrumenter(client: Anthropic): Anthropic {
     const startedAt = Date.now();
     try {
       const response: any = options ? await original(params, options) : await original(params);
+      recordWebSources({
+        content: response?.content,
+        systemPrompt: params?.system,
+        model: String(params?.model ?? 'inconnu'),
+      });
       recordLlmCall({
         model: String(params?.model ?? 'inconnu'),
         durationMs: Date.now() - startedAt,
@@ -338,20 +351,27 @@ export async function callClaude(
   // NETTOYAGE DES BALISES CITE
   // ------------------------------------------------------------
   // Quand web_search est active, Anthropic injecte des balises de
-  // citation <cite index="..."> dans le texte pour tracer les sources.
-  // Ces balises pourrissent le rendu UI final (tu les vois affichees
-  // litteralement dans la note).
+  // citation <cite index="..."> dans le texte. Elles pourrissent le
+  // rendu de la note, ou on les voit affichees litteralement, et elles
+  // sont retirees ici, avant le parseJSON, pour que le JSON soit propre.
   //
-  // On les retire systematiquement a la sortie de callClaude. Le
-  // contenu textuel des balises est preserve (c est le texte source
-  // legitime), seules les balises ouvrantes/fermantes sont stripees.
+  // Deux exigences ont longtemps repose sur ces memes caracteres :
+  // l auditabilite les voulait, le rendu les refusait. Le rendu a
+  // emporte l auditabilite sans qu aucun arbitrage soit rendu, et ce qui
+  // en a tenu lieu est un tag `[web : ...]` ecrit par le modele de
+  // memoire, c est-a-dire rien.
+  //
+  // L arbitrage est desormais rendu, et il ne coute plus rien au
+  // perdant : la provenance vit dans une structure parallele
+  // (lib/instrumentation/source-capture), prelevee sur la reponse
+  // entiere au client instrumente, avec URL, titre, date de consultation
+  // et extrait cite. Le stripping ne depense plus l auditabilite
+  // puisqu il ne porte plus l unique trace.
   //
   // Cas geres :
   //   <cite index="26-4">texte</cite>     -> texte
   //   <cite index="26-4,26-5,26-6">x</cite> -> x
   //   <cite>x</cite>                       -> x (sans index)
-  //
-  // On opere AVANT le parseJSON pour que le JSON soit propre.
   // ============================================================
   if (useWebSearch) {
     combined = stripCiteTags(combined);
@@ -480,6 +500,9 @@ export async function callClaudeWithUsage(
  * Retire les balises <cite index="..."> et </cite> du texte tout en
  * preservant leur contenu. Utilise apres web_search pour obtenir un
  * texte propre.
+ *
+ * Ne retire plus aucune trace : la provenance est capturee a part, sur
+ * la reponse entiere, avant que cette fonction ne voie le texte.
  */
 function stripCiteTags(text: string): string {
   // Retire les balises ouvrantes <cite ...> avec ou sans attributs
