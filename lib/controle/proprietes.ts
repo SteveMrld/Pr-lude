@@ -497,7 +497,86 @@ PROPRIETES.push(
       ? [{ ou: 'meta.versionStamp', extrait: 'frozen declare a vrai mais webSearchEnabled a vrai' }]
       : [],
   },
+
+  {
+    id: 'temperature-portee-par-le-cachet',
+    enonce: 'Le cachet de version porte la temperature de chaque moteur, et non un libelle qui vaut pour tous.',
+    famille: 'instrumentation',
+    lit: ['meta.versionStamp.engines'],
+    origine:
+      '3 aout 2026. Le champ valait « api-default » pour les trente moteurs. La valeur etait exacte, aucun site d appel '
+      + 'ne construisait le parametre, et c est precisement ce qui la rendait inutile : le cachet disait la verite sans '
+      + 'rien apprendre a personne. Deux runs a temperatures differentes auraient rendu le meme enginesHash, et comme la '
+      + 'calibration segmente sur ces empreintes, deux instruments se seraient melanges dans le meme segment sans que '
+      + 'rien ne le signale. Le cachet etait lu la ou la valeur est declaree, non la ou elle est decidee.',
+    eprouvee:
+      'Mesuree sur les quarante-six notes portant un cachet avec moteurs, le 5 aout : trente-trois en defaut, soit '
+      + 'soixante-douze pour cent. Aucun faux positif possible, le champ porte un nombre ou il n en porte pas. Les '
+      + 'trente-trois sont exactement les notes de schema 2026-06-07-v1, et les treize conformes celles des schemas v2 et '
+      + 'v3 : la coupure suit la version du cachet et non le dossier, ce qui est la signature d une correction datee et '
+      + 'non d un defaut intermittent. Trois valeurs seulement apparaissent sur le corpus, « api-default » neuf cent '
+      + 'cinquante-sept fois, 1 deux cent quarante-deux fois et 0 cent quarante-trois fois. La propriete mesure '
+      + 'l instrumentation du run et non l analyse : elle ne dit rien de la justesse de la note, elle dit que ce run-la '
+      + 'ne peut pas etre compare a un autre.',
+    porte: (n) => {
+      const e = n?.meta?.versionStamp?.engines;
+      return !!e && typeof e === 'object' && Object.keys(e).length > 0;
+    },
+    constats: (n) => borne(Object.entries<any>(n.meta.versionStamp.engines)
+      .filter(([, f]) => typeof f?.temperature !== 'number')
+      .map(([id, f]) => ({
+        ou: `meta.versionStamp.engines.${id}.temperature`,
+        extrait: `« ${String(f?.temperature)} » la ou un nombre est attendu : l empreinte ne separe pas deux regimes`,
+      }))),
+  },
 );
+
+// ------------------------------------------------------------
+// CE QUI A ETE EPROUVE ET REFUSE
+// ------------------------------------------------------------
+// Une propriete refusee laisse une mesure qui vaut autant que celle
+// d une propriete admise, et qui se perd si on ne l ecrit pas. Sans ce
+// journal, la meme intuition se reecrit dans trois mois et se remesure
+// au meme prix.
+//
+// LE NOM DE CODE D UN AUTRE DOSSIER DANS LA PROSE D UNE NOTE
+//
+// Le defaut est reel et documente : un nom de client dans la note d un
+// autre client est disqualifiant devant un fonds, et c est ce qui a fait
+// retirer six noms de code des prompts au commit 2177651. La forme
+// per-note echoue. Le releve du 5 aout rend sept notes portant un
+// marqueur « Project » ou « Projet » suivi d un nom propre etranger au
+// dossier, et la lecture des sept extraits les invalide toutes : deux
+// portent « Project Manager » et « Project Engineer », qui sont des
+// intitules de poste, et quatre portent leur propre nom de code sous une
+// forme que le fichier source n ecrit pas, « Projet Pegasus » pour
+// « Pegasus - IM.pdf ». Cent pour cent de faux positifs.
+//
+// La reparation demanderait de savoir quels noms appartiennent aux
+// AUTRES dossiers du corpus, donc une lecture croisee que le contrat
+// d une propriete ne permet pas : elle recoit une note et rien d autre,
+// a dessein, puisque le bulletin de fiabilite l applique a une note
+// fraiche ou le corpus n existe pas. Ce n est donc pas une propriete a
+// affiner, c est un controle d une autre nature, qui vit dans le
+// controleur de corpus et non dans le catalogue.
+//
+// LA COUVERTURE DU REGISTRE D APPELS PAR MOTEUR
+//
+// Comparer les appels releves aux moteurs ayant tourne dirait si le
+// registre voit tout ce qui appelle le modele. Zero note du corpus porte
+// les deux champs : sept portent le registre, aucune ne porte encore
+// meta.engineStatuses, dont la persistance date du 5 aout. La propriete
+// serait inevaluable sur cinquante-deux notes, donc elle attend le
+// premier run qui portera les deux.
+//
+// LA RESERVE QUI INTERDIT DE DISCUTER UN PRIX
+//
+// Une note qui porte a la fois interditLaDiscussionDePrix et une
+// fourchette de valorisation se contredit. Cinq notes du corpus portent
+// operationValidity et aucune ne porte l interdiction : la clause
+// principale a une portee nulle. Les deux notes portant des faits datent
+// toutes deux leur mention, donc la clause secondaire est verte sur deux
+// cas, ce qui ne fonde rien. Elle attend un corpus qui l exerce.
 
 /** Acces par identifiant, pour les tests et le bulletin. */
 export function propriete(id: string): Propriete {

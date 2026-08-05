@@ -140,6 +140,10 @@ mutation('nom-non-tronque-par-une-lettre',
   { extraction: { rawSummary: 'Contrat cadre avec Nestlé signe en 2023.' }, assertionAudit: { warnings: [alerte('Nestl')] } },
   { extraction: { rawSummary: 'Contrat cadre avec Nestlé signe en 2023.' }, assertionAudit: { warnings: [alerte('Nestlé')] } });
 
+mutation('temperature-portee-par-le-cachet',
+  { meta: { versionStamp: { engines: { team: { temperature: 'api-default' }, market: { temperature: 1 } } } } },
+  { meta: { versionStamp: { engines: { team: { temperature: 0 }, market: { temperature: 1 } } } } });
+
 mutation('frozen-coupe-la-recherche-web',
   { meta: { versionStamp: { runMode: { frozen: true }, webSearchEnabled: true } } },
   { meta: { versionStamp: { runMode: { frozen: true }, webSearchEnabled: false } } });
