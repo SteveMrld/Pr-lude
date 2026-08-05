@@ -46,7 +46,11 @@
 // mesurer le produit.
 // ============================================================
 
-import { tagRevendiqueUneLectureExterne } from '../engines/assertion-validator';
+import {
+  tagRevendiqueUneLectureExterne,
+  estUnSigle,
+  lettreIgnoreeParLAncienneClasse,
+} from '../engines/assertion-validator';
 
 /**
  * Ce que lit la propriete, et donc ce que sa violation prouve.
@@ -378,6 +382,122 @@ export const PROPRIETES: Propriete[] = [
       .map((w: any) => ({ ou: w.field ?? 'assertionAudit', extrait: String(w.excerpt ?? '').slice(0, 140) }))),
   },
 ];
+
+/** Le nom propre incrimine par une alerte, tel que le message le cite. */
+function nomIncrimine(w: any): string | null {
+  const m = String(w?.message ?? '').match(/"([^"]+)"/);
+  return m ? m[1] : null;
+}
+
+/** Les alertes de nom propre d une note, quelle que soit leur origine. */
+function alertesDeNom(note: any): any[] {
+  const w = note?.assertionAudit?.warnings;
+  return Array.isArray(w) ? w.filter((x: any) => x?.category === 'unknown_name') : [];
+}
+
+PROPRIETES.push(
+  {
+    id: 'sigle-non-pris-pour-un-nom-propre',
+    enonce: 'Aucune alerte ne reproche a la note d ecrire un sigle metier sans citer sa source.',
+    famille: 'prose',
+    lit: ['assertionAudit', 'team', 'market', 'macro'],
+    origine:
+      '5 aout 2026. Le detecteur de noms propres ne distinguait pas un sigle d un nom : B2B, LLM, TAM, SAM, CTO, CFO, '
+      + 'PME, BFR, FCF, CRM ressortaient signales comme noms propres non sources. Un controle qui reproche a une note '
+      + 'd ecrire « B2B » cesse d etre lu, et un controle qu on ne lit plus vaut moins qu un controle absent.',
+    eprouvee:
+      'Mesuree le 5 aout par scripts/mesure-faux-positifs-assertions.ts sur les cinquante-deux notes persistees : cinq '
+      + 'mille cent quatre-vingt-dix-sept alertes sur quatorze mille six cent trente-six, soit trente-cinq et demi pour '
+      + 'cent de la famille. Aucun faux positif possible dans ce sens : la regle est de forme, deux a six caracteres sans '
+      + 'aucune minuscule, donc une alerte qu elle retient porte bien sur un sigle. Ce qu elle ne borne pas est le '
+      + 'jugement selon lequel tout sigle est un faux positif, qui est un arbitrage et non une mesure. Une liste de '
+      + 'sigles autorises aurait ete a rallonger a chaque secteur nouveau, d ou la regle de forme. Au niveau de la note, '
+      + 'les quarante-sept qui portent des alertes sont touchees, sans exception.',
+    porte: (n) => alertesDeNom(n).length > 0,
+    constats: (n) => borne(alertesDeNom(n)
+      .filter((w) => { const x = nomIncrimine(w); return x !== null && x.split(/\s+/).every(estUnSigle); })
+      .map((w) => ({ ou: w.field ?? 'assertionAudit', extrait: `« ${nomIncrimine(w)} » signale comme nom propre non source` }))),
+  },
+
+  {
+    id: 'nom-documente-par-le-dossier-non-signale',
+    enonce: 'Aucune alerte ne reproche a la note un nom que l extraction du dossier porte deja.',
+    famille: 'prose',
+    lit: ['assertionAudit', 'extraction', 'team', 'market'],
+    origine:
+      '5 aout 2026. La liste blanche des noms autorises enumerait neuf endroits de l extraction et ignorait rawSummary, '
+      + 'productDescription, marketPitch et les metriques de traction. Tout nom documente par le dossier mais lu ailleurs '
+      + 'que dans ces neuf champs ressortait comme non source.',
+    eprouvee:
+      'Mesuree le 5 aout par scripts/mesure-faux-positifs-assertions.ts sur les cinquante-deux notes persistees : deux '
+      + 'mille cinq cent quatre-vingt-quatre alertes sur quatorze mille six cent trente-six, soit dix-sept et demi pour '
+      + 'cent, portent un nom que la liste blanche corrigee reconnait. Ce n est pas une appreciation, c est la question '
+      + 'posee au correctif lui-meme. Le releve compte apres les sigles, deja retires en amont, donc il n attribue pas a '
+      + 'cette correction ce que l autre fait. La propriete, elle, cherche une sous-chaine dans l extraction entiere, ce '
+      + 'qui est plus permissif que le validateur qui compare des mots : elle majore, et ce sens-la est le bon pour une '
+      + 'sentinelle qui doit rougir tant que le defaut vit dans le corpus. Au niveau de la note, les quarante-sept qui '
+      + 'portent des alertes sont touchees, sans exception.',
+    porte: (n) => alertesDeNom(n).length > 0 && !!n?.extraction,
+    constats: (n) => {
+      const texte = JSON.stringify(n.extraction).toLowerCase();
+      return borne(alertesDeNom(n)
+        .filter((w) => { const x = nomIncrimine(w); return x !== null && texte.includes(x.toLowerCase()); })
+        .map((w) => ({ ou: w.field ?? 'assertionAudit', extrait: `« ${nomIncrimine(w)} » est pourtant dans l extraction` })));
+    },
+  },
+
+  {
+    id: 'nom-non-tronque-par-une-lettre',
+    enonce: 'Aucune alerte ne porte sur un nom coupe a une lettre que le detecteur ne savait pas lire.',
+    famille: 'prose',
+    lit: ['assertionAudit', 'extraction'],
+    origine:
+      '5 aout 2026. La classe de caracteres du detecteur de noms propres etait une enumeration ecrite a la main, et elle '
+      + 'omettait « é », la plus frequente du francais. « Nestlé » etait donc coupe a « Nestl », et le validateur '
+      + 'signalait comme non sourcee une chaine tronquee que la recherche dans le dossier ne pouvait plus retrouver, '
+      + 'puisque le dossier porte le nom entier. Les memes enumerations ignoraient « ñ », « ã », « í » et « ø ».',
+    eprouvee:
+      'Mesuree le 5 aout par scripts/mesure-faux-positifs-assertions.ts : cent quatre-vingt-huit alertes sur quatorze '
+      + 'mille six cent trente-six, un et demi pour cent. La signature n est pas le prefixe, qui ne prouve rien puisque '
+      + '« Industrie » precede « industrielle » sans qu aucune coupe ait eu lieu, mais le prefixe suivi precisement d une '
+      + 'lettre que l ancienne classe refusait. Sur ce corpus la lecture large en rendait trois cent quatre-vingts et la '
+      + 'lecture exacte cent quatre-vingt-huit : la moitie de ce qu on aurait impute au defaut ne lui appartenait pas. '
+      + 'Au niveau de la note, trente-trois des quarante-sept portant des alertes en sont touchees, contre quarante-trois '
+      + 'sous la lecture large.',
+    porte: (n) => alertesDeNom(n).length > 0 && !!n?.extraction,
+    constats: (n) => {
+      const texte = JSON.stringify(n.extraction).toLowerCase();
+      return borne(alertesDeNom(n)
+        .filter((w) => {
+          const x = nomIncrimine(w);
+          if (x === null || x.length < 4) return false;
+          const i = texte.indexOf(x.toLowerCase());
+          if (i < 0) return false;
+          return lettreIgnoreeParLAncienneClasse(texte[i + x.length] ?? '');
+        })
+        .map((w) => ({ ou: w.field ?? 'assertionAudit', extrait: `« ${nomIncrimine(w)} » est coupe avant une lettre que le dossier porte` })));
+    },
+  },
+
+  {
+    id: 'frozen-coupe-la-recherche-web',
+    enonce: 'Un run declare gele n a pas la recherche web ouverte.',
+    famille: 'instrumentation',
+    lit: ['meta.versionStamp'],
+    origine:
+      'Doctrine du mode frozen : il coupe le web search en dur pour les rejeux de corpus, afin qu aucun outcome connu ne '
+      + 'fuite dans une analyse qui doit ignorer la suite de l histoire.',
+    eprouvee:
+      'Mesuree sur les vingt-trois notes gelees du corpus le 5 aout : zero violation, les vingt-trois portent '
+      + 'webSearchEnabled a faux. Sentinelle faiblement etablie et declaree comme telle : les vingt-trois viennent d une '
+      + 'seule ingestion de corpus du 8 juin, donc d un seul chemin de code. Aucun run lance depuis l interface n est '
+      + 'gele, ce qui reste vrai et documente ailleurs.',
+    porte: (n) => n?.meta?.versionStamp?.runMode?.frozen === true,
+    constats: (n) => n.meta.versionStamp.webSearchEnabled === true
+      ? [{ ou: 'meta.versionStamp', extrait: 'frozen declare a vrai mais webSearchEnabled a vrai' }]
+      : [],
+  },
+);
 
 /** Acces par identifiant, pour les tests et le bulletin. */
 export function propriete(id: string): Propriete {

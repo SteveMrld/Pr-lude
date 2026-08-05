@@ -122,6 +122,28 @@ mutation('annee-non-prise-pour-un-montant',
   { assertionAudit: { warnings: [{ category: 'currency_mismatch', field: 'marketSizing', excerpt: 'Le TAM 500 Mds$ 2025 est confirme par les sources web' }] } },
   { assertionAudit: { warnings: [{ category: 'currency_mismatch', field: 'marketSizing', excerpt: 'un TAM de 500 Mds$ annonce pour 2025' }] } });
 
+const alerte = (nom: string, champ = 'team.rationale') => ({
+  category: 'unknown_name', field: champ,
+  message: `Nom propre "${nom}" cite sans tag de source et absent des donnees extraites du pitch.`,
+  excerpt: `... ${nom} ...`, severity: 'warning',
+});
+
+mutation('sigle-non-pris-pour-un-nom-propre',
+  { assertionAudit: { warnings: [alerte('B2B'), alerte('Doctolib')] } },
+  { assertionAudit: { warnings: [alerte('Doctolib')] } });
+
+mutation('nom-documente-par-le-dossier-non-signale',
+  { extraction: { rawSummary: 'La societe sert Carrefour depuis 2021.' }, assertionAudit: { warnings: [alerte('Carrefour')] } },
+  { extraction: { rawSummary: 'La societe sert Auchan depuis 2021.' }, assertionAudit: { warnings: [alerte('Carrefour')] } });
+
+mutation('nom-non-tronque-par-une-lettre',
+  { extraction: { rawSummary: 'Contrat cadre avec Nestlé signe en 2023.' }, assertionAudit: { warnings: [alerte('Nestl')] } },
+  { extraction: { rawSummary: 'Contrat cadre avec Nestlé signe en 2023.' }, assertionAudit: { warnings: [alerte('Nestlé')] } });
+
+mutation('frozen-coupe-la-recherche-web',
+  { meta: { versionStamp: { runMode: { frozen: true }, webSearchEnabled: true } } },
+  { meta: { versionStamp: { runMode: { frozen: true }, webSearchEnabled: false } } });
+
 console.log('\n[Suite 4] le repli degrade sort du perimetre, il ne le viole pas');
 {
   // C est la clause dont l absence coutait cent pour cent de faux
