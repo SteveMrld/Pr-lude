@@ -216,6 +216,60 @@ function vide(v: unknown): boolean {
   return typeof v !== 'string' || v.trim().length === 0;
 }
 
+const DEVISES = ['EUR', 'USD', 'GBP'];
+
+/**
+ * Une source doit permettre de refaire le chemin. Deux conditions, et
+ * il a fallu un premier lot reel pour les ecrire.
+ *
+ * LE PREMIER LOT A MONTRE LE TROU
+ *
+ * Le controle ne verifiait que le non-vide. Sur les treize fiches du
+ * lot ecommerce-dtc du 5 aout 2026, dix-neuf jalons portaient
+ * « a recoller », « a confirmer sur Companies House » ou « comptes
+ * agreges » en guise de source, et les dix-neuf passaient. Un marqueur
+ * de tache satisfaisait la garde ecrite pour exiger une source : c est
+ * exactement la garde inerte que la doctrine decrit, une garde qui a la
+ * forme d une garde et ne se declenche jamais sur le cas qu elle vise.
+ *
+ * PREMIERE CONDITION : la source designe quelque chose
+ *
+ * Elle porte une adresse, un nom propre ou un millesime. « communique
+ * Next » designe Next, « Financial Times, novembre 2022 » designe un
+ * titre et une date, « prospectus LSE 2021 » designe les deux.
+ * « jugement » et « comptes agreges » ne designent rien : quel jugement,
+ * quels comptes, de quelle annee.
+ *
+ * SECONDE CONDITION : la source n annonce pas qu elle reste a faire
+ *
+ * Sans elle, « a confirmer sur Companies House » passerait la premiere,
+ * puisqu il nomme Companies House. Une intention de collecte n est pas
+ * une collecte, et la difference compte : la premiere se lit comme une
+ * source dans six mois, quand personne ne se souvient qu elle etait un
+ * pense-bete.
+ *
+ * La liste des marqueurs d intention est courte et elle tranche plutot
+ * qu elle ne constate : elle dit ce qui compte comme source, elle
+ * n inventorie pas des sources. Elle se date a ce titre.
+ */
+const MARQUEURS_INTENTION_DATES_LE = '2026-08-05';
+const MARQUEURS_INTENTION = /\b(a|à)\s+(recoller|confirmer|documenter|verifier|vérifier|trouver|sourcer)\b/i;
+// Assemblee au lancement : la cible es5 refuse le drapeau u sur un
+// litteral, et la classe de majuscules doit rester une categorie
+// Unicode plutot qu un intervalle ASCII.
+const DESIGNE_QUELQUE_CHOSE = new RegExp('(https?://|\\b(19|20)\\d{2}\\b|\\p{Lu})', 'u');
+
+export function sourceUtilisable(source: string): { ok: boolean; motif: string | null } {
+  const s = source.trim();
+  if (MARQUEURS_INTENTION.test(s)) {
+    return { ok: false, motif: `« ${s} » annonce une collecte a faire et non une source faite` };
+  }
+  if (!DESIGNE_QUELQUE_CHOSE.test(s)) {
+    return { ok: false, motif: `« ${s} » ne designe rien de retrouvable : ni adresse, ni nom propre, ni millesime` };
+  }
+  return { ok: true, motif: null };
+}
+
 /**
  * Verifie une fiche et rend la liste de ce qui la fait refuser.
  *
@@ -266,6 +320,9 @@ export function verifierFiche(f: Partial<FicheComparable> | null | undefined): R
     }
     if (vide(j?.source)) {
       refus.push({ champ: `${ou}.source`, motif: 'source obligatoire : de quoi refaire le chemin, URL, document depose ou media date' });
+    } else {
+      const u = sourceUtilisable(String(j.source));
+      if (!u.ok) refus.push({ champ: `${ou}.source`, motif: u.motif! });
     }
     // La regle qui donne sa valeur a la base. Un chiffre porte par un
     // jalon declaratif n est pas citable, donc l ecrire reviendrait a
@@ -279,6 +336,16 @@ export function verifierFiche(f: Partial<FicheComparable> | null | undefined): R
     }
     if (j?.montantVerbatim && !j?.devise) {
       refus.push({ champ: `${ou}.devise`, motif: 'un montant sans devise n est pas un montant' });
+    } else if (j?.devise && !DEVISES.includes(String(j.devise))) {
+      // Le controle ne verifiait que la presence. « USD / EUR », rendu
+      // par le lot du 5 aout sur un conflit de source non tranche,
+      // passait donc en silence : un conflit conserve dans un champ
+      // ferme se lit comme une valeur.
+      refus.push({
+        champ: `${ou}.devise`,
+        motif: `devise « ${j.devise} » hors du vocabulaire ferme ${DEVISES.join(', ')} : `
+          + 'un conflit de source se tranche ou se laisse hors de la base, il ne se loge pas dans le champ',
+      });
     }
   });
 
