@@ -23,11 +23,9 @@ se retrouve pas dans le document.
 Le classeur porte, sur sa feuille Management BP, une ligne « Chiffre
 d'affaires » a 153 250, 907 250, 1 059 750 et 1 059 750 euros pour 2025
 a 2028, et une ligne B2B a 121 250, 811 250, 963 750 et 963 750.
-L'extraction rend 0,101, 0,897, 0,963 et 0,963 million. Les deux
-dernieres annees tombent exactement sur la ligne B2B ; les deux
-premieres ne tombent sur aucune des deux. Le releve s'arrete la : je
-n'ai pas etabli d'ou viennent 0,101 et 0,897, et l'hypothese d'une
-lecture partielle n'est qu'une hypothese.
+L'extraction rend 0,101, 0,897, 0,963 et 0,963 million. Aucune de ces
+quatre valeurs n'existe dans le classeur, ce que la section « ce que la
+mesure a etabli » detaille plus bas.
 
 Ce qui en fait le premier de ce registre est la nature de la faute, pas
 son ampleur. Toutes les autres entrees decrivent une chose que le
@@ -39,16 +37,24 @@ inventee. C'est exactement le controle que fait une due diligence, il
 coute une minute, et il ne laisse aucune place a l'explication : la
 rigueur est le positionnement commercial entier de la plateforme.
 
-Un facteur aggravant est mesure et il est distinct. Le convertisseur
-aplatit le classeur en CSV puis coupe a 30 000 caracteres, en silence.
-Le classeur Hello rend 32 710 caracteres, donc il a ete coupe, et
-`bpChars` vaut exactement 30 000 dans le cachet du run. La coupe tombe
-dans le tableau de financement, apres le compte de resultat : le P&L
-survit, la ligne « Equity levee » a 275 000 et les positions de
-tresorerie sont perdues. Un BP coupe se lit donc exactement comme un BP
-complet. C'est la forme du chiffre juste sur une part qui se lit comme
-un chiffre sur le tout, et elle vaut d'etre fermee meme si elle n'est
-pas la cause de l'ecart ci-dessus.
+Un facteur aggravant etait mesure et distinct, et il est ferme depuis le
+5 aout 2026. Le convertisseur aplatissait le classeur en CSV puis coupait
+a 30 000 caracteres, en silence. Le classeur Hello rend 32 710
+caracteres, donc il a ete coupe, et `bpChars` vaut exactement 30 000 dans
+le cachet du run. La coupe tombait dans le tableau de financement, apres
+le compte de resultat : le P&L survivait, la ligne « Equity levee » a
+275 000 et les positions de tresorerie etaient perdues. Un BP coupe se
+lisait donc exactement comme un BP complet.
+
+La coupe reste, parce qu'un contexte a une limite. Ce qui change est
+qu'elle se declare, dans le texte meme que le modele lit, avec le nombre
+de caracteres manquants et l'interdiction de conclure a une absence
+depuis un extrait. Elle tombe desormais sur une frontiere de ligne :
+couper au milieu d'une ligne de tableau produit une valeur amputee que
+rien ne distingue d'une valeur vraie, ce qui est pire qu'une ligne
+absente. Et l'avertissement a sa marge reservee, faute de quoi il serait
+ajoute puis coupe par le plafond qu'il annonce, et la garde se serait
+annulee elle-meme.
 
 ### Ce que la mesure a etabli, le 5 aout 2026
 
@@ -95,8 +101,25 @@ n'exclut que 0,101 vienne d'ailleurs et tombe par hasard a 0,84 % d'une
 cellule d'EBITDA. Ce qui est etabli sans hypothese est le negatif, et il
 suffit : aucune des quatre valeurs n'existe dans le document.
 
-Rien ne doit etre montre a un fonds avant que le correctif soit pose.
-C'est le seul point de ce registre dont je dirais cela.
+### Etat au 5 aout 2026
+
+Le correctif est pose et il est general : toute valeur chiffree extraite
+d'un document porte le chiffre tel que le document l'ecrit, la valeur
+normalisee en descend, un ecart au-dela de ce qu'un arrondi peut couter
+est un incident declare, et une valeur sans verbatim est non fondee.
+Voir `lib/engines/valeur-citee.ts` et la section de doctrine dans
+CLAUDE.md, ou la regle est ecrite comme la troisieme occurrence d'une
+meme forme apres les sources web et les montants d'operation.
+
+Ce qui reste ouvert est la verification en conditions reelles. La regle
+est verrouillee par trente-trois assertions et par une propriete du
+catalogue, mesuree a cinquante et une notes sur cinquante et une, ce qui
+est le solde historique attendu puisque aucune analyse anterieure ne
+porte de verbatim. Rien n'etablit encore que le modele sache recopier un
+chiffre sans le normaliser : c'est ce que le prochain run dira, et c'est
+la premiere chose a lire dedans.
+
+Rien ne doit etre montre a un fonds avant cette lecture-la.
 
 ---
 

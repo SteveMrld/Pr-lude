@@ -1,5 +1,6 @@
 import { callClaudeWithPDF, callClaude, parseJSON, MODEL } from './anthropic-client';
-import type { FinancialDataExtraction, ExtractionOutput } from './types';
+import { evaluerValeurCitee } from './valeur-citee';
+import type { FinancialDataExtraction, ExtractionOutput, AuditVerbatim } from './types';
 
 export const SYSTEM_PROMPT = `Tu es le Moteur d'Extraction Financière de la plateforme Prélude. Ton rôle est d'extraire les données financières structurées d'un dossier (pitch deck et/ou business plan).
 
@@ -25,19 +26,19 @@ Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu r
   "hasBP": true|false,
   "fileSource": "deck"|"bp"|"both"|"none",
   "revenueProjection": [
-    { "year": "2023", "value": 1.5, "source": "bp", "basis": "actual" },
-    { "year": "2024", "value": 1.6, "source": "bp", "basis": "budget" },
-    { "year": "2025", "value": 2.1, "source": "bp", "basis": "projected" },
-    { "year": "2026", "value": 2.8, "source": "bp", "basis": null }
+    { "year": "2023", "value": 1.5, "source": "bp", "basis": "actual", "verbatim": "1 500 000" },
+    { "year": "2024", "value": 1.6, "source": "bp", "basis": "budget", "verbatim": "1,6 M€" },
+    { "year": "2025", "value": 2.1, "source": "bp", "basis": "projected", "verbatim": "2 100" },
+    { "year": "2026", "value": 2.8, "source": "bp", "basis": null, "verbatim": "2.800,00" }
   ],
   "grossMarginProjection": [
-    { "year": "2025", "value": 65, "source": "bp", "basis": "projected" }
+    { "year": "2025", "value": 65, "source": "bp", "basis": "projected", "verbatim": "65%" }
   ],
   "ebitdaProjection": [
-    { "year": "2025", "value": -1.2, "source": "bp", "basis": "projected" }
+    { "year": "2025", "value": -1.2, "source": "bp", "basis": "projected", "verbatim": "(1 200)" }
   ],
   "fcfProjection": [
-    { "year": "2025", "value": -1.5, "source": "bp", "basis": "projected" }
+    { "year": "2025", "value": -1.5, "source": "bp", "basis": "projected", "verbatim": "-1 500" }
   ],
   "unitEconomics": {
     "estimatedCAC": "ex: 250€ ou 'non communiqué'",
@@ -47,10 +48,10 @@ Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu r
     "grossMarginPerUnit": "ex: 70% ou 'non communiqué'"
   },
   "headcount": [
-    { "year": "2025", "value": 10, "source": "deck", "basis": "budget" }
+    { "year": "2025", "value": 10, "source": "deck", "basis": "budget", "verbatim": "10" }
   ],
   "opexProjection": [
-    { "year": "2025", "value": 1.8, "source": "bp", "basis": "projected" }
+    { "year": "2025", "value": 1.8, "source": "bp", "basis": "projected", "verbatim": "1 800" }
   ],
   "currentRound": {
     "amount": "ex: 5M€ ou 'non précisé'",
@@ -85,7 +86,80 @@ Quand le BP est en Excel/CSV, le contenu textuel a été extrait en lignes. Tu r
 - lastActualYearEvidence : citation textuelle courte extraite du document qui atteste de la qualification actual pour cette année. Sans citation extractible, lastActualYearEvidence = null et lastActualYear = null également.
 - Un chiffre sans qualifier ne devient jamais actual par défaut, même s'il porte une année passée.
 
+# RÈGLE DU VERBATIM, LA PLUS IMPORTANTE DE CE PROMPT
+
+Chaque entrée chiffrée porte "verbatim" : le nombre TEL QUE LE DOCUMENT
+L'ÉCRIT, copié caractère pour caractère, avec sa ponctuation, ses
+espaces de milliers, ses parenthèses de négatif et son unité si la
+cellule ou la phrase la porte. "963,750" reste "963,750". "(1 200)"
+reste "(1 200)". Ne normalise jamais le verbatim : "value" en descend,
+et jamais l'inverse.
+
+- Le verbatim vient de la ligne que tu as effectivement lue. Si tu lis
+  la ligne "Chiffre d'affaires", le verbatim est la cellule de cette
+  ligne, pas celle de la ligne "B2B" ni celle de l'EBITDA, et pas celle
+  d'une autre colonne d'année.
+- Si tu ne peux pas recopier le chiffre, n'invente pas d'entrée : omets
+  la ligne. Une valeur sans verbatim sera traitée comme non fondée, au
+  même titre qu'une affirmation web sans source.
+- Ne calcule jamais une valeur que le document n'écrit pas. Si le total
+  n'est pas dans le document, il n'y a pas d'entrée pour le total.
+
+Un contrôle automatique compare "value" au "verbatim" et signale tout
+écart supérieur à ce qu'un arrondi peut coûter. Un verbatim recopié
+d'une autre ligne se voit donc, et il compte comme une erreur de
+lecture.
+
 Sois rigoureux. Pas d'invention. Si tu n'es pas sûr d'une donnée, mets "non communiqué".`;
+
+/**
+ * Les cinq series chiffrees soumises a la regle du verbatim.
+ *
+ * Enumerees et non deduites, parce que la liste tranche plutot qu elle
+ * ne constate : `unitEconomics` et `currentRound` portent des libelles
+ * libres et non des valeurs normalisees, et `marketAssumptions` cite le
+ * document sans en deriver un nombre. Les y soumettre exigerait un
+ * verbatim d une chaine qui est deja son propre verbatim.
+ */
+const SERIES_CHIFFREES = [
+  'revenueProjection', 'grossMarginProjection', 'ebitdaProjection',
+  'fcfProjection', 'opexProjection', 'headcount',
+] as const;
+
+/**
+ * Compare chaque valeur a son verbatim et rend le compte de ce qui
+ * n est pas fonde.
+ *
+ * Le prompt annonce ce controle aux moteurs : il doit donc exister,
+ * faute de quoi l annonce serait la garde inerte que la doctrine
+ * documente, une regle ecrite qui ne s applique nulle part.
+ *
+ * Il ne corrige rien. Substituer la valeur du verbatim effacerait la
+ * trace de la divergence, qui est l information.
+ */
+function auditerVerbatims(result: FinancialDataExtraction): AuditVerbatim {
+  const violations: AuditVerbatim['violations'] = [];
+  let valeurs = 0, sansVerbatim = 0;
+  for (const champ of SERIES_CHIFFREES) {
+    const serie = (result as any)[champ];
+    if (!Array.isArray(serie)) continue;
+    for (const e of serie) {
+      const v = evaluerValeurCitee({ verbatim: e?.verbatim, valeur: e?.value });
+      valeurs++;
+      if (v.verbatim === null) sansVerbatim++;
+      if (v.fondee) continue;
+      violations.push({
+        champ,
+        annee: String(e?.year ?? '?'),
+        valeur: typeof e?.value === 'number' ? e.value : null,
+        verbatim: v.verbatim,
+        cause: v.cause,
+        motif: v.motif ?? 'non fondee',
+      });
+    }
+  }
+  return { valeurs, sansVerbatim, nonFondees: violations.length, violations: violations.slice(0, 40) };
+}
 
 /**
  * Extrait les données financières d'un dossier multi-documents
@@ -135,6 +209,7 @@ Retourne uniquement le JSON.`;
     // valeur, il l accepte telle quelle du LLM ou reste silencieux.
     if (result.lastActualYear === undefined) result.lastActualYear = null;
     if (result.lastActualYearEvidence === undefined) result.lastActualYearEvidence = null;
+    result.auditVerbatim = auditerVerbatims(result);
     return result;
   }
 
@@ -182,5 +257,6 @@ Retourne uniquement le JSON structuré.`;
   result.rawNotes = result.rawNotes || '';
   if (result.lastActualYear === undefined) result.lastActualYear = null;
   if (result.lastActualYearEvidence === undefined) result.lastActualYearEvidence = null;
+  result.auditVerbatim = auditerVerbatims(result);
   return result;
 }

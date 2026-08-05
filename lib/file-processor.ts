@@ -193,6 +193,39 @@ export function getFileType(file: FileMeta): ClassifiedFile['type'] {
 /**
  * Extrait le contenu textuel d'un fichier Excel pour passage à Claude
  */
+/**
+ * Plafond de contexte pour un classeur aplati. Inchange, ce n est pas
+ * lui le defaut.
+ */
+const EXCEL_MAX_CHARS = 30000;
+
+/**
+ * Extrait le contenu textuel d'un fichier Excel pour passage à Claude.
+ *
+ * UN CLASSEUR COUPE SE LISAIT EXACTEMENT COMME UN CLASSEUR COMPLET
+ *
+ * La coupe a 30 000 caracteres etait muette. Le classeur de Project
+ * Hello en rend 32 710 sur le run b8d0e9ac : la feuille d hypotheses
+ * passe entiere, le compte de resultat garde 8 606 de ses 11 316
+ * caracteres, et ce qui disparait est la queue du tableau de
+ * financement, dont la ligne « Equity levee » a 275 000, les dividendes
+ * et les positions de tresorerie. Le modele recevait donc un document
+ * tronque au milieu d une ligne, sans rien qui le lui dise, et il ne
+ * pouvait pas signaler l absence d une ligne dont il ignorait
+ * l existence.
+ *
+ * C est la forme du chiffre juste sur une part qui se lit comme un
+ * chiffre sur le tout, transposee a une entree plutot qu a une mesure.
+ * La coupe reste, parce qu un contexte a une limite ; ce qui change est
+ * qu elle se declare, a l endroit ou elle a lieu, dans le texte meme que
+ * le modele lit. Le declarer ailleurs, dans un log ou un champ de
+ * meta, serait inutile : c est le lecteur du document qu il faut
+ * avertir, et le lecteur est le modele.
+ *
+ * La coupe se fait desormais sur une frontiere de ligne. Couper au
+ * milieu d une ligne de tableau produit une valeur amputee que rien ne
+ * distingue d une valeur vraie, ce qui est pire qu une ligne absente.
+ */
 export function extractExcelContent(buffer: Buffer): string {
   try {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
@@ -206,7 +239,22 @@ export function extractExcelContent(buffer: Buffer): string {
       }
     }
 
-    return sheets.join('\n\n---\n\n').slice(0, 30000); // limite pour ne pas saturer le contexte
+    const complet = sheets.join('\n\n---\n\n');
+    if (complet.length <= EXCEL_MAX_CHARS) return complet;
+
+    // Marge reservee a l avertissement, pour qu il ne soit pas lui-meme
+    // coupe par le plafond qu il annonce.
+    const AVERTISSEMENT_MAX = 400;
+    const brut = complet.slice(0, EXCEL_MAX_CHARS - AVERTISSEMENT_MAX);
+    const derniereLigne = brut.lastIndexOf('\n');
+    const retenu = derniereLigne > 0 ? brut.slice(0, derniereLigne) : brut;
+    const perdus = complet.length - retenu.length;
+
+    return `${retenu}\n\n[DOCUMENT TRONQUE : ce classeur fait ${complet.length} caracteres une fois aplati, `
+      + `et seuls les ${retenu.length} premiers te sont transmis. ${perdus} caracteres manquent, `
+      + `soit la fin du document. Des lignes existent que tu ne vois pas. N affirme rien sur ce qui `
+      + `n est pas ci-dessus, ne calcule aucun total a partir de lignes partielles, et ne conclus pas `
+      + `qu une donnee est absente du classeur au motif qu elle ne figure pas dans cet extrait.]`;
   } catch (e) {
     return '[Erreur lors de l\'extraction du fichier Excel]';
   }

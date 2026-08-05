@@ -1,5 +1,7 @@
 // Types partagés entre les sept moteurs de la plateforme
 
+import type { NonProductionCauseOrNull } from './non-production';
+
 /**
  * Nature de l operation instruite. Quatre valeurs plus l etat non
  * etabli, arbitrees au brief 24.
@@ -759,6 +761,48 @@ export interface ProjectionEntry {
   value: number;
   source: string;                    // provenance de fichier : deck / bp / deck+bp
   basis?: ProjectionBasis;           // nature temporelle qualifiee par le document
+  /**
+   * Le chiffre tel que le document l ecrit, sans normalisation, avec sa
+   * ponctuation et son unite si le document les porte.
+   *
+   * `value` en descend et jamais l inverse. Un nombre sans verbatim est
+   * le meme objet qu un tag `[web]` sans capture : une affirmation sur
+   * un document, que rien ne permet de verifier, et qui porte
+   * l autorite d un nombre. Voir lib/engines/valeur-citee.ts pour la
+   * regle et pour ce qu elle a coute avant d exister.
+   *
+   * Optionnel dans le type, et ce n est pas un affaiblissement : les
+   * analyses anterieures au 5 aout 2026 n en portent pas, et une
+   * absence sous un contrat ancien est un silence et non une negation.
+   * Le consommateur traite l absence comme une non-fondation, ce qui est
+   * la lecture juste des deux epoques.
+   */
+  verbatim?: string;
+}
+
+/**
+ * Ce que la comparaison entre les valeurs et leurs verbatims a rendu.
+ *
+ * Depose par l extraction financiere sur sa propre sortie, pour que le
+ * bulletin et le controle de corpus le lisent sans refaire le calcul.
+ * Absent des analyses anterieures au 5 aout 2026, ce qui se lit comme
+ * un silence et non comme un zero.
+ */
+export interface AuditVerbatim {
+  /** Valeurs chiffrees soumises a la regle. */
+  valeurs: number;
+  /** Parmi elles, celles qui n en portent aucun. */
+  sansVerbatim: number;
+  /** Parmi elles, celles qu aucun verbatim n etaye. */
+  nonFondees: number;
+  violations: Array<{
+    champ: string;
+    annee: string;
+    valeur: number | null;
+    verbatim: string | null;
+    cause: NonProductionCauseOrNull;
+    motif: string;
+  }>;
 }
 
 // Données financières extraites (pitch deck + BP)
@@ -800,6 +844,8 @@ export interface FinancialDataExtraction {
   };
   // Données brutes / commentaires
   rawNotes: string;
+  /** Releve de la regle du verbatim sur les series chiffrees. */
+  auditVerbatim?: AuditVerbatim;
   /**
    * Derniere annee qualifiee explicitement comme actual (exercice
    * clos et realise) par le document source. Source de verite unique

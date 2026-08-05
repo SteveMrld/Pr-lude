@@ -506,6 +506,47 @@ PROPRIETES.push(
   },
 
   {
+    id: 'valeur-chiffree-adossee-a-son-verbatim',
+    enonce: 'Toute valeur chiffree extraite d un document porte le chiffre tel que le document l ecrit.',
+    // Famille corrigee par le verrou du test, et il avait raison.
+    // L audit est deterministe une fois la sortie rendue, mais ce qu il
+    // constate est une lecture du modele : un taux global melangerait
+    // les runs anterieurs a la regle et ceux qui la portent. Il se lit
+    // segmente par empreinte, comme la variance.
+    famille: 'prose',
+    lit: ['financialData'],
+    origine:
+      '5 aout 2026, run b8d0e9ac. Le classeur de Project Hello porte 3334 cellules numeriques et aucune ne rend l une '
+      + 'des quatre valeurs inscrites dans revenueProjection. La plus proche de 2025 est une ligne d EBITDA de l annee '
+      + 'suivante, celles de 2027 et 2028 sont la ligne B2B et non le total, et la seule qui vise la bonne ligne est '
+      + 'approximee d un pour cent. Un chiffre sans verbatim est le meme objet qu un tag [web] sans capture : une '
+      + 'affirmation sur un document, que rien ne permet de verifier, et qui porte l autorite d un nombre.',
+    eprouvee:
+      'Mesuree sur les cinquante et une notes portant financialData le 5 aout : mille cent quarante-trois valeurs '
+      + 'numeriques non nulles, zero verbatim, donc cinquante et une notes en defaut. Aucun faux positif possible, le '
+      + 'champ est present ou il ne l est pas. C est un solde historique integral qui tombera au premier run, comme les '
+      + 'trois proprietes d instrumentation. La tolerance d ecart n est pas posee au jugement : une valeur ecrite avec '
+      + 'd decimales declare une precision d un demi de la derniere, et la mesure du corpus etablit que 99,2 pour cent '
+      + 'des valeurs tiennent en trois decimales au plus. Eprouvee sur le seul dossier dont le document est connu, la '
+      + 'regle retient les quatre valeurs de Hello, y compris la plus proche, et accepterait la valeur juste.',
+    porte: (n) => !!n?.financialData,
+    constats: (n) => {
+      const a = n.financialData.auditVerbatim;
+      if (!a) {
+        return [{
+          ou: 'financialData.auditVerbatim',
+          extrait: 'aucun releve de verbatim : les valeurs chiffrees ne montrent pas ce qu elles ont lu',
+        }];
+      }
+      if (!(a.nonFondees > 0)) return [];
+      return borne((a.violations ?? []).map((v: any) => ({
+        ou: `financialData.${v.champ}[${v.annee}]`,
+        extrait: String(v.motif ?? '').slice(0, 200),
+      })));
+    },
+  },
+
+  {
     id: 'temperature-portee-par-le-cachet',
     enonce: 'Le cachet de version porte la temperature de chaque moteur, et non un libelle qui vaut pour tous.',
     famille: 'instrumentation',

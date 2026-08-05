@@ -140,6 +140,12 @@ mutation('nom-non-tronque-par-une-lettre',
   { extraction: { rawSummary: 'Contrat cadre avec Nestlé signe en 2023.' }, assertionAudit: { warnings: [alerte('Nestl')] } },
   { extraction: { rawSummary: 'Contrat cadre avec Nestlé signe en 2023.' }, assertionAudit: { warnings: [alerte('Nestlé')] } });
 
+mutation('valeur-chiffree-adossee-a-son-verbatim',
+  { financialData: { auditVerbatim: { valeurs: 2, sansVerbatim: 1, nonFondees: 1,
+    violations: [{ champ: 'revenueProjection', annee: '2027', valeur: 0.963, verbatim: '963,750',
+      cause: 'incident', motif: 'la valeur 0.963 ne descend pas du verbatim « 963,750 »' }] } } },
+  { financialData: { auditVerbatim: { valeurs: 2, sansVerbatim: 0, nonFondees: 0, violations: [] } } });
+
 mutation('temperature-portee-par-le-cachet',
   { meta: { versionStamp: { engines: { team: { temperature: 'api-default' }, market: { temperature: 1 } } } } },
   { meta: { versionStamp: { engines: { team: { temperature: 0 }, market: { temperature: 1 } } } } });

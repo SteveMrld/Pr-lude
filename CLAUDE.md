@@ -515,6 +515,69 @@ controle qui reste, quand ces deux-la manquent, est de casser
 volontairement une lecture et de compter ce qui rougit ; un chiffre nul
 n est pas un test solide, c est un test absent.
 
+## Ce qui vient d un document en porte l extrait, y compris les nombres
+
+Une valeur acquise ailleurs que dans le raisonnement porte la trace de
+son acquisition, sinon elle n est pas une lecture, c est une
+affirmation. La regle a maintenant trois occurrences et elles ont la
+meme forme, ce qui la fait passer du cas a la doctrine.
+
+La premiere portait sur les sources web. La plateforme rendait les pages
+atteintes a cote de la prose, le pipeline les jetait, et ce qui tenait
+lieu de tracabilite etait un tag `[web : crunchbase]` ecrit de memoire
+par le modele sur instruction du prompt. Un tag n est pas une source,
+c est un souvenir qui a la forme d une preuve. Le releve sur quarante
+analyses rendait quinze mille quatre cents revendications de lecture web
+et zero URL.
+
+La deuxieme portait sur les montants d operation. `amount` et
+`valuation` sortaient sans citation, donc sans moyen de distinguer un
+chiffre lu d un chiffre reconstitue, et la reparation a ete identique :
+une evidence obligatoire, un refus sans elle.
+
+La troisieme est du 5 aout 2026 et elle porte sur tous les nombres
+extraits d un document. Le classeur de Project Hello porte 3334 cellules
+numeriques ; aucune ne rend l une des quatre valeurs que l extraction a
+inscrites. La plus proche de 2025 est une ligne d EBITDA de l annee
+suivante, celles de 2027 et 2028 sont la ligne B2B et non le total, et
+la seule qui vise la bonne ligne est approximee d un pour cent.
+
+Le point commun n est pas le domaine, c est le rapport a la preuve. Un
+chiffre sans son verbatim est le meme objet qu un tag `[web]` sans
+capture : une affirmation sur un document que rien ne permet de
+verifier. Il est meme plus dangereux, pour deux raisons. Un nombre ne se
+relit pas, alors qu une phrase fausse accroche l oeil. Et un nombre
+entre dans un calcul, donc il se propage la ou une phrase reste ou elle
+est.
+
+Trois exigences, et la deuxieme est celle qu on oublie.
+
+Le verbatim est ce que le document ecrit, tel quel, sans normalisation.
+La valeur normalisee en descend et jamais l inverse. Un systeme qui
+fabrique un verbatim a partir d une valeur a inverse la dependance et ne
+prouve plus rien, exactement comme un modele a qui l on demande de
+reconstituer sa source.
+
+Un ecart entre les deux au-dela de ce qu un arrondi peut couter est un
+incident declare, jamais une correction silencieuse. Substituer la
+valeur du verbatim effacerait la trace de la divergence, qui est
+l information. Et le seuil ne se pose pas au jugement : il descend de la
+precision que la valeur declare elle-meme, un demi de sa derniere
+decimale, ce qui ne demande aucun arbitrage et ne vieillit pas. C est la
+discipline de precision prise dans son sens direct.
+
+Une valeur sans verbatim devient non fondee, de la meme bascule qu une
+revendication de lecture web sans capture. Ce qui distingue une lecture
+d une reconstitution est la trace, et son absence ne se compense pas par
+la plausibilite du resultat.
+
+En pratique, la question se pose devant toute donnee que le systeme va
+chercher hors du raisonnement : si la source disparaissait, resterait-il
+de quoi etablir ce qu elle a dit. Pour une page web c est l URL, la date
+et l extrait. Pour un nombre c est le chiffre tel qu il est ecrit. Dans
+les deux cas, la reponse « non » ne demande pas de couper l acquisition,
+elle demande d ecrire la capture.
+
 ## Une garde qui verifie un axe donne l air de fermer les autres
 
 Une liste peut etre complete et la garde qui la parcourt rester
@@ -551,9 +614,17 @@ contrat en fait ; rien ne le verifie.
 Cette seconde occurrence a une difference qui vaut d etre notee : son
 titre de section annonce « les six moteurs », donc elle declare son
 perimetre. C est le minimum, et cela suffit a ne pas tromper un lecteur
-attentif. Ce qui manque encore est la raison du decoupage, sans laquelle
-personne ne sait si les cinq autres sont dehors par arbitrage ou par
-oubli.
+attentif.
+
+Ce qui manque encore est la raison du decoupage, et c est elle qui
+distingue une liste bornee d une liste incomplete. Une liste bornee dit
+pourquoi ce qui est dehors est dehors, donc elle se relit et se conteste
+sur le critere. Une liste incomplete se contente d enumerer, donc rien
+en elle ne dit si un absent l est par arbitrage ou par oubli, et la
+seule facon de le savoir est de retrouver celui qui l a ecrite. La
+regle complete est donc en deux temps : une liste de perimetre declare
+sur combien d axes elle a ete balayee, et pourquoi elle s arrete ou elle
+s arrete.
 
 En pratique, une garde qui parcourt une liste declare ce qu elle
 verifie, et surtout ce qu elle ne verifie pas, dans la liste elle-meme.
@@ -595,6 +666,17 @@ le calcul recoive l absence en plus de la valeur, et qu il en tire une
 consequence explicite : ici l ajustement vaut zero parce qu il n a pas de
 fondement, et il sort avec un drapeau qui distingue ce zero-la d un
 equilibre entre deux moteurs qui ont tourne.
+
+Le corollaire est symetrique et il s applique aux bornes plutot qu aux
+valeurs. Un calcul de pire cas trop prudent ne protege pas, il bloque.
+Celui de la convergence sommait la porte et la chaine aval, donc il
+supposait que les deux consomment leur maximum ensemble, alors qu une
+porte qui echoue ne laisse rien partir derriere elle. Il interdisait
+ainsi une reprise de contrat justifiee au nom d un scenario qui n existe
+pas, et rien ne le contredisait puisqu il ne se trompe jamais du cote
+qui casse. Une borne qui ne peut se tromper que dans un sens ne se fait
+jamais corriger par l experience : elle se corrige en relisant ce
+qu elle suppose.
 
 En pratique, devant toute valeur de repli qui entre dans un calcul,
 poser la question dans cet ordre. Que vaut le calcul si cette valeur est
