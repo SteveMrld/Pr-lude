@@ -173,19 +173,26 @@ n'est pas une dette mais un plan de collecte, ecrit pour que le travail
 puisse commencer sans moi. L'ordre est celui de l'effet, pas celui de la
 difficulte.
 
-### 1. `lib/data/exit-benchmarks.ts` — 21 valeurs, une journee
+### 1. `lib/data/exit-benchmarks.ts` — 21 valeurs, une journee, **premiere ligne**
 
-Vingt et une sorties de reference, une par classe d'actif. Toutes
-portent aujourd'hui `asOf: null` et `confidence: 'low'`, et leur
-provenance declaree est « Crunchbase exits 2020-2025, Atomico exits
-Europe », ce qui nomme deux corpus sans dire quelle statistique en a ete
-tiree ni sur quel perimetre.
+Vingt et une sorties de reference, une par classe d'actif. L'archeologie
+du 5 aout 2026 a etabli ce qu'elles sont : **des ordres de grandeur
+poses a la main**, non sourcees, sans devise. Dix valeurs distinctes pour
+vingt et une classes, toutes multiples de dix millions, 80 M repete
+quatre fois. La mention Crunchbase qui les accompagnait a ete retiree,
+une source qui n'a pas produit un nombre ne se cite pas a cote de lui.
 
-Ce qu'il faut pour chaque ligne : la statistique exacte (mediane ou
-moyenne, et de quoi), le perimetre geographique, la fenetre temporelle,
-la taille de l'echantillon, et une URL ou une reference opposable. La
-valeur peut ne pas bouger ; ce qui doit changer est qu'on puisse refaire
-le chemin.
+La table se declare desormais non fiable, et la garde de domaine de la
+VC inverse le dit dans son motif. Elle continue de fonctionner : sur les
+trois notes du corpus ou elle se declenche, la marge va de 157 a 171
+pour cent, donc aucune incertitude ne la ferait basculer. Mais elle
+repose sur une estimation et elle l'annonce.
+
+Ce qu'il faut pour chaque ligne : la statistique exacte, mediane ou
+moyenne et de quoi, le perimetre geographique, la fenetre temporelle, la
+taille de l'echantillon, **la devise**, et une URL ou une reference
+opposable. Ici la valeur bougera, contrairement aux autres tables : il
+n'y a rien a confirmer, tout a mesurer.
 
 Pourquoi en premier : cette valeur decide seule de la sortie de domaine
 de la VC inverse, c'est-a-dire de la seule methode qui donne un prix

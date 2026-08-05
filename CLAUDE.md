@@ -578,6 +578,53 @@ et l extrait. Pour un nombre c est le chiffre tel qu il est ecrit. Dans
 les deux cas, la reponse « non » ne demande pas de couper l acquisition,
 elle demande d ecrire la capture.
 
+## Une source citee a cote d un nombre n etablit pas que le nombre en vient
+
+La proximite typographique n est pas une provenance. Un commentaire qui
+nomme une source au-dessus d une table dit ce que son auteur avait en
+tete, pas d ou viennent les valeurs, et rien dans le code ne distingue
+les deux.
+
+Le cas est du 5 aout 2026, sur la table des sorties de reference, celle
+qui decide seule qu une methode de valorisation s applique ou non. Le
+commit fondateur du 7 mai portait deux lignes voisines : « Exit values
+plausibles par stade et asset class (en EUR) » et « Source : Crunchbase
+exits 2020-2025, Atomico exits Europe ». Deux sources nommees, une
+devise declaree, ecrites le meme jour par la meme main. La question
+posee etait de savoir si quelqu un avait converti sans le dire ou si
+l etiquette etait fausse.
+
+Aucune des deux. La forme des nombres l a etabli mieux que
+l archeologie : vingt et une classes portent dix valeurs distinctes,
+toutes multiples de dix millions, et 80 M revient quatre fois. Vingt et
+une medianes publiees ne tombent pas sur une echelle de dix barreaux
+ronds, et quatre classes d actif distinctes n ont pas exactement la meme
+mediane de sortie. Ce sont des ordres de grandeur poses a la main. La
+source citee n a pas produit ces nombres, et la question de la devise
+etait sans objet puisqu il n y avait rien a convertir.
+
+C est le motif du chiffre faux dans un document qui fait autorite, pris
+un cran plus loin. La ou une estimation ecrite dans un document de
+reference cesse d etre lue comme une estimation des le lendemain, une
+source citee a cote d une estimation la fait lire comme une mesure des
+le premier jour. La citation ne documente pas, elle authentifie, et elle
+authentifie ce qu elle n a pas produit.
+
+Deux regles de lecture en decoulent, et la premiere est celle qu on
+oublie.
+
+La forme des nombres se lit avant la source declaree. Des valeurs rondes,
+repetees, tirees d une echelle courte, sont une estimation quoi qu en
+dise le commentaire. Des valeurs a trois chiffres significatifs et
+toutes distinctes sont une transcription, meme sans source citee. Le
+test coute une minute et il ne demande d ouvrir aucun document.
+
+Une source qui n a pas ete utilisee ne se cite pas. Retirer la mention
+Crunchbase du module a ete la moitie du correctif : tant qu elle y
+figurait, chaque relecture repartait de l idee qu il existait une
+statistique quelque part, et la vraie question, celle de savoir si ces
+nombres mesuraient quoi que ce soit, ne pouvait pas se poser.
+
 ## Un multiple ne se calcule qu entre deux valeurs de meme nature
 
 Un rapport entre deux nombres n est un multiple que si les deux nombres

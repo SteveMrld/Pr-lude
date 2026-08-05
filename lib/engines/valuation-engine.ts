@@ -36,7 +36,8 @@ import {
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
-import { lireSortieDeReference } from '@/lib/data/exit-benchmarks';
+import { lireSortieDeReference, tableNonFiable } from '@/lib/data/exit-benchmarks';
+import { detectPitchCurrency } from '@/lib/engines/devise-dossier';
 import { pickValueAtYear } from '@/lib/analysis/financial-series';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 import type { AssetClassArbitration, RelevanceMatrix } from '@/lib/engines/relevance-matrix';
@@ -1241,6 +1242,38 @@ function computeByVcMethod(
   // depasse la mediane de sa classe, pas seulement pour celui qui l a
   // revelee, et elle se deplace toute seule si la table des sorties
   // change.
+  // LA GARDE DIT DESORMAIS SUR QUOI ELLE REPOSE
+  //
+  // Elle compare une valeur d entreprise, tiree du chiffre d affaires du
+  // dossier par les multiples sectoriels, a une sortie de reference dont
+  // l archeologie du 5 aout 2026 a etabli qu elle est un ordre de
+  // grandeur pose a la main, sans mesure, sans date et sans devise.
+  //
+  // Elle continue de fonctionner, parce qu un ordre de grandeur juste
+  // vaut mieux que pas de garde du tout sur un facteur deux : sur les
+  // trois notes du corpus ou elle se declenche, la marge va de 157 a
+  // 171 pour cent, donc aucune incertitude de change ne la ferait
+  // basculer. Mais elle dit ce qu elle compare, faute de quoi son
+  // verdict se lit comme un calcul.
+  //
+  // La devise du dossier entre dans la declaration. Elle etait detectee
+  // depuis toujours par detectPitchCurrency et lue par le seul
+  // validateur d assertions : un parametre cable sans consommateur, la
+  // cinquieme forme de ce genre rencontree cette semaine. Un dossier en
+  // dollars ou en devise non resolue voyait son chiffre d affaires
+  // compare a la table comme s il etait en euros, en silence, ce qui est
+  // le pire des trois etats possibles.
+  const deviseDossier = input.extraction ? detectPitchCurrency(input.extraction as any) : 'unknown';
+  const comparaisonDeviseSure = deviseDossier === 'EUR';
+  const reserveDeComparabilite = [
+    tableNonFiable()
+      ? 'la table des sorties de reference est une estimation d ordre de grandeur, non sourcee et sans devise etablie'
+      : null,
+    comparaisonDeviseSure
+      ? null
+      : `le dossier est libelle en ${deviseDossier === 'unknown' ? 'une devise non resolue' : deviseDossier}, et la table n a pas de devise a laquelle le rapporter`,
+  ].filter(Boolean).join(' ; ');
+
   const sortieDeReference = getExitScenarios(assetClass, stage);
   if (sortieDeReference !== null && valeurActuelle !== null && sortieDeReference.base < valeurActuelle) {
     return {
@@ -1250,7 +1283,7 @@ function computeByVcMethod(
       applicable: false,
       notApplicableCause: 'doctrine',
       notApplicableGuard: 'domaine-taille',
-      notApplicableReason: `Methode hors domaine par la taille du dossier. Elle part d une sortie mediane de ${formatEur(sortieDeReference.base)} pour la classe ${assetClass}, inferieure a la valeur d entreprise de ${formatEur(valeurActuelle)} que les multiples sectoriels tirent deja du chiffre d affaires actuel. Le modele suppose donc une sortie sous la valeur d aujourd hui, ce qui decrit une autre societe que celle-ci. Sa pre-money serait mecaniquement basse et la dilution qui en descend, fausse dans le sens qui sur-estime la part obtenue par le fonds.`,
+      notApplicableReason: `Methode hors domaine par la taille du dossier. Elle part d une sortie de reference de ${formatEur(sortieDeReference.base)} pour la classe ${assetClass}, inferieure a la valeur d entreprise de ${formatEur(valeurActuelle)} que les multiples sectoriels tirent deja du chiffre d affaires actuel. Le modele suppose donc une sortie sous la valeur d aujourd hui, ce qui decrit une autre societe que celle-ci. Sa pre-money serait mecaniquement basse et la dilution qui en descend, fausse dans le sens qui sur-estime la part obtenue par le fonds.${reserveDeComparabilite ? ` RESERVE SUR CETTE GARDE : ${reserveDeComparabilite}. Le verdict d exclusion tient ici par l ampleur de l ecart et non par la precision de la comparaison.` : ''}`,
     };
   }
 

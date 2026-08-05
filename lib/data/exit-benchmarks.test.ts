@@ -14,7 +14,7 @@
 // Execution : npx tsx lib/data/exit-benchmarks.test.ts
 // ============================================================
 
-import { EXIT_BENCHMARKS, lireSortieDeReference, etatDesSortiesDeReference } from './exit-benchmarks';
+import { EXIT_BENCHMARKS, lireSortieDeReference, etatDesSortiesDeReference, tableNonFiable } from './exit-benchmarks';
 import { SECTOR_BENCHMARKS } from './sector-benchmarks';
 
 let pass = 0, fail = 0;
@@ -68,10 +68,26 @@ console.log('\n[Suite 3] aucune entree ne se declare mieux fondee qu elle ne l e
   check(e.sansDate === 21, `les vingt et une sont sans date etablie (${e.sansDate})`);
   check(e.confianceBasse === 21, `et toutes en confiance basse (${e.confianceBasse})`);
   check(e.aCollecter.length === 21, 'donc les vingt et une sont a collecter');
-  // La provenance est declaree et non inventee : elle nomme ce qui
-  // existait, et le fait qu on ne puisse pas refaire le chemin.
-  check(Object.values(EXIT_BENCHMARKS).every((x) => x.source.includes('provenance et non source verifiable')),
-    'et chacune dit que sa provenance n est pas une source verifiable');
+  // Le champ decrit ce que la valeur EST et non d ou elle vient. Il
+  // disait « provenance declaree Crunchbase » jusqu au 5 aout, ce que
+  // l archeologie a refute : les deux lignes viennent du meme commit et
+  // la forme des nombres, dix valeurs rondes pour vingt et une classes,
+  // etablit qu aucune statistique ne les fonde.
+  check(Object.values(EXIT_BENCHMARKS).every((x) => x.source.includes('ordre de grandeur')),
+    'et chacune declare sa nature reelle, une estimation posee a la main');
+  check(!JSON.stringify(EXIT_BENCHMARKS).includes('Crunchbase'),
+    'la source qui n a pas produit ces nombres n est plus citee');
+  check(Object.values(EXIT_BENCHMARKS).every((x) => x.devise === 'inconnue'),
+    'et aucune ne se voit attribuer une devise qu elle n a pas');
+  check(tableNonFiable() === true, 'la table se declare non fiable, pour que la garde qui l utilise le dise');
+
+  // La forme des nombres, verrouillee : c est elle qui a tranche, donc
+  // elle doit rougir si quelqu un remplace une valeur sans la mesurer.
+  const valeurs = Object.values(EXIT_BENCHMARKS).map((x) => x.base);
+  const rondes = valeurs.filter((n) => n % 10_000_000 === 0).length;
+  const distinctes = new Set(valeurs).size;
+  check(rondes === 21 && distinctes === 10,
+    `vingt et une valeurs rondes pour dix distinctes : la signature d une estimation et non d une mesure (${rondes}, ${distinctes})`);
 }
 
 console.log('\n[Suite 4] une classe hors catalogue ne recoit pas de socle invente');

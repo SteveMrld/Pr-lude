@@ -1569,6 +1569,37 @@ export function detectAssetClass(extraction: any): ComparablesAssetClass {
  */
 export type DossierStade = 'startup' | 'scaleup' | 'mature';
 
+/**
+ * Devises lisibles dans les montants d une fiche.
+ *
+ * Les fiches ne portent aucun champ de devise : les montants vivent dans
+ * la prose de `keyMilestones`, ou seul un symbole les distingue. Le
+ * releve du 5 aout 2026 sur les 124 fiches en compte 111 en dollars, 10
+ * en euros, 2 qui melangent les deux et 5 sans devise reperable.
+ *
+ * Rien dans le code ne compare ces montants, donc aucune conversion
+ * implicite n a lieu. Le defaut n est pas la : il est dans ce qu on
+ * donne a lire au modele. Cent onze fiches en dollars et dix en euros
+ * dans le meme prompt, sans marque, est une invitation a l erreur
+ * qu aucune garde de code ne rattrapera, puisque l addition se ferait
+ * dans la lecture et non dans le calcul.
+ *
+ * La marque est un palliatif declare. Le referentiel juridique en cours
+ * de constitution portera la devise de publication par societe, et les
+ * fiches la porteront alors par construction. D ici la, annoncer ce
+ * qu on sait vaut mieux que de laisser deviner.
+ */
+function marqueDeDevise(c: { keyMilestones?: string; currentStatus?: string }): string {
+  const t = `${c.keyMilestones ?? ''} ${c.currentStatus ?? ''}`;
+  const d: string[] = [];
+  if (/\$|\bUSD\b/.test(t)) d.push('USD');
+  if (/€|\bEUR\b/.test(t)) d.push('EUR');
+  if (/£|\bGBP\b/.test(t)) d.push('GBP');
+  if (d.length === 0) return ' [devise non lisible dans les montants]';
+  if (d.length > 1) return ` [montants en ${d.join(' et ')}, melanges dans la meme fiche]`;
+  return ` [montants en ${d[0]}]`;
+}
+
 export function buildVerifiedComparablesBlock(
   filterAssetClass?: ComparablesAssetClass | null,
   dossierStade: DossierStade = 'startup',
@@ -1587,6 +1618,12 @@ export function buildVerifiedComparablesBlock(
   lines.push('Pour chaque comparable cite avec un chiffre, ce chiffre DOIT venir de cette base. Si tu cites un comparable qui n est PAS dans cette base, ne cite aucun chiffre precis (preferer "early stage seed", "Series A", "valuation multi-milliard", etc.).');
   lines.push('');
   lines.push('Pour les fiches marquees [verifier via source primaire], les chiffres recents 2025-2026 ou les valuations particulierement fragiles ne sont PAS triangules par communique officiel. Tu peux citer la fiche mais tu ajoutes "(a verifier via source primaire avant diffusion)" ou tu omets le chiffre fragile.');
+  lines.push('');
+  lines.push('# DEVISES : LA BASE EN MELANGE PLUSIEURS, ET AUCUNE N EST CONVERTIE');
+  lines.push('');
+  lines.push('Chaque fiche porte en tete la devise de ses montants quand elle est lisible, sous la forme [montants en USD]. Sur les 124 fiches de la base, 111 sont libellees en dollars, 10 en euros, 2 melangent les deux dans la meme fiche et 5 ne portent aucune devise reperable.');
+  lines.push('');
+  lines.push('Aucune conversion n est appliquee, ni ici ni ailleurs dans la plateforme. Tu ne compares donc JAMAIS deux montants de devises differentes sans le dire, tu n en calcules jamais le rapport, et tu ne construis aucune progression, aucun classement ni aucune mediane qui les melange. Quand tu cites un montant, tu cites sa devise avec lui. Quand une fiche est marquee [devise non lisible dans les montants], tu ne cites aucun de ses chiffres.');
   lines.push('');
 
   // Filtrage par asset class si demande. Cas par cas :
@@ -1621,7 +1658,7 @@ export function buildVerifiedComparablesBlock(
     const checkMark = c.needsExternalCheck ? ' [verifier via source primaire]' : '';
     const isCrossScale = dossierStade === 'startup' && c.stade === 'mature';
     const scaleTag = isCrossScale ? ' [cross-echelle]' : '';
-    lines.push(`## ${c.name} (${c.founded}) · ${c.sectorAssetClass}${checkMark}${scaleTag}`);
+    lines.push(`## ${c.name} (${c.founded}) · ${c.sectorAssetClass}${checkMark}${scaleTag}${marqueDeDevise(c)}`);
     lines.push(`Outcome : ${c.outcome} · Stade : ${c.stade}`);
     if (c.founders) {
       lines.push(`Fondateurs : ${c.founders}`);

@@ -84,8 +84,20 @@ console.log('\n[Suite 2] la VC inverse se retire quand sa sortie passe sous la v
   check(vc.notApplicableCause === 'doctrine', 'et c est une decision, pas une donnee manquante');
   check(vc.notApplicableGuard === 'domaine-taille',
     'la garde qui l a retiree est nommee, et ce n est pas celle du type d operation');
-  check(/sortie mediane/.test(String(vc.notApplicableReason)), 'le motif nomme la sortie mediane');
+  // « mediane » est devenu « de reference » le 5 aout 2026, et le mot
+  // n a pas ete change pour faire passer le test : l archeologie a
+  // etabli que ces vingt et une valeurs ne sont la mediane de rien. Dix
+  // valeurs rondes pour vingt et une classes, 80 M repete quatre fois.
+  // Appeler mediane une estimation posee a la main etait la moitie du
+  // defaut, puisque le mot authentifiait le nombre.
+  check(/sortie de reference/.test(String(vc.notApplicableReason)), 'le motif nomme la sortie de reference');
+  check(!/sortie mediane/.test(String(vc.notApplicableReason)),
+    'et il ne l appelle plus une mediane, ce qu elle n est pas');
   check(/valeur d entreprise/.test(String(vc.notApplicableReason)), 'et la valeur qu elle contredit');
+  // La garde dit desormais sur quoi elle repose plutot que de laisser
+  // son verdict se lire comme un calcul.
+  check(/RESERVE SUR CETTE GARDE/.test(String(vc.notApplicableReason)),
+    'la garde declare que la table sur laquelle elle s appuie est une estimation');
 
   // Le point qui compte pour le partner : plus de dilution fabriquee.
   check(out.dilutionAnalysis === null, 'aucune dilution n est imprimee sur une pre-money fabriquee');

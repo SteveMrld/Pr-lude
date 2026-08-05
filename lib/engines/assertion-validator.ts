@@ -16,6 +16,11 @@
 
 import type { ExtractionOutput } from './types';
 import { aucunePageAtteinte } from '../instrumentation/source-capture';
+// Deplacee dans son propre module : le moteur de valorisation en a
+// besoin et passe par le bundle client, ou ce fichier ne peut pas
+// entrer. Reexportee pour ne pas casser ses appelants.
+import { detectPitchCurrency } from './devise-dossier';
+export { detectPitchCurrency };
 
 // =============================================================================
 // LISTES DE NOMS AUTORISES
@@ -826,25 +831,6 @@ export function buildPitchYears(extraction: ExtractionOutput): Set<number> {
 
 // Detecte la devise dominante du pitch a partir du fundraise et des
 // metrics traction.
-export function detectPitchCurrency(extraction: ExtractionOutput): 'EUR' | 'USD' | 'unknown' {
-  const texts = [
-    extraction.fundraise?.amount || '',
-    extraction.fundraise?.valuation || '',
-    extraction.traction?.revenue || '',
-    ...(extraction.traction?.metrics || []),
-    extraction.rawSummary || '',
-  ].join(' ').toLowerCase();
-
-  const eurCount = (texts.match(/€|eur\b|euros?/g) || []).length;
-  const usdCount = (texts.match(/\$|usd\b|us\$|dollars?/g) || []).length;
-
-  if (eurCount > usdCount * 2) return 'EUR';
-  if (usdCount > eurCount * 2) return 'USD';
-  if (eurCount > 0 && eurCount >= usdCount) return 'EUR';
-  if (usdCount > 0) return 'USD';
-  return 'unknown';
-}
-
 // =============================================================================
 // VALIDATION GLOBALE D UN OUTPUT D ENGINE
 // =============================================================================

@@ -13,11 +13,37 @@
 // repondre a la question « de quand datent ces chiffres » sans ouvrir
 // le moteur et lire une ligne de commentaire.
 //
-// Ce module ne change aucune valeur. Il les sort du moteur, les date,
-// les source et declare leur confiance, pour que la collecte qui suivra
-// soit possible et pour que ce qui manque se voie. Un chiffre qu on
-// deplace sans le corriger reste faux ; ce qui change est qu il est
-// desormais faux a un endroit ou on le regarde.
+// Ce module ne change aucune valeur. Il les sort du moteur et declare
+// ce qu elles sont, pour que la collecte qui suivra soit possible et
+// pour que ce qui manque se voie.
+//
+// CE QUE L ARCHEOLOGIE A ETABLI, LE 5 AOUT 2026
+//
+// Le commentaire d origine citait « Crunchbase exits 2020-2025, Atomico
+// exits Europe » et etiquetait les valeurs « en EUR ». Les deux lignes
+// viennent du meme commit, a3c531a du 7 mai 2026, ecrites par la meme
+// main le meme jour, alors que les deux sources nommees publient en
+// dollars. Le message de ce commit source les multiples avec precision,
+// Bessemer, OpenView, Atomico, Carta, et ne source pas les sorties : il
+// dit seulement « calibres sur les exits 2020-2025 ».
+//
+// La forme des nombres tranche mieux que l archeologie. Vingt et une
+// classes portent dix valeurs distinctes, toutes multiples de dix
+// millions : 50, 60, 70, 80, 90, 100, 120, 150, 200, 250. Et 80 M
+// revient quatre fois, 60 M et 70 M trois fois chacun. Vingt et une
+// medianes publiees ne tombent pas sur une echelle de dix barreaux
+// ronds, et quatre classes d actif distinctes n ont pas exactement la
+// meme mediane de sortie.
+//
+// Ce ne sont donc pas des statistiques transcrites, ni en dollars ni en
+// euros : ce sont des ordres de grandeur poses a la main. La question de
+// la devise est sans objet, puisqu il n y a rien a convertir. Et la
+// source citee a cote n a pas produit ces nombres.
+//
+// Le commentaire Crunchbase a disparu pour cette raison. Une source qui
+// n a pas ete utilisee ne se cite pas : la citer donnait a ces valeurs
+// une autorite qu elles n ont jamais eue, et c est precisement ce qui
+// les a rendues invisibles pendant trois mois.
 //
 // CE QUE CES CHIFFRES NE PORTENT PAS, ET IL FAUT LE LIRE AVANT DE LES
 // UTILISER
@@ -30,13 +56,14 @@
 // assumee tant que la collecte n a pas eu lieu, et elle est declaree
 // ici plutot que subie dans un moteur.
 //
-// Aucune source primaire. Le commentaire d origine disait « Crunchbase
-// exits 2020-2025, Atomico exits Europe », ce qui nomme deux corpus
-// sans dire quelle statistique en a ete tiree, sur quel perimetre, ni a
-// quelle date. C est une provenance declaree et non une source
-// verifiable, au sens ou la doctrine de la capture l entend : personne
-// ne peut refaire le chemin. Toutes les entrees sont donc en confiance
-// basse, sans exception, y compris celles qui paraissent plausibles.
+// Aucune source. Voir plus haut : la seule qui figurait au code n a pas
+// produit ces nombres.
+//
+// Aucune devise etablie. Ce n est pas une donnee manquante, c est une
+// question sans objet : un ordre de grandeur pose a la main n est
+// libelle dans aucune monnaie tant que personne ne le rattache a une
+// mesure. La garde qui les compare a une valeur d entreprise le declare
+// desormais.
 //
 // Aucune geographie. Une sortie mediane europeenne et une sortie
 // mediane americaine different d un facteur que ces nombres ignorent,
@@ -45,21 +72,31 @@
 
 /** Ce qu on sait de la provenance d une valeur de sortie. */
 export interface ExitBenchmark {
-  /** Sortie de reference, en euros. */
+  /**
+   * Sortie de reference. L unite n est pas etablie, voir `devise` : le
+   * champ portait « en euros » sur la foi d un commentaire que
+   * l archeologie a refute.
+   */
   base: number;
   /**
-   * Millesime de la donnee. `null` quand il n est pas etabli, ce qui
-   * est le cas de toutes les entrees a la reprise du 5 aout 2026 : le
-   * commentaire d origine citait une fenetre 2020-2025 sans dire de
-   * quand datait la statistique retenue.
+   * Millesime de la donnee. `null` sur les vingt et une entrees, et ce
+   * n est pas un oubli de saisie : aucune mesure ne les fonde, donc
+   * aucune date ne les qualifie.
    */
   asOf: string | null;
   /**
-   * Provenance telle qu on peut l ecrire aujourd hui. Ce n est pas une
-   * source au sens de la doctrine de capture tant qu elle ne permet pas
-   * de refaire le chemin.
+   * Ce que la valeur est, et non d ou elle vient : tant qu aucune mesure
+   * ne la fonde, le champ decrit sa nature plutot que d inventer une
+   * provenance.
    */
   source: string;
+  /**
+   * Devise de la valeur. `'inconnue'` tant que le nombre n est pas
+   * rattache a une mesure : un ordre de grandeur pose a la main n est
+   * libelle dans aucune monnaie, et lui en attribuer une serait la
+   * precision inventee que la doctrine interdit.
+   */
+  devise: 'EUR' | 'USD' | 'GBP' | 'inconnue';
   /**
    * `low` partout a la reprise, et ce n est pas une precaution de
    * style. Une valeur dont on ne peut pas dire quelle statistique elle
@@ -77,18 +114,29 @@ export interface ExitBenchmark {
 export const EXIT_BENCHMARKS_REPRIS_LE = '2026-08-05';
 
 /**
- * Provenance commune aux vingt et une entrees d origine, recopiee du
- * commentaire qui les accompagnait et non reformulee : c est tout ce
- * qui existe, et le dire ainsi est plus honnete que de le presenter
- * comme une reference.
+ * Ce que sont reellement les vingt et une valeurs, etabli par la forme
+ * des nombres et non par le commentaire qui les accompagnait.
  */
-const PROVENANCE_ORIGINE = 'declaree a l origine « Crunchbase exits 2020-2025, Atomico exits Europe », '
-  + 'sans statistique nommee ni perimetre ni date : provenance et non source verifiable';
+const NATURE_REELLE = 'estimation d ordre de grandeur posee a la main, non sourcee, sans devise etablie';
 
-const A_ETABLIR = 'valeur reprise telle quelle le 5 aout 2026, a dater et sourcer';
+const A_ETABLIR = 'valeur reprise telle quelle le 5 aout 2026, a mesurer, dater, sourcer et libeller';
 
 function origine(base: number, notes: string = A_ETABLIR): ExitBenchmark {
-  return { base, asOf: null, source: PROVENANCE_ORIGINE, confidence: 'low', notes };
+  return { base, asOf: null, source: NATURE_REELLE, devise: 'inconnue', confidence: 'low', notes };
+}
+
+/**
+ * True tant que la table n a pas ete remplacee par des valeurs mesurees.
+ *
+ * Expose plutot que deduit sur place, pour que la garde de domaine du
+ * moteur de valorisation puisse se declarer non fiable sans recopier le
+ * critere. Passe a false le jour ou chaque entree porte une devise, une
+ * date et une source.
+ */
+export function tableNonFiable(): boolean {
+  return Object.values(EXIT_BENCHMARKS).some(
+    (x) => x.devise === 'inconnue' || x.asOf === null || x.confidence === 'low',
+  );
 }
 
 /**
