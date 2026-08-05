@@ -36,6 +36,7 @@ import {
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
+import { lireSortieDeReference } from '@/lib/data/exit-benchmarks';
 import { pickValueAtYear } from '@/lib/analysis/financial-series';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
 import type { AssetClassArbitration, RelevanceMatrix } from '@/lib/engines/relevance-matrix';
@@ -1267,7 +1268,7 @@ function computeByVcMethod(
       label: 'Methode VC inverse',
       applicable: false,
       // Audit du brief 24 : cette cause avait ete posee par analogie
-      // avec le site voisin, sans etre choisie. La table baseExits
+      // avec le site voisin, sans etre choisie. La table des sorties
       // couvre les vingt et une classes du catalogue, donc un null ici
       // ne peut venir que d une classe hors catalogue, ce que la garde
       // amont de computeValuation intercepte deja. Si le cas se
@@ -1361,33 +1362,13 @@ function computeByVcMethod(
  * servent d ancrage methodologique, pas de prediction.
  */
 function getExitScenarios(assetClass: string, stage: ValuationStage): { bear: number; base: number; bull: number } | null {
-  // Exits typiques par asset class (medianes observees).
-  // Source : Crunchbase exits 2020-2025, Atomico exits Europe.
-  const baseExits: Record<string, number> = {
-    'saas-b2b': 80_000_000,
-    'fintech': 100_000_000,
-    'marketplace-b2c': 150_000_000,
-    'ecommerce-dtc': 60_000_000,
-    'deeptech': 120_000_000,
-    'cybersecurity': 200_000_000,
-    'healthtech': 90_000_000,
-    'climate-tech': 100_000_000,
-    'defense': 250_000_000,
-    'hospitality': 70_000_000,
-    'ai-generative': 250_000_000,
-    // Asset-classes ajoutees
-    'adtech': 80_000_000,
-    'foodtech': 70_000_000,
-    'proptech': 80_000_000,
-    'edtech': 60_000_000,
-    'logistics': 90_000_000,
-    'services-b2b': 50_000_000,
-    'industrial-hardware': 70_000_000,
-    'profitable-mature': 120_000_000,
-    'mediatech': 80_000_000,
-    'sportstech': 60_000_000,
-  };
-  const base = baseExits[assetClass];
+  // La table est sortie du moteur le 5 aout 2026. Vingt et un nombres
+  // sans date ni source, loges dans une fonction, ne se relisent pas :
+  // aucun inventaire ne les voit, aucun controle ne les parcourt, et
+  // personne ne peut dire de quand ils datent sans ouvrir ce fichier.
+  // Ils vivent desormais dans lib/data/exit-benchmarks.ts, dates,
+  // sources et declares en confiance basse, a valeurs inchangees.
+  const base = lireSortieDeReference(assetClass)?.base;
   if (!base) return null;
 
   // Multiplicateurs par stade : plus on est tot, plus l ecart entre
