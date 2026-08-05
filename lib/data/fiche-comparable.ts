@@ -186,6 +186,48 @@ export interface FicheComparable {
    */
   pieges: string;
 
+  /**
+   * Conflits conserves entre deux collectes, un par ligne.
+   *
+   * LE CHAMP EXISTE PARCE QU IL MANQUAIT
+   *
+   * Trois conflits du premier lot etaient loges dans le champ `source`,
+   * faute d endroit ou les mettre : « conflit de devise, deux sources »,
+   * « conflit de structure », « infere du regime de confidentialite ».
+   * Le validateur y cherche une preuve et n y trouvait pas de quoi
+   * refaire le chemin, ce qui est exact et ce qui ratait le sujet : ce
+   * ne sont pas de mauvaises sources, ce sont des informations d une
+   * autre nature rangees au mauvais endroit.
+   *
+   * Un conflit conserve est une information et non un defaut. La methode
+   * de collecte le dit : interroger plusieurs modeles sur le meme prompt
+   * et croiser leurs sorties est le seul detecteur d invention qui
+   * fonctionne sans source, et la divergence est le signal. L arbitrer
+   * en silence detruirait ce signal ; le ranger dans `source` le
+   * detruirait aussi, en le faisant passer pour une preuve manquante.
+   *
+   * Un conflit qui porte sur un champ a vocabulaire ferme ne peut pas y
+   * rester : « USD / EUR » n est pas une devise. Le conflit se note ici
+   * et la ligne concernee reste hors de la base tant qu il n est pas
+   * tranche.
+   */
+  conflitsConserves?: string[];
+
+  /**
+   * Pourquoi cette fiche ne porte qu un seul jalon.
+   *
+   * Le contrat en exige deux, parce qu une fiche a un jalon ne raconte
+   * pas une trajectoire. L exception se declare et se motive plutot que
+   * de se contourner en fabriquant un second jalon : inventer un jalon
+   * pour satisfaire une garde serait pire que la fiche incomplete, et
+   * c est exactement le geste que ce depot passe son temps a fermer.
+   *
+   * Poulehouse est le cas qui l a ouvert. Sa valeur ne tient pas a sa
+   * trajectoire mais a son motif de mort, une dependance fournisseur
+   * pendant une levee en cours, motif que le corpus ne portait pas.
+   */
+  jalonUniqueMotif?: string;
+
   // ---------- Facultatif ----------
   /** Fondateurs, pour la prose. */
   founders?: string;
@@ -304,7 +346,14 @@ export function verifierFiche(f: Partial<FicheComparable> | null | undefined): R
   }
 
   const jalons = Array.isArray(f.jalons) ? f.jalons : [];
-  if (jalons.length < 2 || jalons.length > 6) {
+  const uniqueMotive = jalons.length === 1 && !vide(f.jalonUniqueMotif) && String(f.jalonUniqueMotif).trim().length >= 40;
+  if (jalons.length === 1 && !uniqueMotive) {
+    refus.push({
+      champ: 'jalons',
+      motif: 'un seul jalon : recevable uniquement si jalonUniqueMotif dit pourquoi, en quarante caracteres au moins. '
+        + 'Fabriquer un second jalon pour satisfaire la garde serait pire que la fiche incomplete',
+    });
+  } else if (jalons.length === 0 || jalons.length > 6) {
     refus.push({ champ: 'jalons', motif: `deux a six jalons attendus, ${jalons.length} fourni(s)` });
   }
   jalons.forEach((j: any, i) => {
