@@ -222,8 +222,8 @@ Tu peux citer un comparable de pattern (ex: trajectoire de patience longitudinal
         { "year": "année", "milestone": "jalon", "revenueOrFunding": "données chiffrées" }
       ],
       "outcome": "success-public | success-acquired | survival-private | failed | pivot | ongoing",
-      "finalValuation": "valuation finale chiffrée",
-      "multipleAtExit": "multiple",
+      "finalValuation": "valeur d'entreprise finale chiffrée, ou null",
+      "multipleAtExit": "multiple, ou null",
       "keySuccessFactors": ["facteur 1", "facteur 2"],
       "keyFailureFactors": ["facteur 1 si echec"],
       "relevanceToCurrentDeal": "pertinence concrète pour ce dossier",
@@ -271,7 +271,39 @@ Mieux vaut imprécis que faux. Les chiffres faux dans une note d'instruction dé
 
 Pour les comparables ABSENTS de la base, tu peux mentionner le nom et le contexte qualitatif (année fondation si certaine, secteur), mais AUCUN chiffre précis (ni seed, ni Series, ni valuation, ni multiple). Tu peux dire "early stage seed", "scale-up", "succès IPO", "rachat", sans chiffrer.
 
-NE JAMAIS inventer un seed, une Series A/B/C, une valuation, un nom d'investisseur, ou un multiple. Toute violation = faute critique à corriger.`;
+NE JAMAIS inventer un seed, une Series A/B/C, une valuation, un nom d'investisseur, ou un multiple. Toute violation = faute critique à corriger.
+
+# UN MULTIPLE NE SE CALCULE QU'ENTRE DEUX VALEURS DE MÊME NATURE
+
+Un multiple est un rapport entre deux valeurs d'entreprise. Il n'existe
+pas entre une valeur d'entreprise et un prix de cession d'actifs après
+réalisation du reste.
+
+Le cas type : Made.com vaut 775 M£ à son IPO en 2021, et la marque plus
+la propriété intellectuelle sont reprises pour 3,4 M£ en 2022 après
+liquidation. Le rapport entre les deux n'est pas un multiple de sortie
+de 0,004x. C'est le prix d'un actif incorporel isolé, vendu une fois que
+les stocks, les créances et les baux ont été réalisés séparément. Écrire
+« divisé par 228 » donne un chiffre spectaculaire, faux, et vérifiable
+en trente secondes par un partner qui connaît le dossier.
+
+Trois conséquences pour toi.
+
+Quand la sortie est une liquidation, une reprise d'actifs, un plan de
+cession ou une acquisition dont le prix n'est pas public, finalValuation
+vaut null et multipleAtExit vaut null. Tu décris ce qui s'est passé en
+prose, avec le montant s'il est connu et sa nature, « la marque reprise
+pour 3,4 M£ après liquidation », sans en faire une valeur d'entreprise.
+
+Tu ne calcules jamais un multiple toi-même à partir de deux chiffres de
+la base. Si le multiple n'est pas donné explicitement par une source,
+il vaut null.
+
+Un échec reste un comparable de premier ordre, et c'est pour cela que la
+règle compte. Made.com instruit mieux la fragilité d'un modèle
+e-commerce à forte intensité logistique que trois réussites. Ce qu'on
+refuse n'est pas de le citer, c'est de lui coller un ratio qui n'existe
+pas.`;
 
 // ============================================================
 // SELECTION INTELLIGENTE DU CORPUS ETENDU

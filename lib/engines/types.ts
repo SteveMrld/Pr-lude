@@ -577,8 +577,26 @@ export interface PatternMatchingOutput {
     initialBet: string; // pari stratégique pris au démarrage
     trajectory: Array<{ year: string; milestone: string; revenueOrFunding: string }>;
     outcome: 'success-public' | 'success-acquired' | 'survival-private' | 'failed' | 'pivot' | 'ongoing';
-    finalValuation: string; // valuation à l'IPO/acquisition/faillite
-    multipleAtExit: string; // ex: 1000x pour Series A
+    /**
+     * Valeur d entreprise finale, ou null.
+     *
+     * Null des lors que la sortie est une liquidation, une reprise
+     * d actifs, un plan de cession ou une acquisition a prix non public.
+     * Un prix d actifs apres realisation du reste n est pas une valeur
+     * d entreprise : Made.com vaut 775 M£ a son IPO et sa marque est
+     * reprise pour 3,4 M£ apres liquidation, et les deux nombres ne
+     * decrivent pas la meme grandeur.
+     */
+    finalValuation: string | null;
+    /**
+     * Multiple de sortie, ou null.
+     *
+     * Un multiple est un rapport entre deux valeurs d entreprise. Il n en
+     * existe pas entre une valeur d entreprise et un prix d actifs, et il
+     * ne se calcule jamais a partir de deux chiffres de la base : s il
+     * n est pas donne par une source, il vaut null.
+     */
+    multipleAtExit: string | null;
     keySuccessFactors: string[]; // pourquoi ça a marché (si succès)
     keyFailureFactors: string[]; // pourquoi ça a raté (si échec)
     relevanceToCurrentDeal: string; // ce que ça nous apprend sur le dossier en cours

@@ -578,6 +578,50 @@ et l extrait. Pour un nombre c est le chiffre tel qu il est ecrit. Dans
 les deux cas, la reponse « non » ne demande pas de couper l acquisition,
 elle demande d ecrire la capture.
 
+## Un multiple ne se calcule qu entre deux valeurs de meme nature
+
+Un rapport entre deux nombres n est un multiple que si les deux nombres
+mesurent la meme grandeur. Entre une valeur d entreprise et un prix
+d actifs, le rapport existe arithmetiquement et ne veut rien dire.
+
+Le cas est du 5 aout 2026, apparu pendant la collecte de comparables.
+Made.com vaut 775 M£ a son IPO de 2021 ; en 2022, apres liquidation, la
+marque et la propriete intellectuelle sont reprises pour 3,4 M£. Ecrire
+que la societe a ete divisee par deux cent vingt-huit donne un chiffre
+spectaculaire et faux : le second nombre est le prix d un actif
+incorporel isole, vendu une fois que les stocks, les creances et les
+baux ont ete realises separement. Ce n est pas ce que valait
+l entreprise, c est ce que valait ce qui restait apres qu on l a
+demontee.
+
+La faute est facile a commettre et couteuse a porter. Facile, parce que
+les deux nombres sont vrais, sourcables, et qu ils decrivent bien la
+meme societe a deux dates. Couteuse, parce qu un partner qui connait le
+dossier voit l erreur en trente secondes, et qu un ratio faux dans une
+note detruit la confiance dans tous les ratios justes qui
+l accompagnent.
+
+Ce qui la rend generale plutot qu anecdotique est qu elle ne se limite
+pas aux faillites. Le meme piege existe entre une valorisation
+post-money et une valeur d entreprise, entre un prix d acquisition qui
+inclut une reprise de dette et un autre qui ne l inclut pas, entre un
+chiffre d affaires consolide et un chiffre d affaires a perimetre
+constant. Dans tous les cas, deux nombres exacts et une operation licite
+produisent une grandeur qui n existe pas.
+
+En pratique, avant d ecrire un rapport entre deux chiffres, nommer ce
+que chacun mesure. Si les deux noms different, il n y a pas de multiple,
+il y a deux faits a raconter cote a cote. Et quand la sortie est une
+liquidation, une reprise d actifs ou une acquisition a prix non public,
+la valeur finale vaut null plutot qu un nombre : un champ vide se lit
+comme une absence, un nombre se lit comme une mesure.
+
+Le corollaire vaut pour ce qu on ne refuse pas. Un echec reste un
+comparable de premier ordre, et c est meme la raison de la regle.
+Made.com instruit mieux la fragilite d un modele e-commerce a forte
+intensite logistique que trois reussites. Ce qu on interdit n est pas de
+citer l echec, c est de lui coller un ratio qui n existe pas.
+
 ## Une garde qui verifie un axe donne l air de fermer les autres
 
 Une liste peut etre complete et la garde qui la parcourt rester
