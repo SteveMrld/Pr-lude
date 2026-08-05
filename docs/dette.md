@@ -123,6 +123,102 @@ Rien ne doit etre montre a un fonds avant cette lecture-la.
 
 ---
 
+## Ce qu'il faut collecter, table par table
+
+Ouvert le 5 aout 2026 apres l'inventaire du corpus de reference. Ce
+n'est pas une dette mais un plan de collecte, ecrit pour que le travail
+puisse commencer sans moi. L'ordre est celui de l'effet, pas celui de la
+difficulte.
+
+### 1. `lib/data/exit-benchmarks.ts` — 21 valeurs, une journee
+
+Vingt et une sorties de reference, une par classe d'actif. Toutes
+portent aujourd'hui `asOf: null` et `confidence: 'low'`, et leur
+provenance declaree est « Crunchbase exits 2020-2025, Atomico exits
+Europe », ce qui nomme deux corpus sans dire quelle statistique en a ete
+tiree ni sur quel perimetre.
+
+Ce qu'il faut pour chaque ligne : la statistique exacte (mediane ou
+moyenne, et de quoi), le perimetre geographique, la fenetre temporelle,
+la taille de l'echantillon, et une URL ou une reference opposable. La
+valeur peut ne pas bouger ; ce qui doit changer est qu'on puisse refaire
+le chemin.
+
+Pourquoi en premier : cette valeur decide seule de la sortie de domaine
+de la VC inverse, c'est-a-dire de la seule methode qui donne un prix
+pre-money sur un dossier sans revenus. Vingt et un nombres pour
+debloquer le moteur qui donne le prix.
+
+Deux manques structurels a trancher en meme temps, et ils ne sont pas de
+la collecte. Aucune dimension de stade : une sortie vaut le meme montant
+en seed et en series-C. Aucune geographie : une sortie mediane
+europeenne et une americaine different d'un facteur que ces nombres
+ignorent, sur un produit vendu a des fonds europeens.
+
+### 2. `lib/data/sector-benchmarks.ts` — 72 cellules sur 84
+
+Quatre-vingt-six pour cent des cellules portent `asOf: 2024`, aucune
+2026. Douze sont deja en 2025 et peuvent attendre.
+
+L'ordre a l'interieur de la table est donne par la confiance : dix-sept
+cellules sont en `low`, et ce sont des classes entieres. `defense`,
+`ai-generative` et `sportstech` le sont sur leurs quatre stades ;
+s'ajoutent `deeptech` en seed et series-A, `industrial-hardware` en
+seed, `profitable-mature` en seed et series-A.
+
+`ai-generative` passe avant tout le reste : c'est la classe vers
+laquelle l'arbitrage route tous les dossiers IA, et elle n'a pas une
+cellule au-dessus de basse.
+
+Ce qu'il faut par cellule : le multiple (min, central, max), le type
+(ARR, revenu, EBITDA), la source, le millesime, et la taille de
+l'echantillon quand elle existe.
+
+### 3. `lib/data/indicator-benchmarks.ts` — 84 cellules, dont 57 muettes
+
+Quatre-vingt-dix pour cent en 2024. Surtout, **cinquante-sept cellules
+sur quatre-vingt-quatre ne declarent aucune confiance du tout**, vingt-
+trois sont basses, quatre moyennes, zero haute.
+
+Le premier geste n'est donc pas de collecter mais de declarer : une
+cellule sans confiance se lit comme une cellule fiable, et il y en a
+deux sur trois. Declarer d'abord, collecter ensuite.
+
+### 4. `lib/data/verified-comparables.ts` — 124 fiches, sept classes vides
+
+La collecte ici depend d'un arbitrage qui n'est pas rendu, entre
+elargir les seaux a vingt et une classes ou poser une correspondance
+vers les sept existantes. La mesure qui l'eclaire : en normalisant les
+libelles libres des 124 fiches vers les vingt et une classes, sept
+restent vides — `defense`, `hospitality`, `adtech`, `foodtech`,
+`services-b2b`, `profitable-mature`, `sportstech` — et cinq sont tenues
+par une ou deux fiches, dont `healthtech` par la seule Olive AI, qui est
+un echec.
+
+Tant que l'arbitrage n'est pas rendu, collecter des comparables revient
+a remplir des seaux dont on ne sait pas s'ils existeront.
+
+### 5. `lib/corpus/database.ts` et `extended-database.ts`
+
+Cinquante-deux cas retrospectifs dont le plus recent date de 2023, et
+quarante-cinq cas etendus dont trente portent un montant date 2024.
+
+Ce n'est pas une urgence : le corpus retrospectif est retrospectif par
+conception, et un cas de 2012 garde sa valeur pedagogique. Ce qui
+vieillit est l'absence de cas recents, donc l'incapacite a reconnaitre
+un motif apparu depuis trois ans.
+
+### Ce qui ne se collecte pas
+
+Les six modules macro — valuations-by-stage, exits-trajectories,
+geographic, power-law, macro-context, ai-vs-non-ai — ont chacun un seul
+commit et datent du 1er mai 2026. Ils portent des constantes de marche
+qui vieillissent par trimestre. Les remettre a jour a la main reconduit
+le probleme au trimestre suivant ; c'est la couche sectorielle
+automatique qui doit les couvrir, pas une passe de collecte.
+
+---
+
 ## `seller` fait entrer et sortir une personne physique selon le tirage
 
 Ouvert le 3 aout 2026.
