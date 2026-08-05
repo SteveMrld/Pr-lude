@@ -515,6 +515,83 @@ controle qui reste, quand ces deux-la manquent, est de casser
 volontairement une lecture et de compter ce qui rougit ; un chiffre nul
 n est pas un test solide, c est un test absent.
 
+## Une garde qui verifie un axe donne l air de fermer les autres
+
+Une liste peut etre complete et la garde qui la parcourt rester
+partielle. Elle donne alors l impression de fermer tout ce qu elle
+enumere, alors qu elle ne verifie qu une propriete sur plusieurs, et
+rien dans son nom ni dans son contenu ne dit laquelle.
+
+Le cas est du 5 aout 2026. `SITES_A_DECLARER`, dans le test du budget
+d appel, enumere les onze sites qui appellent le client partage sans
+passer par la table. La liste etait juste et complete. Elle ne
+verifiait que la temperature. Le balayage de temperature avait ete fait
+un jour donne, celui des fenetres ne l avait pas ete, et la liste ne dit
+pas la difference : Friction d execution y figurait, sa temperature
+etait declaree, et il a herite des soixante secondes du client avec une
+reprise, jusqu a sortir a 120 397 ms sur un run de demonstration.
+
+La faute est plus difficile a voir que la liste incomplete, qui a sa
+section plus haut. Une liste incomplete se corrige des qu on rencontre
+un element absent ; ici il n y a rien d absent, et le seul signe est
+qu on ne trouve pas ce qu on ne cherche pas. La garde rend vert, la
+liste est exhaustive, et l axe non verifie n existe nulle part comme
+question.
+
+Le motif se cherche partout ou une liste sert de perimetre a une
+verification. Deux exemples du meme jour : le releve de couverture qui
+enumere les moteurs sans test mais ne dit pas si le test importe bien ce
+que son nom designe, et le controleur de corpus qui applique un
+catalogue mais ne dit pas quelles proprietes n ont jamais ete exercees.
+
+En pratique, une garde qui parcourt une liste declare ce qu elle
+verifie, et surtout ce qu elle ne verifie pas, dans la liste elle-meme.
+La question a poser devant toute liste de perimetre est : sur combien
+d axes ce perimetre a-t-il ete balaye, et lesquels. Quand la reponse est
+un seul, elle s ecrit a cote de la liste, faute de quoi la prochaine
+lecture la prendra pour un inventaire ferme.
+
+## Une valeur neutre n est neutre que si le calcul sait qu elle est absente
+
+Remplacer une donnee manquante par une valeur qui ne deplace rien ne
+suffit pas. La valeur ne reste neutre que tant que le calcul qui la
+consomme sait qu elle est un remplacement, et un calcul ne le sait
+jamais tout seul.
+
+La regle est nee le 5 aout 2026 sur l ajustement dialectique de la
+synthese. Aveuglement arrivait nul, la lecture de son score levait, et
+le module de protection des racines existait deja pour ce cas : il
+remplace une racine absente par un objet vide, et chaque interpolation
+retombe sur le repli qu elle declarait. Applique ici, il aurait ferme
+l exception. Il aurait aussi rendu un score de zero, et zero traverse
+l arithmetique comme une mesure : sur la resolution `blindspots
+-dominate`, la penalite vaut alors exactement moins quinze points, tiree
+d un moteur qui n a jamais tourne. L exception aurait ete remplacee par
+un chiffre plausible, ce qui est strictement pire, puisqu une exception
+se voit.
+
+C est le `?? 50` de TOLSON sous une autre forme, et la parente est le
+point : la, un score de dimension absent prenait la valeur mediane et
+entrait dans la moyenne comme une note ; ici un score de moteur absent
+prend zero et entre dans une penalite. Les deux fois, la valeur choisie
+est defendable en soi et fausse dans son role, parce que le calcul ne
+distingue pas ce qu il a mesure de ce qu on lui a donne pour ne pas
+casser.
+
+La sortie n est pas de mieux choisir la valeur. Il n existe pas de
+nombre qui signifie « absent » dans une arithmetique. La sortie est que
+le calcul recoive l absence en plus de la valeur, et qu il en tire une
+consequence explicite : ici l ajustement vaut zero parce qu il n a pas de
+fondement, et il sort avec un drapeau qui distingue ce zero-la d un
+equilibre entre deux moteurs qui ont tourne.
+
+En pratique, devant toute valeur de repli qui entre dans un calcul,
+poser la question dans cet ordre. Que vaut le calcul si cette valeur est
+un remplacement. Si la reponse est un resultat different de celui qu on
+aurait rendu en refusant de calculer, alors le repli ne protege pas, il
+fabrique. Et la garde juste ne porte pas sur la valeur mais sur la
+presence, qui doit voyager avec elle.
+
 ## Discipline des regles ecrites
 
 Quand une regle est ecrite dans un commentaire, elle doit etre portee

@@ -50,21 +50,53 @@ complet. C'est la forme du chiffre juste sur une part qui se lit comme
 un chiffre sur le tout, et elle vaut d'etre fermee meme si elle n'est
 pas la cause de l'ecart ci-dessus.
 
-Ce qui se fait avant tout correctif, et avant toute demonstration. Il
-faut etablir d'ou viennent les nombres rendus, ce qui se fait hors ligne
-et sans run complet : rejouer `extractFinancialData` sur le CSV du
-classeur, avec et sans la coupe a 30 000, et comparer champ par champ
-aux lignes du document. Trois issues possibles et elles n'appellent pas
-le meme correctif. Si la coupe est en cause, elle se repare au
-convertisseur et se signale au lecteur. Si le modele lit la mauvaise
-ligne, c'est le prompt d'extraction financiere qui doit exiger le
-libelle de la ligne lue a cote de la valeur. Si les nombres ne viennent
-d'aucune ligne, c'est une invention, et alors la citation obligatoire
-qui existe deja pour le montant du tour doit s'etendre a toute valeur
-financiere extraite.
+### Ce que la mesure a etabli, le 5 aout 2026
 
-Rien ne doit etre montre a un fonds avant que cette question soit
-tranchee. C'est le seul point de ce registre dont je dirais cela.
+Le classeur porte 3334 cellules numeriques. **Aucune ne rend l'une des
+quatre valeurs extraites**, a l'arrondi au millier pres. Les quatre sont
+des approximations, et leur plus proche voisine se lit ainsi, sur la
+feuille Management BP dont les colonnes G a J portent 2025 a 2028 :
+
+| annee | rendu | plus proche cellule | ecart | ce que la cellule est | ce qu'il fallait lire |
+|---|---|---|---|---|---|
+| 2025 | 0,101 | H18 = 100 150 | 0,84 % | EBITDA **de 2026** | CA 2025 = 153 250 |
+| 2026 | 0,897 | H12 = 907 250 | 1,14 % | CA 2026 | CA 2026 = 907 250 |
+| 2027 | 0,963 | I10 = 963 750 | 0,08 % | **B2B** 2027 | CA 2027 = 1 059 750 |
+| 2028 | 0,963 | J10 = 963 750 | 0,08 % | **B2B** 2028 | CA 2028 = 1 059 750 |
+
+Trois fautes distinctes dans quatre valeurs. La premiere prend une ligne
+d'EBITDA pour une ligne de chiffre d'affaires et decale l'annee d'un
+cran, ce qui rend 2025 inferieur de trente-quatre pour cent a la verite.
+Les deux dernieres prennent la ligne B2B pour le total, ce qui les rend
+inferieures de neuf pour cent. La seule qui vise la bonne ligne et la
+bonne annee est approximee d'un pour cent.
+
+La troncature est disculpee, et c'est une des trois issues qui tombe.
+Les trois libelles de ligne et les quatre chiffres du document sont
+presents a l'identique dans le CSV coupe et dans le CSV complet : le
+compte de resultat survit entierement a la coupe, qui tombe plus bas
+dans le tableau de financement. Elle reste un defaut a fermer pour ce
+qu'elle emporte, elle n'est pas la cause de celui-ci.
+
+Les deux autres issues sont realisees ensemble, ce que je n'avais pas
+prevu. Le modele lit la mauvaise ligne, et il approxime meme quand il
+lit la bonne. La consequence porte sur le correctif : exiger le libelle
+de la ligne lue a cote de la valeur, qui etait ma premiere hypothese, ne
+suffit pas. Cela rattraperait 2025, 2027 et 2028, et laisserait passer
+2026, dont le libelle serait juste et la valeur fausse d'un pour cent.
+Ce qui ferme les trois est de faire porter a l'extraction **le chiffre
+tel qu'il est ecrit dans le document**, verbatim, a cote de la valeur
+normalisee. La comparaison devient alors mecanique et se verrouille par
+un test, au lieu de dependre d'une relecture.
+
+Ce qui n'est pas etabli, et se dit : l'attribution par proximite de
+valeur est plausible, elle n'est pas une preuve de provenance. Rien
+n'exclut que 0,101 vienne d'ailleurs et tombe par hasard a 0,84 % d'une
+cellule d'EBITDA. Ce qui est etabli sans hypothese est le negatif, et il
+suffit : aucune des quatre valeurs n'existe dans le document.
+
+Rien ne doit etre montre a un fonds avant que le correctif soit pose.
+C'est le seul point de ce registre dont je dirais cela.
 
 ---
 
