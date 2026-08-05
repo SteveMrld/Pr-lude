@@ -900,16 +900,23 @@ const _RAW_COMPARABLES: Record<string, RawVerifiedComparable> = {
     currentStatus: 'Liquidation 2017.',
     notes: 'Ne pas confondre avec Jawbone Health, entite post-liquidation.',
   },
-  cazoo: {
-    name: 'Cazoo',
-    founded: 2018,
-    founders: 'Alex Chesterman (ex-Zoopla, UK)',
-    sectorAssetClass: 'e-commerce auto UK / capex stock physique',
-    keyMilestones: 'SPAC merger NYSE:CZOO aout 2021 valuation ~7Md$. Effondrement 2022-2023. Faillite 2024.',
-    currentStatus: 'Faillite 2024.',
-    notes: 'Cautionary recent : modele asset-heavy deguise en tech.',
-    needsExternalCheck: true,
-  },
+  // CAZOO EST SORTI DE CETTE BASE LE 5 AOUT 2026
+  //
+  // Il y figurait sous « e-commerce auto UK / capex stock physique »,
+  // libelle qui dit lui-meme pourquoi il n y a pas sa place : un
+  // negociant qui detient son stock de vehicules n a ni l intensite
+  // capitalistique, ni le cycle de tresorerie, ni la structure de marge
+  // d une marque en vente directe. Le servir comme comparable a un
+  // dossier ecommerce-dtc donnait a lire des reperes de rotation et de
+  // marge structurellement etrangers au dossier.
+  //
+  // Il n a pas ete supprime, il a ete deplace : EXTENDED_CORPUS le porte
+  // deja sous `cazoo`, strate D-failure, et c est la structure des
+  // archetypes et des paris, celle que Pattern Matching lit pour les
+  // regimes. Un repere de bulle y est chez lui, une base de comparables
+  // sectoriels sert a calibrer des multiples. Son de-SPAC a 7 Md$ et la
+  // destruction de plus de 99 pour cent vivent desormais dans son
+  // reusablePattern.
   hopin: {
     name: 'Hopin',
     founded: 2019,
@@ -1320,7 +1327,6 @@ const OUTCOME_REGISTRY: Record<string, { outcome: ComparableOutcome; stade: Comp
   tally: { outcome: 'failure', stade: 'scaleup' },
   better: { outcome: 'contested', stade: 'mature' },
   jawbone: { outcome: 'failure', stade: 'mature' },
-  cazoo: { outcome: 'failure', stade: 'mature' },
   hopin: { outcome: 'failure', stade: 'scaleup' },
   convoy: { outcome: 'failure', stade: 'scaleup' },
   bird: { outcome: 'failure', stade: 'mature' },

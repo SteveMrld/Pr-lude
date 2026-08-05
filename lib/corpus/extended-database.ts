@@ -791,7 +791,16 @@ const STRATE_D: ExtendedCaseRecord[] = [
     sector: 'E-commerce',
     subSector: 'Voitures d occasion en ligne',
     totalRaised: { amount: 2000, currency: 'USD', asOf: '2021', verifySource: true },
-    wagerType: 'marketplace',
+    // 'marketplace' etait faux, et pour la raison meme qui a sorti Cazoo
+    // de la base de comparables ecommerce-dtc le 5 aout 2026 : une place
+    // de marche ne detient pas son stock, elle met en relation. Cazoo
+    // achetait ses voitures, les remettait en etat et les revendait, ce
+    // qui est un negoce a bilan lourd. Le classer marketplace faisait
+    // ranger avec des modeles asset-light le cas dont la these porte
+    // precisement sur l inverse, et ce que le pari engageait n etait pas
+    // une intermediation mais un changement d habitude d achat finance
+    // par du capex de stockage.
+    wagerType: 'consumer',
     thesis: "Devenir l Amazon de la voiture d occasion en Europe en pariant sur la digitalisation totale (achat 100% en ligne, livraison à domicile, retour 7 jours).",
     whyYes: "IPO SPAC à 7Mds$ (2021), équipe Alex Chesterman (Zoopla), pari early sur la digitalisation post-COVID, ambition européenne.",
     whyNo: "Modèle capex ultra-intensif (stocks de voitures), unit economics non démontrées, marges fines, concurrence Carvana qui a déjà subi le même crash US.",
@@ -799,7 +808,7 @@ const STRATE_D: ExtendedCaseRecord[] = [
     realTraction: "+150 000 voitures vendues au pic, mais effondrement total du modèle économique 2022-2023.",
     status: 'in-difficulty',
     statusContext: "Cas d école absolu : valorisation IPO 7Mds$ → near-zero en 24 mois. La thèse marketplace + capex stocks était structurellement instable.",
-    reusablePattern: "PATTERN CRITIQUE : modèle 'Amazon de X' avec capex de stockage massif est fragile structurellement. Carvana a planté avant Cazoo, signal ignoré.",
+    reusablePattern: "PATTERN CRITIQUE : modèle 'Amazon de X' avec capex de stockage massif est fragile structurellement. Carvana a planté avant Cazoo, signal ignoré. REPERE DE REGIME : de-SPAC à 7 Md$ en 2021 puis destruction de plus de 99 % de la valeur en trois ans, jusqu'au placement sous administration en mai 2024. C'est le meilleur ancrage de bulle du corpus, et il sert à lire un dossier valorisé contre des comparables de 2021 : la question n'est pas si la valorisation était haute, elle est ce que le marché achetait alors et qu'il n'achète plus. A ne jamais citer comme comparable sectoriel : le rapport entre la capitalisation de de-SPAC et le prix de reprise n'est pas un multiple.",
     sources: ['Press : FT, Sifted 2022-2024'],
     strate: 'D-failure',
     yearFounded: 2018,
