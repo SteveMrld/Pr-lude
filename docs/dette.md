@@ -166,6 +166,64 @@ que sur un corpus rejoue.
 
 ---
 
+## Deux lectures en attente, apres ce qui est engage
+
+Ouvertes le 5 aout 2026. Ce ne sont pas des dettes mais deux relevés a
+faire, inscrits ici parce qu'une question qui n'est pas ecrite se perd,
+et que celles-ci sont nees d'un correctif dont elles debordent.
+
+### Les fonctions dupliquees entre le serveur et le bundle client
+
+`detectPitchCurrency` a du sortir du validateur d'assertions pour que le
+moteur de valorisation puisse la lire : le validateur importe la capture
+de sources, donc `AsyncLocalStorage`, et le moteur est atteint par
+`InvestmentNoteView` puis `HomeClient`. La tentation etait de la
+recopier, et c'est la faute a ne pas commettre : deux lectures de la
+devise d'un meme dossier ne se contrediraient pas bruyamment, elles se
+contrediraient en silence, chacune dans son moteur, et le partner lirait
+deux chiffres dont il croirait qu'ils descendent de la meme lecture.
+
+Ce qui reste a faire est le releve de la meme famille. Quelles autres
+fonctions du depot existent en deux exemplaires parce qu'une des deux
+copies devait echapper a une dependance Node. Le releve se fait sur les
+corps de fonction et non sur les noms, puisqu'une copie porte rarement
+le meme nom que son original.
+
+C'est le pendant, cote frontiere serveur-client, de ce que
+`lecture-montant` a ferme pour les montants : trois lectures d'une meme
+chaine ne divergeaient que sur le cas sale, donc jamais bruyamment.
+
+### Les nombres qui portent une source citee sans qu'on sache s'ils en viennent
+
+La discipline ecrite le 5 aout dit qu'une source citee a cote d'un nombre
+n'etablit pas que le nombre en vient, et que la citation authentifie ce
+qu'elle n'a pas produit. Elle est nee sur `baseExits`, ou dix valeurs
+rondes pour vingt et une classes ont refute une source nommee.
+
+Elle vaut au-dela. Deux candidats, dans cet ordre.
+
+`SECTOR_BENCHMARKS` : quatre-vingt-six pour cent des cellules portent
+`asOf: 2024`, et le commit fondateur nomme des sources precises,
+Bessemer Cloud Index, OpenView SaaS Benchmarks, Atomico State of
+European Tech, Carta. La question est de savoir si les valeurs en
+viennent ou si les sources ont ete citees a cote comme pour les sorties.
+
+`INDICATOR_BENCHMARKS` : quatre-vingt-dix pour cent en 2024, et
+cinquante-sept cellules sur quatre-vingt-quatre ne declarent aucune
+confiance. Une cellule sans confiance se lit comme une cellule fiable.
+
+Le test se fait sans ouvrir aucun document : la forme des nombres se lit
+avant la source declaree. Des valeurs rondes, repetees, tirees d'une
+echelle courte, sont une estimation quoi qu'en dise le commentaire ; des
+valeurs a trois chiffres significatifs et toutes distinctes sont une
+transcription, meme sans source citee.
+
+Ces deux tables decident de la fourchette de valorisation et des seuils
+de KPI, donc du prix et du verdict. Elles viennent apres ce qui est
+engage, et pas apres autre chose.
+
+---
+
 ## Ce qu'il faut collecter, table par table
 
 Ouvert le 5 aout 2026 apres l'inventaire du corpus de reference. Ce
