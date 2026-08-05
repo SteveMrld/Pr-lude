@@ -809,15 +809,94 @@ Produis la recommandation finale avec :
 Retourne uniquement le JSON structuré.${buildFundNoteBlock(fundNote, 'générale')}`;
 }
 
+/**
+ * L ajustement du score par la tension entre Aveuglement et
+ * Singularites contrariennes, et si son socle etait la.
+ *
+ * LA PROSE ETAIT PROTEGEE, LE CALCUL NE L ETAIT PAS
+ *
+ * Les deux lignes qui lisaient ces scores prenaient les racines brutes.
+ * Le run b8d0e9ac s y est arrete, `Cannot read properties of null
+ * (reading 'globalBlindspotScore')`, et a bascule en repli degrade :
+ * Marche etait tombe, les quatre moteurs de la porte aval avec lui, et
+ * Aveuglement arrivait nul. Le module engine-roots existe depuis
+ * l incident c487a8b2 et ferme exactement cette classe ; il etait appele
+ * dans le constructeur de prompt et pas ici. C est la dissymetrie que la
+ * doctrine nomme : le canal visible est celui qu on relit et qu on
+ * corrige, le canal muet est celui qui agit, et personne ne relit un
+ * nombre.
+ *
+ * PROTEGER LA RACINE NE SUFFIT PAS, ET C EST LE POINT
+ *
+ * Une racine protegee ne leve plus, ce qui rendrait la suite fausse en
+ * silence. Un moteur absent rend un score de zero, et zero traverse
+ * l arithmetique comme une mesure : sur `blindspots-dominate` la
+ * penalite vaut alors -15 exactement, tiree d un moteur qui n a jamais
+ * tourne. Ce serait la garde inerte prise par l autre bout, un defaut
+ * remplace par un chiffre plausible.
+ *
+ * Une tension arbitree entre deux moteurs dont l un n a pas tourne n est
+ * pas une tension. L ajustement vaut donc zero parce qu il n a pas de
+ * fondement, et non parce que les deux moteurs se seraient equilibres.
+ * `socleAbsent` sort avec lui pour que le consommateur puisse dire
+ * laquelle des deux raisons il lit.
+ *
+ * Exportee pour que son verrou entre par la porte de production : elle
+ * vivait dans le corps de l orchestrateur, donc derriere un appel au
+ * modele, donc intestable autrement qu en la recopiant.
+ */
+export function ajustementBlindspotsContrarien(
+  tension: string | undefined | null,
+  blindspotAnalysis: any,
+  contrarianAnalysis: any,
+): { ajustement: number; socleAbsent: boolean } {
+  // L absence se lit sur les racines brutes, jamais sur les protegees :
+  // celles-ci ont deja remplace le manque par un objet vide.
+  const socleAbsent = blindspotAnalysis == null || contrarianAnalysis == null;
+  if (socleAbsent) return { ajustement: 0, socleAbsent: true };
+
+  const R = protectEngineRoots({ blindspotAnalysis, contrarianAnalysis });
+  const blindspotScore = R.blindspotAnalysis.globalBlindspotScore || 0;
+  const contrarianScore = R.contrarianAnalysis.globalContrarianScore || 0;
+
+  if (tension === 'blindspots-dominate') {
+    // Plus le blindspot score est haut, plus on penalise (max -25)
+    return { ajustement: -Math.round(15 + (blindspotScore / 100) * 10), socleAbsent: false };
+  }
+  if (tension === 'contrarian-justifies') {
+    // Plus le contrarian score est haut, plus on bonifie (max +15)
+    return { ajustement: Math.round(5 + (contrarianScore / 100) * 10), socleAbsent: false };
+  }
+  return { ajustement: 0, socleAbsent: false };
+}
+
 export async function orchestrateFinalRecommendation(
   extraction: ExtractionOutput,
   team: TeamAnalysisOutput,
   market: MarketAnalysisOutput,
   macro: MacroAnalysisOutput,
-  patternMatching: PatternMatchingOutput,
-  causalReversal: CausalReversalOutput,
-  blindspotAnalysis: BlindspotAnalysisOutput,
-  contrarianAnalysis: ContrarianAnalysisOutput,
+  // LE TYPE MENTAIT SUR CE QUI ARRIVE ICI
+  //
+  // Ces quatre etaient declares non-nullables alors que les deux
+  // suivants, narrativeDrift et fragiliteStructurelle, portent depuis
+  // toujours `| null` avec le commentaire qui l explique : « null si
+  // moteur non applicable ou en echec ». Les quatre tombent exactement
+  // de la meme facon, et plus souvent, puisqu ils dependent de la porte
+  // [team, market, macro] : quand Marche echoue, les quatre arrivent
+  // nuls. Le run b8d0e9ac s est arrete sur
+  // `blindspotAnalysis.globalBlindspotScore` lu sur null et a bascule en
+  // repli degrade.
+  //
+  // Le correctif n est pas d ajouter un chainage optionnel au site qui a
+  // leve. Un `?.` repare la ligne qu on regarde et laisse les autres,
+  // et il n y a aucun moyen de savoir lesquelles sans les chercher a la
+  // main. Le type dit desormais ce qui arrive, et c est le compilateur
+  // qui enumere : chaque lecture non gardee devient une erreur de
+  // compilation, aujourd hui et au prochain champ ajoute.
+  patternMatching: PatternMatchingOutput | null,
+  causalReversal: CausalReversalOutput | null,
+  blindspotAnalysis: BlindspotAnalysisOutput | null,
+  contrarianAnalysis: ContrarianAnalysisOutput | null,
   fundNote?: string | null,
   /**
    * Score mecanique pre-calcule par lib/engines/score-calculator.ts a
@@ -1011,17 +1090,27 @@ export async function orchestrateFinalRecommendation(
       )
     : 0;
 
+  // LA PROSE ETAIT PROTEGEE, LE CALCUL NE L ETAIT PAS
+  //
+  // Ces deux lignes lisaient les racines brutes. Le run b8d0e9ac s y est
+  // arrete, `Cannot read properties of null (reading
+  // 'globalBlindspotScore')`, et a bascule en repli degrade : Marche
+  // etait tombe, les quatre moteurs de la porte aval avec lui, et
+  // Aveuglement arrivait nul.
+  //
+  // Le module engine-roots existe depuis l incident c487a8b2 et ferme
+  // exactement cette classe. Il etait appele dans le constructeur de
+  // prompt et pas ici. C est la dissymetrie que la doctrine nomme : le
+  // canal visible est celui qu on relit et qu on corrige, le canal muet
+  // est celui qui agit. La prose ne levait plus, le score levait encore,
+  // et personne ne l avait vu parce que personne ne relit un nombre.
   const tension = recommendation.blindspotsVsContrarian?.tensionResolved;
-  const blindspotScore = blindspotAnalysis.globalBlindspotScore || 0;
-  const contrarianScore = contrarianAnalysis.globalContrarianScore || 0;
-  let blindspotsContrarianAdjustment = 0;
-  if (tension === 'blindspots-dominate') {
-    // Plus le blindspot score est haut, plus on penalise (max -25)
-    blindspotsContrarianAdjustment = -Math.round(15 + (blindspotScore / 100) * 10);
-  } else if (tension === 'contrarian-justifies') {
-    // Plus le contrarian score est haut, plus on bonifie (max +15)
-    blindspotsContrarianAdjustment = Math.round(5 + (contrarianScore / 100) * 10);
-  }
+  const { ajustement: blindspotsContrarianAdjustment, socleAbsent } =
+    ajustementBlindspotsContrarien(tension, blindspotAnalysis, contrarianAnalysis);
+  // Lue une seule fois, protegee, et partagee par les deux gardes qui en
+  // dependent. Elle valait `blindspotAnalysis.globalBlindspotScore` sur
+  // la racine brute aux deux endroits.
+  const blindspotScore = protectEngineRoots({ blindspotAnalysis }).blindspotAnalysis.globalBlindspotScore || 0;
 
   const finalComputedScore = Math.max(0, Math.min(100, weightedDimensionScore + blindspotsContrarianAdjustment));
   const llmScore = recommendation.globalScore || 0;
@@ -1113,7 +1202,16 @@ export async function orchestrateFinalRecommendation(
   let probAdjustmentApplied = false;
   let probAdjustmentRationale = '';
 
-  if (tension === 'blindspots-dominate') {
+  // Le socle absent neutralise aussi cette garde, et pour la meme
+  // raison que l ajustement du score : une decote « selon l ampleur des
+  // drapeaux rouges » calculee sur un moteur qui n a pas tourne mesure
+  // son absence et non des drapeaux. C est le second site que le
+  // compilateur a fait apparaitre en retirant la variable partagee, et
+  // il n avait ete vu par personne : la ligne qui a leve dans le run
+  // n etait pas la seule a lire ce score.
+  if (socleAbsent) {
+    // Rien a forcer : la dialectique qui fonde la decote n a pas eu lieu.
+  } else if (tension === 'blindspots-dominate') {
     // Decote attendue : 10 a 20 points selon ampleur des drapeaux rouges
     const expectedMinDecote = 10 + Math.round((blindspotScore / 100) * 8);
     if (probDelta < expectedMinDecote) {

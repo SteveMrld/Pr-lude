@@ -37,6 +37,13 @@
  * Remplace chaque racine null ou undefined par un objet vide, en
  * conservant les racines presentes telles quelles.
  *
+ * Le type de retour retire le null plutot que de reconduire celui de
+ * l entree. La fonction rendait `T`, donc une racine declaree nullable
+ * ressortait nullable alors qu elle ne l est plus : le seul outil qui
+ * aurait pu signaler cette famille de defauts, le jour ou strictNullChecks
+ * sera actif, aurait continue de pointer les lectures deja protegees et
+ * fait passer le mecanisme pour inutile.
+ *
  * PIEGE A CONNAITRE : ne fais jamais passer par ici une sortie
  * utilisee comme condition de presence. Un objet vide est truthy,
  * donc ${narrativeDrift ? buildBlock(narrativeDrift) : ''} basculerait
@@ -44,11 +51,13 @@
  * qui gouvernent un ternaire de presence restent brutes. Seules les
  * racines dereferencees inconditionnellement entrent ici.
  */
-export function protectEngineRoots<T extends Record<string, any>>(roots: T): T {
+export function protectEngineRoots<T extends Record<string, any>>(
+  roots: T,
+): { [K in keyof T]: NonNullable<T[K]> } {
   const out: Record<string, any> = {};
   for (const key of Object.keys(roots)) {
     const value = roots[key];
     out[key] = value === null || value === undefined ? {} : value;
   }
-  return out as T;
+  return out as { [K in keyof T]: NonNullable<T[K]> };
 }
