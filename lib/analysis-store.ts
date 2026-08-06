@@ -36,6 +36,10 @@ import { getSupabaseServerClient, getSupabaseAdminClient } from './supabase/serv
 import { normalizeStringsRecursive } from './normalize-punctuation';
 import { warnOnFlagFallback } from './env-flags';
 import { INSUFFICIENT_BASIS_VERDICT } from './engines/score-calculator';
+// Import de type seul : `trajectory-dossier` lit une constante d ici, et
+// un import de valeur en retour formerait un cycle. Le type est efface a
+// la compilation, donc il n en cree aucun.
+import type { LigneCandidate } from './trajectory-dossier';
 
 // ============================================================
 // MODE SOLO : UUID admin par defaut
@@ -365,6 +369,148 @@ export function extractAnalysisMetadata(result: any): Partial<SaveAnalysisInput>
  * courant. Utilise pour proposer la creation d une nouvelle version
  * plutot qu un nouveau dossier au moment d un re-run.
  */
+// ============================================================
+// LECTURES DU REGROUPEMENT PAR DOSSIER
+// ------------------------------------------------------------
+// La trajectoire se lit sur un dossier et non sur une chaine de
+// versions. La decision de regroupement vit dans `trajectory-dossier`,
+// qui est pur et se teste hors ligne ; ce qui est ici est la lecture,
+// parce que le client et la resolution RLS y vivent deja.
+//
+// DEUX LECTURES, ET POURQUOI ELLES NE SONT PAS UNE SEULE
+//
+// Le regroupement se decide sur des colonnes legeres. `result_json` est
+// la plus grosse de la table et ne sert qu aux membres retenus, donc il
+// se charge dans un second temps sur une liste d identifiants deja
+// close. Le charger pour decider ferait transiter tout l historique
+// d un fonds pour en garder deux lignes.
+//
+// La presence d un resultat se lit pourtant des la premiere lecture,
+// puisqu elle decide de l admission. Elle se lit comme un filtre serveur
+// sur `result_json IS NOT NULL`, qui ne rapatrie pas la colonne. Le
+// critere porte donc sur ce que la ligne contient et non sur une liste
+// de statuts qui vieillirait au premier statut ajoute.
+//
+// POURQUOI LE FILTRE DE NOM NE SE FAIT PAS EN SQL
+//
+// La cle est normalisee en TypeScript, NFKC et espaces internes
+// compris. Aucun `ilike` ne reproduit cette normalisation : un motif
+// « made com » ne trouve pas « Made   com », et un motif non normalise
+// ne trouve pas une ligne dont le nom porte un espace de bordure. Un
+// prefiltre SQL pourrait donc ecarter un membre legitime, et une
+// sous-selection ne se voit pas, contrairement a une sur-selection que
+// la decision TypeScript rattrape. Le prefiltre porte donc sur le seul
+// proprietaire.
+// ============================================================
+
+/**
+ * Plafond de lecture des candidates d un proprietaire. Large devant le
+ * corpus au 6 aout 2026, qui porte cinquante-six lignes a resultat, et
+ * borne quand meme. Quand il est atteint, `tronque` le dit : une
+ * troncature silencieuse se lirait comme un dossier complet.
+ */
+export const PLAFOND_CANDIDATES_DOSSIER = 2000;
+
+export interface DossierCharge {
+  ancre: LigneCandidate | null;
+  candidates: LigneCandidate[];
+  tronque: boolean;
+}
+
+const COLONNES_CANDIDATE =
+  'id, user_id, company_name, created_at, source_filename, deck_hash';
+
+function versLigneCandidate(row: any): LigneCandidate {
+  return {
+    id: row.id,
+    userId: row.user_id ?? null,
+    companyName: row.company_name ?? null,
+    createdAt: row.created_at ?? '',
+    sourceFilename: row.source_filename ?? null,
+    deckHash: row.deck_hash ?? null,
+    // Toutes les lignes rendues par ces lectures passent le filtre
+    // serveur sur result_json : elles portent un resultat par
+    // construction, et le champ le declare plutot que de le supposer.
+    aUnResultat: true,
+  };
+}
+
+/**
+ * Charge l ancre et les candidates de son proprietaire. Une ancre sans
+ * resultat rend `ancre: null` : elle n est pas indexable, donc elle
+ * n appelle aucun voisin, et l appelant retombe sur la lecture de
+ * l analyse seule.
+ */
+export async function chargerCandidatesDuDossier(
+  analysisId: string,
+): Promise<DossierCharge> {
+  if (!isPersistenceEnabled()) return { ancre: null, candidates: [], tronque: false };
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+
+    const { data: ancreRow, error: errAncre } = await supabase
+      .from('analyses')
+      .select(COLONNES_CANDIDATE)
+      .eq('id', analysisId)
+      .not('result_json', 'is', null)
+      .maybeSingle();
+
+    if (errAncre || !ancreRow) return { ancre: null, candidates: [], tronque: false };
+
+    const ancre = versLigneCandidate(ancreRow);
+    if (!ancre.userId) return { ancre, candidates: [ancre], tronque: false };
+
+    const { data: rows, error } = await supabase
+      .from('analyses')
+      .select(COLONNES_CANDIDATE)
+      .eq('user_id', ancre.userId)
+      .not('result_json', 'is', null)
+      .order('created_at', { ascending: true })
+      .limit(PLAFOND_CANDIDATES_DOSSIER);
+
+    if (error || !rows) return { ancre, candidates: [ancre], tronque: false };
+
+    return {
+      ancre,
+      candidates: rows.map(versLigneCandidate),
+      tronque: rows.length >= PLAFOND_CANDIDATES_DOSSIER,
+    };
+  } catch {
+    return { ancre: null, candidates: [], tronque: false };
+  }
+}
+
+/**
+ * Charge `result_json` pour les seuls membres retenus. Un membre dont la
+ * lecture echoue est absent de la table plutot que present avec un
+ * contenu vide, ce qui le ferait entrer dans la chaine comme un snapshot
+ * sans donnee.
+ */
+export async function chargerResultatsDeMembres(
+  ids: string[],
+): Promise<Map<string, any>> {
+  const par = new Map<string, any>();
+  if (ids.length === 0 || !isPersistenceEnabled()) return par;
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+
+    const { data, error } = await supabase
+      .from('analyses')
+      .select('id, result_json')
+      .in('id', ids);
+
+    if (error || !data) return par;
+    for (const row of data as any[]) {
+      if (row?.result_json) par.set(row.id, row.result_json);
+    }
+    return par;
+  } catch {
+    return par;
+  }
+}
+
 export async function findExistingByCompany(
   companyName: string,
 ): Promise<{ id: string; companyName: string; createdAt: string; latestVersion: number } | null> {
@@ -645,6 +791,25 @@ export async function saveAnalysis(
 
 export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'failed';
 
+/**
+ * Libelle porte par une ligne creee a t0, avant que l extraction ait
+ * nomme la societe.
+ *
+ * POURQUOI C EST UNE CONSTANTE ET NON UN LITTERAL
+ *
+ * Il vivait en deux copies, ici en repli et dans `app/api/analyze` en
+ * valeur passee, et il a depuis acquis un troisieme lecteur : le
+ * regroupement par dossier, qui doit refuser d indexer une ligne sur un
+ * nom que l extraction n a pas produit. Le corpus au 6 aout 2026 porte
+ * dix lignes sous ce libelle et elles couvrent quatre societes sans
+ * rapport ; les regrouper par nom en fabriquerait une seule.
+ *
+ * Trois lecteurs d une valeur recopiee, c est la constante qui cesse un
+ * jour d etre vraie sans le dire. Le refus du regroupement lit donc la
+ * meme definition que l ecriture, et il suit si elle change.
+ */
+export const LIBELLE_AVANT_EXTRACTION = '(analyse en cours)';
+
 export interface CreatePendingAnalysisInput {
   /** Nom provisoire affiche tant que extraction n a pas tourne. */
   initialCompanyName?: string | null;
@@ -825,7 +990,7 @@ export async function createPendingAnalysis(
       'analyses',
       {
         user_id: userId,
-        company_name: input.initialCompanyName || '(analyse en cours)',
+        company_name: input.initialCompanyName || LIBELLE_AVANT_EXTRACTION,
         verdict: null,
         result_json: null,
         status: 'running',

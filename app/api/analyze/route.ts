@@ -56,6 +56,7 @@ import {
   extractAnalysisMetadata,
   getCurrentUserId,
   consumePendingInsertDegradation,
+  LIBELLE_AVANT_EXTRACTION,
 } from '@/lib/analysis-store';
 import { EngineStatusRecorder, passesMinimalContract } from '@/lib/orchestrator/engine-status-recorder';
 import { requireConformingOutput } from '@/lib/engines/engine-output-contract';
@@ -416,7 +417,7 @@ export async function POST(req: NextRequest) {
     // streaming SSE est utilisable.
     // ============================================================
     analysisId = await createPendingAnalysis({
-      initialCompanyName: '(analyse en cours)',
+      initialCompanyName: LIBELLE_AVANT_EXTRACTION,
       sourceFilename: pitchDeck.name,
       uploadedFiles: refs.map((r) => ({
         storagePath: r.storagePath,
