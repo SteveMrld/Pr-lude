@@ -1840,3 +1840,52 @@ commun une propriete observable : aucune ne porte de resultat exploitable,
 leurs statuts sont `failed` ou `knockout`. Le critere d'admission dans une
 chaine est donc que la ligne porte un resultat, jamais que son nom soit
 acceptable, et il ferme le cas sans nommer personne.
+
+---
+
+## Des tirages repetes ne font pas une trajectoire, et Made.com sera la premiere
+
+Consigne le 6 aout 2026, en meme temps que le regroupement par dossier.
+
+Le corpus porte cinquante-six analyses a resultat, qui forment trente-trois
+dossiers une fois regroupees par proprietaire et nom normalise. Trois
+dossiers portent plus d une analyse. Aucun ne repose sur plus d un document :
+sept runs de `Project Woodpecker_Info Memo.pdf` sous le nom braincube, tous
+au meme `deck_hash` ; quatre runs de Project Hello ; treize runs d un unique
+teaser sous le nom in haircare.
+
+Sept runs du meme memorandum ne racontent pas l evolution d une societe, ils
+mesurent la dispersion du pipeline. Les lire comme une trajectoire ferait
+passer une variance pour une evolution, ce qui est la faute de la variance
+mesuree entre deux commits prise par l autre bout : la, deux versions du
+code faisaient passer un diff pour une variance ; ici, une meme entree
+ferait passer une variance pour une trajectoire. La route declare donc
+l assise documentaire de la chaine, et cette lecture passe avant les deltas.
+
+Made.com sera donc la premiere trajectoire reelle du corpus, et c est une
+premiere qu il faut dire. Le moteur Trajectoire est ecrit, teste et cable
+depuis des mois ; il n a jamais rencontre deux etats d un meme dossier. Ce
+que la demonstration exerce n est pas un moteur eprouve qu on montre, c est
+un moteur qui travaille pour la premiere fois, et le premier run est donc
+autant une mise a l epreuve qu une demonstration.
+
+**Ce que la mesure du budget PDF a rendu au passage, et qui ne se cherchait
+pas.** Le pre-scan appelle le modele rapide, dont la fenetre est de deux
+cent mille tokens, ce qui lui impose le plafond de cent pages de l API. Le
+memorandum Woodpecker le depasse : `count_tokens` le refuse avec « A maximum
+of 100 PDF pages may be provided », alors qu il passe sans difficulte sur
+les cinq appels du modele principal, a 236 457 tokens pour un plafond
+calcule de 985 805.
+
+Le pre-scan n a donc jamais tourne sur ce dossier. Le releve par moteur le
+declare pourtant `ok` sur six runs sur huit. C est la valeur par defaut du
+mauvais cote prise dans l autre sens : la ou le snapshot du recorder
+fabriquait `empty_output` sur une synthese qui avait abouti, il fabrique ici
+un `ok` sur un moteur que l API a refuse. Les deux fautes ont la meme
+racine, un statut ecrit ailleurs qu a l endroit ou il se decide, et elles
+penchent chacune du cote qui trompe le lecteur.
+
+Le chantier qui en decoule n est pas ouvert ici, mais il se nomme : le
+statut d un moteur refuse par l API doit se distinguer du statut d un moteur
+qui a produit. Tant qu il ne se distingue pas, le releve de fiabilite
+affirme une couverture de triage que le dossier n a pas eue.
