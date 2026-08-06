@@ -180,16 +180,27 @@ ete non produit sur ce run, ce que le pre-scan execute rend probable mais que
 personne n a relu test par test ; elle vaut comme ordre de grandeur et se
 verifiera sur la sortie persistee avant d etre citee ailleurs.
 
-**Ce qu il ne faut pas recopier du precedent.** `buildNotApplicableTestStub`
-fige le score du test neutralise a 50 et son `passed` a vrai, le commentaire
-disant que c est pour ne pas faire chuter le compteur affiche. Le drapeau
-voyage bien avec la valeur, ce que la doctrine de la valeur neutre exige, et
-le calcul du score global le lit. Mais tout consommateur qui lit `.score`
-sans lire `notApplicable` recoit 50 comme une mesure, et tout compteur qui
-lit `passed` compte comme reussi un test qui n a jamais ete pose. C est le
-`?? 50` de TOLSON tenu par un drapeau : correct tant que le drapeau se lit,
-faux au premier lecteur qui l ignore. Un test non applicable du pre-scan ne
-doit pas porter de score du tout.
+**Ce qu il ne faut pas recopier du precedent, et ce que la mesure a
+corrige.** `buildNotApplicableTestStub` fige le score du test neutralise a 50
+et son `passed` a vrai, le commentaire disant que c est pour ne pas faire
+chuter le compteur affiche. La forme est celle du `?? 50` de TOLSON, et elle
+a d abord ete signalee ici comme un defaut vivant. La mesure du 7 aout 2026
+dit le contraire et il faut l ecrire dans ce sens : **le stub ne fausse aucun
+score aujourd hui**. Trente-cinq notes sur les quarante qui portent le moteur
+en contiennent au moins un, et sur aucune il ne deplace le score persiste,
+parce que `computeGlobalCoherenceScore` l exclut par construction et que les
+deux consommateurs qui lisent les tests un a un, le dashboard et la note, le
+lisent correctement, le premier en filtrant sur le drapeau et la seconde en
+n affichant que la prose.
+
+Ce qui reste est une dette de forme et non un defaut : la valeur n est
+correcte que tant que chaque lecteur pense a consulter le drapeau, et rien
+n oblige le prochain a le faire. La regle a en tirer pour le pre-scan est
+donc inchangee, un test non applicable ne porte pas de score du tout, mais
+elle se justifie par la solidite et non par un dommage constate.
+
+Le `?? 50` vivant est deux lignes plus haut dans le meme fichier, il touche
+soixante-cinq pour cent du corpus, et il a sa propre entree.
 
 **Les trois tests du genre, et pourquoi une grille n est pas une somme de
 tests.** Les trois tests propres aux comptes deposes sont l opinion d audit,
@@ -215,23 +226,33 @@ deceleration est une relation entre exercices ; aucun exercice pris seul ne
 la porte, et aucun test pose sur un document ne la voit.
 
 C est l argument contre l idee qu une grille se compose de tests isoles, et
-il ne vaut pas que pour ce genre. Un genre ne se decrit pas par la liste des
-questions qu il autorise, il se decrit aussi par **l unite sur laquelle elles
-se posent**. Pour `deck-levee`, cette unite est le document, et la grille
+il ne vaut pas que pour ce genre. **Un genre ne se decrit pas seulement par
+les questions qu il autorise, mais par l unite sur laquelle elles se posent.
+Pour des comptes, cette unite est la serie d exercices.** C est le principe a
+garder du chantier, au meme titre que la traduction des tests, et il se
+formule sans son cas : une grille est un couple, des questions et une unite
+d observation, et changer l une sans l autre produit des verdicts qui ont
+l air de repondre. Pour `deck-levee`, l unite est le document, et la grille
 actuelle est correcte parce que le document est bien ce qu on instruit. Pour
-`comptes-deposes`, l unite est la serie d exercices, et une grille qui
-interroge un depot isole ne peut rendre que des verdicts rassurants sur une
-societe qui coule.
+`comptes-deposes`, une grille qui interroge un depot isole ne peut rendre que
+des verdicts rassurants sur une societe qui coule.
 
-La consequence est une dependance qu il faut nommer plutot que decouvrir plus
-tard. Le genre `comptes-deposes` n est pas implementable tant qu un second
-jeu de comptes depose a cote du premier tombe dans `others` et n atteint
-aucun moteur, defaut consigne plus bas dans ce registre. La demonstration le
-rencontre des le premier essai : sa note 1 porte deux depots, les comptes
-2020 et les comptes 2018, precisement parce qu un depot britannique ne rend
-qu une colonne comparative et qu il en faut deux pour trois exercices. Les
-deux chantiers se commandent donc dans cet ordre, et le genre attend la
-lecture multi-documents.
+**L ordre des chantiers en decoule, et il est retenu.** Le genre
+`comptes-deposes` n est pas implementable tant qu un second jeu de comptes
+depose a cote du premier tombe dans `others` et n atteint aucun moteur. Le
+defaut de tri des fichiers commande donc le chantier du genre : il ne s agit
+plus de deux entrees voisines mais d une sequence, et l ouvrir dans l autre
+sens produirait un genre dont la grille reclame une serie que le pipeline ne
+sait pas lui donner. La demonstration le rencontre des le premier essai : sa
+note 1 porte deux depots, les comptes 2020 et les comptes 2018, precisement
+parce qu un depot britannique ne rend qu une colonne comparative et qu il en
+faut deux pour trois exercices.
+
+L ordre complet des trois entrees est donc : le parcours dans `runMode`,
+independant et urgent parce que son retard coute une donnee irrecuperable ;
+le tri des fichiers, qui ne depend de rien et qui debloque le suivant ; le
+genre du document, qui attend la lecture multi-documents. Le correctif de la
+ligne 418 se glisse ou l on veut, ne dependant lui non plus de rien.
 
 **La question qui decide de la forme : le genre se detecte-t-il ou se
 declare-t-il.**
@@ -279,6 +300,71 @@ du genre ni de la lecture multi-documents, et elle a sa propre entree en fin
 de registre. Elle se fait donc en premier, independamment, parce qu elle ne
 repare rien du passe et que chaque run lance sans elle est une mesure perdue
 pour toujours.
+
+---
+
+## Correctif : le pre-scan annule la cause que le modele a rendue
+
+Ouvert le 7 aout 2026. Court, sans dependance, et distinct du chantier du
+genre qu il ne resout pas mais dont il retire l obstacle le plus bete.
+
+**Le fait tient en une ligne.** Dans `assemblerPreScan`, chaque test rendu
+par le modele passe par `.map(t => ({ ...t, nonProductionCause: null }))`,
+ligne 418 de `lib/engines/prescan-engine.ts`. Quoi que le modele ait dit sur
+la raison pour laquelle un test n a pas de verdict, la valeur est ecrasee par
+`null` avant d atteindre le moindre lecteur. Les deux seules causes que le
+pre-scan emet ensuite sont ecrites par le code lui-meme, `incident` pour un
+test que le modele a omis et `incident` pour un pre-scan qui n a pas tourne.
+La troisieme valeur du vocabulaire, `doctrine`, n est jamais emise.
+
+**Ce n est pas un champ oublie, c est un canal cloue.** Le champ existe sur
+le type, il est documente, et le module qui le definit exige qu il soit
+obligatoire partout ou une non-production est declaree. Tout est en place
+sauf le droit de s en servir. Un canal declare et neutralise a son unique
+point d entree est plus couteux qu un canal absent : il donne a la relecture
+l apparence d une information qui circule, et personne ne cherche ce qui ne
+manque pas.
+
+**C est la troisieme occurrence de la semaine, et le motif se nomme
+maintenant.** Le tag de provenance web etait une information produite par la
+plateforme, correcte, et jetee par `callClaude` qui ne gardait que les blocs
+de texte. Le genre du document etait une information produite par le
+pre-scan, correcte, ecrite de lui-meme en premiere phrase de son resume, et
+laissee en prose donc illisible pour le calcul. La cause de non-production
+est une information produite par le modele, dont on ne sait pas encore si
+elle est correcte, et annulee par une affectation. Trois fois la meme forme :
+**le systeme acquiert la chose, puis la detruit, la degrade ou la laisse
+sous une forme que rien ne peut lire.** Aucune des trois ne se voit a la
+relecture du module qui consomme, puisque de son point de vue l information
+n est jamais arrivee.
+
+La difference entre les trois est instructive et elle donne l ordre de
+gravite. Le tag web detruisait une capture verifiable et la remplacait par
+une declaration du modele sur sa propre source, donc il fabriquait une preuve
+fausse. Le genre laissait l information intacte mais dans un canal que le
+calcul ne lit pas, donc il ne fabriquait rien et perdait tout. La ligne 418
+est le cas le plus simple des trois : elle ne remplace rien, elle efface, et
+la reparation est de retirer une affectation plutot que d ecrire un
+dispositif.
+
+**Ce que le correctif suppose, et qui n est pas acquis.** Retirer
+l affectation ne suffit pas : il faut savoir ce que le modele met dans ce
+champ aujourd hui, et le prompt ne le lui demande pas. La reparation est donc
+en deux temps, et le second se decide sur des donnees. Cesser d ecraser, et
+faire porter au contrat la contrainte que la valeur appartient aux trois
+causes, faute de quoi elle vaut `incident` comme aujourd hui. Puis lire, sur
+les premiers runs, ce que le modele produit reellement avant de lui accorder
+le droit d emettre `doctrine`, qui est le seul des trois etats a retirer un
+test du denominateur. Un modele autorise a declarer qu une question ne se
+pose pas peut s en servir pour se dispenser de repondre, et c est exactement
+ce que le chantier du genre evite en faisant decider le code a partir du
+genre plutot que le modele test par test.
+
+**Ce que le correctif ne fait pas.** Il n ouvre pas le genre, il ne change
+aucun verdict, et il ne repare pas les cinquante-sept analyses persistees, ou
+la cause est `null` ou `incident` sans qu on puisse savoir laquelle aurait
+ete rendue. Il rend seulement possible qu une information deja produite
+atteigne un lecteur. C est peu, et c est le prealable de tout le reste.
 
 ---
 
@@ -458,6 +544,88 @@ etre rendu a chaud. Une troisieme instruction est toujours tentante juste
 apres une lecture decevante, parce qu'elle coute une phrase et qu'elle a
 l'air de repondre ; ecrite a froid, la regle dit que ce cout apparent est
 precisement le piege, puisque les deux premieres avaient le meme.
+
+---
+
+## Un test que le modele n a pas rendu entre dans le score a cinquante
+
+Mesure du 7 aout 2026 sur les cinquante-sept analyses persistees, dont
+quarante portent le moteur de coherence financiere. Nee d une fausse piste,
+ce qui vaut d etre dit avant le resultat.
+
+**La fausse piste.** Le stub de test non applicable de
+`financial-coherence-archetype.ts` fige `score` a 50 et `passed` a vrai, et
+il a ete signale la veille comme un `?? 50` vivant. Il ne l est pas.
+Trente-cinq notes sur quarante en portent au moins un et sur aucune il ne
+deplace le score, parce que `computeGlobalCoherenceScore` l exclut de la
+moyenne et que ses deux lecteurs consultent le drapeau. La verification a un
+sous-produit utile : sur les notes sans autre defaut, le score persiste se
+reproduit exactement en rappelant la fonction de production, ce qui etablit
+que c est bien elle qui l a ecrit et non une valeur du modele conservee.
+
+**Le defaut reel est deux fonctions plus loin.** Dans `buildFinalTests`,
+quand le modele omet un test que l archetype declare **applicable**, le code
+ecrit un placeholder de score 50, `passed` faux, sans aucun drapeau. Ce test
+reste dans la liste des applicables, donc il entre dans la moyenne ponderee
+avec son poids plein, et rien en aval ne peut le distinguer d une note
+mesuree. C est le `?? 50` de TOLSON a l identique : une valeur mediane
+defendable en soi, fausse dans son role, et invisible parce que le calcul ne
+recoit pas l absence en meme temps que la valeur.
+
+**Ce qu il touche.** Vingt-six notes sur quarante, soit soixante-cinq pour
+cent. Vingt-trois voient leur score de coherence bouger quand on retire le
+placeholder de l assiette, de moins huit a plus six points. Les tests
+concernes sont presque toujours T3 et T5, jamais un seul en particulier.
+
+**Le sens du deplacement est la partie interessante.** Il va dans les deux
+sens, parce qu une valeur mediane tire vers la mediane : elle releve les
+mauvais dossiers et abaisse les bons. Annajah Motors passe de 14 a 8 quand on
+retire le placeholder, Winston de 71 a 76. Ce n est donc pas un biais qu on
+pourrait corriger d un decalage, c est une compression de l echelle, et elle
+frappe le plus fort exactement la ou le moteur avait le plus a dire.
+
+**Le cas extreme merite d etre nomme.** Une note du 8 juin 2026, sur un
+dossier classe SaaS pur donc avec les sept tests applicables, porte les sept
+en placeholder. Sa synthese de coherence se reduit a la ligne de
+classification que le code ecrit lui-meme. Le modele n a rien rendu, et le
+moteur a publie un score de modele economique de 50 sur 100 qu aucun test ne
+fonde. Rien dans la sortie ne distingue ce 50 la d un 50 mesure.
+
+**L effet aval, avec sa borne.** Le poids de la dimension est de 0,13, donc
+le deplacement du score global va de moins 1,04 a plus 0,78 point, et
+**aucun verdict ne bascule sur le corpus**. Cela ne se lit pas comme une
+innocuite. Trois notes se tiennent a un ou deux points d un seuil, soit le
+meme ordre de grandeur que le deplacement, et la garde juste ici est celle
+que la doctrine de la marge a deja etablie : ce qui decide d une bascule est
+le produit du deplacement par la distance au seuil, pas le deplacement seul.
+Le calcul suppose en outre l assiette pleine ; sur un dossier ou d autres
+dimensions manquent, les poids se renormalisent et celui de la coherence
+augmente, donc le chiffre annonce est une borne basse.
+
+**Ce que la mesure ne borne pas, et il y a trois choses.** Le placeholder se
+reconnait a la signature d evidence que le code ecrit, apparue au commit
+`5184213` et jamais modifiee depuis ; les quarante notes portent toutes
+`applicableTests`, donc toutes sont posterieures, et la detection est fiable
+sur ce corpus. En revanche le taux de soixante-cinq pour cent agrege treize
+empreintes de code : segmente, le seul segment de taille est `bfe2daa` avec
+vingt-trois notes et soixante-quatorze pour cent, les autres portent une a
+quatre notes et ne rendent que des planchers. Et la troisieme forme du meme
+defaut echappe entierement a la mesure : quand le modele rend un test sans
+score numerique, la ligne 421 substitue 50 sans laisser de trace, si bien
+qu un 50 substitue et un 50 mesure sont indiscernables dans les donnees. Une
+seule note porte un test applicable a exactement 50 hors signature, ce qui
+plafonne ce cas a une note mais ne le mesure pas.
+
+**La reparation est celle que la doctrine prescrit deja.** Il n existe pas de
+nombre qui signifie absent dans une arithmetique, donc la sortie n est pas de
+mieux choisir la valeur. Un test applicable non rendu est une non-production
+de cause `incident`, au sens du vocabulaire qui existe : il sort du
+denominateur comme en sort un test non applicable, il porte sa cause, et le
+score qui en resulte declare l assiette sur laquelle il a ete calcule. La
+difference avec le test non applicable doit rester lisible, l un disant que
+la question ne se posait pas et l autre qu elle est restee sans reponse, ce
+qui est la meme distinction que celle du chantier du genre prise un etage
+plus bas.
 
 ---
 
@@ -2277,6 +2445,17 @@ pipeline doit savoir lire plusieurs documents de meme nature, ce qui est une
 question de produit et non de tri : un dossier reel porte souvent deux ou
 trois exercices de comptes, et la demonstration Made.com le rencontre des le
 premier essai.
+
+**Il commande le chantier du genre, et c est ce qui l a fait passer devant.**
+Arbitre le 7 aout 2026. Le genre `comptes-deposes` se decrit par une unite
+d observation qui est la serie d exercices et non le depot isole, puisque les
+trois tests propres a ce genre auraient tous rassure sur les comptes 2018 de
+Made.com et que ce qui accuse vit dans la succession des exercices. Or un
+depot britannique ne rend qu une colonne comparative : la serie demande deux
+fichiers, et le second est exactement celui qui tombe dans `others`. Tant que
+ce defaut tient, le genre ne pourrait poser ses questions que sur l unite qui
+ne repond pas. Ce n est donc plus une entree voisine du chantier du genre,
+c est son prealable.
 
 ---
 
