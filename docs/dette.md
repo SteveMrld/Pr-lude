@@ -187,6 +187,47 @@ precisement le piege, puisque les deux premieres avaient le meme.
 
 ---
 
+## La synthese est declaree en panne alors qu'elle a abouti
+
+Ouvert le 6 aout 2026 au relevé du run `5585f1c0`. Le statut n'est pas
+mesure, il est invente par defaut, et le defaut choisi affirme une panne.
+
+`finalRecommendation` sort `empty_output`. Sa sortie persistee porte
+pourtant un verdict, un score global, une argumentation, cinq
+`decisionDrivers`, et elle satisfait son contrat minimal quand on le lui
+applique. L'appel au modele a abouti : 4131 tokens produits, 83 secondes.
+
+La cause se lit dans `snapshot()`, dans le recorder de statuts. Un moteur
+qui a depose une mesure d'appel sans avoir depose d'entree de statut se
+voit fabriquer une entree, avec `'empty_output'` en valeur par defaut. La
+synthese est exactement dans ce cas : la route depose sa mesure dans un
+`finally`, et n'appelle jamais `record` pour son statut. Le commentaire du
+code annonce l'intention, documenter le moteur dont l'appel a abouti puis
+dont le post-traitement a leve. Mais `empty_output` figure dans
+`GAP_STATUSES`, donc la valeur choisie pour dire « je ne sais pas »
+affirme une lacune.
+
+C'est la doctrine de la valeur neutre prise au pied de la lettre, et en
+pire. Une valeur de repli n'est neutre que si le calcul qui la consomme
+sait qu'elle est un remplacement ; ici le repli n'est meme pas neutre, il
+penche du cote de l'accusation. Le bulletin de fiabilite du run imprime
+en consequence « 1 panne(s) : finalRecommendation », gravite majeure, sur
+un run ou la synthese a fonctionne. La reserve la plus grave de la note
+porte sur le seul moteur dont la sortie est la premiere page que le
+partner lit.
+
+Mesure : trois notes sur les quatre qui portent un releve de statuts
+declarent une lacune contredite par leur propre sortie persistee, et les
+trois sont `finalRecommendation`. Le denominateur est petit parce que
+l'instrument est recent, donc ce chiffre ne borne rien ; il dit seulement
+que le cas n'est pas isole sur ce dont on dispose.
+
+La reparation n'est pas de changer la valeur par defaut pour `ok`, ce qui
+reproduirait la faute dans l'autre sens. C'est que la route depose le
+statut de la synthese comme les autres moteurs deposent le leur, et qu'un
+statut fabrique faute d'entree porte un etat distinct des quatre lacunes,
+qui dise l'ignorance sans l'affirmer.
+
 ## La classe d'actif n'est pas tranchee sur un dossier sur treize
 
 Ouvert le 5 aout 2026. Probleme d'entree et non de comparables, et il
