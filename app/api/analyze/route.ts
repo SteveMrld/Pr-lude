@@ -57,7 +57,7 @@ import {
   getCurrentUserId,
   consumePendingInsertDegradation,
 } from '@/lib/analysis-store';
-import { EngineStatusRecorder } from '@/lib/orchestrator/engine-status-recorder';
+import { EngineStatusRecorder, passesMinimalContract } from '@/lib/orchestrator/engine-status-recorder';
 import { requireConformingOutput } from '@/lib/engines/engine-output-contract';
 import { createEngineDeadlineWrapper } from '@/lib/orchestrator/engine-deadline';
 import { createEngineLogCallbacks } from '@/lib/orchestrator/engine-log-callbacks';
@@ -1990,6 +1990,29 @@ export async function POST(req: NextRequest) {
             sendDone('orchestrate', r);
             return r;
           });
+
+          // Depot du statut de la synthese, qui n avait jamais eu lieu.
+          //
+          // La synthese deposait sa mesure d appel dans le `finally` de
+          // sa boucle de reprise, mais aucun statut. Le recorder
+          // fabriquait donc son entree, et sa valeur par defaut valait
+          // `empty_output`, un statut de lacune : le bulletin imprimait
+          // une panne majeure sur le moteur dont la sortie est la
+          // premiere page lue, alors qu il avait rendu son verdict.
+          //
+          // Le statut se decide sur le contrat minimal, comme pour les
+          // autres moteurs, et non sur la presence d un objet : une
+          // synthese qui rend un objet sans `decisionDrivers` est le cas
+          // TOLSON, et il doit continuer de sortir en `empty_output`.
+          try {
+            enginesRecorder.record({
+              engine: 'finalRecommendation',
+              status: passesMinimalContract('finalRecommendation', finalRecommendation)
+                ? 'ok'
+                : 'empty_output',
+              attempts: 1,
+            });
+          } catch { /* le depot d un statut ne fait jamais tomber un run */ }
 
           // ============================================================
           // AUDIT CONSOLIDE DES ASSERTIONS (Niveau 2.B)

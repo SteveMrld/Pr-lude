@@ -720,6 +720,71 @@ for (const moteur of ['narrativeDrift', 'fragiliteStructurelle']) {
   check(e >= 15 && e <= 80, 'execution ~20ms mesure (obtenu ' + e + ')');
   check(total >= 45, 'duration totale >= somme (obtenu ' + total + ')');
 
-  console.log(`\n${pass} pass, ${fail} fail`);
-  process.exit(fail === 0 ? 0 : 1);
+    process.exit(fail === 0 ? 0 : 1);
 })();
+
+// ============================================================
+// UNE VALEUR PAR DEFAUT NE PEUT PAS APPARTENIR AUX STATUTS DE LACUNE
+// ------------------------------------------------------------
+// Defaut constate le 6 aout 2026 sur le run 5585f1c0. La synthese
+// finale deposait sa mesure d appel sans jamais deposer son statut. Le
+// snapshot fabriquait donc son entree avec `empty_output` en valeur par
+// defaut, statut qui figure dans GAP_STATUSES, et le bulletin imprimait
+// « 1 panne, gravite majeure : finalRecommendation » sur un run ou la
+// synthese avait rendu son verdict, son score et ses cinq decision
+// drivers. Trois notes sur les quatre qui portent un releve de statuts
+// etaient dans ce cas.
+//
+// La regle : un moteur dont le statut n a pas ete depose est de statut
+// inconnu, pas en panne.
+// ============================================================
+
+console.log('\n[Suite defaut] un statut fabrique dit l ignorance, il n affirme pas une panne');
+{
+  const { EngineStatusRecorder: R, GAP_STATUSES: G } = require('./engine-status-recorder');
+
+  const r = new R();
+  // Exactement ce que fait la route pour la synthese : une mesure, pas
+  // de statut.
+  r.recordMeasure('finalRecommendation', {
+    calls: 1, llmDurationMs: 82996, inputTokens: 3910, outputTokens: 4131,
+  });
+  const snap = r.snapshot();
+  check(snap.finalRecommendation !== undefined,
+    'la mesure cree bien l entree, sinon elle serait perdue');
+  check(snap.finalRecommendation.status === 'inconnu',
+    'et son statut est inconnu, pas empty_output');
+  check(!G.includes('inconnu'),
+    'inconnu n est pas une lacune : c est tout l objet de son existence');
+  check(snap.finalRecommendation.outputTokens === 4131,
+    'la mesure est conservee, ce qui etait la bonne intention du repli');
+
+  // La contrepartie : un statut reellement depose n est pas recouvert.
+  const r2 = new R();
+  r2.record({ engine: 'market', status: 'timeout', attempts: 2 });
+  r2.recordMeasure('market', { calls: 2, llmDurationMs: 1, inputTokens: 1, outputTokens: 1 });
+  check(r2.snapshot().market.status === 'timeout',
+    'un statut mesure survit a la fusion de sa mesure');
+
+  // Et le cas TOLSON continue de sortir en lacune : une synthese qui
+  // rend un objet sans decisionDrivers n est pas un statut inconnu,
+  // c est un empty_output constate.
+  const r3 = new R();
+  r3.finalizeFromResult(
+    { finalRecommendation: { verdict: 'investir', decisionDrivers: [] } },
+    { finalRecommendation: 'finalRecommendation' },
+  );
+  check(r3.snapshot().finalRecommendation.status === 'empty_output',
+    'une synthese sans decision drivers reste une lacune constatee');
+
+  // La sortie reelle du run 5585f1c0, reduite a ce que le contrat lit.
+  const r4 = new R();
+  r4.finalizeFromResult(
+    { finalRecommendation: { verdict: 'refuser', globalScore: 43, decisionDrivers: [1, 2, 3, 4, 5] } },
+    { finalRecommendation: 'finalRecommendation' },
+  );
+  check(r4.snapshot().finalRecommendation.status === 'ok',
+    'et la sortie reelle du run sort ok, ce qu elle aurait toujours du faire');
+}
+
+console.log(`\n${pass} pass, ${fail} fail`);

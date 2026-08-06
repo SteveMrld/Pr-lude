@@ -1843,10 +1843,15 @@ function countFailedEngines(pipelineEnginesStatus: any): number | null {
   if (!pipelineEnginesStatus || typeof pipelineEnginesStatus !== 'object') {
     return null;
   }
+  // La liste se lit dans GAP_STATUSES plutot que de se recopier ici.
+  // Recopiee, elle aurait diverge le jour ou un statut entre ou sort de
+  // la definition de lacune, et c est arrive le 6 aout 2026 avec
+  // l ajout d `inconnu`, qui n en est precisement pas une.
+  const { GAP_STATUSES } = require('./orchestrator/engine-status-recorder');
   let count = 0;
   for (const entry of Object.values(pipelineEnginesStatus)) {
     const status = (entry as any)?.status;
-    if (status === 'failed' || status === 'failed-upstream' || status === 'timeout' || status === 'empty_output') {
+    if ((GAP_STATUSES as readonly string[]).includes(status)) {
       count++;
     }
   }

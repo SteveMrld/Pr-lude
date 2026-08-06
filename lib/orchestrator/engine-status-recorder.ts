@@ -29,6 +29,11 @@
 //   empty_output              moteur a repondu sans lever d erreur
 //                             mais son sortant est null, vide, ou
 //                             sans le champ minimum attendu
+//   inconnu                   aucun statut n a ete depose pour ce
+//                             moteur. Ce n est pas une lacune, c est
+//                             une ignorance : l entree a ete fabriquee
+//                             faute d avoir ete ecrite, et rien ne
+//                             permet de dire ce que le moteur a fait
 //
 // La distinction failed / failed-upstream est centrale. Sans elle,
 // un run comme In Haircare du 15 juillet affichait neuf moteurs
@@ -52,13 +57,21 @@ export type EngineStatus =
   | 'failed-upstream'
   | 'timeout'
   | 'skipped_not_applicable'
-  | 'empty_output';
+  | 'empty_output'
+  | 'inconnu';
 
 /** Statuts consideres comme lacune (gap) qui empechent un run
  *  de sortir en completed nu. skipped_not_applicable n en fait
  *  pas partie : c est un choix doctrinal, pas un defaut.
  *  failed-upstream en fait partie : le moteur n a rien produit
- *  meme si l origine du defaut est en amont. */
+ *  meme si l origine du defaut est en amont.
+ *
+ *  `inconnu` n en fait pas partie non plus, et c est le sens meme de
+ *  son existence. Une valeur par defaut ne peut pas appartenir aux
+ *  statuts de lacune : elle serait la valeur neutre prise du cote de
+ *  l accusation, et elle ferait imprimer une panne la ou personne n a
+ *  rien constate. Un moteur dont le statut n a pas ete depose est de
+ *  statut inconnu, pas en panne. */
 export const GAP_STATUSES: readonly EngineStatus[] = ['failed', 'failed-upstream', 'timeout', 'empty_output'] as const;
 
 export interface EngineStatusEntry {
@@ -632,7 +645,21 @@ export class EngineStatusRecorder {
       // son appel a abouti puis que le post-traitement a leve avant
       // l enregistrement. On cree l entree plutot que de perdre la
       // mesure : c est precisement le cas qu on cherche a documenter.
-      const base = out[k] ?? { engine: k, status: 'empty_output' as EngineStatus, durationMs: 0, attempts: 1 };
+      // LA VALEUR PAR DEFAUT NE PEUT PAS ETRE UNE LACUNE
+      //
+      // Elle valait `empty_output` jusqu au 6 aout 2026, et ce statut
+      // figure dans GAP_STATUSES. Un moteur qui deposait sa mesure sans
+      // deposer son statut, ce qui est le cas de la synthese finale
+      // depuis l origine, ressortait donc en panne. Le bulletin du run
+      // 5585f1c0 imprimait « 1 panne, gravite majeure :
+      // finalRecommendation » alors que la synthese avait rendu son
+      // verdict, son score et ses cinq decision drivers, et que sa
+      // sortie satisfaisait son contrat minimal.
+      //
+      // L intention du repli etait de ne pas perdre la mesure, et elle
+      // etait juste. Ce qui ne l etait pas est d avoir choisi, pour dire
+      // « je ne sais pas », une valeur qui affirme un defaut.
+      const base = out[k] ?? { engine: k, status: 'inconnu' as EngineStatus, durationMs: 0, attempts: 1 };
       out[k] = {
         ...base,
         llmDurationMs: m.llmDurationMs,

@@ -1002,6 +1002,53 @@ aurait rendu en refusant de calculer, alors le repli ne protege pas, il
 fabrique. Et la garde juste ne porte pas sur la valeur mais sur la
 presence, qui doit voyager avec elle.
 
+## Une valeur par defaut ne peut pas appartenir aux statuts de lacune
+
+Quand un dispositif fabrique une valeur faute de l avoir mesuree, cette
+valeur doit dire l ignorance et non l affirmer. Un repli qui tombe du
+cote severe est la valeur neutre prise du cote de l accusation : il
+n omet pas une information, il en invente une a charge.
+
+Le cas est du 6 aout 2026. La synthese finale deposait sa mesure d appel
+sans jamais deposer son statut, et le snapshot du recorder fabriquait son
+entree avec `empty_output` en valeur par defaut. Ce statut figure dans
+GAP_STATUSES. Le bulletin de fiabilite imprimait donc « 1 panne, gravite
+majeure : finalRecommendation » sur un run ou la synthese avait rendu son
+verdict, son score global et ses cinq decision drivers, et ou sa sortie
+satisfaisait son contrat minimal. Trois notes sur les quatre qui portent
+un releve de statuts etaient dans ce cas.
+
+L intention du repli etait juste et elle est ecrite dans le code : ne pas
+perdre une mesure d appel quand le post-traitement a leve avant
+l enregistrement du statut. Ce qui ne l etait pas est d avoir choisi,
+pour dire « je ne sais pas », une valeur qui affirme un defaut. La
+reparation n est pas de basculer le defaut sur `ok`, ce qui reproduirait
+la faute dans l autre sens et masquerait de vraies pannes. C est
+d ajouter l etat qui manquait, `inconnu`, hors des statuts de lacune,
+et de deposer le statut la ou il se decide.
+
+La difference avec la doctrine de la valeur neutre est un cran de
+gravite. Le `?? 50` de TOLSON et le zero d Aveuglement prenaient une
+valeur defendable en soi et fausse dans son role ; le calcul ne
+distinguait pas ce qu il avait mesure de ce qu on lui avait donne pour ne
+pas casser. Ici la valeur n est meme pas neutre dans l absolu : elle
+penche, et elle penche du cote qui accuse. Une note qui imprime une panne
+majeure en premiere page sur un moteur qui a produit est inmontrable a un
+fonds, et le cout d une telle valeur ne se mesure pas en exactitude mais
+en credit.
+
+Le corollaire porte sur la liste elle-meme. `countFailedEngines`
+recopiait les quatre statuts de lacune au lieu de lire GAP_STATUSES ; la
+copie aurait diverge le jour ou un statut entre ou sort de la definition,
+et ce jour etait celui-la. Une liste qui definit une notion vit a un seul
+endroit, et ceux qui s en servent la lisent.
+
+En pratique, devant toute valeur fabriquee faute de mesure, poser la
+question dans ce sens : si ce repli est faux, de quel cote se trompe-t-il.
+Un repli qui ne peut se tromper qu en accusant doit sortir du vocabulaire
+de l accusation, et cela demande d ordinaire un etat de plus, pas un
+arbitrage entre les etats existants.
+
 ## Discipline des regles ecrites
 
 Quand une regle est ecrite dans un commentaire, elle doit etre portee
