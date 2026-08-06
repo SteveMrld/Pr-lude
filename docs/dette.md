@@ -1,5 +1,77 @@
 # Registre de dette
 
+## Prelude est calibre pour des decks de levee, et sa porte d entree le suppose
+
+Etabli le 6 aout 2026 sur un refus, et place en tete parce que c est la
+limite la plus haute du produit : elle borne ce qu un fonds peut lui
+donner a instruire, avant toute question de qualite d analyse.
+
+**Le fait.** Les comptes consolides 2018 de Made.com Design Limited,
+deposes au registre britannique, ont ete ecartes par le pre-scan en
+`not_recommended`, score 3,5 sur 6. Le motif est exact et il ne porte pas
+sur la societe : « Le document ne defend aucune these de probleme,
+solution, marche ou timing. Il s agit d etats financiers audites, non d un
+pitch presentant une opportunite d investissement. » Le test de
+plausibilite financiere, lui, passe, et il lit les bons chiffres, 173,4 M£
+en 2018 contre 127,0 M£ en 2017, perte de 4,5 M£, tresorerie de 35,6 M£.
+
+Le refus est donc juste sur le document et faux sur l operation. Forcer le
+passage pour que la demonstration existe aurait ete contourner le
+dispositif afin d obtenir le resultat voulu, ce qu un partner nous
+reprocherait a bon droit. Le refus est retenu.
+
+**Ce que le corpus dit de la portee.** Sur les dix dossiers ayant subi un
+pre-scan execute, quarante-huit echecs de test se repartissent ainsi :
+vingt sur la forme du document, vingt-sept sur le mandat du fonds, et
+**un** sur le fond. Les tests `market` et `redflag` n ont jamais echoue,
+pas une fois. Cinq dossiers ont ete ecartes, et aucun ne l a ete sur un
+motif de fond : deux sur le seul mandat, deux sur forme et mandat, un sur
+la seule forme. Quatorze analyses pour cinq dossiers, dont neuf pour un
+seul, donc c est le compte par dossier qui repond ici.
+
+La grille de fond n a donc jamais rien elimine. Ce qui elimine est le
+genre du document et l adequation a la these.
+
+**Ou la distinction se prendrait.** Dans `assemblerPreScan`, une seule
+ligne decide : `criticalTests = ['narrative', 'founder', 'thesis_fit',
+'sector_fit', 'geography_fit']`. Un `fail` sur l un des cinq force
+`not_recommended` quel que soit le score. Made.com est tombe uniquement
+par la : son ratio de 0,583 depassait le seuil de 0,5, donc seul le
+couperet critique a joue, et il a joue sur `narrative`.
+
+Cette liste melange deux natures. `thesis_fit`, `sector_fit` et
+`geography_fit` sont des criteres d **eligibilite** : ils disent que ce
+fonds ne fait pas cette operation, et ils meritent d etre eliminatoires.
+`narrative` et `founder` sont des proprietes du **genre du document** : un
+memorandum de cession, une data room, des comptes deposes n ont ni these
+ni presentation de fondateurs, et cela ne dit rien de l operation.
+`stage_ticket` est un troisieme cas encore, un critere de **qualite** qui
+ne pese que dans le score, et c est pourtant le test qui echoue le plus
+souvent, treize fois.
+
+La reparation ne consiste donc pas a retirer deux entrees d une liste.
+Elle consiste a reconnaitre le genre du document en amont des tests, et a
+choisir la grille en fonction : un deck de levee, un memorandum de
+cession, un jeu de comptes deposes et une data room ne se trient pas avec
+les memes six questions. Tant que le genre n est pas une entree, la porte
+suppose un format et refuse tout le reste pour une raison vraie.
+
+**La famille.** C est le type d operation presuppose de la grappe 4 pris
+un cran plus haut. La, les moteurs supposaient une levee et calculaient
+une dilution sur une cession ; ici la porte d entree suppose un deck et
+ecarte ce qui n en est pas un. Meme faute, deux etages : le dispositif
+tient pour universel le seul cas qu il a rencontre en premier.
+
+**Ce qui reste a mesurer.** Le parcours choisi, early ou growth, n est
+enregistre nulle part dans `result_json` : cinquante-sept analyses sur
+cinquante-sept rendent « non enregistre ». Le releve selon lequel quatorze
+dossiers growth seraient des memorandums de cession ne peut donc ni se
+confirmer ni se refuter sur le corpus persiste, et il n a pas ete refait
+ici. Sans cette segmentation, la portee du defaut par parcours reste
+inconnue.
+
+---
+
 Ce que l'on sait faux ou fragile et que l'on n'a pas ferme, avec la
 raison de ne pas l'avoir ferme. Une entree se retire quand le defaut
 disparait, jamais quand on s'y habitue.
@@ -2003,3 +2075,46 @@ pipeline doit savoir lire plusieurs documents de meme nature, ce qui est une
 question de produit et non de tri : un dossier reel porte souvent deux ou
 trois exercices de comptes, et la demonstration Made.com le rencontre des le
 premier essai.
+
+---
+
+## Une garde qui ne connait pas son mode accuse le comportement attendu
+
+Constate le 6 aout 2026 sur le premier run gele lance depuis le script de
+demonstration. Non corrige.
+
+En fin de run, la route leve : « Journal de recolte vide en fin de run :
+aucune source externe n a ete enregistree, ce qui est indiscernable d une
+couche de fetchers inerte. » La garde a raison sur l indiscernabilite et
+tort sur la conclusion. En mode gele, le web search est coupe en dur sur
+les quatre moteurs concernes : un journal de recolte vide est le resultat
+attendu, la preuve que le gel a tenu, et non le symptome d une couche
+morte.
+
+La garde lit donc une grandeur juste et en tire un verdict faux, parce
+qu elle ignore le mode dans lequel elle tourne. `runMode.frozen` est
+disponible dans le meme run, dans le version stamp qu elle pourrait lire ;
+elle ne le consulte pas.
+
+**La forme generale.** Une garde qui ne connait pas son mode ne distingue
+pas l absence voulue de l absence subie, et elle accuse donc le
+comportement attendu. C est la meme famille que l instrument qui ne borne
+pas son objet, avec une difference qui vaut d etre notee : la, le
+dispositif partageait le mode de defaillance de ce qu il mesurait ; ici il
+ignore une condition qui change le sens de sa mesure. Dans les deux cas le
+chiffre est exact et la lecture est fausse.
+
+**Le cout, tant qu elle n est pas corrigee.** Tout run gele leve une
+erreur en fin de parcours. Elle est journalisee en avertissement et
+n interrompt rien, mais elle occupe la place du signal qu on voudrait
+voir : le jour ou la couche de fetchers sera reellement inerte sur un run
+ouvert, l alerte se confondra avec le bruit des runs geles. Une garde qui
+crie a chaque passage cesse d etre lue, ce qui est la maniere la plus
+banale de perdre une garde.
+
+**La reparation, quand elle s ecrira.** Lire `runMode.frozen` et changer
+de verdict plutot que de seuil : en mode gele, un journal vide se declare
+conforme et un journal non vide devient l anomalie, puisqu il signalerait
+une fuite. La garde ne disparait pas, elle s inverse. C est le meme geste
+que partout ailleurs, faire dependre le controle de ce qui decide de son
+objet plutot que de sa seule sortie.
