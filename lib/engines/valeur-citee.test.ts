@@ -113,9 +113,10 @@ console.log('\n[Suite 6] l alignement d echelle ne masque rien');
 
 console.log('\n[Suite 6 bis] un verbatim est une cellule, jamais une operation');
 {
-  // Les quatre verbatims reels du run 0c3e0caf du 6 aout 2026. Aucun
-  // n est un chiffre : ce sont des sommes de colonnes mensuelles, faites
-  // par le modele, logees dans le champ prevu pour la transcription.
+  // Trois des huit verbatims reels du run 0c3e0caf du 6 aout 2026, deux
+  // de chiffre d affaires et un d opex. Aucun n est un chiffre : ce sont
+  // des sommes de colonnes mensuelles, faites par le modele, logees dans
+  // le champ prevu pour la transcription.
   const reels = [
     '16,875 + 26,250 + 35,625 + 42,500 (Sep-Déc 2025, B2B Total) + 8,000 × 4 (B2C)',
     '49,375 + 53,750 + 58,125 (B2B Total 2026) + 8,000 × 12 (B2C)',
