@@ -1,4 +1,4 @@
-import { ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
+import { ENGINE_CONTRACT_RETRIES, ENGINE_LLM_BUDGET, addCall, type LlmMeasure } from './engine-budget';
 import { callClaudeWithUsage, applyRunOptions, MODEL, type EngineRunOptions } from './anthropic-client';
 import { parseEngineOutput } from './engine-output-contract';
 import { gatherFounderRealData, type FounderRealData } from '../data-fetchers/sources';
@@ -630,14 +630,21 @@ Intègre dans ton analyse :
   // statut est reste ok jusqu a la finalisation, et les cinq moteurs
   // qui dependent de team ont consomme cette enveloppe.
   //
-  // contractRetries reste a 0 et ce n est pas un oubli. Une reprise
-  // coute une seconde fenetre pleine : team tourne autour de 150s
-  // pour une fenetre de 180s et une deadline externe de 200s
-  // (engineDeadlineFor). Rejouer ici transformerait un echec de
-  // contrat propre en depassement de fenetre, donc en timeout, ce qui
-  // est un signal plus pauvre. Ouvrir la reprise pour team est une
-  // decision de calibration des fenetres et du budget global de run,
-  // pas une consequence de ce correctif.
+  // contractRetries passe a 1 le 6 aout 2026, et l argument qui le
+  // tenait a 0 est conserve ci-dessous parce que sa chute est
+  // instructive.
+  //
+  // Il disait : « une reprise coute une seconde fenetre pleine, team
+  // tourne autour de 150s pour une fenetre de 180s et une deadline
+  // externe de 200s, donc rejouer transformerait un echec de contrat
+  // propre en depassement ». Le raisonnement etait juste et le chiffre
+  // etait faux. Le run 9a5da8da mesure 113 480 ms, soit 66 secondes de
+  // marge sous la fenetre, et deux tentatives tiennent en 227 secondes
+  // sous une deadline qui derive desormais du nombre de tentatives.
+  //
+  // Un argument fonde sur un chiffre non mesure tombe avec lui, et il
+  // tombe silencieusement : personne ne relit une justification quand
+  // elle est bien ecrite.
   const analysis = await parseEngineOutput<TeamAnalysisOutput>('team', async () => {
     const startedAt = Date.now();
     const { text, usage } = await callClaudeWithUsage(
@@ -649,7 +656,7 @@ Intègre dans ton analyse :
     );
     addCall(measure, startedAt, usage, 8000);
     return text;
-  }, { trace: measure, contractRetries: 0 });
+  }, { trace: measure, contractRetries: ENGINE_CONTRACT_RETRIES.team });
 
   // Audit du tagging des sources (Niveau 2.B). Logge un warning si le
   // LLM a peu tagge ses assertions. Le warning est ecrit dans la

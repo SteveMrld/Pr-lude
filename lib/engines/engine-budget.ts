@@ -303,7 +303,23 @@ export const ENGINE_DEADLINE_SLACK_MS = 20_000;
  */
 export const ENGINE_CONTRACT_RETRIES: Record<BudgetedEngineKey, number> = Object.freeze({
   market: 1,
-  team: 0,
+  // Passe a un le 6 aout 2026, apres le run 9a5da8da ou team est tombe
+  // sur son contrat avec la signature exacte de marche la veille :
+  // parseMode recovered, zero clef rendue, une tentative.
+  //
+  // L argument d exclusion tombe avec le chiffre qui le fondait. Il
+  // disait que team tourne autour de 150s pour une fenetre de 180, donc
+  // qu une reprise se ferait couper par la deadline et transformerait un
+  // echec de contrat propre en depassement. La mesure du run dit 113 480
+  // ms, soit 66 secondes de marge sous la fenetre. Deux tentatives
+  // tiennent en 227 secondes, et la deadline suit automatiquement
+  // puisqu elle derive du nombre de tentatives depuis le 5 aout.
+  //
+  // La sortie fautive faisait 5 480 tokens pour un plafond de 8 000 :
+  // elle n etait pas tronquee, le JSON a casse. Une seconde passe
+  // redemande donc un tirage a un systeme qui echantillonne, ce qui est
+  // le cas ou une reprise rachete tout.
+  team: 1,
   patternMatching: 0,
   blindspotAnalysis: 0,
   contrarianAnalysis: 0,
@@ -352,6 +368,32 @@ export const ENGINE_OVERHEAD_MS = 2_000;
  * une deadline de 200s ; market et macro restent a 150s de fenetre sous
  * la deadline par defaut de 200s. La porte vaut le maximum des trois.
  */
+// LE LITTERAL A ETE REMPLACE PAR SA DERIVATION LE 6 AOUT 2026
+//
+// Il valait 200_000, puis 320_000 quand marche a recu sa reprise de
+// contrat, et il a fallu le corriger a la main les deux fois. Le jour ou
+// team a recu la sienne, sa deadline est passee a 380s et la constante
+// est restee a 320 : elle etait fausse, le test la comparait a
+// elle-meme, et rien n a rougi.
+//
+// C est le defaut que ce fichier documente partout ailleurs, commis
+// dans le fichier qui le documente. Une valeur qui se recopie a la main
+// depuis une autre finit par en diverger, et un test qui l assert
+// contre un litteral verifie qu on n a pas fait de faute de frappe, pas
+// qu elle dit encore la verite.
+//
+// La porte vaut le maximum des trois deadlines, et elle se calcule.
+export function gateWorstCaseMs(): number {
+  return Math.max(
+    engineDeadlineFor('team'),
+    engineDeadlineFor('market'),
+    // Macro n est pas dans la table de budget : il porte ses options en
+    // litteral, 150s de fenetre sous la deadline par defaut de 200s.
+    170_000,
+  );
+}
+
+/** @deprecated Lire `gateWorstCaseMs()`. Conserve le temps que les appelants migrent. */
 export const GATE_WORST_CASE_MS = 320_000;
 
 /** Porte en pire cas par fenetres, borne par team qui est le plus lent
@@ -409,7 +451,7 @@ export function worstCaseConvergenceMs(): number {
     + engineDeadlineFor('referenceChecks');
   // Branche d echec : la porte consomme toutes ses tentatives et rien
   // ne part derriere elle.
-  const porteEchoue = GATE_WORST_CASE_MS;
+  const porteEchoue = gateWorstCaseMs();
   return Math.max(porteAboutit, porteEchoue);
 }
 

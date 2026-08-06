@@ -34,6 +34,7 @@ import {
   gateWorstCaseByWindowMs,
   referenceChecksGateWorstCaseMs,
   GATE_WORST_CASE_MS,
+  gateWorstCaseMs,
   ORCHESTRATE_RESERVE_MS,
   ORCHESTRATE_MAX_TOKENS,
   UPSTREAM_WATCHLIST,
@@ -109,9 +110,15 @@ for (const key of Object.keys(EXPECTED) as BudgetedEngineKey[]) {
 // Une reprise de contrat ne s ouvre que la ou la marge la finance : le
 // verrou compare la fenetre au pire temps observe, pour qu on ne puisse
 // pas ouvrir une reprise sur un moteur qui remplit deja sa fenetre.
-check('Marche est le seul moteur a porter une reprise de contrat',
+// Team rejoint marche le 6 aout 2026. Les deux sont des moteurs de
+// porte et les deux sont tombes sur leur contrat en trois runs, sur des
+// tirages differents. La liste est donc celle des deux moteurs dont la
+// chute emporte le plus de monde ET dont la marge finance une seconde
+// tentative : macro, troisieme moteur de porte, n y entre pas tant que
+// rien ne l a fait tomber.
+check('Marche et team portent une reprise de contrat',
   (Object.keys(ENGINE_CONTRACT_RETRIES) as BudgetedEngineKey[])
-    .filter(k => ENGINE_CONTRACT_RETRIES[k] > 0), ['market']);
+    .filter(k => ENGINE_CONTRACT_RETRIES[k] > 0).sort(), ['market', 'team']);
 
 // ============================================================
 // SECTION 2. CABLAGE EFFECTIF AUX SITES D APPEL
@@ -296,10 +303,16 @@ checkTrue('Par deadlines aussi, la garde d attente ne coupe pas reference-checks
 checkTrue('La garde d attente reste sous le budget de run',
   WAIT_DEADLINE_MS < RUN_BUDGET_MS);
 
-// 200s -> 320s, deux tentatives de 150s plus le slack : c est le prix
-// de la reprise de contrat de Marche, et il est paye par la branche ou
-// la porte echoue, donc celle ou rien ne part derriere elle.
-check('Terme de porte par deadlines', GATE_WORST_CASE_MS, 320_000);
+// La porte se derive desormais des deadlines au lieu d etre recopiee.
+// Le litteral valait 320s et team a recu sa reprise le 6 aout, portant
+// sa deadline a 380s : la constante est devenue fausse et le test la
+// comparait a elle-meme, donc rien n a rougi. L assertion porte
+// maintenant sur la relation et non sur le chiffre.
+check('Terme de porte par deadlines = le maximum des trois portes',
+  gateWorstCaseMs(),
+  Math.max(engineDeadlineFor('team'), engineDeadlineFor('market'), 170_000));
+checkTrue('et il suit team, qui est la plus longue des trois',
+  gateWorstCaseMs() === engineDeadlineFor('team'));
 
 // ============================================================
 // SECTION 5. LA SYNTHESE FINALE ET LA COUCHE AMONT SURVEILLEE
