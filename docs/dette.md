@@ -158,6 +158,33 @@ la premiere chose a lire dedans.
 
 Rien ne doit etre montre a un fonds avant cette lecture-la.
 
+### L'arbitrage sur la troisieme issue, rendu le 6 aout 2026 avant le run
+
+Trois issues sont possibles au run qui exerce l'interdiction des
+operateurs, et elles ne demandent pas la meme suite. Des cellules
+signifient que la consigne porte. Des lignes omises signifient que le
+classeur ne porte pas de total annuel, et c'est le document qui est en
+cause et non la restitution. Des expressions a nouveau signifient que la
+consigne ne tient pas contre l'habitude du modele de calculer.
+
+**La decision sur cette troisieme issue est prise d'avance, et c'est
+pour cela qu'elle est ecrite ici plutot qu'apres la lecture.** On ne
+renforce pas l'instruction. On la deplace vers le contrat, c'est-a-dire
+vers un refus au parse plutot qu'une phrase de plus dans le prompt.
+
+Le motif tient en une ligne et il vaut au-dela de ce champ. Un champ qui
+accepte une expression est un champ mal specifie, et une troisieme
+tentative d'instruction serait la preuve qu'on demande au prompt ce qui
+releve du contrat. Une instruction ne fait qu'exprimer une preference a
+un producteur qui reste libre ; un contrat refuse ce qui ne s'y conforme
+pas, et il refuse pareil au premier et au centieme run.
+
+L'interet d'ecrire l'arbitrage avant le resultat est qu'il ne peut plus
+etre rendu a chaud. Une troisieme instruction est toujours tentante juste
+apres une lecture decevante, parce qu'elle coute une phrase et qu'elle a
+l'air de repondre ; ecrite a froid, la regle dit que ce cout apparent est
+precisement le piege, puisque les deux premieres avaient le meme.
+
 ---
 
 ## La classe d'actif n'est pas tranchee sur un dossier sur treize
