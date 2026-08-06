@@ -305,9 +305,24 @@ export async function runPreScan(
     // Le pre-scan qui ne peut pas s executer se declare au lieu de
     // lever. La route attrapait et poursuivait avec un pre-scan nul :
     // le repli etait bon, un incident d API ne doit pas empecher une
-    // analyse, mais il etait muet. Quatre decks du corpus sur vingt-six
-    // sont dans ce cas, donc quinze pour cent des dossiers n etaient
-    // jamais tries sans que rien ne le signale.
+    // analyse, mais il etait muet.
+    //
+    // MESURE DU 6 AOUT 2026, ET POURQUOI ELLE REMPLACE LA PRECEDENTE
+    //
+    // Le releve porte ici « quatre decks sur vingt-six, donc quinze pour
+    // cent des dossiers jamais tries ». Refait sur les cinquante-six
+    // analyses a resultat : six sorties dont tous les tests sont non
+    // produits de cause incident, soit dix virgule sept pour cent. Mais
+    // ces six sont un seul dossier, le meme memorandum rejoue six fois,
+    // et il refuse pour la meme raison a chaque fois, la limite de cent
+    // pages du modele rapide.
+    //
+    // Un dossier sur trente-trois et dix virgule sept pour cent des runs
+    // sont deux chiffres du meme fait, et seul le premier repond a la
+    // question « combien de societes n ont pas ete triees ». Rapporter le
+    // second revient a laisser un document lourd rejoue souvent gonfler
+    // un taux : c est le denominateur qui decide de ce qu on a le droit
+    // d affirmer, exactement comme pour le compte des trajectoires.
     return {
       ...preScanNonProduit(fundProfile, motifIncident(err)),
       durationMs: Date.now() - startTime,
