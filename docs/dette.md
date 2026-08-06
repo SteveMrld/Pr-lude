@@ -1628,12 +1628,78 @@ pas ete verifie et ne doit pas etre affirme : c'est ce qu'il faut lire
 dans le prospectus avant d'engager, et c'est la seule chose qui reste a
 etablir.
 
-**Un piege de devise, signale par nos propres regles.** Les deux sources
-secondaires ne s'accordent pas sur la monnaie de presentation, l'une
-rendant le chiffre d'affaires en euros et l'autre la tresorerie en livres.
-La divergence se conserve et ne s'arbitre pas : la monnaie de publication
-se lit dans les comptes deposes, et aucun de ces chiffres n'entre dans une
-fiche avant cette lecture.
+**Un piege de devise, tranche sur piece le 6 aout 2026.** Les deux
+sources secondaires ne s'accordaient pas sur la monnaie de presentation,
+l'une rendant le chiffre d'affaires en euros et l'autre la tresorerie en
+livres. L'information financiere historique du prospectus tranche : **le
+groupe publie en livres**. Les 448,1 M€ de la presse sont une conversion.
+La divergence conservee s'est resolue sur le document, comme la regle le
+prevoit, et non par un arbitrage.
+
+### Ce que le prospectus porte reellement, lu le 6 aout 2026
+
+L'information financiere historique du prospectus a ete recuperee entiere
+depuis l'archive du site institutionnel, sous le titre *Made.com Limited,
+Consolidated Historical Financial Information for the three years ended
+31 December 2020, 31 December 2019 and 31 December 2018*.
+
+Les trois exercices, en millions de livres. Chiffre d'affaires 173,4 puis
+211,8 puis 247,3. Marge brute 93,0 puis 115,2 puis 131,6, soit 53,6, 54,4
+et 53,2 pour cent. Perte avant impot 5,0 puis 19,5 puis 14,2. EBITDA
+ajuste negatif de 1,2 puis 9,8 puis 5,1. Stocks 17,9 puis 25,6 puis 21,5.
+
+**Une hypothese a ete retiree, et c'est le resultat qui compte.** Il avait
+ete avance qu'une societe de 2009 n'aurait connu qu'un seul bon exercice,
+coincidant avec le confinement, ce qui aurait ete lisible des
+l'introduction. Les chiffres disent le contraire : la croissance a
+ralenti en 2020, seize virgule huit pour cent contre vingt-deux virgule un
+l'exercice precedent. 2020 n'est pas une envolee, et l'hypothese ne
+resiste pas.
+
+Ce que le document porte est autre chose, et de meilleure qualite.
+
+La societe presente 2020 comme un effet de contexte et non comme une
+inflexion structurelle : la note de continuite d'exploitation ecrit que le
+groupe a delivre une croissance des ventes « globalement alignee sur les
+niveaux des exercices precedents ». Un document qui sert a lever et qui ne
+se prevaut pas de son meilleur exercice est un fait a lire.
+
+La these de la production a la commande a stock reduit est presente, et le
+document dit qu'elle est en train de casser. Les perturbations
+d'approvisionnement ont conduit a vendre sur des delais allonges pendant
+une grande partie de 2020, ce qui a pese sur la conversion donc sur la
+croissance, et produit un niveau eleve de produits constates d'avance a la
+cloture. Puis vient la phrase decisive : « as stock levels normalise
+through 2021, the Group expects to continue delivering strong growth ».
+**Le document qui vend un modele a stock reduit annonce que les stocks
+vont se normaliser.**
+
+Le bilan porte deja ce que cela coute. Situation nette ramenee a zero au
+31 decembre 2020 contre 8,7 M£ l'exercice precedent. Passif courant net
+de 16,6 M£ contre 11,1, provenant selon le document meme des produits
+constates d'avance, c'est-a-dire de l'argent de clients qui attendent leur
+commande.
+
+### Pourquoi cette lecture cadre la note de demonstration
+
+Le risque n'etait pas dissimule. Il etait lisible, ecrit par la societe
+elle-meme dans le document qui servait a lever, et personne ne l'a lu.
+
+C'est une meilleure demonstration que si le prospectus avait menti. Un
+outil qui detecte un mensonge est un detecteur de fraude, et ce n'est pas
+ce que nous vendons. Un outil qui lit ce que tout le monde avait sous les
+yeux est un outil d'instruction, et c'est exactement la these du produit :
+la rigueur doctrinale et le refus de la complaisance appliques a un
+document sincere.
+
+La note de demonstration doit donc etre ecrite contre cette idee et non
+contre l'idee d'une fraude a demasquer. Elle ne dira pas que le document
+cachait quelque chose. Elle dira ce que le document declarait, ce que cela
+impliquait, et pourquoi la lecture ordinaire ne s'y arrete pas : trois
+exercices de pertes qu'une croissance rend acceptables, une situation
+nette a zero qu'une tresorerie de 74,5 M£ au 31 mars 2021 fait oublier, et
+un changement de modele annonce dans une subordonnee au milieu d'une note
+de continuite d'exploitation.
 
 ---
 
