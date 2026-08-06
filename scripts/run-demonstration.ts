@@ -75,6 +75,14 @@ import { fingerprintStamp } from '../lib/instrumentation/version-stamp';
 // recopiee ici ne rattraperait pas la chaine vide, que l extraction rend
 // quand elle n a pas trouve, et le verrou champ-absent l a refusee.
 import { champ } from '../lib/engines/champ-absent';
+import {
+  APPELS_PORTEURS_DE_PDF,
+  plafondTokensDeLAppel,
+  requeteTientDansLePlafond,
+  plafondFichierOctets,
+  estBloquant,
+  PLAFOND_REQUETE_OCTETS,
+} from '../lib/engines/budget-pdf';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const BUCKET = 'dossier-uploads';
@@ -304,6 +312,173 @@ async function relire(
 }
 
 // ============================================================
+// ADMISSIBILITE DES DOCUMENTS, MESUREE AVANT DE DEPENSER
+// ------------------------------------------------------------
+// Un moteur qui tombe sur depassement de fenetre et un moteur qui tombe sur
+// doctrine rendent la meme chose au lecteur : une note amputee, sans que
+// rien ne distingue les deux causes. Le second est un resultat, le premier
+// est un accident, et les confondre ruine la demonstration en donnant
+// l apparence d une lecture severe a un echec technique.
+//
+// La mesure se fait par `count_tokens`, qui est gratuit et qui valide le
+// bloc document exactement comme le fera l appel reel. Elle sert donc deux
+// fois : elle rend le compte de tokens, et elle fait respecter par l API
+// elle-meme le plafond de pages, qu aucune bibliotheque du depot ne saurait
+// lire sans compter des marqueurs dans le texte du PDF.
+//
+// Aucun seuil n est pose ici. La fenetre se lit sur l API des modeles, la
+// reserve de sortie et le modele de chaque appel viennent de
+// `lib/engines/budget-pdf`, verrouille contre les sites reels, et le
+// plafond de taille descend du plafond de requete divise par le facteur
+// base64.
+// ============================================================
+
+interface VerdictDocument {
+  fichier: string;
+  octets: number;
+  octetsBase64: number;
+  tailleAdmise: boolean;
+  parAppel: Array<{
+    moteur: string;
+    model: string;
+    bloquant: boolean;
+    admis: boolean;
+    detail: string;
+  }>;
+  admis: boolean;
+}
+
+async function fenetreDuModele(model: string): Promise<number | null> {
+  const r = await fetch(`https://api.anthropic.com/v1/models/${model}`, {
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
+      'anthropic-version': '2023-06-01',
+    },
+  });
+  if (!r.ok) return null;
+  const j: any = await r.json();
+  return typeof j?.max_input_tokens === 'number' ? j.max_input_tokens : null;
+}
+
+async function compterDocument(
+  model: string,
+  b64: string,
+): Promise<{ ok: true; tokens: number } | { ok: false; message: string }> {
+  const r = await fetch('https://api.anthropic.com/v1/messages/count_tokens', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+          { type: 'text', text: 'x' },
+        ],
+      }],
+    }),
+  });
+  const t = await r.text();
+  if (!r.ok) {
+    let message = t.slice(0, 300);
+    try { message = JSON.parse(t)?.error?.message ?? message; } catch { /* brut */ }
+    return { ok: false, message };
+  }
+  return { ok: true, tokens: JSON.parse(t).input_tokens };
+}
+
+async function verifierDocument(fichier: string): Promise<VerdictDocument> {
+  const buf = readFileSync(fichier);
+  const b64 = buf.toString('base64');
+  const tailleAdmise = requeteTientDansLePlafond(buf.length);
+
+  const verdict: VerdictDocument = {
+    fichier,
+    octets: buf.length,
+    octetsBase64: b64.length,
+    tailleAdmise,
+    parAppel: [],
+    admis: tailleAdmise,
+  };
+
+  // Inutile de compter des tokens sur un corps qui ne partira jamais.
+  if (!tailleAdmise) return verdict;
+
+  // Un compte par modele distinct, pas un par appel : deux appels sur le
+  // meme modele rendent le meme compte, et count_tokens n est gratuit qu en
+  // argent, pas en temps.
+  const modeles = Array.from(new Set(APPELS_PORTEURS_DE_PDF.map((a) => a.model)));
+  const compte = new Map<string, Awaited<ReturnType<typeof compterDocument>>>();
+  const fenetres = new Map<string, number | null>();
+  for (const m of modeles) {
+    compte.set(m, await compterDocument(m, b64));
+    fenetres.set(m, await fenetreDuModele(m));
+  }
+
+  for (const appel of APPELS_PORTEURS_DE_PDF) {
+    const c = compte.get(appel.model)!;
+    const fenetre = fenetres.get(appel.model) ?? null;
+    const bloquant = estBloquant(appel);
+
+    if (c.ok === false) {
+      // L API refuse le document. Elle dit pourquoi, et sa raison vaut
+      // mieux que la notre : elle applique le plafond de pages que rien
+      // dans le depot ne sait lire.
+      verdict.parAppel.push({
+        moteur: appel.moteur, model: appel.model, bloquant, admis: false,
+        detail: `refuse par l API : ${c.message}`,
+      });
+      if (bloquant) verdict.admis = false;
+      continue;
+    }
+
+    if (fenetre === null) {
+      verdict.parAppel.push({
+        moteur: appel.moteur, model: appel.model, bloquant, admis: false,
+        detail: `fenetre du modele illisible : le plafond ne se calcule pas, donc rien ne se conclut`,
+      });
+      if (bloquant) verdict.admis = false;
+      continue;
+    }
+
+    const plafond = plafondTokensDeLAppel(appel, fenetre);
+    const tient = c.tokens <= plafond;
+    verdict.parAppel.push({
+      moteur: appel.moteur, model: appel.model, bloquant, admis: tient,
+      detail: `${c.tokens.toLocaleString('fr-FR')} tokens sur un plafond de ${plafond.toLocaleString('fr-FR')}`
+        + ` (fenetre ${fenetre.toLocaleString('fr-FR')} moins sortie ${appel.reserveSortie} moins enveloppe ${appel.enveloppeTokens})`,
+    });
+    if (!tient && bloquant) verdict.admis = false;
+  }
+
+  return verdict;
+}
+
+function rendreVerdictDocument(v: VerdictDocument, libelle: string): void {
+  const plafondFichier = plafondFichierOctets();
+  console.log(`  ${libelle}`);
+  console.log(`    ${v.octets.toLocaleString('fr-FR')} octets, ${v.octetsBase64.toLocaleString('fr-FR')} en base64`
+    + `, plafond de fichier ${plafondFichier.toLocaleString('fr-FR')}`);
+  if (!v.tailleAdmise) {
+    console.log(`    REFUS : le corps de requete depasse ${(PLAFOND_REQUETE_OCTETS / 1024 / 1024).toFixed(0)} Mo.`);
+    return;
+  }
+  for (const a of v.parAppel) {
+    const marque = a.admis ? 'ok  ' : (a.bloquant ? 'REFUS' : 'perdu');
+    console.log(`    ${marque} ${a.moteur.padEnd(20)} ${a.detail}`);
+  }
+  const perdus = v.parAppel.filter((a) => !a.admis && !a.bloquant);
+  if (perdus.length) {
+    console.log(`    Ces moteurs ne tourneront pas et le pipeline continuera sans eux :`);
+    console.log(`    ${perdus.map((p) => p.moteur).join(', ')}. La note existera, amputee de ce qu ils portent.`);
+  }
+}
+
+// ============================================================
 // MAIN
 // ============================================================
 
@@ -327,6 +502,33 @@ async function main(): Promise<void> {
     console.log(`           ${n.fichier}`);
   });
   console.log('');
+
+  // ============================================================
+  // ADMISSIBILITE, AVANT TOUTE DEPENSE
+  // ------------------------------------------------------------
+  // Elle se mesure en dry-run comme en apply, et elle arrete dans les deux
+  // cas. La verifier seulement en dry-run laisserait passer un --apply
+  // lance directement, ce qui est precisement la commande couteuse.
+  // ============================================================
+  console.log('ADMISSIBILITE DES DOCUMENTS');
+  console.log('mesuree par count_tokens, gratuit, sur le bloc document que le pipeline enverra.');
+  console.log('');
+
+  let toutAdmis = true;
+  for (let i = 0; i < manifeste.notes.length; i++) {
+    const n = manifeste.notes[i];
+    const v = await verifierDocument(n.fichier);
+    rendreVerdictDocument(v, `note ${i + 1} : ${basename(n.fichier)}`);
+    console.log('');
+    if (!v.admis) toutAdmis = false;
+  }
+
+  if (!toutAdmis) {
+    console.error('ARRET. Un document au moins est refuse par un appel bloquant.');
+    console.error('Le lancer produirait des moteurs tombes sur depassement de fenetre,');
+    console.error('que rien ne distinguerait de moteurs tombes sur doctrine.');
+    process.exit(1);
+  }
 
   if (!APPLY) {
     console.log('DRY-RUN. Rien n a ete televerse ni lance.');
