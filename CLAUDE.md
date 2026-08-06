@@ -493,6 +493,32 @@ paires a code constant, et sur les treize autres l instrument ne borne
 rien. C est la meme reserve que partout ailleurs, et elle s ecrit a cote
 du chiffre plutot qu ailleurs.
 
+Deux cas du 6 aout 2026 elargissent la regle au-dela de cet instrument,
+et ils ont la meme forme : le compte qui repond a la question n est
+presque jamais le compte des lignes.
+
+Le pre-scan avait ete declare non execute sur quinze pour cent des
+dossiers, quatre sur vingt-six. Refait sur cinquante-six analyses, le
+taux tombe a dix virgule sept pour cent des runs, mais ces six runs sont
+un seul dossier, le meme memorandum rejoue six fois et refuse chaque fois
+pour la meme raison. Un dossier sur trente-trois et dix virgule sept pour
+cent des runs sont deux chiffres du meme fait, et la question posee etait
+« combien de societes n ont pas ete triees ». Un document lourd rejoue
+souvent gonfle le taux par run sans ajouter une seule societe.
+
+Le compte des trajectoires est le meme piege pris par l autre bout. Trois
+dossiers portent plus d une analyse, ce qui se lit comme trois
+trajectoires ; ils reposent chacun sur un seul document, donc il n y en a
+aucune. Sept runs du meme memorandum ne racontent pas l evolution d une
+societe, ils mesurent la dispersion du pipeline.
+
+La question a poser avant de rapporter un taux est donc celle de l unite
+dont on parle, et elle se pose meme quand la mesure est irreprochable :
+c est la meme dissymetrie que la mesure faite sur la mauvaise table, ou
+la methode est juste et l objet est faux. Ici la methode est juste et
+c est l unite qui est fausse, ce qui ne se voit dans aucun relecture du
+calcul.
+
 ## Discipline des jeux d essai
 
 Un repli qui rend la meme valeur que sa source rend la source invisible

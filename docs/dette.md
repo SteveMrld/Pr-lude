@@ -1889,3 +1889,69 @@ Le chantier qui en decoule n est pas ouvert ici, mais il se nomme : le
 statut d un moteur refuse par l API doit se distinguer du statut d un moteur
 qui a produit. Tant qu il ne se distingue pas, le releve de fiabilite
 affirme une couverture de triage que le dossier n a pas eue.
+
+---
+
+## Le cadrage de la demonstration Made.com, et la reconciliation qui l a rendu possible
+
+Arrete le 6 aout 2026, sur pieces.
+
+**L affirmation change, et elle durcit.** Le cadrage etait que le prospectus
+d introduction disait tout et que personne ne l a lu. Il est desormais que
+trois exercices de pertes etaient deposes au registre public avant
+l introduction. Un registre gratuit et consultable n a pas l excuse des
+quatre cents pages reglementaires : on peut ne pas lire un prospectus, on
+peut difficilement soutenir qu on ne pouvait pas consulter Companies House.
+
+**Ce qui l a rendu possible est un test de reconciliation, et il passe.** La
+question etait de savoir si deux notes peuvent porter des entites
+differentes sans ruiner la comparaison. Nommer ce que chaque nombre mesure
+ne suffisait pas ici, contrairement au cas Made.com de la regle du multiple :
+les deux nombres s appellent tous les deux chiffre d affaires consolide, et
+c est exactement ce qui rend le piege invisible. Ce qui decide est le
+perimetre de consolidation, et il se verifie sur une seule cellule.
+
+Les comptes consolides de MADE.COM DESIGN LTD, 07101408, rendent pour
+l exercice 2020 un chiffre d affaires de 247,3 £m et une perte de 8,0 £m.
+Les comptes 2021 de MADE.COM GROUP PLC, 13346124, portent en colonne
+comparative 2020 exactement 247,3 £m et exactement 8,0 £m. Les deux
+lectures coincident sur le chiffre d affaires et sur le resultat.
+
+La base de preparation le dit d ailleurs elle-meme, et c est ce qui
+transforme la coincidence en preuve : « This transaction has been deemed to
+be a reverse acquisition in line with guidance from the Interpretations
+Committee (IFRIC) and as such the consolidated accounts for the Group are
+treated as a continuation of the consolidated accounts of the Made.com
+Limited Group », puis « The prior period has been presented as a
+continuation of the former Made.com Limited Group on a consistent basis as
+if the group reorganisation had taken place at the start of the earliest
+period presented, being 1 January 2020 ».
+
+Une nuance a garder, parce qu elle est etablie et non supposee. Les comptes
+de l operationnelle consolident au niveau de Made.com Design Limited, dont
+l actionnaire a cent pour cent est Made.com Limited, incorporee a Gibraltar,
+tandis que la continuation de l emetteur porte sur le groupe Made.com
+Limited. Ce sont donc deux niveaux de la meme chaine, et rien ne garantissait
+a priori qu ils rendent le meme resultat. C est la reconciliation qui
+l etablit, pas la structure.
+
+**Les cinq exercices, tels que les pieces les ecrivent.** 2017 : 127,0 £m,
+perte 0,1. 2018 : 173,4 £m, perte 4,5. 2019 : 211,8 £m, perte 19,6. 2020 :
+247,3 £m, perte 8,0. 2021 : 371,9 £m, perte 27,8. Cinq exercices, cinq
+pertes, une croissance qui decelere trois annees de suite, de trente-six a
+vingt-deux puis dix-sept pour cent, avant de bondir a cinquante en 2021 sur
+l argent de l introduction.
+
+**Ce que la demonstration depose, et ce qu elle ne depose plus.** Note 1 :
+les comptes consolides 2020 de l operationnelle, cinquante-cinq pages, qui
+portent 2020 et 2019, plus les comptes consolides 2018, quarante-cinq pages,
+qui portent 2018 et 2017. Deux depots suffisent aux trois exercices et un
+seul ne suffit pas, puisque les comptes britanniques ne rendent qu une
+colonne comparative. Note 2 : les comptes 2021 de l emetteur, deux cent huit
+pages, deposes le 18 mai 2022. Le prospectus ne sert plus, donc la question
+de le decouper disparait, et avec elle le risque de devenir l analyste.
+
+Les trois pieces passent les plafonds mesures. Les deux depots de
+l operationnelle, a cinquante-cinq et quarante-cinq pages, passent meme sous
+le plafond de cent pages du modele rapide, donc le pre-scan tournera sur la
+note 1, ce qu il n aurait pas fait sur un prospectus.
