@@ -1773,3 +1773,70 @@ un design fait la semaine derniere aurait affiche des voyants, et il peut
 desormais afficher une chronologie et des raisons. C'est une difference
 de nature et pas de finition, parce qu'un voyant demande de croire et
 qu'une duree avec sa cause se verifie.
+
+---
+
+## Le versionnement automatique n'existe plus, et le corpus ne porte aucune trajectoire
+
+Consigne le 6 aout 2026, apres une mesure faite pour repondre a une tout
+autre question.
+
+Le point de depart etait un defaut reel et bien decrit : la premiere
+analyse d'un dossier n'etait jamais versionnee, donc le run d'origine
+disparaissait a la premiere collision et il fallait trois runs pour tenir
+deux etats comparables. Le correctif est ecrit, teste et pousse au commit
+`b88dc01`. Il archive l'etat vivant avant de l'ecraser, une seule fois, a
+la premiere collision, sans toucher au sens d'une version, et sans charger
+`result_json` sur le chemin chaud de toute persistance.
+
+Il ne debloque rien aujourd'hui, et c'est la raison de cette entree.
+
+`persistAnalysisAutomatically` n'a plus aucun appelant dans le depot. Le
+passage a la creation de ligne a t0 l'a remplace par `markAnalysisCompleted`,
+et `app/api/analyze/route.ts` le declare sans detour a l'endroit ou il
+envoie le `complete` : le versioning automatique a disparu avec la creation
+a t0, un re-run sur dossier homonyme est un nouveau dossier. Le chemin
+client qui subsiste, `submitSave('detect')`, ne s'ouvre que si
+`_persisted.saved` est faux, c'est-a-dire seulement quand la persistance
+serveur a echoue ; le dialogue de collision de `HomeClient` est derriere
+cette meme porte. La mesure le confirme sans ambiguite : soixante-cinq
+analyses persistees, `analyses_versions` entierement vide, et treize lignes
+distinctes pour un meme nom de societe.
+
+C'est le motif de la chose qui existe et que rien n'exerce, rencontre
+cette fois sur un module entier plutot que sur un parametre. Le correctif
+reste juste et il reste la bonne reparation du jour ou ce module reprend
+du service. Il ne fallait pas le presenter comme la fermeture du trou.
+
+**Ce que la meme mesure a rendu, et qui corrige une affirmation faite le
+jour meme.** J'avais ecrit que faire lire la trajectoire par nom de
+dossier rendrait quatre trajectoires reelles sur le corpus existant. C'est
+faux, et la verification tient dans une colonne. Les quatre groupes
+multi-lignes reposent chacun sur un seul document : sept runs de
+`Project Woodpecker_Info Memo.pdf` sous le nom braincube, tous au
+`deck_hash` `dbe4deb2ff` ; quatre runs de Project Hello au meme
+`86b5030799` ; treize runs d'un unique teaser sous le nom in haircare.
+Ce sont des tirages repetes d'une meme entree. Les lire comme une
+trajectoire mesurerait la variance du pipeline en croyant mesurer
+l'evolution du dossier, ce qui est la faute de la variance mesuree entre
+deux versions prise par l'autre bout : la, deux commits differents
+faisaient passer un diff pour une variance ; ici, une meme entree ferait
+passer une variance pour une trajectoire.
+
+Apres regroupement correct, le corpus porte donc zero trajectoire. Le
+regroupement par dossier ne repare pas le passe, il rend possible la
+demonstration a deux notes sans rattachement a la main.
+
+**Et le corpus porte deja le contre-exemple du faux regroupement.** Deux
+groupes portent le nom `(analyse en cours)`, qui est le libelle pose a t0
+avant que l'extraction ait nomme la societe. Sous ce seul nom se trouvent
+Project Saturn, un memorandum Weinberg, InHairCare et Woodpecker, soit
+quatre societes sans rapport. Un regroupement par nom qui admettrait ces
+lignes fusionnerait quatre dossiers distincts, et pas hypothetiquement.
+
+La sortie n'est pas d'interdire ce libelle, ce qui serait une liste ecrite
+a la main qui vieillirait au premier renommage. Ces huit lignes ont en
+commun une propriete observable : aucune ne porte de resultat exploitable,
+leurs statuts sont `failed` ou `knockout`. Le critere d'admission dans une
+chaine est donc que la ligne porte un resultat, jamais que son nom soit
+acceptable, et il ferme le cas sans nommer personne.
