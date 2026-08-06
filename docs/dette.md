@@ -1364,3 +1364,188 @@ recoivent des sorties de moteur.
 Pas ferme aujourd'hui parce qu'il touche vingt-sept fichiers a la veille
 d'une demonstration, et qu'un correctif de typage large est exactement
 ce qu'on ne veut pas avoir a relire en meme temps qu'un run.
+
+---
+
+## Chantier : le dossier de demonstration, et ce que l'anonymisation demande
+
+Ouvert le 6 aout 2026. Le point n'avait pas ete pose et il deplace la
+sequence : **toutes les analyses du corpus portent des dossiers reels de
+clients, donc rien de ce qui a ete produit cette semaine n'est montrable
+en l'etat.** La garde de confidentialite des prompts existe pour cette
+raison exacte, un nom de client dans la note d'un autre client etant
+disqualifiant devant un fonds. Ce qu'on montrerait aujourd'hui n'existe
+pas.
+
+### La question qui vient avant les trois voies
+
+Une anonymisation se fait-elle apres coup sur une note produite, ou
+demande-t-elle un mode de run. La reponse est ni l'un ni l'autre, et
+c'est le releve en lecture seule du 6 aout qui l'etablit, sur le run
+`5585f1c0`.
+
+Le nom de la societe apparait 175 fois dans 18 sections de premier
+niveau, dont 47 dans la fragilite structurelle et 28 dans le pattern
+matching. Cette part est tractable : c'est une substitution de chaine, et
+elle se ferait apres coup sans rien casser.
+
+Ce qui ne se substitue pas est ce qui rend la note credible, et il y en a
+trois couches.
+
+Le nom n'est pas ce qui identifie. L'extraction porte un fondateur nomme,
+un client nomme, un libelle de secteur qui vaut empreinte a lui seul, un
+pays et une annee de fondation. Le releve le montre sur ce dossier : un
+chiffre d'affaires, un secteur, une geographie et une annee de fondation
+suffisent, et il s'y ajoute ici un client de premier rang cite en clair.
+
+La capture des sources est non anonymisable par construction. Le run a
+atteint 129 pages et cite 7 sources. Ces adresses nomment la vraie
+societe. Les conserver identifie ; les retirer detruit precisement ce
+que la semaine a construit, puisqu'une revendication de lecture que la
+capture ne porte pas devient non fondee et que la note le declarerait.
+Une note de demonstration sans source externe montre donc moins que le
+produit ne fait.
+
+Les verbatims le sont aussi. La doctrine veut que le verbatim soit la
+cellule telle que le document l'ecrit et que la valeur en descende.
+Reecrire un verbatim apres coup inverse la dependance, ce que la doctrine
+nomme et interdit : le systeme fabriquerait un verbatim depuis une valeur
+et ne prouverait plus rien. Les chiffres ne peuvent donc pas etre
+deplaces apres coup sans casser la chaine qui les fonde. Et 125 extraits
+du validateur d'assertions citent cette prose telle quelle.
+
+**Conclusion : l'anonymisation n'est pas un post-traitement et ce n'est
+pas non plus un mode de run.** Un mode existe et il est cable,
+`frozen=true` coupe le web search au client par un point de passage
+unique, mais il ne rend pas la note anonyme : il la rend muette sur ses
+sources. L'anonymisation doit porter sur le document d'entree, avant le
+run, ce qui en fait une preparation de dossier et non un chantier de
+pipeline.
+
+Le corollaire est que la troisieme voie, bien comprise, est la deuxieme
+avec un squelette reel. Et c'est ce qui la rend meilleure : la coherence
+des chiffres est heritee au lieu d'etre inventee.
+
+### Ce que chaque voie coute
+
+**L'accord ecrit d'une societe du corpus.** Cout d'ingenierie nul, c'est
+une demarche. Trois couts non nuls ailleurs. Le calendrier ne nous
+appartient pas, il depend du juridique d'un tiers. La note enseigne a
+tout prospect ce que nous avons compris d'une societe qu'il peut
+connaitre, y compris ses fragilites, ce qui est le contraire du service
+rendu a celle qui a signe. Et l'accord porte sur une version : toute
+evolution de la note redemande un arbitrage, ou bien la demonstration se
+fige sur un etat ancien du produit.
+
+**Un dossier fictif construit.** Cout juridique nul, risque de
+credibilite non borne, et c'est le point a peser. Un memorandum se
+reconnait a la coherence de ses chiffres, et nos propres moteurs sont
+faits pour la mesurer : la coherence financiere, la chaine du verbatim,
+le recoupement du business plan. Un dossier invente serait juge par nos
+instruments avant de l'etre par un partner, et un partner qui voit une
+couture cesse de croire au reste, exactement comme un ratio faux detruit
+la confiance dans les ratios justes qui l'accompagnent. Le cout reel est
+donc de construire un dossier qui passe nos propres controles, ce qui
+n'est pas une redaction mais une modelisation.
+
+**Une note anonymisee.** Cout le plus eleve des trois et il n'est pas la
+ou on le croit : il est dans la preparation du document, pas dans le
+code. Il faut retirer le nom, le fondateur, les clients cites, resserrer
+le libelle de secteur, decaler la geographie et l'annee de fondation, et
+deplacer les chiffres, ce dernier point cassant la chaine du verbatim
+sauf si le document lui-meme est reecrit avec ses nouvelles cellules. Et
+si la societe sous-jacente reste reconnaissable, il faut le meme confort
+juridique que la premiere voie sans en avoir le benefice.
+
+### Une quatrieme voie, qui n'etait pas dans la liste
+
+Elle merite d'etre posee parce qu'elle dissout le dilemme : un dossier
+reconstruit a partir des documents publics d'une societe cotee, sortie ou
+liquidee. Les chiffres sont coherents parce qu'ils sont vrais, il n'y a
+aucune confidentialite a proteger puisqu'ils sont publies, et la
+recherche web trouve de vraies sources, donc la capture fonctionne et la
+note montre le produit entier.
+
+Le corpus etendu porte deja plusieurs de ces societes, avec leurs
+trajectoires documentees. Le cout est de reconstituer un memorandum a la
+date d'avant l'issue, a partir de comptes publies, ce qui est un travail
+d'archive et non d'invention. Et la demonstration gagne une propriete
+qu'aucune des trois autres n'a : l'issue est connue, donc la note peut
+etre confrontee a ce qui est arrive.
+
+Ce que cette voie coute en propre : le choix de la societe est un
+arbitrage editorial, puisque montrer une faillite qu'on a su lire est
+plus demonstratif et plus risque que montrer une reussite.
+
+---
+
+## Chantier : le decoupage des deux gros fichiers, et le critere de coupe
+
+Ouvert au 2 aout 2026 pour la mesure, precise le 6 aout pour la methode.
+`app/HomeClient.tsx` et `app/components/InvestmentNoteView.tsx`, environ
+sept mille lignes chacun, a egalite. Le second est le fichier le plus
+souvent touche du depot puisque toute evolution de la note d'instruction y
+passe.
+
+**Un decoupage sans doctrine reproduirait la structure actuelle en plus
+petit.** C'est le risque principal et il n'est pas theorique : couper par
+proximite visuelle, une fonction par section de la note, rendrait trente
+fichiers dont chacun connait le meme objet geant et dont aucun ne peut
+etre lu seul. Le nombre de lignes par fichier baisserait et rien
+d'autre.
+
+Le critere de coupe s'ecrit donc avant de couper, et la question a poser
+n'est pas « ou sont les frontieres visuelles » mais **de quoi chaque
+morceau a-t-il besoin pour se rendre**. Un composant qui recoit
+l'analyse entiere n'a pas de frontiere ; un composant qui recoit trois
+champs nommes en a une, et cette frontiere se lit dans sa signature
+plutot que dans sa position.
+
+Trois consequences de ce critere, a verifier au moment de couper.
+
+Le decoupage se mesure a la surface d'entree et non a la taille. Un
+fichier de six cents lignes qui prend quatre champs est mieux coupe qu'un
+fichier de cent lignes qui prend l'objet entier.
+
+Un morceau qui ne peut pas nommer ses entrees signale que la donnee est
+mal formee et non que la coupe est mauvaise. C'est alors la sortie du
+pipeline qu'il faut structurer, pas le composant qu'il faut deplacer, et
+c'est le seul cas ou le decoupage doit s'arreter pour laisser passer un
+autre chantier.
+
+L'ordre suit la frequence de modification et non la taille.
+`InvestmentNoteView` passe avant `HomeClient` a taille egale, parce que le
+cout d'un fichier mal coupe est paye a chaque modification et que celui-la
+est le plus souvent touche.
+
+---
+
+## Chantier : le design de la note, et ce que la semaine vient de rendre possible
+
+Ouvert le 6 aout 2026. Rien n'est consigne sur ce que la note donne a
+voir. Tout ce qui a ete ecrit porte sur la justesse de ce qu'elle
+affirme, pas sur ce qu'un partner lit en premier ni dans quel ordre. La
+seule regle de mise en page que le depot porte est la discipline de
+provenance, qui dit que ce qui fonde une affirmation se lit apres elle et
+que ce qui la limite se lit avec elle ; elle a ete ecrite pour un cas
+particulier et elle vaut plus largement.
+
+La place du bulletin de fiabilite en tete de note est aujourd'hui la
+seule decision de mise en page prise, et elle l'a ete par defaut.
+
+**Ce que la semaine vient de rendre possible, et qui n'existait pas
+lundi.** La toile lira des durees reelles par moteur et des causes
+structurees, la ou elle n'avait que des etats binaires. Le relevé de
+statuts porte desormais, par moteur, la duree d'attente, la duree
+d'execution, le nombre de tentatives, le nombre d'appels au modele, les
+tokens d'entree et de sortie, le mode de parse, et un statut qui
+distingue l'echec propre de la cascade, du depassement de fenetre, de
+l'ecart de la matrice, de la sortie vide et desormais de l'inconnu. Le
+texte fautif d'un refus de format est conserve. Les causes de
+non-production distinguent la doctrine, l'incident et l'absence.
+
+Le chantier est donc mieux place maintenant qu'il ne l'aurait ete avant :
+un design fait la semaine derniere aurait affiche des voyants, et il peut
+desormais afficher une chronologie et des raisons. C'est une difference
+de nature et pas de finition, parce qu'un voyant demande de croire et
+qu'une duree avec sa cause se verifie.
