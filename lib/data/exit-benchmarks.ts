@@ -126,17 +126,49 @@ function origine(base: number, notes: string = A_ETABLIR): ExitBenchmark {
 }
 
 /**
- * True tant que la table n a pas ete remplacee par des valeurs mesurees.
+ * True quand cette entree repose sur une mesure et non sur une
+ * estimation posee a la main.
  *
- * Expose plutot que deduit sur place, pour que la garde de domaine du
- * moteur de valorisation puisse se declarer non fiable sans recopier le
- * critere. Passe a false le jour ou chaque entree porte une devise, une
- * date et une source.
+ * Les trois conditions sont conjointes et aucune n est decorative. Une
+ * date sans devise ne dit pas ce qu on compare ; une devise sans date ne
+ * dit pas de quand ; et une confiance basse dit que celui qui a ecrit la
+ * valeur ne la tenait pas lui-meme pour etablie.
+ */
+export function estMesuree(b: ExitBenchmark): boolean {
+  return b.asOf !== null && b.devise !== 'inconnue' && b.confidence !== 'low';
+}
+
+/**
+ * True quand la sortie de reference d une classe donnee repose sur une
+ * estimation.
+ *
+ * PAR CLASSE ET NON PAR TABLE, ET LA DIFFERENCE COMPTE
+ *
+ * La premiere version rendait un verdict global : tant qu une seule des
+ * vingt et une entrees restait non mesuree, la garde se declarait non
+ * fiable sur tous les dossiers. C etait juste au moment ou aucune ne
+ * l etait, et faux des la premiere collectee : un dossier SaaS aurait
+ * continue de lire une reserve sur une valeur mesuree, au motif que
+ * sportstech ne l est pas.
+ *
+ * Une reserve qui s affiche quand elle ne s applique pas cesse d etre
+ * lue, et c est le meme mecanisme que le bruit du validateur d
+ * assertions. La declaration suit donc la classe du dossier, et elle
+ * disparait d elle-meme classe par classe a mesure que la collecte
+ * avance, sans qu aucun drapeau soit a baisser a la main.
+ */
+export function sortieNonMesuree(assetClass: string): boolean {
+  const b = EXIT_BENCHMARKS[assetClass];
+  if (!b) return true;
+  return !estMesuree(b);
+}
+
+/**
+ * @deprecated Lire `sortieNonMesuree(classe)`. Une reserve globale
+ * s affiche la ou elle ne s applique pas.
  */
 export function tableNonFiable(): boolean {
-  return Object.values(EXIT_BENCHMARKS).some(
-    (x) => x.devise === 'inconnue' || x.asOf === null || x.confidence === 'low',
-  );
+  return Object.values(EXIT_BENCHMARKS).some((x) => !estMesuree(x));
 }
 
 /**
@@ -187,15 +219,19 @@ export function lireSortieDeReference(assetClass: string): ExitBenchmark | null 
  */
 export function etatDesSortiesDeReference(): {
   entrees: number;
+  mesurees: string[];
   sansDate: number;
+  sansDevise: number;
   confianceBasse: number;
   aCollecter: string[];
 } {
   const clefs = Object.keys(EXIT_BENCHMARKS);
   return {
     entrees: clefs.length,
+    mesurees: clefs.filter((k) => estMesuree(EXIT_BENCHMARKS[k])),
     sansDate: clefs.filter((k) => EXIT_BENCHMARKS[k].asOf === null).length,
+    sansDevise: clefs.filter((k) => EXIT_BENCHMARKS[k].devise === 'inconnue').length,
     confianceBasse: clefs.filter((k) => EXIT_BENCHMARKS[k].confidence === 'low').length,
-    aCollecter: clefs.filter((k) => EXIT_BENCHMARKS[k].asOf === null || EXIT_BENCHMARKS[k].confidence === 'low'),
+    aCollecter: clefs.filter((k) => !estMesuree(EXIT_BENCHMARKS[k])),
   };
 }

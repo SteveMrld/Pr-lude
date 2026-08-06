@@ -36,7 +36,7 @@ import {
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
-import { lireSortieDeReference, tableNonFiable } from '@/lib/data/exit-benchmarks';
+import { lireSortieDeReference, sortieNonMesuree } from '@/lib/data/exit-benchmarks';
 import { detectPitchCurrency } from '@/lib/engines/devise-dossier';
 import { pickValueAtYear } from '@/lib/analysis/financial-series';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
@@ -1265,9 +1265,13 @@ function computeByVcMethod(
   // le pire des trois etats possibles.
   const deviseDossier = input.extraction ? detectPitchCurrency(input.extraction as any) : 'unknown';
   const comparaisonDeviseSure = deviseDossier === 'EUR';
+  // La reserve suit la classe du dossier et non la table entiere : une
+  // reserve qui s affiche la ou elle ne s applique pas cesse d etre lue,
+  // et elle disparaitra d elle-meme classe par classe a mesure que la
+  // collecte avance.
   const reserveDeComparabilite = [
-    tableNonFiable()
-      ? 'la table des sorties de reference est une estimation d ordre de grandeur, non sourcee et sans devise etablie'
+    sortieNonMesuree(assetClass)
+      ? `la sortie de reference de la classe ${assetClass} est une estimation d ordre de grandeur, non sourcee et sans devise etablie`
       : null,
     comparaisonDeviseSure
       ? null

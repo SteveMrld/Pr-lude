@@ -14,7 +14,7 @@
 // Execution : npx tsx lib/data/exit-benchmarks.test.ts
 // ============================================================
 
-import { EXIT_BENCHMARKS, lireSortieDeReference, etatDesSortiesDeReference, tableNonFiable } from './exit-benchmarks';
+import { EXIT_BENCHMARKS, lireSortieDeReference, etatDesSortiesDeReference, tableNonFiable, sortieNonMesuree, estMesuree } from './exit-benchmarks';
 import { SECTOR_BENCHMARKS } from './sector-benchmarks';
 
 let pass = 0, fail = 0;
@@ -80,6 +80,7 @@ console.log('\n[Suite 3] aucune entree ne se declare mieux fondee qu elle ne l e
   check(Object.values(EXIT_BENCHMARKS).every((x) => x.devise === 'inconnue'),
     'et aucune ne se voit attribuer une devise qu elle n a pas');
   check(tableNonFiable() === true, 'la table se declare non fiable, pour que la garde qui l utilise le dise');
+  check(e.mesurees.length === 0, 'aucune classe n est mesuree a ce jour');
 
   // La forme des nombres, verrouillee : c est elle qui a tranche, donc
   // elle doit rougir si quelqu un remplace une valeur sans la mesurer.
@@ -88,6 +89,35 @@ console.log('\n[Suite 3] aucune entree ne se declare mieux fondee qu elle ne l e
   const distinctes = new Set(valeurs).size;
   check(rondes === 21 && distinctes === 10,
     `vingt et une valeurs rondes pour dix distinctes : la signature d une estimation et non d une mesure (${rondes}, ${distinctes})`);
+}
+
+console.log('\n[Suite 3 bis] la fiabilite se lit par classe et non par table');
+{
+  // Le defaut ferme : le verdict etait global, donc un dossier SaaS
+  // aurait lu une reserve sur une valeur mesuree au motif que
+  // sportstech ne l est pas. Une reserve qui s affiche quand elle ne
+  // s applique pas cesse d etre lue.
+  check(sortieNonMesuree('saas-b2b') === true, 'saas-b2b n est pas mesuree aujourd hui');
+  check(sortieNonMesuree('classe-inexistante') === true,
+    'une classe hors catalogue est non mesuree par construction, et non par accident');
+
+  // Les trois conditions sont conjointes, et le test les separe pour
+  // qu aucune ne puisse etre relachee seule.
+  const base = { base: 1, notes: '' } as any;
+  check(estMesuree({ ...base, asOf: '2025', devise: 'EUR', confidence: 'high' }) === true,
+    'datee, libellee, confiante : mesuree');
+  check(estMesuree({ ...base, asOf: null, devise: 'EUR', confidence: 'high' }) === false,
+    'sans date : une devise sans millesime ne dit pas de quand');
+  check(estMesuree({ ...base, asOf: '2025', devise: 'inconnue', confidence: 'high' }) === false,
+    'sans devise : une date sans monnaie ne dit pas ce qu on compare');
+  check(estMesuree({ ...base, asOf: '2025', devise: 'EUR', confidence: 'low' }) === false,
+    'en confiance basse : celui qui l a ecrite ne la tenait pas pour etablie');
+
+  // La bascule doit etre possible, sinon la garde ne se retirera jamais.
+  // Le jour ou une classe est collectee, sa reserve disparait seule.
+  const collectee = { base: 8e7, asOf: '2025', devise: 'EUR' as const, confidence: 'high' as const, source: 'x', notes: '' };
+  check(estMesuree(collectee) === true,
+    'et une entree collectee bascule, donc la reserve se retire classe par classe sans drapeau a baisser');
 }
 
 console.log('\n[Suite 4] une classe hors catalogue ne recoit pas de socle invente');

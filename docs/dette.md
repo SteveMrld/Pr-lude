@@ -389,11 +389,43 @@ vingt et une classes, toutes multiples de dix millions, 80 M repete
 quatre fois. La mention Crunchbase qui les accompagnait a ete retiree,
 une source qui n'a pas produit un nombre ne se cite pas a cote de lui.
 
-La table se declare desormais non fiable, et la garde de domaine de la
-VC inverse le dit dans son motif. Elle continue de fonctionner : sur les
-trois notes du corpus ou elle se declenche, la marge va de 157 a 171
-pour cent, donc aucune incertitude ne la ferait basculer. Mais elle
-repose sur une estimation et elle l'annonce.
+La table se declare desormais non fiable **par classe et non en bloc**,
+depuis le 6 aout 2026. Le verdict global etait juste au moment ou aucune
+entree n'etait mesuree et faux des la premiere collectee : un dossier
+SaaS aurait lu une reserve sur une valeur mesuree, au motif que
+sportstech ne l'est pas. La reserve nomme donc la classe du dossier, et
+elle disparaitra d'elle-meme classe par classe a mesure que la collecte
+avance, sans qu'aucun drapeau ne soit a baisser a la main. La garde
+continue de fonctionner : sur les trois notes du corpus ou elle se
+declenche, la marge va de 157 a 171 pour cent, donc aucune incertitude ne
+la ferait basculer. Mais elle repose sur une estimation et elle l'annonce.
+
+**La collecte a ete tentee le 6 aout 2026 et elle n'a rien rendu au
+barreme ci-dessous. Zero classe sur vingt et une est mesuree.** Ce
+resultat merite d'etre ecrit plutot que retente, parce qu'il porte sur la
+donnee publiee et non sur la recherche : ce qui existe en acces ouvert
+est de l'agrege, valeur totale des sorties et compte d'operations sur une
+zone et une periode, ou du total sectoriel large, ou des multiples de
+valorisation, qui sont une autre statistique. Une mediane de valeur de
+sortie par classe d'actif, avec sa statistique nommee, son perimetre, sa
+fenetre, sa taille d'echantillon, sa devise et une reference opposable,
+n'est pas une donnee publiee gratuitement, et surement pas pour vingt et
+une classes dont plusieurs n'existent que dans notre taxonomie. La suite
+est un achat de donnees, PitchBook ou Dealroom, ou un calcul sur un
+corpus d'operations qu'il faut d'abord constituer. **Aucune classe n'a
+recu de valeur voisine par defaut** : elles restent declarees non
+mesurees, ce qui est la seule lecture juste et ce qui fait que la
+collecte reste visible.
+
+Une piste non confirmee, et elle est notee comme telle. La recherche a
+fait remonter un deplacement de la taille mediane d'operation M&A d'un
+facteur quatre en deux ans. Le document primaire n'a pas pu etre lu, donc
+**le chiffre n'est pas ecrit ici**. Ce qui merite d'etre retenu est la
+forme de l'objection et non sa magnitude : si l'ordre de grandeur bouge
+de cette facon, une valeur unique et non datee par classe est fausse par
+construction, quelle que soit sa valeur, et le champ `asOf` cesse d'etre
+une formalite de tracabilite pour devenir une partie de la donnee. A
+verifier a la source avant d'en tirer quoi que ce soit.
 
 Ce qu'il faut pour chaque ligne : la statistique exacte, mediane ou
 moyenne et de quoi, le perimetre geographique, la fenetre temporelle, la
