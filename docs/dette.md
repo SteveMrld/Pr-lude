@@ -65,9 +65,31 @@ Retirer `narrative` et `founder` de la liste ne repare rien : les deux tests
 continueraient d etre poses a un document qui n a pas de quoi y repondre, et
 de peser au score. Ce qui manque est une entree en amont.
 
+**Le principe du chantier : les tests ne se retirent pas, ils se
+traduisent.** C est ce qui le distingue d un elagage, et c est ce qu il faut
+tenir quand la tentation reviendra de raccourcir la liste critique.
+
+Les questions que portent `narrative` et `founder` sont legitimes. Un
+document qui ne defend rien et une operation dont on ignore qui la dirige
+sont de vrais defauts, sur n importe quel genre. Ce qui est faux n est pas la
+question, c est qu elle soit posee dans le vocabulaire d un seul genre. « Ce
+deck articule-t-il un probleme, une solution et un timing » est la forme
+`deck-levee` d une question qui, sur des comptes deposes, se pose « ces
+comptes portent-ils de quoi etablir une trajectoire », et sur un memorandum
+de cession « ce document dit-il pourquoi maintenant et pour quel acquereur ».
+La question survit, l operation a laquelle on l adresse change.
+
+La difference est concrete. Un test retire ne laisse aucune trace de la
+question qu il portait : personne ne saura, en relisant la note, que la
+credibilite de la direction n a pas ete instruite. Un test traduit la pose
+autrement et rend un verdict lisible. Et un test qui ne se traduit pas dans un
+genre donne ne se retire pas davantage : il sort en non applicable, ce qui se
+declare, se compte et se relit.
+
 **Ce que serait un genre reconnu avant les tests.** Le genre choisit la
 grille au lieu de subir la grille unique. Quatre genres se rencontrent deja
-dans le corpus ou dans la demonstration.
+dans le corpus ou dans la demonstration, et pour chacun la grille est une
+traduction et non une soustraction.
 
 `deck-levee` : la grille actuelle, sans changement. Une these, des
 fondateurs, un stade et un ticket sont attendus et leur absence est un
@@ -82,19 +104,134 @@ perimetre : il n y a ni stade ni ticket, il y a un prix et ce qu il achete.
 `financial`, `market` et `redflag` s appliquent inchanges, et plus
 lourdement, puisqu un memorandum porte des comptes revus.
 
-`comptes-deposes` : `narrative`, `founder` et `stage_ticket` sortent en
-`not_applicable`, un statut qui n existe pas aujourd hui et qu il faut
-distinguer de `not_produced` : l un dit que la question ne se pose pas, l
-autre qu elle s est posee sans reponse. `financial` devient le coeur et non
-un test parmi six. Trois tests propres au genre apparaissent, que rien ne
-couvre : l opinion d audit avec ou sans reserve, la continuite d
-exploitation, et le fait que le depot soit a jour. Sur Made.com les trois
-auraient repondu, et deux auraient rassure a tort si on les avait lus seuls.
+`comptes-deposes` : `narrative`, `founder` et `stage_ticket` n ont pas de
+traduction et sortent en non applicable, statut qui fait l objet de la
+section suivante. `financial` devient le coeur et non un test parmi six.
+Trois tests propres au genre apparaissent, que rien ne couvre aujourd hui :
+l opinion d audit avec ou sans reserve, la continuite d exploitation, et le
+fait que le depot soit a jour. Ces trois-la ont leur section eux aussi,
+parce que Made.com en fait la demonstration a l envers.
 
 `data-room` : ce n est pas un document mais un ensemble, donc la grille
 porte sur la completude et non sur le contenu. Le pipeline ne sait pas encore
 lire plusieurs documents, ce qui est un prerequis consigne ailleurs dans ce
 registre.
+
+**Le statut qui manque existe deja, et il porte trois valeurs au lieu de
+deux.** La distinction entre « la question ne se pose pas » et « la question
+est restee sans reponse » n est pas a inventer. Elle a ete tranchee a la
+grappe 3, elle vit dans `lib/engines/non-production.ts`, et elle est plus
+fine que la formulation a deux termes : `NonProductionCause` vaut `doctrine`,
+`incident` ou `absence`. `doctrine` est le non applicable, une regle du
+moteur ou une matrice de pertinence a decide que la question ne se posait
+pas, et c est un resultat. Ce que j appelais `not_produced` se scinde en
+deux : `incident` quand quelque chose a echoue et qu il y a a reparer,
+`absence` quand la donnee n existe pas et que personne n a echoue. Le module
+porte deux regles inseparables de la forme, que le chantier herite plutot que
+de les rediscuter : le champ est obligatoire partout ou une non-production
+est declaree et il est porte par le type, et aucun consommateur aval ne lit
+la prose pour decider.
+
+Le fait qui compte est que **le pre-scan porte deja ce champ et n en emet
+jamais la valeur `doctrine`**. `PreScanTest.nonProductionCause` existe a la
+ligne 122 de `lib/engines/prescan-engine.ts`, et son commentaire n en nomme
+que deux valeurs, `absence` et `incident`. Ce n est pas un oubli de
+redaction : a la ligne 418, chaque test rendu par le modele recoit
+`nonProductionCause: null` ecrit par-dessus ce qu il avait dit. Le canal est
+declare par le type et cloue au seul endroit ou le modele pourrait s en
+servir. C est exactement le meme fait que l absence de genre, pris par
+l autre bout : rien, dans le pre-scan, n a aujourd hui l autorite de decider
+qu une question ne se pose pas.
+
+Ce qui s ajoute n est donc pas un vocabulaire, c est le droit d employer
+l une de ses valeurs. Reste un arbitrage de forme, et il se tranche ici.
+`PreScanStatus` vaut `pass`, `warn`, `fail`, `not_produced`, sans non
+applicable. On peut ajouter un cinquieme statut, ou garder `not_produced`
+avec `cause: 'doctrine'`. La seconde voie se retient : creer un second
+vocabulaire pour une notion qui en a deja un est precisement ce que la regle
+de la liste qui definit une notion interdit. Le prix a payer est que le
+denominateur doit lire la cause, ce qu il ne fait pas.
+
+**Le denominateur, et ce qu il aurait change sur Made.com.** `totalTests`
+vaut le nombre de tests demandes, et un test non produit pese zero au
+numerateur tout en occupant une place au denominateur. C est voulu pour
+`absence` : un deck qui ne porte pas la donnee est penalise, et il doit
+l etre. Ce serait faux pour `doctrine`, ou la question n a pas ete posee.
+
+Le precedent existe un etage plus haut et il est juste.
+`computeGlobalCoherenceScore`, dans `lib/engines/financial-coherence
+-archetype.ts`, calcule la moyenne ponderee sur les seuls tests applicables
+et exclut ceux qui portent `notApplicable`, l archetype economique decidant
+en amont lesquels s appliquent. C est la meme structure que celle proposee
+ici, a un etage de distance : un archetype choisit les tests applicables aux
+comptes, un genre choisirait les tests applicables au document. Le chantier
+n invente donc pas un mecanisme, il transpose celui qui existe et qui est
+deja verrouille par des tests.
+
+L arithmetique se pose sur les deux chiffres deja etablis plus haut, 3,5 sur
+6 et un ecartement sur la seule forme. Si les deux tests de forme sont les
+deux seuls echecs, les quatre autres portent 3,5, soit trois passes et un
+avertissement. Sous une grille `comptes-deposes`, `narrative` et `founder` ne
+sont pas poses : le denominateur tombe a quatre, le ratio passe de 0,583 a
+0,875, et le couperet critique disparait avec les tests qui le declenchaient.
+Le dossier ne passerait pas de justesse, il passerait largement, et par la
+meme propriete qui le faisait tomber. La derivation suppose qu aucun test n a
+ete non produit sur ce run, ce que le pre-scan execute rend probable mais que
+personne n a relu test par test ; elle vaut comme ordre de grandeur et se
+verifiera sur la sortie persistee avant d etre citee ailleurs.
+
+**Ce qu il ne faut pas recopier du precedent.** `buildNotApplicableTestStub`
+fige le score du test neutralise a 50 et son `passed` a vrai, le commentaire
+disant que c est pour ne pas faire chuter le compteur affiche. Le drapeau
+voyage bien avec la valeur, ce que la doctrine de la valeur neutre exige, et
+le calcul du score global le lit. Mais tout consommateur qui lit `.score`
+sans lire `notApplicable` recoit 50 comme une mesure, et tout compteur qui
+lit `passed` compte comme reussi un test qui n a jamais ete pose. C est le
+`?? 50` de TOLSON tenu par un drapeau : correct tant que le drapeau se lit,
+faux au premier lecteur qui l ignore. Un test non applicable du pre-scan ne
+doit pas porter de score du tout.
+
+**Les trois tests du genre, et pourquoi une grille n est pas une somme de
+tests.** Les trois tests propres aux comptes deposes sont l opinion d audit,
+la continuite d exploitation et la mise a jour du depot. Sur les comptes 2018
+de Made.com, les trois auraient repondu, et **les trois auraient rassure**.
+
+Le depot etait a jour, et il l est reste jusqu au bout : les comptes 2021 de
+l emetteur ont ete deposes le 18 mai 2022, quelques mois avant la
+liquidation. La continuite d exploitation ne faisait aucun doute en 2018,
+avec 35,6 M£ de tresorerie contre une perte de 4,5 M£, soit de quoi tenir des
+annees au rythme constate. Quant a l opinion d audit, le pre-scan lui-meme
+qualifie la piece d etats financiers audites ; le libelle exact de l opinion
+n a pas ete relu ici, et c est precisement ce que le test irait chercher,
+mais rien dans les chiffres de l exercice n appelait une reserve.
+
+Trois tests, trois reponses rassurantes, et la societe est liquidee quatre
+ans plus tard, sa marque et sa propriete intellectuelle reprises pour 3,4 M£
+apres une introduction a 775 M£. Ce qui accuse n est dans aucun des trois. Il
+est dans la serie : cinq exercices, cinq pertes, une croissance qui decelere
+trois annees de suite, de trente-six a vingt-deux puis dix-sept pour cent,
+avant de bondir a cinquante en 2021 sur l argent de l introduction. Une
+deceleration est une relation entre exercices ; aucun exercice pris seul ne
+la porte, et aucun test pose sur un document ne la voit.
+
+C est l argument contre l idee qu une grille se compose de tests isoles, et
+il ne vaut pas que pour ce genre. Un genre ne se decrit pas par la liste des
+questions qu il autorise, il se decrit aussi par **l unite sur laquelle elles
+se posent**. Pour `deck-levee`, cette unite est le document, et la grille
+actuelle est correcte parce que le document est bien ce qu on instruit. Pour
+`comptes-deposes`, l unite est la serie d exercices, et une grille qui
+interroge un depot isole ne peut rendre que des verdicts rassurants sur une
+societe qui coule.
+
+La consequence est une dependance qu il faut nommer plutot que decouvrir plus
+tard. Le genre `comptes-deposes` n est pas implementable tant qu un second
+jeu de comptes depose a cote du premier tombe dans `others` et n atteint
+aucun moteur, defaut consigne plus bas dans ce registre. La demonstration le
+rencontre des le premier essai : sa note 1 porte deux depots, les comptes
+2020 et les comptes 2018, precisement parce qu un depot britannique ne rend
+qu une colonne comparative et qu il en faut deux pour trois exercices. Les
+deux chantiers se commandent donc dans cet ordre, et le genre attend la
+lecture multi-documents.
 
 **La question qui decide de la forme : le genre se detecte-t-il ou se
 declare-t-il.**
@@ -132,6 +269,16 @@ est ecrit nulle part.
 Le cout de cette forme est celui de la detection, nul, plus une ligne d
 interface, plus une comparaison de deux champs. Ce qu elle supprime est le
 cas ou une grille inadaptee s applique sans que personne ne le sache.
+
+**Ce que ce chantier ne pourra pas mesurer, et le correctif qui le
+debloque.** La portee du defaut par parcours, early ou growth, est aujourd
+hui sans reponse : le parcours n est ecrit nulle part dans `result_json`, sur
+cinquante-sept analyses sur cinquante-sept. La reparation est un champ dans
+`runMode` du version stamp, elle tient en quelques lignes, elle ne depend ni
+du genre ni de la lecture multi-documents, et elle a sa propre entree en fin
+de registre. Elle se fait donc en premier, independamment, parce qu elle ne
+repare rien du passe et que chaque run lance sans elle est une mesure perdue
+pour toujours.
 
 ---
 
@@ -2212,3 +2359,24 @@ tout aussi decisive. Le version stamp porte deja `runMode.frozen` et
 endroit que `frozen`, plutot que dans un champ ad hoc : c est la que vivent
 les conditions de run, et c est ce que la calibration segmente deja. Le cout
 est un champ. Il ne repare pas le passe et il ne doit pas pretendre le faire.
+
+**Un arbitrage a rendre en l ecrivant, qui n est pas evident.** `RunMode`
+porte deux champs et un seul entre dans l empreinte : `getConfigFingerprints`
+construit `runModeForHash = { frozen: runMode.frozen }`, `asOf` restant de la
+provenance pure. `track` ne se range pas du meme cote que `asOf`. Il commande
+quels moteurs tournent, quatorze ou neuf, donc deux runs de meme code a
+parcours differents ne sont pas deux tirages du meme systeme, ce qui est la
+definition meme de ce que l empreinte doit separer. Il entre donc dans le
+hash. La consequence se dit franchement : l empreinte de configuration bougera
+au premier run qui portera le champ, et le segment se coupera en deux. C est
+correct, puisque les runs anterieurs ne portent aucun parcours et ne se
+comparent legitimement a aucun des suivants, mais cela se sait avant plutot
+qu au moment de lire une calibration qui parait avoir perdu son historique.
+
+**Pourquoi il se fait en premier.** C est un correctif court, il ne depend
+d aucun autre chantier du registre, et il debloque toute mesure par parcours
+a partir du prochain run. Sa particularite est qu il ne se rattrape pas :
+chaque run lance sans lui produit une ligne de plus qui ne se segmentera
+jamais, et le corpus de cinquante-sept analyses muettes s allonge d autant.
+Un correctif dont le retard coute une donnee irrecuperable passe devant les
+chantiers dont le retard ne coute que du temps.
