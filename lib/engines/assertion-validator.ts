@@ -54,6 +54,45 @@ export { detectPitchCurrency };
 // La propriete observable remplace la liste : est documente par le
 // dossier tout ce que l extraction porte, ou qu il se trouve. Un champ
 // ajoute demain a l extraction entre sans qu on y pense.
+//
+// L EXCLUSION QUE LA DOCTRINE DEMANDAIT, ECRITE LE 6 AOUT 2026
+//
+// La propriete retenue etait plus large que voulu, et la doctrine
+// prevoit exactement ce cas : elle demande alors une exclusion
+// explicite, courte et motivee. Elle n avait pas ete ecrite, et le
+// parcours integral a fait entrer dans la reference les quatre champs
+// que le modele redige au lieu de les relever.
+//
+// Le controle est ainsi devenu un controle dont la reference est
+// contaminee par ce qu il mesure. La mesure du 6 aout, sur les
+// cinquante-quatre notes du corpus : la moitie des entrees autorisees,
+// cinquante et un pour cent, sont des mots decoupes dans un paragraphe
+// redige. Comme ce paragraphe est reecrit a chaque run, la reference
+// change a chaque run, et le compte d alertes du meme dossier passait de
+// 44 a 99 entre deux analyses au meme commit, sans qu une ligne de code
+// ni un caractere du document ait bouge.
+//
+// L exclusion nomme donc les champs plutot que de filtrer par longueur.
+// Un seuil de caracteres ecarterait aussi une enumeration legitime et
+// longue, comme le parcours d un fondateur qui cite trois employeurs
+// precedents, et cette prose-la porte des faits releves.
+//
+// Le critere de la liste : le champ est-il une reformulation ecrite par
+// le modele, ou un fait preleve dans le document. Les quatre exclus sont
+// des reformulations, et aucun ne nomme rien que les autres champs ne
+// nomment deja. C est une liste qui tranche et non un inventaire, donc
+// elle se garde et elle se date.
+const CHAMPS_DE_PROSE_GENEREE = new Set<string>([
+  // Resume executif du dossier, redige par le modele.
+  'rawSummary',
+  // Les trois reformulations : le marche, le produit, le modele. Ce
+  // qu elles nomment de reel, `competitorsCited`, `clientsNamed`,
+  // `sector` et `subSector` le portent deja sous forme relevee.
+  'marketPitch',
+  'productDescription',
+  'businessModel',
+]);
+
 export function buildAllowedNames(extraction: ExtractionOutput): Set<string> {
   const allowed = new Set<string>();
 
@@ -75,14 +114,19 @@ export function buildAllowedNames(extraction: ExtractionOutput): Set<string> {
     }
   };
 
-  const parcourir = (noeud: unknown): void => {
+  // Le parcours porte desormais la clef, pour que l exclusion se decide
+  // sur le nom du champ et non sur la forme de sa valeur. L exclusion
+  // vaut a toute profondeur : un champ ainsi nomme est une prose
+  // redigee ou qu il se trouve.
+  const parcourir = (noeud: unknown, clef: string): void => {
+    if (CHAMPS_DE_PROSE_GENEREE.has(clef)) return;
     if (typeof noeud === 'string') { add(noeud); return; }
-    if (Array.isArray(noeud)) { for (const n of noeud) parcourir(n); return; }
+    if (Array.isArray(noeud)) { for (const n of noeud) parcourir(n, clef); return; }
     if (noeud && typeof noeud === 'object') {
-      for (const v of Object.values(noeud as Record<string, unknown>)) parcourir(v);
+      for (const [k, v] of Object.entries(noeud as Record<string, unknown>)) parcourir(v, k);
     }
   };
-  parcourir(extraction);
+  parcourir(extraction, '');
 
   return allowed;
 }
@@ -648,10 +692,36 @@ export function findUnknownNames(
     // Match exact ou partiel sur la liste allowed
     if (allowed.has(n.textLower)) continue;
     if (ALWAYS_ALLOWED_LOWER.has(n.textLower)) continue;
-    // Match partiel : si un mot du nom est dans allowed, on accepte
-    const words = n.textLower.split(/\s+/);
-    const anyWordAllowed = words.some(w => allowed.has(w) || ALWAYS_ALLOWED_LOWER.has(w));
-    if (anyWordAllowed) continue;
+    // Correspondance partielle : TOUS les mots portants, et non un seul.
+    //
+    // La regle acceptait un nom des qu un mot quelconque le couvrait.
+    // Elle avait ete ecrite pour que « Cathline » documente « Rebecca
+    // Cathline », ce qui est juste, mais elle signifie aussi qu un seul
+    // mot commun suffit : « Bpifrance Creation » passait sur
+    // « creation », « Certification Qualiopi » sur « certification ».
+    // Ce n est pas une tolerance, c est un faux negatif du controle, et
+    // il portait sur 28,4 pour cent des noms acceptes au 6 aout 2026.
+    //
+    // Les mots de moins de trois caracteres sont ignores parce que
+    // `add` ne les inscrit jamais : les exiger rendrait tout nom portant
+    // une particule impossible a documenter.
+    // Un sigle compte comme couvert sans etre documente, parce que le
+    // module etablit deja qu un sigle n est pas un nom propre : c est du
+    // vocabulaire metier. Sans cette clause, « API OpenAI » et
+    // « GitHub OSS » remontaient alors qu OpenAI et GitHub sont
+    // documentes et qu API et OSS ne nomment personne. Exiger tous les
+    // mots sans elle aurait remplace une cecite par un bruit.
+    // `estUnSigle` se lit sur la casse d origine et non sur le mot
+    // abaisse : il teste l absence de minuscule, donc le lui passer en
+    // minuscules le rend faux partout. Ecrite ainsi la premiere fois, la
+    // clause etait une garde inerte, de la forme exacte que la doctrine
+    // decrit : elle nommait le bon test, posait le bon defaut, et il ne
+    // lui manquait que d etre vraie.
+    const motsOrigine = n.text.split(/\s+/).filter(w => w.length >= 3);
+    const couvert = (w: string) =>
+      allowed.has(w.toLowerCase()) || ALWAYS_ALLOWED_LOWER.has(w.toLowerCase()) || estUnSigle(w);
+    const allWordsAllowed = motsOrigine.length > 0 && motsOrigine.every(couvert);
+    if (allWordsAllowed) continue;
 
     // Verifier si le nom est dans un contexte tagge [web] ou [inference]
     // ou [corpus] : si oui on ne flagge pas (le LLM a explicitement

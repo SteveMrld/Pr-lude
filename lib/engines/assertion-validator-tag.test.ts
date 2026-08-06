@@ -274,5 +274,67 @@ console.log('\n[Suite 7] un symbole se lit avant le nombre comme apres, et une a
     'et une decimale ne le deplace pas');
 }
 
+
+// ============================================================
+// LA REFERENCE NE SE CONSTRUIT PAS SUR LA PROSE GENEREE
+// ------------------------------------------------------------
+// Defaut constate le 6 aout 2026 : le compte de noms propres du meme
+// dossier passait de 44 a 99 entre deux runs au meme commit. La cause
+// n etait pas le detecteur mais sa reference. `buildAllowedNames`
+// parcourait toute l extraction en decoupant chaque chaine en mots, y
+// compris `rawSummary`, un paragraphe que le modele reecrit a chaque
+// run. La moitie des entrees autorisees, 51 pour cent sur les 54 notes
+// du corpus, venaient de cette prose.
+//
+// C est un controle dont la reference est contaminee par ce qu il
+// mesure : il ne pouvait pas rendre deux fois le meme verdict.
+// ============================================================
+
+console.log('\n[Suite prose] la reference exclut ce que le modele redige');
+{
+  const { buildAllowedNames: bAN, findUnknownNames: fUN } = require('./assertion-validator');
+
+  const base: any = {
+    companyName: 'Societe', sector: 'SaaS', subSector: 'plateforme',
+    founders: [{ name: 'Rebecca Cathline', role: 'CEO', background: 'ex-Youboox' }],
+    competitorsCited: [], traction: { metrics: [] }, fundraise: {},
+  };
+  // Le meme dossier, deux resumes differents : c est le cas reel, ou le
+  // paragraphe est reecrit sans que le document bouge.
+  const a = { ...base, rawSummary: 'Hello Planet propose des formations certifiantes et un accompagnement RSE.' };
+  const b = { ...base, rawSummary: 'Hello Planet evolue vers une plateforme dediee a l engagement environnemental.' };
+
+  const sa = bAN(a), sb = bAN(b);
+  const differents = Array.from(sa).filter((x: any) => !sb.has(x)).length
+    + Array.from(sb).filter((x: any) => !sa.has(x)).length;
+  check(differents === 0,
+    `deux resumes differents rendent la meme reference (${differents} entree(s) d ecart)`);
+
+  // Et le fait releve, lui, continue d entrer : l exclusion porte sur
+  // quatre champs nommes, pas sur la longueur.
+  check(sa.has('cathline'), 'un fondateur nomme reste documente');
+  check(sa.has('ex-youboox') || sa.has('youboox'), 'et son parcours aussi, qui est un fait releve');
+  check(!sa.has('certifiantes'), 'un mot du resume n entre pas');
+
+  // Le faux negatif ferme : un mot quelconque ne couvre plus un nom.
+  // « certification » est documente, « Qualiopi » ne l est pas, et
+  // l ancienne regle acceptait le couple sur le premier seul.
+  const t = 'Le dossier revendique une Certification Qualiopi obtenue aupres de son organisme.';
+  const avecCertif = bAN({ ...base, traction: { metrics: ['certification en cours'] } });
+  check(fUN(t, avecCertif, 'champ').length === 1,
+    'Certification Qualiopi ne passe plus parce que « certification » est documente');
+  // Et la contrepartie : quand les deux mots sont documentes, le nom
+  // passe. Sans cette moitie, le test passerait aussi si la regle
+  // refusait tout.
+  const lesDeux = bAN({ ...base, traction: { metrics: ['certification qualiopi en cours'] } });
+  check(fUN(t, lesDeux, 'champ').length === 0,
+    'et il passe des que les deux mots le sont');
+
+  // Un sigle reste couvert, sinon le resserrage remplacerait une cecite
+  // par du bruit : « API OpenAI » ne nomme personne d autre qu OpenAI.
+  check(fUN('Le produit expose une API OpenAI documentee et publique aujourd hui.', bAN(base), 'champ').length === 0,
+    'un compose nom connu plus sigle reste couvert');
+}
+
 console.log(`\n${pass} pass, ${fail} fail`);
 if (fail > 0) process.exit(1);
