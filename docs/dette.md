@@ -1477,6 +1477,82 @@ Ce que cette voie coute en propre : le choix de la societe est un
 arbitrage editorial, puisque montrer une faillite qu'on a su lire est
 plus demonstratif et plus risque que montrer une reussite.
 
+### La voie est retenue, l'arbitrage editorial est rendu, le candidat est instruit
+
+Arbitrage de Steve, 6 aout 2026 : **un echec plutot qu'une reussite**. Un
+fonds n'achete pas un outil qui valide ce qu'il aurait valide lui-meme,
+il achete un outil qui l'aurait retenu d'une erreur. Le risque de montrer
+une faillite est le bon prix a payer.
+
+Instruction des trois candidats du referentiel, en lecture seule, contre
+les quatre criteres.
+
+**Le quatrieme critere ne departage pas.** Made.com, Cazoo et Matches
+routent tous les trois vers `ecommerce-dtc` quand on leur passe une
+extraction de la forme que la route construit. Le seau `consumer` porte
+dix-huit fiches en propre, sans emprunt, et les multiples de la classe
+sont en confiance haute aux deux stades avec un millesime 2024. La
+valorisation sortira dans les trois cas, avec la reserve d'estimation sur
+la sortie de reference qui vaut partout aujourd'hui.
+
+**Made.com.** Introduction au LSE en juin 2021 a 775 M£, placement sous
+administration en novembre 2022, marque et propriete intellectuelle
+reprises par Next pour 3,4 M£. Le second critere est rempli mieux que par
+les deux autres et pour une raison de nature : une societe qui s'introduit
+en bourse publie un document d'offre, c'est-a-dire un memorandum reel,
+ecrit par la societe pour lever, avec ses propres projections. Il n'y a
+donc pas de memorandum a reconstruire, il y en a un a utiliser. S'y
+ajoutent des comptes publies en tant que societe cotee et les rapports
+des administrateurs. Le troisieme critere demande une verification aux
+comptes, mais l'ecart a instruire est nomme : une these de production a la
+commande a stock reduit, et une exploitation qui a porte du stock. Dix-sept
+mois separent l'introduction de l'administration.
+
+**Cazoo.** De-SPAC en 2021 a 7 Md$, administration en mai 2024. Deuxieme
+critere rempli par les depots aupres du regulateur americain, troisieme
+critere rempli et meme surabondant puisque Carvana avait deja echoue sur
+le meme modele. La reserve porte sur la force de demonstration : une
+valorisation de sept milliards par de-SPAC en 2021 se lit retrospectivement
+comme une bulle par n'importe quel partner, et une note qui conclut ce que
+le lecteur avait deja conclu ne demontre rien. Le corpus lui donne deja son
+role, repere de regime pour lire un dossier valorise contre des
+comparables de 2021, et ce role est meilleur que celui de demonstration.
+
+**Matches.** Acquisition par Frasers en decembre 2023 pour 52 M£,
+administration en mars 2024. Le deuxieme critere est le plus faible des
+trois : societe non cotee, donc des comptes deposes mais aucun document
+d'offre, et la fiche porte deja son LBITDA en fiabilite base-agregee. Le
+troisieme critere est rempli dans un autre genre que le notre : moins de
+trois mois separent l'acquisition de l'administration, ce qui en fait un
+cas de diligence acquereur et non d'instruction d'un dossier de levee.
+La demonstration porterait sur un metier qui n'est pas celui du produit.
+
+**Retenu : Made.com.** Quatre raisons, dans l'ordre de leur poids.
+
+Le document d'offre est un memorandum authentique, ce qui repond a
+l'objection de credibilite sans avoir a la traiter : rien n'est
+reconstitue, donc rien ne peut sonner faux.
+
+L'ecart entre la these et l'exploitation se lit dans les chiffres et pas
+seulement dans le commentaire retrospectif, ce qui est la condition pour
+que la note ait quelque chose a demontrer plutot qu'a raconter.
+
+Le cas tombe sur deux des sept patterns de fragilite structurelle, ce qui
+fait travailler le moteur qui nous distingue le plus, plutot qu'un
+diagnostic generique.
+
+Et le millesime 2021 donne a la note son enseignement reutilisable : la
+question n'est pas si la valorisation etait haute, elle est ce que le
+marche achetait alors et qu'il n'achete plus.
+
+**Le piege a surveiller est deja au referentiel et il devient un atout.**
+Le rapport de 775 M£ a 3,4 M£ n'est pas un multiple, le second etant un
+prix d'actifs incorporels apres realisation du reste par les
+administrateurs. Une note de demonstration qui refuse ce rapport
+spectaculaire, et qui dit pourquoi, demontre la rigueur mieux qu'aucun
+paragraphe sur la rigueur. Ce refus est desormais porte par la doctrine et
+non par la vigilance du redacteur.
+
 ---
 
 ## Chantier : le decoupage des deux gros fichiers, et le critere de coupe
