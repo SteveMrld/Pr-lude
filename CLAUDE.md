@@ -578,6 +578,59 @@ et l extrait. Pour un nombre c est le chiffre tel qu il est ecrit. Dans
 les deux cas, la reponse « non » ne demande pas de couper l acquisition,
 elle demande d ecrire la capture.
 
+## Une constante qui ne se derive pas de ce qu elle decrit cesse d etre vraie sans le dire
+
+Une valeur recopiee depuis une autre finit par en diverger. Ce n est pas
+une possibilite, c est une echeance : la source bouge un jour, la copie
+ne bouge pas, et rien dans le code ne relie les deux. Le 6 aout 2026 a
+donne les deux formes de ce defaut le meme jour, aux deux bouts du meme
+dispositif.
+
+La premiere est le test qui compare une constante a elle-meme.
+`GATE_WORST_CASE_MS` valait le maximum des deadlines de la porte,
+recopie a la main. Il avait deja ete corrige deux fois. Quand la
+deadline de team est passee a 380 secondes, il est reste a 320, et le
+test qui l assertait a continue de passer : il comparait la constante au
+litteral qu on avait ecrit a cote d elle. Un tel test verifie l absence
+de faute de frappe, jamais la verite de la valeur. La reparation n est
+pas de mettre le bon chiffre, c est de faire calculer la constante par
+ce qu elle decrit et de faire porter l assertion sur la relation.
+
+Ce qui rend ce cas exemplaire est l endroit ou il s est produit : dans
+le fichier de budget, qui documente ce defaut pour dix autres valeurs et
+qui l a commis sur la sienne. C est le motif le plus tenace du depot, et
+il ne se referme pas par la vigilance, parce que celui qui ecrit la
+regle est exactement celui qui croit ne pas avoir besoin de l appliquer.
+
+La seconde forme est l instrument qui refuse ce qu il ne connait pas.
+`engine-stability` portait une liste ecrite a la main de trois moteurs
+rejouables. Team est tombe sur son contrat, mesurer son taux de chute
+etait le geste evident, et l instrument a rendu « Moteur inconnu ». Le
+refus se lisait comme une faute de frappe, donc on corrige l invocation
+et on recommence, au lieu de comprendre que l outil a un perimetre. Rien
+ne distinguait un moteur qui n existe pas d un moteur que l instrument
+ne sait pas rejouer, et ce sont deux situations opposees : la premiere
+est une erreur de l appelant, la seconde est une lacune de l outil.
+
+Les deux disent la meme chose par deux bouts. Une constante qui ne se
+derive pas de ce qu elle decrit ment en silence ; un perimetre qui ne se
+derive pas de ce qu il couvre refuse en silence. Dans les deux cas la
+valeur etait vraie le jour ou elle a ete ecrite, et rien n a signale
+qu elle avait cesse de l etre.
+
+En pratique, devant toute constante ou toute liste de perimetre, poser
+deux questions. De quoi cette valeur descend-elle, et le code fait-il ce
+calcul ou l ai-je fait une fois dans ma tete. Et quand elle refuse
+quelque chose, son message distingue-t-il ce qui n existe pas de ce
+qu elle ne couvre pas.
+
+Une derivation ne comble pas la lacune, et il faut le dire pour ne pas
+s en contenter. `engine-stability` sait desormais nommer les moteurs
+qu il ne rejoue pas ; il ne les rejoue toujours pas, chacun ayant son
+cablage d entrees a ecrire. La derivation rend le trou visible, elle ne
+le remplit pas. C est deja la difference entre un trou qu on trouve et
+un trou qu on cherche.
+
 ## Une regle qui dit quoi fournir sans dire ce que c est se satisfait par autre chose
 
 Une exigence nomme un champ a remplir. Si elle ne dit pas ce que ce

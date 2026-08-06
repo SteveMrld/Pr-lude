@@ -92,13 +92,31 @@ export function parseJSONWithMode<T = any>(
  * qui ne demande pas les bons champs. Le message doit permettre de
  * trancher sans rejouer le run.
  */
+/**
+ * Longueur conservee de chaque bout du texte fautif.
+ *
+ * Deux extraits et non un seul : ce qu on cherche est la forme de la
+ * sortie et l endroit ou elle casse, et les deux vivent aux extremites.
+ * Le debut dit si le modele a mis de la prose avant le JSON, une cloture
+ * de code, un preambule. La fin dit si la sortie est tronquee, si une
+ * accolade manque, si une citation de recherche web s est intercalee.
+ * Le milieu, lui, ne diagnostique rien et pese.
+ */
+const EXTRAIT_FAUTIF = 600;
+
 export class EngineContractError extends Error {
   readonly engine: string;
   readonly parseMode: ParseMode;
   readonly keys: string[];
   readonly attempts: number;
+  /** Longueur totale du texte rendu par le modele. */
+  readonly rawLength: number;
+  /** Debut du texte fautif, borne. Chaine vide quand le texte manque. */
+  readonly rawDebut: string;
+  /** Fin du texte fautif, bornee. */
+  readonly rawFin: string;
 
-  constructor(engine: string, parseMode: ParseMode, value: any, attempts: number) {
+  constructor(engine: string, parseMode: ParseMode, value: any, attempts: number, raw?: string) {
     const keys = value && typeof value === 'object' && !Array.isArray(value)
       ? Object.keys(value)
       : [];
@@ -113,6 +131,10 @@ export class EngineContractError extends Error {
     this.parseMode = parseMode;
     this.keys = keys;
     this.attempts = attempts;
+    const t = typeof raw === 'string' ? raw : '';
+    this.rawLength = t.length;
+    this.rawDebut = t.slice(0, EXTRAIT_FAUTIF);
+    this.rawFin = t.length > EXTRAIT_FAUTIF ? t.slice(-EXTRAIT_FAUTIF) : '';
   }
 }
 
@@ -174,6 +196,29 @@ export function verifierContrat<T>(engine: string, value: T): T {
   throw new EngineContractError(engine, 'direct', value, 1);
 }
 
+// ============================================================
+// LE TEXTE FAUTIF SE CONSERVE
+// ------------------------------------------------------------
+// Il ne l etait pas, et c est ce qui a rendu la famille de chutes de
+// contrat inexploitable. Deux moteurs de porte sont tombes en trois runs,
+// tous deux en parse `recovered` avec zero clef rendue, et la question
+// qui suivait — quelle etait la forme du JSON, ou cassait-il — n avait
+// aucune reponse : l erreur conservait le mode de parse, la liste des
+// clefs et le nombre de tentatives, jamais le texte.
+//
+// C est la meme dissymetrie que le battement absent. Une sortie qui
+// aboutit laisse une trace exploitable dans le result_json ; une sortie
+// qui casse ne laisse qu un message qui dit qu elle a casse. Le seul
+// moment ou l on dispose de l objet a diagnostiquer est celui ou on le
+// jette.
+//
+// Deux bornes plutot qu une conservation integrale. Six cents caracteres
+// de chaque cote suffisent a lire la forme et la coupure, et une sortie
+// entiere de cinq mille tokens dans une table de logs coute sans rien
+// apprendre de plus. La borne est declaree ici pour qu on sache ce qu on
+// n a pas, plutot que de croire qu on a tout.
+// ============================================================
+
 export async function parseEngineOutput<T = any>(
   engine: string,
   produce: (attempt: number) => Promise<string>,
@@ -202,7 +247,7 @@ export async function parseEngineOutput<T = any>(
 
     if (passesMinimalContract(engine, value)) return value;
 
-    last = new EngineContractError(engine, parseMode, value, attempt);
+    last = new EngineContractError(engine, parseMode, value, attempt, raw);
     // Trace serveur systematique : un contrat qui tombe est un
     // evenement de production, pas un detail de parse. Il doit se voir
     // dans les logs Vercel meme quand une reprise le rattrape.

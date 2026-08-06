@@ -114,7 +114,73 @@ const CHAMPS: Record<string, string[]> = {
     'globalScore',
   ],
   macro: ['globalScore', 'timingVerdict', 'countercyclicalOpportunity'],
+  team: [
+    'foundersCount', 'founderMarketFit', 'systemicCoverage',
+    'globalScore', 'verdict',
+  ],
 };
+
+// ============================================================
+// LE PERIMETRE DE L INSTRUMENT SE DERIVE, ET SON TROU SE DECLARE
+// ------------------------------------------------------------
+// La liste des moteurs rejouables etait ecrite a la main, et le 6 aout
+// 2026 elle a coute quatre passes. Team etait tombe sur son contrat la
+// veille, la mesure de son taux de chute etait le geste evident, et
+// l instrument a rendu « Moteur inconnu ». Il ne le connaissait pas
+// parce qu il ne connaissait que trois moteurs, ecrits un jour ou team
+// n etait pas la question.
+//
+// Ce qui rend la faute tenace est la forme du refus. « Moteur inconnu »
+// se lit comme une faute de frappe, donc on corrige son invocation et on
+// recommence, au lieu de comprendre que l instrument a un perimetre.
+// Rien ne distinguait un moteur qui n existe pas d un moteur que
+// l instrument ne sait pas rejouer, et ce sont deux situations
+// opposees : la premiere est une erreur de l appelant, la seconde est
+// une lacune de l outil.
+//
+// Le perimetre de reference se derive donc du pipeline, comme le graphe
+// de dependances derive le sien. La table de budget d appel nomme les
+// moteurs que le pipeline pilote ; l instrument compare sa propre
+// couverture a cette liste et dit laquelle des deux situations il
+// rencontre. Un moteur ajoute demain au pipeline apparait dans le
+// message sans que personne y pense, comme non rejouable et non comme
+// inexistant.
+//
+// Ce que cette derivation ne fait pas, et il faut le dire : elle ne rend
+// pas les moteurs rejouables. Chacun a ses entrees propres et son
+// cablage, qui s ecrit a la main dans `passe`. Elle rend la lacune
+// visible, elle ne la comble pas. C est deja la difference entre un trou
+// qu on trouve et un trou qu on cherche.
+// ============================================================
+
+/** Les moteurs que le pipeline pilote, lus et non recopies. */
+function moteursDuPipeline(): string[] {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { ENGINE_LLM_BUDGET } = require('../lib/engines/engine-budget');
+  return Object.keys(ENGINE_LLM_BUDGET);
+}
+
+/** Ce que l instrument sait rejouer, et pourquoi il refuse le reste. */
+function verdictDePerimetre(moteur: string): { ok: boolean; message: string } {
+  if (CHAMPS[moteur]) return { ok: true, message: '' };
+  const rejouables = Object.keys(CHAMPS).sort();
+  const duPipeline = moteursDuPipeline();
+  if (duPipeline.includes(moteur)) {
+    return {
+      ok: false,
+      message: `« ${moteur} » est un moteur du pipeline mais cet instrument ne sait pas le rejouer.\n`
+        + `  Ce n est pas une erreur d invocation, c est une lacune de l outil : son cablage d entrees\n`
+        + `  reste a ecrire dans la fonction « passe ».\n`
+        + `  Rejouables aujourd hui : ${rejouables.join(', ')}.\n`
+        + `  Pilotes par le pipeline : ${duPipeline.sort().join(', ')}.`,
+    };
+  }
+  return {
+    ok: false,
+    message: `« ${moteur} » n est ni rejouable par cet instrument ni pilote par le pipeline.\n`
+      + `  Rejouables : ${rejouables.join(', ')}.`,
+  };
+}
 
 /**
  * Lectures derivees, pour les champs dont la grandeur qui agit n est
@@ -173,6 +239,15 @@ async function passe(moteur: string, b64: string, extraction: any): Promise<any>
     const { analyzeMacro } = await import('../lib/engines/macro-engine');
     return analyzeMacro(extraction, null, matrix, null);
   }
+  if (moteur === 'team') {
+    // La signature ne prend pas la matrice : benchmarks, note de fonds,
+    // options de run, puits de mesure. Le cablage se lit sur la
+    // fonction et non par analogie avec le voisin, faute de quoi on
+    // mesurerait un moteur appele autrement qu il ne l est en
+    // production.
+    const { analyzeTeam } = await import('../lib/engines/team-engine');
+    return analyzeTeam(extraction, null, null, undefined, undefined);
+  }
   throw new Error(`moteur inconnu : ${moteur}`);
 }
 
@@ -187,11 +262,12 @@ function resumer(v: any): string {
   const moteur = arg('engine');
   const passes = Number(arg('passes', '3'));
   if (!motif || !moteur) {
-    console.error('Usage : --deck=<motif> --engine=extraction|market|macro [--passes=3]');
+    console.error(`Usage : --deck=<motif> --engine=${Object.keys(CHAMPS).sort().join('|')} [--passes=3]`);
     process.exit(1);
   }
-  if (!CHAMPS[moteur]) {
-    console.error(`Moteur inconnu. Disponibles : ${Object.keys(CHAMPS).join(', ')}`);
+  const perimetre = verdictDePerimetre(moteur);
+  if (!perimetre.ok) {
+    console.error(perimetre.message);
     process.exit(1);
   }
 

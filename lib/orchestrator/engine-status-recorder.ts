@@ -88,6 +88,21 @@ export interface EngineStatusEntry {
    *  failed-upstream, message structure nommant la ou les
    *  dependances fautives, jamais le message propage. */
   errorMessage?: string;
+  /**
+   * Forme du texte fautif quand un contrat est tombe : longueur totale,
+   * six cents caracteres de chaque extremite.
+   *
+   * Sans lui, une chute de contrat ne se diagnostique pas. Deux moteurs
+   * de porte sont tombes en trois runs, tous deux en parse `recovered`
+   * avec zero clef rendue, et la question de la forme du JSON et de la
+   * position de la coupure n avait aucune reponse : le seul moment ou
+   * l objet a diagnostiquer existe est celui ou on le jette.
+   *
+   * Le debut dit si le modele a mis de la prose ou une cloture de code
+   * avant le JSON ; la fin dit si la sortie est tronquee ou si une
+   * citation s est intercalee. Le milieu ne diagnostique rien.
+   */
+  parseFautif?: { longueur: number; debut: string; fin: string };
   /** Temps ecoule entre markStart (entree du moteur dans la fenetre
    *  pipeline) et markLLMStart (premier appel LLM effectif). Isole
    *  l attente sur les dependances. Absent si le moteur n a jamais

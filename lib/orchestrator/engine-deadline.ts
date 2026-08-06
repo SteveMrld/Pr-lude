@@ -162,11 +162,20 @@ export function createEngineDeadlineWrapper(opts: EngineDeadlineOptions): Engine
           onError(engine, err);
           try { onDoneNull(engine); } catch { /* controller closed */ }
           if (resultKey) {
+            // Les extremites du texte fautif remontent avec l erreur.
+            // Portees par EngineContractError et par elle seule : une
+            // erreur reseau n a pas de texte a montrer, et lui en
+            // inventer un serait pire que de n en avoir aucun.
+            const e = err as any;
+            const fautif = typeof e?.rawLength === 'number'
+              ? { longueur: e.rawLength, debut: String(e.rawDebut ?? ''), fin: String(e.rawFin ?? '') }
+              : undefined;
             recorder.record({
               engine: resultKey,
               status: 'failed',
               attempts: 1,
-              errorMessage: String((err as any)?.message || err),
+              errorMessage: String(e?.message || err),
+              ...(fautif ? { parseFautif: fautif } : {}),
             });
           }
           resolve(null);

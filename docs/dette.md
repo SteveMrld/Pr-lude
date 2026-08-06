@@ -273,6 +273,48 @@ aujourd'hui.
 
 ---
 
+## La famille de chute de contrat, mesuree le 6 aout 2026
+
+Seize passes hors ligne, huit par moteur, reparties avec et sans
+recherche web. **Zero chute de contrat.**
+
+| moteur | condition | passes | chutes | durees |
+|---|---|---|---|---|
+| market | sans web | 4 | 0 | 76,7 a 85,7 s |
+| market | avec web | 4 | 0 | 100,9 a 106,1 s |
+| team | sans web | 4 | 0 | 83,5 a 86,0 s, plus un depassement a 182,0 s |
+| team | avec web | 4 | 0 | 115,0 a 122,9 s |
+
+**Ce que la borne dit exactement.** Huit tirages a zero echec par moteur
+rejettent un taux d'un sur trois a quatre-vingt-quinze pour cent. Un sur
+dix reste possible : il faudrait vingt-neuf passes pour l'ecarter, et
+cette precision ne changerait aucune decision. **La reprise de contrat
+est la reponse a cette incertitude, pas la mesure.** Les deux moteurs de
+porte la portent depuis le 6 aout.
+
+**L'hypothese de la recherche web n'est ni confirmee ni infirmee.**
+Aucune passe n'est tombee, dans aucune des deux conditions. Le signal du
+corpus reste ce qu'il etait : sept observations non-`direct` sur neuf du
+cote web, treize sur treize `direct` sans. C'est un signal, pas une
+cause, et il n'a pas ete reproduit.
+
+**Une donnee de budget que personne n'avait.** La recherche web coute
+regulierement vingt a trente-trois secondes sans jamais casser le parse :
+plus vingt-quatre secondes sur market, plus trente-trois sur team. C'est
+une entree pour tout dimensionnement de fenetre a venir, et elle
+n'existait nulle part.
+
+**Un depassement de fenetre a ete observe et il n'etait pas cherche.**
+Une passe de team sur huit a rendu « Request timed out » a 181 982 ms,
+contre une fenetre de 180 s, et **sans recherche web** alors que les
+quatre passes avec web tenaient entre 115 et 123 s. Le nominal de team
+est donc de 83 a 123 s selon la condition, avec une queue qui atteint
+182 s. Un sur huit, ce qui ne borne rien mais suffit a savoir que la
+queue existe. La deadline de team, portee a 380 s par sa reprise de
+contrat, heberge deux tentatives de cette longueur, tout juste.
+
+---
+
 ## Deux lectures en attente, apres ce qui est engage
 
 Ouvertes le 5 aout 2026. Ce ne sont pas des dettes mais deux relevés a
