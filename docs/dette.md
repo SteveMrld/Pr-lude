@@ -1,82 +1,137 @@
 # Registre de dette
 
-## Prelude est calibre pour des decks de levee, et sa porte d entree le suppose
+## La grille de fond n a jamais rien elimine
 
-Etabli le 6 aout 2026 sur un refus, et place en tete parce que c est la
-limite la plus haute du produit : elle borne ce qu un fonds peut lui
-donner a instruire, avant toute question de qualite d analyse.
+Mesure du 6 aout 2026, placee en tete parce qu elle borne ce que le produit
+peut instruire, avant toute question de qualite d analyse.
 
-**Le fait.** Les comptes consolides 2018 de Made.com Design Limited,
-deposes au registre britannique, ont ete ecartes par le pre-scan en
-`not_recommended`, score 3,5 sur 6. Le motif est exact et il ne porte pas
-sur la societe : « Le document ne defend aucune these de probleme,
-solution, marche ou timing. Il s agit d etats financiers audites, non d un
-pitch presentant une opportunite d investissement. » Le test de
-plausibilite financiere, lui, passe, et il lit les bons chiffres, 173,4 M£
-en 2018 contre 127,0 M£ en 2017, perte de 4,5 M£, tresorerie de 35,6 M£.
+Sur les dix dossiers ayant subi un pre-scan execute, quarante-huit echecs de
+test se repartissent ainsi : **vingt sur la forme du document, vingt-sept
+sur le mandat du fonds, un sur le fond**. Les tests `market` et `redflag` n
+ont jamais echoue, pas une fois ; `financial` a echoue une seule fois sur
+tout le corpus.
 
-Le refus est donc juste sur le document et faux sur l operation. Forcer le
-passage pour que la demonstration existe aurait ete contourner le
-dispositif afin d obtenir le resultat voulu, ce qu un partner nous
-reprocherait a bon droit. Le refus est retenu.
+Cinq dossiers ont ete ecartes, et **aucun sur un motif de fond**. Mistral AI
+et JNAN Hotels sur le seul mandat, In Haircare et OOGarden sur forme et
+mandat, Made.com Design Limited sur la seule forme. Quatorze analyses pour
+cinq dossiers, dont neuf pour In Haircare seul : c est le compte par dossier
+qui repond ici, pas celui des runs.
 
-**Ce que le corpus dit de la portee.** Sur les dix dossiers ayant subi un
-pre-scan execute, quarante-huit echecs de test se repartissent ainsi :
-vingt sur la forme du document, vingt-sept sur le mandat du fonds, et
-**un** sur le fond. Les tests `market` et `redflag` n ont jamais echoue,
-pas une fois. Cinq dossiers ont ete ecartes, et aucun ne l a ete sur un
-motif de fond : deux sur le seul mandat, deux sur forme et mandat, un sur
-la seule forme. Quatorze analyses pour cinq dossiers, dont neuf pour un
-seul, donc c est le compte par dossier qui repond ici.
+**Prelude n ecarte pas des mauvais dossiers. Il ecarte des documents qui ne
+ressemblent pas a un deck, ou qui ne correspondent pas a la these du fonds.**
+C est vrai, c est defendable, et ce n est pas ce que le produit annonce.
 
-La grille de fond n a donc jamais rien elimine. Ce qui elimine est le
-genre du document et l adequation a la these.
+**Le cas qui l a etabli.** Les comptes consolides 2018 de Made.com Design
+Limited, deposes au registre britannique, ecartes en `not_recommended` a 3,5
+sur 6. Le motif est exact et il ne porte pas sur la societe : « Le document
+ne defend aucune these de probleme, solution, marche ou timing. Il s agit d
+etats financiers audites, non d un pitch presentant une opportunite d
+investissement. » Le test de plausibilite financiere passe et lit les bons
+chiffres, 173,4 M£ en 2018 contre 127,0 M£ en 2017, perte de 4,5 M£,
+tresorerie de 35,6 M£. Le refus est juste sur le document et faux sur l
+operation. Il a ete retenu plutot que force : contourner le dispositif pour
+que la demonstration existe est precisement ce qu un partner reprocherait.
 
-**Ou la distinction se prendrait.** Dans `assemblerPreScan`, une seule
-ligne decide : `criticalTests = ['narrative', 'founder', 'thesis_fit',
-'sector_fit', 'geography_fit']`. Un `fail` sur l un des cinq force
-`not_recommended` quel que soit le score. Made.com est tombe uniquement
-par la : son ratio de 0,583 depassait le seuil de 0,5, donc seul le
-couperet critique a joue, et il a joue sur `narrative`.
-
-Cette liste melange deux natures. `thesis_fit`, `sector_fit` et
-`geography_fit` sont des criteres d **eligibilite** : ils disent que ce
-fonds ne fait pas cette operation, et ils meritent d etre eliminatoires.
-`narrative` et `founder` sont des proprietes du **genre du document** : un
-memorandum de cession, une data room, des comptes deposes n ont ni these
-ni presentation de fondateurs, et cela ne dit rien de l operation.
-`stage_ticket` est un troisieme cas encore, un critere de **qualite** qui
-ne pese que dans le score, et c est pourtant le test qui echoue le plus
-souvent, treize fois.
-
-La reparation ne consiste donc pas a retirer deux entrees d une liste.
-Elle consiste a reconnaitre le genre du document en amont des tests, et a
-choisir la grille en fonction : un deck de levee, un memorandum de
-cession, un jeu de comptes deposes et une data room ne se trient pas avec
-les memes six questions. Tant que le genre n est pas une entree, la porte
-suppose un format et refuse tout le reste pour une raison vraie.
-
-**La famille.** C est le type d operation presuppose de la grappe 4 pris
-un cran plus haut. La, les moteurs supposaient une levee et calculaient
-une dilution sur une cession ; ici la porte d entree suppose un deck et
-ecarte ce qui n en est pas un. Meme faute, deux etages : le dispositif
-tient pour universel le seul cas qu il a rencontre en premier.
-
-**Ce qui reste a mesurer.** Le parcours choisi, early ou growth, n est
-enregistre nulle part dans `result_json` : cinquante-sept analyses sur
-cinquante-sept rendent « non enregistre ». Le releve selon lequel quatorze
-dossiers growth seraient des memorandums de cession ne peut donc ni se
-confirmer ni se refuter sur le corpus persiste, et il n a pas ete refait
-ici. Sans cette segmentation, la portee du defaut par parcours reste
-inconnue.
+**La famille.** C est le type d operation presuppose de la grappe 4 pris un
+cran plus haut. La, les moteurs supposaient une levee et calculaient une
+dilution sur une cession ; ici la porte d entree suppose un deck et ecarte
+ce qui n en est pas un. Meme faute a deux etages : le dispositif tient pour
+universel le seul cas qu il a rencontre en premier.
 
 ---
 
-Ce que l'on sait faux ou fragile et que l'on n'a pas ferme, avec la
-raison de ne pas l'avoir ferme. Une entree se retire quand le defaut
-disparait, jamais quand on s'y habitue.
+## Chantier : le genre du document, entree manquante en amont du pre-scan
 
-L'ordre est celui du dommage, pas celui de la date.
+Ouvert le 6 aout 2026. C est la reparation de l entree precedente, et elle n
+est pas un ajustement de seuil.
+
+**Ou la faute se prend aujourd hui.** Dans `assemblerPreScan`, une seule
+ligne decide : `criticalTests = ['narrative', 'founder', 'thesis_fit',
+'sector_fit', 'geography_fit']`. Un `fail` sur l un des cinq force
+`not_recommended` quel que soit le score. Made.com est tombe uniquement par
+la : son ratio de 0,583 depassait le seuil de 0,5, donc l elimination par
+score n a pas joue.
+
+Cette liste melange trois natures. `thesis_fit`, `sector_fit`,
+`geography_fit` sont de l **eligibilite** : ce fonds ne fait pas cette
+operation, et c est legitimement eliminatoire. `narrative` et `founder` sont
+des proprietes du **genre du document** : un memorandum de cession, une data
+room, des comptes deposes n ont ni these ni presentation de fondateurs, et
+cette absence ne dit rien de l operation. `stage_ticket` est un troisieme
+cas, de la **qualite** qui ne pese qu au score, et c est pourtant le test le
+plus souvent en echec, treize fois.
+
+Retirer `narrative` et `founder` de la liste ne repare rien : les deux tests
+continueraient d etre poses a un document qui n a pas de quoi y repondre, et
+de peser au score. Ce qui manque est une entree en amont.
+
+**Ce que serait un genre reconnu avant les tests.** Le genre choisit la
+grille au lieu de subir la grille unique. Quatre genres se rencontrent deja
+dans le corpus ou dans la demonstration.
+
+`deck-levee` : la grille actuelle, sans changement. Une these, des
+fondateurs, un stade et un ticket sont attendus et leur absence est un
+defaut du dossier.
+
+`memorandum-cession` : `narrative` devient une coherence de these de
+cession, pourquoi maintenant et quel profil d acquereur, et non une these de
+probleme et de solution. `founder` devient une continuite du management,
+puisque la question n est pas la credibilite d un fondateur mais le maintien
+de l equipe apres l operation. `stage_ticket` devient une coherence prix et
+perimetre : il n y a ni stade ni ticket, il y a un prix et ce qu il achete.
+`financial`, `market` et `redflag` s appliquent inchanges, et plus
+lourdement, puisqu un memorandum porte des comptes revus.
+
+`comptes-deposes` : `narrative`, `founder` et `stage_ticket` sortent en
+`not_applicable`, un statut qui n existe pas aujourd hui et qu il faut
+distinguer de `not_produced` : l un dit que la question ne se pose pas, l
+autre qu elle s est posee sans reponse. `financial` devient le coeur et non
+un test parmi six. Trois tests propres au genre apparaissent, que rien ne
+couvre : l opinion d audit avec ou sans reserve, la continuite d
+exploitation, et le fait que le depot soit a jour. Sur Made.com les trois
+auraient repondu, et deux auraient rassure a tort si on les avait lus seuls.
+
+`data-room` : ce n est pas un document mais un ensemble, donc la grille
+porte sur la completude et non sur le contenu. Le pipeline ne sait pas encore
+lire plusieurs documents, ce qui est un prerequis consigne ailleurs dans ce
+registre.
+
+**La question qui decide de la forme : le genre se detecte-t-il ou se
+declare-t-il.**
+
+La reponse est empirique et elle a deja eu lieu. Le pre-scan **a detecte le
+genre, correctement, et l a ecrit de lui-meme** dans la premiere phrase de
+son resume : « Ce document est un rapport financier consolide de Made.com
+Design Limited pour l exercice 2018, non un pitch deck VC. » Personne ne le
+lui avait demande. Il savait, et il a applique la grille du deck quand meme,
+parce que ce qu il savait etait de la prose et non un champ.
+
+La detection ne coute donc rien : le pre-scan lit deja le document, avec le
+modele rapide, pour deux centimes. Nommer le genre dans la meme passe est un
+champ de plus dans le meme JSON. Son risque est celui de toute detection,
+se tromper, et un genre mal detecte selectionne la mauvaise grille en
+silence.
+
+La declaration au depot coute une ligne d interface et supprime la
+detection. Son risque est different et il est plus grave : elle suppose que
+l utilisateur classe juste. Un partner presse prend le defaut, et un genre
+faux declare produit une note dont le verdict est inadapte sans que rien ne
+le signale, avec l autorite d une valeur saisie. C est la forme de la valeur
+declaree qui ne se derive pas de ce qu elle decrit, deja rencontree deux
+fois dans ce registre.
+
+**Ce qui se retient donc : les deux, dans cet ordre, avec conservation du
+desaccord.** La detection rend le genre avec son extrait, comme toute valeur
+acquise hors du raisonnement. La declaration, quand elle existe, se compare
+a la detection. Un accord ferme la question. Un desaccord ne s arbitre pas :
+il se conserve, il se montre au partner, et c est lui qui tranche en
+connaissance de cause. C est le seul detecteur qui n a besoin d aucune
+source, applique ici a un cas ou la source n existe pas puisque le genre n
+est ecrit nulle part.
+
+Le cout de cette forme est celui de la detection, nul, plus une ligne d
+interface, plus une comparaison de deux champs. Ce qu elle supprime est le
+cas ou une grille inadaptee s applique sans que personne ne le sache.
 
 ---
 
@@ -2118,3 +2173,42 @@ conforme et un journal non vide devient l anomalie, puisqu il signalerait
 une fuite. La garde ne disparait pas, elle s inverse. C est le meme geste
 que partout ailleurs, faire dependre le controle de ce qui decide de son
 objet plutot que de sa seule sortie.
+
+---
+
+## Le parcours n est enregistre nulle part, donc aucune mesure par parcours n est possible
+
+Constate le 6 aout 2026 en cherchant a mesurer la portee du defaut de grille
+par parcours.
+
+Le partner choisit early stage ou growth en page d entree, et ce choix
+commande le pipeline : quatorze moteurs d un cote, neuf de l autre, avec
+Equipe, Pattern Matching, Aveuglement et Causal neutralises en growth. C est
+donc une variable de premier ordre pour lire une sortie.
+
+Elle n est ecrite nulle part dans `result_json`. Cinquante-sept analyses sur
+cinquante-sept rendent « non enregistre », que l on cherche dans
+`meta.track`, dans `meta.versionStamp.runMode.track` ou a la racine. Le
+corpus persiste ne se segmente donc pas par parcours apres coup.
+
+**Ce que cela empeche, concretement.** Le releve selon lequel quatorze
+dossiers growth seraient des memorandums de cession ne peut ni se confirmer
+ni se refuter sur les donnees. Il n a pas ete refait et son chiffre n est pas
+repris ici. Plus generalement, toute question de la forme « ce defaut touche
+plutot early ou plutot growth » est sans reponse retrospective, et le restera
+pour les cinquante-sept analyses deja produites : la non-retroactivite des
+contrats interdit de le reconstituer, puisqu une absence sous un contrat
+ancien est un silence et non une reponse.
+
+**La forme generale.** Une variable qui commande le calcul et qui ne voyage
+pas avec son resultat rend ce resultat ininterpretable des qu on veut le
+comparer a un autre. C est proche de l empreinte de code, dont l absence
+ferait lire un diff comme une variance, mais un cran plus bas : ici ce n est
+pas le code qui differe, c est la configuration du meme code, et elle est
+tout aussi decisive. Le version stamp porte deja `runMode.frozen` et
+`runMode.asOf` ; `track` a le meme statut et n y figure pas.
+
+**La reparation.** Ecrire `track` dans `runMode` du version stamp, au meme
+endroit que `frozen`, plutot que dans un champ ad hoc : c est la que vivent
+les conditions de run, et c est ce que la calibration segmente deja. Le cout
+est un champ. Il ne repare pas le passe et il ne doit pas pretendre le faire.
