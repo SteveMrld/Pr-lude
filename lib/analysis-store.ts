@@ -412,6 +412,66 @@ export async function findExistingByCompany(
 }
 
 /**
+ * Etat vivant d une analyse, lu pour etre archive avant d etre ecrase.
+ *
+ * POURQUOI CETTE FONCTION EST SEPAREE ET NON UN ELARGISSEMENT
+ *
+ * `findExistingByCompany` est appelee a chaque persistance. Y ajouter
+ * `result_json`, la plus grosse colonne de la table, ferait transiter une
+ * note entiere sur le chemin chaud de tous les runs pour un besoin qui ne
+ * concerne qu une collision sur mille. La lecture est donc separee et
+ * appelee seulement quand elle sert.
+ *
+ * `aDesVersions` est rendu explicitement plutot que deduit de
+ * `latestVersion`, qui vaut 1 en l absence de toute version et confond
+ * donc « aucune » avec « une seule ». Une valeur par defaut qui se lit
+ * comme une mesure est exactement ce que la discipline interdit.
+ */
+export async function lireEtatVivantPourArchivage(
+  analysisId: string,
+): Promise<{
+  aDesVersions: boolean;
+  resultJson: any | null;
+  sourceFilename: string | null;
+  pipelineDurationMs: number | null;
+} | null> {
+  if (!isPersistenceEnabled()) return null;
+  try {
+    const { useAdminClient } = await resolveUserContext();
+    const supabase = getClient(useAdminClient);
+
+    const { count, error: errCount } = await supabase
+      .from('analyses_versions')
+      .select('id', { count: 'exact', head: true })
+      .eq('analysis_id', analysisId);
+    if (errCount) return null;
+
+    const aDesVersions = (count ?? 0) > 0;
+    // Le contenu ne se lit que s il va servir : quand des versions
+    // existent deja, il n y a aucun trou a combler.
+    if (aDesVersions) {
+      return { aDesVersions: true, resultJson: null, sourceFilename: null, pipelineDurationMs: null };
+    }
+
+    const { data, error } = await supabase
+      .from('analyses')
+      .select('result_json, source_filename, pipeline_duration_ms')
+      .eq('id', analysisId)
+      .maybeSingle();
+    if (error || !data) return { aDesVersions: false, resultJson: null, sourceFilename: null, pipelineDurationMs: null };
+
+    return {
+      aDesVersions: false,
+      resultJson: data.result_json ?? null,
+      sourceFilename: data.source_filename ?? null,
+      pipelineDurationMs: data.pipeline_duration_ms ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Calcule a partir du resultJson si la DD approfondie (Bloc 2) a deja
  * tourne sur ce dossier. Vrai si au moins un des cinq outputs Bloc 2
  * est present (objet non null/undefined) :

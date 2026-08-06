@@ -30,6 +30,7 @@ import {
   saveAnalysis,
   updateAnalysisLive,
   findExistingByCompany,
+  lireEtatVivantPourArchivage,
   extractAnalysisMetadata,
   isPersistenceEnabled,
   type SaveAnalysisInput,
@@ -71,6 +72,17 @@ export interface PersistDeps {
   isPersistenceEnabled: () => boolean;
   extractAnalysisMetadata: (result: any) => any;
   findExistingByCompany: (name: string) => Promise<{ id: string; companyName: string } | null>;
+  /**
+   * Lecture etroite de l etat vivant, appelee seulement a la premiere
+   * collision. Absente des dependances jusqu au 6 aout 2026 : le trou
+   * qu elle comble ne se voyait pas parce que rien ne le cherchait.
+   */
+  lireEtatVivantPourArchivage: (id: string) => Promise<{
+    aDesVersions: boolean;
+    resultJson: any | null;
+    sourceFilename: string | null;
+    pipelineDurationMs: number | null;
+  } | null>;
   saveAnalysis: (input: SaveAnalysisInput) => Promise<string | null>;
   updateAnalysisLive: (id: string, input: SaveAnalysisInput) => Promise<boolean>;
   createVersion: (args: {
@@ -86,6 +98,7 @@ const DEFAULT_DEPS: PersistDeps = {
   isPersistenceEnabled,
   extractAnalysisMetadata,
   findExistingByCompany: findExistingByCompany as any,
+  lireEtatVivantPourArchivage: lireEtatVivantPourArchivage as any,
   saveAnalysis,
   updateAnalysisLive: updateAnalysisLive as any,
   createVersion: createVersion as any,
@@ -147,6 +160,49 @@ export async function persistAnalysisWithDeps(
     const existing = await deps.findExistingByCompany(companyName);
 
     if (existing) {
+      // LE PREMIER RESULTAT N ETAIT JAMAIS ARCHIVE
+      //
+      // Au premier run, `saveAnalysis` cree la ligne et aucune version.
+      // A la collision suivante, `createVersion` archivait le NOUVEAU
+      // resultat et `updateAnalysisLive` ecrasait la ligne vivante juste
+      // apres : le run d origine n existait plus nulle part. Il fallait
+      // donc trois runs pour tenir deux etats comparables, ce qui rendait
+      // le moteur Trajectoire et le comparatif de notes inutilisables sur
+      // les deux premiers.
+      //
+      // La reparation ne change pas ce qu une version signifie. Archiver
+      // l ancien a la place du nouveau aurait fait dire a chaque ligne
+      // « l etat d avant le run N » alors que toutes celles deja en base
+      // disent « le resultat du run N », et les deux se seraient melangees
+      // sans marqueur. Une version reste un resultat produit ; on comble
+      // seulement le trou, une fois, a la premiere collision.
+      //
+      // L archivage ne bloque pas la persistance du run courant : perdre
+      // le nouveau resultat pour sauver l ancien serait le meme defaut
+      // dans l autre sens. Mais son echec est definitif et il se trace,
+      // parce que la version creee juste apres rendra `aDesVersions` vrai
+      // et qu aucune collision ulterieure ne retentera le comblement. Un
+      // trou qu on ne peut plus combler doit au moins avoir laisse une
+      // ligne : c est la difference entre une perte connue et une perte
+      // qui se decouvre le jour ou l on cherche le comparatif.
+      const etat = await deps.lireEtatVivantPourArchivage(existing.id);
+      if (etat && !etat.aDesVersions && etat.resultJson) {
+        const archive = await deps.createVersion({
+          analysisId: existing.id,
+          snapshotJson: etat.resultJson,
+          sourceFilename: etat.sourceFilename,
+          pipelineDurationMs: etat.pipelineDurationMs,
+          note: 'Run initial, archive retroactivement a la premiere collision',
+        });
+        if (!archive) {
+          console.warn(
+            '[persist-analysis] archivage retroactif du run initial echoue pour',
+            existing.id,
+            ': le premier resultat est perdu et ne sera plus retente.',
+          );
+        }
+      }
+
       // Collision detectee. On cree automatiquement une nouvelle
       // version du dossier existant plutot que de bloquer avec un
       // dialogue. L UI versions du client permet ensuite de
