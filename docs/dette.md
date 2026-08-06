@@ -1955,3 +1955,51 @@ Les trois pieces passent les plafonds mesures. Les deux depots de
 l operationnelle, a cinquante-cinq et quarante-cinq pages, passent meme sous
 le plafond de cent pages du modele rapide, donc le pre-scan tournera sur la
 note 1, ce qu il n aurait pas fait sur un prospectus.
+
+---
+
+## Un fichier depose peut etre accepte, nomme dans la note, et jamais lu
+
+Constate le 6 aout 2026 en preparant la demonstration Made.com, ou deux
+depots de comptes devaient etre lus par la meme note. Non corrige : la
+demonstration passe outre en donnant un document par note.
+
+**Le fait.** `processFileRefs` classe les fichiers deposes dans des creneaux
+nommes : un deck PDF, un pacte d actionnaires, des statuts, une cap table,
+des contrats clients et des documents techniques en tableaux, plus cote
+tableur un business plan, un grand livre et une cap table. Ce qui ne gagne
+aucun creneau tombe dans `others`, et `others` n est utilise que pour des
+noms, aux lignes 401 et 760 de `app/api/analyze/route.ts`. Son contenu
+n atteint aucun moteur.
+
+**La portee exacte, qui est plus etroite qu il n y parait.** Ce n est pas
+« tout second fichier ». Un classeur depose a cote d un deck gagne le
+creneau business plan et il est lu : Project Hello le montre, `hasBP` vrai
+et `bpChars` a 29 929. Les contrats clients et les documents techniques sont
+des tableaux, donc plusieurs sont lus. Ce qui disparait est le fichier qui
+ne gagne aucun creneau, et en pratique le second PDF dont le nom ne
+declenche aucune heuristique juridique ou technique. Deux jeux de comptes
+deposes ensemble sont exactement ce cas.
+
+**Ce qui rend le defaut grave n est pas la perte, c est la revendication.**
+Le fichier est accepte sans avertissement, televerse, et son nom entre dans
+`additionalFiles` du version stamp puis dans les metadonnees de la note. Le
+lecteur voit donc le nom du document dans la note et en deduit qu il a ete
+analyse. C est la meme forme que le tag `[web : crunchbase]` avant la
+capture des sources : une trace qui dit qu une chose etait la, sans dire
+qu elle a servi, et qui se lit comme une preuve de lecture parce que rien ne
+la contredit.
+
+**Le classement se fait sur le nom, pas sur le contenu.** `classifyFile` ne
+lit que `file.name`. Un document est donc lu ou non selon la facon dont il
+est nomme, et un fichier renomme peut entrer dans un creneau dont il n a pas
+la nature, ou il sera lu par le mauvais prompt. Ce second effet n a pas ete
+mesure et n est pas affirme ici ; seul le premier l a ete.
+
+**Le chantier, quand il s ouvrira.** Deux gestes, dans cet ordre. Refuser au
+depot ce qui ne sera pas lu, ou l annoncer, parce qu un silence a l entree
+coute moins cher qu une revendication fausse a la sortie. Puis decider si le
+pipeline doit savoir lire plusieurs documents de meme nature, ce qui est une
+question de produit et non de tri : un dossier reel porte souvent deux ou
+trois exercices de comptes, et la demonstration Made.com le rencontre des le
+premier essai.
