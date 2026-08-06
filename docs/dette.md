@@ -1553,6 +1553,88 @@ spectaculaire, et qui dit pourquoi, demontre la rigueur mieux qu'aucun
 paragraphe sur la rigueur. Ce refus est desormais porte par la doctrine et
 non par la vigilance du redacteur.
 
+### Verification de la reserve avant engagement, 6 aout 2026
+
+Deux questions posees avant de s'engager, instruites en lecture seule.
+La premiere se resout, la seconde change la forme de la demonstration.
+
+**Acces et exploitabilite.** Le prospectus a ete publie le 16 juin 2021 et
+depose au National Storage Mechanism de la FCA ; le site institutionnel
+qui en portait copie n'existe plus, la societe etant liquidee, et l'API
+de la FCA refuse une recuperation automatisee. Le document reste
+telechargeable a la main par un humain, ce qui suffit, mais aucun script
+ne l'ira chercher. Sa pagination n'a pas ete etablie et elle reste a
+verifier au telechargement.
+
+Ce qui est etabli est la piece voisine, et elle donne l'ordre de
+grandeur. Les comptes consolides de MADE.COM GROUP PLC au 31 decembre
+2021 sont deposes au registre britannique le 18 mai 2022 sous le numero
+13346124, et ils font **208 pages**. La societe d'exploitation,
+MADE.COM DESIGN LTD, numero 07101408, est immatriculee depuis le
+10 decembre 2009 et porte les exercices anterieurs a l'introduction.
+
+Consequence sur le pipeline, lue dans la dette du pre-scan plutot que
+supposee : au-dela de cent pages, un seul moteur sur trente et un tombe,
+le pre-scan, parce qu'il est le seul a envoyer le PDF au modele rapide
+dont le plafond est de cent pages. Les autres lectures de PDF passent par
+le modele principal et tiennent jusqu'a six cents. Un document de 208
+pages, et un prospectus meme plus long, restent donc dans le domaine du
+pipeline. Et la perte est deja nommee et non silencieuse, le pre-scan
+sortant en non-produit avec une cause lisible, ce qui est plutot un atout
+en demonstration : la note montre qu'elle declare ce qu'elle n'a pas pu
+faire.
+
+**Les signaux ne sont pas dans le prospectus, et il faut le dire.** La
+reserve etait fondee et le releve la confirme dans le sens defavorable.
+
+Ce que portent les comptes 2021, publies le 8 mars 2022 : chiffre
+d'affaires 448,1 M€ contre 298 M€, soit une croissance de 50 pour cent ;
+marge brute 46,3 pour cent contre 53,2 pour cent, soit 6,9 points perdus
+en un exercice ; perte avant impot 37,8 M€ dont 6,4 M€ de charges
+non recurrentes d'introduction ; EBITDA ajuste negatif de 17,23 M€ contre
+6,13 M€. Une seconde source rapporte un flux de tresorerie disponible de
+-32,1 M£ contre +22,2 M£ l'exercice precedent, une tresorerie nette de
+107 M£, et une normalisation des entrees de stock en fin d'exercice.
+
+Le motif y est lisible sans rien savoir de l'issue : une croissance de
+moitie, une marge qui perd sept points, et un retournement de tresorerie
+de l'ordre de cinquante millions dans une societe dont la these est la
+production a la commande a stock reduit. C'est l'ecart entre la these et
+l'exploitation, et il est dans les chiffres.
+
+Mais ces chiffres sont ceux de l'exercice 2021, publies neuf mois apres
+le prospectus et huit mois avant l'administration. **Le prospectus de juin
+2021 porte l'exercice 2020**, qui est l'annee de confinement : marge a
+53,2 pour cent, tresorerie disponible positive, croissance forte. Il
+presente donc la these sous son meilleur jour, exactement comme la
+reserve l'anticipait, et une note produite sur le prospectus seul ne
+portera pas les signaux de degradation.
+
+**Ce que cela change, et c'est un gain plutot qu'une perte.** La
+demonstration doit montrer deux documents, donc deux analyses du meme
+dossier a deux dates. C'est precisement l'objet du moteur Trajectoire,
+qui consomme deux analyses pour calculer les deltas de scores et les
+combinaisons apparues, resolues et persistantes, et c'est aussi le cas
+d'usage du comparatif de notes ecrit le 6 aout. Une demonstration en un
+seul document aurait montre un moteur ; celle-ci en montre trois, et elle
+raconte la seule chose qu'un fonds veut savoir, ce que l'outil aurait dit
+au moment ou il fallait le dire, puis ce qu'il a vu ensuite.
+
+Reste une question ouverte qui decide de la force de la premiere note :
+le prospectus porte les exercices anterieurs a 2020, et une societe de
+2009 jamais rentable dont le seul bon exercice coincide avec un
+confinement est un signal lisible au moment de l'introduction. Cela n'a
+pas ete verifie et ne doit pas etre affirme : c'est ce qu'il faut lire
+dans le prospectus avant d'engager, et c'est la seule chose qui reste a
+etablir.
+
+**Un piege de devise, signale par nos propres regles.** Les deux sources
+secondaires ne s'accordent pas sur la monnaie de presentation, l'une
+rendant le chiffre d'affaires en euros et l'autre la tresorerie en livres.
+La divergence se conserve et ne s'arbitre pas : la monnaie de publication
+se lit dans les comptes deposes, et aucun de ces chiffres n'entre dans une
+fiche avant cette lecture.
+
 ---
 
 ## Chantier : le decoupage des deux gros fichiers, et le critere de coupe
