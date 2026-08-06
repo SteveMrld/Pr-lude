@@ -441,6 +441,58 @@ pour faire passer une assertion. Soit l assertion avait tort et elle
 change, soit la mesure etait mauvaise et elle se refait, et dans les
 deux cas cela s ecrit.
 
+## Une note se relit contre la precedente, jamais contre le code seul
+
+Aucune relecture de note ne se rend sans le comparatif contre la
+precedente analyse du meme dossier. C est une regle de procedure et non
+un conseil, parce que le defaut qu elle ferme n est pas dans le code mais
+dans la facon de le regarder.
+
+Le constat est du 6 aout 2026 et il porte sur trois jours. Les trois
+incoherences trouvees entre le 3 et le 6 aout l ont toutes ete par Steve,
+qui se souvenait du run precedent : une pre-money opposee a une valeur
+d entreprise, un compte de noms propres passant de 90 a 123. Aucune par
+un dispositif, et aucune par moi. La raison est structurelle : nos
+relectures comparaient une note a ce que le code devrait produire, et une
+note lue seule est toujours coherente avec elle-meme. Ce qui la contredit
+vit dans une autre note, et rien ne les mettait en presence. Le
+controleur de corpus lui-meme mesure une propriete sur cinquante-deux
+notes ; il ne compare jamais deux notes entre elles.
+
+L organe est `lib/controle/comparatif.ts`, et sa difficulte n est pas de
+lister les ecarts mais de decider lesquels comptent. Tout signaler
+rendrait deux cents lignes que personne ne lirait, ce qui est exactement
+l etat ou le validateur d assertions s etait mis. Le partage n est pas
+invente pour l occasion : le graphe de dependances declare deja quels
+champs sont calcules et ce que chacun lit, et un test de mutation le
+verrouille. Un champ calcule qui bouge a code constant et a entrees
+constantes est un defaut, sans appreciation a porter ; le meme ecart avec
+une entree qui a bouge est explique, et l entree se nomme ; une sortie de
+modele qui bouge ne se signale pas.
+
+Trois points de methode en sont sortis, et ils valent hors de cet outil.
+
+La question du code passe avant toutes les autres. Deux runs a empreintes
+differentes ne sont pas deux tirages du meme systeme, donc aucun ecart
+entre eux ne se lit comme une variance. Et l empreinte se calcule, elle
+ne se lit pas : le stamp persiste ne porte pas de champ `enginesHash`, il
+porte les empreintes par moteur dont ce hash descend. La premiere version
+cherchait le champ, ne le trouvait sur aucune des cinquante-quatre notes,
+et se repliait en silence sur le sha. L ecart entre les deux lectures est
+le sujet meme de la regle de conformite : le sha compte trois paires a
+code constant sur le corpus, l empreinte en compte quatorze.
+
+Un champ hors du perimetre s imprime au lieu de se ranger. Le graphe ne
+classe ni `assertionAudit` ni `meta`, et `assertionAudit` est precisement
+celui dont le compte avait bouge. Le glisser du cote des sorties libres
+aurait donne l air de fermer un perimetre que le graphe ne couvre pas.
+
+Le solde porte son denominateur. Zero anomalie sur vingt-sept paires se
+lit comme une couverture ; le verdict ne porte que sur les quatorze
+paires a code constant, et sur les treize autres l instrument ne borne
+rien. C est la meme reserve que partout ailleurs, et elle s ecrit a cote
+du chiffre plutot qu ailleurs.
+
 ## Discipline des jeux d essai
 
 Un repli qui rend la meme valeur que sa source rend la source invisible
