@@ -88,6 +88,13 @@ import type { NonProductionCauseOrNull } from './non-production';
  * silencieuse que la deuxieme exigence interdit. Ce qui change en cas
  * de divergence est `fondee`, et les consommateurs lisent ce champ.
  */
+/**
+ * Ce qui separe la valeur de son verbatim, quand quelque chose les
+ * separe. Distinguer les natures est ce qui evite de traiter une unite
+ * de periode comme une erreur de lecture.
+ */
+export type NatureDEcart = 'expression' | 'periode' | 'valeur' | 'absence' | null;
+
 export interface ValeurCitee {
   /** Ce que le document ecrit, tel quel. Jamais fabrique. */
   verbatim: string | null;
@@ -105,7 +112,67 @@ export interface ValeurCitee {
   ecart: number | null;
   /** Ce qu un arrondi legitime pouvait couter, sur la valeur declaree. */
   tolerance: number | null;
+  /** Ce qui separe la valeur de son verbatim. Null quand rien ne les separe. */
+  natureDEcart: NatureDEcart;
 }
+
+/**
+ * Periode couverte par le verbatim, quand elle differe de celle de la
+ * valeur.
+ *
+ * TROISIEME AXE, OUVERT PAR LE RUN DU 6 AOUT 2026
+ *
+ * Le premier lot reel a rendu quatre lignes d opex dont le verbatim
+ * citait « 10,000 (Marketing Spend mensuel) » face a une valeur
+ * annuelle de 0,12 million. La valeur etait probablement juste, le
+ * verbatim aussi, et pourtant ils ne se comparaient pas : ils ne
+ * portaient pas la meme periode, et l audit n avait aucun moyen de le
+ * savoir. Il concluait a une erreur de valeur.
+ *
+ * Sans ce champ, un ecart de periode et une erreur de lecture se lisent
+ * pareil, ce qui est exactement le genre de confusion que ce module a
+ * ete ecrit pour retirer.
+ */
+export type PeriodeVerbatim = 'annuel' | 'trimestriel' | 'mensuel' | 'cumul' | 'ponctuel';
+
+/** Facteur d annualisation d une periode. Null quand il ne se derive pas. */
+const FACTEUR_ANNUEL: Record<PeriodeVerbatim, number | null> = {
+  annuel: 1,
+  trimestriel: 4,
+  mensuel: 12,
+  // Un cumul depuis l origine et un montant ponctuel ne s annualisent
+  // pas : les rapporter a une annee serait une divination.
+  cumul: null,
+  ponctuel: null,
+};
+
+/**
+ * Operateurs qui font d un verbatim une expression et non une citation.
+ *
+ * UNE REGLE QUI DIT QUOI FOURNIR SANS DIRE CE QUE C EST SE SATISFAIT
+ * PAR AUTRE CHOSE
+ *
+ * La regle disait « le chiffre tel que le document l ecrit ». Le run du
+ * 6 aout 2026 l a satisfaite a la lettre avec
+ * « 16,875 + 26,250 + 35,625 + 42,500 (Sep-Dec 2025, B2B Total) +
+ * 8,000 x 4 (B2C) » : tous ces nombres sont dans le document, aucun n a
+ * ete invente, et le champ cense porter une transcription portait une
+ * operation.
+ *
+ * Ce que cela detruit est l objet meme du champ. Un verbatim sert a
+ * comparer ce que la valeur affirme a ce que le document ecrit ;
+ * evaluer une expression du modele pour faire cette comparaison
+ * reviendrait a lui faire confiance sur la structure du calcul, donc a
+ * deplacer le calcul du modele vers le champ cense le controler. Le run
+ * montre pourquoi c est refuse : sur quatre lignes, le modele a oublie
+ * une composante deux fois, et sur deux autres sa propre somme etait
+ * juste alors que la valeur declaree ne la suivait pas.
+ *
+ * Un verbatim designe donc une cellule et jamais une operation. La
+ * porte est que le modele omette la ligne quand le document ne porte
+ * pas de total, plutot que de le fabriquer.
+ */
+const OPERATEURS = /[+×*\/]|(?<=\d)\s*-\s*(?=\d)/;
 
 /** Nombre de decimales ecrites par une valeur. */
 export function decimalesDe(n: number): number {
@@ -157,6 +224,7 @@ const SANS_VERBATIM: Omit<ValeurCitee, 'valeur'> = {
   valeurDuVerbatim: null,
   ecart: null,
   tolerance: null,
+  natureDEcart: 'absence',
 };
 
 /**
@@ -169,6 +237,8 @@ const SANS_VERBATIM: Omit<ValeurCitee, 'valeur'> = {
 export function evaluerValeurCitee(entree: {
   verbatim?: unknown;
   valeur?: unknown;
+  /** Periode du verbatim. `annuel` par defaut : c est la forme attendue. */
+  periode?: unknown;
 }): ValeurCitee {
   const valeur = typeof entree.valeur === 'number' && Number.isFinite(entree.valeur)
     ? entree.valeur
@@ -180,6 +250,18 @@ export function evaluerValeurCitee(entree: {
 
   if (verbatim === null) return { ...SANS_VERBATIM, valeur };
 
+  // L expression se refuse avant toute comparaison : elle ne rend pas la
+  // valeur fausse, elle rend le controle impossible.
+  if (OPERATEURS.test(verbatim)) {
+    return {
+      verbatim, valeur, fondee: false, cause: 'incident',
+      motif: `le verbatim « ${verbatim.slice(0, 90)}${verbatim.length > 90 ? '...' : ''} » est une operation et non une cellule. `
+        + 'Un verbatim designe un chiffre tel que le document l ecrit, a un seul endroit. Quand le document ne porte pas '
+        + 'de total, la ligne s omet au lieu de se fabriquer.',
+      valeurDuVerbatim: null, ecart: null, tolerance: null, natureDEcart: 'expression',
+    };
+  }
+
   if (valeur === null) {
     return {
       verbatim,
@@ -190,6 +272,7 @@ export function evaluerValeurCitee(entree: {
       valeurDuVerbatim: null,
       ecart: null,
       tolerance: null,
+      natureDEcart: 'absence',
     };
   }
 
@@ -214,13 +297,32 @@ export function evaluerValeurCitee(entree: {
       valeurDuVerbatim: null,
       ecart: null,
       tolerance: null,
+      natureDEcart: 'valeur',
     };
   }
+
+  const periode: PeriodeVerbatim = typeof entree.periode === 'string'
+    && (entree.periode in FACTEUR_ANNUEL) ? entree.periode as PeriodeVerbatim : 'annuel';
 
   const aligne = alignerEchelle(brut, valeur);
   const ecart = Math.abs(valeur - aligne);
   const tolerance = toleranceDArrondi(valeur);
   const fondee = ecart <= tolerance;
+
+  // Un ecart qui s explique par la periode n est pas une erreur de
+  // valeur, et le dire evite de traiter une unite comme une faute. Le
+  // facteur n est pas applique a la valeur : le module ne corrige rien,
+  // il nomme ce qui separe les deux nombres.
+  // Le facteur s applique AVANT l alignement d echelle, et l ordre n est
+  // pas indifferent. L alignement choisit la puissance de dix la plus
+  // proche de la valeur declaree : aligner d abord ferait choisir
+  // l echelle annuelle a un verbatim mensuel, puis multiplier par douze
+  // rendrait l ecart douze fois pire. Le premier jet de ce test l a
+  // montre, et il aurait fait conclure a une erreur de valeur sur
+  // exactement les lignes que ce champ existe pour disculper.
+  const facteur = FACTEUR_ANNUEL[periode];
+  const expliqueParLaPeriode = !fondee && facteur !== null && facteur !== 1
+    && Math.abs(valeur - alignerEchelle(brut * facteur, valeur)) <= tolerance;
 
   return {
     verbatim,
@@ -229,10 +331,13 @@ export function evaluerValeurCitee(entree: {
     cause: fondee ? null : 'incident',
     motif: fondee
       ? null
-      : `la valeur ${valeur} ne descend pas du verbatim « ${verbatim} », qui vaut ${aligne} a l echelle declaree : ecart ${ecart.toPrecision(3)} pour une tolerance d arrondi de ${tolerance}`,
+      : expliqueParLaPeriode
+        ? `le verbatim « ${verbatim} » est ${periode} et la valeur ${valeur} est annuelle : l ecart s explique par la periode et non par la lecture, mais les deux ne se comparent pas en l etat`
+        : `la valeur ${valeur} ne descend pas du verbatim « ${verbatim} », qui vaut ${aligne} a l echelle declaree : ecart ${ecart.toPrecision(3)} pour une tolerance d arrondi de ${tolerance}`,
     valeurDuVerbatim: aligne,
     ecart,
     tolerance,
+    natureDEcart: fondee ? null : expliqueParLaPeriode ? 'periode' : 'valeur',
   };
 }
 
@@ -257,7 +362,7 @@ export function evaluerSerie(
   serie: Array<{ verbatim?: unknown; value?: unknown; valeur?: unknown }> | null | undefined,
 ): { evaluees: ValeurCitee[]; nonFondees: number; sansVerbatim: number } {
   const evaluees = (Array.isArray(serie) ? serie : []).map((e) =>
-    evaluerValeurCitee({ verbatim: e?.verbatim, valeur: e?.valeur ?? e?.value }));
+    evaluerValeurCitee({ verbatim: e?.verbatim, valeur: (e as any)?.valeur ?? e?.value, periode: (e as any)?.verbatimPeriode }));
   return {
     evaluees,
     nonFondees: evaluees.filter((e) => !e.fondee).length,

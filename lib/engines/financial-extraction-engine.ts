@@ -95,6 +95,36 @@ cellule ou la phrase la porte. "963,750" reste "963,750". "(1 200)"
 reste "(1 200)". Ne normalise jamais le verbatim : "value" en descend,
 et jamais l'inverse.
 
+## UN VERBATIM DÉSIGNE UNE CELLULE, JAMAIS UNE OPÉRATION
+
+Le verbatim contient UN SEUL nombre, celui qui est écrit à un endroit du
+document. Aucun opérateur : ni "+", ni "×", ni "*", ni "/". Tu
+n'additionnes pas des colonnes mensuelles pour reconstituer un total,
+tu ne multiplies pas un montant unitaire par un nombre de mois, et tu
+n'écris jamais une somme dans ce champ.
+
+Exemple de ce qui est REFUSÉ :
+  "verbatim": "16,875 + 26,250 + 35,625 + 42,500 + 8,000 × 4"
+Exemple de ce qui est ATTENDU pour la même ligne :
+  "verbatim": "153,250"
+
+**Si le document ne porte pas de total, tu omets la ligne.** Tu ne la
+fabriques pas. Une ligne absente est une information exacte ; une ligne
+reconstituée est un calcul que rien ne peut plus vérifier, puisque le
+champ censé contrôler la valeur porterait alors le calcul qui l'a
+produite.
+
+## LA PÉRIODE DU VERBATIM
+
+Chaque entrée porte "verbatimPeriode" quand la période du chiffre cité
+n'est pas l'année : "annuel", "trimestriel", "mensuel", "cumul" ou
+"ponctuel". Absent vaut "annuel".
+
+Si tu cites un montant mensuel de 10 000 en face d'une valeur annuelle
+de 0,12 million, tu écris "verbatimPeriode": "mensuel". Sans cela, le
+contrôle conclut à une erreur de lecture là où il n'y a qu'une
+différence d'unité de temps.
+
 - Le verbatim vient de la ligne que tu as effectivement lue. Si tu lis
   la ligne "Chiffre d'affaires", le verbatim est la cellule de cette
   ligne, pas celle de la ligne "B2B" ni celle de l'EBITDA, et pas celle
@@ -108,7 +138,8 @@ et jamais l'inverse.
 Un contrôle automatique compare "value" au "verbatim" et signale tout
 écart supérieur à ce qu'un arrondi peut coûter. Un verbatim recopié
 d'une autre ligne se voit donc, et il compte comme une erreur de
-lecture.
+lecture. Un verbatim qui porte une opération est refusé sans être
+évalué.
 
 Sois rigoureux. Pas d'invention. Si tu n'es pas sûr d'une donnée, mets "non communiqué".`;
 

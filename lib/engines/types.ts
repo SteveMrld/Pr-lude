@@ -796,6 +796,17 @@ export interface ProjectionEntry {
    * la lecture juste des deux epoques.
    */
   verbatim?: string;
+  /**
+   * Periode couverte par le verbatim quand elle differe de celle de la
+   * valeur. Absente vaut `annuel`, qui est la forme attendue.
+   *
+   * Troisieme axe, ouvert par le run 0c3e0caf du 6 aout 2026 : quatre
+   * lignes d opex citaient « 10,000 (Marketing Spend mensuel) » face a
+   * une valeur annuelle. Les deux nombres etaient probablement justes et
+   * ne se comparaient pas, et l audit concluait a une erreur de valeur
+   * faute de savoir ce qu il comparait.
+   */
+  verbatimPeriode?: 'annuel' | 'trimestriel' | 'mensuel' | 'cumul' | 'ponctuel';
 }
 
 /**

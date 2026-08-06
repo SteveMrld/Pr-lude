@@ -101,6 +101,43 @@ n'exclut que 0,101 vienne d'ailleurs et tombe par hasard a 0,84 % d'une
 cellule d'EBITDA. Ce qui est etabli sans hypothese est le negatif, et il
 suffit : aucune des quatre valeurs n'existe dans le document.
 
+### Ce que le premier run avec verbatim a etabli, le 6 aout 2026
+
+Le run `0c3e0caf` a exerce la regle pour la premiere fois, sur le meme
+classeur. Huit valeurs chiffrees, zero sans verbatim, huit non fondees.
+
+**Le modele ne recopie pas, il calcule.** Aucun des huit verbatims
+n'etait un chiffre : tous etaient des expressions additionnant les
+colonnes mensuelles du classeur, alors que la feuille porte deja la
+ligne annuelle.
+
+L'arithmetique de ces expressions dit le reste, et elle est plus
+instructive que le compte.
+
+| annee | somme du verbatim | valeur declaree | ce que la somme vaut |
+|---|---|---|---|
+| 2025 | 153 250 | 101 000 | exactement la ligne « Chiffre d'affaires » |
+| 2026 | 907 250 | 963 000 | exactement la ligne « Chiffre d'affaires » |
+| 2027 | 963 750 | 963 000 | la ligne B2B, sans le B2C |
+| 2028 | 963 750 | 963 000 | la ligne B2B, sans le B2C |
+
+**Le document a ete lu correctement deux fois sur quatre.** Sur 2025 et
+2026, la somme tombe au franc pres sur la bonne ligne du classeur, et la
+valeur inscrite a cote ne correspond ni au document ni au propre calcul
+du modele. Sur 2027 et 2028, la valeur suit son verbatim, mais le
+verbatim additionne le B2B en oubliant le B2C, que le modele avait
+pourtant ajoute les deux annees precedentes.
+
+La faute n'est donc pas dans la lecture. **Elle est entre la lecture et
+la restitution**, et c'est un endroit que rien n'observait avant ce
+champ. Un audit qui n'aurait compare que la valeur au document aurait
+conclu a une erreur de lecture sur les quatre lignes ; il aurait eu tort
+sur deux d'entre elles, et il n'aurait jamais pu le savoir.
+
+Quatre autres lignes, sur l'opex, portent un ecart d'une troisieme
+nature : le verbatim cite un montant mensuel face a une valeur annuelle.
+Les deux nombres sont probablement justes et ne se comparent pas.
+
 ### Etat au 5 aout 2026
 
 Le correctif est pose et il est general : toute valeur chiffree extraite

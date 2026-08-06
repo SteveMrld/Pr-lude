@@ -111,6 +111,59 @@ console.log('\n[Suite 6] l alignement d echelle ne masque rien');
   check(dix.valeur === 9.64, 'un facteur dix errone n est pas rattrape par l alignement');
 }
 
+console.log('\n[Suite 6 bis] un verbatim est une cellule, jamais une operation');
+{
+  // Les quatre verbatims reels du run 0c3e0caf du 6 aout 2026. Aucun
+  // n est un chiffre : ce sont des sommes de colonnes mensuelles, faites
+  // par le modele, logees dans le champ prevu pour la transcription.
+  const reels = [
+    '16,875 + 26,250 + 35,625 + 42,500 (Sep-Déc 2025, B2B Total) + 8,000 × 4 (B2C)',
+    '49,375 + 53,750 + 58,125 (B2B Total 2026) + 8,000 × 12 (B2C)',
+    '10,000 (Marketing Spend mensuel × 12 mois 2026)',
+  ];
+  for (const v of reels) {
+    const r = evaluerValeurCitee({ verbatim: v, valeur: 0.963 });
+    check(r.fondee === false, `refuse : « ${v.slice(0, 44)}... »`);
+    check(r.natureDEcart === 'expression', 'et la nature de l ecart est nommee expression');
+  }
+  // Le point qui porte la doctrine : evaluer l expression aurait donne
+  // la bonne somme sur deux des quatre lignes reelles, et l aurait
+  // acceptee sur les deux autres ou le modele avait oublie une
+  // composante. Le refus ne porte pas sur la justesse du calcul.
+  check(evaluerValeurCitee({ verbatim: '153,250', valeur: 0.153 }).fondee === true,
+    'une cellule passe, et c est la seule forme qui passe');
+  check(evaluerValeurCitee({ verbatim: '1 059 750', valeur: 1.060 }).fondee === true,
+    'y compris avec des espaces de milliers');
+  // Un tiret entre deux chiffres est une soustraction, un tiret de date
+  // n en est pas une.
+  check(evaluerValeurCitee({ verbatim: 'Dec-22 : 963,750', valeur: 0.964 }).natureDEcart !== 'expression',
+    'un tiret de periode ne fait pas d un verbatim une operation');
+}
+
+console.log('\n[Suite 6 ter] un ecart de periode n est pas une erreur de valeur');
+{
+  // Le cas reel : verbatim mensuel, valeur annuelle. La valeur est
+  // probablement juste et le verbatim aussi ; ils ne se comparent pas.
+  const m = evaluerValeurCitee({ verbatim: '10,000', valeur: 0.12, periode: 'mensuel' });
+  check(m.fondee === false, 'la ligne reste non fondee : les deux nombres ne se comparent pas');
+  check(m.natureDEcart === 'periode', 'mais la nature de l ecart est la periode et non la valeur');
+  check((m.motif ?? '').includes('s explique par la periode'),
+    'et le motif le dit, au lieu d accuser la lecture');
+
+  // Sans la declaration, le meme couple se lisait comme une erreur.
+  const sans = evaluerValeurCitee({ verbatim: '10,000', valeur: 0.12 });
+  check(sans.natureDEcart === 'valeur', 'sans periode declaree, le meme couple accuse la valeur');
+
+  // Une periode declaree qui n explique pas l ecart n excuse rien.
+  const faux = evaluerValeurCitee({ verbatim: '10,000', valeur: 0.5, periode: 'mensuel' });
+  check(faux.natureDEcart === 'valeur', 'une periode declaree n excuse pas un ecart qu elle n explique pas');
+
+  // Un cumul ne s annualise pas : le rapporter a une annee serait une
+  // divination, donc l ecart reste de valeur.
+  const cum = evaluerValeurCitee({ verbatim: '35,000', valeur: 0.42, periode: 'cumul' });
+  check(cum.natureDEcart === 'valeur', 'un cumul ne s annualise pas');
+}
+
 console.log('\n[Suite 7] la serie rend le compte que le consommateur declare');
 {
   const s = evaluerSerie([

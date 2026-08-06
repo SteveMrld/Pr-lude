@@ -578,6 +578,54 @@ et l extrait. Pour un nombre c est le chiffre tel qu il est ecrit. Dans
 les deux cas, la reponse « non » ne demande pas de couper l acquisition,
 elle demande d ecrire la capture.
 
+## Une regle qui dit quoi fournir sans dire ce que c est se satisfait par autre chose
+
+Une exigence nomme un champ a remplir. Si elle ne dit pas ce que ce
+champ doit etre, le producteur la satisfait a la lettre avec un objet
+d une autre nature, et la garde continue de rendre vert sur un contenu
+qui a perdu sa raison d etre.
+
+Le cas est du 6 aout 2026, sur la regle du verbatim ecrite la veille.
+Elle disait : « le chiffre tel que le document l ecrit ». Le premier run
+qui l a exercee a rendu, dans le champ prevu pour la transcription,
+« 16,875 + 26,250 + 35,625 + 42,500 (Sep-Dec 2025, B2B Total) +
+8,000 x 4 (B2C) ». Tous ces nombres sont dans le document, aucun n a ete
+invente, et la regle est respectee mot pour mot : ce sont bien des
+chiffres tels que le document les ecrit.
+
+Ce que la formulation avait manque est que le verbatim n existe pas pour
+porter des chiffres du document, il existe pour permettre de comparer la
+valeur declaree a ce que le document dit. Une expression detruit cette
+possibilite : la verifier demanderait de l evaluer, donc de faire
+confiance au producteur sur la structure de son propre calcul, donc de
+deplacer le calcul du modele vers le champ cense le controler. Le meme
+run montre que cette confiance ne se justifie pas, puisque sur quatre
+lignes la composante B2C a ete oubliee deux fois.
+
+La correction n a pas ete de resserrer le seuil ni d ajouter un
+exemple, mais de changer la nature exigee. « Le chiffre tel que le
+document l ecrit » se satisfait par une addition. « Une cellule » ne se
+satisfait que par une cellule. La regle porte donc desormais un refus de
+forme, les operateurs sont interdits dans le champ, avec sa porte : si
+le document ne porte pas de total, la ligne s omet au lieu de se
+fabriquer.
+
+La forme generale se lit sans son cas. Devant toute exigence adressee a
+un producteur, se demander quelle est la chose la plus eloignee de
+l intention qui satisfasse encore la lettre. Si cette chose est
+plausible, l exigence nomme un contenant sans nommer son contenu, et
+elle sera satisfaite par le contenant. C est la meme faute que la garde
+inerte prise du cote de la specification : la garde inerte ne se
+declenche jamais, celle-ci se declenche sur autre chose.
+
+Le corollaire porte sur la nature des ecarts. Quand une regle en compare
+deux, elle doit savoir ce qui les separe. Le meme run a rendu des
+verbatims mensuels face a des valeurs annuelles, ou les deux nombres
+etaient probablement justes et ne se comparaient pas ; sans champ pour
+declarer la periode, le controle concluait a une erreur de lecture. Une
+comparaison qui ne connait qu une dimension attribue a celle-la tous les
+ecarts qu elle constate.
+
 ## Un palliatif sur un axe qui ne se lit nulle part fabrique l autorite qu on vient de retirer
 
 Toutes les lacunes ne se comblent pas a moitie. Quand une information
