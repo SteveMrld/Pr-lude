@@ -468,32 +468,102 @@ continue de fonctionner : sur les trois notes du corpus ou elle se
 declenche, la marge va de 157 a 171 pour cent, donc aucune incertitude ne
 la ferait basculer. Mais elle repose sur une estimation et elle l'annonce.
 
-**La collecte a ete tentee le 6 aout 2026 et elle n'a rien rendu au
-barreme ci-dessous. Zero classe sur vingt et une est mesuree.** Ce
-resultat merite d'etre ecrit plutot que retente, parce qu'il porte sur la
-donnee publiee et non sur la recherche : ce qui existe en acces ouvert
-est de l'agrege, valeur totale des sorties et compte d'operations sur une
-zone et une periode, ou du total sectoriel large, ou des multiples de
-valorisation, qui sont une autre statistique. Une mediane de valeur de
-sortie par classe d'actif, avec sa statistique nommee, son perimetre, sa
-fenetre, sa taille d'echantillon, sa devise et une reference opposable,
-n'est pas une donnee publiee gratuitement, et surement pas pour vingt et
-une classes dont plusieurs n'existent que dans notre taxonomie. La suite
-est un achat de donnees, PitchBook ou Dealroom, ou un calcul sur un
-corpus d'operations qu'il faut d'abord constituer. **Aucune classe n'a
-recu de valeur voisine par defaut** : elles restent declarees non
-mesurees, ce qui est la seule lecture juste et ce qui fait que la
-collecte reste visible.
+### La collecte a ete refaite le 6 aout 2026, et le resultat est structurel
 
-Une piste non confirmee, et elle est notee comme telle. La recherche a
-fait remonter un deplacement de la taille mediane d'operation M&A d'un
-facteur quatre en deux ans. Le document primaire n'a pas pu etre lu, donc
-**le chiffre n'est pas ecrit ici**. Ce qui merite d'etre retenu est la
-forme de l'objection et non sa magnitude : si l'ordre de grandeur bouge
-de cette facon, une valeur unique et non datee par classe est fausse par
-construction, quelle que soit sa valeur, et le champ `asOf` cesse d'etre
-une formalite de tracabilite pour devenir une partie de la donnee. A
-verifier a la source avant d'en tirer quoi que ce soit.
+Zero classe sur vingt et une. Neuf interrogations et recuperations sur
+Dealroom, Atomico, PitchBook, CB Insights et les agregateurs sectoriels
+sante et fintech rendent le meme motif partout : de la valeur totale et
+du compte d'operations, jamais une mediane par classe avec son
+echantillon.
+
+**Une mediane de valeur de sortie est une statistique que les
+observateurs ne publient pas gratuitement, parce qu'elle suppose de
+connaitre le prix d'operations majoritairement non divulguees.** Ce
+qu'ils publient sans contrepartie est precisement l'agregat qui n'exige
+pas cette connaissance : Dealroom rend 7 557 acquisitions europeennes
+depuis 2010 pour 513,6 milliards de dollars divulgues, et 1 065
+acquisitions deeptech pour 49,8 milliards, sans mediane ni quartile ni
+ventilation. Atomico situe la part europeenne a 10 pour cent d'une valeur
+de sortie mondiale de 608 milliards en 2025, agregat continental.
+PitchBook annonce une mediane de taille de sortie au plus haut historique
+mais ses pages rendent 403 : cette source est a declarer non etablie et
+non inexistante, ce qui n'est pas la meme chose.
+
+**Et six de nos classes n'existent comme categorie chez personne
+d'autre.** `profitable-mature`, `services-b2b`, `hospitality`,
+`sportstech`, `mediatech` et `adtech` ne sont pas des decoupages de
+marche : aucun observateur de sorties technologiques ne publie ces
+lignes, et aucun budget ne les fera apparaitre. Elles resteront declarees
+non mesurees, ce qui est le resultat juste et non un manque a combler.
+
+Les quinze autres se repartissent ainsi. Cinq relevent d'une donnee
+payante et existent bien comme categorie : `saas-b2b`, `fintech`,
+`deeptech`, `healthtech`, `cybersecurity`. Six existent comme categorie
+mais sont trop peu peuplees en Europe pour qu'une mediane ait un sens :
+`ai-generative`, `climate-tech`, `defense`, `foodtech`, `proptech`,
+`edtech`. Quatre sont des decoupages intermediaires que les sources
+fondent dans des ensembles plus larges : `marketplace-b2c`,
+`ecommerce-dtc`, `logistics`, `industrial-hardware`.
+
+**Aucune classe n'a recu de valeur voisine par defaut.**
+
+Une seule ligne s'approchait d'un usage direct, et elle est conservee
+comme exemple plutot que comme donnee. La sante europeenne rend 31,8
+milliards d'euros de valeur d'operations sur le premier semestre 2025
+pour 418 transactions. Diviser l'un par l'autre donnerait 76 millions, un
+nombre qui aurait l'air d'une reponse. C'est une moyenne et non une
+mediane, le denominateur inclut des operations sans prix divulgue que le
+numerateur ne porte pas, et le perimetre mele des cibles adossees au
+capital-risque et des cibles qui ne le sont pas. Deux nombres exacts et
+une operation licite produisent une grandeur qui n'existe pas, exactement
+comme le rapport entre une valorisation d'introduction en bourse et un
+prix de reprise d'actifs apres liquidation.
+
+Une piste reste non confirmee et se note comme telle : un deplacement de
+la taille mediane d'operation M&A d'un facteur quatre en deux ans, dont
+le document primaire n'a pas pu etre lu. Ce qui merite d'etre retenu est
+la forme de l'objection et non sa magnitude. Si l'ordre de grandeur bouge
+ainsi, une valeur unique et non datee par classe est fausse par
+construction quelle que soit sa valeur, et `asOf` cesse d'etre une
+formalite de tracabilite pour devenir une partie de la donnee.
+
+### Le seul consommateur pouvait lire la valeur sans son etat, et il ne le peut plus
+
+Ferme le 6 aout 2026, avant toute collecte, parce que l'ordre importe.
+`getExitScenarios` lisait `lireSortieDeReference(classe)?.base` et jetait
+l'etat ; la reserve affichee dans la note venait d'un second appel
+independant, qui ne tenait que parce que quelqu'un y avait pense. Une
+regle portee par la memoire de celui qui l'applique ne tient pas.
+
+La lecture de production rend desormais la valeur et son etat dans le
+meme objet, et le compilateur refuse un acces au nombre seul : le
+changement de type a fait rougir le seul lecteur restant, ce qui est la
+demonstration que la porte etait ouverte. L'etat remonte jusqu'au motif
+de la garde, qui nomme la nature du socle employe. L'entree brute reste
+exportee pour les inventaires, et un balayage de 152 fichiers de
+production refuse qu'un moteur l'appelle, en prouvant qu'il voit la faute
+quand on la lui presente.
+
+Sans cette fermeture, cinq classes mesurees auraient rendu les seize
+autres plus credibles qu'elles ne sont, par simple voisinage dans la meme
+table.
+
+### Un abonnement Dealroom ou PitchBook : decision de Steve, pas chantier
+
+Ce qu'il achete : cinq classes sur vingt et une, sous reserve que le
+fournisseur publie bien une mediane par secteur et pas seulement
+l'agregat qu'il diffuse gratuitement, ce qui se verifie avant
+l'engagement et non apres.
+
+Ce qu'il n'achete pas. Rien pour les six classes qui n'existent comme
+categorie chez personne. Rien de directement utilisable pour les six
+classes trop peu peuplees, dont le traitement est un arbitrage sur la
+fenetre ou la geographie et non une collecte : une mediane europeenne sur
+dix ans n'est pas la meme grandeur qu'une mediane europeenne sur trois.
+Et pas la correspondance de taxonomie, qui reste a etablir et a dater
+entre le decoupage sectoriel du fournisseur et nos vingt et une classes,
+sur le modele de celle qui joint deja ces classes aux sept seaux de
+comparables.
 
 Ce qu'il faut pour chaque ligne : la statistique exacte, mediane ou
 moyenne et de quoi, le perimetre geographique, la fenetre temporelle, la

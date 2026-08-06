@@ -889,6 +889,25 @@ liquidation, une reprise d actifs ou une acquisition a prix non public,
 la valeur finale vaut null plutot qu un nombre : un champ vide se lit
 comme une absence, un nombre se lit comme une mesure.
 
+La regle a rencontre sa seconde occurrence le 6 aout 2026, pendant la
+collecte des sorties de reference, et elle vaut d etre gardee parce
+qu elle ne ressemble pas a la premiere. La sante europeenne publie 31,8
+milliards d euros de valeur d operations sur le premier semestre 2025 et
+418 transactions. Diviser l un par l autre rend 76 millions, un nombre
+qui a l air d une reponse a la question posee. Il n en est pas une : le
+resultat est une moyenne quand on cherchait une mediane, le denominateur
+compte des operations sans prix divulgue que le numerateur ne porte pas,
+et le perimetre mele des cibles adossees au capital-risque et des cibles
+qui ne le sont pas.
+
+Ce qui rend le cas instructif est qu aucun des deux nombres n est faux et
+qu aucune des trois objections ne se voit dans le resultat. La faute de
+Made.com se detecte en nommant ce que chaque nombre mesure ; celle-ci
+demande en plus de savoir comment chacun a ete constitue, ce qui ne se lit
+pas dans le nombre mais dans la note de methode de la source. Un rapport
+entre deux agregats demande donc une question de plus que le rapport
+entre deux prix : les deux agregats portent-ils sur la meme population.
+
 Le corollaire vaut pour ce qu on ne refuse pas. Un echec reste un
 comparable de premier ordre, et c est meme la raison de la regle.
 Made.com instruit mieux la fragilite d un modele e-commerce a forte

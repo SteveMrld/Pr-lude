@@ -42,7 +42,7 @@ console.log('\n[Suite 1] le deplacement ne change aucune valeur');
     `${clefs.length} classes, autant qu avant (${Object.keys(EXIT_BENCHMARKS).length})`);
   let ecarts = 0;
   for (const [k, v] of Object.entries(AVANT)) {
-    if (lireSortieDeReference(k)?.base !== v) { ecarts++; console.error(`      ${k} a bouge`); }
+    if (lireSortieDeReference(k)?.valeur !== v) { ecarts++; console.error(`      ${k} a bouge`); }
   }
   check(ecarts === 0, 'aucune des vingt et une valeurs n a bouge au passage');
 }
@@ -125,6 +125,76 @@ console.log('\n[Suite 4] une classe hors catalogue ne recoit pas de socle invent
   check(lireSortieDeReference('classe-qui-n-existe-pas') === null,
     'une classe inconnue rend null, ce qui fait sortir la VC inverse du domaine');
   check(lireSortieDeReference('') === null, 'une classe vide aussi');
+}
+
+
+// ============================================================
+// AUCUN CONSOMMATEUR NE PEUT LIRE LA VALEUR SANS SON ETAT
+// ------------------------------------------------------------
+// Arbitrage du 6 aout 2026 : la table peut servir deux natures de
+// nombres, des medianes mesurees et des ordres de grandeur, a condition
+// que l etat soit obligatoire et lu partout ou la valeur l est. Sans
+// cela, cinq classes mesurees rendraient les seize autres plus credibles
+// qu elles ne sont, par simple voisinage dans la meme table.
+//
+// Le type ferme la porte principale : `lireSortieDeReference` rend la
+// valeur et son etat dans le meme objet, et le compilateur refuse un
+// acces a `.base`. Ce balayage ferme la porte de service : l entree
+// brute et la table restent exportees pour les inventaires, et rien
+// n empecherait un moteur de les appeler.
+// ============================================================
+
+console.log('\n[Suite 5] le perimetre de lecture est ferme cote production');
+{
+  const { readFileSync, readdirSync, statSync } = require('fs');
+  const { join } = require('path');
+
+  // Ce que le balayage couvre : les deux repertoires d ou part une
+  // analyse. Il ne couvre pas `scripts/`, qui sont des inventaires par
+  // destination, ni les tests. C est la seule dimension balayee, et
+  // elle est declaree ici pour que la prochaine lecture ne prenne pas
+  // cette liste pour un inventaire ferme.
+  const racines = ['lib/engines', 'lib/controle', 'lib/orchestrator', 'app/api'];
+  const APPELS_INTERDITS = ['lireEntreeBrute', 'EXIT_BENCHMARKS'];
+
+  const fichiers: string[] = [];
+  const descendre = (d: string) => {
+    let entrees: string[];
+    try { entrees = readdirSync(d); } catch { return; }
+    for (const e of entrees) {
+      const p = join(d, e);
+      if (statSync(p).isDirectory()) { descendre(p); continue; }
+      if (!/\.tsx?$/.test(e) || /\.test\.tsx?$/.test(e)) continue;
+      fichiers.push(p);
+    }
+  };
+  for (const r of racines) descendre(join(process.cwd(), r));
+
+  const fautifs: string[] = [];
+  for (const f of fichiers) {
+    const t = readFileSync(f, 'utf-8');
+    for (const appel of APPELS_INTERDITS) {
+      if (t.includes(appel)) fautifs.push(`${f.split('/').slice(-2).join('/')} : ${appel}`);
+    }
+  }
+  check(fichiers.length > 100, `le balayage voit ${fichiers.length} fichiers de production`);
+  check(fautifs.length === 0,
+    fautifs.length === 0
+      ? 'aucun moteur ne contourne l etat en lisant l entree brute ou la table'
+      : `contournements : ${fautifs.join(', ')}`);
+
+  // Le verrou doit prouver qu il voit la faute quand on la lui donne :
+  // un balayage qui ne cherche rien est vert pour la mauvaise raison.
+  const faux = 'const b = lireEntreeBrute("saas-b2b").base;';
+  check(APPELS_INTERDITS.some((a) => faux.includes(a)),
+    'et il reconnait un contournement quand on lui en presente un');
+
+  // La porte principale, elle, est fermee par le type : la valeur ne
+  // sort jamais seule.
+  const lu = lireSortieDeReference('saas-b2b')!;
+  check(typeof lu.valeur === 'number' && typeof lu.mesuree === 'boolean',
+    'la lecture de production rend la valeur et son etat dans le meme objet');
+  check(!('base' in lu), 'et elle ne porte pas de champ `base` qu on pourrait prendre seul');
 }
 
 console.log(`\n${pass} passes, ${fail} echecs`);

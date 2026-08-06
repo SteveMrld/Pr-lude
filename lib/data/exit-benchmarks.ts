@@ -205,11 +205,54 @@ export const EXIT_BENCHMARKS: Record<string, ExitBenchmark> = {
 };
 
 /**
- * Lecture d une sortie de reference. Rend `null` quand la classe n est
- * pas couverte, ce qui fait sortir la VC inverse du domaine plutot que
- * de lui donner un socle invente.
+ * Une valeur de sortie et l etat qui dit ce qu elle vaut.
+ *
+ * LES DEUX VOYAGENT ENSEMBLE, ET C EST TOUT L OBJET DU TYPE
+ *
+ * La table servira deux natures de nombres le jour ou la collecte
+ * aboutira sur une partie des classes : des medianes mesurees et des
+ * ordres de grandeur poses a la main. Rien ne les distingue a la
+ * lecture, et cinq classes mesurees rendraient les seize autres plus
+ * credibles qu elles ne sont, par simple voisinage dans la meme table.
+ *
+ * Un consommateur ne peut donc pas obtenir le nombre sans obtenir son
+ * etat : ils sortent du meme appel, dans le meme objet. C est la forme
+ * la plus solide des trois que la discipline des regles ecrites
+ * enumere, le point de passage unique, et elle remplace ici un
+ * commentaire qui demandait de penser a lire l etat a cote.
  */
-export function lireSortieDeReference(assetClass: string): ExitBenchmark | null {
+export interface SortieDeReference {
+  /** La valeur. Sans `mesuree`, elle ne veut rien dire. */
+  valeur: number;
+  /** True quand elle repose sur une mesure datee, libellee et sourcee. */
+  mesuree: boolean;
+  /** Le millesime, null tant qu aucune mesure ne la fonde. */
+  asOf: string | null;
+  /** La devise, `'inconnue'` tant qu il n y a rien a convertir. */
+  devise: ExitBenchmark['devise'];
+}
+
+/**
+ * Lecture d une sortie de reference avec son etat.
+ *
+ * Rend `null` quand la classe n est pas couverte, ce qui fait sortir la
+ * VC inverse du domaine plutot que de lui donner un socle invente.
+ */
+export function lireSortieDeReference(assetClass: string): SortieDeReference | null {
+  const b = EXIT_BENCHMARKS[assetClass];
+  if (!b) return null;
+  return { valeur: b.base, mesuree: estMesuree(b), asOf: b.asOf, devise: b.devise };
+}
+
+/**
+ * L entree brute, pour les seuls inventaires et controles.
+ *
+ * Separee de la lecture de production a dessein : elle porte `base` sans
+ * etat accolé, donc elle se prete a l oubli que le type ci-dessus
+ * ferme. Un moteur qui l appelle contourne la garde, et le test de
+ * perimetre le refuse.
+ */
+export function lireEntreeBrute(assetClass: string): ExitBenchmark | null {
   return EXIT_BENCHMARKS[assetClass] ?? null;
 }
 

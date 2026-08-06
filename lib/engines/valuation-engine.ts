@@ -36,7 +36,7 @@ import {
   type SectorMultipleRange,
 } from '@/lib/data/sector-benchmarks';
 import { computeBenchmarkFreshnessMonths } from '@/lib/data/indicator-benchmarks';
-import { lireSortieDeReference, sortieNonMesuree } from '@/lib/data/exit-benchmarks';
+import { lireSortieDeReference } from '@/lib/data/exit-benchmarks';
 import { detectPitchCurrency } from '@/lib/engines/devise-dossier';
 import { pickValueAtYear } from '@/lib/analysis/financial-series';
 import type { ExtractionOutput, FinancialCoherenceOutput, FinancialDataExtraction, TeamAnalysisOutput, MarketAnalysisOutput } from '@/lib/engines/types';
@@ -1269,8 +1269,14 @@ function computeByVcMethod(
   // reserve qui s affiche la ou elle ne s applique pas cesse d etre lue,
   // et elle disparaitra d elle-meme classe par classe a mesure que la
   // collecte avance.
+  const socleDeReference = lireSortieDeReference(assetClass);
   const reserveDeComparabilite = [
-    sortieNonMesuree(assetClass)
+    // L etat se lit sur le socle effectivement employe, et non par un
+    // second appel qui interrogerait la table de son cote. Les deux
+    // rendaient la meme chose aujourd hui ; ils auraient diverge le jour
+    // ou le moteur lit un socle et la reserve un autre, ce qui est
+    // precisement ce qu on ne verrait pas.
+    socleDeReference !== null && !socleDeReference.mesuree
       ? `la sortie de reference de la classe ${assetClass} est une estimation d ordre de grandeur, non sourcee et sans devise etablie`
       : null,
     comparaisonDeviseSure
@@ -1287,7 +1293,7 @@ function computeByVcMethod(
       applicable: false,
       notApplicableCause: 'doctrine',
       notApplicableGuard: 'domaine-taille',
-      notApplicableReason: `Methode hors domaine par la taille du dossier. Elle part d une sortie de reference de ${formatEur(sortieDeReference.base)} pour la classe ${assetClass}, inferieure a la valeur d entreprise de ${formatEur(valeurActuelle)} que les multiples sectoriels tirent deja du chiffre d affaires actuel. Le modele suppose donc une sortie sous la valeur d aujourd hui, ce qui decrit une autre societe que celle-ci. Sa pre-money serait mecaniquement basse et la dilution qui en descend, fausse dans le sens qui sur-estime la part obtenue par le fonds.${reserveDeComparabilite ? ` RESERVE SUR CETTE GARDE : ${reserveDeComparabilite}. Le verdict d exclusion tient ici par l ampleur de l ecart et non par la precision de la comparaison.` : ''}`,
+      notApplicableReason: `Methode hors domaine par la taille du dossier. Elle part d une sortie de reference de ${formatEur(sortieDeReference.base)} pour la classe ${assetClass}, inferieure a la valeur d entreprise de ${formatEur(valeurActuelle)} que les multiples sectoriels tirent deja du chiffre d affaires actuel. Le modele suppose donc une sortie sous la valeur d aujourd hui, ce qui decrit une autre societe que celle-ci. Sa pre-money serait mecaniquement basse et la dilution qui en descend, fausse dans le sens qui sur-estime la part obtenue par le fonds. Le socle employe est ${sortieDeReference.mesuree ? 'une valeur mesuree' : 'une estimation'}.${reserveDeComparabilite ? ` RESERVE SUR CETTE GARDE : ${reserveDeComparabilite}. Le verdict d exclusion tient ici par l ampleur de l ecart et non par la precision de la comparaison.` : ''}`,
     };
   }
 
@@ -1398,15 +1404,22 @@ function computeByVcMethod(
  * IMPORTANT : ces scenarios sont par definition incertains. Ils
  * servent d ancrage methodologique, pas de prediction.
  */
-function getExitScenarios(assetClass: string, stage: ValuationStage): { bear: number; base: number; bull: number } | null {
+function getExitScenarios(
+  assetClass: string,
+  stage: ValuationStage,
+): { bear: number; base: number; bull: number; mesuree: boolean } | null {
   // La table est sortie du moteur le 5 aout 2026. Vingt et un nombres
   // sans date ni source, loges dans une fonction, ne se relisent pas :
   // aucun inventaire ne les voit, aucun controle ne les parcourt, et
   // personne ne peut dire de quand ils datent sans ouvrir ce fichier.
   // Ils vivent desormais dans lib/data/exit-benchmarks.ts, dates,
   // sources et declares en confiance basse, a valeurs inchangees.
-  const base = lireSortieDeReference(assetClass)?.base;
-  if (!base) return null;
+  // Le socle et son etat sortent du meme appel : le type ne permet pas
+  // d obtenir l un sans l autre, et l etat remonte jusqu au motif de la
+  // garde plutot que d etre relu separement par celui qui y pense.
+  const socle = lireSortieDeReference(assetClass);
+  if (!socle || !socle.valeur) return null;
+  const base = socle.valeur;
 
   // Multiplicateurs par stade : plus on est tot, plus l ecart entre
   // bear et bull est grand (variance cumulee).
@@ -1422,6 +1435,7 @@ function getExitScenarios(assetClass: string, stage: ValuationStage): { bear: nu
     bear: Math.round(base * variance.bear),
     base,
     bull: Math.round(base * variance.bull),
+    mesuree: socle.mesuree,
   };
 }
 
