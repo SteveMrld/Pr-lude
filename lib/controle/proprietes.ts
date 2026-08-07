@@ -388,6 +388,84 @@ export const PROPRIETES: Propriete[] = [
         && /(?:US\$|USD|\$|€|EUR)\s?(?:19|20)\d{2}\b(?!\s?(?:mds|md|m|bn|b|k)\b)/i.test(String(w.excerpt ?? '')))
       .map((w: any) => ({ ou: w.field ?? 'assertionAudit', extrait: String(w.excerpt ?? '').slice(0, 140) }))),
   },
+
+  {
+    id: 'assiette-coherence-sans-valeur-fabriquee',
+    enonce:
+      'Aucun test de coherence financiere declare applicable ne pese sur le score avec une valeur que le moteur a '
+      + 'fabriquee faute de verdict.',
+    // Famille `prose` et non `structure`, contre la premiere ecriture et
+    // parce que le verrou de famille a eu raison contre elle. La
+    // propriete lit une sortie de moteur LLM : qu un test applicable ait
+    // rendu ou non depend du modele du jour, donc une violation porte
+    // sur le code du run et jamais sur celui d aujourd hui. Le taux se
+    // lit par segment d empreinte, ce que le releve dit deja quand il
+    // annonce un solde historique qui tombera au premier run.
+    famille: 'prose',
+    lit: ['financialCoherence.applicableTests', 'financialCoherence.tests'],
+    origine:
+      '7 aout 2026. buildFinalTests ecrivait un score de 50 pour un test que l archetype declarait applicable et que le '
+      + 'modele n avait pas rendu, sans drapeau, et le laissait dans l assiette du score. Une valeur mediane ne biaise '
+      + 'pas, elle comprime l echelle : elle releve les mauvais dossiers et abaisse les bons, et elle frappe le plus '
+      + 'fort la ou le moteur avait le plus a dire. Une seconde forme substituait 50 a un test rendu sans score '
+      + 'exploitable, sans laisser de trace, donc sans se laisser mesurer.',
+    eprouvee:
+      'Mesuree sur les quarante notes portant le moteur, le 7 aout : vingt-six violations, soixante-cinq pour cent, '
+      + 'zero faux positif. Chaque violation est un test dont l evidence porte la phrase que le code ecrit lui-meme, '
+      + 'donc la reconnaissance ne repose sur aucune interpretation. Vingt-trois des vingt-six voient leur score de '
+      + 'coherence bouger de moins huit a plus six points quand le placeholder sort de l assiette ; les trois autres ne '
+      + 'bougent pas parce que la valeur fabriquee coincide avec la moyenne des tests rendus, ce qui reste une '
+      + 'violation puisque la coincidence n est pas une mesure. Le cas extreme est une note du 8 juin portant les sept '
+      + 'tests en placeholder et publiant un score de 50 sur 100 qu aucun test ne fonde. '
+      + 'Les quatorze notes conformes n en portent aucun, ce qui etablit que la propriete ne rougit pas par defaut. '
+      + 'Le solde est historique : le correctif du 7 aout fait porter une cause de non-production a tout applicable '
+      + 'non rendu, si bien que le code actuel ne peut plus produire de violation, et les tests de '
+      + 'financial-coherence-assiette.test.ts le verrouillent. Le taux tombera au premier run. '
+      + 'Ce que la propriete ne voit pas doit etre dit : la substitution silencieuse d avant le correctif, qui '
+      + 'remplacait par 50 un test rendu sans score exploitable, ne laissait aucune trace dans les donnees. Une seule '
+      + 'note du corpus porte un test applicable a exactement 50 hors signature, ce qui plafonne ce cas a une note '
+      + 'sans le mesurer.',
+    porte: (n) => Array.isArray(n?.financialCoherence?.applicableTests)
+      && !!n?.financialCoherence?.tests,
+    constats: (n) => {
+      const CLEFS: Record<string, string> = {
+        T1: 'crosseHockeySuspecte', T2: 'ratioLtvCacImplicite', T3: 'margeBruteCoherente',
+        T4: 'burnRateRunway', T5: 'incoherenceHeadcountCa', T6: 'unitEconomicsViables',
+        T7: 'coherenceHypothesesMarche',
+      };
+      // La signature du placeholder est une phrase ecrite par le code et
+      // non par le modele, apparue au commit 5184213 et jamais modifiee.
+      // C est le seul moyen de reconnaitre le defaut sur les notes deja
+      // persistees, ou rien d autre ne distingue ce 50 d un 50 mesure.
+      const SIGNATURE = 'Test attendu non produit par l analyse LLM';
+      const constats: Constat[] = [];
+      for (const id of n.financialCoherence.applicableTests as string[]) {
+        const t = n.financialCoherence.tests[CLEFS[id]];
+        if (!t || t.notApplicable === true) continue;
+        const aUneCause = !!t.nonProductionCause;
+        const scoreNumerique = typeof t.score === 'number' && isFinite(t.score);
+        const estPlaceholder = typeof t.evidence === 'string' && t.evidence.includes(SIGNATURE);
+        if (estPlaceholder && !aUneCause) {
+          constats.push({
+            ou: `financialCoherence.tests.${CLEFS[id]} (${id})`,
+            extrait: `score ${t.score} fabrique faute de verdict, dans l assiette du score global `
+              + `${n.financialCoherence.globalCoherenceScore}`,
+          });
+          continue;
+        }
+        // Un applicable sans score et sans cause : le moteur n a ni
+        // rendu ni declare. Le cas ne se produit plus depuis le
+        // correctif, il reste lisible sur les notes anterieures.
+        if (!scoreNumerique && !aUneCause) {
+          constats.push({
+            ou: `financialCoherence.tests.${CLEFS[id]} (${id})`,
+            extrait: `sans score et sans cause de non-production declaree`,
+          });
+        }
+      }
+      return borne(constats);
+    },
+  },
 ];
 
 /** Le nom propre incrimine par une alerte, tel que le message le cite. */
