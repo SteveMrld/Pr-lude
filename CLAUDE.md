@@ -2258,3 +2258,38 @@ En pratique, devant tout zero rendu par une verification, demander si
 l instrument aurait pu rendre autre chose. La question se tranche en
 lisant le chemin qui mene du dispositif a l objet, jamais en regardant
 le chiffre.
+
+## Un controle assez precis pour etre utile attrape les erreurs de qui le teste
+
+Quand un instrument rougit contre le jeu d essai qui l eprouve, le
+reflexe est de corriger l instrument. C est presque toujours l inverse
+qu il faut faire, et la frequence de ce cas est une propriete et non un
+accident : un controle assez fin pour attraper un defaut reel est
+necessairement assez fin pour attraper une fixture ecrite trop vite.
+
+La semaine du 3 aout 2026 en a donne deux occurrences sur deux
+instruments sans rapport. Le verrou du graphe de dependances a demande
+quatre iterations, et a chaque fois c etait le jeu d essai qui portait
+l erreur, notamment un repli rendant la meme valeur que sa source, ce
+qui masquait la dependance qu on voulait prouver. Le 7 aout, le sixieme
+axe du controle de style a rougi sur sa propre mutation : la fixture
+faisait styler a l enfant une classe qu il ne rendait pas, donc un vrai
+orphelinat, et l assertion qui affirmait le contraire etait fausse.
+
+La forme est toujours la meme. Le jeu d essai est ecrit vite, parce
+qu il n est cense qu illustrer ; l instrument, lui, applique sa regle
+sans savoir qu il regarde un exemple. Il n a aucune raison d etre
+indulgent, et c est precisement ce qu on lui demande partout ailleurs.
+
+Deux consequences pratiques.
+
+Devant un rouge sur une fixture, la premiere question n est pas ou est
+le bug du controle, c est de savoir si la fixture est valide au regard
+de la regle. Le detour coute une relecture de trois lignes, et il evite
+d assouplir un controle pour lui faire accepter une erreur.
+
+Et un instrument qui n a jamais rougi contre son propre jeu d essai est
+suspect. Cela peut signifier qu il est robuste ; cela signifie plus
+souvent qu il ne verifie pas grand-chose, ou que ses fixtures ont ete
+ecrites en le regardant plutot qu en regardant la regle. Le desaccord
+est le seul organe de mesure d un test, et il vaut dans les deux sens.

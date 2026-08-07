@@ -80,6 +80,15 @@ function fichiersDuPerimetre(): string[] {
  * Blocs `<style jsx>{` ... `}</style>` d un fichier, avec le composant
  * qui les declare.
  *
+ * La forme de declaration reconnue couvre `function X`,
+ * `export function X`, `export default function X` et
+ * `export const X = (...) =>`. La premiere version ne reconnaissait que
+ * les deux formes qu on avait sous les yeux ce jour-la, si bien que les
+ * composants extraits, ecrits en `export function`, recevaient la
+ * portee `(module)`. Le controle continuait de fonctionner, chaque
+ * fichier n en portant qu une, mais il nommait faux ; c est son propre
+ * releve d homonymies qui l a signale.
+ *
  * La portee est le bloc et non le fichier, parce que styled-jsx scope
  * au composant declarant. Un meme fichier peut en porter plusieurs :
  * InvestmentNoteView.tsx en compte trois, dont deux appartiennent a des
@@ -100,8 +109,9 @@ function blocsDeStyle(src: string, fichier: string): Array<{ portee: string; css
     // Le composant porteur est la derniere declaration de fonction
     // rencontree avant le bloc.
     const avant = src.slice(0, m.index);
-    const noms = Array.from(avant.matchAll(/^(?:export\s+default\s+)?function\s+(\w+)/gm));
-    const porteur = noms.length > 0 ? noms[noms.length - 1][1] : '(module)';
+    const noms = Array.from(avant.matchAll(/^(?:export\s+(?:default\s+)?)?(?:function\s+(\w+)|const\s+(\w+)\s*[:=][^=]*=>)/gm));
+    const dernier = noms[noms.length - 1];
+    const porteur = dernier ? (dernier[1] ?? dernier[2]) : '(module)';
     out.push({ portee: `${fichier}::${porteur}`, css: src.slice(debut, fin) });
     marqueur.lastIndex = fin;
   }
@@ -215,8 +225,8 @@ function classesRendues(src: string): Set<string> {
  * trop plutot que pas assez.
  */
 function classesParComposant(src: string): Record<string, Set<string>> {
-  const bornes = Array.from(src.matchAll(/^(?:export\s+default\s+)?function\s+(\w+)/gm))
-    .map(m => ({ nom: m[1], debut: m.index! }));
+  const bornes = Array.from(src.matchAll(/^(?:export\s+(?:default\s+)?)?(?:function\s+(\w+)|const\s+(\w+)\s*[:=][^=]*=>)/gm))
+    .map(m => ({ nom: m[1] ?? m[2], debut: m.index! }));
   const out: Record<string, Set<string>> = {};
   const nomA = (i: number) => {
     let n = '(module)';

@@ -23,6 +23,7 @@ import { SectoralRadar } from './note/SectoralRadar';
 import { BandeauGouvernance } from './note/BandeauGouvernance';
 import { PiedDeNote } from './note/PiedDeNote';
 import { ProvenanceDuRun } from './note/ProvenanceDuRun';
+import { EnTeteDeNote } from './note/EnTeteDeNote';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -807,16 +808,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       )}
 
       {/* En-tête de note */}
-      <div className="note-header">
-        <div className="note-header-left">
-          <div className="note-brand">PRÉLUDE</div>
-          <div className="note-title">Note d&apos;instruction</div>
-        </div>
-        <div className="note-header-right">
-          <div className="note-date">{dateAnalyzed}</div>
-          <div className="note-classification">CONFIDENTIEL · COMITÉ D&apos;INVESTISSEMENT</div>
-        </div>
-      </div>
+      <EnTeteDeNote dateAnalyzed={dateAnalyzed} />
 
       {/* ============================================================
           BANDEAU ALERTE GOUVERNANCE
@@ -4565,61 +4557,6 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         /* HEADER - Style "nameplate" de journal premium :
            PRELUDE en grand, dateline et classification en petits caractères
            sans-serif uppercase, filet horizontal de séparation. */
-        .note-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          padding-bottom: 18px;
-          border-bottom: 1px solid var(--ink);
-          margin-bottom: 48px;
-          position: relative;
-        }
-        .note-header::after {
-          content: '';
-          position: absolute;
-          bottom: -4px;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: var(--ink);
-          opacity: 0.4;
-        }
-        .note-brand {
-          font-family: var(--serif);
-          font-size: 30px;
-          font-weight: 700;
-          letter-spacing: 0.16em;
-          line-height: 1;
-          color: var(--accent-marque);
-        }
-        .note-title {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-          font-size: 10px;
-          font-weight: 500;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: var(--ink-tertiary);
-          margin-top: 8px;
-        }
-        .note-header-right {
-          text-align: right;
-        }
-        .note-date {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--ink);
-          letter-spacing: 0.04em;
-        }
-        .note-classification {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 9px;
-          letter-spacing: 0.18em;
-          color: #8a8478;
-          margin-top: 4px;
-          text-transform: uppercase;
-          font-weight: 500;
-        }
 
         /* TABLE DES MATIERES FLOTTANTE
            Sticky a droite sur desktop, position fixed pour rester
