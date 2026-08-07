@@ -515,9 +515,11 @@ function comparer(avant: string) {
       // faute ferait du bruit a chaque extraction et noierait le seul
       // cas qui signifie quelque chose.
       const enRel = ap.some((x: string, i: number) => ap.some((y: string, j: number) => i < j && enRelation(x, y, b.relations)));
-      if (enRel) {
-        ecarts.push(`DUPLIQUEE   ${ou}  (${av.length} -> ${ap.length} portees en relation : ${ap.join(', ')})`);
-      } else {
+      // La qualification identique ou divergente se fait plus bas, hors
+      // de cette boucle : la clef porte le corps de la regle, donc deux
+      // copies divergentes sont deux clefs distinctes et ne passent
+      // jamais ici.
+      if (!enRel) {
         homonymies.push(`homonymie  ${ou}  (${ap.map((x: string) => x.split('::').pop()).join(', ')})`);
       }
     }
@@ -535,6 +537,69 @@ function comparer(avant: string) {
     if (!avDiv.has(k)) {
       ecarts.push(`DIVERGENTE  ${d.selecteur} { ${d.propriete} } dans ${d.portee} : `
         + `${d.appliquee} s applique, ${d.inatteignables.join(' | ')} inatteignable(s)`);
+    }
+  }
+
+  // DUPLICATION : IDENTIQUE OU DIVERGENTE.
+  //
+  // La duplication n est pas fautive en soi, elle est imposee par le
+  // mecanisme de portee : des qu un element part chez un enfant alors
+  // que le parent garde la classe, la regle doit exister des deux
+  // cotes. Ce qui compte est de savoir si les deux copies disent la
+  // meme chose.
+  //
+  // Une copie identique est un cout d entretien connu : il faudra
+  // penser aux deux le jour ou la valeur change. Une copie divergente
+  // est un defaut vivant, le meme selecteur rendant deux choses selon
+  // le composant sans que personne l ait decide.
+  //
+  // Le calcul se fait hors de la boucle des clefs, et c est ce que la
+  // premiere ecriture avait manque. La clef d une regle porte son
+  // corps, donc deux copies divergentes sont deux clefs distinctes et
+  // n entrent jamais dans la branche de duplication : elles sortaient
+  // en APPARUE, ce qui est exact et muet sur le rapport entre les deux.
+  // Et la comparaison ne porte que sur les portees EN RELATION : le
+  // perimetre contient des homonymes legitimes, `.note-h4` vivant dans
+  // deux composants sans rapport avec des valeurs differentes, et les
+  // compter aurait rendu divergente toute recopie meme identique.
+  const parSelecteur = new Map<string, Array<{ portee: string; corps: string }>>();
+  for (const k of Object.keys(b.regles)) {
+    const [ctx, sel, corps] = k.split('|', 3);
+    const cle = `${ctx}|${sel}`;
+    if (!parSelecteur.has(cle)) parSelecteur.set(cle, []);
+    for (const p of b.regles[k]) parSelecteur.get(cle)!.push({ portee: p, corps });
+  }
+  for (const [cle, occurrences] of Array.from(parSelecteur.entries())) {
+    if (occurrences.length < 2) continue;
+    const [ctx, sel] = cle.split('|');
+    const ou = ctx ? `${sel} dans ${ctx}` : sel;
+    // Ne retenir que les groupes dont au moins deux portees se rendent.
+    const liees = occurrences.filter((o, i) =>
+      occurrences.some((o2, j) => i !== j && enRelation(o.portee, o2.portee, b.relations)));
+    if (liees.length < 2) continue;
+    // Une occurrence deja presente avant, au meme endroit et avec le
+    // meme corps, ne se signale pas : seule une duplication nouvelle
+    // interesse le chantier.
+    const nouvelles = liees.filter(o => !(a.regles[`${ctx}|${sel}|${o.corps}`] || []).includes(o.portee));
+    if (nouvelles.length === 0) continue;
+    const corps = Array.from(new Set(liees.map(o => o.corps)));
+    if (corps.length > 1) {
+      ecarts.push(`DUPLIQUEE-DIVERGENTE  ${ou}  (${liees.length} portees liees, ${corps.length} versions)`);
+      // N imprimer que ce qui differe. Un extrait tronque du corps
+      // entier laisse le lecteur chercher, et c est souvent hors de
+      // l extrait : la premiere version imprimait quatre-vingt-huit
+      // caracteres et le `margin-top` en desaccord venait apres.
+      const toutes = new Set<string>();
+      for (const c of corps) for (const d of c.split(';')) if (d) toutes.add(d);
+      const communes = new Set(
+        Array.from(toutes).filter(d => corps.every(c => c.split(';').includes(d))));
+      for (const o of liees) {
+        const propres = o.corps.split(';').filter(d => d && !communes.has(d));
+        ecarts.push(`    ${o.portee.split('::').pop()} : ${propres.join(' ; ') || '(rien en propre)'}`);
+      }
+    } else {
+      ecarts.push(`DUPLIQUEE-IDENTIQUE   ${ou}  (${liees.length} portees liees : `
+        + `${liees.map(o => o.portee.split('::').pop()).join(', ')})`);
     }
   }
 
