@@ -1406,6 +1406,68 @@ d etre utilisee comme reference : le harnais ci-dessus etait
 techniquement fonctionnel des sa premiere version, et c est le compte
 imprime a cote de son resultat qui a rendu son inutilite visible.
 
+## Un instrument qui reproduit sa reference rend le resultat le plus rassurant
+
+Huitieme occurrence du motif de la garde inerte, et la premiere qui
+porte sur l instrument de mesure lui-meme. Il n a pas manque de voir un
+defaut : il a rendu, comme resultat, sa propre reference, et sa sortie
+annoncait un succes.
+
+Le cas est du 7 aout 2026. Quatre jetons de la note avaient bouge, deux
+tailles de titre sur trois et une approche. La passe de captures apres a
+rendu vingt-cinq images identiques octet pour octet a leur reference,
+avec le meme index, les memes tailles de fichier et les memes hauteurs
+de page au pixel. Elle a imprime « 25 capturees, 0 en echec ». Une note
+de six mille pixels dont le titre de section passe de 32 a 30 pixels ne
+peut pas rendre la meme hauteur : l identite etait la preuve que rien
+n avait ete mesure, et elle se presentait comme la preuve que rien
+n avait bouge.
+
+Ce qui la rend plus difficile a voir que les sept precedentes est le
+sens de sa reponse. Une garde inerte ordinaire se tait ; celle-ci parle,
+et ce qu elle dit est exactement ce qu un chantier de design espere
+entendre, qu aucune regression n est apparue. Une garde qui ne rougit
+jamais finit par intriguer quelqu un ; une garde qui rend le resultat
+attendu ne se relit pas. Le zero divergence a la couleur du travail bien
+fait.
+
+La cause n a pas ete etablie et il faut le dire ainsi. Aucun serveur ne
+tournait au moment du releve, l invocation ne figure dans aucun
+historique, et rien ne permet de trancher entre un serveur lance avant
+les modifications, un cache de page et une adresse de base qui ne
+pointait pas sur le local. C est precisement pourquoi la reparation ne
+se pose pas sur le canal soupconne : on ferme le chemin qui a servi et
+non celui qu on imagine, et quand on ne sait pas lequel a servi, la
+garde se pose sur l objet.
+
+Deux gardes en sortent, et le point est qu il en faut deux parce
+qu elles echouent par des chemins differents. L une compare les jetons
+du depot a ce que le navigateur calcule, avant toute capture : elle se
+prononce sur la cause, nomme le jeton qui diverge, et ne peut rien dire
+d un changement qui ne passe pas par un jeton. L autre compare chaque
+image a sa reference par empreinte : elle se prononce sur l effet, ne
+dit pas pourquoi, et attrape ce que la premiere ne voit pas. La premiere
+seule laisserait passer un changement de structure servi par un cache ;
+la seconde seule dirait qu il ne s est rien passe sans dire que le
+serveur etait en cause.
+
+Le point de doctrine qui vaut hors du cas porte sur la declaration.
+L identite entre deux captures n est pas fautive en soi : sur un rejeu a
+code constant, c est le resultat attendu et meme souhaitable. Elle ne
+devient un incident que parce que la passe est declaree comme un apres,
+par un drapeau que l operateur pose. C est la meme structure que le
+statut qui dispense de repondre, prise a l envers : la, un etat gratuit
+liberait d une obligation et devait donc se deriver plutot que se
+declarer ; ici la declaration coute quelque chose a celui qui la pose,
+puisqu elle arme une garde contre lui, et elle peut donc rester une
+declaration.
+
+En pratique, devant tout dispositif de comparaison avant-apres, poser la
+question dans ce sens : que rend-il si l apres n a jamais eu lieu. Quand
+la reponse est un resultat lisible comme un succes, il manque la garde,
+et elle se pose sur l objet produit plutot que sur le mecanisme qu on
+suppose responsable.
+
 ## Un chiffre retire se retire ou il a ete pose
 
 Un nombre survit a sa retractation. Il se retient, il se cite, il se
