@@ -25,6 +25,7 @@ import { PiedDeNote } from './note/PiedDeNote';
 import { ProvenanceDuRun } from './note/ProvenanceDuRun';
 import { EnTeteDeNote } from './note/EnTeteDeNote';
 import { BandeauTrajectoire } from './note/BandeauTrajectoire';
+import { CartoucheRefutation } from './note/CartoucheRefutation';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -1567,55 +1568,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           vers l analyse, moment ou une posture critique calibree est
           la plus utile. Le cartouche n a jamais precede le jugement.
           ============================================================ */}
-      {(() => {
-        const refutations = aggregateRefutations(r as any, {
-          sourceFilename: (r as any)?.meta?.sourceFilename ?? null,
-          asOf: (r as any)?.meta?.asOf ?? null,
-        });
-        if (refutations.length === 0) return null;
-        const familyLabels: Record<string, string> = {
-          'numeric': 'Chiffres divergents',
-          'verdict-signal': 'Verdict contre signal',
-          'label-calc': 'Libellé contre base de calcul',
-        };
-        return (
-          <section
-            aria-label="Points de vigilance internes"
-            style={{
-              margin: '12px 0 16px',
-              padding: '14px 18px',
-              borderLeft: '3px solid #6b5b3a',
-              background: 'rgba(107, 91, 58, 0.05)',
-              fontFamily: 'var(--serif)',
-            }}
-          >
-            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 8 }}>
-              Points de vigilance internes · {refutations.length} contradiction{refutations.length > 1 ? 's' : ''} détectée{refutations.length > 1 ? 's' : ''}
-            </div>
-            <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, marginBottom: 10, fontStyle: 'italic', opacity: 0.75 }}>
-              Le pipeline signale ici des tensions entre plusieurs éléments du dossier, relevés automatiquement. Ce ne sont pas des verdicts, ce sont des points à interroger en lecture.
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {refutations.map((rf, i) => (
-                <li key={i} style={{ marginBottom: i < refutations.length - 1 ? 12 : 0, paddingBottom: i < refutations.length - 1 ? 12 : 0, borderBottom: i < refutations.length - 1 ? '1px dashed rgba(107, 91, 58, 0.25)' : 'none' }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 4, opacity: 0.85 }}>
-                    {familyLabels[rf.family] || rf.family}
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 600 }}>Ce qui est affirmé :</span> {rf.claim}
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 600 }}>Ce qui le contredit :</span> {rf.contradiction}
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.85 }}>
-                    <span style={{ fontWeight: 600 }}>Nature de la tension :</span> {rf.tension}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })()}
+      <CartoucheRefutation
+        result={r}
+        sourceFilename={(r as any)?.meta?.sourceFilename ?? null}
+        asOf={(r as any)?.meta?.asOf ?? null}
+      />
 
       {/* Bloc 3 - Due diligence */}
       <section className="note-section" id="section-3">

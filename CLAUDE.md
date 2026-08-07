@@ -2337,3 +2337,35 @@ En pratique, devant toute reconnaissance de forme dans du code source,
 enumerer les ecritures que le langage autorise pour la meme chose, pas
 celles que le fichier contient. Le cout est de trois minutes ; celui de
 la version courte est une erreur qui attend un cas pour se manifester.
+
+## Un controle qui connait le style attendu ne connait pas ce qui est monte
+
+Le controle de conservation du style lit des fichiers source : il sait
+quelles regles existent, dans quelle portee, et quelles classes chaque
+composant ecrit. Il ne sait pas si ce composant est jamais rendu.
+
+La limite se formule simplement et elle est structurelle plutot que
+reparable. Un composant extrait, correctement style, dont plus personne
+ne construit l element, passerait tous ses axes : ses regles sont
+conservees, non dupliquees, non orphelines, dans la bonne portee, sous
+le bon encadrement, et ses classes sont bien visees par une regle de sa
+propre portee. Tout est juste sur le papier et rien ne s affiche.
+
+C est le pendant, cote statique, de la dissymetrie du battement present
+et du battement absent. Un instrument qui lit le code voit ce qui est
+ecrit ; il ne voit pas ce qui est atteint. Aucun raffinement de son
+analyse ne fermera cela, puisque la question ne se pose pas dans le
+texte du programme mais dans son execution.
+
+Ce qui la ferme est d une autre nature, et c est le rendu. Le harnais de
+corpus le fait pour les blocs que les notes exercent ; l avant-apres sur
+cas construit le fait pour ceux qu aucune note ne declenche. Les deux
+repondent a la meme question, celle de savoir si l element existe, et
+ils sont donc complementaires du controle des regles plutot que
+redondants avec lui.
+
+En pratique, la regle est de ne jamais laisser un bloc extrait sans au
+moins un rendu qui l atteint, corpus ou cas construit. Quand ni l un ni
+l autre n est possible, le bloc ne s extrait pas : il reste ou il est et
+la raison s ecrit, ce qui vaut mieux qu une extraction dont la seule
+garantie serait que son style est bien range.
