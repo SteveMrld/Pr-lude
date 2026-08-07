@@ -201,6 +201,39 @@ function classesRendues(src: string): Set<string> {
   return out;
 }
 
+/**
+ * Les classes rendues, attribuees au composant qui les rend et non au
+ * fichier. Un fichier peut declarer plusieurs composants, chacun avec
+ * son bloc de style, et c est le composant qui est l unite de portee
+ * pour styled-jsx.
+ *
+ * Le decoupage se fait sur les declarations de fonction de premier
+ * niveau : tout `className` rencontre appartient a la derniere ouverte.
+ * C est une approximation, et elle est du bon cote : une fonction
+ * imbriquee voit ses classes attribuees a son parent, donc on
+ * sur-attribue plutot qu on ne perd, et le controle signale un peu
+ * trop plutot que pas assez.
+ */
+function classesParComposant(src: string): Record<string, Set<string>> {
+  const bornes = Array.from(src.matchAll(/^(?:export\s+default\s+)?function\s+(\w+)/gm))
+    .map(m => ({ nom: m[1], debut: m.index! }));
+  const out: Record<string, Set<string>> = {};
+  const nomA = (i: number) => {
+    let n = '(module)';
+    for (const b of bornes) { if (b.debut <= i) n = b.nom; else break; }
+    return n;
+  };
+  for (const m of Array.from(src.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g))) {
+    const nom = nomA(m.index!);
+    (out[nom] ||= new Set());
+    for (const c of (m[1] ?? m[2] ?? m[3] ?? '').split(/[\s${}?:'"()|&]+/)) {
+      const t = c.trim();
+      if (t && /^[a-zA-Z][\w-]*$/.test(t)) out[nom].add(t);
+    }
+  }
+  return out;
+}
+
 /** Les classes qu un selecteur vise. */
 function classesDuSelecteur(sel: string): string[] {
   return Array.from(sel.matchAll(/\.([a-zA-Z][\w-]*)/g)).map(m => m[1]);
@@ -268,6 +301,23 @@ export interface Releve {
   /** Meme propriete declaree plusieurs fois pour un meme selecteur dans
    *  une meme portee, avec des valeurs qui different. */
   divergences: Divergence[];
+  /**
+   * SIXIEME AXE, ajoute le 7 aout 2026 apres qu une preparation
+   * d extraction eut trouve le trou. Une classe rendue par un composant
+   * sans qu aucune regle de SA portee ne la vise, alors qu une regle la
+   * vise dans une autre portee du perimetre.
+   *
+   * C est le mode de perte propre a styled-jsx, et aucun des cinq axes
+   * precedents ne le voit. La regle n est ni perdue, ni dupliquee, ni
+   * orpheline : elle reste au bon endroit, legitimement, parce que
+   * d autres elements du parent la retiennent. C est l ELEMENT qui est
+   * parti sans elle, et il sort sans style.
+   *
+   * Le cas type est `note-h4` : une regle dans le parent, dix-sept
+   * usages, dont un dans un bloc qu on veut extraire. Le controle
+   * l aurait declare conforme apres coup.
+   */
+  classesSansRegleDansLeurPortee: Array<{ portee: string; classe: string; regleVitDans: string[] }>;
 }
 
 /**
@@ -334,9 +384,15 @@ export function relever(sources?: Sources): Releve {
   const orphelines: Releve['orphelines'] = [];
   const divergences: Divergence[] = [];
   const portees: string[] = [];
+  const classesDeLaPortee: Record<string, Record<string, Set<string>>> = {};
+  /** clef `classe` -> portees ou une regle la vise. */
+  const regleVise: Record<string, Set<string>> = {};
   for (const f of fichiers) {
     const src = lire(f);
-    const rendues = classesRendues(src);
+    const parComposant = classesParComposant(src);
+    const rendues = new Set<string>();
+    for (const s of Object.values(parComposant)) for (const c of Array.from(s)) rendues.add(c);
+    classesDeLaPortee[f] = parComposant;
     for (const bloc of blocsDeStyle(src, f)) {
       portees.push(bloc.portee);
       const dansLaPortee: Array<Regle & { ordre: number }> = [];
@@ -346,6 +402,7 @@ export function relever(sources?: Sources): Releve {
         const clef = `${r.contexte}|${r.selecteur}|${r.corps}`;
         (regles[clef] ||= []).push(bloc.portee);
         const visees = classesDuSelecteur(r.selecteur);
+        for (const c of visees) (regleVise[c] ||= new Set()).add(bloc.portee);
         // Un selecteur sans classe (balise nue, :root, *) n est pas
         // rattachable a un fichier : il sort du controle d orphelinat
         // plutot que d y entrer par defaut.
@@ -356,7 +413,24 @@ export function relever(sources?: Sources): Releve {
       divergences.push(...divergencesDeLaPortee(bloc.portee, dansLaPortee));
     }
   }
-  return { fichiers, portees, relations: relationsParentEnfant(fichiers, lire), regles, orphelines, divergences };
+  // Sixieme axe : une classe rendue dans une portee que sa portee ne
+  // style pas, alors qu une autre portee la style.
+  const classesSansRegleDansLeurPortee: Releve['classesSansRegleDansLeurPortee'] = [];
+  for (const f of Object.keys(classesDeLaPortee)) {
+    for (const [composant, classes] of Object.entries(classesDeLaPortee[f])) {
+      const portee = `${f}::${composant}`;
+      if (!portees.includes(portee)) continue;
+      for (const c of Array.from(classes)) {
+        const ou = regleVise[c];
+        if (!ou || ou.has(portee)) continue;
+        classesSansRegleDansLeurPortee.push({ portee, classe: c, regleVitDans: Array.from(ou) });
+      }
+    }
+  }
+  return {
+    fichiers, portees, relations: relationsParentEnfant(fichiers, lire),
+    regles, orphelines, divergences, classesSansRegleDansLeurPortee,
+  };
 }
 
 function capture(sortie: string) {
@@ -437,6 +511,72 @@ function comparer(avant: string) {
   process.exit(ecarts.length > 0 ? 1 : 0);
 }
 
+/**
+ * MODE PREALABLE. Repond, avant qu une extraction soit ecrite, a la
+ * seule question qui decide de sa difficulte : parmi les classes du
+ * bloc qu on veut sortir, lesquelles sont stylees par une regle que le
+ * parent doit garder.
+ *
+ * Une classe est dite partagee quand le parent la rend ailleurs que
+ * dans le bloc. Sa regle ne peut alors pas suivre le bloc : elle doit
+ * etre recopiee chez l enfant, ce que le controle signalera comme
+ * duplication a bon droit et qu il faut donc assumer explicitement.
+ *
+ * Une classe propre au bloc emmene sa regle sans discussion.
+ *
+ * Une classe sans regle nulle part ne pose aucune question.
+ */
+function analyser(fichier: string, debut: number, fin: number) {
+  const src = readFileSync(fichier, 'utf-8');
+  const lignes = src.split('\n');
+  const dedans = lignes.slice(debut - 1, fin).join('\n');
+  const dehors = lignes.slice(0, debut - 1).concat(lignes.slice(fin)).join('\n');
+
+  const classesDu = (t: string) => {
+    const out = new Set<string>();
+    for (const m of Array.from(t.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g))) {
+      for (const c of (m[1] ?? m[2] ?? m[3] ?? '').split(/[\s${}?:'"()|&]+/)) {
+        const t2 = c.trim();
+        if (t2 && /^[a-zA-Z][\w-]*$/.test(t2)) out.add(t2);
+      }
+    }
+    return out;
+  };
+  const duBloc = classesDu(dedans);
+  const duReste = classesDu(dehors);
+
+  // Les regles du fichier, par classe visee.
+  const parClasse: Record<string, string[]> = {};
+  for (const bloc of blocsDeStyle(src, fichier)) {
+    for (const r of extraireRegles(bloc.css)) {
+      for (const c of classesDuSelecteur(r.selecteur)) (parClasse[c] ||= []).push(r.selecteur);
+    }
+  }
+
+  const propres: string[] = [], partagees: string[] = [], sansRegle: string[] = [];
+  for (const c of Array.from(duBloc).sort()) {
+    const regles = parClasse[c];
+    if (!regles || regles.length === 0) sansRegle.push(c);
+    else if (duReste.has(c)) partagees.push(c);
+    else propres.push(c);
+  }
+
+  console.log(`${fichier}, lignes ${debut}-${fin}`);
+  console.log(`${duBloc.size} classe(s) utilisee(s) par le bloc\n`);
+  console.log(`PROPRES au bloc, leur regle part avec lui (${propres.length}) :`);
+  for (const c of propres) console.log(`  ${c.padEnd(34)} ${parClasse[c].length} regle(s)`);
+  console.log(`\nPARTAGEES avec le reste du parent, leur regle ne peut pas suivre (${partagees.length}) :`);
+  for (const c of partagees) {
+    const n = (dehors.match(new RegExp('\\b' + c + '\\b', 'g')) || []).length;
+    console.log(`  ${c.padEnd(34)} ${parClasse[c].length} regle(s), ${n} usage(s) ailleurs`);
+  }
+  console.log(`\nSANS REGLE, aucune question (${sansRegle.length}) : ${sansRegle.join(', ') || '(aucune)'}`);
+  if (partagees.length > 0) {
+    console.log('\nUne classe partagee demande de recopier sa regle chez l enfant.');
+    console.log('Le controle signalera DUPLIQUEE, a bon droit, et cela s assume dans le commit.');
+  }
+}
+
 // Le bloc de commande ne s execute que si le module est le point
 // d entree. Sans cette garde, importer `relever` depuis un test lance
 // la commande et fait sortir le processus avant la premiere assertion.
@@ -444,6 +584,10 @@ if (require.main === module) {
   const [mode, arg] = process.argv.slice(2);
   if (mode === 'capture' && arg) capture(arg);
   else if (mode === 'comparer' && arg) comparer(arg);
+  else if (mode === 'analyser' && arg) {
+    const [debut, fin] = process.argv.slice(4);
+    analyser(arg, parseInt(debut, 10), parseInt(fin, 10));
+  }
   else {
     console.log('usage: style-conservation.ts capture <fichier.json> | comparer <fichier.json>');
     process.exit(2);

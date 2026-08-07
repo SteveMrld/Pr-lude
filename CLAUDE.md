@@ -2217,3 +2217,44 @@ Si Steve demande quoi faire en priorite, l ordre est :
 
 Ne propose jamais cette liste de but en blanc. Steve la connait.
 Reagis a ce qu il demande, et trace.
+
+## Deux zeros qui ne se traitent pas pareil
+
+Quand un dispositif de verification rend zero cas exerce, la question
+suivante n est pas quoi faire, c est pourquoi zero. Deux causes
+opposees se presentent identiquement, et elles appellent des reponses
+qui n ont rien en commun.
+
+Le cas est du 7 aout 2026, au moment d etablir d avance combien de notes
+du corpus exercent chacun des onze blocs a extraire. Deux blocs
+rendaient zero sur cinquante-six.
+
+Le bandeau de trajectoire depend d un etat alimente par un `useEffect`
+qui interroge une route. Les effets ne s executent pas en rendu serveur,
+donc le harnais ne pourra jamais l exercer, quel que soit le corpus et
+quelles que soient les donnees. Le zero ne dit rien du produit, il dit
+une limite de l instrument.
+
+Le cartouche de refutation se calcule au rendu, par une fonction pure du
+`result_json`. Le harnais peut parfaitement l exercer ; il rend zero
+parce qu aucune des cinquante-six notes ne declenche de contradiction.
+Le zero dit quelque chose du corpus et rien de l instrument.
+
+La reponse differe donc entierement. Un zero d instrument demande un
+autre instrument, et rien d autre ne le comblera : ajouter des notes au
+corpus n y changerait rien. Un zero de corpus demande un cas, et la
+question devient de savoir s il se fabrique sans run. Ici oui, la
+fonction etant pure et le depot portant deja des fixtures : l extraction
+redevient verifiable, sur un cas construit, ce qui est plus faible qu une
+preuve de corpus et doit etre annonce comme tel. Si la reponse avait ete
+non, il resterait le controle humain declare, qui est une garantie
+faible mais honnete tant qu on ne la presente pas comme autre chose.
+
+La faute a eviter est de lire les deux zeros comme un seul et d en
+conclure que le bloc n est pas utilise. Un bloc que l instrument ne peut
+pas voir est peut-etre celui qui sert le plus.
+
+En pratique, devant tout zero rendu par une verification, demander si
+l instrument aurait pu rendre autre chose. La question se tranche en
+lisant le chemin qui mene du dispositif a l objet, jamais en regardant
+le chiffre.

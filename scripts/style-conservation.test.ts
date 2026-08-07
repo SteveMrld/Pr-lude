@@ -1,7 +1,7 @@
 // ============================================================
 // Tests deterministes du controle de conservation du style
 // ------------------------------------------------------------
-// Ce que ces tests prouvent : le controle voit ses CINQ axes, et pas
+// Ce que ces tests prouvent : le controle voit ses SIX axes, et pas
 // seulement les trois qu on avait en tete en l ecrivant.
 //
 // POURQUOI ILS EXISTENT
@@ -19,13 +19,15 @@
 // derive donc des axes du controle, et non de ce qu on avait en tete au
 // moment de l ecrire.
 //
-// LES CINQ AXES
+// LES SIX AXES
 //
 //   1. conservation : une regle retiree se voit
 //   2. duplication  : une regle recopiee le long de la relation se voit
 //   3. orphelinat   : une regle chez qui ne rend pas sa classe se voit
 //   4. portee       : deux portees distinctes ne se confondent pas
 //   5. cascade      : la valeur annoncee gagnante est bien la derniere
+//   6. couverture   : une classe rendue dans une portee que sa portee
+//                     ne style pas, alors qu une autre la style
 //
 // Chaque axe est eprouve dans LES DEUX SENS quand cela a un sens : le
 // controle doit rougir sur la faute et se taire sur le cas sain voisin.
@@ -173,6 +175,46 @@ const ENFANT = 'app/components/note/Bloc.tsx';
     // derniere qui gagne.
     const r = relever({ [PARENT]: composant('InvestmentNoteView', ['a'], '.a { color: red; }\n.a { color: green; }') });
     check(r.divergences[0].appliquee === 'green', 'entre deux regles, la derniere gagne aussi');
+  }
+  // ============================================================
+  console.log('\n[Axe 6] couverture : l element parti sans sa regle');
+  // ============================================================
+  {
+    // Le mode de perte propre a styled-jsx, et le seul que les cinq
+    // axes precedents ne voient pas. La regle reste chez le parent, a
+    // bon droit puisqu il la rend encore ailleurs ; c est l ELEMENT qui
+    // est parti. Ni perdue, ni dupliquee, ni orpheline, et pourtant le
+    // titre de l enfant sort sans style.
+    const parent = composant('InvestmentNoteView', ['titre', 'autre'], '.titre { font-size: 20px; }', "import Bloc from './note/Bloc';\n");
+    const enfant = composant('Bloc', ['titre', 'local'], '.local { color: red; }');
+    const r = relever({ [PARENT]: parent, [ENFANT]: enfant });
+    const trous = r.classesSansRegleDansLeurPortee;
+    check(trous.length === 1, 'une classe rendue par l enfant et stylee seulement chez le parent est vue');
+    check(trous[0].classe === 'titre', 'et elle est nommee');
+    check(trous[0].portee.endsWith('::Bloc'), 'la portee qui la rend sans la styler est nommee');
+    check(trous[0].regleVitDans.some(p => p.endsWith('::InvestmentNoteView')), 'et celle qui la style aussi');
+
+    // Aucun des cinq autres axes ne le voyait : c est ce qui justifie
+    // le sixieme, et cela s asserte plutot que cela ne se raconte.
+    check(r.orphelines.length === 0, 'la regle n est pas orpheline : le parent rend encore la classe');
+    check(Object.values(r.regles).every(v => v.length === 1), 'elle n est pas dupliquee non plus');
+    check(r.divergences.length === 0, 'et il n y a aucune divergence de valeur');
+  }
+  {
+    // Le sens sain : la regle a suivi l element. Sans ce second sens,
+    // l assertion precedente serait satisfaite par un controle qui
+    // signale toute classe rendue par un enfant.
+    const parent = composant('InvestmentNoteView', ['autre'], '.autre { font-size: 20px; }', "import Bloc from './note/Bloc';\n");
+    const enfant = composant('Bloc', ['titre'], '.titre { font-size: 20px; }');
+    const r = relever({ [PARENT]: parent, [ENFANT]: enfant });
+    check(r.classesSansRegleDansLeurPortee.length === 0, 'une regle qui a suivi son element ne signale rien');
+  }
+  {
+    // Une classe que personne ne style ne pose aucune question, et le
+    // controle ne doit pas la compter. C est le cas de `mono` dans la
+    // note reelle, rendue cinq fois et stylee nulle part.
+    const r = relever({ [PARENT]: composant('InvestmentNoteView', ['mono'], '.autre { color: red; }') });
+    check(r.classesSansRegleDansLeurPortee.length === 0, 'une classe stylee nulle part n est pas signalee');
   }
 })();
 
