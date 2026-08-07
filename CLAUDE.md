@@ -1215,6 +1215,61 @@ support.
 Le premier des trois controles a d ailleurs donne, en se fermant, un
 defaut d une autre nature, qui a sa section propre juste en dessous.
 
+## Une information juste, ecrite, et non relue au moment ou elle decidait
+
+La semaine a rencontre quatre fois la meme famille, et la quatrieme
+occurrence est d une autre nature que les trois premieres, ce qui lui
+vaut sa section.
+
+Les trois premieres portent sur une information qui n a pas survecu.
+Le tag de provenance web etait produit par la plateforme et jete par le
+pipeline. Le genre du document etait produit et laisse en prose, donc
+inutilisable par un calcul. La cause de non-production du pre-scan etait
+produite par le modele et ecrasee par un `null` a l assemblage. Dans les
+trois cas la reparation est une structure : capturer, typer, cesser
+d ecraser. Ce sont des defauts de conception, et le code les porte.
+
+La quatrieme n a rien de tout cela. Le 7 aout 2026, le plan de coupe du
+chantier de decoupage nommait trois obstacles qui feraient derailler une
+coupe naive, et le premier etait que styled-jsx scope ses regles au
+composant declarant, si bien qu extraire un bloc lui retire son style en
+silence. C etait juste, c etait ecrit, c etait au bon endroit, et c etait
+range en tete de la liste des choses a ne pas oublier. Deux tours plus
+tard, j ai recommande de commencer par le lot des blocs simples au motif
+que le harnais HTML les couvrait, ce qui etait faux pour exactement la
+raison que j avais ecrite moi-meme. Le plan etait juste. La
+recommandation ne l a pas relu.
+
+L information a donc survecu, elle etait accessible, elle etait exacte,
+et elle n a pas ete consultee au moment ou elle decidait. Aucune
+structure ne ferme cela. Un champ obligatoire porte par le type oblige a
+remplir ; rien n oblige a relire. On peut ecrire un test qui verifie
+qu une contrainte est respectee, on ne peut pas ecrire un test qui
+verifie qu on s est souvenu d une contrainte avant de conseiller.
+
+La reponse est donc de procedure et non de conception, et il faut
+l assumer comme telle plutot que chercher un dispositif qui n existe pas.
+Avant de recommander un ordre de travaux, relire ce qu on a soi-meme
+ecrit sur ces travaux. Le cout est de quelques minutes ; il se compare a
+deux recommandations fausses rendues coup sur coup, dont la seconde
+aurait fait extraire onze blocs sous une garde inerte.
+
+Un signe permet de reperer le moment ou la relecture est due, et il est
+assez precis pour servir. Il est du chaque fois qu on affirme qu un
+controle couvre quelque chose. Une phrase de la forme « le harnais le
+couvre reellement » est une affirmation sur un dispositif, donc une
+affirmation verifiable, donc une affirmation a verifier plutot qu a
+sentir. C est le meme geste que pour le rang de stabilite d un moteur,
+qui est une affirmation sur ses consommateurs et se verifie en les
+enumerant.
+
+Le corollaire de forme est le meme que pour un chiffre retire, applique
+une heure apres avoir ete ecrit. En annoncant que la recommandation etait
+fausse, il fallait donner dans le meme geste le cout juste du controle
+manquant, une a deux heures et non la demi-journee annoncee, plutot que
+la seule annulation. Une retractation qui laisse un trou le fait combler
+par le dernier chiffre entendu.
+
 ## Un instrument annonce son denominateur, ou il mesure moins qu il ne dit
 
 Le piege du denominateur a une seconde forme, et elle porte sur
