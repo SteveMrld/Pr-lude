@@ -1431,14 +1431,36 @@ jamais finit par intriguer quelqu un ; une garde qui rend le resultat
 attendu ne se relit pas. Le zero divergence a la couleur du travail bien
 fait.
 
-La cause n a pas ete etablie et il faut le dire ainsi. Aucun serveur ne
-tournait au moment du releve, l invocation ne figure dans aucun
-historique, et rien ne permet de trancher entre un serveur lance avant
-les modifications, un cache de page et une adresse de base qui ne
-pointait pas sur le local. C est precisement pourquoi la reparation ne
-se pose pas sur le canal soupconne : on ferme le chemin qui a servi et
-non celui qu on imagine, et quand on ne sait pas lequel a servi, la
-garde se pose sur l objet.
+La cause a d abord ete declaree non etablie, faute de serveur en marche
+au moment du releve et faute d invocation dans un historique. Elle l a
+ete le soir meme, en rouvrant les vingt-cinq images de reference qui
+avaient survecu, et elle n etait aucune des trois qu on avait
+soupconnees. Ces images montrent le tableau de bord et non la note : la
+page ouvre sur le tableau, la note vit derriere un bouton, et la
+premiere version du harnais ne le cliquait pas. La preuve tient dans une
+grandeur que l index portait deja, la hauteur de page. Le meme dossier
+rend cinq mille neuf cent quatre-vingt-trois pixels dans la serie de
+reference et quarante-cinq mille deux cent trente-quatre dans une
+capture de la note. Les deux series comparaient donc la meme page, qui
+ne consomme aucun des jetons modifies, et l identite octet pour octet ne
+demandait aucune hypothese de serveur.
+
+Ce qui vaut d etre garde n est pas la cause, c est ce qu elle dit de la
+reparation qui avait ete posee sans elle. La garde sur le servi visait
+le canal soupconne ; sur cet incident elle aurait rendu vert, et a bon
+droit, puisque le serveur servait exactement l etat courant du depot. Il
+servait simplement une autre page. Seule la garde posee sur l objet
+aurait attrape le defaut, et elle n avait ete posee la que parce qu on
+ignorait quel chemin avait servi. Renoncer a deviner est donc ce qui a
+produit la bonne garde, et fermer le chemin soupconne aurait laisse
+passer precisement ce qui s etait produit. C est la regle du chemin qui
+a servi, verifiee cette fois par son propre cas plutot que contre lui.
+
+Le corollaire porte sur ce qu une reference tacite coute. Tant que ces
+images ont passe pour un avant, le chantier de design n avait pas de
+point de comparaison et personne ne le savait, puisqu il en existait
+vingt-cinq sur le disque. Une serie de reference se lit avant de servir
+de reference, et la hauteur de page suffisait a la recuser.
 
 Deux gardes en sortent, et le point est qu il en faut deux parce
 qu elles echouent par des chemins differents. L une compare les jetons
