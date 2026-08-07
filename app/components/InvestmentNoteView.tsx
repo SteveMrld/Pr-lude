@@ -219,21 +219,25 @@ function FoldableSection({
         {count !== undefined && (
           <span style={{ marginLeft: 10, fontSize: 11.5, color: 'var(--muted)', fontWeight: 500 }}>({count})</span>
         )}
-        <span style={{
-          float: 'right',
-          fontSize: 10,
-          letterSpacing: '0.10em',
-          textTransform: 'uppercase',
-          color: 'var(--muted)',
-          fontWeight: 600,
-          marginTop: 4,
-          fontFamily: 'var(--sans)',
-        }}>Replié en lecture rapide</span>
+        <span  className="note-rubrique" style={{ float: 'right', color: 'var(--muted)', marginTop: 4 }}>Replié en lecture rapide</span>
       </summary>
       <div style={{ paddingTop: 14 }}>
         {children}
       </div>
       <style jsx>{`
+        /* Recopie depuis la portee de la note : une rubrique convertie
+           vit dans ce composant, et styled-jsx scope au declarant. Le
+           controle signalera DUPLIQUEE-IDENTIQUE, a bon droit, et c est
+           le cout que le mecanisme de portee impose. */
+        .note-rubrique {
+          font-family: var(--sans);
+          font-size: var(--note-size-h4);
+          font-weight: 600;
+          letter-spacing: var(--note-tracking-h4);
+          text-transform: uppercase;
+          color: var(--ink-tertiary);
+        }
+
         .prelude-fold[open] :global(.prelude-fold-arrow),
         details[open] > summary > .prelude-fold-arrow {
           transform: rotate(90deg);
@@ -445,12 +449,13 @@ function NoteSectoralAnnex({
           border-top: 1px solid #C8A988;
         }
         .note-h4 {
-          font-family: var(--serif, Georgia, serif);
-          font-size: 1rem;
-          letter-spacing: 0.04em;
+          font-family: var(--sans);
+          font-size: var(--note-size-h4);
+          font-weight: 600;
+          letter-spacing: var(--note-tracking-h4);
           text-transform: uppercase;
-          color: #2B2B2B;
-          margin: 0 0 12px;
+          color: var(--ink-tertiary);
+          margin: 0 0 var(--note-space-3);
         }
         .note-sectoral-annex-intro {
           font-family: var(--serif, Georgia, serif);
@@ -794,7 +799,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           borderLeft: '3px solid var(--accent)',
           borderRadius: '0 8px 8px 0',
         }}>
-          <span style={{ textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>
+          <span  className="note-rubrique">
             Lecture rapide
           </span>
           <span style={{ color: 'var(--ink-soft)', marginLeft: 10, fontFamily: 'var(--serif)' }}>
@@ -1507,7 +1512,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 border: '1px solid var(--hairline)',
                 borderRadius: 4,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)', marginBottom: 4 }}>
+                <div  className="note-rubrique" style={{ color: 'var(--ink-soft)', marginBottom: 4 }}>
                   Décomposition du score
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 12px 0', lineHeight: 1.55 }}>
@@ -1517,10 +1522,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--hairline)' }}>
-                      <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Dimension</th>
-                      <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Score</th>
-                      <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Poids</th>
-                      <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ink-soft)' }}>Contribution</th>
+                      <th  className="note-rubrique" style={{ textAlign: 'left', padding: '6px 0', color: 'var(--ink-soft)' }}>Dimension</th>
+                      <th  className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Score</th>
+                      <th  className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Poids</th>
+                      <th  className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Contribution</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1579,7 +1584,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       </React.Fragment>
                     ))}
                     <tr style={{ borderTop: '2px solid var(--ink)' }}>
-                      <td style={{ padding: '10px 0 4px 0', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: 11 }}>Score global</td>
+                      <td  className="note-rubrique" style={{ padding: '10px 0 4px 0' }}>Score global</td>
                       <td colSpan={2} />
                       <td style={{ padding: '10px 0 4px 0', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--serif)', fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>
                         {insufficientBasis || typeof reco.globalScore !== 'number' ? (
@@ -1774,7 +1779,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               {/* Critères structurels détectés */}
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#777', marginBottom: 8 }}>
+                <div  className="note-rubrique" style={{ color: '#777', marginBottom: 8 }}>
                   Critères structurels
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 24px', fontSize: '0.9rem' }}>
@@ -1818,7 +1823,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               {/* Verdicts par moteur */}
               <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#777', marginBottom: 8 }}>
+                <div  className="note-rubrique" style={{ color: '#777', marginBottom: 8 }}>
                   Verdict par moteur
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1845,19 +1850,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     return (
                       <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontSize: '0.9rem' }}>
                         <span
-                          style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                            color,
-                            backgroundColor: bg,
-                            padding: '3px 8px',
-                            borderRadius: 3,
-                            flexShrink: 0,
-                            minWidth: 90,
-                            textAlign: 'center',
-                          }}
+                           className="note-rubrique" style={{ color, backgroundColor: bg, padding: '3px 8px', borderRadius: 3, flexShrink: 0, minWidth: 90, textAlign: 'center' }}
                         >
                           {labelText}
                         </span>
@@ -1955,14 +1948,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     color: 'var(--ink-soft)',
                   }}
                 >
-                  <span style={{
-                    fontFamily: 'var(--sans)',
-                    fontSize: 10,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    color: 'var(--muted)',
-                    marginRight: 8,
-                  }}>
+                  <span  className="note-rubrique" style={{ color: 'var(--muted)', marginRight: 8 }}>
                     Base retenue
                   </span>
                   {(valuation as any).basis.declaration}
@@ -2000,15 +1986,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   ============================================================ */}
               {((valuation as any).ranges ?? []).map((r: any) => (
                 <div key={r.nature} style={{ marginBottom: 16 }}>
-                  <div style={{
-                    fontSize: 11,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--ocre-brule)',
-                    fontFamily: 'var(--sans)',
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}>
+                  <div  className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 6 }}>
                     {NATURE_LABELS[r.nature] ?? r.nature}
                     <span style={{ textTransform: 'none', fontWeight: 400, color: 'var(--muted)', marginLeft: 8 }}>
                       {r.contributions?.map((c: any) => c.label).join(', ')}
@@ -2090,15 +2068,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   lineHeight: 1.55,
                   color: 'var(--ink-soft)',
                 }}>
-                  <div style={{
-                    fontSize: 10,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    color: '#8a4b3a',
-                    marginBottom: 4,
-                    fontFamily: 'var(--sans)',
-                  }}>
+                  <div  className="note-rubrique" style={{ color: '#8a4b3a', marginBottom: 4 }}>
                     Dilution non calculable
                   </div>
                   {(valuation as any).dilutionNotComputableReason}
@@ -2115,14 +2085,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   fontSize: 12.5,
                   lineHeight: 1.55,
                 }}>
-                  <div style={{
-                    fontSize: 10,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    color: 'var(--accent)',
-                    marginBottom: 4,
-                  }}>
+                  <div  className="note-rubrique" style={{ color: 'var(--accent)', marginBottom: 4 }}>
                     Analyse de dilution sur ticket {formatEurShort(valuation.dilutionAnalysis.proposedTicket)}
                   </div>
                   {/* La dilution se lit sur la fourchette pre-money et sur
@@ -2147,14 +2110,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               {/* Detail des methodes appliquees */}
               <div style={{ marginTop: 8 }}>
-                <div style={{
-                  fontSize: 10,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  fontWeight: 600,
-                  color: 'var(--muted)',
-                  marginBottom: 6,
-                }}>
+                <div  className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 6 }}>
                   Méthodes appliquées
                 </div>
                 {valuation.methods.map((m: any, i: number) => (
@@ -2189,14 +2145,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Warnings methodologiques */}
               {valuation.warnings && valuation.warnings.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{
-                    fontSize: 10,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    color: 'var(--ocre-brule)',
-                    marginBottom: 4,
-                  }}>
+                  <div  className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 4 }}>
                     Avertissements
                   </div>
                   <ul style={{ paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>
@@ -2278,14 +2227,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Tableau des indicateurs applicables */}
               {indicators.indicators.filter((i: any) => i.verdict !== 'non-applicable').length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{
-                    fontSize: 10,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    color: 'var(--muted)',
-                    marginBottom: 8,
-                  }}>
+                  <div  className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 8 }}>
                     Indicateurs calculés
                   </div>
                   {indicators.indicators
@@ -2314,14 +2256,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                                 {ind.value != null ? `${ind.value}` : 'n/a'}
                               </strong>
                               <span style={{ opacity: 0.7, marginLeft: 4 }}>{ind.unit}</span>
-                              <span style={{
-                                marginLeft: 12,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.06em',
-                                fontSize: 10,
-                                color: verdictColor,
-                                fontWeight: 600,
-                              }}>{verdictLabel}</span>
+                              <span  className="note-rubrique" style={{ marginLeft: 12, color: verdictColor }}>{verdictLabel}</span>
                             </span>
                           </div>
                           <div style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-soft)', marginTop: 2 }}>
@@ -2341,14 +2276,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Indicateurs non applicables, regroupes en bas */}
               {indicators.indicators.filter((i: any) => i.verdict === 'non-applicable').length > 0 && (
                 <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px solid var(--hairline)' }}>
-                  <div style={{
-                    fontSize: 10,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    color: 'var(--muted)',
-                    marginBottom: 6,
-                  }}>
+                  <div  className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 6 }}>
                     Non applicables ou non extractibles
                   </div>
                   {indicators.indicators
@@ -2364,14 +2292,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Warnings */}
               {indicators.warnings && indicators.warnings.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{
-                    fontSize: 10,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    color: 'var(--ocre-brule)',
-                    marginBottom: 4,
-                  }}>
+                  <div  className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 4 }}>
                     Avertissements
                   </div>
                   <ul style={{ paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>
@@ -2774,7 +2695,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     <div key={axis.key} style={{ marginBottom: 14, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{axis.label}</div>
-                        <div style={{ fontSize: 12, color: tone, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{a.verdict.replace('-', ' ')}</div>
+                        <div  className="note-rubrique" style={{ color: tone }}>{a.verdict.replace('-', ' ')}</div>
                         <div style={{ fontSize: 12, opacity: 0.6 }}>{a.score}/100 · confiance {a.confidence}/100</div>
                       </div>
                       <p className="note-paragraph" style={{ marginTop: 6, marginBottom: 6 }}>{enrichProse(a.rationale)}</p>
@@ -3075,14 +2996,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     Pattern Northvolt, Wrapper sans differenciation, etc.). */}
                 {fs.combinaisons && fs.combinaisons.length > 0 && (
                   <div style={{ marginTop: 12, marginBottom: 14, padding: 14, borderLeft: '3px solid var(--ocre-brule, #8a4a17)', background: 'rgba(138, 74, 23, 0.06)' }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, color: 'var(--ocre-brule, #8a4a17)', fontWeight: 600 }}>
+                    <div  className="note-rubrique" style={{ opacity: 0.7, marginBottom: 8, color: 'var(--ocre-brule, #8a4a17)' }}>
                       Convergences détectées
                     </div>
                     {fs.combinaisons.map((comb: any, i: number) => (
                       <div key={i} style={{ marginBottom: i < fs.combinaisons.length - 1 ? 10 : 0 }}>
                         <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
                           {comb.nom}
-                          <span style={{ fontSize: 11, marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          <span  className="note-rubrique" style={{ marginLeft: 8, opacity: 0.7 }}>
                             {comb.severite.replace('-', ' ')}
                           </span>
                         </div>
@@ -3096,7 +3017,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     carte detaillee, patterns sains en ligne courte,
                     patterns non applicables en mention discrete. */}
                 <div style={{ marginTop: 14, marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 10 }}>Sept patterns Phase 4</div>
+                  <div  className="note-rubrique" style={{ opacity: 0.6, marginBottom: 10 }}>Sept patterns Phase 4</div>
                   {(['growth-subsidized-model', 'infrastructure-hostage', 'fixed-cost-trap', 'regulatory-time-bomb', 'commoditization-drift', 'capital-structure-fragility', 'scale-mirage-risk'] as const).map((patternId) => {
                     const p = fs.patterns?.[patternId];
                     const labels: Record<string, string> = {
@@ -3186,7 +3107,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                         <div key={patternId} style={{ marginBottom: 12, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                             <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
-                            <div style={{ fontSize: 11, color: tone, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{p.verdict.replace('-', ' ')}</div>
+                            <div  className="note-rubrique" style={{ color: tone }}>{p.verdict.replace('-', ' ')}</div>
                             <div style={{ fontSize: 12, opacity: 0.6 }}>{p.globalScore}/100</div>
                           </div>
                           {p.resumeEditorial && (
@@ -3254,7 +3175,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 {/* Recommandations DD consolidees en encart final. */}
                 {fs.recommandationsDD && fs.recommandationsDD.length > 0 && (
                   <div style={{ marginTop: 8, padding: 12, background: 'rgba(168, 116, 58, 0.06)', borderLeft: '2px solid rgba(168, 116, 58, 0.4)' }}>
-                    <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, fontWeight: 600 }}>À investiguer en DD</div>
+                    <div  className="note-rubrique" style={{ opacity: 0.7, marginBottom: 8 }}>À investiguer en DD</div>
                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
                       {fs.recommandationsDD.map((reco: string, i: number) => (
                         <li key={i} style={{ marginBottom: 4 }}>{reco}</li>
@@ -4488,13 +4409,27 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            contrasté avec les serifs des H2/H3. C'est la signature éditoriale
            classique des publications économiques premium. */
         .note-h4 {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+          font-family: var(--sans);
           font-size: var(--note-size-h4);
-          font-weight: 700;
+          font-weight: 600;
+          letter-spacing: var(--note-tracking-h4);
+          text-transform: uppercase;
+          color: var(--ink-tertiary);
           margin-top: var(--note-rhythm-h4-top);
           margin-bottom: var(--note-rhythm-h4-bot);
-          text-transform: uppercase;
+        }
+
+        /* Niveau 3 de la hierarchie typographique, 7 aout 2026.
+           Les trente et une rubriques qui vivaient en style en ligne,
+           dispersees entre 10 et 12px et quatre approches, tombent ici
+           sur une seule valeur. Toutes ses proprietes passent par des
+           jetons : la hierarchie se regle depuis globals.css. */
+        .note-rubrique {
+          font-family: var(--sans);
+          font-size: var(--note-size-h4);
+          font-weight: 600;
           letter-spacing: var(--note-tracking-h4);
+          text-transform: uppercase;
           color: var(--ink-tertiary);
         }
 

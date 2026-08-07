@@ -57,7 +57,7 @@ export function BandeauGouvernance({ conflictOfInterest }: BandeauGouvernancePro
         fontFamily: 'var(--serif)',
       }}
     >
-      <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7a2916', fontWeight: 600, marginBottom: 8 }}>
+      <div  className="note-rubrique" style={{ color: '#7a2916', marginBottom: 8 }}>
         Alerte gouvernance · Conflit d&apos;intérêt détecté
       </div>
       {byKind['self-deal'].length > 0 && (

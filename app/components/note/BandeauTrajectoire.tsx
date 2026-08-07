@@ -65,7 +65,7 @@ const b = banner;
         fontFamily: 'var(--serif)',
       }}
     >
-      <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: palette.ink, fontWeight: 600, marginBottom: 8 }}>
+      <div  className="note-rubrique" style={{ color: palette.ink, marginBottom: 8 }}>
         Alerte trajectoire · Cran {b.cran}
         {b.additionalCriticalCount > 0 && (
           <span style={{ marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>

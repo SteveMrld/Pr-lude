@@ -68,7 +68,7 @@ const refutations = aggregateRefutations(result, {
         fontFamily: 'var(--serif)',
       }}
     >
-      <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 8 }}>
+      <div  className="note-rubrique" style={{ color: '#6b5b3a', marginBottom: 8 }}>
         Points de vigilance internes · {refutations.length} contradiction{refutations.length > 1 ? 's' : ''} détectée{refutations.length > 1 ? 's' : ''}
       </div>
       <p style={{ fontSize: 12, lineHeight: 1.55, margin: 0, marginBottom: 10, fontStyle: 'italic', opacity: 0.75 }}>
@@ -77,7 +77,7 @@ const refutations = aggregateRefutations(result, {
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {refutations.map((rf, i) => (
           <li key={i} style={{ marginBottom: i < refutations.length - 1 ? 12 : 0, paddingBottom: i < refutations.length - 1 ? 12 : 0, borderBottom: i < refutations.length - 1 ? '1px dashed rgba(107, 91, 58, 0.25)' : 'none' }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b5b3a', fontWeight: 600, marginBottom: 4, opacity: 0.85 }}>
+            <div  className="note-rubrique" style={{ color: '#6b5b3a', marginBottom: 4, opacity: 0.85 }}>
               {familyLabels[rf.family] || rf.family}
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 3 }}>
