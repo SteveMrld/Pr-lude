@@ -120,6 +120,15 @@ export interface PreScanTest {
    * `incident` quand le modele devait rendre le test et ne l a pas fait.
    */
   nonProductionCause?: NonProductionCauseOrNull;
+  /**
+   * Ce que le modele a declare dans le champ de cause, avant que le code
+   * ne tranche, ou null s il n a rien declare. Le champ existe pour que
+   * la difference entre la declaration et la decision soit mesurable :
+   * une declaration de `doctrine` est refusee, et sans cette trace le
+   * refus ne se compterait pas. Ce n est pas une entree de calcul, aucun
+   * consommateur ne doit la lire pour decider.
+   */
+  causeDeclaree?: string | null;
 }
 
 export interface PreScanOutput {
@@ -415,7 +424,7 @@ export function assemblerPreScan(
   // discipline du modele a respecter une liste.
   const testsDeJugement = (Array.isArray(parsed.tests) ? parsed.tests : [])
     .filter(t => t && typeof t.id === 'string' && TESTS_DE_JUGEMENT.includes(t.id))
-    .map(t => ({ ...t, nonProductionCause: null as NonProductionCauseOrNull }));
+    .map(normaliserCauseDeclaree);
 
   const facts = normaliserFacts(parsed.dossierFacts);
   const comparaisons = evaluerComparaisons(
@@ -499,9 +508,17 @@ export function assemblerPreScan(
     estimatedCostUsd,
     usedFundProfile: !!fundProfile,
     dossierFacts: facts,
+    // Le repli tombait sur `absence`, du cote qui ne demande aucune
+    // reparation : une panne dont la cause n avait pas ete posee sortait
+    // en donnee manquante et ne remontait pas. Il tombe desormais du
+    // cote qui accuse le pipeline plutot que le dossier, et il est
+    // inerte depuis que la normalisation pose la cause a l entree. Un
+    // repli qu on ne peut se permettre de laisser faux ne se choisit pas
+    // par ce qui arrange, il se choisit par ce qu il coute quand il se
+    // trompe.
     notProducedTests: nonProduits.map(t => ({
       id: t.id,
-      cause: t.nonProductionCause ?? 'absence',
+      cause: t.nonProductionCause ?? 'incident',
     })),
     hasProductionIncident: incidents.length > 0,
     nonProductionReason: null,
@@ -526,6 +543,57 @@ const NOMS_ATTENDUS: Record<string, string> = {
   ticket_fit: 'Gamme de tickets',
   stage_fit: 'Stade investi',
 };
+
+/**
+ * Range la cause de non-production d un test rendu par le modele.
+ *
+ * PREMIER TEMPS, CESSER D ECRASER. La forme precedente posait `null`
+ * sur tous les tests du modele, ce qui cloue le canal : un test rendu
+ * `not_produced` perdait sa cause avant que quiconque puisse la lire,
+ * et le repli de sortie la rattrapait en `absence`, c est-a-dire du
+ * cote qui ne demande aucune reparation. Une panne se presentait au
+ * lecteur comme une donnee manquante, ce qui est exactement le patron
+ * que le vocabulaire de non-production a ete ecrit pour fermer. La
+ * valeur est desormais lue, contrainte aux trois causes, et repliee sur
+ * `incident` : quand on ne sait pas, la chose reste due a quelqu un.
+ *
+ * SECOND TEMPS, DOCTRINE NE S ACCORDE PAS SUR DECLARATION. `incident`
+ * et `absence` declarent un manque et coutent quelque chose a qui les
+ * declare, puisque le fait remonte et que le test reste du. `doctrine`
+ * declare que la question ne se posait pas, retire le test du
+ * denominateur, et ne coute rien. Un etat gratuit qui libere d une
+ * obligation est atteint par le chemin le moins couteux, et le chemin
+ * le moins couteux est de le declarer. Ce n est pas une hypothese sur
+ * la loyaute du modele, c est une propriete du dispositif : rien dans
+ * sa sortie ne distinguerait la dispense legitime de la dispense de
+ * confort. La doctrine se derive cote code, comme l archetype du moteur
+ * de coherence financiere se derive de la matrice de pertinence, et
+ * aucune regle du pre-scan n en derive aujourd hui. Une declaration de
+ * `doctrine` est donc refusee et retombe sur `incident`.
+ *
+ * La declaration brute est conservee a cote de la decision plutot que
+ * jetee. C est ce qui rendra mesurable, au premier run, la frequence a
+ * laquelle le modele demande a etre dispense, alors qu aucun prompt ne
+ * lui offre ce champ. Jeter la declaration rendrait la question
+ * inposable, et une garde dont on ne peut pas mesurer le declenchement
+ * ne se distingue pas d une garde inerte.
+ */
+function normaliserCauseDeclaree(t: PreScanTest): PreScanTest {
+  const brute = (t as { nonProductionCause?: unknown }).nonProductionCause;
+  const declaree = typeof brute === 'string' ? brute : null;
+
+  // Un test qui a rendu un verdict n a pas de cause, quoi qu il en
+  // dise. La cause repond a la question de savoir pourquoi rien n a ete
+  // produit, et il a produit.
+  if (t.status !== 'not_produced') {
+    return { ...t, nonProductionCause: null, causeDeclaree: declaree };
+  }
+
+  const cause: NonProductionCauseOrNull = declaree === 'absence' || declaree === 'incident'
+    ? declaree
+    : 'incident';
+  return { ...t, nonProductionCause: cause, causeDeclaree: declaree };
+}
 
 /**
  * Un test attendu que rien n a produit. En pratique un test de jugement

@@ -1076,6 +1076,46 @@ regularite a remarquer. La visibilite d un defaut de repli est donc
 inverse de sa gravite, et c est une raison de plus de ne jamais choisir
 la valeur, mais de faire voyager l absence.
 
+## Un etat qui dispense de repondre ne s accorde pas sur declaration
+
+Quand un dispositif accorde a un producteur un statut qui le libere
+d une obligation, ce statut ne se prend jamais sur sa parole. Il se
+derive d une propriete que le producteur ne controle pas, et le code le
+decide.
+
+La regle est nee le 7 aout 2026 de l ouverture du canal de cause du
+pre-scan, et elle vaut bien au-dela de ce champ. Le vocabulaire de
+non-production porte trois valeurs, et elles ne se valent pas devant
+cette question. `incident` et `absence` declarent un manque : les
+declarer coute quelque chose a celui qui les declare, puisque le fait
+remonte et que le test reste du a quelqu un. `doctrine` declare que la
+question ne se posait pas, et il retire le test du denominateur, donc
+il dispense de repondre sans rien couter.
+
+Un modele autorise a repondre « cette question ne se pose pas » peut
+s en servir pour se dispenser de repondre, et rien dans sa sortie ne
+distinguera la dispense legitime de la dispense de confort. Ce n est
+pas une hypothese sur sa loyaute, c est une propriete du dispositif :
+un etat gratuit qui libere d une obligation sera atteint par le chemin
+le moins couteux, et le chemin le moins couteux est de le declarer.
+
+La sortie n est pas de refuser l etat, qui est necessaire, ni de le
+detecter apres coup, ce qui demanderait de juger la sincerite. Elle est
+de le faire decider ailleurs. Le moteur de coherence financiere en
+donne la forme juste depuis longtemps : l archetype economique se
+derive de la matrice de pertinence, cote code, et c est lui qui decide
+quels tests ne s appliquent pas ; le modele n a jamais le droit de
+declarer qu un test le concerne pas. Le chantier du genre de document
+reprend exactement ce partage, le genre choisissant la grille plutot
+que le modele choisissant test par test.
+
+Le critere se pose devant tout statut a accorder : que coute-t-il a
+celui qui le demande, et que lui epargne-t-il. Quand la reponse est
+rien et beaucoup, le statut ne se declare pas, il se derive. Et quand
+aucune propriete observable ne permet de le deriver, il vaut mieux ne
+pas l offrir du tout que l offrir sur parole, parce qu un denominateur
+que le producteur peut reduire lui-meme n est plus un denominateur.
+
 ## Une valeur par defaut ne peut pas appartenir aux statuts de lacune
 
 Quand un dispositif fabrique une valeur faute de l avoir mesuree, cette
