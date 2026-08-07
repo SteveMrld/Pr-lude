@@ -1,0 +1,8 @@
+{
+  "//": "Config du harnais de rendu hors Next (scripts/note-snapshot.ts). Le projet compile en jsx=preserve parce que Next applique sa propre transformation avec le runtime automatique, si bien que plusieurs composants utilisent JSX sans importer React. Sous tsx, preserve retombe sur le runtime classique et ces composants levent 'React is not defined' : cinquante notes sur cinquante-sept echouaient pour cette seule raison, ce qui est un defaut du harnais et non de la note. Cette config force le runtime automatique pour le harnais seul, sans toucher au build.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
+}
