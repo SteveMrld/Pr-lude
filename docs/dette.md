@@ -2897,3 +2897,63 @@ La reference de style a donc ete capturee avec ces regles presentes.
 C'est deliberé et sans consequence : elles sont inertes, leur presence
 dans la reference ne masque aucun deplacement, et leur retrait ulterieur
 se lira comme un ecart nomme.
+
+---
+
+## Ce qu'un controle de l'export PDF demanderait, et ce qu'il couvrirait
+
+Ecrit le 7 aout 2026, sans construire l'outil, pour que la decision se
+prenne plus tard sur un chiffre plutot qu'a l'intuition. Le lot 3 du
+chantier de decoupage, l'export PDF, ne commence pas : la verification
+n'existe pas et le PDF est le document montre aux fonds.
+
+**Pourquoi les deux gardes actuelles n'y suffisent pas.** Le harnais de
+corpus compare du HTML rendu par `renderToStaticMarkup`, styles retires,
+sans navigateur. Le controle de conservation compare des regles dans du
+texte source. Un PDF n'est ni l'un ni l'autre : il est le produit d'un
+moteur de mise en page qui applique la cascade, resout les polices,
+calcule des sauts de page et rasterise. Aucune propriete que nos deux
+instruments mesurent ne contraint ce que ce moteur produit.
+
+**Ce qu'un controle demanderait, par ordre de cout croissant.**
+
+Le premier etage est un rendu reel : lancer l'application, ouvrir une
+note en mode impression, produire un PDF par pilotage de navigateur.
+C'est la seule facon d'obtenir l'objet qu'on veut controler. Il faut un
+navigateur sans tete dans la chaine, un serveur qui tourne, et un jeu de
+notes representatif.
+
+Le deuxieme etage est la comparaison, et c'est la que le cout se decide.
+Comparer deux PDF octet pour octet ne marche pas : ils portent des
+horodatages et des identifiants de generation, et deux executions du
+meme rendu different. Comparer le texte extrait est robuste et faible :
+cela attrape une section disparue, un chiffre change, un ordre inverse,
+et cela ne voit ni la mise en forme ni la pagination, c'est-a-dire
+exactement ce que le lot 3 risque de casser. Comparer les images page a
+page, avec un seuil de difference de pixels, voit tout, y compris ce
+qu'on ne voulait pas voir : un rendu de police legerement different
+entre deux machines rend rouge sans defaut.
+
+**Ce que chaque etage couvrirait vraiment.** Le texte extrait couvre le
+contenu et l'ordre, donc la classe de defauts ou une section sort vide
+ou disparait. La comparaison d'images couvre la mise en forme et la
+pagination, donc la classe ou une regle perdue fait deborder un tableau
+ou coupe un titre de sa section. La premiere se paie une fois et se
+maintient seule ; la seconde demande une machine de reference, faute de
+quoi son taux de faux positifs la rend inutilisable, et c'est ce point
+qui decide plutot que le temps d'ecriture.
+
+**Estimation, marquee comme telle puisqu'elle n'est pas confrontee.**
+Une demi-journee pour l'etage texte, en reutilisant le corpus deja
+capture. Deux a trois jours pour l'etage image, dont l'essentiel n'est
+pas le code mais l'etablissement d'une reference stable et la mesure de
+son bruit. La question a trancher n'est donc pas quel outil ecrire, mais
+si le lot 3 vaut trois jours de garde ; et la reponse depend de combien
+le PDF diffère du HTML aujourd'hui, ce que personne n'a mesure.
+
+**La mesure prealable qui coute une heure.** Avant de decider, produire
+le PDF d'une note et le comparer a l'oeil au rendu HTML de la meme note.
+Si les deux se ressemblent, l'etage texte suffit et le lot 3 devient
+abordable. S'ils different beaucoup, c'est que le PDF a sa propre chaine
+de mise en forme, et alors l'etage image est necessaire et le lot 3
+attend.
