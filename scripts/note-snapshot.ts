@@ -90,13 +90,39 @@ async function fetchNotes(): Promise<Array<{ id: string; company_name: string; r
  */
 function rendre(result: any): { html: string; erreur: string | null } {
   try {
-    const html = renderToStaticMarkup(
+    const brut = renderToStaticMarkup(
       React.createElement(InvestmentNoteView as any, { result, printMode: true }),
     );
-    return { html, erreur: null };
+    return { html: sansBlocsDeStyle(brut), erreur: null };
   } catch (e: any) {
     return { html: '', erreur: String(e?.message ?? e).slice(0, 400) };
   }
+}
+
+/**
+ * Retire les blocs `<style>` du HTML avant comparaison.
+ *
+ * Sans cela, les deux controles se marchent dessus. Une extraction qui
+ * emporte ses regles CSS deplace un bloc de style du parent vers
+ * l enfant, ce que ce harnais voit comme une divergence de balisage sur
+ * la totalite du corpus : la premiere extraction porteuse de style a
+ * rendu cinquante-six divergences de vingt-deux octets, toutes dues au
+ * seul deplacement du bloc, aucune a un changement de contenu.
+ *
+ * Le partage est donc explicite. Ce harnais repond de la structure du
+ * document ; `style-conservation.ts` repond des regles, et lui seul.
+ * Le bloc est retire et non remplace par un marqueur : marquer aurait
+ * laisse le NOMBRE de blocs comparable, et une extraction porteuse de
+ * style en ajoute un par construction, ce qui aurait rendu cinquante-six
+ * divergences de huit octets pour la meme raison exactement.
+ *
+ * Un bloc de style qui disparaitrait entierement n echappe pas au
+ * controle, il echappe a CE controle, et l autre le voit comme une
+ * regle perdue. La mutation le verifie : vider le bloc de PiedDeNote
+ * rend `PERDUE .note-footer` du cote de style-conservation.
+ */
+function sansBlocsDeStyle(html: string): string {
+  return html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '');
 }
 
 function empreinte(s: string): string {
