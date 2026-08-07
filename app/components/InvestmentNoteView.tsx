@@ -22,6 +22,7 @@ import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralRadar } from './note/SectoralRadar';
 import { BandeauGouvernance } from './note/BandeauGouvernance';
 import { PiedDeNote } from './note/PiedDeNote';
+import { ProvenanceDuRun } from './note/ProvenanceDuRun';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -4500,31 +4501,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           consultation), score global (rappel), status du run derive de
           pipelineEnginesStatus quand disponible. Absent (tiret) si la
           donnee n a pas ete tracee, doctrine brique 4. */}
-      <div className="note-run-provenance" aria-label="Provenance du run">
-        <div className="note-run-provenance-title">Provenance du run</div>
-        <dl className="note-run-provenance-list">
-          <div className="note-run-provenance-row">
-            <dt>analysisId</dt>
-            <dd className="mono">{analysisId || '—'}</dd>
-          </div>
-          <div className="note-run-provenance-row">
-            <dt>commitSha</dt>
-            <dd className="mono">{runCommitShaShort || '—'}</dd>
-          </div>
-          <div className="note-run-provenance-row">
-            <dt>analyzedAt</dt>
-            <dd className="mono">{runAnalyzedAtIso || '—'}</dd>
-          </div>
-          <div className="note-run-provenance-row">
-            <dt>score</dt>
-            <dd className="mono">{runScore != null ? `${runScore}/100` : '—'}</dd>
-          </div>
-          <div className="note-run-provenance-row">
-            <dt>status</dt>
-            <dd className="mono">{runStatusDerived}</dd>
-          </div>
-        </dl>
-      </div>
+      <ProvenanceDuRun
+        analysisId={analysisId}
+        commitShaCourt={runCommitShaShort}
+        analyzedAtIso={runAnalyzedAtIso}
+        score={runScore}
+        statut={runStatusDerived}
+      />
 
       <PiedDeNote />
 
@@ -7251,51 +7234,6 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            distinguer immediatement les identifiants machine des valeurs
            editoriales de la note. Fond legerement teinte pour separer
            visuellement du corps sans crier. */
-        .note-run-provenance {
-          margin-top: 40px;
-          padding: 14px 18px;
-          background: var(--hairline-soft);
-          border: 1px solid var(--hairline);
-          border-radius: 6px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        .note-run-provenance-title {
-          font-size: 9.5px;
-          font-weight: 600;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: var(--ink-tertiary);
-          margin-bottom: 8px;
-        }
-        .note-run-provenance-list {
-          margin: 0;
-          padding: 0;
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 4px;
-        }
-        .note-run-provenance-row {
-          display: grid;
-          grid-template-columns: 110px 1fr;
-          gap: 12px;
-          font-size: 11px;
-          line-height: 1.5;
-        }
-        .note-run-provenance-row dt {
-          font-weight: 500;
-          color: var(--ink-tertiary);
-          letter-spacing: 0.04em;
-        }
-        .note-run-provenance-row dd {
-          margin: 0;
-          color: var(--ink);
-        }
-        .note-run-provenance-row .mono {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          font-size: 10.5px;
-          letter-spacing: 0;
-          word-break: break-all;
-        }
 
         /* COLOPHON - Footer stylé comme un colophon d'article. Filet horizontal,
            texte centré en sans-serif uppercase, deux lignes courtes. */
