@@ -389,7 +389,33 @@ ul, ol { list-style: none; }
   font-weight: var(--note-weight-h4);
   letter-spacing: var(--note-tracking-h4);
   text-transform: uppercase;
-  color: var(--ink-tertiary);
+  color: var(--ink-tertiary, var(--muted));
+}
+
+/* L encre porte un repli, parce que le jeton et la regle ne vivent pas
+   au meme endroit. `--ink-tertiary` n est declare nulle part dans cette
+   feuille : il appartient a la palette locale de `.investment-note`,
+   dans un bloc styled-jsx. Les rubriques rendues sous la note en
+   heritent, ce qui marche aujourd hui et masque la dependance. Une
+   rubrique rendue hors de la note recevrait une declaration invalide,
+   donc une couleur heritee, et rien ne le dirait.
+
+   Le repli tombe sur `--muted`, qui porte la meme valeur en clair et
+   qui, lui, suit le theme. La regle globale cesse ainsi de dependre
+   d un jeton scope a un composant, et c est le meme deplacement que
+   celui qui a sorti la rubrique de son bloc styled-jsx. */
+
+/* Un niveau 3 qui NOMME un bloc porte l encre principale ; un niveau 3
+   qui le qualifie ou le legende garde l encre tertiaire. Sans ce
+   partage, un titre d axe rendu a cote de son verdict colore passait
+   au second plan derriere ce qu il annonce, ce qui inverse la
+   hierarchie que le niveau est cense poser.
+
+   Le modificateur suit la rubrique dans la feuille : les deux
+   selecteurs ont la meme specificite, donc c est l ordre qui tranche,
+   et un titre place avant serait muet. */
+.note-rubrique-titre {
+  color: var(--ink);
 }
 
 /* Le h4 est la meme chose que la rubrique, avec le rythme vertical
@@ -406,7 +432,7 @@ ul, ol { list-style: none; }
   font-weight: var(--note-weight-h4);
   letter-spacing: var(--note-tracking-h4);
   text-transform: uppercase;
-  color: var(--ink-tertiary);
+  color: var(--ink-tertiary, var(--muted));
   margin-top: var(--note-rhythm-h4-top);
   margin-bottom: var(--note-rhythm-h4-bot);
 }

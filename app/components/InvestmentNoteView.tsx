@@ -2665,7 +2665,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   if (!a || a.verdict === 'non-applicable') {
                     return (
                       <div key={axis.key} style={{ marginBottom: 14, paddingLeft: 12, borderLeft: '2px solid rgba(168, 116, 58, 0.2)' }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{axis.label}</div>
+                        <div className="note-rubrique note-rubrique-titre">{axis.label}</div>
                         <div style={{ opacity: 0.6, fontSize: 13, marginTop: 4 }}>Non applicable sur ce dossier (corpus ou baseline insuffisant).</div>
                       </div>
                     );
@@ -2680,7 +2680,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   return (
                     <div key={axis.key} style={{ marginBottom: 14, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{axis.label}</div>
+                        <div className="note-rubrique note-rubrique-titre">{axis.label}</div>
                         <div className="note-rubrique" style={{ color: tone }}>{a.verdict.replace('-', ' ')}</div>
                         <div style={{ fontSize: 12, opacity: 0.6 }}>{a.score}/100 · confiance {a.confidence}/100</div>
                       </div>
@@ -2987,7 +2987,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     </div>
                     {fs.combinaisons.map((comb: any, i: number) => (
                       <div key={i} style={{ marginBottom: i < fs.combinaisons.length - 1 ? 10 : 0 }}>
-                        <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                        <div className="note-rubrique note-rubrique-titre" style={{ marginBottom: 4 }}>
                           {comb.nom}
                           <span className="note-rubrique" style={{ marginLeft: 8, opacity: 0.7 }}>
                             {comb.severite.replace('-', ' ')}
@@ -3092,7 +3092,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       return (
                         <div key={patternId} style={{ marginBottom: 12, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                            <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
+                            <div className="note-rubrique note-rubrique-titre">{label}</div>
                             <div className="note-rubrique" style={{ color: tone }}>{p.verdict.replace('-', ' ')}</div>
                             <div style={{ fontSize: 12, opacity: 0.6 }}>{p.globalScore}/100</div>
                           </div>
