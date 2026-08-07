@@ -2588,3 +2588,67 @@ chaque run lance sans lui produit une ligne de plus qui ne se segmentera
 jamais, et le corpus de cinquante-sept analyses muettes s allonge d autant.
 Un correctif dont le retard coute une donnee irrecuperable passe devant les
 chantiers dont le retard ne coute que du temps.
+
+---
+
+## Mesures programmees : ce que le prochain run etablira, sans qu il soit a lancer pour cela
+
+Ecrit le 7 aout 2026, au terme de la sequence sur l assiette du score de
+coherence et le canal de cause du pre-scan. Cette section n est pas une
+dette et elle est placee ici pour qu on cesse de la lire comme telle. Une
+mesure qui attend son occasion et un travail non fait se ressemblent dans
+un registre, puisque les deux s ecrivent au futur ; les confondre a un
+cout precis et unilateral, celui de lancer un run pour rien. Un run coute
+trois a quatre dollars et demi, dix minutes de calcul et la demi-heure de
+lecture qui les suit, et le goulet est cette derniere.
+
+Les trois qui suivent partagent la meme propriete : le correctif est
+ecrit, verrouille par des tests, et il ne peut plus produire le defaut.
+Ce qui manque n est pas du travail, c est une occasion d observer. Elles
+se relevent donc sur le prochain run lance pour une autre raison, et
+aucune ne justifie d en lancer un.
+
+**Le taux de la propriete d assiette tombera, et c est ce qui se
+verifiera.** `assiette-coherence-sans-valeur-fabriquee` rend aujourd hui
+vingt-six violations sur les quarante notes portant le moteur, soit
+soixante-cinq pour cent. Ce solde est integralement historique : depuis
+le correctif, tout test applicable non rendu porte une cause de
+non-production, donc le code ne peut plus produire de violation. Ce que
+le prochain run etablit n est pas une amelioration du taux, qui est
+acquise par construction, mais que la propriete lit bien le contrat neuf
+sans le prendre pour une violation. Une note posterieure qui rougirait
+signalerait que la propriete et le code ne parlent pas du meme objet, ce
+qu aucun test ne peut montrer puisque les deux ont ete ecrits ensemble.
+Le releve utile est donc segmente par empreinte et non global, et une
+seule note recente suffit a le rendre.
+
+**La frequence a laquelle le modele demande a etre dispense n est pas
+connue, et le champ pour la connaitre existe.** `causeDeclaree` conserve
+ce que le modele a ecrit dans le champ de cause du pre-scan, avant que le
+code ne tranche. Aucun prompt ne lui offre ce champ, donc l hypothese
+raisonnable est qu il n en produise jamais. Ce que le releve etablira est
+lequel des deux cas est vrai, et ils appellent des suites opposees : si
+le champ reste vide sur tous les tests, le refus de `doctrine` est une
+garde qui ne se declenche pas, et il faudra dire qu elle est inerte
+plutot que la compter comme une protection ; si le modele produit une
+cause sans qu on la lui demande, la question devient celle de savoir ce
+qu il produirait si on la lui demandait, et le second temps du chantier
+s ouvre pour de bon. C est la seule des trois qui peut changer un
+arbitrage.
+
+**Le cas d assiette vide n a jamais ete observe en production sous le
+contrat neuf.** Le code rend desormais `globalCoherenceScore` a null
+quand aucun test applicable n a rendu, et le score-calculator le classe
+en `sous-champs-absents` plutot que de l imputer au dossier. Les
+assertions couvrent le chemin, la mutation prouve qu elles le cherchent,
+et une note du 8 juin etablit que le cas se produit vraiment. Ce que le
+run etablira est ce que la note imprime alors, c est-a-dire si la prose
+de la synthese et le rendu du dashboard disent la meme chose que le
+calcul. C est le seul point de la sequence qu aucun test ne peut couvrir,
+parce qu il porte sur ce qu un partner lit et non sur ce qu une fonction
+rend.
+
+La regle qui les rassemble se formule sans elles. Une mesure programmee
+declare ce qu elle etablira et ce qu elle ne pourra pas etablir, et elle
+declare surtout qu elle ne justifie pas un run a elle seule. Trois
+mesures qui attendent la meme occasion coutent une occasion, pas trois.

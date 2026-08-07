@@ -1212,31 +1212,62 @@ Ce que la variante `read -r` ne resout pas se dit aussi : elle ecrit le
 meme fichier sur le disque, elle protege l historique et pas le
 support.
 
-Un dernier point, et il ne se voit qu une fois le correctif pose. Le
-premier des trois controles etait ecrit « la configuration ne doit rien
-rendre », ce qui a cesse d etre juste au moment ou il est devenu vrai.
-Le helper global a ete retire le 7 aout, mais Pr-lude porte depuis le
-2 aout une ligne locale a valeur vide, qui n est pas un helper : c est
-ce qui remet la liste des helpers a zero. Le controle rend donc une
-ligne, et cette ligne est exactement l inverse de ce qu il cherche. Un
-controle qui ne distingue pas un mecanisme de sa neutralisation les
-compte tous les deux, et il se trompe dans le sens de l alarme un jour
-et dans le sens du silence le lendemain. Ce qui se verifie est la liste
-des valeurs non vides, qui doit etre vide, et non la sortie de la
-commande. La formulation qui compte des lignes se remplace par celle
-qui interroge l objet, ce qui est la discipline de mesure prise sur un
-fichier de configuration.
+Le premier des trois controles a d ailleurs donne, en se fermant, un
+defaut d une autre nature, qui a sa section propre juste en dessous.
+
+## Un controle se formule sur ce qu il refuse, pas sur ce qu il attend
+
+Un controle ecrit sur l absence de quelque chose confond ce qui a ete
+retire avec ce qui a ete neutralise. Les deux etats sont opposes et il
+ne les distingue pas, donc il alarme un jour sans raison, et le jour ou
+il alarme personne ne saura pourquoi, puisque son enonce ne dit pas ce
+qu il refuse.
+
+Le cas est du 7 aout 2026 et il s est produit au moment ou le controle
+devenait vrai, ce qui est ce qu il a de remarquable. Le premier des
+trois points du controle des identifiants etait ecrit « la configuration
+ne doit rien rendre ». Le helper global a ete retire ce jour-la, donc
+l objet du controle a disparu. Mais Pr-lude porte depuis le 2 aout une
+ligne locale `credential.helper` a valeur vide, qui n est pas un helper :
+c est le mecanisme qui remet la liste des helpers a zero. La commande
+rend donc une ligne, le controle rougit, et cette ligne est exactement
+l inverse de ce qu il cherche. La protection y est comptee comme la
+menace.
+
+La faute est dans la forme de l enonce et non dans son objet. « Ne doit
+rien rendre » est une propriete de la sortie d une commande, pas une
+propriete du monde. Elle se verifie sans qu on ait jamais eu a dire ce
+qui serait fautif, ce qui parait economique et ne l est pas : le jour ou
+elle echoue, il n existe nulle part de definition a relire pour savoir
+si l echec est reel. « Aucune valeur non vide de `credential.helper` »
+nomme ce qui est refuse, se lit sans contexte, et laisse passer sans y
+penser tout ce qui n est pas un helper, y compris ce qui n existait pas
+le jour ou la regle a ete ecrite.
+
+C est la meme exigence que celle du perimetre qui declare pourquoi il
+s arrete la ou il s arrete, prise du cote de l enonce plutot que du cote
+de la liste. Un controle qui nomme ce qu il refuse se conteste sur le
+critere ; un controle qui constate une absence ne se conteste pas, il se
+subit.
+
+En pratique, devant tout controle a ecrire, refuser la forme negative
+sur une sortie. Non pas « la commande ne rend rien », mais « aucune
+valeur ne satisfait telle propriete ». Non pas « le champ est absent »,
+mais « aucune valeur du champ n appartient a tel ensemble ». La
+reformulation coute une phrase, et elle est ce qui distingue un controle
+qu on pourra debrancher en connaissance de cause d un controle qu on
+debranchera par lassitude.
 
 ## Une valeur par defaut fausse se trompe du cote qui accuse
 
 Une valeur fabriquee faute de mesure ne se trompe pas au hasard. Elle
 se trompe du cote severe, et la raison n est pas technique : elle est
 ecrite par quelqu un qui se protege d une absence et non d une
-injustice. Au moment de choisir, la question presente a l esprit est
-« que se passe-t-il si le champ est vide », jamais « que se passe-t-il
-si ce que j ecris est faux pour quelqu un ». La premiere question a un
-symptome immediat, un rendu casse, un calcul qui leve. La seconde n en
-a aucun, puisque le resultat sera plausible.
+injustice. Au moment de choisir, la question presente a l esprit est ce
+qui se passe si le champ est vide, jamais ce que la valeur affirme si
+elle est fausse. La premiere a un symptome immediat, un rendu casse, un
+calcul qui leve. La seconde n en a aucun, puisque le resultat sera
+plausible.
 
 La semaine du 3 aout 2026 en a donne trois occurrences sur trois
 moteurs sans rapport, ce qui en fait un motif et non une serie. Le
@@ -1260,10 +1291,10 @@ note qui reproche a un fonds de n avoir pas fourni un document qu il a
 fourni est inmontrable, et elle jette le doute sur les quarante pages
 qui l accompagnent, y compris celles qui ont raison.
 
-La sortie n est pas de choisir l autre cote, ce qui reproduirait la
-faute en masquant de vraies pannes. Elle est de sortir du vocabulaire de
-l accusation, ce qui demande d ordinaire un etat de plus et non un
-arbitrage entre les etats existants : `inconnu` a cote des statuts de
+La sortie n est pas de basculer le repli, ce qui deplacerait la faute
+sans la retirer et masquerait de vraies pannes. Elle est de sortir du
+vocabulaire de l accusation, ce qui demande d ordinaire un etat de plus
+et non un arbitrage entre les etats existants : `inconnu` a cote des statuts de
 lacune, `sous-champs-absents` a cote de `donnees-dossier-absentes`, une
 cause de non-production qui voyage avec la valeur plutot qu un nombre
 qui la remplace.
