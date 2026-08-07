@@ -1123,6 +1123,55 @@ Un repli qui ne peut se tromper qu en accusant doit sortir du vocabulaire
 de l accusation, et cela demande d ordinaire un etat de plus, pas un
 arbitrage entre les etats existants.
 
+## On ferme le chemin qu on soupconne, jamais celui qui a servi
+
+Un correctif de securite se pose sur le mecanisme qu on croit
+responsable. Quand ce mecanisme n est pas celui qui a agi, le correctif
+est exact, il s applique sans erreur, et il ne ferme rien. Il fait pire
+que rien, puisqu il fait cesser la recherche.
+
+Le cas est du 7 aout 2026 et il porte sur un jeton GitHub trouve en
+clair dans `~/.git-credentials`. Le diagnostic evident etait le helper
+`credential.helper store` declare dans `~/.gitconfig` : c est
+exactement ce que ce helper fait, ecrire les identifiants dans ce
+fichier. Le geste evident etait `git credential-store erase`, et il
+etait vain. Le remote est en SSH depuis le 3 aout, donc git n a jamais
+eu d identifiant a stocker et le helper ne s est jamais declenche. La
+ligne a ete ecrite a la main, d abord par `nano`, puis par une
+redirection shell, et `~/.bash_history` en garde les deux traces. Aucune
+operation git n a participe. Effacer par le canal git ne fermait donc
+pas le chemin qui avait servi, il fermait celui qu on soupconnait.
+
+C est la meme dissymetrie que la mesure faite sur la mauvaise table. La
+methode etait irreprochable et l objet etait faux, si bien qu aucune
+relecture du correctif ne pouvait le reveler : il n y avait rien a
+corriger dans ce qu on lisait. La seule chose qui l a montre est de
+remonter du fichier a ce qui l a ecrit, plutot que du fichier au
+mecanisme qui aurait du l ecrire. C est le meme detour que celui qui
+consiste a lire dans le module quelle table il interroge, et il coute
+une lecture d historique.
+
+La consequence pratique est qu un controle de securite se pose sur
+l objet et non sur le canal. Ce qui se verifie est que le fichier est a
+zero octet, que la configuration ne declare aucun helper, et que
+l historique ne porte aucune ligne d ecriture vers ce fichier. Les trois
+sont independants et il faut les trois : au 7 aout, le fichier est a
+zero et l historique est purge de ses trois lignes portant le jeton,
+mais `credential.helper store` figure toujours dans `~/.gitconfig`,
+neutralise dans Pr-lude par une ligne locale et actif partout ailleurs.
+Un controle qui se serait arrete au fichier aurait rendu vert.
+
+La procedure de push documentee est unique et c est celle qui ne laisse
+pas le jeton dans l historique : le remote reste en SSH, `git push
+origin main` suffit, et si le remote repassait en HTTPS le jeton se lit
+par `read -r` dans une variable plutot que de figurer dans la commande.
+La forme `echo '<jeton>' > fichier` ne se documente pas et ne se
+recopie pas, meme revoquee, parce qu une commande qui dort dans un
+historique est a portee d un Ctrl-R et se relit comme une procedure.
+Ce que la variante `read -r` ne resout pas se dit aussi : elle ecrit le
+meme fichier sur le disque, elle protege l historique et pas le
+support.
+
 ## Discipline des regles ecrites
 
 Quand une regle est ecrite dans un commentaire, elle doit etre portee
