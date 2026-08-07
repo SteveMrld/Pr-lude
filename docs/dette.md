@@ -616,16 +616,45 @@ qu un 50 substitue et un 50 mesure sont indiscernables dans les donnees. Une
 seule note porte un test applicable a exactement 50 hors signature, ce qui
 plafonne ce cas a une note mais ne le mesure pas.
 
-**La reparation est celle que la doctrine prescrit deja.** Il n existe pas de
-nombre qui signifie absent dans une arithmetique, donc la sortie n est pas de
-mieux choisir la valeur. Un test applicable non rendu est une non-production
-de cause `incident`, au sens du vocabulaire qui existe : il sort du
+**La reparation est celle que la doctrine prescrit deja, et elle est faite le
+jour meme.** Il n existe pas de nombre qui signifie absent dans une
+arithmetique, donc la sortie n etait pas de mieux choisir la valeur. Un test
+applicable non rendu est une non-production de cause `incident` : il sort du
 denominateur comme en sort un test non applicable, il porte sa cause, et le
-score qui en resulte declare l assiette sur laquelle il a ete calcule. La
-difference avec le test non applicable doit rester lisible, l un disant que
-la question ne se posait pas et l autre qu elle est restee sans reponse, ce
-qui est la meme distinction que celle du chantier du genre prise un etage
-plus bas.
+score declare desormais l assiette sur laquelle il a ete calcule, puisque 61
+sur six tests et 61 sur quatre sont deux grandeurs differentes portant le
+meme nombre.
+
+Quatre choses ont bouge, et la troisieme n etait pas dans le diagnostic. Le
+score d un test non rendu vaut `null` plutot qu un nombre. La cause voyage
+avec lui, ce qui rend visible ce qui etait muet. L exclusion passe par un
+point unique, `peseDansAssiette`, plutot que par une condition recopiee a
+chaque site : la regle qu un test sans verdict ne pese pas a autant de
+chances d etre oubliee qu il y a d endroits qui la portent, et il n y en a
+qu un. Et l assiette vide rend `null` au lieu de zero, ce qui ferme le cas de
+la note du 8 juin, ou un zero aurait traverse l aval comme une mesure.
+
+Deux effets de bord ont ete pris dans le meme geste parce qu ils sont la meme
+faute. La substitution silencieuse de la ligne 421 disparait, un test rendu
+sans score exploitable devenant une non-production declaree plutot qu un 50
+invisible : une substitution silencieuse est le meme defaut prive de sa
+mesure, et c est ce qui la rendait plus grave que celle qu on voyait. Et le
+cas sans donnee financiere, qui ecrivait un score de zero sur chaque test
+applicable, porte desormais la cause `absence` et un score nul : un dossier
+sans business plan n a pas un modele economique note zero sur cent, il n a
+pas de note.
+
+La distinction entre les deux etats reste lisible partout, l un disant que la
+question ne se posait pas et l autre qu elle est restee sans reponse, et elle
+se lit jusque dans la synthese que le partner a sous les yeux. C est la meme
+distinction que celle du chantier du genre, prise un etage plus bas.
+
+**Le defaut est devenu une propriete**, `assiette-coherence-sans-valeur
+-fabriquee`, eprouvee sur le corpus avant d entrer : vingt-six violations sur
+quarante, zero faux positif, quatorze notes conformes qui etablissent qu elle
+ne rougit pas par defaut. Elle porte sa borne, la substitution silencieuse ne
+laissant aucune trace dans les donnees anciennes. Le solde est historique et
+le taux tombera au premier run.
 
 ---
 

@@ -1047,6 +1047,35 @@ aurait rendu en refusant de calculer, alors le repli ne protege pas, il
 fabrique. Et la garde juste ne porte pas sur la valeur mais sur la
 presence, qui doit voyager avec elle.
 
+Corollaire du 7 aout 2026, sur ce que coute exactement une valeur
+mediane, parce que l intuition se trompe sur la nature du dommage.
+
+Une valeur mediane ne biaise pas, elle comprime l echelle. Le moteur de
+coherence financiere donnait 50 a tout test que le modele n avait pas
+rendu, et le laissait dans l assiette du score. Sur les quarante notes
+qui portent le moteur, vingt-six en portaient au moins un, et le
+deplacement mesure va dans les deux sens : Annajah Motors passe de 14 a
+8 quand on retire la valeur fabriquee, Winston de 71 a 76. Elle releve
+les mauvais dossiers et abaisse les bons.
+
+C est pire qu un biais, et la difference est pratique et non
+rhetorique. Un biais se corrige d un decalage, il suffit de le mesurer
+une fois. Une compression ne se corrige d aucun decalage, puisqu elle
+deplace chaque valeur d une quantite qui depend de sa distance a la
+mediane. Elle frappe donc le plus fort exactement la ou le moteur avait
+le plus a dire, c est-a-dire sur les dossiers que le score devait
+separer, et elle ne fait rien du tout sur ceux qui etaient deja au
+milieu. Un instrument qui perd sa resolution la ou le signal est le
+plus fort n a plus de raison d etre.
+
+Le sens du deplacement porte la lecon generale. Un repli qui se trompe
+toujours dans le meme sens finit par se voir : quelqu un remarque que
+les scores sont trop hauts. Un repli qui se trompe dans les deux sens
+selon le dossier ne se voit jamais, parce qu il ne laisse aucune
+regularite a remarquer. La visibilite d un defaut de repli est donc
+inverse de sa gravite, et c est une raison de plus de ne jamais choisir
+la valeur, mais de faire voyager l absence.
+
 ## Une valeur par defaut ne peut pas appartenir aux statuts de lacune
 
 Quand un dispositif fabrique une valeur faute de l avoir mesuree, cette
