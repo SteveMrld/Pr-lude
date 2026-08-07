@@ -1215,6 +1215,44 @@ support.
 Le premier des trois controles a d ailleurs donne, en se fermant, un
 defaut d une autre nature, qui a sa section propre juste en dessous.
 
+## Un instrument annonce son denominateur, ou il mesure moins qu il ne dit
+
+Le piege du denominateur a une seconde forme, et elle porte sur
+l instrument plutot que sur l objet. Un dispositif de mesure qui echoue
+sur une partie de son corpus rend un resultat sur le reste, sans que rien
+distingue « conforme sur cinquante-sept » de « conforme sur six, les
+cinquante et un autres n ayant pas ete mesures ».
+
+Le cas est du 7 aout 2026, sur le harnais de comparaison des notes ecrit
+pour garder le chantier de decoupage. Sa premiere execution a rendu six
+notes rendues et cinquante et une en echec. La cause etait entierement
+dans l instrument : le projet compile en `jsx=preserve` parce que Next
+applique sa propre transformation, si bien que plusieurs composants
+utilisent JSX sans importer React, ce qui leve sous tsx et pas en
+production. Les cinquante et une notes etaient parfaitement saines.
+
+Ce qui rend le cas instructif est ce qui serait arrive sans le compte.
+Le harnais aurait ete branche, il aurait rendu « zero divergence » apres
+chaque extraction, et il aurait dit vrai sur six notes en donnant a lire
+cinquante-sept. Une garde qui ne mesure qu un neuvieme de son corpus est
+une garde inerte sur les huit neuviemes restants, et elle a la couleur
+d une garde complete.
+
+C est la deuxieme fois dans la semaine qu un instrument mesure moins
+qu il n annonce. La premiere portait sur `engine-stability`, qui refusait
+les moteurs hors de son perimetre par un message impossible a distinguer
+d une faute de frappe. Les deux se referment par le meme geste : un
+instrument rend son denominateur avec son resultat, et il nomme ce qu il
+n a pas pu mesurer.
+
+En pratique, trois exigences. Tout dispositif de mesure sur un corpus
+imprime combien d elements il a traites, combien ont echoue, et pourquoi.
+Un echec de l instrument se distingue d un echec de l objet, sans quoi on
+corrige le mauvais des deux. Et une execution de reference se lit avant
+d etre utilisee comme reference : le harnais ci-dessus etait
+techniquement fonctionnel des sa premiere version, et c est le compte
+imprime a cote de son resultat qui a rendu son inutilite visible.
+
 ## Un chiffre retire se retire ou il a ete pose
 
 Un nombre survit a sa retractation. Il se retient, il se cite, il se

@@ -2752,3 +2752,55 @@ propriete, que toute route de lecture appelle, plus un test qui echoue
 quand une route nouvelle lit une analyse sans passer par elle. Les
 politiques viendront ensuite, avec la bascule vers l'organisation, et
 elles seront alors une seconde ceinture et non la premiere.
+
+---
+
+## Prealable chiffre : le controle de conservation du style, et ce qu'il debloque
+
+Ecrit le 7 aout 2026, avant la premiere extraction du chantier de
+decoupage. Ce n'est pas une dette, c'est un prealable : il n'y a pas de
+travail en retard, il y a un controle qui doit exister avant un geste,
+et le geste attendra aussi longtemps qu'il faudra.
+
+**Le probleme, etabli par le precedent du depot et non suppose.**
+styled-jsx scope ses regles au composant qui les declare. Une section
+deplacee dans un composant enfant perd donc le style que le parent lui
+appliquait, et elle le perd en silence : pas d'erreur, pas de test
+rouge, une note qui sort sans mise en forme. Le depot en porte la preuve
+empirique. Quand `SectoralRadar` a ete extrait de `InvestmentNoteView`,
+ses deux classes ont du partir avec lui dans son propre bloc de style, et
+le bloc du parent n'en porte plus aucune trace.
+
+**La consequence inverse l'ordre des lots.** Le premier lot n'etait pas
+le plus facile parce qu'il ne touche qu'au CSS, il est le prealable de
+tous les autres, puisque chaque extraction ulterieure deplacera elle
+aussi des regles. Le harnais de comparaison HTML ne voit rien de ces
+deplacements : il compare des balises, sans style, et il rendrait vert
+quoi qu'on fasse aux regles. Sur ce point precis, c'est une garde inerte.
+
+**Le controle juste est moins cher que celui qu'on croyait devoir
+ecrire.** L'idee de rendre la page par Next pour capturer le style
+injecte coutait une demi-journee et restait lourde a executer apres
+chaque extraction. Or le deplacement d'une regle est une transformation
+de texte, et sa correction se verifie structurellement sans navigateur :
+le bloc de style de la note ne porte aucune interpolation, quatre cent
+douze regles et quatre cent quatre-vingt-quinze selecteurs s'en extraient
+mecaniquement. Le controle consiste alors a comparer, avant et apres,
+l'ensemble des couples selecteur-declarations sur la reunion du parent et
+de ses enfants, et a verifier que chaque regle vit desormais dans le
+composant qui rend l'element qu'elle vise. Il attrape les trois fautes
+possibles : la regle perdue, la regle dupliquee, la regle orpheline
+restee chez le parent.
+
+Estimation, et elle est marquee comme telle parce qu'elle n'a pas ete
+confrontee : une a deux heures pour le controle de conservation, contre
+la demi-journee du rendu par Next. Il ne prouve pas que le navigateur
+rend a l'identique, et il faut le dire ; il prouve qu'aucune regle n'a
+ete perdue ni orphelinee, ce qui est exactement le mode de defaillance
+d'une extraction.
+
+**Ce qu'il debloque.** Le lot du CSS, deux mille sept cent quatre-vingt
+-dix-sept lignes, soit trente-huit pour cent du fichier. Et tous les
+lots suivants, qui deplacent chacun leurs propres regles. Sans lui, la
+seule extraction verifiable serait celle d'un bloc ne portant aucune
+classe stylee, ce qui n'existe pas dans ce fichier.
