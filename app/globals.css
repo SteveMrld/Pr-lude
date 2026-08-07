@@ -418,6 +418,62 @@ ul, ol { list-style: none; }
   color: var(--ink);
 }
 
+/* ============================================================
+   NIVEAU 1 DE LA HIERARCHIE DE LA NOTE
+   ------------------------------------------------------------
+   Le titre de section descend ici pour la raison qui a fait
+   descendre la rubrique, et le releve dit ce qu elle coutait a
+   ce niveau-la. La regle vivait dans le bloc styled-jsx de
+   InvestmentNoteView ; les sections rendues par
+   NoteSectionWrapper, qui est un composant distinct bien qu il
+   vive dans le meme fichier, ne la recevaient pas. Elles
+   tombaient sur le h2 par defaut du navigateur, 1.5em de la
+   racine et gras, soit 22,5px, et leur numerotation tombait de
+   28px a la meme valeur.
+
+   Mesure sur le rendu de dix notes, avant deplacement : soixante
+   titres de section, quarante hors jeton, soit deux tiers du
+   niveau haut. Le jeton --note-size-h2 ne gouvernait qu un titre
+   sur trois, et la hierarchie posee le 7 aout ne s appliquait
+   donc pas la ou elle se lit le plus.
+
+   Le defaut ne se voyait pas parce qu il n a jamais rien casse :
+   un h2 par defaut est gras et plus gros que le corps, donc il
+   ressemblait a un titre. C est la portee, pas l apparence, qui
+   le trahit. Le controle de conservation du style ne pouvait pas
+   le rendre non plus, un composant sans bloc de style n entrant
+   pas dans son modele de portees.
+   ============================================================ */
+.note-section-title {
+  font-family: var(--serif);
+  font-size: var(--note-size-h2);
+  font-weight: var(--note-weight-h2);
+  line-height: 1.15;
+  letter-spacing: var(--note-tracking-h2);
+  padding: 0 0 var(--note-space-3) 0;
+  margin: 0 0 var(--note-rhythm-h2) 0;
+  background: transparent;
+  color: var(--ink);
+  border-bottom: 1px solid var(--ink);
+  position: relative;
+}
+
+/* La numerotation suit son titre, sans quoi le deplacement aurait
+   repare la taille et laisse le chiffre a l ecart. Son encre porte un
+   repli pour la meme raison que la rubrique : `--ink-quaternary` est
+   declare dans la palette locale de `.investment-note` et non dans
+   cette feuille. Le repli tombe sur `--muted`, qui en porte la valeur a
+   deux points pres et qui, lui, suit le theme. */
+.note-section-num {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--ink-quaternary, var(--muted));
+  margin-right: var(--note-space-3);
+  font-feature-settings: "lnum";
+}
+
 /* Le h4 est la meme chose que la rubrique, avec le rythme vertical
    d un titre autonome. La rubrique en est la forme sans marges, celle
    qui s emploie dans un tableau, un encart ou une puce, la ou l espace

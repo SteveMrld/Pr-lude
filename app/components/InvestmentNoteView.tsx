@@ -4322,28 +4322,11 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-bottom: var(--note-rhythm-section);
           position: relative;
         }
-        .note-section-title {
-          font-family: var(--serif);
-          font-size: var(--note-size-h2);
-          font-weight: var(--note-weight-h2);
-          line-height: 1.15;
-          letter-spacing: var(--note-tracking-h2);
-          padding: 0 0 var(--note-space-3) 0;
-          margin: 0 0 var(--note-rhythm-h2) 0;
-          background: transparent;
-          color: var(--ink);
-          border-bottom: 1px solid var(--ink);
-          position: relative;
-        }
-        .note-section-num {
-          font-family: var(--serif);
-          font-size: 28px;
-          font-weight: 400;
-          font-style: italic;
-          color: var(--ink-quaternary);
-          margin-right: var(--note-space-3);
-          font-feature-settings: "lnum";
-        }
+        /* .note-section-title et .note-section-num vivent desormais dans
+           globals.css. Ils ne sont pas partis pour ranger : les quatre
+           sections rendues par NoteSectionWrapper, composant distinct,
+           ne recevaient pas la regle et tombaient sur le h2 par defaut du
+           navigateur. Deux tiers du niveau haut echappaient au jeton. */
 
         /* INTRO DE SECTION - Sous-titre court qui ouvre la section et
            pose l angle de lecture. Sert d ancrage de respiration sous
