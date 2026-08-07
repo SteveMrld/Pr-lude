@@ -1215,6 +1215,53 @@ support.
 Le premier des trois controles a d ailleurs donne, en se fermant, un
 defaut d une autre nature, qui a sa section propre juste en dessous.
 
+## Un droit se lit par operation, jamais par table
+
+Une politique d acces qui ne couvre qu une operation laisse les autres
+ouvertes, et l inventaire par table ne le montre pas. « RLS active sur
+vingt-neuf tables » est une phrase vraie qui ne dit rien du droit reel,
+parce que l unite du droit est le couple table-operation et non la
+table.
+
+C est le controle formule sur l absence, pris sur les droits. Constater
+qu il ne manque rien a l inventaire ne dit pas ce qui est refuse : une
+table peut porter une politique de lecture juste et aucune politique
+d ecriture, ou l inverse, et les deux se presentent identiquement dans
+un releve qui compte les tables.
+
+Le 7 aout 2026 en a donne les deux formes en une seule mesure, et la
+seconde est celle qu aucune lecture de politique n aurait rendue.
+
+La premiere est une faute de methode que j ai commise avant de la voir.
+Pour trouver les politiques trop permissives, j ai interroge la colonne
+`qual` de `pg_policies` en cherchant celles valant `true` ou nulles. Le
+releve a rendu sept politiques dont six en INSERT avec `qual` nul, ce
+qui ressemblait a six trous. C etait faux : pour une politique INSERT,
+`qual` est nul par construction et la contrainte vit dans `with_check`.
+La mesure lisait la mauvaise colonne parce qu elle ignorait que la forme
+du droit depend de l operation, ce qui est exactement ce que la regle
+enonce. Une mesure des droits qui ne segmente pas par operation se
+trompe sur les colonnes qu elle doit lire.
+
+La seconde est ce que la mesure directe a rendu quand elle a cesse de
+lire les politiques pour interroger la base comme un navigateur le
+ferait, avec la cle publique. Quatre tables, celles qui portent le
+modele d organisation, ne repondent ni oui ni non : elles rendent une
+erreur de recursion infinie, parce que la politique de lecture de
+`organization_members` interroge `organization_members`. Elles echouent
+donc fermees, ce qui ne fuit rien, et elles n en sont pas moins mortes :
+la couche de droit sur laquelle tout le multi-fonds doit reposer ne
+s evalue pas. Aucun releve de politiques ne l aurait montre, puisque les
+politiques existent, sont bien ecrites une par une, et se comptent
+comme presentes.
+
+La regle pratique tient en deux gestes. Un releve de droits enumere les
+couples table-operation et nomme les couples sans politique, plutot que
+les tables sans politique. Et il se conclut par une interrogation reelle
+avec le role le moins privilegie, parce qu une politique juste qui ne
+s evalue pas se lit comme une politique juste. C est la difference entre
+lire ce qu on a ecrit et mesurer ce que la base fait.
+
 ## Un controle se formule sur ce qu il refuse, pas sur ce qu il attend
 
 Un controle ecrit sur l absence de quelque chose confond ce qui a ete
