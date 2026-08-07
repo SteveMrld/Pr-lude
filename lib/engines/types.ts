@@ -896,7 +896,19 @@ export interface FinancialCoherenceTest {
   testId: string;
   testName: string;
   passed: boolean;
-  score: number; // 0-100
+  /**
+   * 0-100, ou null quand le test n a pas rendu de verdict.
+   *
+   * Le null n est pas une commodite d affichage, c est la reparation du
+   * 7 aout 2026. Un test applicable que le modele n avait pas rendu
+   * recevait 50, sans drapeau, et restait dans l assiette du score : la
+   * valeur mediane entrait dans la moyenne comme une note. Elle ne
+   * biaisait pas, elle comprimait l echelle, et elle frappait le plus
+   * fort la ou le moteur avait le plus a dire. Il n existe pas de nombre
+   * qui signifie « absent » dans une arithmetique, donc l absence voyage
+   * desormais a cote de la valeur plutot que dedans.
+   */
+  score: number | null;
   evidence: string; // calcul ou observation factuelle
   benchmark: string; // standard sectoriel ou comparable
   implication: string;
@@ -909,6 +921,23 @@ export interface FinancialCoherenceTest {
    * est prise cote code a partir de matrix.assetClass et productionChain,
    * pas par le LLM. */
   notApplicable?: boolean;
+  /**
+   * Cause de non-production, au sens de `non-production.ts`. null quand
+   * le test a rendu un verdict.
+   *
+   * Elle ne remplace pas `notApplicable` et ne s y superpose pas : les
+   * deux disent des choses opposees qu il ne faut surtout pas confondre.
+   * `notApplicable` dit que la question ne se posait pas, ce qui est un
+   * resultat ; une cause `incident` dit qu elle s est posee et qu elle
+   * est restee sans reponse, ce qui est a reparer. Les deux sortent du
+   * denominateur, pour des raisons qui ne se lisent pas pareil.
+   *
+   * Champ optionnel a la lecture seulement, au titre de la
+   * non-retroactivite : les analyses anterieures au 7 aout 2026 ne le
+   * portent pas, et leur silence n est pas une reponse. En production il
+   * est toujours ecrit.
+   */
+  nonProductionCause?: NonProductionCauseOrNull;
 }
 
 /** Archetype economique du dossier, derive deterministe de la matrice
@@ -939,6 +968,18 @@ export interface FinancialCoherenceOutput {
   /** Liste des testId reellement applicables a ce dossier (sous-ensemble
    *  de T1..T7). Les autres sont neutralises cote code. */
   applicableTests?: string[];
+  /**
+   * Les testId qui ont reellement pese dans globalCoherenceScore,
+   * sous-ensemble de applicableTests. Un applicable qui n a pas rendu
+   * de verdict en est absent.
+   *
+   * L assiette sort avec le score parce qu un score qui ne la declare
+   * pas ne se compare a rien : 61 sur six tests et 61 sur quatre sont
+   * deux grandeurs differentes portant le meme nombre. Absent sur les
+   * analyses anterieures au 7 aout 2026, ou l assiette n etait pas une
+   * question posee.
+   */
+  evaluatedTests?: string[];
   tests: {
     crosseHockeySuspecte: FinancialCoherenceTest; // T1
     ratioLtvCacImplicite: FinancialCoherenceTest; // T2
@@ -948,12 +989,14 @@ export interface FinancialCoherenceOutput {
     unitEconomicsViables: FinancialCoherenceTest; // T6
     coherenceHypothesesMarche: FinancialCoherenceTest; // T7
   };
-  /** Score global 0-100. Calcule sur les tests APPLICABLES uniquement
-   *  (les tests notApplicable=true ne sont ni penalises ni bonifies).
-   *  Sur un dossier SaaS canonique (archetype A) ou tous les tests
-   *  sont applicables, le calcul est identique au comportement
-   *  historique. */
-  globalCoherenceScore: number; // 0-100
+  /** Score global 0-100, ou null quand l assiette est vide.
+   *
+   *  Calcule sur les tests applicables QUI ONT RENDU un verdict : ni
+   *  les non applicables ni les non produits n y entrent. null quand
+   *  aucun n a rendu, plutot que 0 : un zero traverse l arithmetique
+   *  aval comme une mesure, et le score-calculator neutralise deja
+   *  proprement une dimension qu il ne recoit pas. */
+  globalCoherenceScore: number | null; // 0-100
   alertesCritiques: string[];
   incoherenceDeckVsBP: string[]; // chiffres qui divergent entre les deux sources
   syntheseCoherence: string;

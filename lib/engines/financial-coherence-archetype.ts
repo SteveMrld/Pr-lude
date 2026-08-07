@@ -328,32 +328,67 @@ function buildNotApplicableReason(testId: TestId, archetype: FinancialCoherenceA
 // ============================================================
 
 /**
- * Calcule le globalCoherenceScore comme moyenne ponderee des tests
- * APPLICABLES uniquement. Les tests notApplicable=true sont exclus
- * de la moyenne (ni penalises ni bonifies). Sur un dossier SaaS
- * canonique (archetype A) ou tous les tests sont applicables, le
- * resultat est identique au calcul historique du LLM (moyenne
- * ponderee classique).
+ * Vrai quand le test pese dans l assiette du score.
  *
- * Si aucun test applicable n a de score exploitable (cas degenere),
- * retourne 0 et laisse les consommateurs aval (score-calculator)
- * decider de la neutralisation globale.
+ * Trois facons de n y pas peser, et elles ne se lisent pas pareil.
+ * `notApplicable` dit que la question ne se posait pas pour cet
+ * archetype, ce qui est un resultat. Une `nonProductionCause` dit
+ * qu elle s est posee sans reponse, ce qui est a reparer. Un score non
+ * numerique dit la meme chose sans l avoir declare, et c est le cas que
+ * la ligne 421 fabriquait en substituant 50 : la garde le rattrape ici
+ * plutot que de faire confiance a l amont.
+ *
+ * Le point de passage est unique a dessein. La regle « un test qui n a
+ * pas rendu ne pese pas » a autant de chances d etre oubliee qu il y a
+ * de sites qui la recopient, et il n y en a qu un.
+ */
+export function peseDansAssiette(test: FinancialCoherenceTest | undefined): boolean {
+  if (!test) return false;
+  if (test.notApplicable) return false;
+  if (test.nonProductionCause) return false;
+  return typeof test.score === 'number' && Number.isFinite(test.score);
+}
+
+/**
+ * Les tests qui ont reellement pese dans le score, parmi les
+ * applicables. C est l assiette, et elle sort avec le score parce
+ * qu un score qui ne declare pas son assiette ne se compare a rien.
+ */
+export function getEvaluatedTests(
+  tests: Record<string, FinancialCoherenceTest>,
+  applicableTests: TestId[],
+): TestId[] {
+  return applicableTests.filter(id => peseDansAssiette(tests[TEST_ID_TO_KEY[id]]));
+}
+
+/**
+ * Calcule le globalCoherenceScore comme moyenne ponderee des tests
+ * APPLICABLES qui ont rendu un verdict. Sur un dossier SaaS canonique
+ * (archetype A) ou tous les tests sont applicables et tous rendus, le
+ * resultat est identique au calcul historique du LLM.
+ *
+ * Retourne null quand l assiette est vide, et c est le changement du
+ * 7 aout 2026. La version precedente rendait 0, ce qui traverse
+ * l arithmetique aval comme une mesure : une note du 8 juin porte un
+ * score de 50 sur sept tests dont aucun n avait ete rendu, et rien ne
+ * distinguait ce 50 d un 50 mesure. Un score sans socle ne se produit
+ * pas, il se declare absent, et le score-calculator sait deja neutraliser
+ * une dimension qu il ne recoit pas.
  */
 export function computeGlobalCoherenceScore(
   tests: Record<string, FinancialCoherenceTest>,
   applicableTests: TestId[],
-): number {
+): number | null {
   let weightedSum = 0;
   let totalWeight = 0;
   for (const testId of applicableTests) {
-    const key = TEST_ID_TO_KEY[testId];
-    const test = tests[key];
-    if (!test || test.notApplicable) continue;
+    const test = tests[TEST_ID_TO_KEY[testId]];
+    if (!peseDansAssiette(test)) continue;
     const weight = TEST_WEIGHTS[testId];
-    weightedSum += test.score * weight;
+    weightedSum += (test!.score as number) * weight;
     totalWeight += weight;
   }
-  if (totalWeight === 0) return 0;
+  if (totalWeight === 0) return null;
   return Math.round(weightedSum / totalWeight);
 }
 

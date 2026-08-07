@@ -791,27 +791,51 @@ export function computeMechanicalScore(input: {
         );
 
   // ---------- Modele economique ----------
-  // Deux causes de non-evaluation a ne surtout pas confondre. Si le
-  // moteur Coherence financiere est tombe, la lacune est celle du
-  // pipeline et le rationale ne doit pas accuser le dossier de ne pas
-  // avoir fourni de business plan. Si le moteur a bien tourne mais que
-  // le dossier ne porte aucun BP exploitable (hasFinancialData=false,
-  // dataSource='none', ou globalCoherenceScore a 0), alors la lacune
-  // est bien cote dossier et notEvaluable la nomme.
+  // Trois causes de non-evaluation a ne surtout pas confondre, et la
+  // troisieme n existait pas avant le 7 aout 2026. Si le moteur
+  // Coherence financiere est tombe, la lacune est celle du pipeline et
+  // le rationale ne doit pas accuser le dossier de ne pas avoir fourni
+  // de business plan. Si le moteur a tourne et que le dossier ne porte
+  // aucun BP exploitable, la lacune est bien cote dossier. Si le moteur
+  // a tourne sur un dossier qui portait des donnees mais qu aucun test
+  // n a rendu de verdict, la lacune n est ni l une ni l autre : c est
+  // `sous-champs-absents`, la meme cause que pour les cinq autres
+  // dimensions, et l accuser au dossier serait fabriquer une
+  // attribution du cote severe.
   //
-  // Dans les deux cas la dimension sort de l assiette. Le neutre 50
+  // Dans les trois cas la dimension sort de l assiette. Le neutre 50
   // pondere qui existait avant ne penalisait pas le dossier mais il
   // diluait les cinq autres dimensions d un treizieme de rien.
+  //
+  // NON-RETROACTIVITE. `evaluatedTests` n existe que sur les analyses du
+  // 7 aout 2026 et posterieures, et `replay-partial` fait passer ici des
+  // sorties persistees anterieures. Sur celles-la, l assiette n etait pas
+  // une question posee et un `globalCoherenceScore` a zero signifiait
+  // « pas de donnee », puisque le stub sans BP ecrivait zero sur chaque
+  // test. La branche ancienne applique donc la regle ancienne a
+  // l identique, y compris sa confusion entre un zero mesure et un zero
+  // de remplissage, qui est la lecture juste de ces donnees-la. Elle se
+  // supprime le jour ou plus aucune analyse anterieure n est relue.
   const financialGate = engineGate('financial', input.financial, statuses);
   const financialScore = financialGate.ok
     ? realScore((input.financial as any)?.globalCoherenceScore)
     : null;
-  const financialHasDossierData = !!(
+  const assietteDeclaree = Array.isArray((input.financial as any)?.evaluatedTests);
+  const dossierPorteDesDonnees = !!(
     input.financial
     && (input.financial as any).hasFinancialData !== false
     && (input.financial as any).dataSource !== 'none'
-    && (financialScore ?? 0) > 0
   );
+  const financialHasDossierData = assietteDeclaree
+    ? dossierPorteDesDonnees
+    : !!(dossierPorteDesDonnees && (financialScore ?? 0) > 0);
+  // Sous le contrat neuf, un score absent est un moteur qui n a rien
+  // instruit et non un dossier vide. Sous l ancien, le cas est deja
+  // absorbe par `financialHasDossierData`, donc la condition est inerte
+  // et le comportement d avant est conserve.
+  const financialSansVerdict = assietteDeclaree
+    && dossierPorteDesDonnees
+    && (financialScore === null || (input.financial as any).evaluatedTests.length === 0);
   const financialDim = !financialGate.ok
     ? unevaluatedDimension('financial', financialGate.cause!, financialGate.engineStatus)
     : !financialHasDossierData
@@ -826,7 +850,9 @@ export function computeMechanicalScore(input: {
               + `Demander le business plan au fondateur avant decision finale.`,
           },
         )
-      : evaluatedDimension(
+      : financialSansVerdict
+        ? unevaluatedDimension('financial', 'sous-champs-absents', financialGate.engineStatus)
+        : evaluatedDimension(
           'financial',
           financialScore as number,
           buildFinancialRationale(financialScore as number, input.financial),

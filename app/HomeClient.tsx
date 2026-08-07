@@ -4504,7 +4504,15 @@ export default function HomeClient({
                         <div style={{ display: 'flex', gap: 24, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
                           <div>
                             <span style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6 }}>Score global cohérence </span>
-                            <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>{result.financialCoherence.globalCoherenceScore}/100</span>
+                            {/* Un score absent s ecrit comme une absence et non
+                                comme un nombre manquant devant un /100 : depuis
+                                le 7 aout 2026 le moteur rend null quand aucun
+                                test applicable n a rendu de verdict. */}
+                            <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, marginLeft: 6 }}>
+                              {typeof result.financialCoherence.globalCoherenceScore === 'number'
+                                ? `${result.financialCoherence.globalCoherenceScore}/100`
+                                : 'non produit'}
+                            </span>
                           </div>
                           <div style={{ fontSize: 12, opacity: 0.7 }}>
                             Source : {result.financialCoherence.dataSource === 'both' ? 'Pitch deck + Business plan' : result.financialCoherence.dataSource === 'bp' ? 'Business plan' : 'Pitch deck uniquement'}

@@ -35,6 +35,7 @@ import type { RelevanceMatrix } from './relevance-matrix';
 import {
   deriveArchetype,
   getApplicableTests,
+  getEvaluatedTests,
   getArchetypeLabel,
   buildNotApplicableTestStub,
   computeGlobalCoherenceScore,
@@ -328,6 +329,7 @@ export async function analyzeFinancialCoherence(
   // historique. Sur les autres archetypes, les tests neutralises
   // n entrent ni en bonus ni en malus.
   const globalCoherenceScore = computeGlobalCoherenceScore(tests as Record<string, FinancialCoherenceTest>, applicableTests);
+  const evaluatedTests = getEvaluatedTests(tests as Record<string, FinancialCoherenceTest>, applicableTests);
 
   const output: FinancialCoherenceOutput = {
     hasFinancialData: llmAnalysis.hasFinancialData ?? true,
@@ -335,6 +337,7 @@ export async function analyzeFinancialCoherence(
     archetype,
     archetypeRationale,
     applicableTests,
+    evaluatedTests,
     tests,
     globalCoherenceScore,
     alertesCritiques: llmAnalysis.alertesCritiques ?? [],
@@ -344,6 +347,7 @@ export async function analyzeFinancialCoherence(
       archetype,
       archetypeLabel,
       applicableTests,
+      evaluatedTests,
     ),
     recalculsEffectues: llmAnalysis.recalculsEffectues ?? [],
   };
@@ -374,14 +378,21 @@ function buildNoDataOutput(
   for (const testId of allTestIds) {
     const key = TEST_ID_TO_KEY[testId];
     if (applicableTests.includes(testId)) {
+      // Cause `absence` et non `incident` : la donnee financiere n existe
+      // pas dans les documents et personne n a echoue. Le score vaut null
+      // plutot que zero, parce qu un dossier sans business plan n a pas un
+      // modele economique note zero sur cent, il n a pas de note. Le zero
+      // se lisait comme le pire resultat possible la ou il fallait lire
+      // une absence de mesure.
       tests[key] = {
         testId,
         testName: TEST_LABELS[testId],
         passed: false,
-        score: 0,
+        score: null,
         evidence: 'aucune donnee financiere disponible',
         benchmark: 'N/A',
         implication: 'analyse impossible sans BP',
+        nonProductionCause: 'absence',
       };
     } else {
       tests[key] = buildNotApplicableTestStub(testId, archetype);
@@ -393,8 +404,9 @@ function buildNoDataOutput(
     archetype,
     archetypeRationale,
     applicableTests,
+    evaluatedTests: [],
     tests,
-    globalCoherenceScore: 0,
+    globalCoherenceScore: null,
     alertesCritiques: ['Aucune donnee financiere exploitable. Demander BP au fondateur avant de poursuivre l instruction.'],
     incoherenceDeckVsBP: [],
     syntheseCoherence: 'Aucune donnee financiere exploitable dans les documents fournis. La plateforme ne peut pas tester la coherence des projections. Etape obligatoire avant de poursuivre l instruction : recuperer un business plan structure du fondateur.',
@@ -402,7 +414,13 @@ function buildNoDataOutput(
   };
 }
 
-function buildFinalTests(
+/**
+ * Exportee pour etre eprouvee par la porte de production. Recopier sa
+ * logique dans un fichier de test mesurerait l accord de deux ecritures
+ * de la meme hypothese, ce qui ne prouve rien : le desaccord est le seul
+ * organe de mesure d un test.
+ */
+export function buildFinalTests(
   llmTests: Partial<FinancialCoherenceOutput['tests']> | undefined,
   applicableTests: TestId[],
   archetype: ReturnType<typeof deriveArchetype>['archetype'],
@@ -413,26 +431,44 @@ function buildFinalTests(
     const key = TEST_ID_TO_KEY[testId];
     if (applicableTests.includes(testId)) {
       const fromLlm = llmTests?.[key];
-      if (fromLlm) {
+      const scoreRendu = typeof fromLlm?.score === 'number' && Number.isFinite(fromLlm.score)
+        ? fromLlm.score
+        : null;
+      if (fromLlm && scoreRendu !== null) {
         tests[key] = {
           testId: fromLlm.testId ?? testId,
           testName: fromLlm.testName ?? TEST_LABELS[testId],
           passed: fromLlm.passed ?? false,
-          score: typeof fromLlm.score === 'number' ? fromLlm.score : 50,
+          score: scoreRendu,
           evidence: fromLlm.evidence ?? 'donnees insuffisantes pour recalcul rigoureux',
           benchmark: fromLlm.benchmark ?? 'N/A',
           implication: fromLlm.implication ?? '',
+          nonProductionCause: null,
         };
       } else {
-        // Le LLM a oublie un test applicable : placeholder neutre.
+        // Le test etait applicable et il n a pas rendu de verdict, soit
+        // que le modele l ait omis, soit qu il l ait rendu sans score
+        // exploitable. Les deux cas se traitent ensemble parce qu ils
+        // sont le meme fait, et parce que les separer a ete l erreur :
+        // le premier ecrivait un placeholder de 50 reconnaissable a sa
+        // phrase, le second substituait 50 sans laisser de trace, donc
+        // sans se laisser mesurer. Une substitution silencieuse est le
+        // meme defaut prive de sa mesure.
+        //
+        // La cause est `incident` et non `absence` : le modele devait
+        // rendre ce test, l archetype le declare applicable, il y a
+        // quelque chose a reparer et le fait doit remonter.
         tests[key] = {
           testId,
           testName: TEST_LABELS[testId],
           passed: false,
-          score: 50,
-          evidence: 'Test attendu non produit par l analyse LLM, valeur neutre par defaut.',
+          score: null,
+          evidence: fromLlm
+            ? 'Test rendu par l analyse sans score exploitable. Aucun verdict, donc hors de l assiette du score.'
+            : 'Test attendu non rendu par l analyse. Aucun verdict, donc hors de l assiette du score.',
           benchmark: 'N/A',
-          implication: 'A reverifier en DD.',
+          implication: 'A reverifier en DD. Le test n a pas pese sur le score de coherence.',
+          nonProductionCause: 'incident',
         };
       }
     } else {
@@ -455,10 +491,20 @@ function enrichSynthesisWithArchetype(
   archetype: ReturnType<typeof deriveArchetype>['archetype'],
   archetypeLabel: string,
   applicableTests: TestId[],
+  evaluatedTests: TestId[] = applicableTests,
 ): string {
   const neutralized: TestId[] = (['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'] as TestId[])
     .filter(t => !applicableTests.includes(t));
-  const archetypeLine = `Classification : ${archetypeLabel}. Tests appliques : ${applicableTests.join(', ')}.${neutralized.length > 0 ? ` Tests neutralises pour cet archetype : ${neutralized.join(', ')}.` : ''}`;
+  // Un applicable qui n a pas rendu se dit, et il se dit separement des
+  // neutralises : le partner doit pouvoir distinguer une question qui ne
+  // se posait pas d une question restee sans reponse. Sans cette ligne,
+  // un score sur quatre tests et un score sur six portent le meme nombre
+  // et se lisent pareil.
+  const nonRendus: TestId[] = applicableTests.filter(t => !evaluatedTests.includes(t));
+  const archetypeLine = `Classification : ${archetypeLabel}. Tests appliques : ${applicableTests.join(', ')}.`
+    + `${neutralized.length > 0 ? ` Tests neutralises pour cet archetype : ${neutralized.join(', ')}.` : ''}`
+    + `${nonRendus.length > 0 ? ` Tests applicables restes sans verdict, hors de l assiette du score : ${nonRendus.join(', ')}.` : ''}`
+    + `${evaluatedTests.length === 0 ? ' Aucun test n a rendu de verdict : le score de coherence n est pas produit.' : ''}`;
   // Si le LLM a deja commence par "Classification :", on remplace
   // la premiere phrase. Sinon on prefixe.
   if (/^Classification\s*:/i.test(llmSynthesis.trim())) {
