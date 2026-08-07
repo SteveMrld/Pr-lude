@@ -1215,6 +1215,47 @@ support.
 Le premier des trois controles a d ailleurs donne, en se fermant, un
 defaut d une autre nature, qui a sa section propre juste en dessous.
 
+## Un chiffre retire se retire ou il a ete pose
+
+Un nombre survit a sa retractation. Il se retient, il se cite, il se
+reprend ; la phrase qui l annule ne se retient pas. Retirer un chiffre en
+prose, dans un paragraphe, deux tours apres l avoir pose, ne le retire
+pas : cela ajoute une phrase a cote d un nombre qui continue de circuler.
+
+Le cas est du 7 aout 2026 et il s est boucle en trois tours. Une premiere
+mesure des droits avait rendu six politiques d ecriture apparemment sans
+contrainte, chiffre faux parce qu elle lisait `qual` sur des politiques
+`INSERT` ou `qual` est nul par construction. Je l ai retiree au tour
+suivant, explicitement, en nommant la faute. Au tour d apres, le chiffre
+etait revenu dans la conversation, arrondi a treize, comme un fait
+etabli, et il servait a fonder une demande de correctif. Personne ne
+l avait invente : il avait simplement survecu a son propre retrait,
+parce que le retrait etait une phrase et que le chiffre etait un nombre.
+
+C est la meme dissymetrie que celle du cout d un run a vingt dollars,
+prise dans le temps plutot que dans l espace. La, une estimation
+acquerait l autorite d une donnee par sa seule presence dans un document
+de reference. Ici un chiffre garde son autorite apres avoir ete annule,
+par sa seule forme. Dans les deux cas ce qui manque au lecteur suivant
+n est pas l information, c est le poids relatif de l information et de sa
+reserve.
+
+L exigence qui suit est de forme et non de bonne volonte. Un chiffre se
+retire au meme endroit et avec la meme visibilite qu il a ete pose. S il
+etait dans un tableau, la ligne se barre dans le tableau. S il etait dans
+un titre, le titre change. S il etait dans un document de reference, il
+n est pas commente en bas de page, il est remplace ou biffe la ou il
+etait. Et tant que le nombre faux reste lisible quelque part sans sa
+marque, il faut supposer qu il sera repris, y compris par celui qui l a
+retire.
+
+Le corollaire porte sur ce qui remplace. Un chiffre retire laisse un
+trou, et un trou se comble par le premier nombre disponible. Une
+retractation vaut donc mieux quand elle donne la mesure juste dans le
+meme geste : ici, la lecture par operation rendait zero politique
+d ecriture non contrainte, et c est ce zero qui devait etre ecrit a la
+place du six, pas seulement l annulation du six.
+
 ## Un droit se lit par operation, jamais par table
 
 Une politique d acces qui ne couvre qu une operation laisse les autres

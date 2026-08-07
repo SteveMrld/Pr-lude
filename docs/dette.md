@@ -2652,3 +2652,103 @@ La regle qui les rassemble se formule sans elles. Une mesure programmee
 declare ce qu elle etablira et ce qu elle ne pourra pas etablir, et elle
 declare surtout qu elle ne justifie pas un run a elle seule. Trois
 mesures qui attendent la meme occasion coutent une occasion, pas trois.
+
+---
+
+## Chantier multi-fonds, brique 1 : une prediction est rattachee a une personne et jamais a une institution
+
+Ouvert le 7 aout 2026, sur mesure directe de la base et non sur lecture
+des migrations. C'est la brique la plus lourde du chantier multi-fonds et
+elle passe devant les autres, parce qu'elle ne porte pas sur une
+protection mais sur ce que le produit vend.
+
+**L'etat mesure.** `prediction_records` porte une colonne `user_id` et
+deux politiques qui s'y appuient directement, `prediction_records_owner
+_select` en `USING (auth.uid() = user_id)` et `prediction_records_owner
+_insert` en `WITH CHECK (auth.uid() = user_id)`. Le rattachement existe
+donc, il est direct, et il n'est pas transitif par `analysis_id`. Ce qui
+manque n'est pas le proprietaire, c'est sa nature : il n'y a pas de
+colonne `organization_id`, et la politique lit `auth.uid()`. Cinquante-
+trois predictions sont attribuables a un compte individuel et a aucun
+fonds. Le meme decalage existe sur `analyses`, ou la colonne
+`organization_id` existe bien mais ou les quatre politiques lisent toutes
+`user_id` et jamais elle.
+
+**Ce que cela coute, et ce n'est pas une question de securite.** Un
+partner qui quitte le fonds emporte l'attribution de ses predictions.
+Deux partners du meme fonds ne constituent pas un registre commun, donc
+le fonds n'a pas de memoire, seulement des memoires individuelles. Et une
+decision d'investissement rattachee a un compte plutot qu'a l'institution
+n'est pas opposable, ce qui est exactement ce que le registre de
+decisions est cense etablir. La valeur commerciale du produit repose sur
+un registre qui, en base, n'appartient a personne d'institutionnel.
+
+**La question a instruire, posee et non tranchee.** A qui appartient une
+prediction : au fonds qui l'a produite, ou sa valeur statistique
+appartient-elle a la plateforme. Les deux reponses sont defendables et
+elles menent a des produits differents. Une base de predictions resolues
+sur dix fonds vaut davantage que dix bases separees, parce que la
+calibration se mesure sur le volume et que c'est peut-etre ce qui
+distinguera Prelude d'un outil interne mieux fait. Mais mutualiser des
+decisions d'investissement demande un consentement explicite, qui
+n'existe pas, et une anonymisation qui n'existe pas davantage : un
+verdict, un score et six dimensions sur un dossier date sont
+re-identifiables par quiconque connait le marche.
+
+La question se tranche avant toute ligne de code, parce que les deux
+reponses n'appellent pas le meme schema. La propriete par le fonds
+demande une colonne d'organisation et des politiques qui la lisent. La
+mutualisation demande en plus une couche de consentement, une couche
+d'anonymisation, et une separation entre la ligne opposable au fonds et
+la ligne agregeable par la plateforme, qui ne sont alors plus le meme
+objet.
+
+---
+
+## Chantier multi-fonds, brique 2 : douze tables ou la base interdit tout et ou la protection vit dans le code
+
+Ouvert le 7 aout 2026. C'est un report et non une ouverture, et c'est ce
+qui le rend plus grave qu'une permission trop large : rien dans un releve
+de politiques ne le montre, puisque les politiques existent et se
+comptent comme presentes.
+
+Dix tables portent une politique unique de refus total, `qual = false`,
+nommee `no_client_access_*` : `analyses_annotations`, `analyses_versions`,
+`analyses_workflow_history`, `analyses_workflow_status`,
+`inter_sectoral_briefs`, `org_api_keys`, `organization_slack_config`,
+`sectoral_briefs`, `slack_notifications_log`, `trajectory_snapshots`.
+Deux autres n'ont aucune politique du tout, ce qui produit exactement le
+meme effet : `analyses_ic_decision` et `prelude_jobs`.
+
+Sur ces douze, la base ne protege rien parce qu'elle interdit tout.
+L'unique voie d'acces est le client service-role, qui contourne RLS par
+nature, et la protection reelle est donc entierement dans le code qui
+lit : elle tient par le fait que chaque requete se souvienne de son
+predicat de propriete. C'est une regle qui depend de celui qui
+l'applique, et le registre dit ce que cela vaut.
+
+Le cas deja constate le montre. `GET /api/analyses/[id]/ic-decision`
+n'a ni authentification ni controle de propriete, et appelle un magasin
+qui filtre sur le seul `analysis_id`, sur `analyses_ic_decision`,
+c'est-a-dire l'une des deux tables sans politique. Le `PUT` de la meme
+route est correctement garde. Quiconque connait un identifiant d'analyse
+lit la decision de comite correspondante. A une organisation
+l'exposition est nulle ; au deuxieme client elle est la premiere question
+d'une due diligence.
+
+**Gravite par famille, du plus au moins urgent.** Les tables qui portent
+une decision ou un secret d'abord, `analyses_ic_decision` et
+`org_api_keys`, parce qu'une lecture non autorisee y coute
+immediatement. Les tables qui portent le travail du fonds ensuite,
+`analyses_annotations`, `analyses_versions`, `analyses_workflow_*`,
+`trajectory_snapshots`. Les tables de production interne enfin,
+`sectoral_briefs`, `inter_sectoral_briefs`, `slack_*`, `prelude_jobs`,
+ou une fuite coute peu mais ou le report est identique.
+
+Le correctif n'est pas d'ecrire douze politiques : il est de rendre la
+regle portee plutot que rappelee. La forme juste est un point de passage
+unique cote code, une fonction qui resout l'analyse et verifie sa
+propriete, que toute route de lecture appelle, plus un test qui echoue
+quand une route nouvelle lit une analyse sans passer par elle. Les
+politiques viendront ensuite, avec la bascule vers l'organisation, et
+elles seront alors une seconde ceinture et non la premiere.
