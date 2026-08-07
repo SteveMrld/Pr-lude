@@ -2293,3 +2293,47 @@ suspect. Cela peut signifier qu il est robuste ; cela signifie plus
 souvent qu il ne verifie pas grand-chose, ou que ses fixtures ont ete
 ecrites en le regardant plutot qu en regardant la regle. Le desaccord
 est le seul organe de mesure d un test, et il vaut dans les deux sens.
+
+## Une forme reconnue derive de ce que le langage permet, pas de ce qu on a sous les yeux
+
+Septieme occurrence du motif de la liste ecrite a la main, et celle-ci
+porte une propriete que les six precedentes n avaient pas.
+
+Le cas est du 7 aout 2026. Le controle de conservation du style
+identifie le composant qui declare un bloc de style en cherchant la
+derniere declaration de fonction qui le precede. La forme reconnue etait
+`function X` et `export default function X`, parce que c etaient les
+deux formes presentes dans le fichier ouvert ce jour-la. Tous les
+composants extraits depuis sont ecrits `export function X`, forme que le
+langage permet et que la regle ne reconnaissait pas : leur portee
+s appelait `(module)`.
+
+Ce qui la distingue des six autres est que **le controle nommait faux
+sans se tromper de conclusion**. Chaque fichier extrait ne portant qu un
+seul bloc de style, la portee restait unique par fichier, donc la
+duplication, la divergence et la couverture continuaient d etre lues
+correctement. Le defaut n aurait produit un symptome que le jour ou un
+fichier extrait aurait porte deux blocs, cas qui ne s etait pas encore
+presente et qui se presentera.
+
+C est une erreur dont le symptome attend un cas futur, et elle est plus
+difficile a trouver que celles qui cassent. Elle ne se cherche pas,
+puisque rien ne manque ; elle ne se relit pas, puisque le code est
+juste sur tous les cas courants. Ici elle s est vue par accident, une
+manipulation ratee ayant laisse un instant un composant extrait a cote
+d un parent non modifie, ce qui a fait imprimer les noms de portee dans
+un releve d homonymies ou personne ne les cherchait.
+
+La regle generale reprend celle des listes, un cran plus bas. Une forme
+reconnue par expression reguliere est une liste deguisee : elle enumere
+les manieres d ecrire une chose que son auteur avait en tete, et le
+langage en permet d autres. Le test qui la distingue est le meme : si
+quelqu un ecrivait cette declaration autrement demain, faudrait-il
+modifier cette expression pour qu elle soit traitee correctement. Quand
+la reponse est oui, la forme se derive de la grammaire du langage et non
+de l echantillon.
+
+En pratique, devant toute reconnaissance de forme dans du code source,
+enumerer les ecritures que le langage autorise pour la meme chose, pas
+celles que le fichier contient. Le cout est de trois minutes ; celui de
+la version courte est une erreur qui attend un cas pour se manifester.

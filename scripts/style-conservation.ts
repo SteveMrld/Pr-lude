@@ -470,7 +470,39 @@ function comparer(avant: string) {
   const homonymies: string[] = [];
 
   const clefs = Array.from(new Set([...Object.keys(a.regles), ...Object.keys(b.regles)]));
+
+  // AXE DU CONTEXTE. Deux regles identiques dont l une vit sous une
+  // requete media ne sont pas la meme regle : deplacer la seconde sans
+  // son encadrement la rend inconditionnelle, ce qui applique en ecran
+  // ce qui ne valait qu a l impression, ou l inverse.
+  //
+  // La conservation le voyait deja, le contexte faisant partie de la
+  // clef : la regle sortait en PERDUE sous son ancien contexte et en
+  // APPARUE sous le nouveau. Ce que le controle ne faisait pas, c est le
+  // dire. Deux lignes dont il fallait inferer le rapport valent moins
+  // qu une qui le nomme, et le prochain lecteur aurait refait
+  // l inference a chaque passage.
+  const perdues = new Map<string, string>();
+  const apparues = new Map<string, string>();
   for (const c of clefs) {
+    const [ctx, sel, corps] = c.split('|');
+    if (!b.regles[c] && a.regles[c]) perdues.set(`${sel}|${corps}`, ctx);
+    if (!a.regles[c] && b.regles[c]) apparues.set(`${sel}|${corps}`, ctx);
+  }
+  const contexteChange = new Set<string>();
+  for (const [k, avantCtx] of Array.from(perdues.entries())) {
+    if (!apparues.has(k)) continue;
+    const apresCtx = apparues.get(k)!;
+    if (apresCtx === avantCtx) continue;
+    contexteChange.add(`${avantCtx}|${k}`);
+    contexteChange.add(`${apresCtx}|${k}`);
+    const [sel] = k.split('|');
+    ecarts.push(`CONTEXTE    ${sel} passe de « ${avantCtx || '(aucun encadrement)'} » `
+      + `a « ${apresCtx || '(aucun encadrement)'} » : ce n est plus la meme regle`);
+  }
+
+  for (const c of clefs) {
+    if (contexteChange.has(c)) continue;
     const [ctx, sel] = c.split('|');
     const av = a.regles[c], ap = b.regles[c];
     const ou = ctx ? `${sel} dans ${ctx}` : sel;

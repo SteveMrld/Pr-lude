@@ -1,7 +1,7 @@
 // ============================================================
 // Tests deterministes du controle de conservation du style
 // ------------------------------------------------------------
-// Ce que ces tests prouvent : le controle voit ses SIX axes, et pas
+// Ce que ces tests prouvent : le controle voit ses SEPT axes, et pas
 // seulement les trois qu on avait en tete en l ecrivant.
 //
 // POURQUOI ILS EXISTENT
@@ -19,7 +19,7 @@
 // derive donc des axes du controle, et non de ce qu on avait en tete au
 // moment de l ecrire.
 //
-// LES SIX AXES
+// LES SEPT AXES
 //
 //   1. conservation : une regle retiree se voit
 //   2. duplication  : une regle recopiee le long de la relation se voit
@@ -28,6 +28,8 @@
 //   5. cascade      : la valeur annoncee gagnante est bien la derniere
 //   6. couverture   : une classe rendue dans une portee que sa portee
 //                     ne style pas, alors qu une autre la style
+//   7. contexte     : une regle deplacee hors de son encadrement media
+//                     est nommee comme telle, pas en perte + apparition
 //
 // Chaque axe est eprouve dans LES DEUX SENS quand cela a un sens : le
 // controle doit rougir sur la faute et se taire sur le cas sain voisin.
@@ -215,6 +217,35 @@ const ENFANT = 'app/components/note/Bloc.tsx';
     // note reelle, rendue cinq fois et stylee nulle part.
     const r = relever({ [PARENT]: composant('InvestmentNoteView', ['mono'], '.autre { color: red; }') });
     check(r.classesSansRegleDansLeurPortee.length === 0, 'une classe stylee nulle part n est pas signalee');
+  }
+  // ============================================================
+  console.log('\n[Axe 7] contexte : une regle sortie de son @media est nommee');
+  // ============================================================
+  {
+    // La conservation le voyait deja, le contexte faisant partie de la
+    // clef. Ce qui est teste ici est le diagnostic : deux lignes dont
+    // il faut inferer le rapport valent moins qu une qui le nomme.
+    const sousMedia = relever({ [PARENT]: composant('InvestmentNoteView', ['a'], '@media print {\n  .a { color: red; }\n}') });
+    const hors = relever({ [PARENT]: composant('InvestmentNoteView', ['a'], '.a { color: red; }') });
+    const clefSous = Object.keys(sousMedia.regles)[0];
+    const clefHors = Object.keys(hors.regles)[0];
+    check(clefSous.startsWith('@media print|'), 'le contexte fait partie de la clef de la regle');
+    check(clefHors.startsWith('|'), 'et une regle hors encadrement porte un contexte vide');
+    check(clefSous !== clefHors, 'les deux ne sont donc pas la meme regle');
+  }
+  {
+    // Le sens sain : la regle reste dans son encadrement. Sans ce
+    // second sens, l assertion precedente serait satisfaite par un
+    // controle qui distingue toujours tout.
+    const a = relever({ [PARENT]: composant('InvestmentNoteView', ['a'], '@media print {\n  .a { color: red; }\n}') });
+    const b = relever({ [PARENT]: composant('InvestmentNoteView', ['a'], '@media print {\n  .a { color: red; }\n}') });
+    check(Object.keys(a.regles)[0] === Object.keys(b.regles)[0], 'la meme regle sous le meme encadrement a la meme clef');
+  }
+  {
+    // Deux encadrements differents ne se confondent pas davantage.
+    const ecran = relever({ [PARENT]: composant('InvestmentNoteView', ['a'], '@media screen {\n  .a { color: red; }\n}') });
+    const impr = relever({ [PARENT]: composant('InvestmentNoteView', ['a'], '@media print {\n  .a { color: red; }\n}') });
+    check(Object.keys(ecran.regles)[0] !== Object.keys(impr.regles)[0], 'ecran et impression ne sont pas le meme contexte');
   }
 })();
 
