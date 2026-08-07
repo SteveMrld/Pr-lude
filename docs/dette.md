@@ -2957,3 +2957,81 @@ Si les deux se ressemblent, l'etage texte suffit et le lot 3 devient
 abordable. S'ils different beaucoup, c'est que le PDF a sa propre chaine
 de mise en forme, et alors l'etage image est necessaire et le lot 3
 attend.
+
+---
+
+## Conclusion du chantier de decoupage : le vrai obstacle n'etait pas la taille
+
+Arrete le 7 aout 2026 apres sept extractions, sur constat plutot que sur
+epuisement.
+
+**Ce qui a ete fait.** Sept blocs sortis de `InvestmentNoteView` vers
+`app/components/note/` : bandeau gouvernance, pied de note, provenance
+du run, en-tete, bandeau trajectoire, cartouche de refutation,
+couverture editoriale. Le parent passe de 7373 a 6728 lignes, soit 8,7
+pour cent. Huit composants vivent desormais dans le repertoire, le
+huitieme, `SectoralRadar`, precedant le chantier.
+
+**Ce que cela debloque, et c'est etroit.** Une evolution de la premiere
+page du document et de ses bords se fait maintenant dans un fichier de
+moins de quatre cent cinquante lignes. Le corps de la note, ou le design
+a le plus a faire, n'a pas bouge : la section 3 pese a elle seule plus
+de deux mille lignes.
+
+**Le constat qui arrete le chantier.** Le fichier porte 2571 lignes de
+style sur 6728, trois blocs, trente-huit pour cent. Le code de rendu ne
+fait donc que 4157 lignes. Un fichier a 6728 lignes n'est pas plus
+confortable qu'a 7373, et le seuil qui compte n'est pas un pourcentage :
+c'est de pouvoir ouvrir le fichier qui porte la chose qu'on modifie sans
+traverser le reste. Tant que le style et le rendu vivent ensemble, ce
+seuil n'est pas franchi, et aucune extraction de bloc ne le franchira.
+Le decoupage a deplace des blocs ; il n'a pas separe les deux natures de
+contenu qui rendent le fichier illisible.
+
+**Ce que le chantier a reellement produit.** Un instrument plutot qu'un
+fichier plus court. Le controle de conservation du style compte sept
+axes la ou il en comptait trois a l'ouverture, avec trente-cinq
+assertions et un mode d'analyse prealable qui repond avant l'extraction
+plutot qu'apres. Il a attrape quatre defauts que rien d'autre n'aurait
+vus, dont deux sur ses propres jeux d'essai et deux sur le produit,
+notamment cinq regles de la couverture editoriale qui allaient sortir de
+leurs requetes media et rendre la mise en page mobile permanente.
+
+---
+
+## Le lot 1 redevient le prealable, et ce qu'il demande vraiment
+
+Le lot du CSS a ete contourne trois fois, chaque fois pour une raison
+juste et chaque fois differente, et le detour a fini par etablir que
+c'etait lui le prealable.
+
+Premier contournement : le harnais HTML ne rend pas les styles, donc il
+serait vert quoi qu'on fasse au CSS. Deuxieme : le controle de
+conservation le rend verifiable, mais le precedent du depot montre que
+toute extraction deplace des regles, donc le lot 1 n'est pas le plus
+facile, il est le prealable de tous les autres. Troisieme : sortir le
+bloc dans un fichier separe fait passer styled-jsx d'une transformation
+a la compilation a une injection au rendu, ce qu'aucune garde ne verrait.
+
+**Ce qu'il demande, et qui n'existe pas.** Un controle de style qui
+survive au passage du litteral. Les sept axes actuels reposent tous sur
+la lecture de blocs `<style jsx>{` suivis d'un litteral gabarit : ils
+extraient les regles du texte source. Des que le CSS devient une
+constante importee, une feuille globale ou un module, l'analyseur ne
+trouve plus rien et rend zero regle, ce qui se lit comme zero ecart. Le
+controle ne deviendrait pas faux, il deviendrait muet, ce qui est pire :
+c'est la garde inerte prise par le chemin du changement de support.
+
+Trois choses seraient a ecrire avant de toucher au bloc. Un lecteur de
+regles qui suive une constante jusqu'a sa declaration, ou qui lise une
+feuille CSS a cote des blocs `styled-jsx`, selon la forme retenue. Une
+assertion qui refuse de rendre vert quand le nombre de regles lues tombe
+brutalement, faute de quoi la mutite ne se distingue pas de la
+conformite. Et une decision sur la portee, puisque deux des trois formes
+la suppriment et que rien dans le controle actuel ne mesure ce que sa
+disparition coute.
+
+L'estimation de deux heures donnee pour le controle de conservation ne
+vaut pas ici : elle portait sur un analyseur de litteraux, qui existe.
+Ce qui manque est un analyseur qui traverse le changement de support, et
+il n'a pas ete chiffre.
