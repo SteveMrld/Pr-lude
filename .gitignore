@@ -29,11 +29,21 @@ scripts/setkey-server.ts
 # Navigateur local du harnais de capture, tire par puppeteer.
 chrome/
 
-# Sorties des chantiers design et decoupage : cent vingt megaoctets
-# d images et de HTML rendus, qui se refont en une passe. Le harnais
-# et ses gardes sont commites, ses sorties ne le sont pas, exactement
-# comme les artefacts de calibration plus haut. Une capture ne vaut
-# d ailleurs que sur le poste qui l a prise : la mettre au depot
-# donnerait a croire qu elle se compare ailleurs.
+# Sorties des chantiers design et decoupage.
+#
+# LA RAISON N EST PAS LE POIDS. Ces fichiers sont le rendu integral de
+# notes d instruction de dossiers reels : noms de societes, montants,
+# verdicts, tout ce qu un memorandum de client porte, en pleine page et
+# lisible sans outil. Le depot garde deja les prompts contre les noms de
+# code de dossiers reels, parce qu un nom de client dans la note d un
+# autre client est disqualifiant devant un fonds. Committer les captures
+# serait la meme faute par une autre porte, et une porte plus large : le
+# prompt portait un nom, l image porte le dossier entier.
+#
+# Cette ligne ne se retire donc pas pour faire de la place, quel que
+# soit le volume atteint. Les cent vingt megaoctets sont une commodite,
+# pas le motif. Le harnais et ses gardes sont commites, ses sorties ne
+# le sont pas, et une capture ne vaut de toute facon que sur le poste
+# qui l a prise.
 .chantier-design/
 .chantier-decoupage/

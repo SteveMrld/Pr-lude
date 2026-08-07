@@ -1417,7 +1417,7 @@ Le cas est du 7 aout 2026. Quatre jetons de la note avaient bouge, deux
 tailles de titre sur trois et une approche. La passe de captures apres a
 rendu vingt-cinq images identiques octet pour octet a leur reference,
 avec le meme index, les memes tailles de fichier et les memes hauteurs
-de page au pixel. Elle a imprime « 25 capturees, 0 en echec ». Une note
+de page au pixel. Elle a imprime « 25 capturees, 0 en echec ». Une page
 de six mille pixels dont le titre de section passe de 32 a 30 pixels ne
 peut pas rendre la meme hauteur : l identite etait la preuve que rien
 n avait ete mesure, et elle se presentait comme la preuve que rien
@@ -1444,6 +1444,32 @@ reference et quarante-cinq mille deux cent trente-quatre dans une
 capture de la note. Les deux series comparaient donc la meme page, qui
 ne consomme aucun des jetons modifies, et l identite octet pour octet ne
 demandait aucune hypothese de serveur.
+
+Deux choses en sortent que la cause elle-meme ne dit pas.
+
+La premiere porte sur ce qu un instrument mal vise produit. Il ne rend
+pas du bruit, il rend une serie parfaitement coherente : vingt-cinq
+images, un index complet, des tailles de fichier plausibles, aucune
+erreur, et des hauteurs qui se ressemblent d un dossier a l autre comme
+on attend qu elles se ressemblent. Rien dans la serie ne pouvait la
+recuser, parce qu une serie ne dit jamais de quoi elle est la serie.
+C est la mesure faite sur la mauvaise table, transposee a l image : la
+methode est irreprochable, le resultat est exact, et l objet est un
+autre. Un instrument qui photographie le mauvais ecran ne se detecte
+donc pas en regardant ce qu il rend, mais en remontant de sa sortie a ce
+qu il a vise, ici le selecteur qu il attendait, qui matchait toujours,
+et le clic qu il ne faisait pas.
+
+La seconde porte sur le moment ou la preuve etait disponible. La hauteur
+de page figurait dans l index de la premiere passe et elle est restee
+lisible pendant les trois heures ou l on a soupconne un cache, un
+serveur et un chemin de service. Aucune mesure ne manquait, et il n y
+avait rien de plus a instrumenter. Ce qui manquait etait de lire la
+grandeur qu on avait deja, ce qui est le meme defaut que la contrainte
+de style ecrite au bon endroit et non relue au moment ou elle decidait.
+Un releve porte d ordinaire de quoi se recuser lui-meme, et la premiere
+question devant un resultat suspect est donc de savoir ce qu il contient
+deja, avant de chercher ce qu il faudrait mesurer de plus.
 
 Ce qui vaut d etre garde n est pas la cause, c est ce qu elle dit de la
 reparation qui avait ete posee sans elle. La garde sur le servi visait
@@ -2453,3 +2479,128 @@ moins un rendu qui l atteint, corpus ou cas construit. Quand ni l un ni
 l autre n est possible, le bloc ne s extrait pas : il reste ou il est et
 la raison s ecrit, ce qui vaut mieux qu une extraction dont la seule
 garantie serait que son style est bien range.
+
+## Une hierarchie declaree n est pas une hierarchie appliquee
+
+Un systeme de jetons dit ce que les niveaux doivent valoir. Il ne dit
+rien de ce qu ils valent. Entre les deux se glisse la portee, qui ne se
+lit ni dans le jeton ni dans le JSX, et le defaut qui en resulte porte la
+propriete qui le rend tenace : il ressemble a ce qu il aurait du
+produire.
+
+Le cas est du 7 aout 2026. La hierarchie de la note avait ete posee le
+jour meme sur trois niveaux, avec ses jetons de taille et son axe de
+graisse. Le releve du style calcule sur le rendu de dix notes rend
+soixante titres de section, dont quarante hors jeton : ils tombaient sur
+le h2 par defaut du navigateur, une fois et demie la taille de racine et
+gras, soit 22,5 pixels la ou `--note-size-h2` en declare 30, et leur
+numerotation tombait de 28 pixels a la meme valeur, le chiffre et son
+titre se confondant alors dans une seule graisse. Deux tiers du niveau
+haut etaient donc gouvernes par une feuille de style que personne n avait
+ecrite. La cause est la portee de styled-jsx : la regle vivait dans le
+bloc de InvestmentNoteView, et les sections rendues par
+NoteSectionWrapper, composant distinct bien qu il vive dans le meme
+fichier, ne la recevaient pas. Rien ne distinguait les deux cas a la
+lecture du JSX.
+
+Ce qui separe ce defaut d une regle absente est la nature de ce qui a
+pris sa place. Un h2 par defaut est gras et plus gros que le corps : il
+occupe la place d un titre, il en a la fonction visuelle, et il ne
+reclame donc rien. Une regle qui manque laisse d ordinaire un trou qu on
+finit par voir ; celle-ci laissait un titre plausible. C est la garde
+inerte transposee au style, avec la meme dissymetrie que partout
+ailleurs : le manque franc se repare, le simulacre dure. Et il durait a
+l endroit ou la hierarchie sert le plus, le niveau haut, celui qui doit
+dire au lecteur tombe au milieu du document ou il se trouve.
+
+Trois consequences, et la premiere est la seule qui se mesure.
+
+Un jeton declare une intention et ne prouve aucune application. Le nombre
+de sites qui le consomment est une grandeur distincte de son existence,
+et c est elle qui repond a la question. Elle se releve en interrogeant le
+style calcule de chaque element du rendu, jamais en lisant la feuille ni
+en comptant les occurrences du jeton dans le source. C est la discipline
+de mesure appliquee au style, et le texte y ment exactement de la meme
+facon qu ailleurs : il dit ce qui est ecrit et non ce qui est atteint.
+
+Le controle de conservation du style ne pouvait pas le rendre, et sa
+limite etait deja ecrite dans la section precedente. Un composant sans
+bloc de style n entre pas dans son modele de portees, donc un element qui
+ne recoit aucune regle lui est invisible. La garde qui ferme cela n est
+pas une garde de source, c est le releve du style calcule sur le rendu,
+et c est lui qui a servi ici, avant et apres.
+
+La meme cause de portee avait deja frappe les rubriques, un niveau plus
+bas, quelques heures plus tot. Deux occurrences le meme jour sur deux
+niveaux differents ne sont pas un defaut de relecture : tant qu une regle
+de hierarchie vit dans un bloc styled-jsx, elle est a la merci du
+prochain composant qui rendra le meme element, et ce composant est
+souvent dans le meme fichier, ce qui est precisement ce qui empeche de le
+voir. Les deux cas ont d ailleurs recu deux remedes differents, la
+rubrique par une seconde declaration du bloc dans la portee de
+FoldableSection, le titre de section par une descente dans globals.css.
+Seul le second ferme la question, parce que le premier demande de se
+souvenir a chaque nouveau composant. Ce qui gouverne un niveau de
+hierarchie est transverse aux composants qui le rendent, donc il vit dans
+la couche qui l est aussi.
+
+## Une grandeur trop petite pour discriminer ne prouve rien, meme dans le bon sens
+
+Un chiffre qui va dans le sens attendu se cite comme une preuve. Il n en
+est une que s il exclut quelque chose, et une grandeur dont le
+deplacement attendu se confond avec ce que produirait n importe quelle
+autre cause n exclut rien du tout. Aller dans le bon sens ne coute rien a
+une coincidence.
+
+Le cas est du 7 aout 2026, sur le chantier de hierarchie de la note.
+Quarante titres de section remontaient de 22,5 a 30 pixels, donc le
+document devait s allonger, et il s est allonge : entre 54 et 188 pixels
+selon les notes, mediane un quart de point de pourcentage sur des pages
+de vingt a quarante-six mille pixels. La tentation etait d ecrire que
+l allongement prouvait que le changement avait porte. Il ne prouvait
+rien. Un quart de point est ce que produirait aussi une marge modifiee,
+une interligne, un rythme de section, ou le hasard d un retour a la ligne
+sur trois paragraphes. La grandeur est du meme ordre que le bruit de tout
+ce qui aurait pu bouger par ailleurs, donc elle ne separe pas
+l hypothese de ses concurrentes.
+
+Ce qui etablissait le fait etait ailleurs, et a deux endroits. Les images
+de la passe apres sortaient toutes `differe`, la ou la passe precedente
+en avait rendu vingt-cinq identiques a leur reference. Et le releve du
+style calcule donnait soixante titres sur soixante consommant le jeton,
+contre vingt sur soixante avant deplacement. Ces deux-la excluent : une
+image identique et un titre hors jeton sont des etats possibles que la
+mesure ne trouve pas.
+
+L allongement garde pourtant un usage, et le distinguer de la preuve est
+tout le sujet. Le mecanisme predit sa valeur : six titres par note, sept
+pixels et demi de plus a une interligne de 1,15, soit une cinquantaine de
+pixels par note et davantage sur les notes longues. Le mesure tombe
+dessus. C est une verification de coherence entre une cause etablie et
+son ampleur, ce qui a de la valeur, et ce n est pas une demonstration que
+la cause a eu lieu. Les deux se ressemblent parce qu elles s ecrivent
+avec le meme nombre, et elles ne repondent pas a la meme question.
+
+C est la meme dissymetrie que celle du compteur d echecs et de la duree,
+avec un cran de difficulte en plus. La, le compteur d echecs etait la
+mauvaise grandeur et il le disait, puisqu il ne bornait rien. Ici la
+mauvaise grandeur bouge, et elle bouge du bon cote, ce qui est
+exactement ce qui la rend citable. Une grandeur muette se remarque ; une
+grandeur qui acquiesce ne se relit pas.
+
+Deux consequences pratiques.
+
+Avant de citer un chiffre comme preuve, enumerer ce qui produirait le
+meme deplacement. Si la liste n est ni vide ni courte, le chiffre est un
+indice de coherence et il s annonce comme tel, a cote de ce qui prouve
+reellement plutot qu a sa place. Le detour coute une phrase et il evite
+qu une conclusion juste repose sur son organe le plus faible, ou elle se
+defait au premier contre-exemple.
+
+Et la meme grandeur vaut davantage en refutation qu en confirmation.
+Pour refuter, il suffit qu elle soit incompatible avec l hypothese ; pour
+confirmer, il faut qu elle lui soit propre. Un document qui n aurait pas
+bouge d un pixel aurait donc tue l hypothese que les titres avaient
+grandi, alors que son allongement d un quart de point ne l etablit pas.
+L asymetrie n est pas une subtilite de logique, elle decide de ce qu on a
+le droit d ecrire dans un brief.

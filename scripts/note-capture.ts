@@ -75,6 +75,7 @@ import {
   verdictIdentite,
   type VersusReference,
 } from '../lib/controle/capture-garde';
+import { ouvrirLaNote } from '../lib/controle/capture-note';
 
 function env(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -186,34 +187,12 @@ function empreintesReference(dossier: string): Record<string, string> {
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 1600, deviceScaleFactor: 2 });
     try {
-      await page.goto(`${base}/dossiers/${n.id}`, { waitUntil: 'networkidle0', timeout: 90_000 });
-
       // BASCULER EN VUE NOTE. La page ouvre sur le tableau de bord ; la
-      // note vit derriere un bouton, `viewMode === 'note'`. La premiere
-      // version de ce harnais l ignorait et capturait le tableau de
-      // bord des vingt-cinq notes : les series avant et apres etaient
-      // identiques au pixel, et pour cause, elles montraient la meme
-      // page. C etait un defaut de l instrument et non du changement.
-      //
-      // Le clic se fait dans la page plutot que par un handle : le
-      // handle rendu par evaluateHandle porte un Node et non un
-      // Element, ce que le typage de puppeteer refuse a bon droit,
-      // puisque rien ne garantit qu un Node soit cliquable.
-      const bascule: boolean = await page.evaluate(() => {
-        const boutons = Array.from(document.querySelectorAll('button'));
-        const b = boutons.find(x => (x.textContent || '').trim().startsWith("Note d'investissement"));
-        if (!b) return false;
-        b.click();
-        return true;
-      });
-      if (!bascule) throw new Error('bouton de bascule vers la note introuvable');
-
-      // Attendre un element PROPRE a la note. Le repli sur
-      // `.dashboard-content` de la premiere version matchait toujours,
-      // donc l attente reussissait sur la mauvaise chose : un selecteur
-      // de repli qui ne peut pas echouer est une garde inerte.
-      await page.waitForSelector('.note-section-title', { timeout: 45_000 });
-      await new Promise(r => setTimeout(r, 1800));
+      // note vit derriere un bouton. La manoeuvre vit dans
+      // `lib/controle/capture-note.ts` et non ici, parce que les vues de
+      // lecture en ont besoin aussi et qu une seconde copie rejouerait
+      // l incident du 7 aout au premier changement de libelle.
+      const { hauteur } = await ouvrirLaNote(page, base, n.id);
 
       // L empreinte du servi se controle une fois, sur la premiere note
       // atteinte, et avant qu aucune image ne soit ecrite. La faire a
@@ -224,7 +203,6 @@ function empreintesReference(dossier: string): Record<string, string> {
         serviControle = true;
       }
 
-      const hauteur = await page.evaluate(() => document.body.scrollHeight);
       const buf = Buffer.from(await page.screenshot({ fullPage: true, type: 'png' }));
       writeFileSync(join(sortie, `${n.id}.png`), buf);
 
