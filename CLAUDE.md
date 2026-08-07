@@ -1215,6 +1215,49 @@ support.
 Le premier des trois controles a d ailleurs donne, en se fermant, un
 defaut d une autre nature, qui a sa section propre juste en dessous.
 
+## Le meme fait a deux lectures selon la relation entre ses deux termes
+
+Un controle qui rapproche deux elements doit savoir ce qui les relie,
+sinon il compte des faits qui n en sont pas. Le rapprochement lui-meme
+est exact ; c est sa signification qui depend d une relation que le
+controle ne regarde pas, et qu il traite donc implicitement comme
+toujours la meme.
+
+Le cas est du 7 aout 2026, sur le controle de conservation du style. Il
+signalait comme duplication toute regle CSS presente dans deux portees.
+Entre un parent et un composant qu il rend, c est une vraie faute : la
+regle a ete recopiee au lieu d etre deplacee, elle ne se corrige plus en
+un endroit, et les deux copies divergeront. Entre deux composants sans
+rapport, c est une homonymie : styled-jsx scope chacune a son composant,
+les deux ne se rencontrent jamais, et il n y a rien a corriger. Le meme
+fait observable, deux regles identiques dans deux fichiers, porte deux
+significations opposees selon que les fichiers se rendent l un l autre
+ou non.
+
+La consequence pratique est celle qui decide. Un decoupage produit dix
+ou vingt composants, dont plusieurs porteront legitimement un
+`.section-title`. Le controle aurait rendu une dizaine de signalements
+faux a chaque extraction, et la seule duplication qui compte s y serait
+noyee. Un controle bruyant n est pas un controle trop prudent, c est un
+controle qu on cesse de lire, ce qui le ramene a l etat de garde inerte
+par un autre chemin.
+
+C est le pendant du piege de denominateur, sur l axe de la relation
+plutot que sur celui du compte. La, la question etait de savoir de
+quelle unite on parlait, dossiers ou executions. Ici la question est de
+savoir quel lien unit les deux termes qu on rapproche. Dans les deux cas
+la mesure est irreprochable et le fait est reel ; ce qui manque est ce
+qui permet de l interpreter, et son absence ne se voit pas dans le
+resultat.
+
+En pratique, devant tout controle qui compare deux elements, nommer la
+relation qui rend la comparaison signifiante, et la deriver plutot que
+la supposer. Ici elle se derive des imports, donc elle se deplace toute
+seule quand un composant nouveau apparait. Et ce qui tombe hors de la
+relation ne se tait pas pour autant : cela s imprime comme un fait
+distinct et sans faire echouer, faute de quoi le perimetre parait plus
+propre qu il n est.
+
 ## Une information juste, ecrite, et non relue au moment ou elle decidait
 
 La semaine a rencontre quatre fois la meme famille, et la quatrieme

@@ -76,16 +76,33 @@ function fichiersDuPerimetre(): string[] {
   return out.sort();
 }
 
-/** Contenu des blocs `<style jsx>{` ... `}</style>` d un fichier. */
-function blocsDeStyle(src: string): string[] {
-  const out: string[] = [];
+/**
+ * Blocs `<style jsx>{` ... `}</style>` d un fichier, avec le composant
+ * qui les declare.
+ *
+ * La portee est le bloc et non le fichier, parce que styled-jsx scope
+ * au composant declarant. Un meme fichier peut en porter plusieurs :
+ * InvestmentNoteView.tsx en compte trois, dont deux appartiennent a des
+ * composants auxiliaires definis au-dessus. Grouper par fichier faisait
+ * lire `.note-h4` comme declaree deux fois en conflit alors que les deux
+ * declarations vivent dans deux portees distinctes et ne se rencontrent
+ * jamais. C etait un faux positif de ce controle, trouve le 7 aout 2026
+ * en cherchant des divergences reelles.
+ */
+function blocsDeStyle(src: string, fichier: string): Array<{ portee: string; css: string }> {
+  const out: Array<{ portee: string; css: string }> = [];
   const marqueur = /<style\s+jsx(?:\s+global)?\s*>\{`/g;
   let m: RegExpExecArray | null;
   while ((m = marqueur.exec(src)) !== null) {
     const debut = m.index + m[0].length;
     const fin = src.indexOf('`}', debut);
     if (fin === -1) continue;
-    out.push(src.slice(debut, fin));
+    // Le composant porteur est la derniere declaration de fonction
+    // rencontree avant le bloc.
+    const avant = src.slice(0, m.index);
+    const noms = Array.from(avant.matchAll(/^(?:export\s+default\s+)?function\s+(\w+)/gm));
+    const porteur = noms.length > 0 ? noms[noms.length - 1][1] : '(module)';
+    out.push({ portee: `${fichier}::${porteur}`, css: src.slice(debut, fin) });
     marqueur.lastIndex = fin;
   }
   return out;
@@ -95,8 +112,22 @@ export interface Regle {
   /** Contexte d encadrement, `@media ...` ou chaine vide. */
   contexte: string;
   selecteur: string;
-  /** Declarations normalisees et triees, jointes par `;`. */
+  /**
+   * Declarations normalisees et TRIEES, jointes par `;`. Le tri sert la
+   * comparaison de conservation, ou un reordonnancement sans changement
+   * de valeur ne doit pas compter comme un ecart.
+   */
   corps: string;
+  /**
+   * Les memes declarations dans l ORDRE DE LA SOURCE. Indispensable et
+   * distinct du champ precedent : la cascade se decide par l ordre, et
+   * `corps` l a detruit. Les confondre faisait annoncer la mauvaise
+   * valeur gagnante sur `.action-list li`, ou `font-size: 14px` precede
+   * `font-size: 12px` dans le meme bloc et ou c est 12px qui s applique.
+   * Un controle qui repond a la question « laquelle s applique » et qui
+   * y repond faux est pire que celui qui se tait.
+   */
+  ordreSource: string[];
 }
 
 function normaliserDeclarations(corps: string): string {
@@ -136,7 +167,11 @@ export function extraireRegles(bloc: string): Regle[] {
     } else if (tete) {
       for (const sel of tete.split(',')) {
         const s = sel.replace(/\s+/g, ' ').trim();
-        if (s) regles.push({ contexte, selecteur: s, corps: normaliserDeclarations(corps) });
+        if (s) regles.push({
+          contexte, selecteur: s,
+          corps: normaliserDeclarations(corps),
+          ordreSource: corps.split(';').map(d => d.replace(/\s+/g, ' ').trim()).filter(Boolean),
+        });
       }
     }
     i = ferme + 1;
@@ -171,25 +206,134 @@ function classesDuSelecteur(sel: string): string[] {
   return Array.from(sel.matchAll(/\.([a-zA-Z][\w-]*)/g)).map(m => m[1]);
 }
 
+export interface Divergence {
+  portee: string;
+  selecteur: string;
+  contexte: string;
+  propriete: string;
+  /** Valeurs successives dans l ordre de la source. */
+  valeurs: string[];
+  /** Celle qui s applique : la derniere a specificite egale. */
+  appliquee: string;
+  /** Celles qui ne s appliquent pas, et qui sont donc le piege. */
+  inatteignables: string[];
+}
+
+/**
+ * Relation parent-enfant entre fichiers du perimetre, derivee des
+ * imports et non declaree a la main.
+ *
+ * C est le seul axe ou une meme regle dans deux portees signifie
+ * quelque chose. Entre un parent et un composant qu il rend, elle
+ * signale une regle recopiee au lieu d etre deplacee, ce qui la rend
+ * impossible a corriger en un endroit. Entre deux composants sans
+ * rapport, c est une homonymie : deux `.section-title` qui ne se
+ * rencontrent jamais, puisque styled-jsx les scope chacun au sien.
+ * Compter la seconde comme la premiere ferait du bruit a chaque
+ * extraction, et une divergence reelle s y noierait.
+ */
+function relationsParentEnfant(fichiers: string[]): Record<string, string[]> {
+  const rel: Record<string, string[]> = {};
+  for (const f of fichiers) {
+    const src = readFileSync(f, 'utf-8');
+    const enfants: string[] = [];
+    for (const autre of fichiers) {
+      if (autre === f) continue;
+      const base = autre.split('/').pop()!.replace(/\.tsx$/, '');
+      if (new RegExp(`from\\s+['"\`][^'"\`]*${base}['"\`]`).test(src)) enfants.push(autre);
+    }
+    rel[f] = enfants;
+  }
+  return rel;
+}
+
+/** Deux portees sont-elles en relation de rendu, dans un sens ou dans l autre. */
+function enRelation(a: string, b: string, rel: Record<string, string[]>): boolean {
+  const fa = a.split('::')[0], fb = b.split('::')[0];
+  if (fa === fb) return true;
+  return (rel[fa] || []).includes(fb) || (rel[fb] || []).includes(fa);
+}
+
 export interface Releve {
   fichiers: string[];
-  /** clef `contexte|selecteur|corps` -> fichiers qui la portent. */
+  portees: string[];
+  relations: Record<string, string[]>;
+  /** clef `contexte|selecteur|corps` -> portees qui la portent. */
   regles: Record<string, string[]>;
   /** Regles dont aucune classe visee n est rendue par leur fichier. */
   orphelines: Array<{ fichier: string; selecteur: string; contexte: string }>;
+  /** Meme propriete declaree plusieurs fois pour un meme selecteur dans
+   *  une meme portee, avec des valeurs qui different. */
+  divergences: Divergence[];
+}
+
+/**
+ * Divergences au sein d une portee. Ce n est pas la repetition d un
+ * selecteur qui compte, une regle groupee suivie d une regle specifique
+ * etant une superposition normale et voulue. Ce qui compte est qu une
+ * meme PROPRIETE recoive deux valeurs differentes pour le meme
+ * selecteur : l une s applique, les autres sont inatteignables, et une
+ * declaration inatteignable qui porte une valeur differente est un
+ * piege pour le prochain lecteur, qui la modifiera en croyant agir.
+ *
+ * A specificite egale, la derniere de la source gagne. Le controle le
+ * dit plutot que de signaler seulement qu il y a conflit, faute de quoi
+ * le prochain lecteur refait l arbitrage a la main.
+ */
+function divergencesDeLaPortee(
+  portee: string,
+  regles: Array<Regle & { ordre: number }>,
+): Divergence[] {
+  const parCle = new Map<string, Array<{ prop: string; val: string; ordre: number }>>();
+  // L ordre global est le couple (rang de la regle, rang de la
+  // declaration dans la regle). Le second terme est ce qui manquait.
+  for (const r of regles) {
+    let rang = 0;
+    for (const decl of r.ordreSource) {
+      const i = decl.indexOf(':');
+      if (i === -1) continue;
+      const prop = decl.slice(0, i).trim();
+      const val = decl.slice(i + 1).trim();
+      const cle = `${r.contexte}|${r.selecteur}|${prop}`;
+      if (!parCle.has(cle)) parCle.set(cle, []);
+      parCle.get(cle)!.push({ prop, val, ordre: r.ordre * 10000 + rang });
+      rang++;
+    }
+  }
+  const out: Divergence[] = [];
+  for (const [cle, decls] of Array.from(parCle.entries())) {
+    const valeursDistinctes = Array.from(new Set(decls.map(d => d.val)));
+    if (valeursDistinctes.length < 2) continue;
+    const tries = decls.slice().sort((a, b) => a.ordre - b.ordre);
+    const [contexte, selecteur, propriete] = cle.split('|');
+    const appliquee = tries[tries.length - 1].val;
+    out.push({
+      portee, selecteur, contexte, propriete,
+      valeurs: tries.map(d => d.val),
+      appliquee,
+      inatteignables: tries.slice(0, -1).map(d => d.val).filter(v => v !== appliquee),
+    });
+  }
+  return out;
 }
 
 export function relever(): Releve {
   const fichiers = fichiersDuPerimetre();
   const regles: Record<string, string[]> = {};
   const orphelines: Releve['orphelines'] = [];
+  const divergences: Divergence[] = [];
+  const portees: string[] = [];
   for (const f of fichiers) {
     const src = readFileSync(f, 'utf-8');
     const rendues = classesRendues(src);
-    for (const bloc of blocsDeStyle(src)) {
-      for (const r of extraireRegles(bloc)) {
+    for (const bloc of blocsDeStyle(src, f)) {
+      portees.push(bloc.portee);
+      const dansLaPortee: Array<Regle & { ordre: number }> = [];
+      let ordre = 0;
+      for (const r of extraireRegles(bloc.css)) {
+        dansLaPortee.push({ ...r, ordre: ordre++ });
         const clef = `${r.contexte}|${r.selecteur}|${r.corps}`;
-        (regles[clef] ||= []).push(f);
+        (regles[clef] ||= []).push(bloc.portee);
         const visees = classesDuSelecteur(r.selecteur);
         // Un selecteur sans classe (balise nue, :root, *) n est pas
         // rattachable a un fichier : il sort du controle d orphelinat
@@ -198,9 +342,10 @@ export function relever(): Releve {
           orphelines.push({ fichier: f, selecteur: r.selecteur, contexte: r.contexte });
         }
       }
+      divergences.push(...divergencesDeLaPortee(bloc.portee, dansLaPortee));
     }
   }
-  return { fichiers, regles, orphelines };
+  return { fichiers, portees, relations: relationsParentEnfant(fichiers), regles, orphelines, divergences };
 }
 
 function capture(sortie: string) {
@@ -208,8 +353,15 @@ function capture(sortie: string) {
   writeFileSync(sortie, JSON.stringify(r, null, 1));
   const n = Object.keys(r.regles).length;
   const dupes = Object.values(r.regles).filter(v => v.length > 1).length;
-  console.log(`${r.fichiers.length} fichiers, ${n} regles distinctes, ${dupes} portees par plus d un fichier`);
+  console.log(`${r.fichiers.length} fichiers, ${r.portees.length} portees, ${n} regles distinctes`);
+  console.log(`${dupes} regle(s) portee(s) par plus d une portee`);
   console.log(`${r.orphelines.length} regle(s) dont aucune classe visee n est rendue par leur fichier`);
+  console.log(`${r.divergences.length} declaration(s) inatteignable(s) : meme propriete, meme selecteur, valeurs differentes`);
+  for (const d of r.divergences) {
+    console.log(`  ${d.selecteur} { ${d.propriete} }  dans ${d.portee}`);
+    console.log(`     s applique : ${d.appliquee}`);
+    console.log(`     inatteignable(s) : ${d.inatteignables.join(' | ')}`);
+  }
   console.log(`Releve ecrit dans ${sortie}`);
 }
 
@@ -217,6 +369,10 @@ function comparer(avant: string) {
   const a: Releve = JSON.parse(readFileSync(avant, 'utf-8'));
   const b = relever();
   const ecarts: string[] = [];
+  // Signalees a part et sans faire echouer : ce sont des faits, pas des
+  // fautes, et les taire ferait croire le perimetre plus propre qu il
+  // n est.
+  const homonymies: string[] = [];
 
   const clefs = Array.from(new Set([...Object.keys(a.regles), ...Object.keys(b.regles)]));
   for (const c of clefs) {
@@ -226,7 +382,17 @@ function comparer(avant: string) {
     if (!ap) { ecarts.push(`PERDUE      ${ou}  (etait dans ${av.join(', ')})`); continue; }
     if (!av) { ecarts.push(`APPARUE     ${ou}  (${ap.join(', ')})`); continue; }
     if (ap.length > av.length) {
-      ecarts.push(`DUPLIQUEE   ${ou}  (${av.length} -> ${ap.length} fichiers : ${ap.join(', ')})`);
+      // La duplication ne compte que le long de la relation de rendu.
+      // Deux portees sans rapport portant la meme regle sont des
+      // homonymes qui ne se rencontrent jamais : les signaler comme une
+      // faute ferait du bruit a chaque extraction et noierait le seul
+      // cas qui signifie quelque chose.
+      const enRel = ap.some((x: string, i: number) => ap.some((y: string, j: number) => i < j && enRelation(x, y, b.relations)));
+      if (enRel) {
+        ecarts.push(`DUPLIQUEE   ${ou}  (${av.length} -> ${ap.length} portees en relation : ${ap.join(', ')})`);
+      } else {
+        homonymies.push(`homonymie  ${ou}  (${ap.map((x: string) => x.split('::').pop()).join(', ')})`);
+      }
     }
   }
 
@@ -236,10 +402,23 @@ function comparer(avant: string) {
     if (!avOrph.has(k)) ecarts.push(`ORPHELINE   ${o.selecteur}  reste dans ${o.fichier} qui ne rend plus la classe`);
   }
 
+  const avDiv = new Set((a.divergences ?? []).map(d => `${d.portee}|${d.contexte}|${d.selecteur}|${d.propriete}`));
+  for (const d of b.divergences) {
+    const k = `${d.portee}|${d.contexte}|${d.selecteur}|${d.propriete}`;
+    if (!avDiv.has(k)) {
+      ecarts.push(`DIVERGENTE  ${d.selecteur} { ${d.propriete} } dans ${d.portee} : `
+        + `${d.appliquee} s applique, ${d.inatteignables.join(' | ')} inatteignable(s)`);
+    }
+  }
+
   const nAvant = Object.keys(a.regles).length;
   const nApres = Object.keys(b.regles).length;
   console.log(`${nAvant} regles avant, ${nApres} apres, ${ecarts.length} ecart(s)`);
   for (const e of ecarts) console.log(`  ${e}`);
+  if (homonymies.length > 0) {
+    console.log(`${homonymies.length} homonymie(s), signalee(s) sans faire echouer :`);
+    for (const h of homonymies) console.log(`  ${h}`);
+  }
   if (ecarts.length === 0) {
     console.log('Aucune regle perdue, dupliquee ni orphelinee.');
     console.log('Rappel : ce controle ne prouve pas que le navigateur rend a l identique.');
