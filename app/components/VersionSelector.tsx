@@ -162,8 +162,8 @@ export default function VersionSelector({
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             background: 'transparent',
-            color: 'var(--vert-foret, #1f7a3c)',
-            border: '1px solid rgba(31,122,60,0.35)',
+            color: 'var(--positif, var(--good))',
+            border: '1px solid rgba(43, 39, 33,0.35)',
             cursor: 'pointer',
             fontFamily: 'inherit',
           }}
@@ -241,7 +241,7 @@ export default function VersionSelector({
                         fontSize: 9,
                         letterSpacing: '0.08em',
                         textTransform: 'uppercase',
-                        color: 'var(--vert-foret, #1f7a3c)',
+                        color: 'var(--positif, var(--good))',
                         fontWeight: 500,
                       }}>
                         actuelle

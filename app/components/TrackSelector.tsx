@@ -52,8 +52,8 @@ export function TrackSelector({ onSelect }: TrackSelectorProps) {
           description="Lecture des dynamiques d'entrée de cycle : équipe, marché initial, pattern matching contre les archétypes de fondation, points aveugles du fondateur, retournement causal de la thèse, singularités contrariennes."
           engines="Quatorze moteurs analytiques"
           duration="≈ 90 secondes"
-          accent="#3f4a2b"
-          accentBg="#e8f1de"
+          accent="var(--good)"
+          accentBg="var(--good-soft)"
           onClick={() => onSelect('early')}
         />
         <TrackCard

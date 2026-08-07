@@ -28,7 +28,7 @@ interface TrajectoryViewProps {
 }
 
 const VERDICT_BG: Record<string, { bg: string; ink: string; label: string }> = {
-  'amelioration': { bg: '#e8f1de', ink: '#3f4a2b', label: 'Amélioration' },
+  'amelioration': { bg: 'var(--good-soft)', ink: 'var(--good)', label: 'Amélioration' },
   'aggravation': { bg: '#dcc3a3', ink: '#7a2916', label: 'Aggravation' },
   'stabilisation': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Stabilisation' },
   'volatilite': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Volatilité (signaux contradictoires)' },
@@ -194,7 +194,7 @@ export function TrajectoryView({ analysisId, printMode = false }: TrajectoryView
             </div>
           )}
           {overall.combinaisonsResolues.length > 0 && (
-            <div style={{ padding: 14, border: '1px solid var(--hairline)', borderLeft: '3px solid #3f4a2b' }}>
+            <div style={{ padding: 14, border: '1px solid var(--hairline)', borderLeft: '3px solid var(--good)' }}>
               <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 8, fontWeight: 600 }}>Résolues</div>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
                 {overall.combinaisonsResolues.map((c, i) => (

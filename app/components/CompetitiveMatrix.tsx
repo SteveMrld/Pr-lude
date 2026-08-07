@@ -99,7 +99,7 @@ export default function CompetitiveMatrix({ dimensions, players, differentiation
                       width: 12,
                       height: 12,
                       borderRadius: '50%',
-                      background: has ? (p.isTargetCompany ? 'var(--ocre-brule)' : 'var(--vert-foret)') : 'transparent',
+                      background: has ? (p.isTargetCompany ? 'var(--ocre-brule)' : 'var(--positif)') : 'transparent',
                       border: has ? 'none' : '1px solid var(--hairline)',
                     }} />
                   </td>

@@ -45,7 +45,7 @@ export default function GaugeProbability({ successProbability, failureProbabilit
   //   < 45   -> warn (rouge sourd, signal d alarme)
   // Tokens du design system pour rester coherent avec le reste de l app.
   const successColor = success >= 65
-    ? 'var(--vert-foret)'
+    ? 'var(--positif)'
     : success >= 45
       ? 'var(--ocre-brule)'
       : 'var(--warn)';

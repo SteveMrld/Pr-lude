@@ -84,7 +84,7 @@ const VERDICT_LABELS: Record<string, string> = {
 };
 
 const VERDICT_COLORS: Record<string, string> = {
-  'investir': 'var(--vert-foret)',
+  'investir': 'var(--positif)',
   'investir avec conditions': 'var(--ocre-brule)',
   'approfondir': 'var(--ocre-brule)',
   'refuser': 'var(--rouge-anglais)',
@@ -326,7 +326,7 @@ export default function IcPackView({
             <div className="ic-prob-block">
               <div className="ic-prob-row">
                 <span className="ic-prob-label">Probabilité de succès</span>
-                <span className="ic-prob-value" style={{ color: 'var(--vert-foret)' }}>
+                <span className="ic-prob-value" style={{ color: 'var(--positif)' }}>
                   {reco.successProbability ?? '-'}%
                 </span>
               </div>

@@ -182,12 +182,12 @@ function styleForState(state: ToileNodeState): ToileNodeStyle {
       };
     case 'done':
       return {
-        stroke: 'var(--vert-foret)',
+        stroke: 'var(--positif)',
         strokeOpacity: 1,
         strokeWidth: 1,
-        fill: 'var(--vert-foret-soft)',
+        fill: 'var(--positif-soft)',
         fillOpacity: 1,
-        textColor: 'var(--vert-foret)',
+        textColor: 'var(--positif)',
         textOpacity: 1,
         className: '',
       };

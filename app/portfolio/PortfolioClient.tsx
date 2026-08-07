@@ -59,7 +59,7 @@ const STAGE_COLORS: Record<string, string> = {
   in_review: '#c97a3f',  // ocre mi-ton
   dd_field: '#a8541d',   // ocre brule porteur
   ic_review: '#14110d',  // encre, decision imminente
-  signed: '#2f5d3a',     // vert foret
+  signed: '#2b2721',     // vert foret
   declined: '#9b2c1d',   // rouge anglais
 };
 
@@ -72,7 +72,7 @@ const VERDICT_LABELS: Record<string, string> = {
 };
 
 const VERDICT_COLORS: Record<string, string> = {
-  investir: '#2f5d3a',                // vert foret
+  investir: '#2b2721',                // vert foret
   'investir-conditions': '#14110d',   // encre, decision conditionnelle
   approfondir: '#a8541d',             // ocre brule, signal porteur
   refuser: '#9b2c1d',                 // rouge anglais
@@ -706,7 +706,7 @@ export default function PortfolioClient({ stats }: Props) {
         .pf-kpi-num-ink { color: var(--ink); }
         .pf-kpi-num-amber { color: var(--ocre-brule); }
         .pf-kpi-num-deep { color: var(--accent-deep); }
-        .pf-kpi-num-green { color: var(--vert-foret); }
+        .pf-kpi-num-green { color: var(--positif); }
         .pf-kpi-unit {
           font-size: 18px;
           opacity: 0.5;

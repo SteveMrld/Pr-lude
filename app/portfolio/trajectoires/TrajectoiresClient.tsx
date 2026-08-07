@@ -63,7 +63,7 @@ const CRAN_LABEL: Record<number, string> = {
 function verdictBadgeStyle(verdict: string | null): React.CSSProperties {
   const v = (verdict ?? '').toLowerCase();
   if (v.includes('investir') && !v.includes('condition')) {
-    return { background: '#e8f1de', color: '#2f3a1b' };
+    return { background: 'var(--good-soft)', color: 'var(--good)' };
   }
   if (v.includes('investir') && v.includes('condition')) {
     return { background: '#e7e9f2', color: '#2a3358' };
@@ -82,7 +82,7 @@ function verdictBadgeStyle(verdict: string | null): React.CSSProperties {
  */
 function fragiliteBadgeStyle(verdict: string | null): React.CSSProperties {
   switch (verdict) {
-    case 'sain': return { background: '#e8f1de', color: '#2f3a1b' };
+    case 'sain': return { background: 'var(--good-soft)', color: 'var(--good)' };
     case 'attention': return { background: '#fcf2dc', color: '#7a5a1d' };
     case 'alerte': return { background: '#f3dec9', color: '#7a3916' };
     case 'drapeau-rouge': return { background: '#e9d3cc', color: '#7a2916' };
@@ -102,7 +102,7 @@ function DirectionMark({ direction, delta }: { direction: PortfolioTrajectoryRow
   }
   let symbol = '→';
   let color = 'var(--muted)';
-  if (direction === 'up') { symbol = '↑'; color = '#3f6b2b'; }
+  if (direction === 'up') { symbol = '↑'; color = 'var(--good)'; }
   else if (direction === 'down') { symbol = '↓'; color = 'var(--ocre-brule)'; }
   const sign = delta > 0 ? '+' : '';
   return (

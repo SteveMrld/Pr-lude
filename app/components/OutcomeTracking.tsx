@@ -55,7 +55,7 @@ const DECISION_LABELS: Record<string, string> = {
 };
 
 const DECISION_COLORS: Record<string, string> = {
-  invested: 'var(--vert-foret)',
+  invested: 'var(--positif)',
   passed: 'var(--muted)',
   declined: 'var(--warn)',
   waitlisted: 'var(--ocre-brule)',
@@ -88,7 +88,7 @@ const ALIGNMENT_LABELS: Record<string, string> = {
 };
 
 const IMPACT_COLORS: Record<string, string> = {
-  positive: 'var(--vert-foret)',
+  positive: 'var(--positif)',
   negative: 'var(--warn)',
   mixed: 'var(--ocre-brule)',
   neutral: 'var(--muted)',
@@ -770,7 +770,7 @@ export default function OutcomeTracking({
         .ot-auto-tag {
           font-size: 8px;
           letter-spacing: -1px;
-          color: var(--vert-foret, #1f5f3f);
+          color: var(--positif, var(--good));
         }
         .ot-proposed-actions {
           display: flex;
@@ -792,11 +792,11 @@ export default function OutcomeTracking({
           background: transparent;
         }
         .ot-btn-confirm {
-          color: var(--vert-foret, #1f5f3f);
-          border-color: var(--vert-foret, #1f5f3f);
+          color: var(--positif, var(--good));
+          border-color: var(--positif, var(--good));
         }
         .ot-btn-confirm:hover {
-          background: var(--vert-foret, #1f5f3f);
+          background: var(--positif, var(--good));
           color: var(--paper, #fff);
         }
         .ot-btn-reject {

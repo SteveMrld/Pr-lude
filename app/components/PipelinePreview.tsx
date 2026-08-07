@@ -128,7 +128,7 @@ export default function PipelinePreview() {
               <span style={{
                 fontSize: 11,
                 width: 14,
-                color: isDone ? '#3a5a3a' : isCurrent ? '#5a4a32' : 'rgba(40, 30, 20, 0.4)',
+                color: isDone ? 'var(--good)' : isCurrent ? '#5a4a32' : 'rgba(40, 30, 20, 0.4)',
                 animation: isCurrent ? 'previewPulse 1.0s ease-in-out infinite' : 'none',
               }}>
                 {isDone ? '●' : isCurrent ? '◐' : '○'}

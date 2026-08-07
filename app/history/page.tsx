@@ -99,9 +99,9 @@ function renderRunStatus(status: string | null, failedCount: number | null): {
   if (status === 'completed' && failedCount === 0) {
     return {
       label: 'complet',
-      bg: 'var(--vert-foret-soft, rgba(80, 130, 90, 0.10))',
-      fg: 'var(--vert-foret, #5a7a4a)',
-      border: 'var(--vert-foret, #5a7a4a)',
+      bg: 'var(--positif-soft, rgba(43, 39, 33, 0.10))',
+      fg: 'var(--positif, var(--good))',
+      border: 'var(--positif, var(--good))',
       visible: true,
     };
   }
@@ -133,7 +133,7 @@ const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> =
   in_review: { bg: 'var(--paper-warm)',        fg: 'var(--accent-mid)',  border: 'var(--accent-mid)' },
   dd_field:  { bg: 'var(--accent-soft)',       fg: 'var(--accent)',      border: 'var(--accent)' },
   ic_review: { bg: 'var(--paper-accent)',      fg: 'var(--ink)',         border: 'var(--ink)' },
-  signed:    { bg: 'var(--vert-foret-soft)',   fg: 'var(--vert-foret)',  border: 'var(--vert-foret)' },
+  signed:    { bg: 'var(--positif-soft)',   fg: 'var(--positif)',  border: 'var(--positif)' },
   declined:  { bg: 'var(--warn-soft)',         fg: 'var(--warn)',        border: 'var(--warn)' },
 };
 
@@ -377,7 +377,7 @@ export default function HistoryPage() {
           gap: 14, marginBottom: 24,
         }}>
           <StatBox label="Total" value={stats.total} />
-          <StatBox label="Investir" value={stats.byVerdict.investir || 0} accent="var(--vert-foret)" />
+          <StatBox label="Investir" value={stats.byVerdict.investir || 0} accent="var(--positif)" />
           <StatBox label="Conditions" value={stats.byVerdict['investir-conditions'] || 0} accent="var(--accent)" />
           <StatBox label="Approfondir" value={stats.byVerdict.approfondir || 0} accent="var(--ocre-brule)" />
           <StatBox label="Refuser" value={stats.byVerdict.refuser || 0} accent="var(--warn)" />
@@ -639,7 +639,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
   const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const verdictColors: Record<string, { bg: string; fg: string; border: string }> = {
-    investir:               { bg: 'var(--vert-foret-soft)',  fg: 'var(--vert-foret)',  border: 'var(--vert-foret)' },
+    investir:               { bg: 'var(--positif-soft)',  fg: 'var(--positif)',  border: 'var(--positif)' },
     'investir-conditions':  { bg: 'var(--accent-soft)',      fg: 'var(--accent)',      border: 'var(--accent)' },
     approfondir:            { bg: 'var(--ocre-brule-soft)',  fg: 'var(--ocre-brule)',  border: 'var(--ocre-brule)' },
     refuser:                { bg: 'var(--warn-soft)',        fg: 'var(--warn)',        border: 'var(--warn)' },
@@ -818,12 +818,12 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
             fontWeight: 600,
             borderRadius: 3,
             background: analysis.hasBloc2
-              ? 'var(--vert-foret-soft, rgba(80, 130, 90, 0.10))'
+              ? 'var(--positif-soft, rgba(43, 39, 33, 0.10))'
               : 'var(--ocre-brule-soft)',
             color: analysis.hasBloc2
-              ? 'var(--vert-foret, #5a7a4a)'
+              ? 'var(--positif, var(--good))'
               : 'var(--ocre-brule)',
-            border: `1px solid ${analysis.hasBloc2 ? 'var(--vert-foret, #5a7a4a)' : 'var(--ocre-brule)'}`,
+            border: `1px solid ${analysis.hasBloc2 ? 'var(--positif, var(--good))' : 'var(--ocre-brule)'}`,
           }}>
             {analysis.hasBloc2 ? 'DD complete' : 'Bloc 1 seul'}
           </div>

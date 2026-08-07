@@ -385,8 +385,8 @@ const segmentStyles = `
     color: var(--ocre-brule, #b47832);
   }
   .cs-status-ready {
-    background: var(--vert-foret-soft, rgba(31, 95, 63, 0.12));
-    color: var(--vert-foret, #1f5f3f);
+    background: var(--positif-soft, rgba(43, 39, 33, 0.12));
+    color: var(--positif, var(--good));
   }
   .cs-segment-msg {
     margin: 0;

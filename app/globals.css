@@ -9,8 +9,33 @@
      kickers, nav active, soulignage de liens, italique emphatique des
      titres) et le signal semantique approfondir. La double charge est
      assumee : l accent identite et le signal point d attention partagent
-     le meme registre. Le trio verdict (vert investir, ocre approfondir,
-     rouge refuser) reste reserve aux badges et pills, jamais en fond.
+     le meme registre.
+
+     DEUX COULEURS ET PAS TROIS, decide le 7 aout 2026. Le vert sortait
+     du systeme et, sur un document destine a un fonds, trois couleurs
+     font moins serieux que deux. L etat positif ne porte donc plus de
+     teinte : il porte un gris tres fonce, chaud comme le reste de la
+     palette, et c est le poids qui le distingue et non la couleur.
+     L ocre reste le seul accent. Le rouge reste reserve a l alerte
+     critique, parce qu une alerte qui ne se distingue que par le poids
+     ne se distingue pas.
+
+     La consequence est que le verdict ne se lit plus a la couleur seule.
+     C est voulu : investir et refuser se lisent au libelle, et le seul
+     signal qui garde une couleur propre est celui qui doit arreter
+     l oeil. Les jetons `--positif` et `--good` portent la meme valeur,
+     le second etant l alias historique.
+
+     Le releve qui a precede : 36 valeurs vertes distinctes sur 148
+     sites, dont 22 en feuille de style et le reste en litteral dans les
+     composants. La couche de jetons n en gouvernait donc qu une part, ce
+     qui interdisait de faire le changement par les jetons seuls. Les
+     litteraux ont ete rabattus sur les jetons en classant les valeurs
+     PAR TEINTE et non par nom, parce qu un vert peut s appeler --good,
+     --success, ou ne rien s appeler du tout. Deux fichiers gardent un
+     litteral, ceux qui alimentent Recharts, qui ne resout pas les
+     variables CSS sur ses props de couleur ; la distinction se derive de
+     l import et non d une liste.
 
      Les callouts (--paper-accent / --accent-soft) utilisent un lavis ocre
      extremement pale, derive de l accent, qui tient le systeme ensemble
@@ -40,13 +65,13 @@
   --rouge-anglais-soft: #f3e5e0;
   --ocre-brule: #a8541d;        /* ocre brule, approfondir = accent identite */
   --ocre-brule-soft: #fbf4e6;
-  --vert-foret: #2f5d3a;        /* vert sombre sobre, investir */
-  --vert-foret-soft: #e8eee5;
+  --positif: #2b2721;           /* gris tres fonce chaud, etat positif */
+  --positif-soft: #efece5;
 
   --warn: #9b2c1d;
   --warn-soft: #f3e5e0;
-  --good: #2f5d3a;
-  --good-soft: #e8eee5;
+  --good: #2b2721;
+  --good-soft: #efece5;
   --signal: #a8541d;
   --signal-soft: #fbf4e6;
 
@@ -119,6 +144,15 @@
   --note-size-h2: 30px;
   --note-size-h3: 20px;
   --note-size-h4: 11px;
+  /* Le niveau qui NOMME un bloc se regle a part de celui qui legende une
+     valeur. Les deux partageaient un seul jeton, si bien que
+     RISQUES OPERATIONNELS sortait a 11px en gris au-dessus de titres de
+     carte a 15,5px en gras noir : le niveau qui organise la page etait le
+     plus discret de la page, et un lecteur tombe au milieu voyait les
+     cartes sans voir a quoi elles appartiennent. Separer les deux jetons
+     est le prealable, parce qu un en-tete de colonne de tableau doit
+     rester discret pendant que le nom de bloc domine. */
+  --note-size-h4-titre: 13px;
   --note-tracking-body: 0.005em;
   --note-tracking-h2: -0.015em;
   --note-tracking-h3: -0.01em;
@@ -138,6 +172,7 @@
   --note-weight-h2: 700;
   --note-weight-h3: 600;
   --note-weight-h4: 600;
+  --note-weight-h4-titre: 700;
   --note-weight-body: 400;
 
   /* RYTHME VERTICAL note IC. Espaces entre titres et bloc texte
@@ -167,6 +202,38 @@
   --note-print-margin-top: 16mm;
   --note-print-margin-bottom: 18mm;
   --note-print-margin-side: 14mm;
+
+  /* ============================================================
+     PILE DES ELEMENTS COLLES EN HAUT D ECRAN
+     ------------------------------------------------------------
+     Deux barres se disputaient `top: 0` avec le meme `z-index: 50`,
+     l entete globale et le bandeau de progression du pipeline. A
+     egalite d empilement c est l ordre du DOM qui tranche, donc le
+     bandeau, rendu plus bas dans la page, recouvrait l entete : sur
+     les captures du 7 aout 2026 on lisait PRELU et PLATEFORME D, le
+     reste passant sous le bandeau. C est la premiere chose qu un
+     partner voit.
+
+     Le jeton de hauteur GOUVERNE l entete, il ne la decrit pas, et
+     c est tout l interet : `.app-header` prend sa hauteur de ce
+     jeton, et le bandeau s y colle en dessous en lisant le meme
+     jeton. Les deux ne peuvent donc plus diverger. Une valeur
+     recopiee des deux cotes aurait tenu jusqu au jour ou l entete
+     change de padding, et ce jour-la rien ne l aurait signale.
+
+     La valeur vient d une mesure du rendu et non d une addition de
+     paddings : 93 pixels au 7 aout 2026, sur la page d un dossier a
+     1280 de large. Si le contenu de l entete depasse un jour cette
+     hauteur, il est coupe, ce qui se voit, plutot que de glisser
+     silencieusement sous le bandeau.
+
+     La pile est declaree ici pour la meme raison. `--z-entete` doit
+     rester au-dessus de `--z-colle`, et l ecrire a deux endroits
+     seulement rend la relation lisible.
+     ============================================================ */
+  --app-header-height: 93px;
+  --z-colle: 50;    /* barres collees dans le flux de la page */
+  --z-entete: 60;   /* entete globale, toujours au-dessus */
 }
 
 /* ============================================================
@@ -301,13 +368,13 @@
   --rouge-anglais-soft: #3d1a14;
   --ocre-brule: #d68a4c;        /* ocre clair = accent */
   --ocre-brule-soft: #2e2418;
-  --vert-foret: #a3c4a8;        /* vert sauge clair */
-  --vert-foret-soft: #1f2e22;
+  --positif: #d8d3ca;           /* gris clair chaud, etat positif */
+  --positif-soft: #26231e;
 
   --warn: #d68a7a;
   --warn-soft: #3d1a14;
-  --good: #a3c4a8;
-  --good-soft: #1f2e22;
+  --good: #d8d3ca;
+  --good-soft: #26231e;
   --signal: #d68a4c;
   --signal-soft: #2e2418;
 
@@ -344,12 +411,12 @@
     --rouge-anglais-soft: #3d1a14;
     --ocre-brule: #d68a4c;
     --ocre-brule-soft: #2e2418;
-    --vert-foret: #a3c4a8;
-    --vert-foret-soft: #1f2e22;
+    --positif: #d8d3ca;
+    --positif-soft: #26231e;
     --warn: #d68a7a;
     --warn-soft: #3d1a14;
-    --good: #a3c4a8;
-    --good-soft: #1f2e22;
+    --good: #d8d3ca;
+    --good-soft: #26231e;
     --signal: #d68a4c;
     --signal-soft: #2e2418;
   }
@@ -416,6 +483,11 @@ ul, ol { list-style: none; }
    et un titre place avant serait muet. */
 .note-rubrique-titre {
   color: var(--ink);
+  /* Meme role que `.note-h4`, donc memes jetons. Une rubrique qui nomme
+     un bloc sans etre un element de titre existe, et elle ne doit pas se
+     regler ailleurs sous pretexte qu elle porte une autre balise. */
+  font-size: var(--note-size-h4-titre);
+  font-weight: var(--note-weight-h4-titre);
 }
 
 /* ============================================================
@@ -482,15 +554,28 @@ ul, ol { list-style: none; }
    Il vit ici pour la meme raison : deux portees le declaraient et
    elles avaient deja diverge sur leurs marges. Les portees qui ont
    besoin d autre chose ne redeclarent que cet ecart. */
+/* Un h4 NOMME toujours un bloc, c est ce qu un element de titre est.
+   Il prend donc le traitement dominant sans qu on ait a le declarer site
+   par site : la taille et la graisse propres au role, l encre principale
+   plutot que l encre tertiaire, et un filet qui marque la frontiere du
+   bloc. Le filet fait le travail que la couleur ne peut plus faire, et
+   il tient meme quand le titre est seul en haut d une fenetre.
+
+   Avant le 7 aout 2026 ce selecteur partageait ses jetons avec la
+   legende, donc il sortait a 11px en gris au-dessus de titres de carte a
+   15,5px en gras noir. La hierarchie etait inversee a l endroit ou elle
+   sert le plus, celui du lecteur qui tombe au milieu du document. */
 .note-h4 {
   font-family: var(--sans);
-  font-size: var(--note-size-h4);
-  font-weight: var(--note-weight-h4);
+  font-size: var(--note-size-h4-titre);
+  font-weight: var(--note-weight-h4-titre);
   letter-spacing: var(--note-tracking-h4);
   text-transform: uppercase;
-  color: var(--ink-tertiary, var(--muted));
+  color: var(--ink);
   margin-top: var(--note-rhythm-h4-top);
   margin-bottom: var(--note-rhythm-h4-bot);
+  padding-bottom: var(--note-space-2);
+  border-bottom: 1px solid var(--hairline-strong);
 }
 
 /* HEADER - Plus aere, filet fin, fond blanc. Marque PRELUDE
@@ -606,8 +691,15 @@ ul, ol { list-style: none; }
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  /* Au-dessus de tout ce qui se colle dans le flux de la page. Voir la
+     pile declaree dans :root : a egalite d empilement, l ordre du DOM
+     tranchait en faveur du bandeau de pipeline et coupait le wordmark. */
+  z-index: var(--z-entete);
   gap: 24px;
+  /* La hauteur est gouvernee par le jeton et non constatee : c est lui
+     que le bandeau de pipeline lit pour se coller en dessous. */
+  height: var(--app-header-height);
+  box-sizing: border-box;
 }
 .brand-link {
   text-decoration: none;
@@ -871,7 +963,7 @@ ul, ol { list-style: none; }
   border-radius: var(--radius-pill);
   border: 1px solid currentColor;
 }
-.recents-card-verdict.verdict-investir { color: var(--vert-foret); background: var(--vert-foret-soft); }
+.recents-card-verdict.verdict-investir { color: var(--positif); background: var(--positif-soft); }
 .recents-card-verdict.verdict-investir-conditions { color: var(--ink); background: var(--paper-accent); }
 .recents-card-verdict.verdict-approfondir { color: var(--ocre-brule); background: var(--ocre-brule-soft); }
 .recents-card-verdict.verdict-refuser { color: var(--rouge-anglais); background: var(--rouge-anglais-soft); }
@@ -1553,7 +1645,7 @@ ul, ol { list-style: none; }
    - les pastilles de pictos quand la categorie est ouverte */
 .method-cat-ink    { --cat: var(--ink);          --cat-soft: var(--paper-accent); }
 .method-cat-amber  { --cat: var(--ocre-brule);   --cat-soft: var(--ocre-brule-soft); }
-.method-cat-green  { --cat: var(--vert-foret);   --cat-soft: var(--vert-foret-soft); }
+.method-cat-green  { --cat: var(--positif);   --cat-soft: var(--positif-soft); }
 .method-cat-bronze { --cat: #4a3320;             --cat-soft: rgba(74, 51, 32, 0.08); }
 
 /* METHOD BLOCK HEADERS - Bandeaux Bloc 1 / Bloc 2 dans la
@@ -2515,10 +2607,10 @@ ul, ol { list-style: none; }
   color: var(--ink);
 }
 .note-syn-verdict.verdict-investir {
-  color: var(--vert-foret);
+  color: var(--positif);
 }
 .note-syn-verdict.verdict-conditions {
-  color: var(--vert-foret);
+  color: var(--positif);
   font-style: italic;
   font-weight: 400;
 }
@@ -2639,7 +2731,7 @@ ul, ol { list-style: none; }
   min-width: 0;
 }
 .note-syn-eyebrow.forces-eyebrow {
-  color: var(--vert-foret);
+  color: var(--positif);
   opacity: 0.85;
 }
 .note-syn-eyebrow.risks-eyebrow {
@@ -2671,7 +2763,7 @@ ul, ol { list-style: none; }
   opacity: 0.7;
 }
 .note-syn-col-forces .note-syn-list li::before {
-  color: var(--vert-foret);
+  color: var(--positif);
 }
 .note-syn-item-title {
   font-family: var(--serif);
@@ -2906,9 +2998,9 @@ ul, ol { list-style: none; }
   vertical-align: middle;
 }
 .comp-type-tag.comp-type-sectoral {
-  background: rgba(59, 122, 90, 0.12);
-  color: #2d5a44;
-  border: 1px solid rgba(59, 122, 90, 0.30);
+  background: rgba(43, 39, 33, 0.12);
+  color: var(--good);
+  border: 1px solid rgba(43, 39, 33, 0.30);
 }
 .comp-type-tag.comp-type-pattern {
   background: rgba(122, 92, 31, 0.10);
@@ -2952,7 +3044,7 @@ ul, ol { list-style: none; }
 /* FLAGS LISTS */
 .flags-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
 .flag-col { padding: 14px 18px; }
-.flag-col.green { background: rgba(45, 90, 61, 0.04); border-left: 3px solid var(--good); }
+.flag-col.green { background: rgba(43, 39, 33, 0.04); border-left: 3px solid var(--good); }
 .flag-col.red { background: rgba(160, 62, 39, 0.04); border-left: 3px solid var(--warn); }
 .flag-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; font-weight: 500; }
 .flag-title.green { color: var(--good); }
@@ -3773,8 +3865,8 @@ ul, ol { list-style: none; }
   border-left-color: var(--ocre-brule);
 }
 .ai-replicability[data-verdict="protected"] {
-  background: var(--vert-foret-soft);
-  border-left-color: var(--vert-foret);
+  background: var(--positif-soft);
+  border-left-color: var(--positif);
 }
 .ai-replicability-header {
   display: flex;
@@ -3799,7 +3891,7 @@ ul, ol { list-style: none; }
 }
 .ai-replicability[data-verdict="high_risk"] .ai-replicability-verdict { color: var(--warn); }
 .ai-replicability[data-verdict="medium_risk"] .ai-replicability-verdict { color: var(--ocre-brule); }
-.ai-replicability[data-verdict="protected"] .ai-replicability-verdict { color: var(--vert-foret); }
+.ai-replicability[data-verdict="protected"] .ai-replicability-verdict { color: var(--positif); }
 .ai-replicability-time {
   font-family: var(--sans);
   font-size: 11px;
@@ -3821,7 +3913,7 @@ ul, ol { list-style: none; }
   letter-spacing: 0.10em;
   text-transform: uppercase;
   font-weight: 700;
-  color: var(--vert-foret);
+  color: var(--positif);
   margin-bottom: 6px;
 }
 .ai-replicability-factors-label-warn { color: var(--warn); }
@@ -3847,8 +3939,8 @@ ul, ol { list-style: none; }
   border-left: 3px solid;
 }
 .ai-velocity[data-verdict="ai_native"] {
-  background: var(--vert-foret-soft);
-  border-left-color: var(--vert-foret);
+  background: var(--positif-soft);
+  border-left-color: var(--positif);
 }
 .ai-velocity[data-verdict="ai_competent"] {
   background: var(--accent-soft);
@@ -3879,7 +3971,7 @@ ul, ol { list-style: none; }
   font-weight: 700;
   letter-spacing: -0.005em;
 }
-.ai-velocity[data-verdict="ai_native"] .ai-velocity-verdict { color: var(--vert-foret); }
+.ai-velocity[data-verdict="ai_native"] .ai-velocity-verdict { color: var(--positif); }
 .ai-velocity[data-verdict="ai_competent"] .ai-velocity-verdict { color: var(--accent); }
 .ai-velocity[data-verdict="ai_distant"] .ai-velocity-verdict { color: var(--warn); }
 .ai-velocity-score {
@@ -3907,7 +3999,7 @@ ul, ol { list-style: none; }
   color: var(--muted);
   margin-bottom: 6px;
 }
-.ai-velocity-block-label-pos { color: var(--vert-foret); }
+.ai-velocity-block-label-pos { color: var(--positif); }
 .ai-velocity-block-label-warn { color: var(--warn); }
 .ai-velocity-list {
   margin: 0;
@@ -3938,8 +4030,8 @@ ul, ol { list-style: none; }
   border-left-width: 3px;
 }
 .ai-business[data-classification="ai_native_with_moats"] {
-  background: var(--vert-foret-soft);
-  border-left-color: var(--vert-foret);
+  background: var(--positif-soft);
+  border-left-color: var(--positif);
   border-left-width: 3px;
 }
 .ai-business[data-classification="ai_augmented_classic"] {
@@ -3970,7 +4062,7 @@ ul, ol { list-style: none; }
   font-weight: 700;
 }
 .ai-business[data-classification="pure_wrapper"] .ai-business-classification { color: var(--warn); }
-.ai-business[data-classification="ai_native_with_moats"] .ai-business-classification { color: var(--vert-foret); }
+.ai-business[data-classification="ai_native_with_moats"] .ai-business-classification { color: var(--positif); }
 .ai-business[data-classification="ai_augmented_classic"] .ai-business-classification { color: var(--accent); }
 .ai-business-risk {
   margin-left: auto;
@@ -3982,7 +4074,7 @@ ul, ol { list-style: none; }
   border-radius: 999px;
   border: 1px solid;
 }
-.ai-business-risk[data-risk="low"] { color: var(--vert-foret); border-color: var(--vert-foret); }
+.ai-business-risk[data-risk="low"] { color: var(--positif); border-color: var(--positif); }
 .ai-business-risk[data-risk="medium"] { color: var(--ocre-brule); border-color: var(--ocre-brule); }
 .ai-business-risk[data-risk="high"] { color: var(--warn); border-color: var(--warn); }
 .ai-business-risk[data-risk="extreme"] { color: var(--paper); background: var(--warn); border-color: var(--warn); }
@@ -4044,7 +4136,7 @@ ul, ol { list-style: none; }
   color: var(--ink);
   margin-bottom: 6px;
 }
-.ai-business-block-label-pos { color: var(--vert-foret); }
+.ai-business-block-label-pos { color: var(--positif); }
 .ai-business-block-label-warn { color: var(--warn); }
 .ai-business-block-text {
   margin: 0;
@@ -4076,7 +4168,7 @@ ul, ol { list-style: none; }
   margin-top: 18px;
   padding: 16px 18px;
   background: var(--paper-accent);
-  border-left: 3px solid var(--vert-foret);
+  border-left: 3px solid var(--positif);
 }
 
 .ic-timeline-label {
@@ -4084,7 +4176,7 @@ ul, ol { list-style: none; }
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--vert-foret);
+  color: var(--positif);
   font-weight: 500;
   margin-bottom: 12px;
 }
@@ -4117,7 +4209,7 @@ ul, ol { list-style: none; }
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: var(--vert-foret);
+  background: var(--positif);
   flex-shrink: 0;
   margin-top: 4px;
   border: 2px solid var(--paper-accent);
@@ -4197,7 +4289,7 @@ ul, ol { list-style: none; }
 }
 
 .ic-block-conditions .ic-block-title {
-  color: var(--vert-foret);
+  color: var(--positif);
 }
 
 .ic-numbered-list,
@@ -4327,7 +4419,7 @@ ul, ol { list-style: none; }
 .ic-plan-col {
   padding: 12px 14px;
   background: var(--paper-accent);
-  border-top: 2px solid var(--vert-foret);
+  border-top: 2px solid var(--positif);
 }
 
 .ic-plan-head {
@@ -4335,7 +4427,7 @@ ul, ol { list-style: none; }
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--vert-foret);
+  color: var(--positif);
   font-weight: 500;
   margin-bottom: 8px;
 }
@@ -4413,13 +4505,13 @@ ul, ol { list-style: none; }
 }
 
 .ic-vote-recommended {
-  border: 2px solid var(--vert-foret);
-  background: var(--vert-foret-soft);
+  border: 2px solid var(--positif);
+  background: var(--positif-soft);
 }
 
 .ic-vote-marker {
   font-size: 18px;
-  color: var(--vert-foret);
+  color: var(--positif);
   font-weight: 500;
 }
 
@@ -4442,7 +4534,7 @@ ul, ol { list-style: none; }
   font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--vert-foret);
+  color: var(--positif);
   font-weight: 500;
 }
 
@@ -4462,19 +4554,19 @@ ul, ol { list-style: none; }
 }
 
 .ic-vote-card-interactive:focus-visible {
-  outline: 2px solid var(--vert-foret);
+  outline: 2px solid var(--positif);
   outline-offset: 2px;
 }
 
 /* Vote du user actuel : bordure pleine vert foret epaisse, fond
    leger pour un visuel plus marque que la simple recommandation. */
 .ic-vote-card-mine {
-  border: 2px solid var(--vert-foret);
-  background: var(--vert-foret-soft, rgba(31, 122, 60, 0.08));
+  border: 2px solid var(--positif);
+  background: var(--positif-soft, rgba(43, 39, 33, 0.08));
 }
 
 .ic-vote-card-mine .ic-vote-marker {
-  color: var(--vert-foret);
+  color: var(--positif);
 }
 
 /* Compteur de votes par option */
@@ -4489,7 +4581,7 @@ ul, ol { list-style: none; }
 }
 
 .ic-vote-mine-badge {
-  color: var(--vert-foret);
+  color: var(--positif);
   font-weight: 600;
 }
 
@@ -4921,8 +5013,8 @@ select.ic-decision-input {
   background: var(--paper);
 }
 
-.ref-calls-conviction-strong-pos { border-left-color: #2d7a40; background: #f0f8f2; }
-.ref-calls-conviction-soft-pos { border-left-color: #5da970; background: #f6faf7; }
+.ref-calls-conviction-strong-pos { border-left-color: var(--good); background: var(--good-soft); }
+.ref-calls-conviction-soft-pos { border-left-color: var(--good); background: #f6faf7; }
 .ref-calls-conviction-mixed { border-left-color: #c08a3f; background: #faf6ee; }
 .ref-calls-conviction-soft-neg { border-left-color: #c47070; background: #faf3f3; }
 .ref-calls-conviction-strong-neg { border-left-color: #a03030; background: #fae8e8; }
@@ -4975,7 +5067,7 @@ select.ic-decision-input {
   border-radius: 0 4px 4px 0;
 }
 
-.ref-calls-signal-positif { border-left-color: #2d7a40; }
+.ref-calls-signal-positif { border-left-color: var(--good); }
 .ref-calls-signal-negatif { border-left-color: #a03030; }
 .ref-calls-signal-mitige { border-left-color: #c08a3f; }
 
@@ -5190,8 +5282,8 @@ select.ic-decision-input {
   border: 1px solid var(--hairline);
 }
 
-.ref-calls-tone-tres_positif { color: #2d7a40; border-color: #2d7a40; background: #f0f8f2; }
-.ref-calls-tone-positif { color: #5da970; border-color: #5da970; background: #f6faf7; }
+.ref-calls-tone-tres_positif { color: var(--good); border-color: var(--good); background: var(--good-soft); }
+.ref-calls-tone-positif { color: var(--good); border-color: var(--good); background: #f6faf7; }
 .ref-calls-tone-mitige { color: #c08a3f; border-color: #c08a3f; background: #faf6ee; }
 .ref-calls-tone-negatif { color: #c47070; border-color: #c47070; background: #faf3f3; }
 .ref-calls-tone-tres_negatif { color: #a03030; border-color: #a03030; background: #fae8e8; }
@@ -5686,8 +5778,8 @@ select.ic-decision-input {
   color: var(--ink);
 }
 .fp-alert-success {
-  background: var(--vert-foret-soft);
-  border-color: var(--vert-foret);
+  background: var(--positif-soft);
+  border-color: var(--positif);
   color: var(--ink);
 }
 .fp-save-btn {

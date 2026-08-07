@@ -349,7 +349,7 @@ export default function CommentsPanel({
                         fontSize: 10,
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
-                        color: 'var(--vert-foret, #1f7a3c)',
+                        color: 'var(--positif, var(--good))',
                         cursor: 'pointer',
                         fontFamily: 'inherit',
                       }}
@@ -358,7 +358,7 @@ export default function CommentsPanel({
                     </button>
                   )}
                   {isResolved && (
-                    <span style={{ color: 'var(--vert-foret, #1f7a3c)' }}>
+                    <span style={{ color: 'var(--positif, var(--good))' }}>
                       Résolu {formatRelative(a.resolvedAt!)}
                     </span>
                   )}

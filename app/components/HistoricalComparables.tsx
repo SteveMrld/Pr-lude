@@ -137,9 +137,9 @@ const OUTCOME_LABELS: Record<string, string> = {
 };
 
 const OUTCOME_COLORS: Record<string, string> = {
-  success: 'var(--vert-foret)',
-  success_private: 'var(--vert-foret)',
-  success_exit: 'var(--vert-foret)',
+  success: 'var(--positif)',
+  success_private: 'var(--positif)',
+  success_exit: 'var(--positif)',
   medium: 'var(--ocre-brule)',
   active: 'var(--accent)',
   fail: 'var(--warn)',
@@ -160,7 +160,7 @@ const FUNDING_BAND_LABELS: Record<string, string> = {
 const PATTERN_LABELS: Record<string, { label: string; color: string; tone: string }> = {
   'success-leaning': {
     label: 'Pattern dominant : succès',
-    color: 'var(--vert-foret)',
+    color: 'var(--positif)',
     tone: 'La majorité des cas comparables ont produit un outcome positif. Cela ne garantit rien, mais le narratif est aligné avec des trajectoires connues qui ont fonctionné.',
   },
   'fail-leaning': {
@@ -286,7 +286,7 @@ function ComparablesRealRender({ analysisId }: Props) {
         <p className="hc-pattern-tone">{pattern.tone}</p>
         <div className="hc-distribution">
           <div className="hc-dist-cell">
-            <div className="hc-dist-num" style={{ color: 'var(--vert-foret)' }}>{data.outcomeDistribution.success}</div>
+            <div className="hc-dist-num" style={{ color: 'var(--positif)' }}>{data.outcomeDistribution.success}</div>
             <div className="hc-dist-label">Succès</div>
           </div>
           <div className="hc-dist-cell">
@@ -325,7 +325,7 @@ function ComparablesRealRender({ analysisId }: Props) {
           {(['optimistic', 'median', 'downside'] as const).map((key) => {
             const scenario = data.trajectory[key];
             const labels = {
-              optimistic: { fr: 'Optimiste', color: 'var(--vert-foret)' },
+              optimistic: { fr: 'Optimiste', color: 'var(--positif)' },
               median: { fr: 'Médian', color: 'var(--ocre-brule)' },
               downside: { fr: 'Downside', color: 'var(--warn)' },
             }[key];
@@ -822,9 +822,9 @@ const styles = `
     border: 1px solid var(--hairline);
   }
   .hc-pill-quality-high {
-    background: var(--vert-foret-soft);
-    color: var(--vert-foret);
-    border: 1px solid var(--vert-foret);
+    background: var(--positif-soft);
+    color: var(--positif);
+    border: 1px solid var(--positif);
   }
   .hc-pill-quality-low {
     background: var(--ocre-brule-soft);
@@ -1006,7 +1006,7 @@ const styles = `
     border-top: 3px solid;
     border-radius: 0 0 10px 10px;
   }
-  .hc-narrative-success { border-top-color: var(--vert-foret); }
+  .hc-narrative-success { border-top-color: var(--positif); }
   .hc-narrative-fail { border-top-color: var(--warn); }
   .hc-narrative-kicker {
     font-family: var(--sans);

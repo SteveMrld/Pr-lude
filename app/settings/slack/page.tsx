@@ -437,10 +437,10 @@ export default function SlackSettingsPage() {
             <div style={{
               marginTop: 16,
               padding: '12px 16px',
-              background: testResult.ok ? 'rgba(31,122,60,0.08)' : 'rgba(122,31,31,0.05)',
-              borderLeft: `3px solid ${testResult.ok ? 'var(--vert-foret)' : 'var(--rouge-anglais)'}`,
+              background: testResult.ok ? 'rgba(43, 39, 33,0.08)' : 'rgba(122,31,31,0.05)',
+              borderLeft: `3px solid ${testResult.ok ? 'var(--positif)' : 'var(--rouge-anglais)'}`,
               fontSize: 13,
-              color: testResult.ok ? 'var(--vert-foret)' : 'var(--rouge-anglais)',
+              color: testResult.ok ? 'var(--positif)' : 'var(--rouge-anglais)',
               lineHeight: 1.5,
             }}>
               {testResult.ok

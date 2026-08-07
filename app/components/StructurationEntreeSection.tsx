@@ -41,8 +41,8 @@ const POSTURE_LABELS: Record<StructurationEntreeOutput['postureGenerale'], strin
 
 const POSTURE_COLORS: Record<StructurationEntreeOutput['postureGenerale'], string> = {
   'protection-forte': '#8a4a17',
-  'standard': '#3f4a2b',
-  'souple': '#506b3a',
+  'standard': 'var(--good)',
+  'souple': 'var(--good)',
 };
 
 type Variant = 'note' | 'dashboard' | 'ic';
@@ -57,7 +57,7 @@ export default function StructurationEntreeSection({
   variant = 'note',
 }: Props) {
   const postureLabel = POSTURE_LABELS[structuration.postureGenerale] || 'Posture standard';
-  const postureColor = POSTURE_COLORS[structuration.postureGenerale] || '#3f4a2b';
+  const postureColor = POSTURE_COLORS[structuration.postureGenerale] || 'var(--good)';
 
   if (variant === 'ic') {
     return (

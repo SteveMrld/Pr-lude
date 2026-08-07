@@ -47,7 +47,7 @@ const STATE_LABEL: Record<EngineStateLite['status'], string> = {
 const STATE_COLOR: Record<EngineStateLite['status'], string> = {
   idle: 'var(--muted)',
   running: 'var(--ocre-brule)',
-  done: 'var(--vert-foret)',
+  done: 'var(--positif)',
   error: 'var(--ocre-brule)',
 };
 

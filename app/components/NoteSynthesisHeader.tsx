@@ -321,8 +321,8 @@ function ScoreGauge({ score }: ScoreGaugeProps) {
   const segments = [
     { from: 0, to: 45, fill: '#efe8db' },   // refuser : gris chaud tres pale
     { from: 45, to: 60, fill: '#f2d9b5' },  // approfondir : lavis ocre pale
-    { from: 60, to: 75, fill: '#dfe4d0' },  // conditions : lavis vert tres pale
-    { from: 75, to: 100, fill: '#b8ccae' }, // investir : vert foret pale
+    { from: 60, to: 75, fill: 'var(--good-soft)' },  // conditions : lavis vert tres pale
+    { from: 75, to: 100, fill: 'var(--good)' }, // investir : vert foret pale
   ];
 
   return (

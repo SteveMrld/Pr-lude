@@ -329,7 +329,7 @@ function PortfolioPane({ portfolio }: { portfolio: PortfolioReconciliation }) {
           content: '';
           display: block;
           width: 28px;
-          border-top: 1px solid #1f5f3f;
+          border-top: 1px solid var(--good);
           margin-bottom: 14px;
         }
         .distribution-section {
@@ -758,10 +758,10 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
           background: #efece5;
           color: #6e6c66;
         }
-        .m-align-confirms_driver, .m-align-contradicts_risk { color: #1f5f3f; background: rgba(31, 95, 63, 0.08); }
+        .m-align-confirms_driver, .m-align-contradicts_risk { color: var(--good); background: rgba(43, 39, 33, 0.08); }
         .m-align-confirms_risk { color: #b47832; background: rgba(180, 120, 50, 0.08); }
         .m-align-contradicts_driver, .m-align-unforeseen_negative { color: #b14842; background: rgba(177, 72, 66, 0.08); }
-        .m-align-unforeseen_positive { color: #1f5f3f; background: rgba(31, 95, 63, 0.06); }
+        .m-align-unforeseen_positive { color: var(--good); background: rgba(43, 39, 33, 0.06); }
         .d-reco-prose {
           margin: 14px 0 0;
           font-size: 14px;
@@ -784,7 +784,7 @@ function DossierDetails({ data }: { data: DossierReconciliation }) {
           text-transform: uppercase;
           margin-right: 6px;
         }
-        .quality-strong { background: rgba(31, 95, 63, 0.06); border-color: #1f5f3f; }
+        .quality-strong { background: rgba(43, 39, 33, 0.06); border-color: var(--good); }
         .quality-mixed { background: rgba(180, 120, 50, 0.06); border-color: #b47832; }
         .quality-weak { background: rgba(177, 72, 66, 0.06); border-color: #b14842; }
         .quality-insufficient_data { background: #f6f3ec; border-color: #6e6c66; }

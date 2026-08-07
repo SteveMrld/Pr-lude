@@ -1824,10 +1824,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     { label: 'Unit economics (CAC, CVR, Payback)', verdict: r.relevanceMatrix.verdicts?.saasMetricsUnitEconomics },
                   ].filter((row) => row.verdict).map((row, i) => {
                     const v = row.verdict!;
-                    const color = v.applicable === 'full' ? '#0a7c2f'
+                    const color = v.applicable === 'full' ? 'var(--good)'
                       : v.applicable === 'partial' ? '#a36b00'
                       : '#888';
-                    const bg = v.applicable === 'full' ? '#e6f3ea'
+                    const bg = v.applicable === 'full' ? 'var(--good-soft)'
                       : v.applicable === 'partial' ? '#faf2e0'
                       : '#f0f0f0';
                     const labelText = v.applicable === 'full' ? 'Activé'
@@ -2099,6 +2099,22 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <div className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 6 }}>
                   Méthodes appliquées
                 </div>
+                {/* UNE RAISON PARTAGEE S ECRIT UNE FOIS.
+                    Quatre methodes ecartees pour le meme motif
+                    imprimaient le meme avertissement en italique quatre
+                    fois, soit huit lignes pour une information. La
+                    repetition ne dit rien de plus que la premiere
+                    occurrence : ce qui distingue les methodes entre elles
+                    est deja porte par leur libelle et par leur filet
+                    tirete. On ne masque donc pas une information, on
+                    cesse de la recopier.
+
+                    Le dedoublonnage porte sur la valeur et non sur un
+                    rang : deux methodes non consecutives qui partagent un
+                    motif sont dans le meme cas que deux voisines. Il se
+                    calcule avant la boucle plutot que par un accumulateur
+                    mute pendant le rendu, qui rendrait le resultat
+                    dependant du nombre de passes de React. */}
                 {valuation.methods.map((m: any, i: number) => (
                   <div key={m.method} style={{
                     paddingLeft: 12,
@@ -2119,7 +2135,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                         {m.rationale}
                       </div>
                     )}
-                    {!m.applicable && m.notApplicableReason && (
+                    {!m.applicable && m.notApplicableReason
+                      && valuation.methods.findIndex(
+                        (a: any) => !a.applicable && a.notApplicableReason === m.notApplicableReason,
+                      ) === i && (
                       <div style={{ fontSize: 11, lineHeight: 1.5, color: 'var(--muted)', marginTop: 2, fontStyle: 'italic' }}>
                         {m.notApplicableReason}
                       </div>
@@ -2220,8 +2239,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     .filter((i: any) => i.verdict !== 'non-applicable')
                     .map((ind: any) => {
                       const verdictColor =
-                        ind.verdict === 'best-in-class' ? '#1e7a3d' :
-                        ind.verdict === 'sain' ? '#3a7a4a' :
+                        ind.verdict === 'best-in-class' ? 'var(--good)' :
+                        ind.verdict === 'sain' ? 'var(--good)' :
                         ind.verdict === 'a-surveiller' ? 'var(--ocre-brule)' :
                         ind.verdict === 'rouge' ? '#a73d2c' : 'var(--muted)';
                       const verdictLabel =
@@ -2500,13 +2519,33 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               <>
                 <h4 className="note-h4">Patterns historiques convergents</h4>
                 <ul className="risk-list">
-                  {ba.patternsHistoriques.map((p: any, i: number) => (
-                    <li key={i}>
-                      <span className="signal-score-pill signal-score-blindspot">{p.similarity}</span>
-                      <strong>{p.case}.</strong> {p.outcome}
-                      {p.lessonLearned && <>. {p.lessonLearned}</>}
-                    </li>
-                  ))}
+                  {/* UNE ENTREE QUI NE NOMME RIEN N EST PAS UNE ENTREE.
+                      Cette liste etait la seule des trois a mapper sans
+                      filtre : les deux autres passent par
+                      `detected && score >= 60`, donc elles ne peuvent pas
+                      rendre de coquille. Ici un element sans `case`
+                      sortait un point isole, et `similarity` a zero
+                      sortait une pastille « 0 » qui se lit comme une
+                      mesure alors qu elle dit une absence. C est le zero
+                      d Aveuglement pris en rendu : aucun nombre ne
+                      signifie « absent » dans une pastille de score, donc
+                      la pastille ne s affiche pas plutot que d afficher
+                      zero. */}
+                  {ba.patternsHistoriques
+                    .filter((p: any) => typeof p?.case === 'string' && p.case.trim().length > 0)
+                    .map((p: any, i: number) => {
+                      const sim = Number(p.similarity);
+                      const simLisible = Number.isFinite(sim) && sim > 0;
+                      return (
+                        <li key={i}>
+                          {simLisible && (
+                            <span className="signal-score-pill signal-score-blindspot">{sim}</span>
+                          )}
+                          <strong>{p.case}.</strong> {p.outcome}
+                          {p.lessonLearned && <>. {p.lessonLearned}</>}
+                        </li>
+                      );
+                    })}
                 </ul>
               </>
             )}
@@ -2587,7 +2626,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     ocre Prelude, pas de SaaS, pas d emoji. */}
                 {(() => {
                   const verdictColor: Record<string, { bg: string; ink: string; label: string }> = {
-                    'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                    'sain': { bg: '#f1ead8', ink: 'var(--good)', label: 'Sain' },
                     'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
                     'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
                     'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
@@ -2671,12 +2710,12 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     );
                   }
                   const verdictTone: Record<string, string> = {
-                    'sain': '#3f4a2b',
+                    'sain': 'var(--good)',
                     'attention': '#7a5a1d',
                     'alerte': '#8a4a17',
                     'drapeau-rouge': '#7a2916',
                   };
-                  const tone = verdictTone[a.verdict] || '#3f4a2b';
+                  const tone = verdictTone[a.verdict] || 'var(--good)';
                   return (
                     <div key={axis.key} style={{ marginBottom: 14, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -2901,7 +2940,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     prouve rien quand les detecteurs sont muets. */}
                 {(() => {
                   const verdictColor: Record<string, { bg: string; ink: string; label: string }> = {
-                    'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                    'sain': { bg: '#f1ead8', ink: 'var(--good)', label: 'Sain' },
                     'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
                     'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
                     'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
@@ -3080,12 +3119,12 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     }
 
                     const verdictTone: Record<string, string> = {
-                      'sain': '#3f4a2b',
+                      'sain': 'var(--good)',
                       'attention': '#7a5a1d',
                       'alerte': '#8a4a17',
                       'drapeau-rouge': '#7a2916',
                     };
-                    const tone = verdictTone[p.verdict] || '#3f4a2b';
+                    const tone = verdictTone[p.verdict] || 'var(--good)';
 
                     // Patterns avec score modere/eleve : carte detaillee
                     if (p.globalScore >= 35) {
@@ -3119,7 +3158,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                               marginTop: 6,
                               opacity: 0.75,
                               color: annotation.kind === 'delta'
-                                ? (annotation.direction === 'aggravation' ? '#8a4a17' : '#3f4a2b')
+                                ? (annotation.direction === 'aggravation' ? '#8a4a17' : 'var(--good)')
                                 : '#8a4a17',
                               fontStyle: annotation.kind === 'delta' || annotation.kind === 'maintained' ? 'normal' : 'italic',
                             }}>
@@ -4189,8 +4228,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           --semantic-critical-soft: #f3e5e0;
           --semantic-warning: #a8541d;
           --semantic-warning-soft: #fbf4e6;
-          --semantic-positive: #2f5d3a;
-          --semantic-positive-soft: #e8eee5;
+          --semantic-positive: var(--good);
+          --semantic-positive-soft: var(--good-soft);
 
           max-width: 920px;
           margin: 0 auto;
@@ -4299,7 +4338,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            en 30 secondes avant de scroller dans le detail. */
 
         /* Bandeau verdict : la zone qui domine la page */
-        .note-cover-verdict-tone-go { border-left-color: rgb(21, 128, 61); }
+        .note-cover-verdict-tone-go { border-left-color: rgb(43, 39, 33); }
         .note-cover-verdict-tone-conditional { border-left-color: rgb(180, 95, 30); }
         .note-cover-verdict-tone-watch { border-left-color: rgb(94, 75, 41); }
         .note-cover-verdict-tone-decline { border-left-color: rgb(155, 28, 28); }
@@ -4465,8 +4504,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           color: var(--ocre-brule);
         }
         .note-verdict-positive {
-          border-top-color: var(--vert-foret);
-          color: var(--vert-foret);
+          border-top-color: var(--positif);
+          color: var(--positif);
         }
         
         /* CHIFFRE-CLÉ - Met en valeur les nombres importants dans la prose
@@ -4572,7 +4611,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           border-bottom-color: var(--semantic-positive);
         }
         .pull-quote-contrarian .pull-quote-mark {
-          color: rgba(45, 74, 45, 0.5);
+          color: rgba(43, 39, 33, 0.5);
         }
         .pull-quote-blindspot {
           color: var(--semantic-critical);
@@ -4687,7 +4726,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         }
         .pitch-alignment-underestimated {
           border-left-color: var(--semantic-positive);
-          background: #e8f0e8;
+          background: var(--good-soft);
         }
         .pitch-alignment-pitch-not-cited {
           border-left-color: var(--ink-tertiary);
@@ -5071,7 +5110,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           background: linear-gradient(90deg, var(--semantic-warning-soft) 0%, var(--semantic-warning-soft) 100%);
         }
         .zone-conditions {
-          background: linear-gradient(90deg, #e8efe8 0%, #e8efe8 100%);
+          background: linear-gradient(90deg, var(--good-soft) 0%, var(--good-soft) 100%);
         }
         .zone-investir {
           background: linear-gradient(90deg, var(--semantic-positive-soft) 0%, var(--semantic-positive-soft) 100%);
@@ -5102,7 +5141,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .lbl-refuser { color: var(--semantic-critical); }
         .lbl-approfondir { color: #6b4d2c; }
         .lbl-conditions { color: var(--semantic-positive); }
-        .lbl-investir { color: #1f3a1f; }
+        .lbl-investir { color: var(--good); }
         .score-thresholds-axis {
           position: relative;
           height: 14px;
@@ -5118,6 +5157,27 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           list-style: none;
           margin-bottom: 22px;
         }
+        /* FLUX DE TEXTE PAR DEFAUT, flex seulement quand il y a une
+           pastille de score.
+
+           Ces items etaient tous en display flex. Or un li de risque
+           contient trois enfants, la pastille de severite, le strong du
+           titre et le texte de la description : en flex, le strong
+           devient un item a lui seul et se comprime en colonne pendant
+           que la description prend le reste. D ou des titres de cinq
+           lignes dans un filet a cote d un paragraphe qui respire, et des
+           largeurs de colonne qui changent d un bloc a l autre.
+
+           Que le flux inline soit l intention d origine se lit dans
+           .risk-sev, qui porte margin-right et vertical-align : ces deux
+           proprietes n ont aucun effet sur un item de flex. Le flex a ete
+           ajoute apres, pour les listes a pastille de score, et il a ete
+           pose sur toutes.
+
+           La condition se DERIVE donc du contenu plutot que de se
+           declarer par une classe supplementaire : une liste qui gagne
+           une pastille demain passe en flex sans qu on y pense, et une
+           qui la perd revient au flux. */
         .risk-list li {
           padding: 16px 20px;
           margin-bottom: 10px;
@@ -5126,6 +5186,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-size: 14px;
           line-height: 1.65;
           color: var(--ink);
+        }
+        .risk-list li:has(.signal-score-pill) {
           display: flex;
           gap: 16px;
           align-items: flex-start;
@@ -5173,8 +5235,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           vertical-align: 1px;
         }
         .sev-low {
-          background: #e8efe8;
-          color: #1f3a1f;
+          background: var(--good-soft);
+          color: var(--good);
           border: 1px solid #cfd8cf;
         }
         .sev-medium {
@@ -5249,7 +5311,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .matrix-table tr.target td {
           background: var(--paper-accent);
         }
-        .cov-yes { color: #1f3a1f; font-weight: 700; font-size: 14px; }
+        .cov-yes { color: var(--good); font-weight: 700; font-size: 14px; }
         .cov-no { color: var(--semantic-critical); font-size: 14px; }
 
         /* ALERT BOX - Encart d'alertes critiques. Style "callout" éditorial :
@@ -5320,8 +5382,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           letter-spacing: 0.02em;
         }
         .tech-claim-test-score.pass {
-          color: var(--vert-foret, #1f5f3f);
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+          color: var(--positif, var(--good));
+          background: var(--positif-soft, rgba(43, 39, 33, 0.08));
         }
         .tech-claim-test-score.fail {
           color: var(--warn, #b14842);
@@ -5361,8 +5423,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-right: 6px;
         }
         .tech-claim-verdict-tech_credible {
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
-          border-color: var(--vert-foret, #1f5f3f);
+          background: var(--positif-soft, rgba(43, 39, 33, 0.06));
+          border-color: var(--positif, var(--good));
           color: var(--ink);
         }
         .tech-claim-verdict-tech_partially_substantiated {
@@ -5447,8 +5509,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           background: var(--paper-accent, var(--surface));
         }
         .exec-friction-low .exec-friction-score {
-          color: var(--vert-foret, #1f5f3f);
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+          color: var(--positif, var(--good));
+          background: var(--positif-soft, rgba(43, 39, 33, 0.08));
         }
         .exec-friction-medium .exec-friction-score {
           color: var(--ocre-brule, #b47832);
@@ -5483,8 +5545,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-right: 6px;
         }
         .exec-friction-verdict-friction_low {
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
-          border-color: var(--vert-foret, #1f5f3f);
+          background: var(--positif-soft, rgba(43, 39, 33, 0.06));
+          border-color: var(--positif, var(--good));
           color: var(--ink);
         }
         .exec-friction-verdict-friction_medium {
@@ -5552,7 +5614,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-size: 13px;
           line-height: 1.55;
         }
-        .dd-test-aligned { border-left-color: var(--vert-foret, #1f5f3f); }
+        .dd-test-aligned { border-left-color: var(--positif, var(--good)); }
         .dd-test-attention { border-left-color: var(--ocre-brule, #b47832); }
         .dd-test-alert { border-left-color: var(--warn, #b14842); }
         .dd-test-red_flag { border-left-color: #7a2520; background: rgba(122, 37, 32, 0.04); }
@@ -5594,8 +5656,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-weight: 600;
         }
         .dd-test-pill-aligned {
-          color: var(--vert-foret, #1f5f3f);
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+          color: var(--positif, var(--good));
+          background: var(--positif-soft, rgba(43, 39, 33, 0.08));
         }
         .dd-test-pill-attention {
           color: var(--ocre-brule, #b47832);
@@ -5678,8 +5740,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-right: 6px;
         }
         .dd-verdict-dd_aligned {
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
-          border-color: var(--vert-foret, #1f5f3f);
+          background: var(--positif-soft, rgba(43, 39, 33, 0.06));
+          border-color: var(--positif, var(--good));
           color: var(--ink);
         }
         .dd-verdict-dd_partial_alignment {
@@ -5705,13 +5767,13 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
            registre neutre car ce n est pas un red flag, juste un
            dossier insuffisant a juger. */
         .dd-verdict-tech_strong {
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
-          border-color: var(--vert-foret, #1f5f3f);
+          background: var(--positif-soft, rgba(43, 39, 33, 0.06));
+          border-color: var(--positif, var(--good));
           color: var(--ink);
         }
         .dd-verdict-tech_solid {
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.04));
-          border-color: var(--vert-foret, #1f5f3f);
+          background: var(--positif-soft, rgba(43, 39, 33, 0.04));
+          border-color: var(--positif, var(--good));
           color: var(--ink);
         }
         .dd-verdict-tech_partial {
@@ -5879,7 +5941,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-size: 13px;
           line-height: 1.55;
         }
-        .ddc-clause-standard { border-left-color: var(--vert-foret, #1f5f3f); }
+        .ddc-clause-standard { border-left-color: var(--positif, var(--good)); }
         .ddc-clause-attention { border-left-color: var(--ocre-brule, #b47832); }
         .ddc-clause-non_standard { border-left-color: var(--warn, #b14842); }
         .ddc-clause-red_flag { border-left-color: #7a2520; background: rgba(122, 37, 32, 0.04); }
@@ -5911,8 +5973,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-weight: 600;
         }
         .ddc-clause-pill-standard {
-          color: var(--vert-foret, #1f5f3f);
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.08));
+          color: var(--positif, var(--good));
+          background: var(--positif-soft, rgba(43, 39, 33, 0.08));
         }
         .ddc-clause-pill-attention {
           color: var(--ocre-brule, #b47832);
@@ -6004,7 +6066,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           background: var(--surface);
           font-size: 12.5px;
         }
-        .ddc-flag-standard { border-left-color: var(--vert-foret, #1f5f3f); }
+        .ddc-flag-standard { border-left-color: var(--positif, var(--good)); }
         .ddc-flag-attention { border-left-color: var(--ocre-brule, #b47832); }
         .ddc-flag-non_standard { border-left-color: var(--warn, #b14842); }
         .ddc-flag-red_flag { border-left-color: #7a2520; background: rgba(122, 37, 32, 0.04); }
@@ -6047,8 +6109,8 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-right: 6px;
         }
         .ddc-verdict-contractual_aligned {
-          background: var(--vert-foret-soft, rgba(31, 95, 63, 0.06));
-          border-color: var(--vert-foret, #1f5f3f);
+          background: var(--positif-soft, rgba(43, 39, 33, 0.06));
+          border-color: var(--positif, var(--good));
           color: var(--ink);
         }
         .ddc-verdict-contractual_attention {
@@ -6192,9 +6254,9 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           font-weight: 500;
         }
         .asset-class-tag.asset-class-high {
-          background: rgba(59, 122, 90, 0.10);
-          color: #2d5a44;
-          border-left: 2px solid #3b7a5a;
+          background: rgba(43, 39, 33, 0.10);
+          color: var(--good);
+          border-left: 2px solid var(--good);
         }
         .asset-class-tag.asset-class-medium {
           background: rgba(122, 92, 31, 0.08);
@@ -6283,7 +6345,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           color: var(--paper);
         }
         .benchmark-badge.status-confirmed {
-          background: #2d4a2e;
+          background: var(--good);
           color: var(--paper);
         }
         .benchmark-badge.status-promising {
@@ -6461,7 +6523,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         }
         .refcheck-status-unknown { background: var(--hairline); color: var(--muted); }
         .refcheck-status-pilot { background: rgba(180, 95, 30, 0.15); color: rgb(180, 95, 30); }
-        .refcheck-status-contract { background: rgba(21, 128, 61, 0.15); color: rgb(21, 128, 61); }
+        .refcheck-status-contract { background: rgba(43, 39, 33, 0.15); color: rgb(43, 39, 33); }
         .refcheck-status-announced { background: rgba(94, 75, 41, 0.15); color: rgb(94, 75, 41); }
         .refcheck-redflags {
           margin: 24px 0;

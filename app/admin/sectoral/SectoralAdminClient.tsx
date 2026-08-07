@@ -495,9 +495,9 @@ function SectorRowComponent({
           font-weight: 600;
         }
         .sa-freshness-pill[data-state='a_jour'] {
-          color: #2f6f3e;
-          border-color: #2f6f3e;
-          background: #effaf1;
+          color: var(--good);
+          border-color: var(--good);
+          background: var(--good-soft);
         }
         .sa-freshness-pill[data-state='recommandee'] {
           color: var(--ocre-brule, #a6691a);

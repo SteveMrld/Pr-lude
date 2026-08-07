@@ -37,8 +37,8 @@ const OUTCOME_LABELS: Record<MarketOutcome, string> = {
 };
 
 const OUTCOME_COLORS: Record<MarketOutcome, string> = {
-  exit: 'var(--vert-foret, #1f5f3f)',
-  alive_thriving: 'var(--vert-foret, #1f5f3f)',
+  exit: 'var(--positif, var(--good))',
+  alive_thriving: 'var(--positif, var(--good))',
   fail: 'var(--warn, #b14842)',
   alive_flat: 'var(--ocre-brule, #b47832)',
   alive: 'var(--muted, #6e6c66)',

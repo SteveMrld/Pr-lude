@@ -106,8 +106,15 @@ export default function PipelineProgress({
     <div
       style={{
         position: 'sticky',
-        top: 0,
-        zIndex: 50,
+        // Se colle SOUS l entete globale, jamais dessus. Les deux
+        // valaient `top: 0` et `z-index: 50`, donc l ordre du DOM
+        // tranchait et ce bandeau recouvrait le wordmark : on lisait
+        // PRELU sur toutes les captures du 7 aout 2026. Le decalage lit
+        // le jeton qui gouverne la hauteur de l entete, il ne le
+        // recopie pas, faute de quoi les deux divergeraient au premier
+        // changement de padding de l entete.
+        top: 'var(--app-header-height)',
+        zIndex: 'var(--z-colle)',
         background: 'rgba(255, 255, 255, 0.92)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
@@ -132,7 +139,7 @@ export default function PipelineProgress({
             fontWeight: 600,
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
-            color: analyzing ? 'var(--ocre-brule)' : 'var(--vert-foret)',
+            color: analyzing ? 'var(--ocre-brule)' : 'var(--positif)',
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
@@ -141,7 +148,7 @@ export default function PipelineProgress({
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: analyzing ? 'var(--ocre-brule)' : 'var(--vert-foret)',
+              background: analyzing ? 'var(--ocre-brule)' : 'var(--positif)',
               animation: analyzing ? 'preludePulse 1.4s ease-in-out infinite' : 'none',
             }} />
             {analyzing ? 'Pipeline en cours' : 'Pipeline terminé'}
@@ -246,7 +253,7 @@ export default function PipelineProgress({
           const palette: StatusPalette = ({
             idle:    { bg: 'var(--surface)',         border: 'var(--hairline)',          fg: 'var(--muted-soft)', iconName: 'circle' },
             running: { bg: 'var(--ocre-brule-soft)', border: 'var(--ocre-brule)',         fg: 'var(--ocre-brule)', iconName: 'circle-half' },
-            done:    { bg: 'var(--vert-foret-soft)', border: 'var(--vert-foret)',         fg: 'var(--vert-foret)', iconName: 'check' },
+            done:    { bg: 'var(--positif-soft)', border: 'var(--positif)',         fg: 'var(--positif)', iconName: 'check' },
             error:   { bg: 'var(--warn-soft)',       border: 'var(--warn)',               fg: 'var(--warn)',       iconName: 'sparkle' },
           } as const)[state.status];
 
@@ -331,7 +338,7 @@ export default function PipelineProgress({
                 <span style={{
                   width: 12,
                   height: 1,
-                  background: state.status === 'done' ? 'var(--vert-foret)' : 'var(--hairline)',
+                  background: state.status === 'done' ? 'var(--positif)' : 'var(--hairline)',
                   flexShrink: 0,
                   margin: '0 2px',
                   transition: 'background 220ms cubic-bezier(0.16, 1, 0.3, 1)',

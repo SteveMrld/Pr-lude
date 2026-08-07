@@ -651,7 +651,7 @@ const itemStyles = `
     font-weight: 600;
   }
   .bv-item-direction-up { color: var(--rouge-anglais, #a23b2c); }
-  .bv-item-direction-down { color: #2f6f3e; }
+  .bv-item-direction-down { color: var(--good); }
   .bv-item-numbers {
     font-family: var(--mono);
     font-size: 11.5px;

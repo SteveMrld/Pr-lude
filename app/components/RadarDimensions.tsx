@@ -17,12 +17,12 @@ type Props = {
 // Couleur du radar en fonction du verdict global. Palette identite Prelude
 // (fond blanc, encre quasi-noire, accent ocre brule). Recharts ne resout pas
 // les CSS variables sur strokes/fills, donc on duplique les hex.
-//   ink (#14110d) pour neutre, vert-foret (#2f5d3a) pour passer,
+//   ink (#14110d) pour neutre, vert-foret (#2b2721) pour passer,
 //   rouge-anglais (#9b2c1d) pour refuser, ocre-brule (#a8541d) pour condition.
 function colorFromVerdict(verdict?: string): string {
   if (!verdict) return '#14110d';
   const v = verdict.toLowerCase();
-  if (v.includes('passer') || v.includes('aller') || v.includes('go')) return '#2f5d3a';
+  if (v.includes('passer') || v.includes('aller') || v.includes('go')) return '#2b2721';
   if (v.includes('refuser') || v.includes('reject') || v.includes('no-go')) return '#9b2c1d';
   if (v.includes('condition') || v.includes('hold')) return '#a8541d';
   return '#14110d';

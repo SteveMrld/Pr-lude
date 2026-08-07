@@ -3481,7 +3481,7 @@ export default function HomeClient({
                   fontSize: 11,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  color: 'var(--vert-foret)',
+                  color: 'var(--positif)',
                   alignSelf: 'center',
                 }}>
                   ✓ Sauvegardée
@@ -3696,7 +3696,7 @@ export default function HomeClient({
               const colors = nonExecute
                 ? { bg: 'rgba(138, 129, 117, 0.08)', border: 'rgba(138, 129, 117, 0.5)', accent: '#8a8175' }
                 : isOk
-                ? { bg: 'rgba(80, 140, 90, 0.06)', border: 'rgba(80, 140, 90, 0.45)', accent: '#508c5a' }
+                ? { bg: 'rgba(43, 39, 33, 0.06)', border: 'rgba(43, 39, 33, 0.45)', accent: 'var(--good)' }
                 : isCaveats
                 ? { bg: 'rgba(192, 138, 63, 0.08)', border: 'rgba(192, 138, 63, 0.5)', accent: '#c08a3f' }
                 : { bg: 'rgba(192, 64, 60, 0.08)', border: 'rgba(192, 64, 60, 0.5)', accent: '#c0403c' };
@@ -3773,7 +3773,7 @@ export default function HomeClient({
                           // comme une elimination, ce qui est la
                           // conflation meme que la grappe 3 a fermee.
                           const testColor = t.status === 'pass'
-                            ? '#508c5a'
+                            ? 'var(--good)'
                             : t.status === 'warn'
                             ? '#c08a3f'
                             : t.status === 'not_produced'
@@ -4067,15 +4067,15 @@ export default function HomeClient({
                   marginTop: 12,
                   marginBottom: 32,
                   padding: '20px 28px',
-                  background: 'linear-gradient(135deg, rgba(80, 107, 58, 0.07) 0%, rgba(80, 107, 58, 0.02) 100%)',
-                  borderLeft: '3px solid #506b3a',
+                  background: 'linear-gradient(135deg, rgba(43, 39, 33, 0.07) 0%, rgba(43, 39, 33, 0.02) 100%)',
+                  borderLeft: '3px solid var(--good)',
                   borderRadius: 2,
                 }}>
                   <div style={{
                     fontSize: 10,
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                    color: '#506b3a',
+                    color: 'var(--good)',
                     fontWeight: 600,
                     marginBottom: 8,
                   }}>
@@ -4551,7 +4551,7 @@ export default function HomeClient({
                             background: 'var(--surface)',
                             borderLeft: t?.notApplicable
                               ? '3px solid #999'
-                              : t?.passed ? '3px solid #3a5a3a' : '3px solid #a04040',
+                              : t?.passed ? '3px solid var(--good)' : '3px solid #a04040',
                             opacity: t?.notApplicable ? 0.7 : 1,
                           }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
@@ -4568,7 +4568,7 @@ export default function HomeClient({
                                 <div style={{
                                   height: '100%',
                                   width: `${t?.score ?? 0}%`,
-                                  background: (t?.score ?? 0) >= 70 ? '#3a5a3a' : (t?.score ?? 0) >= 40 ? '#888' : '#a04040',
+                                  background: (t?.score ?? 0) >= 70 ? 'var(--good)' : (t?.score ?? 0) >= 40 ? '#888' : '#a04040',
                                 }} />
                               </div>
                             )}
@@ -4635,7 +4635,7 @@ export default function HomeClient({
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
                       {[
                         { key: 'strategicRisks', title: 'Risques stratégiques', color: 'var(--accent)' },
-                        { key: 'operationalRisks', title: 'Risques opérationnels', color: 'var(--vert-foret)' },
+                        { key: 'operationalRisks', title: 'Risques opérationnels', color: 'var(--positif)' },
                         { key: 'financialRisks', title: 'Risques financiers', color: 'var(--rouge-anglais)' },
                       ].map(cat => {
                         const risks = result.blindspotAnalysis.riskMap[cat.key] || [];
@@ -4889,7 +4889,7 @@ export default function HomeClient({
                               <div style={{
                                 height: '100%',
                                 width: `${s.strength}%`,
-                                background: s.strength >= 70 ? '#3a5a3a' : s.strength >= 40 ? '#888' : '#bbb',
+                                background: s.strength >= 70 ? 'var(--good)' : s.strength >= 40 ? '#888' : '#bbb',
                               }} />
                             </div>
                             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 8 }}>
@@ -4979,7 +4979,7 @@ export default function HomeClient({
 
                 // Cas nominal : moteur a produit son analyse.
                 const verdictBg: Record<string, { bg: string; ink: string; label: string }> = {
-                  'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                  'sain': { bg: '#f1ead8', ink: 'var(--good)', label: 'Sain' },
                   'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
                   'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
                   'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
@@ -5081,7 +5081,7 @@ export default function HomeClient({
                         const a = axis.data;
                         if (!a) return null;
                         const tone: Record<string, string> = {
-                          'sain': '#3f4a2b',
+                          'sain': 'var(--good)',
                           'attention': '#7a5a1d',
                           'alerte': '#8a4a17',
                           'drapeau-rouge': '#7a2916',
@@ -5195,7 +5195,7 @@ export default function HomeClient({
                 }
 
                 const verdictBg: Record<string, { bg: string; ink: string; label: string }> = {
-                  'sain': { bg: '#f1ead8', ink: '#3f4a2b', label: 'Sain' },
+                  'sain': { bg: '#f1ead8', ink: 'var(--good)', label: 'Sain' },
                   'attention': { bg: '#ede2c8', ink: '#7a5a1d', label: 'Attention' },
                   'alerte': { bg: '#e8d4b1', ink: '#8a4a17', label: 'Alerte' },
                   'drapeau-rouge': { bg: '#dcc3a3', ink: '#7a2916', label: 'Drapeau rouge' },
@@ -5344,12 +5344,12 @@ export default function HomeClient({
                         }
 
                         const tone: Record<string, string> = {
-                          'sain': '#3f4a2b',
+                          'sain': 'var(--good)',
                           'attention': '#7a5a1d',
                           'alerte': '#8a4a17',
                           'drapeau-rouge': '#7a2916',
                         };
-                        const c = tone[p.verdict] || '#3f4a2b';
+                        const c = tone[p.verdict] || 'var(--good)';
 
                         return (
                           <div key={patternId} style={{ padding: 16, border: '1px solid var(--hairline)', borderLeft: `3px solid ${c}` }}>
@@ -5370,7 +5370,7 @@ export default function HomeClient({
                                   color: annotation.kind === 'delta' && annotation.direction === 'aggravation'
                                     ? '#8a4a17'
                                     : annotation.kind === 'delta' && annotation.direction === 'amelioration'
-                                    ? '#3f4a2b'
+                                    ? 'var(--good)'
                                     : annotation.kind === 'newly-applicable'
                                     ? '#8a4a17'
                                     : 'inherit',
@@ -5543,7 +5543,7 @@ export default function HomeClient({
                               <div style={{
                                 height: '100%',
                                 width: `${f.overallFitScore}%`,
-                                background: f.overallFitScore >= 70 ? '#3a5a3a' : f.overallFitScore >= 45 ? '#888' : '#a04040',
+                                background: f.overallFitScore >= 70 ? 'var(--good)' : f.overallFitScore >= 45 ? '#888' : '#a04040',
                               }} />
                             </div>
                             <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>{f.trajectorySummary}</div>
@@ -5557,7 +5557,7 @@ export default function HomeClient({
 
                             {f.fitSignals?.length > 0 && (
                               <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: 'var(--vert-foret)' }}>Signaux positifs</div>
+                                <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 4, color: 'var(--positif)' }}>Signaux positifs</div>
                                 <ul style={{ paddingLeft: 16, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
                                   {(f.fitSignals || []).map((s: string, j: number) => <li key={j}>{s}</li>)}
                                 </ul>
@@ -6383,8 +6383,8 @@ export default function HomeClient({
                                     letterSpacing: '0.06em',
                                     textTransform: 'uppercase',
                                     padding: '2px 8px',
-                                    background: cc.contractStatus === 'contract' ? 'rgba(26,77,46,0.12)' : cc.contractStatus === 'pilot' ? 'rgba(122,92,31,0.12)' : 'rgba(0,0,0,0.06)',
-                                    color: cc.contractStatus === 'contract' ? '#1a4d2e' : cc.contractStatus === 'pilot' ? '#7a5c1f' : 'inherit',
+                                    background: cc.contractStatus === 'contract' ? 'rgba(43, 39, 33,0.12)' : cc.contractStatus === 'pilot' ? 'rgba(122,92,31,0.12)' : 'rgba(0,0,0,0.06)',
+                                    color: cc.contractStatus === 'contract' ? 'var(--good)' : cc.contractStatus === 'pilot' ? '#7a5c1f' : 'inherit',
                                   }}>
                                     {cc.contractStatus}
                                   </span>
@@ -7026,7 +7026,7 @@ function AnnotationBlock({ analysisId }: { analysisId: string }) {
           }}>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>
               {saveState === 'saving' && 'Sauvegarde...'}
-              {saveState === 'saved' && <span style={{ color: 'var(--vert-foret)' }}>✓ Annotation sauvegardée</span>}
+              {saveState === 'saved' && <span style={{ color: 'var(--positif)' }}>✓ Annotation sauvegardée</span>}
               {saveState === 'error' && <span style={{ color: 'var(--rouge-anglais)' }}>⨯ Erreur de sauvegarde</span>}
               {saveState === 'idle' && hasChanges && <span style={{ opacity: 0.7 }}>Modifications non sauvegardées</span>}
               {saveState === 'idle' && !hasChanges && <span style={{ opacity: 0.5 }}>{notes.length} caractères</span>}
@@ -7149,7 +7149,7 @@ function PortfolioTagBlock({ analysisId }: { analysisId: string }) {
           }}>
             Dossier en portefeuille du fonds
             {saveState === 'saved' && (
-              <span style={{ marginLeft: 10, color: 'var(--vert-foret)', textTransform: 'none', letterSpacing: 0 }}>
+              <span style={{ marginLeft: 10, color: 'var(--positif)', textTransform: 'none', letterSpacing: 0 }}>
                 · enregistré
               </span>
             )}

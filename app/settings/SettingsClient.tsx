@@ -756,9 +756,9 @@ export default function SettingsClient({
           line-height: 1.4;
         }
         .settings-msg-ok {
-          background: var(--vert-foret-soft);
-          color: var(--vert-foret);
-          border: 1px solid var(--vert-foret);
+          background: var(--positif-soft);
+          color: var(--positif);
+          border: 1px solid var(--positif);
         }
         .settings-msg-err {
           background: var(--warn-soft);

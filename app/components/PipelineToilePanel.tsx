@@ -274,10 +274,10 @@ function LegendSwatch({ state }: { state: ToileNodeState }) {
       className = 'legend-swatch-running';
       break;
     case 'done':
-      stroke = 'var(--vert-foret)';
+      stroke = 'var(--positif)';
       strokeOpacity = 1;
       strokeWidth = 1;
-      fill = 'var(--vert-foret-soft)';
+      fill = 'var(--positif-soft)';
       break;
     case 'error':
       stroke = 'var(--ocre-brule)';
