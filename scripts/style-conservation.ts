@@ -232,10 +232,13 @@ export interface Divergence {
  * Compter la seconde comme la premiere ferait du bruit a chaque
  * extraction, et une divergence reelle s y noierait.
  */
-function relationsParentEnfant(fichiers: string[]): Record<string, string[]> {
+function relationsParentEnfant(
+  fichiers: string[],
+  lire: (f: string) => string,
+): Record<string, string[]> {
   const rel: Record<string, string[]> = {};
   for (const f of fichiers) {
-    const src = readFileSync(f, 'utf-8');
+    const src = lire(f);
     const enfants: string[] = [];
     for (const autre of fichiers) {
       if (autre === f) continue;
@@ -317,14 +320,22 @@ function divergencesDeLaPortee(
   return out;
 }
 
-export function relever(): Releve {
-  const fichiers = fichiersDuPerimetre();
+/**
+ * Sources en memoire, pour que le controle s eprouve par sa propre
+ * porte de production plutot que par une copie de sa logique. Absent en
+ * usage normal : le perimetre et les contenus viennent alors du disque.
+ */
+export type Sources = Record<string, string>;
+
+export function relever(sources?: Sources): Releve {
+  const fichiers = sources ? Object.keys(sources).sort() : fichiersDuPerimetre();
+  const lire = (f: string) => (sources ? sources[f] : readFileSync(f, 'utf-8'));
   const regles: Record<string, string[]> = {};
   const orphelines: Releve['orphelines'] = [];
   const divergences: Divergence[] = [];
   const portees: string[] = [];
   for (const f of fichiers) {
-    const src = readFileSync(f, 'utf-8');
+    const src = lire(f);
     const rendues = classesRendues(src);
     for (const bloc of blocsDeStyle(src, f)) {
       portees.push(bloc.portee);
@@ -345,7 +356,7 @@ export function relever(): Releve {
       divergences.push(...divergencesDeLaPortee(bloc.portee, dansLaPortee));
     }
   }
-  return { fichiers, portees, relations: relationsParentEnfant(fichiers), regles, orphelines, divergences };
+  return { fichiers, portees, relations: relationsParentEnfant(fichiers, lire), regles, orphelines, divergences };
 }
 
 function capture(sortie: string) {
@@ -426,10 +437,15 @@ function comparer(avant: string) {
   process.exit(ecarts.length > 0 ? 1 : 0);
 }
 
-const [mode, arg] = process.argv.slice(2);
-if (mode === 'capture' && arg) capture(arg);
-else if (mode === 'comparer' && arg) comparer(arg);
-else {
-  console.log('usage: style-conservation.ts capture <fichier.json> | comparer <fichier.json>');
-  process.exit(2);
+// Le bloc de commande ne s execute que si le module est le point
+// d entree. Sans cette garde, importer `relever` depuis un test lance
+// la commande et fait sortir le processus avant la premiere assertion.
+if (require.main === module) {
+  const [mode, arg] = process.argv.slice(2);
+  if (mode === 'capture' && arg) capture(arg);
+  else if (mode === 'comparer' && arg) comparer(arg);
+  else {
+    console.log('usage: style-conservation.ts capture <fichier.json> | comparer <fichier.json>');
+    process.exit(2);
+  }
 }

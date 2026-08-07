@@ -2804,3 +2804,55 @@ d'une extraction.
 lots suivants, qui deplacent chacun leurs propres regles. Sans lui, la
 seule extraction verifiable serait celle d'un bloc ne portant aucune
 classe stylee, ce qui n'existe pas dans ce fichier.
+
+---
+
+## Le reliquat de CSS apres les onze blocs, et la question du litteral
+
+Ecrit le 7 aout 2026, avant la premiere extraction, pour que la question
+ne se pose pas comme une surprise a la fin du lot.
+
+L'ordre du chantier a bouge trois fois, et la derniere raison est d'une
+autre nature que les deux precedentes. Ce n'est plus qu'une garde ne voit
+pas ce qu'elle devrait voir, c'est que l'extraction change le mecanisme
+qui applique le style. Sortir le bloc de style dans un fichier separe
+fait passer styled-jsx d'une transformation a la compilation, ou le CSS
+est extrait d'un litteral gabarit statique, a une injection au moment du
+rendu, ou il arrive comme valeur. Le rendu reste correct dans les deux
+cas, mais ce n'est plus le meme dispositif, et aucune des deux gardes ne
+le verrait : le harnais HTML ne rend pas les styles, et le controle de
+conservation ne sait plus lire un bloc dont le contenu n'est pas un
+litteral.
+
+Les onze blocs simples passent donc devant. Ils sont reellement couverts
+depuis que le controle de conservation existe et sait suivre les regles
+qui accompagnent chaque bloc, et le CSS restant diminuera a mesure que
+les regles partiront avec leurs composants.
+
+**La question ne disparait pas pour autant, et c'est le point de cette
+section.** Le reliquat sera plus petit et mieux compris, mais il faudra
+toujours decider ce qu'on en fait, et les trois formes disponibles n'ont
+pas le meme risque.
+
+Le litteral importe comme constante, `<style jsx>{noteStyles}</style>`,
+conserve la portee par composant mais bascule vers l'injection au rendu.
+C'est le changement de mecanisme decrit ci-dessus, et il rend le controle
+de conservation aveugle tant qu'il ne sait pas suivre une constante
+jusqu'a sa declaration.
+
+La feuille globale supprime la portee. Toutes les regles deviennent
+applicables partout, ce qui est sans consequence tant que les deux cent
+quatre-vingt-dix-huit classes restent prefixees comme elles le sont, et
+qui devient une source de collisions le jour ou quelqu'un ajoute une
+classe sans prefixe. Le risque n'est pas au moment du geste, il est
+apres.
+
+Le module CSS change les noms de classes, donc il touche a la fois le
+style et le JSX, et il fait sortir le controle de conservation de son
+objet puisque les selecteurs ne correspondent plus aux classes ecrites.
+
+Aucune n'est manifestement bonne, et la meilleure dependra de l'etat du
+fichier a ce moment-la, notamment du nombre de regles qui resteront
+effectivement dans le parent. La question se tranche a ce moment-la et
+pas maintenant : la trancher aujourd'hui reviendrait a decider sur un
+etat qu'on va deliberement changer.

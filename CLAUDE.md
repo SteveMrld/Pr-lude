@@ -1215,6 +1215,54 @@ support.
 Le premier des trois controles a d ailleurs donne, en se fermant, un
 defaut d une autre nature, qui a sa section propre juste en dessous.
 
+## La liste des mutations se derive des axes du controle
+
+Une mutation prouve qu un controle voit ce qu on lui montre. Elle ne dit
+rien de ce qu on ne lui a pas montre, et la tentation est de conclure du
+premier au second parce qu on a fait l effort de confronter.
+
+Le cas est du 7 aout 2026. Le controle de conservation du style avait
+ete eprouve par trois mutations sur fichiers reels, retirer une regle,
+la recopier, la deplacer sans son JSX. Les trois rougissaient, chacune
+avec le bon libelle, et le controle a ete declare confronte puis
+commite. Il portait deux defauts que ces mutations ne pouvaient pas
+atteindre. Il groupait par fichier au lieu de grouper par bloc de style,
+donc il lisait comme un conflit deux declarations vivant dans deux
+portees qui ne se rencontrent jamais. Et il triait les declarations
+avant de les stocker, ce qui detruit l ordre de cascade et lui faisait
+annoncer la mauvaise valeur gagnante, ce qui est pire que se taire
+puisqu il repondait a la question qu on lui posait.
+
+La faute n est pas d avoir mal mute, chaque mutation etait juste. Elle
+est d avoir tire la liste des mutations de ce qu on avait en tete en
+ecrivant le controle, c est-a-dire des trois modes de defaillance qui
+avaient motive son ecriture. Un controle en fait toujours plus que ce
+qu on a voulu lui faire faire : il attribue, il ordonne, il classe, et
+chacun de ces gestes est un axe ou il peut se tromper sans qu aucune des
+mutations prevues ne le touche.
+
+Le corollaire pratique est mecanique et il retire le jugement de
+l affaire. La liste des mutations se derive des axes du controle et non
+de son intention : on enumere ce que le code decide, puis on mute une
+fois par decision. Le controle ci-dessus decide cinq choses, la presence
+d une regle, sa duplication, l orphelinat de sa classe, la portee ou
+elle vit et l ordre qui la fait gagner ; il faut donc cinq mutations et
+non trois.
+
+Deuxieme exigence, et c est celle qui separe un controle d un
+declencheur. Chaque axe s eprouve dans les deux sens quand cela a un
+sens : le controle doit rougir sur la faute et se taire sur le cas sain
+voisin. Deux declarations concurrentes dans une meme portee doivent etre
+signalees ; les memes deux, dans deux portees distinctes, ne doivent pas
+l etre. Sans le second sens, l assertion est satisfaite par un controle
+qui ne detecte jamais rien, ou par un controle qui detecte tout.
+
+Et sur un axe d ordre, le sens inverse n est pas une precaution mais la
+seule assertion qui prouve quelque chose. Verifier qu une valeur
+gagnante est bien annoncee sur un seul cas laisse passer un controle qui
+repond au hasard une fois sur deux, ou qui trie au lieu de lire l ordre,
+ce qui etait exactement la faute. Il faut les deux ordres.
+
 ## Le meme fait a deux lectures selon la relation entre ses deux termes
 
 Un controle qui rapproche deux elements doit savoir ce qui les relie,
