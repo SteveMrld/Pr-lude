@@ -1212,6 +1212,68 @@ Ce que la variante `read -r` ne resout pas se dit aussi : elle ecrit le
 meme fichier sur le disque, elle protege l historique et pas le
 support.
 
+Un dernier point, et il ne se voit qu une fois le correctif pose. Le
+premier des trois controles etait ecrit « la configuration ne doit rien
+rendre », ce qui a cesse d etre juste au moment ou il est devenu vrai.
+Le helper global a ete retire le 7 aout, mais Pr-lude porte depuis le
+2 aout une ligne locale a valeur vide, qui n est pas un helper : c est
+ce qui remet la liste des helpers a zero. Le controle rend donc une
+ligne, et cette ligne est exactement l inverse de ce qu il cherche. Un
+controle qui ne distingue pas un mecanisme de sa neutralisation les
+compte tous les deux, et il se trompe dans le sens de l alarme un jour
+et dans le sens du silence le lendemain. Ce qui se verifie est la liste
+des valeurs non vides, qui doit etre vide, et non la sortie de la
+commande. La formulation qui compte des lignes se remplace par celle
+qui interroge l objet, ce qui est la discipline de mesure prise sur un
+fichier de configuration.
+
+## Une valeur par defaut fausse se trompe du cote qui accuse
+
+Une valeur fabriquee faute de mesure ne se trompe pas au hasard. Elle
+se trompe du cote severe, et la raison n est pas technique : elle est
+ecrite par quelqu un qui se protege d une absence et non d une
+injustice. Au moment de choisir, la question presente a l esprit est
+« que se passe-t-il si le champ est vide », jamais « que se passe-t-il
+si ce que j ecris est faux pour quelqu un ». La premiere question a un
+symptome immediat, un rendu casse, un calcul qui leve. La seconde n en
+a aucun, puisque le resultat sera plausible.
+
+La semaine du 3 aout 2026 en a donne trois occurrences sur trois
+moteurs sans rapport, ce qui en fait un motif et non une serie. Le
+snapshot du recorder fabriquait le statut de la synthese finale avec
+`empty_output` en valeur par defaut, et le bulletin imprimait une panne
+majeure en premiere page sur un moteur qui avait rendu son verdict, son
+score et ses cinq decision drivers. Le pre-scan repliait sur `absence`
+la cause d une non-production dont personne n avait pose la cause,
+c est-a-dire du cote qui n exige aucune reparation et ne remonte pas, ce
+qui accuse le dossier de ne pas porter la donnee quand c est le
+dispositif qui n a pas produit. Et le score-calculator, faute de
+distinguer un score absent d un score nul, imputait au dossier un moteur
+qui n avait rien instruit, avec un rationale lui reprochant de n avoir
+pas fourni de business plan.
+
+Les trois se ressemblent par leur cout plutot que par leur mecanisme.
+Aucune ne casse quoi que ce soit : les notes sortent, les calculs
+aboutissent, les tests restent verts. Ce qu elles depensent est du
+credit, et elles le depensent devant le seul lecteur qui compte. Une
+note qui reproche a un fonds de n avoir pas fourni un document qu il a
+fourni est inmontrable, et elle jette le doute sur les quarante pages
+qui l accompagnent, y compris celles qui ont raison.
+
+La sortie n est pas de choisir l autre cote, ce qui reproduirait la
+faute en masquant de vraies pannes. Elle est de sortir du vocabulaire de
+l accusation, ce qui demande d ordinaire un etat de plus et non un
+arbitrage entre les etats existants : `inconnu` a cote des statuts de
+lacune, `sous-champs-absents` a cote de `donnees-dossier-absentes`, une
+cause de non-production qui voyage avec la valeur plutot qu un nombre
+qui la remplace.
+
+En pratique, devant toute valeur fabriquee, la question ne se pose pas
+dans le sens ou l on a envie de la poser. Non pas « quelle valeur evite
+de casser », mais « si ce repli est faux, qui accuse-t-il ». Quand la
+reponse est le dossier ou le client, le repli est a refaire, et il l est
+meme quand il n a jamais casse.
+
 ## Discipline des regles ecrites
 
 Quand une regle est ecrite dans un commentaire, elle doit etre portee
