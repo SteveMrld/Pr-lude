@@ -57,12 +57,12 @@ export function BandeauGouvernance({ conflictOfInterest }: BandeauGouvernancePro
         fontFamily: 'var(--serif)',
       }}
     >
-      <div  className="note-rubrique" style={{ color: '#7a2916', marginBottom: 8 }}>
+      <div className="note-rubrique" style={{ color: '#7a2916', marginBottom: 8 }}>
         Alerte gouvernance · Conflit d&apos;intérêt détecté
       </div>
       {byKind['self-deal'].length > 0 && (
         <div style={{ marginBottom: byKind['board-insider'].length > 0 ? 10 : 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Self-deal cap-table</div>
+          <div className="note-rubrique" style={{ marginBottom: 4 }}>Self-deal cap-table</div>
           {byKind['self-deal'].map((f: any, i: number) => (
             <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>{f.rationale}</p>
           ))}
@@ -70,7 +70,7 @@ export function BandeauGouvernance({ conflictOfInterest }: BandeauGouvernancePro
       )}
       {byKind['board-insider'].length > 0 && (
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Board insider</div>
+          <div className="note-rubrique" style={{ marginBottom: 4 }}>Board insider</div>
           {byKind['board-insider'].map((f: any, i: number) => (
             <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>{f.rationale}</p>
           ))}

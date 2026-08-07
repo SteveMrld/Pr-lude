@@ -219,25 +219,12 @@ function FoldableSection({
         {count !== undefined && (
           <span style={{ marginLeft: 10, fontSize: 11.5, color: 'var(--muted)', fontWeight: 500 }}>({count})</span>
         )}
-        <span  className="note-rubrique" style={{ float: 'right', color: 'var(--muted)', marginTop: 4 }}>Replié en lecture rapide</span>
+        <span className="note-rubrique" style={{ float: 'right', color: 'var(--muted)', marginTop: 4 }}>Replié en lecture rapide</span>
       </summary>
       <div style={{ paddingTop: 14 }}>
         {children}
       </div>
       <style jsx>{`
-        /* Recopie depuis la portee de la note : une rubrique convertie
-           vit dans ce composant, et styled-jsx scope au declarant. Le
-           controle signalera DUPLIQUEE-IDENTIQUE, a bon droit, et c est
-           le cout que le mecanisme de portee impose. */
-        .note-rubrique {
-          font-family: var(--sans);
-          font-size: var(--note-size-h4);
-          font-weight: 600;
-          letter-spacing: var(--note-tracking-h4);
-          text-transform: uppercase;
-          color: var(--ink-tertiary);
-        }
-
         .prelude-fold[open] :global(.prelude-fold-arrow),
         details[open] > summary > .prelude-fold-arrow {
           transform: rotate(90deg);
@@ -448,14 +435,13 @@ function NoteSectoralAnnex({
           padding-top: 24px;
           border-top: 1px solid #C8A988;
         }
+        /* L annexe ouvre son bloc par ce titre, donc il n a rien
+           au-dessus de quoi respirer. Elle ne redeclare que cet ecart,
+           le reste venant de la regle globale : deux versions completes
+           d une meme classe divergent tot ou tard sur autre chose que
+           ce qu on voulait distinguer. */
         .note-h4 {
-          font-family: var(--sans);
-          font-size: var(--note-size-h4);
-          font-weight: 600;
-          letter-spacing: var(--note-tracking-h4);
-          text-transform: uppercase;
-          color: var(--ink-tertiary);
-          margin: 0 0 var(--note-space-3);
+          margin-top: 0;
         }
         .note-sectoral-annex-intro {
           font-family: var(--serif, Georgia, serif);
@@ -799,7 +785,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           borderLeft: '3px solid var(--accent)',
           borderRadius: '0 8px 8px 0',
         }}>
-          <span  className="note-rubrique">
+          <span className="note-rubrique">
             Lecture rapide
           </span>
           <span style={{ color: 'var(--ink-soft)', marginLeft: 10, fontFamily: 'var(--serif)' }}>
@@ -1512,7 +1498,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 border: '1px solid var(--hairline)',
                 borderRadius: 4,
               }}>
-                <div  className="note-rubrique" style={{ color: 'var(--ink-soft)', marginBottom: 4 }}>
+                <div className="note-rubrique" style={{ color: 'var(--ink-soft)', marginBottom: 4 }}>
                   Décomposition du score
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '0 0 12px 0', lineHeight: 1.55 }}>
@@ -1522,10 +1508,10 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--hairline)' }}>
-                      <th  className="note-rubrique" style={{ textAlign: 'left', padding: '6px 0', color: 'var(--ink-soft)' }}>Dimension</th>
-                      <th  className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Score</th>
-                      <th  className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Poids</th>
-                      <th  className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Contribution</th>
+                      <th className="note-rubrique" style={{ textAlign: 'left', padding: '6px 0', color: 'var(--ink-soft)' }}>Dimension</th>
+                      <th className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Score</th>
+                      <th className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Poids</th>
+                      <th className="note-rubrique" style={{ textAlign: 'right', padding: '6px 0', color: 'var(--ink-soft)' }}>Contribution</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1584,7 +1570,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                       </React.Fragment>
                     ))}
                     <tr style={{ borderTop: '2px solid var(--ink)' }}>
-                      <td  className="note-rubrique" style={{ padding: '10px 0 4px 0' }}>Score global</td>
+                      <td className="note-rubrique" style={{ padding: '10px 0 4px 0' }}>Score global</td>
                       <td colSpan={2} />
                       <td style={{ padding: '10px 0 4px 0', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--serif)', fontSize: 16, fontVariantNumeric: 'tabular-nums' }}>
                         {insufficientBasis || typeof reco.globalScore !== 'number' ? (
@@ -1779,7 +1765,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               {/* Critères structurels détectés */}
               <div style={{ marginTop: 16 }}>
-                <div  className="note-rubrique" style={{ color: '#777', marginBottom: 8 }}>
+                <div className="note-rubrique" style={{ color: '#777', marginBottom: 8 }}>
                   Critères structurels
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 24px', fontSize: '0.9rem' }}>
@@ -1823,7 +1809,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               {/* Verdicts par moteur */}
               <div style={{ marginTop: 18 }}>
-                <div  className="note-rubrique" style={{ color: '#777', marginBottom: 8 }}>
+                <div className="note-rubrique" style={{ color: '#777', marginBottom: 8 }}>
                   Verdict par moteur
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1850,7 +1836,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     return (
                       <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontSize: '0.9rem' }}>
                         <span
-                           className="note-rubrique" style={{ color, backgroundColor: bg, padding: '3px 8px', borderRadius: 3, flexShrink: 0, minWidth: 90, textAlign: 'center' }}
+                          className="note-rubrique" style={{ color, backgroundColor: bg, padding: '3px 8px', borderRadius: 3, flexShrink: 0, minWidth: 90, textAlign: 'center' }}
                         >
                           {labelText}
                         </span>
@@ -1948,7 +1934,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     color: 'var(--ink-soft)',
                   }}
                 >
-                  <span  className="note-rubrique" style={{ color: 'var(--muted)', marginRight: 8 }}>
+                  <span className="note-rubrique" style={{ color: 'var(--muted)', marginRight: 8 }}>
                     Base retenue
                   </span>
                   {(valuation as any).basis.declaration}
@@ -1986,7 +1972,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   ============================================================ */}
               {((valuation as any).ranges ?? []).map((r: any) => (
                 <div key={r.nature} style={{ marginBottom: 16 }}>
-                  <div  className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 6 }}>
+                  <div className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 6 }}>
                     {NATURE_LABELS[r.nature] ?? r.nature}
                     <span style={{ textTransform: 'none', fontWeight: 400, color: 'var(--muted)', marginLeft: 8 }}>
                       {r.contributions?.map((c: any) => c.label).join(', ')}
@@ -2068,7 +2054,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   lineHeight: 1.55,
                   color: 'var(--ink-soft)',
                 }}>
-                  <div  className="note-rubrique" style={{ color: '#8a4b3a', marginBottom: 4 }}>
+                  <div className="note-rubrique" style={{ color: '#8a4b3a', marginBottom: 4 }}>
                     Dilution non calculable
                   </div>
                   {(valuation as any).dilutionNotComputableReason}
@@ -2085,7 +2071,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                   fontSize: 12.5,
                   lineHeight: 1.55,
                 }}>
-                  <div  className="note-rubrique" style={{ color: 'var(--accent)', marginBottom: 4 }}>
+                  <div className="note-rubrique" style={{ color: 'var(--accent)', marginBottom: 4 }}>
                     Analyse de dilution sur ticket {formatEurShort(valuation.dilutionAnalysis.proposedTicket)}
                   </div>
                   {/* La dilution se lit sur la fourchette pre-money et sur
@@ -2110,7 +2096,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
               {/* Detail des methodes appliquees */}
               <div style={{ marginTop: 8 }}>
-                <div  className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 6 }}>
+                <div className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 6 }}>
                   Méthodes appliquées
                 </div>
                 {valuation.methods.map((m: any, i: number) => (
@@ -2145,7 +2131,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Warnings methodologiques */}
               {valuation.warnings && valuation.warnings.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  <div  className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 4 }}>
+                  <div className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 4 }}>
                     Avertissements
                   </div>
                   <ul style={{ paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>
@@ -2227,7 +2213,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Tableau des indicateurs applicables */}
               {indicators.indicators.filter((i: any) => i.verdict !== 'non-applicable').length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <div  className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 8 }}>
+                  <div className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 8 }}>
                     Indicateurs calculés
                   </div>
                   {indicators.indicators
@@ -2256,7 +2242,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                                 {ind.value != null ? `${ind.value}` : 'n/a'}
                               </strong>
                               <span style={{ opacity: 0.7, marginLeft: 4 }}>{ind.unit}</span>
-                              <span  className="note-rubrique" style={{ marginLeft: 12, color: verdictColor }}>{verdictLabel}</span>
+                              <span className="note-rubrique" style={{ marginLeft: 12, color: verdictColor }}>{verdictLabel}</span>
                             </span>
                           </div>
                           <div style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--ink-soft)', marginTop: 2 }}>
@@ -2276,7 +2262,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Indicateurs non applicables, regroupes en bas */}
               {indicators.indicators.filter((i: any) => i.verdict === 'non-applicable').length > 0 && (
                 <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px solid var(--hairline)' }}>
-                  <div  className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 6 }}>
+                  <div className="note-rubrique" style={{ color: 'var(--muted)', marginBottom: 6 }}>
                     Non applicables ou non extractibles
                   </div>
                   {indicators.indicators
@@ -2292,7 +2278,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
               {/* Warnings */}
               {indicators.warnings && indicators.warnings.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  <div  className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 4 }}>
+                  <div className="note-rubrique" style={{ color: 'var(--ocre-brule)', marginBottom: 4 }}>
                     Avertissements
                   </div>
                   <ul style={{ paddingLeft: 16, fontSize: 11.5, lineHeight: 1.55, margin: 0, color: 'var(--ink-soft)' }}>
@@ -2695,7 +2681,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     <div key={axis.key} style={{ marginBottom: 14, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{axis.label}</div>
-                        <div  className="note-rubrique" style={{ color: tone }}>{a.verdict.replace('-', ' ')}</div>
+                        <div className="note-rubrique" style={{ color: tone }}>{a.verdict.replace('-', ' ')}</div>
                         <div style={{ fontSize: 12, opacity: 0.6 }}>{a.score}/100 · confiance {a.confidence}/100</div>
                       </div>
                       <p className="note-paragraph" style={{ marginTop: 6, marginBottom: 6 }}>{enrichProse(a.rationale)}</p>
@@ -2996,14 +2982,14 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     Pattern Northvolt, Wrapper sans differenciation, etc.). */}
                 {fs.combinaisons && fs.combinaisons.length > 0 && (
                   <div style={{ marginTop: 12, marginBottom: 14, padding: 14, borderLeft: '3px solid var(--ocre-brule, #8a4a17)', background: 'rgba(138, 74, 23, 0.06)' }}>
-                    <div  className="note-rubrique" style={{ opacity: 0.7, marginBottom: 8, color: 'var(--ocre-brule, #8a4a17)' }}>
+                    <div className="note-rubrique" style={{ opacity: 0.7, marginBottom: 8, color: 'var(--ocre-brule, #8a4a17)' }}>
                       Convergences détectées
                     </div>
                     {fs.combinaisons.map((comb: any, i: number) => (
                       <div key={i} style={{ marginBottom: i < fs.combinaisons.length - 1 ? 10 : 0 }}>
                         <div style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
                           {comb.nom}
-                          <span  className="note-rubrique" style={{ marginLeft: 8, opacity: 0.7 }}>
+                          <span className="note-rubrique" style={{ marginLeft: 8, opacity: 0.7 }}>
                             {comb.severite.replace('-', ' ')}
                           </span>
                         </div>
@@ -3017,7 +3003,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                     carte detaillee, patterns sains en ligne courte,
                     patterns non applicables en mention discrete. */}
                 <div style={{ marginTop: 14, marginBottom: 14 }}>
-                  <div  className="note-rubrique" style={{ opacity: 0.6, marginBottom: 10 }}>Sept patterns Phase 4</div>
+                  <div className="note-rubrique" style={{ opacity: 0.6, marginBottom: 10 }}>Sept patterns Phase 4</div>
                   {(['growth-subsidized-model', 'infrastructure-hostage', 'fixed-cost-trap', 'regulatory-time-bomb', 'commoditization-drift', 'capital-structure-fragility', 'scale-mirage-risk'] as const).map((patternId) => {
                     const p = fs.patterns?.[patternId];
                     const labels: Record<string, string> = {
@@ -3107,7 +3093,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                         <div key={patternId} style={{ marginBottom: 12, paddingLeft: 12, borderLeft: `2px solid ${tone}55` }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
                             <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
-                            <div  className="note-rubrique" style={{ color: tone }}>{p.verdict.replace('-', ' ')}</div>
+                            <div className="note-rubrique" style={{ color: tone }}>{p.verdict.replace('-', ' ')}</div>
                             <div style={{ fontSize: 12, opacity: 0.6 }}>{p.globalScore}/100</div>
                           </div>
                           {p.resumeEditorial && (
@@ -3175,7 +3161,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
                 {/* Recommandations DD consolidees en encart final. */}
                 {fs.recommandationsDD && fs.recommandationsDD.length > 0 && (
                   <div style={{ marginTop: 8, padding: 12, background: 'rgba(168, 116, 58, 0.06)', borderLeft: '2px solid rgba(168, 116, 58, 0.4)' }}>
-                    <div  className="note-rubrique" style={{ opacity: 0.7, marginBottom: 8 }}>À investiguer en DD</div>
+                    <div className="note-rubrique" style={{ opacity: 0.7, marginBottom: 8 }}>À investiguer en DD</div>
                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
                       {fs.recommandationsDD.map((reco: string, i: number) => (
                         <li key={i} style={{ marginBottom: 4 }}>{reco}</li>
@@ -4339,7 +4325,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .note-section-title {
           font-family: var(--serif);
           font-size: var(--note-size-h2);
-          font-weight: 600;
+          font-weight: var(--note-weight-h2);
           line-height: 1.15;
           letter-spacing: var(--note-tracking-h2);
           padding: 0 0 var(--note-space-3) 0;
@@ -4384,7 +4370,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .note-h3 {
           font-family: var(--serif);
           font-size: var(--note-size-h3);
-          font-weight: 600;
+          font-weight: var(--note-weight-h3);
           line-height: 1.25;
           margin-top: var(--note-rhythm-h3-top);
           margin-bottom: var(--note-rhythm-h3-bot);
@@ -4403,34 +4389,6 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           margin-top: var(--note-rhythm-h2);
           padding-top: 0;
           border-top: none;
-        }
-
-        /* H4 - Label de groupe. Style sans-serif uppercase tracking large,
-           contrasté avec les serifs des H2/H3. C'est la signature éditoriale
-           classique des publications économiques premium. */
-        .note-h4 {
-          font-family: var(--sans);
-          font-size: var(--note-size-h4);
-          font-weight: 600;
-          letter-spacing: var(--note-tracking-h4);
-          text-transform: uppercase;
-          color: var(--ink-tertiary);
-          margin-top: var(--note-rhythm-h4-top);
-          margin-bottom: var(--note-rhythm-h4-bot);
-        }
-
-        /* Niveau 3 de la hierarchie typographique, 7 aout 2026.
-           Les trente et une rubriques qui vivaient en style en ligne,
-           dispersees entre 10 et 12px et quatre approches, tombent ici
-           sur une seule valeur. Toutes ses proprietes passent par des
-           jetons : la hierarchie se regle depuis globals.css. */
-        .note-rubrique {
-          font-family: var(--sans);
-          font-size: var(--note-size-h4);
-          font-weight: 600;
-          letter-spacing: var(--note-tracking-h4);
-          text-transform: uppercase;
-          color: var(--ink-tertiary);
         }
 
         /* PARAGRAPHES - Aeration et rythme calques sur la couche tokens
@@ -4664,14 +4622,21 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         .note-table tr:last-child td {
           border-bottom: none;
         }
+        /* Un libelle de tableau et un titre de rubrique jouent le meme
+           role : ils nomment ce que le lecteur va lire. Ils vivaient a
+           10px et 0.12em contre 11px et 0.08em, soit un quatrieme
+           niveau qui ne correspondait a rien dans la structure logique
+           et que le lecteur devait pourtant interpreter. Ils tombent
+           sur les jetons du niveau 3. Seule la largeur de colonne reste
+           propre au tableau. */
         .note-label {
           width: 30%;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 10px;
-          font-weight: 600;
+          font-family: var(--sans);
+          font-size: var(--note-size-h4);
+          font-weight: var(--note-weight-h4);
           background: transparent;
           color: var(--ink-tertiary);
-          letter-spacing: 0.12em;
+          letter-spacing: var(--note-tracking-h4);
           text-transform: uppercase;
         }
         .note-value {

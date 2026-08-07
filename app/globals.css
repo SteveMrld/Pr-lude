@@ -116,13 +116,29 @@
   --note-leading-dark: 1.85;
   --note-size-body: 15.5px;
   --note-size-lede: 17px;
-  --note-size-h2: 32px;
-  --note-size-h3: 21px;
-  --note-size-h4: 10.5px;
+  --note-size-h2: 30px;
+  --note-size-h3: 20px;
+  --note-size-h4: 11px;
   --note-tracking-body: 0.005em;
   --note-tracking-h2: -0.015em;
   --note-tracking-h3: -0.01em;
-  --note-tracking-h4: 0.14em;
+  --note-tracking-h4: 0.08em;
+
+  /* GRAISSE note IC, 7 aout 2026. Les trois niveaux vivaient a 600,
+     donc la hierarchie ne tenait que par la taille : une page ouverte
+     au hasard ne disait pas si l on lisait une rubrique ou une
+     sous-section, il fallait comparer deux titres entre eux pour le
+     savoir. Le poids porte desormais sur les deux niveaux hauts, ou il
+     se lit sans point de comparaison.
+
+     Le niveau 3 reste a 600 et n en a pas besoin : a 11px en capitales
+     approchees, il ne se confond avec rien, et le monter le ferait
+     peser plus que le corps qu il annonce. Ce qui le separe des deux
+     autres est la famille et la casse, pas la graisse. */
+  --note-weight-h2: 700;
+  --note-weight-h3: 600;
+  --note-weight-h4: 600;
+  --note-weight-body: 400;
 
   /* RYTHME VERTICAL note IC. Espaces entre titres et bloc texte
      calques sur l echelle d espacement, pour garantir une grille
@@ -348,6 +364,52 @@ ul, ol { list-style: none; }
 .serif { font-family: var(--serif); letter-spacing: -0.01em; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .small-caps { text-transform: uppercase; letter-spacing: 0.12em; font-size: 10.5px; font-weight: 500; }
+
+/* ============================================================
+   NIVEAU 3 DE LA HIERARCHIE DE LA NOTE
+   ------------------------------------------------------------
+   La rubrique vit ici et non dans un bloc styled-jsx, parce
+   qu elle est portee par quatre composants : la note elle-meme,
+   le repli de section, et les trois bandeaux d alerte. styled-jsx
+   scope ses regles au composant qui les declare, si bien qu une
+   regle logee dans la note laissait sans style les quatre
+   rubriques rendues par les bandeaux. Elles se sont affichees en
+   corps de texte, sans capitales ni approche, pendant le temps
+   d un commit.
+
+   Recopier la regle dans chaque bandeau aurait rendu le meme
+   service et reconduit le probleme au composant suivant : le
+   bon niveau est celui ou la regle cesse d appartenir a un
+   composant. Toutes ses proprietes passent par des jetons, donc
+   la hierarchie continue de se regler au meme endroit.
+   ============================================================ */
+.note-rubrique {
+  font-family: var(--sans);
+  font-size: var(--note-size-h4);
+  font-weight: var(--note-weight-h4);
+  letter-spacing: var(--note-tracking-h4);
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+}
+
+/* Le h4 est la meme chose que la rubrique, avec le rythme vertical
+   d un titre autonome. La rubrique en est la forme sans marges, celle
+   qui s emploie dans un tableau, un encart ou une puce, la ou l espace
+   est deja porte par le conteneur.
+
+   Il vit ici pour la meme raison : deux portees le declaraient et
+   elles avaient deja diverge sur leurs marges. Les portees qui ont
+   besoin d autre chose ne redeclarent que cet ecart. */
+.note-h4 {
+  font-family: var(--sans);
+  font-size: var(--note-size-h4);
+  font-weight: var(--note-weight-h4);
+  letter-spacing: var(--note-tracking-h4);
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  margin-top: var(--note-rhythm-h4-top);
+  margin-bottom: var(--note-rhythm-h4-bot);
+}
 
 /* HEADER - Plus aere, filet fin, fond blanc. Marque PRELUDE
    sobre, sous-titre tagline en sans-serif. */
