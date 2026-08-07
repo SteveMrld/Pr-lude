@@ -1257,6 +1257,13 @@ signalees ; les memes deux, dans deux portees distinctes, ne doivent pas
 l etre. Sans le second sens, l assertion est satisfaite par un controle
 qui ne detecte jamais rien, ou par un controle qui detecte tout.
 
+La formule tient en une phrase, et elle vaut d etre retenue telle
+quelle : le premier sens prouve qu il voit, le second qu il discrimine.
+Un controle qui detecte tout est aussi inutile qu un controle qui ne
+detecte rien, et les deux rendent le meme service, celui de ne rien
+apprendre. La difference est qu on cesse de lire le premier alors qu on
+croit le second sur parole.
+
 Et sur un axe d ordre, le sens inverse n est pas une precaution mais la
 seule assertion qui prouve quelque chose. Verifier qu une valeur
 gagnante est bien annoncee sur un seul cas laisse passer un controle qui

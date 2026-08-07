@@ -2856,3 +2856,44 @@ fichier a ce moment-la, notamment du nombre de regles qui resteront
 effectivement dans le parent. La question se tranche a ce moment-la et
 pas maintenant : la trancher aujourd'hui reviendrait a decider sur un
 etat qu'on va deliberement changer.
+
+---
+
+## Soixante-treize regles CSS mortes dans la note, laissees en place a dessein
+
+Ecrit le 7 aout 2026, decide avant la premiere extraction du lot 2, pour
+que personne ne les redecouvre et n'en refasse le releve.
+
+Le controle de conservation du style, a sa premiere execution, a rendu
+quatre-vingt-une regles dont aucune classe visee n'est rendue par le
+fichier qui les declare. Mesurees une par une comme l'exige la
+discipline plutot que comptees : soixante-treize sont reellement mortes,
+aucune de leurs classes n'apparaissant nulle part dans le JSX ; six sont
+des ecarts d'alignement traites separement, ou le CSS et le JSX ne
+portent pas le meme nom de classe ; deux sont des faux positifs du
+detecteur sur des classes construites dynamiquement. Le taux de faux
+positifs du detecteur est donc de deux sur quatre-vingt-une.
+
+Soixante-treize regles sur quatre cent quarante et une, soit dix-sept
+pour cent du style de la note, ne s'appliquent a rien.
+
+**Elles ne sont pas retirees maintenant, et c'est un arbitrage et non un
+oubli.** Le raisonnement est de Steve et il prime sur la lecture
+technique, qui disait de nettoyer avant de capturer la reference pour ne
+pas figer le defaut. Un chantier dont la promesse est de ne rien changer
+ne doit produire aucun ecart, meme legitime, meme explique. Une regle
+retiree pendant une extraction sortirait en PERDUE dans le controle, ce
+qui serait exact, et il faudrait alors interpreter chaque releve pour
+distinguer le retrait voulu du deplacement rate. Un controle qu'on doit
+interpreter a chaque passage a deja perdu la moitie de sa valeur.
+
+Elles se retireront apres le lot, dans un commit qui annonce qu'il
+retire. Le controle dira alors la verite sans qu'on ait a la traduire :
+soixante-treize PERDUE, exactement le compte annonce, et rien d'autre.
+Le compte est ecrit ici pour que ce commit puisse se verifier contre
+lui.
+
+La reference de style a donc ete capturee avec ces regles presentes.
+C'est deliberé et sans consequence : elles sont inertes, leur presence
+dans la reference ne masque aucun deplacement, et leur retrait ulterieur
+se lira comme un ecart nomme.
