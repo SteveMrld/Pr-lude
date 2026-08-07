@@ -21,6 +21,7 @@ import type { TechClaimTest } from '@/lib/engines/types';
 import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralRadar } from './note/SectoralRadar';
 import { BandeauGouvernance } from './note/BandeauGouvernance';
+import { PiedDeNote } from './note/PiedDeNote';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -4525,10 +4526,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
         </dl>
       </div>
 
-      <div className="note-footer">
-        <div>Note préparée par Prélude · Plateforme d'instruction VC européenne</div>
-        <div>Document confidentiel · Usage strictement interne au Comité d'Investissement</div>
-      </div>
+      <PiedDeNote />
 
       <style jsx>{`
         /* ============================================================
@@ -7301,19 +7299,6 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
 
         /* COLOPHON - Footer stylé comme un colophon d'article. Filet horizontal,
            texte centré en sans-serif uppercase, deux lignes courtes. */
-        .note-footer {
-          margin-top: 48px;
-          padding-top: 24px;
-          border-top: 1px solid rgba(29, 28, 26, 0.4);
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 9.5px;
-          font-weight: 500;
-          color: var(--ink-tertiary);
-          text-align: center;
-          line-height: 1.8;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-        }
 
         @media print {
           .investment-note {
