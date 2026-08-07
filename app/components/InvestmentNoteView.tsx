@@ -24,6 +24,7 @@ import { BandeauGouvernance } from './note/BandeauGouvernance';
 import { PiedDeNote } from './note/PiedDeNote';
 import { ProvenanceDuRun } from './note/ProvenanceDuRun';
 import { EnTeteDeNote } from './note/EnTeteDeNote';
+import { BandeauTrajectoire } from './note/BandeauTrajectoire';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -836,44 +837,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           UI) ne remontent pas dans ce bandeau, elles vivent dans
           les annotations en marge des sections concernees.
           ============================================================ */}
-      {trajectoryCtx.banner && (() => {
-        const b = trajectoryCtx.banner!;
-        const palette = b.cran === 1
-          ? { ink: '#7a2916', bg: 'rgba(122, 41, 22, 0.05)' }
-          : { ink: '#8a4a17', bg: 'rgba(138, 74, 23, 0.05)' };
-        return (
-          <section
-            aria-label="Alerte trajectoire"
-            style={{
-              margin: '12px 0 16px',
-              padding: '14px 18px',
-              borderLeft: `3px solid ${palette.ink}`,
-              background: palette.bg,
-              fontFamily: 'var(--serif)',
-            }}
-          >
-            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: palette.ink, fontWeight: 600, marginBottom: 8 }}>
-              Alerte trajectoire · Cran {b.cran}
-              {b.additionalCriticalCount > 0 && (
-                <span style={{ marginLeft: 8, opacity: 0.7, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  plus {b.additionalCriticalCount} autre{b.additionalCriticalCount > 1 ? 's' : ''} alerte{b.additionalCriticalCount > 1 ? 's' : ''} critique{b.additionalCriticalCount > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.55, margin: 0, marginBottom: 6 }}>
-              {b.raison}
-            </p>
-            <p style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>
-              {b.recommandation}
-            </p>
-            {b.citations.length > 0 && (
-              <p style={{ fontSize: 12, lineHeight: 1.55, marginTop: 8, marginBottom: 0, fontStyle: 'italic', opacity: 0.7 }}>
-                {b.citations.join(' · ')}
-              </p>
-            )}
-          </section>
-        );
-      })()}
+      <BandeauTrajectoire banner={trajectoryCtx.banner} />
 
       {/* ============================================================
           PAGE DE COUVERTURE EDITORIALE
