@@ -20,6 +20,7 @@ import { renderFactors } from '@/lib/engines/relevance-matrix-factors';
 import type { TechClaimTest } from '@/lib/engines/types';
 import StructurationEntreeSection from './StructurationEntreeSection';
 import { SectoralRadar } from './note/SectoralRadar';
+import { BandeauGouvernance } from './note/BandeauGouvernance';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -827,48 +828,7 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
           le bandeau d en-tete pour eviter le bruit, ils restent
           accessibles dans la section gouvernance plus bas.
           ============================================================ */}
-      {(() => {
-        const flags = Array.isArray(r.conflictOfInterest) ? r.conflictOfInterest : [];
-        const highSeverity = flags.filter((f: any) => f && (f.kind === 'self-deal' || f.kind === 'board-insider'));
-        if (highSeverity.length === 0) return null;
-        const byKind: Record<string, any[]> = { 'self-deal': [], 'board-insider': [] };
-        for (const f of highSeverity) byKind[f.kind].push(f);
-        return (
-          <section
-            aria-label="Alerte gouvernance"
-            style={{
-              margin: '12px 0 16px',
-              padding: '14px 18px',
-              borderLeft: '3px solid #7a2916',
-              background: 'rgba(122, 41, 22, 0.05)',
-              fontFamily: 'var(--serif)',
-            }}
-          >
-            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#7a2916', fontWeight: 600, marginBottom: 8 }}>
-              Alerte gouvernance · Conflit d&apos;intérêt détecté
-            </div>
-            {byKind['self-deal'].length > 0 && (
-              <div style={{ marginBottom: byKind['board-insider'].length > 0 ? 10 : 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Self-deal cap-table</div>
-                {byKind['self-deal'].map((f: any, i: number) => (
-                  <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>{f.rationale}</p>
-                ))}
-              </div>
-            )}
-            {byKind['board-insider'].length > 0 && (
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Board insider</div>
-                {byKind['board-insider'].map((f: any, i: number) => (
-                  <p key={i} style={{ fontSize: 13, lineHeight: 1.6, margin: 0, opacity: 0.92 }}>{f.rationale}</p>
-                ))}
-              </div>
-            )}
-            <p style={{ fontSize: 12, lineHeight: 1.6, marginTop: 10, marginBottom: 0, fontStyle: 'italic', opacity: 0.75 }}>
-              La lecture qui suit doit être filtrée par la conscience de cette position d&apos;intérêt. Une décision d&apos;investissement engageant le fonds requiert ici une validation indépendante du comité.
-            </p>
-          </section>
-        );
-      })()}
+      <BandeauGouvernance conflictOfInterest={r.conflictOfInterest} />
 
       {/* ============================================================
           BANDEAU ALERTE TRAJECTOIRE
