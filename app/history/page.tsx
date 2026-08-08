@@ -17,6 +17,13 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import {
+  etatDuDossier,
+  libelleEtat,
+  presenterVerdict,
+  PRESENTATION_ETAT,
+  PALETTE_TON,
+} from '@/lib/note/vocabulaire-dossier';
 
 interface AnalysisSummary {
   id: string;
@@ -44,18 +51,22 @@ interface AnalysisSummary {
 }
 
 // ============================================================
-// Rendu du status de run
+// Rendu de l etat d un dossier
 // ------------------------------------------------------------
-// Doctrine brique 4 : on n affiche rien tant qu on n a pas mesure.
-// Un dossier anterieur a la brique 3 (pipeline_engines_status null)
-// et donc failedEnginesCount null ne recoit aucun badge : la ligne
-// ne pretend pas connaitre ce qu on n a pas trace.
+// CETTE FONCTION ENUMERAIT QUATRE STATUTS ET RETOURNAIT NULL SUR LE
+// RESTE. Le code en ecrit six, et `knockout` n etait pas dans les
+// quatre : un dossier ecarte au pre-scan ne recevait donc aucune
+// pastille et tombait dans le meme silence que les dossiers anterieurs
+// a la brique 3, pour lesquels le silence est voulu. Releve du 8 aout
+// 2026 : huit lignes sur trente-neuf sans pastille, dont six qui
+// disaient « on n a pas mesure » et deux « ce dossier a ete ecarte »,
+// qui sont deux choses opposees.
 //
-// Sinon :
-//   completed / null status + count 0 : mention neutre discrete
-//   completed_with_gaps                : badge ocre avec le count
-//   failed                             : badge warn rouge
-//   running                            : badge muted en cours
+// La correspondance vit desormais dans `lib/note/vocabulaire-dossier`,
+// indexee par l union des statuts, donc le compilateur refuse un statut
+// ajoute sans traitement. La doctrine brique 4 est conservee et elle
+// est ramenee a son seul cas : ce qui n a pas ete mesure ne s affiche
+// pas, et c est `inconnu` qui le porte, pas le bout d une liste.
 // ============================================================
 function renderRunStatus(status: string | null, failedCount: number | null): {
   label: string;
@@ -64,48 +75,23 @@ function renderRunStatus(status: string | null, failedCount: number | null): {
   border: string;
   visible: boolean;
 } | null {
+  // Un dossier abouti dont on n a jamais releve les moteurs ne pretend
+  // pas connaitre ce qu on n a pas trace. La condition porte sur la
+  // mesure absente et non sur le rang dans une liste.
   if (failedCount === null && (status === null || status === 'completed')) {
     return null;
   }
-  if (status === 'running') {
-    return {
-      label: 'en cours',
-      bg: 'var(--hairline-soft)',
-      fg: 'var(--muted)',
-      border: 'var(--hairline)',
-      visible: true,
-    };
-  }
-  if (status === 'failed') {
-    return {
-      label: 'echec pipeline',
-      bg: 'var(--warn-soft)',
-      fg: 'var(--warn)',
-      border: 'var(--warn)',
-      visible: true,
-    };
-  }
-  if (status === 'completed_with_gaps') {
-    const n = failedCount ?? 0;
-    return {
-      label: n > 0 ? `${n} moteur${n > 1 ? 's' : ''} en echec` : 'run degrade',
-      bg: 'var(--ocre-brule-soft)',
-      fg: 'var(--ocre-brule)',
-      border: 'var(--ocre-brule)',
-      visible: true,
-    };
-  }
-  // completed avec un failedCount mesure a zero : mention neutre.
-  if (status === 'completed' && failedCount === 0) {
-    return {
-      label: 'complet',
-      bg: 'var(--positif-soft, rgba(43, 39, 33, 0.10))',
-      fg: 'var(--positif, var(--good))',
-      border: 'var(--positif, var(--good))',
-      visible: true,
-    };
-  }
-  return null;
+  const etat = etatDuDossier(status);
+  const presentation = PRESENTATION_ETAT[etat];
+  if (!presentation.visible) return null;
+  const palette = PALETTE_TON[presentation.ton];
+  return {
+    label: libelleEtat(etat, failedCount),
+    bg: palette.fond,
+    fg: palette.encre,
+    border: palette.bordure,
+    visible: true,
+  };
 }
 
 interface Stats {
@@ -638,13 +624,31 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
   const date = new Date(analysis.createdAt);
   const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const verdictColors: Record<string, { bg: string; fg: string; border: string }> = {
-    investir:               { bg: 'var(--positif-soft)',  fg: 'var(--positif)',  border: 'var(--positif)' },
-    'investir-conditions':  { bg: 'var(--accent-soft)',      fg: 'var(--accent)',      border: 'var(--accent)' },
-    approfondir:            { bg: 'var(--ocre-brule-soft)',  fg: 'var(--ocre-brule)',  border: 'var(--ocre-brule)' },
-    refuser:                { bg: 'var(--warn-soft)',        fg: 'var(--warn)',        border: 'var(--warn)' },
+  // LA TABLE ECRITE A LA MAIN CONNAISSAIT `investir-conditions`, qui
+  // n existe chez aucun producteur : le type `Verdict` du calculateur
+  // ecrit `investir avec conditions`, avec des espaces. Vingt-trois
+  // lignes sur trente-neuf tombaient donc dans le gris des inconnus,
+  // dont les douze qui portent un oui conditionnel. La presentation se
+  // derive maintenant du vocabulaire, et un verdict qu aucun producteur
+  // n ecrit se rend tel quel plutot que de se faire deviner.
+  const presentationVerdict = presenterVerdict(analysis.verdict);
+  const paletteVerdict = PALETTE_TON[presentationVerdict.ton];
+  // UN DOSSIER ECARTE AU PRE-SCAN PORTE LE MEME FAIT DEUX FOIS. Son
+  // statut vaut `knockout` et son verdict `not_recommended`, qui sont la
+  // meme decision ecrite par deux producteurs dans deux champs. Les deux
+  // pastilles rendaient donc les memes mots sur la meme ligne. La
+  // suppression se decide en comparant les libelles et non en nommant ce
+  // cas : deux champs qui se mettraient demain a dire la meme chose
+  // seraient traites sans qu on y pense, et un verdict qui apporte
+  // autre chose que l etat reste affiche.
+  const etatDeLaLigne = etatDuDossier(analysis.status);
+  const verdictRedondant =
+    presentationVerdict.libelle === libelleEtat(etatDeLaLigne, analysis.failedEnginesCount);
+  const verdictStyle = {
+    bg: paletteVerdict.fond,
+    fg: paletteVerdict.encre,
+    border: paletteVerdict.bordure,
   };
-  const verdictStyle = verdictColors[analysis.verdict] || { bg: 'var(--hairline-soft)', fg: 'var(--muted)', border: 'var(--hairline)' };
 
   const stage = analysis.workflowStage || 'in_review';
 
@@ -757,6 +761,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
         )}
       </div>
       <div>
+        {!verdictRedondant && (
         <span style={{
           padding: '5px 12px',
           fontSize: 10,
@@ -770,8 +775,9 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
           fontFamily: 'var(--sans)',
           display: 'inline-block',
         }}>
-          {analysis.verdict}
+          {presentationVerdict.libelle}
         </span>
+        )}
       </div>
       <div>
         <InlineStageEditor

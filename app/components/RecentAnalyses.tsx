@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { presenterVerdict, classeVerdict, PALETTE_TON } from '@/lib/note/vocabulaire-dossier';
 
 interface RecentAnalysis {
   id: string;
@@ -26,14 +27,18 @@ interface RecentAnalysis {
   createdAt: string;
 }
 
-const VERDICT_LABELS: Record<string, string> = {
-  investir: 'Investir',
-  'investir-conditions': 'Investir avec conditions',
-  approfondir: 'Approfondir',
-  refuser: 'Refuser',
-  // Troisieme etat du calcul mecanique, pas une position d instruction.
-  'socle insuffisant': 'Socle insuffisant',
-};
+// LA TABLE DE LIBELLES ET LA CLASSE CSS VIVAIENT ICI, ET LES DEUX
+// DIVERGEAIENT DU PRODUCTEUR. La table connaissait `investir-
+// conditions`, orthographe qu aucun moteur n ecrit, si bien que les
+// douze dossiers portant `investir avec conditions` s affichaient avec
+// leur chaine brute, en minuscules. Et la classe se fabriquait en
+// interpolant le verdict, donc une valeur a espaces se decoupait en
+// plusieurs classes dont la premiere pouvait en atteindre une qui
+// existe : releve du style calcule sur la page vivante, `investir avec
+// conditions` et `investir` rendaient la meme encre et le meme fond.
+// Un oui conditionnel se peignait comme un oui franc.
+//
+// Les deux descendent maintenant de `lib/note/vocabulaire-dossier`.
 
 function formatRelative(iso: string): string {
   try {
@@ -103,9 +108,18 @@ export default function RecentAnalyses() {
               {a.globalScore != null && (
                 <span className="recents-card-score">{a.globalScore}<span>/100</span></span>
               )}
-              <span className={`recents-card-verdict verdict-${a.verdict}`}>
-                {VERDICT_LABELS[a.verdict] || a.verdict}
-              </span>
+              {(() => {
+                const p = presenterVerdict(a.verdict);
+                const palette = PALETTE_TON[p.ton];
+                return (
+                  <span
+                    className={`recents-card-verdict ${classeVerdict(a.verdict)}`}
+                    style={{ color: palette.encre, background: palette.fond }}
+                  >
+                    {p.libelle}
+                  </span>
+                );
+              })()}
             </div>
           </Link>
         ))}

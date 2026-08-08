@@ -1210,10 +1210,19 @@ ul, ol { list-style: none; }
   border-radius: var(--radius-pill);
   border: 1px solid currentColor;
 }
-.recents-card-verdict.verdict-investir { color: var(--positif); background: var(--positif-soft); }
-.recents-card-verdict.verdict-investir-conditions { color: var(--ink); background: var(--paper-accent); }
-.recents-card-verdict.verdict-approfondir { color: var(--ocre-brule); background: var(--ocre-brule-soft); }
-.recents-card-verdict.verdict-refuser { color: var(--rouge-anglais); background: var(--rouge-anglais-soft); }
+/* LES QUATRE REGLES DE COULEUR DE VERDICT ONT ETE RETIREES LE 8 AOUT
+   2026, ET LEUR COULEUR N EST PAS PERDUE : elle descend desormais de
+   PALETTE_TON dans lib/note/vocabulaire-dossier, que cette carte et la
+   ligne d historique lisent toutes deux. Deux transcriptions de la meme
+   intention divergent, et celles-ci avaient diverge : la regle nommait
+   `verdict-investir-conditions`, orthographe qu aucun producteur
+   n ecrit, tandis que la classe se fabriquait en interpolant le verdict
+   brut. Une valeur a espaces se decoupant en plusieurs classes,
+   `investir avec conditions` recevait le style de `.verdict-investir`,
+   et un oui conditionnel se peignait comme un oui franc.
+   La classe reste posee sur l element, par `classeVerdict`, qui garantit
+   qu elle ne porte aucun espace ; elle sert de prise pour le ciblage et
+   non de porteuse de couleur. */
 @media (max-width: 880px) {
   .recents { padding: 0 24px; }
   .recents-grid { grid-template-columns: repeat(2, 1fr); }
