@@ -18,6 +18,19 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import DossierLigne from '@/app/components/DossierLigne';
+import DossierGroupeVue from '@/app/components/DossierGroupe';
+import { regrouperParDossier, type DossierGroupe } from '@/lib/note/regrouper-dossiers';
+
+/**
+ * Combien d executions la page charge avant de les regrouper.
+ *
+ * Le regroupement ne voit que ce qui est charge : au-dela de cette
+ * borne, un dossier verrait ses reprises tronquees. Le corpus en compte
+ * trente-neuf pour un fonds au 8 aout 2026 ; la borne est posee tres
+ * au-dessus, et la liste dit quand elle est atteinte plutot que de
+ * rendre un compte silencieusement partiel.
+ */
+const BORNE_CHARGEMENT = 300;
 
 interface AnalysisSummary {
   id: string;
@@ -121,6 +134,13 @@ export default function HistoryPage() {
       if (verdictFilter) params.set('verdict', verdictFilter);
       if (stageFilter) params.set('workflow_stage', stageFilter);
       if (searchQuery) params.set('q', searchQuery);
+      // LE REGROUPEMENT SE FAIT SUR CE QUI EST CHARGE, donc la borne est
+      // posee explicitement plutot que laissee au defaut de la route.
+      // Un dossier dont une partie des executions serait restee hors de
+      // la page afficherait un compte de reprises trop bas, et rien ne
+      // le dirait. La borne se declare aussi a l ecran quand la page est
+      // pleine.
+      params.set('limit', String(BORNE_CHARGEMENT));
       const res = await fetch(`/api/analyses/list?${params.toString()}`);
       const data = await res.json();
       setEnabled(data.enabled);
@@ -513,12 +533,19 @@ export default function HistoryPage() {
           overflow: 'hidden',
           boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
         }}>
-          {analyses.map((a, i) => (
+          {regrouperParDossier(analyses, (a) => ({
+            id: a.id,
+            companyName: a.companyName,
+            sourceFilename: a.sourceFilename,
+            createdAt: a.createdAt,
+            verdict: a.verdict,
+          })).map((groupe, i, tous) => (
             <AnalysisRow
-              key={a.id}
-              analysis={a}
-              isLast={i === analyses.length - 1}
-              onDelete={() => handleDelete(a.id, a.companyName)}
+              key={groupe.clef}
+              analysis={groupe.tete}
+              groupe={groupe}
+              isLast={i === tous.length - 1}
+              onDelete={() => handleDelete(groupe.tete.id, groupe.tete.companyName)}
               onStageChanged={load}
             />
           ))}
@@ -579,8 +606,9 @@ function StatBox({ label, value, suffix, accent }: {
   );
 }
 
-function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
+function AnalysisRow({ analysis, groupe, isLast, onDelete, onStageChanged }: {
   analysis: AnalysisSummary;
+  groupe: DossierGroupe<AnalysisSummary>;
   isLast: boolean;
   onDelete: () => void;
   onStageChanged: () => void;
@@ -631,6 +659,20 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
   );
 
   return (
+    <DossierGroupeVue
+      derniere={isLast}
+      verdictABouge={groupe.verdictABouge}
+      reprises={groupe.runs.slice(1).map((r) => ({
+        id: r.id,
+        createdAtLabel: new Date(r.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+        verdict: r.verdict,
+        globalScore: r.globalScore,
+        // Le parcours n est persiste nulle part : la route le lit a
+        // l entree et ne l ecrit jamais. La colonne reste vide plutot
+        // que de porter une valeur devinee.
+        parcours: null,
+      }))}
+      rendreTete={(boutonReprises) => (
     <DossierLigne
       id={analysis.id}
       companyName={analysis.companyName}
@@ -643,7 +685,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
       country={analysis.country}
       createdAtLabel={dateStr}
       sourceFilename={analysis.sourceFilename}
-      derniere={isLast}
+      derniere
       metaSupplementaire={
         // LA VIGILANCE ET L ETAT DE DD QUALIFIENT LE DOSSIER, ILS NE LE
         // DECLENCHENT PAS. Ils occupaient deux colonnes de la premiere
@@ -675,6 +717,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
             `${analysis.openCommentsCount} a traiter`,
             'var(--accent)',
           )}
+          {boutonReprises}
         </>
       }
     >
@@ -745,6 +788,8 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
         </button>
       </div>
     </DossierLigne>
+      )}
+    />
   );
 }
 

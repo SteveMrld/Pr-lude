@@ -167,7 +167,20 @@ export default function DossierLigne(props: DossierLigneProps) {
       />
 
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'nowrap', minWidth: 0 }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 9,
+          // LES MARQUEURS PASSENT A LA LIGNE PLUTOT QUE DE COMPRIMER LE
+          // NOM OU DE CHEVAUCHER LE VERDICT. En `nowrap`, une ligne
+          // chargee, nom plus etat plus lacunes plus bouton de reprises,
+          // debordait sa colonne et passait sous la pastille de verdict.
+          // Le repli coute une seconde ligne sur les rares dossiers
+          // concernes, ce qui est moins cher qu un chevauchement.
+          flexWrap: 'wrap',
+          rowGap: 3,
+          minWidth: 0,
+        }}>
           <Link
             href={`/dossiers/${props.id}`}
             prefetch={false}
@@ -182,6 +195,14 @@ export default function DossierLigne(props: DossierLigneProps) {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               maxWidth: '22ch',
+              // Le nom garde un plancher. Sans lui, les marqueurs de la
+              // ligne, dont le bouton de reprises, le comprimaient
+              // jusqu a « I.. » : c est le seul element porteur d une
+              // ellipse, donc c est lui qui absorbait tout le manque.
+              // Le nom ne se comprime plus du tout : ce sont les
+              // marqueurs qui cedent, puisqu ils peuvent passer a la
+              // ligne et que lui ne le peut pas sans devenir illisible.
+              flexShrink: 0,
               // Un nom provisoire se lit comme un nom, en italique : il
               // identifie la ligne sans pretendre etre celui de la
               // societe, que personne n a extrait.
@@ -203,6 +224,7 @@ export default function DossierLigne(props: DossierLigneProps) {
                 fontWeight: 700,
                 color: paletteEtat.encre,
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               {libelle}

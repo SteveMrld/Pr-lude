@@ -23,6 +23,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DossierLigne from './DossierLigne';
+import DossierGroupeVue from './DossierGroupe';
+import { regrouperParDossier } from '@/lib/note/regrouper-dossiers';
 
 interface RecentAnalysis {
   id: string;
@@ -47,7 +49,11 @@ interface RecentAnalysis {
  * tiennent dans le tiers de cette hauteur, portent l etat, la reserve et
  * le score, et laissent la place au reste de l accueil.
  */
-const LIGNES_ACCUEIL = 6;
+// Six DOSSIERS et non six executions. La route est donc interrogee plus
+// largement, puisque huit runs d une meme societe ne font qu une ligne :
+// prendre les six derniers runs rendrait un ou deux dossiers.
+const DOSSIERS_ACCUEIL = 6;
+const RUNS_A_LIRE = 60;
 
 // LA TABLE DE LIBELLES ET LA CLASSE CSS VIVAIENT ICI, ET LES DEUX
 // DIVERGEAIENT DU PRODUCTEUR. La table connaissait `investir-
@@ -83,12 +89,12 @@ export default function RecentAnalyses() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/analyses/list?limit=${LIGNES_ACCUEIL}`)
+    fetch(`/api/analyses/list?limit=${RUNS_A_LIRE}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data?.enabled) return;
         const list = Array.isArray(data.analyses) ? data.analyses : [];
-        setAnalyses(list.slice(0, LIGNES_ACCUEIL));
+        setAnalyses(list);
       })
       .catch(() => {
         if (!cancelled) setAnalyses([]);
@@ -100,6 +106,16 @@ export default function RecentAnalyses() {
 
   if (analyses === null) return null;
   if (analyses.length === 0) return null;
+
+  // Les executions se regroupent AVANT la coupe a six, sinon la coupe
+  // porterait sur des runs et rendrait un ou deux dossiers.
+  const dossiers = regrouperParDossier(analyses, (a) => ({
+    id: a.id,
+    companyName: a.companyName,
+    sourceFilename: a.sourceFilename,
+    createdAt: a.createdAt,
+    verdict: a.verdict,
+  })).slice(0, DOSSIERS_ACCUEIL);
 
   return (
     <section className="recents" aria-labelledby="recents-title">
@@ -114,21 +130,35 @@ export default function RecentAnalyses() {
         </Link>
       </div>
       <div className="recents-liste">
-        {analyses.map((a, i) => (
-          <DossierLigne
-            key={a.id}
-            id={a.id}
-            companyName={a.companyName}
-            verdict={a.verdict}
-            globalScore={a.globalScore}
-            status={a.status}
-            failedEnginesCount={a.failedEnginesCount}
-            reserves={a.reserves}
-            sector={a.sector}
-            country={a.country}
-            createdAtLabel={formatRelative(a.createdAt)}
-            sourceFilename={a.sourceFilename}
-            derniere={i === analyses.length - 1}
+        {dossiers.map((groupe, i) => (
+          <DossierGroupeVue
+            key={groupe.clef}
+            derniere={i === dossiers.length - 1}
+            verdictABouge={groupe.verdictABouge}
+            reprises={groupe.runs.slice(1).map((r) => ({
+              id: r.id,
+              createdAtLabel: formatRelative(r.createdAt),
+              verdict: r.verdict,
+              globalScore: r.globalScore,
+              parcours: null,
+            }))}
+            rendreTete={(boutonReprises) => (
+              <DossierLigne
+                id={groupe.tete.id}
+                companyName={groupe.tete.companyName}
+                verdict={groupe.tete.verdict}
+                globalScore={groupe.tete.globalScore}
+                status={groupe.tete.status}
+                failedEnginesCount={groupe.tete.failedEnginesCount}
+                reserves={groupe.tete.reserves}
+                sector={groupe.tete.sector}
+                country={groupe.tete.country}
+                createdAtLabel={formatRelative(groupe.tete.createdAt)}
+                sourceFilename={groupe.tete.sourceFilename}
+                marqueurs={boutonReprises}
+                derniere
+              />
+            )}
           />
         ))}
       </div>
@@ -139,10 +169,10 @@ export default function RecentAnalyses() {
           comme une absence de reserve ; il se dit donc au pied de la
           liste, une seule fois, et il descend des donnees plutot que
           d etre une phrase ecrite a la main. */}
-      {analyses.some((a) => !a.reserves) && (
+      {dossiers.some((g) => !g.tete.reserves) && (
         <p className="recents-note">
-          Reserve de fiabilite relevee sur {analyses.filter((a) => a.reserves).length} de ces{' '}
-          {analyses.length} dossiers. Les autres sont anterieurs au releve, et leur silence ne dit
+          Reserve de fiabilite relevee sur {dossiers.filter((g) => g.tete.reserves).length} de ces{' '}
+          {dossiers.length} dossiers. Les autres sont anterieurs au releve, et leur silence ne dit
           pas qu ils sont sans reserve.
         </p>
       )}
