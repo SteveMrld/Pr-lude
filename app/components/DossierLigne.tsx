@@ -56,6 +56,19 @@ export type DossierLigneProps = {
   sector?: string | null;
   country?: string | null;
   createdAtLabel?: string | null;
+  /**
+   * La date brute, utilisee seulement quand le nom est provisoire.
+   *
+   * DEUX LIGNES SANS NOM PEUVENT PORTER LE MEME FICHIER. Le releve du
+   * 8 aout 2026 en donne le cas : deux runs tombes du meme
+   * `Project Woodpecker_Info Memo.pdf`, le meme jour, rendus tous deux
+   * « il y a 5j · Project Woodpecker_Info... ». Le nom tronque etant
+   * identique et le fichier etant le meme, rien ne les separait. Ce qui
+   * les distingue est l heure, et elle ne s affiche que la ou elle est
+   * necessaire : la mettre partout alourdirait trente lignes pour en
+   * sauver deux.
+   */
+  createdAtIso?: string | null;
   sourceFilename?: string | null;
   /** Rendu a droite de la ligne. L historique y met ses actions. */
   children?: React.ReactNode;
@@ -134,7 +147,18 @@ export default function DossierLigne(props: DossierLigneProps) {
   // pastille.
   const identite = nommerDossier(props.companyName, props.sourceFilename);
 
-  const meta = [props.sector, props.country, props.createdAtLabel]
+  // Sur un nom provisoire, la date passe a l heure pres : c est la seule
+  // chose qui distingue deux runs tombes du meme document.
+  const dateLisible = (() => {
+    if (!identite.provisoire || !props.createdAtIso) return props.createdAtLabel;
+    const d = new Date(props.createdAtIso);
+    if (Number.isNaN(d.getTime())) return props.createdAtLabel;
+    return d.toLocaleString('fr-FR', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+  })();
+
+  const meta = [props.sector, props.country, dateLisible]
     .filter(Boolean)
     .join(' · ');
 

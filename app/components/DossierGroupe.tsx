@@ -75,8 +75,10 @@ export default function DossierGroupe(props: DossierGroupeProps) {
                 title={`${n + 1} instructions de ce dossier, la plus recente en tete. Aucune n est designee comme reference.`}
                 style={{
                   fontFamily: 'var(--sans)',
-                  fontSize: 9.5,
-                  letterSpacing: '0.06em',
+                  // Un cran plus petit que le verdict et que l etat : il
+                  // signale un changement, il ne conclut rien.
+                  fontSize: 9,
+                  letterSpacing: '0.05em',
                   textTransform: 'uppercase',
                   fontWeight: 700,
                   padding: '2px 8px',

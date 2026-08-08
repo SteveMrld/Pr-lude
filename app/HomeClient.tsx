@@ -12,6 +12,7 @@ import GaugeProbability from './components/GaugeProbability';
 import PipelineProgress from './components/PipelineProgress';
 import PipelinePreview from './components/PipelinePreview';
 import { PipelineToilePanel } from './components/PipelineToilePanel';
+import ToileRetrospective from './components/ToileRetrospective';
 import { buildEngineOutputsFromResult } from '../lib/pipeline-toile/result-mapping';
 import { TabPane } from './components/TabPane';
 import CompetitiveMatrix from './components/CompetitiveMatrix';
@@ -346,6 +347,13 @@ export default function HomeClient({
   // InvestmentNoteView pour brancher les declarations d absence sur la
   // cause reelle du gap plus tard (brique 4 a laisse le point d entree).
   const [pipelineEnginesStatus, setPipelineEnginesStatus] = useState<Record<string, any> | null>(null);
+  /**
+   * Le statut du run charge, garde pour la toile retrospective. Il ne
+   * sert qu a distinguer les vides entre eux : un run tombe avant
+   * d instruire et un dossier ecarte au pre-scan rendent tous deux zero
+   * moteur releve, et ce sont deux faits opposes.
+   */
+  const [runStatusForToile, setRunStatusForToile] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   // Gating doux du pre-scan : si verdict Bloc 0 knockout sans force,
@@ -733,6 +741,7 @@ export default function HomeClient({
           // pipeline) : ici on garde la forme brute persistee par la
           // brique 3 (id, status, durationMs, attempts, errorMessage).
           setPipelineEnginesStatus(data.analysis.pipelineEnginesStatus || null);
+          setRunStatusForToile(data.analysis.status ?? null);
           const engineDurations = data.analysis.resultJson?.meta?.engineDurations || {};
           const restored: Record<string, EngineState> = {};
           const rj = data.analysis.resultJson || {};
@@ -6565,11 +6574,31 @@ export default function HomeClient({
                 />
               </TabPane>
 
-              <TabPane tabId="pipeline-toile" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs} noPrint>
-                <PipelineToilePanel
-                  engineStates={engineStates}
-                  engineOutputs={engineOutputs}
+              <TabPane tabId="pipeline-toile" activeTab={activeTab} printMode={printMode} mountedTabs={mountedTabs}>
+                {/* LA TOILE RETROSPECTIVE PASSE DEVANT, ET ELLE S IMPRIME.
+                    Celle du dessous rend l etat vivant d un run en cours,
+                    donc elle n a rien a dire sur une note deja produite et
+                    reste hors impression. Celle-ci lit le releve du
+                    recorder persiste : elle montre a un lecteur que
+                    Prelude est une chaine d instruction et non un prompt
+                    long, ce qui est une piece de la note et non un ecran
+                    d attente. */}
+                {/* Le releve vit dans une colonne propre et non dans le
+                    document : le client le charge deja a l ouverture d un
+                    dossier, sous cet etat. Le chercher dans `result_json`
+                    aurait rendu la toile vide sur toutes les notes, en
+                    affichant « instrumentation absente » sur des runs
+                    parfaitement instrumentes. */}
+                <ToileRetrospective
+                  pipelineEnginesStatus={pipelineEnginesStatus}
+                  statutDuRun={runStatusForToile}
                 />
+                <div className="no-print">
+                  <PipelineToilePanel
+                    engineStates={engineStates}
+                    engineOutputs={engineOutputs}
+                  />
+                </div>
               </TabPane>
 
               {/* Le bloc historique {printMode && <InvestmentNoteView ...>}

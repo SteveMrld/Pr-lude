@@ -107,7 +107,7 @@ export function etatDuDossier(statut: string | null | undefined): EtatDossier {
  * Le ton porte le sens plutot que la couleur, parce que la palette vit
  * dans la feuille et que deux surfaces ne l appliquent pas pareil.
  */
-export type TonDossier = 'neutre' | 'attente' | 'acquis' | 'reserve' | 'ecarte' | 'panne';
+export type TonDossier = 'neutre' | 'attente' | 'acquis' | 'reserve' | 'ecarte' | 'panne' | 'absent';
 
 /**
  * La palette d un ton, en jetons de la feuille et non en valeurs.
@@ -137,15 +137,24 @@ export type PaletteTon = { fond: string; encre: string; bordure: string };
  * c est le cas du refus, qui est une decision close et non une alarme.
  * Un refus peint en rouge reclame l attention qu il ne merite plus.
  */
+// LE VERDICT EST L ESSENTIEL, IL PREND DONC L ENCRE PRINCIPALE. La
+// premiere version peignait a l ocre ce qui demande quelque chose et
+// laissait le reste en gris pale : un refus sortait plus discret que le
+// badge de reprises qui l accompagnait, c est-a-dire que l accessoire
+// etait plus visible que la conclusion. L ocre garde son role de
+// signal, mais ce qui ne le porte pas passe a l encre du texte et non a
+// celle des mentions secondaires. Seul le verdict absent reste pale,
+// parce qu il n est pas un verdict.
 export const PALETTE_TON: Record<TonDossier, PaletteTon> = {
-  neutre: { fond: 'transparent', encre: 'var(--muted-soft)', bordure: 'var(--hairline)' },
+  neutre: { fond: 'transparent', encre: 'var(--ink-soft)', bordure: 'var(--hairline)' },
   attente: { fond: 'transparent', encre: 'var(--accent)', bordure: 'var(--accent-mid)' },
   acquis: { fond: 'var(--accent)', encre: 'var(--paper)', bordure: 'var(--accent)' },
   reserve: { fond: 'var(--accent-soft)', encre: 'var(--accent)', bordure: 'var(--accent)' },
   // L ecartement est une decision et non une panne : il ne reclame rien,
-  // donc il reste a l encre pale comme tout ce qui est clos.
-  ecarte: { fond: 'transparent', encre: 'var(--muted-soft)', bordure: 'var(--hairline)' },
-  panne: { fond: 'transparent', encre: 'var(--ink-soft)', bordure: 'var(--hairline)' },
+  // mais il reste une decision, donc il se lit.
+  ecarte: { fond: 'transparent', encre: 'var(--ink-soft)', bordure: 'var(--hairline)' },
+  panne: { fond: 'transparent', encre: 'var(--ink)', bordure: 'var(--hairline)' },
+  absent: { fond: 'transparent', encre: 'var(--muted-soft)', bordure: 'var(--hairline)' },
 };
 
 /**
@@ -303,7 +312,9 @@ export function presenterVerdict(
   verdict: string | null | undefined,
 ): PresentationVerdict & { connu: boolean } {
   if (!verdict || !String(verdict).trim()) {
-    return { libelle: 'Verdict absent', ton: 'neutre', positionDInstruction: false, connu: false };
+    // Un verdict absent n est pas un verdict : il garde l encre des
+    // mentions secondaires, seul de tout le vocabulaire.
+    return { libelle: 'Verdict absent', ton: 'absent', positionDInstruction: false, connu: false };
   }
   const p = PRESENTATION_VERDICT[verdict as VerdictAffichable];
   if (p) return { ...p, connu: true };

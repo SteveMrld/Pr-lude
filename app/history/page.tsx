@@ -684,6 +684,7 @@ function AnalysisRow({ analysis, groupe, isLast, onDelete, onStageChanged }: {
       sector={analysis.sector}
       country={analysis.country}
       createdAtLabel={dateStr}
+      createdAtIso={analysis.createdAt}
       sourceFilename={analysis.sourceFilename}
       derniere
       metaSupplementaire={

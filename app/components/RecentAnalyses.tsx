@@ -154,6 +154,7 @@ export default function RecentAnalyses() {
                 sector={groupe.tete.sector}
                 country={groupe.tete.country}
                 createdAtLabel={formatRelative(groupe.tete.createdAt)}
+                createdAtIso={groupe.tete.createdAt}
                 sourceFilename={groupe.tete.sourceFilename}
                 marqueurs={boutonReprises}
                 derniere
