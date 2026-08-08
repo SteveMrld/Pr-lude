@@ -76,6 +76,11 @@ export const ENTREES_HORS_CHAINE: readonly string[] = [
   'assetClass', 'orchestrateMeasure', 'marketAnalysis', 'financialData',
   'patternMatching', 'causalReversal', 'blindspotAnalysis', 'contrarianAnalysis',
   'narrativeDrift', 'fragiliteStructurelle', 'benchmarks',
+  // Ni des moteurs ni des sorties de moteurs : une reserve de validite,
+  // un score mecanique agrege, une ancre temporelle et son origine.
+  'operationValidity', 'mechanicalScore', 'asOf', 'asOfSource',
+  'referenceYear', 'refYearResolution', 'operationType', 'operationComponents',
+  'teamScore', 'marketScore',
 ] as const;
 
 /**
@@ -102,6 +107,11 @@ export const IDENTIFIANT_VERS_MOTEUR: Record<string, string> = {
   causalReversal: 'causal',
   narrativeDrift: 'narrative-drift',
   fragiliteStructurelle: 'fragility-structurelle',
+  financialCoherence: 'financial-coherence',
+  saasMetrics: 'saas-metrics',
+  industrialMetrics: 'industrial-metrics',
+  valuation: 'valuation',
+  indicators: 'indicators',
 };
 
 /**
@@ -124,6 +134,12 @@ export const GRAPHE_FLUX: NoeudFlux[] = [
   // Les deux moteurs de metriques sont actives par la matrice de
   // pertinence et leur appel n est pas lisible depuis la route : leurs
   // entrees restent non etablies plutot que supposees.
+  // LES DEUX SEULS MOTEURS SANS FIL ENTRANT, ET C EST UNE ARCHITECTURE
+  // ET NON UN DEFAUT. Ils sont actives par la matrice de pertinence et
+  // leur appel n est pas lisible depuis la route : ils lisent le dossier
+  // plutot que les sorties des precedents. Deux moteurs dans ce cas est
+  // un fait vrai du produit ; cinq etait une supposition, `valuation` et
+  // `indicators` etant au contraire parmi les plus connectes.
   { id: 'saas-metrics', consomme: [], appel: '', entreesNonEtablies: true },
   { id: 'industrial-metrics', consomme: [], appel: '', entreesNonEtablies: true },
 
@@ -159,7 +175,51 @@ export const GRAPHE_FLUX: NoeudFlux[] = [
     ],
     appel: 'orchestrateFinalRecommendation',
   },
+
+  // ------------------------------------------------------------
+  // LES DEUX MOTEURS DETERMINISTES, ET C EST UN ARGUMENT DE PRODUIT
+  // ------------------------------------------------------------
+  // `valuation` et `indicators` sont les moteurs les plus connectes du
+  // graphe apres l orchestrateur : le premier consomme six sorties, le
+  // second cinq. Et ils n appellent pas le modele, ils calculent.
+  //
+  // Le chiffre le plus visible de la note est donc calcule et non
+  // genere, sur des sorties que la chaine a etablies. C est ce qui
+  // separe Prelude d un prompt long, et cela se voit sur la toile :
+  // deux noeuds a forte convergence, en fin de chaine, qui ne portent
+  // aucune duree d appel puisqu il n y en a pas.
+  //
+  // La supposition inverse avait ete faite, qu ils lisaient le document
+  // sans rien recevoir. La lecture des appels dit l exact contraire, et
+  // le fait qu elle rend est meilleur que celui qu on lui pretait.
+  {
+    id: 'valuation',
+    consomme: ['extraction', 'financial-coherence', 'financial-extraction', 'team', 'market'],
+    appel: 'computeValuation',
+  },
+  {
+    id: 'indicators',
+    consomme: [
+      'extraction', 'financial-coherence', 'financial-extraction',
+      'saas-metrics', 'industrial-metrics',
+    ],
+    appel: 'computeIndicators',
+  },
 ];
+
+/**
+ * LE PRE-SCAN RESTE HORS DU GRAPHE, ET CE N EST PAS UN OUBLI.
+ *
+ * Il tourne avant l extraction et lit le document, mais il n est pas un
+ * maillon de la chaine : il est la porte qui decide si la chaine se
+ * lance. Un dossier qu il ecarte ne produit aucun des noeuds ci-dessus,
+ * ce qui est un etat de la toile entiere et non l etat d un noeud.
+ *
+ * Le dessiner en amont d `extraction` ferait croire qu il alimente le
+ * raisonnement, alors qu il l autorise. Deux relations differentes, et
+ * c est la meme raison qui tient la cascade hors de cette declaration.
+ */
+export const HORS_CHAINE_PAR_NATURE: readonly string[] = ['prescan'] as const;
 
 /** Les aretes du flux, derivees de la declaration. */
 export function aretesDuFlux(): Array<{ from: string; to: string }> {
