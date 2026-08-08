@@ -3348,3 +3348,72 @@ deploiement rapporte, qui n'est ni l'un ni l'autre et qui a trois causes
 appelant trois reponses differentes. Sans jeton il rend son silence
 plutot que du vert, ce qui est la seule facon honnete de ne pas se
 prononcer.
+
+---
+
+## Un harnais mesure le support qu'on lui donne, et le sien n'a jamais ete la production
+
+Un instrument dont le support est un argument de ligne de commande mesure
+ce qu'on a tape, pas ce qu'on croit qu'il mesure. Quand ce support n'est
+enregistre nulle part dans ce qu'il produit, rien dans ses artefacts ne
+peut plus contredire ce qu'on croit, et l'erreur ne se corrige par aucune
+relecture puisqu'il n'y a rien a relire.
+
+Le constat est du 8 aout 2026 et il porte sur la semaine entiere. Cinq
+scripts du harnais de note prennent leur base en `argv[2]` :
+`note-capture`, `note-snapshot`, `note-coupe`, `note-tete-imprimee`,
+`note-familles-imprimees`. Tous ont ete invoques sur `localhost`. Aucune
+capture de note, aucune coupe, aucun releve de style calcule n'a jamais
+ete pris sur ce que Vercel sert. Les cent sept entrees des trois index
+persistes portent le nom du dossier, le nombre d'octets, la hauteur de
+page, l'empreinte et l'erreur ; aucune ne porte la base interrogee, et
+aucune ne porte le sha du code qui servait. La serie de reference du
+chantier de design, celle contre laquelle vingt-cinq images se comparent,
+ne dit donc pas de quel support elle est la reference.
+
+**Ce que la limite coute, et pourquoi elle ne se voit pas.** Le rendu
+local et le rendu servi peuvent diverger par plusieurs chemins qui n'ont
+rien de theorique : le binaire qui imprime n'est pas le meme, le
+`NODE_ENV` n'est pas le meme, les variables d'environnement ne sont pas
+les memes, et le code servi n'est pas necessairement celui de l'arbre de
+travail. Un harnais qui ne mesure que le local rend donc un verdict exact
+sur un objet qui n'est pas celui que le fonds ouvre. C'est la mesure
+faite sur la mauvaise table, prise sur l'axe du support plutot que sur
+celui de la table, et elle a la meme propriete : la methode est
+irreprochable, le resultat est juste, et l'objet est un autre.
+
+Le cas du 7 aout l'avait deja rencontree sans la nommer. Vingt-cinq
+captures identiques octet pour octet passaient pour un avant ; ce qui les
+a recusees est une grandeur que l'index portait deja, la hauteur de page.
+Ici il n'existe aucune grandeur equivalente, parce que le support n'est
+pas un champ. La lecon de ce jour-la etait qu'un releve porte
+d'ordinaire de quoi se recuser lui-meme ; celle-ci en est le contre-
+exemple, et elle dit ce qu'il faut ajouter pour que la premiere
+redevienne vraie.
+
+**Ce qui suit en pratique.** Tout artefact d'un dispositif de mesure
+porte le support qu'il a interroge, au meme titre que son denominateur.
+Une base, et le sha que cette base servait quand il est lisible. Sans ce
+champ, une serie de reference ne peut pas etre comparee a une serie prise
+ailleurs, et surtout elle ne peut pas signaler qu'elle l'a ete. Et une
+conclusion tiree du harnais s'ecrit avec son support, faute de quoi elle
+se lira comme portant sur le produit alors qu'elle porte sur une machine
+de developpement.
+
+**Ce qui reste non verifie, et qui doit se lire comme tel.** Le releve
+des polices du 8 aout a fait produire le PDF par la route de production,
+avec une session, et ce que ce PDF embarque est mesure : soixante-cinq
+sous-ensembles de Source Serif 4, dix-sept d'Inter, quarante-cinq d'Open
+Sans, seule fonte que `@sparticuz/chromium-min` porte. Cela est acquis.
+
+Ne l'est pas l'attribution de ces quarante-cinq sous-ensembles a des
+elements precis. Le recensement qui dit quelle chaine chaque element
+calcule est le premier etage de la sonde, et ce premier etage tourne dans
+le Chromium local sur un document assemble par le module de l'arbre de
+travail. L'affirmation selon laquelle vingt-quatre elements reclamant une
+chaine serif tomberaient en sans a l'impression est donc une deduction
+faite en croisant un releve local avec une liste de fontes de production,
+et non une mesure. Elle est plausible et elle n'est pas etablie. Elle
+s'ecrit ici comme non verifiee plutot que de circuler comme un fait, et
+elle se tranchera au premier export reel regarde, ce qui ne coute rien
+puisque le PDF est sous les yeux de celui qui l'exporte.
