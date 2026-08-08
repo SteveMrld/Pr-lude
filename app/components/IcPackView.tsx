@@ -18,6 +18,7 @@ import React from 'react';
 import { computeTopRisks } from '@/lib/compute-top-risks';
 import { libelleMontant, libelleNature } from '@/lib/note/operation-vocabulary';
 import { collecterFeuillesDeStyle } from '@/lib/note/document-export';
+import { demanderExportPdf } from '@/lib/note/demander-export';
 import {
   IC_VOTE_RESULTS,
   IC_VOTE_RESULT_LABELS,
@@ -183,24 +184,21 @@ export default function IcPackView({
       const companyName = ext.companyName || 'analyse';
       const fileName = `prelude-ic-pack-${String(companyName).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;
 
-      const res = await fetch('/api/export-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          html,
-          css,
-          title: `Prelude · Pack IC · ${companyName}`,
-          fileName,
-        }),
+      // Meme point de passage que l export de la note : il refuse de
+      // suivre une redirection et verifie que la reponse est un PDF, ce
+      // que `res.ok` suivi de `blob()` ne faisait pas.
+      const issue = await demanderExportPdf({
+        html,
+        css,
+        title: `Prelude · Pack IC · ${companyName}`,
+        fileName,
       });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
-        throw new Error(errorData.error || `HTTP ${res.status}`);
+      if (!issue.ok) {
+        throw new Error(issue.raison || 'export indisponible');
       }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(issue.blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName;

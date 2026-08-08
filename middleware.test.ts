@@ -19,7 +19,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
-import { config, isCronPath, isHeaderGuardedPath, HEADER_GUARDED_PATHS } from './middleware';
+import { config, isCronPath, isHeaderGuardedPath, estRouteApi, HEADER_GUARDED_PATHS } from './middleware';
 
 let pass = 0;
 let fail = 0;
@@ -169,6 +169,32 @@ for (const declare of HEADER_GUARDED_PATHS) {
 check('une route applicative reste soumise au middleware', isHeaderGuardedPath('/api/analyses/list'), false);
 check('la racine sectorielle n est pas ecartee en bloc', isHeaderGuardedPath('/api/sectoral/autre-chose'), false);
 checkTrue('la route applicative reste dans le matcher', isMatchedByMiddleware('/api/analyses/list'));
+
+// ------------------------------------------------------------
+// La forme du refus, qui decide si une interception se voit
+// ------------------------------------------------------------
+// Une route protegee sans session recevait une redirection vers /login.
+// C est juste pour un document et faux pour un appel de programme :
+// `fetch` suit les redirections, /login est public et repond 200 en
+// HTML, donc l appelant lit un succes. Mesure du 8 aout 2026 sur la
+// production : un POST sans session sur /api/export-pdf rendait 200,
+// text/html, treize mille octets commencant par `<!DO`.
+//
+// Le predicat se derive du chemin et non d une liste de routes. Les
+// deux sens comptent : une route d API doit basculer sur le 401, et une
+// page doit garder sa redirection, faute de quoi un lecteur non
+// authentifie recevrait du JSON au lieu de l ecran de connexion.
+console.log('\n--- la forme du refus depend de la nature de l appelant ---');
+checkTrue('une route d API est reconnue', estRouteApi('/api/export-pdf'));
+checkTrue('une route d API imbriquee est reconnue', estRouteApi('/api/analyses/list'));
+checkTrue('la racine des API est reconnue', estRouteApi('/api'));
+check('une page ne bascule pas sur le 401', estRouteApi('/dossiers/abc'), false);
+check('la racine ne bascule pas sur le 401', estRouteApi('/'), false);
+check('la page de connexion ne bascule pas sur le 401', estRouteApi('/login'), false);
+// Le piege du prefixe nu : un chemin qui commence par les memes lettres
+// sans etre une route d API ne doit pas basculer, sinon une page
+// nommee ainsi rendrait du JSON a un navigateur.
+check('un chemin qui commence par api sans en etre un ne bascule pas', estRouteApi('/apidoc'), false);
 
 // ------------------------------------------------------------
 // Ce que ce fichier n exerce pas, et qu il ne faut donc pas compter

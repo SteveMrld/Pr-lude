@@ -23,6 +23,7 @@ import {
 } from '@/lib/pipeline-notifier';
 import IcPackView from './components/IcPackView';
 import { collecterFeuillesDeStyle } from '@/lib/note/document-export';
+import { demanderExportPdf } from '@/lib/note/demander-export';
 import StructurationEntreeSection from './components/StructurationEntreeSection';
 import { TrajectoryView } from './components/TrajectoryView';
 import type { AnalysisTrack } from './components/TrackSelector';
@@ -3291,20 +3292,23 @@ export default function HomeClient({
                         await new Promise((r) => setTimeout(r, backoffs[attempt]));
                       }
                       try {
-                        const res = await fetch('/api/export-pdf', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            html,
-                            css,
-                            title: `Prelude · ${companyName}`,
-                            fileName,
-                          }),
+                        // La demande passe par `demanderExportPdf`, qui
+                        // refuse de suivre une redirection et verifie que
+                        // la reponse est un PDF avant de la rendre. Le
+                        // couple `res.ok` puis `blob()` qui vivait ici
+                        // laissait passer la page de connexion servie par
+                        // le middleware sur session expiree : elle rendait
+                        // 200 en HTML et se telechargeait sous le nom du
+                        // dossier.
+                        const issue = await demanderExportPdf({
+                          html,
+                          css,
+                          title: `Prelude · ${companyName}`,
+                          fileName,
                         });
 
-                        if (res.ok) {
-                          const blob = await res.blob();
-                          const url = URL.createObjectURL(blob);
+                        if (issue.ok) {
+                          const url = URL.createObjectURL(issue.blob);
                           const a = document.createElement('a');
                           a.href = url;
                           a.download = fileName;
@@ -3319,17 +3323,9 @@ export default function HomeClient({
                           break;
                         }
 
-                        // Lit prioritairement le champ detail (vrai message
-                        // d exception cote serveur) plutot que error (tag
-                        // generique "PDF generation failed"). Cle pour
-                        // remonter la cause reelle au diagnostic.
-                        const errorData = await res
-                          .json()
-                          .catch(() => ({ detail: `HTTP ${res.status}` }));
-                        lastServerDetail =
-                          errorData.detail || errorData.error || `HTTP ${res.status}`;
+                        lastServerDetail = issue.raison || 'export indisponible';
                         console.warn(
-                          `[export-pdf] tentative ${attempt + 1}/${backoffs.length} echec (${res.status}): ${lastServerDetail}`,
+                          `[export-pdf] tentative ${attempt + 1}/${backoffs.length} echec (${issue.statut ?? 'sans statut'}): ${lastServerDetail}`,
                         );
                       } catch (fetchErr: any) {
                         lastServerDetail =

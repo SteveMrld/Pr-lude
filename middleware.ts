@@ -73,6 +73,37 @@ export function isCronPath(pathname: string): boolean {
   return pathname === '/api/cron' || pathname.startsWith(CRON_PATH_PREFIX);
 }
 
+/**
+ * Une route d API repond a un programme, jamais a un lecteur.
+ *
+ * SANS CETTE DISTINCTION, UNE INTERCEPTION SE DEGUISE EN SUCCES. Le
+ * refus d une route protegee etait une redirection vers `/login`, ce qui
+ * est juste pour un document et faux pour un appel de programme : `fetch`
+ * suit les redirections par defaut, `/login` est un chemin public qui
+ * repond 200 en HTML, et l appelant recoit donc un succes. Le releve du
+ * 8 aout 2026 sur la production le rend tel quel : un POST sans session
+ * sur `/api/export-pdf` rend 200, `text/html`, treize mille octets
+ * commencant par `<!DO`, apres une redirection.
+ *
+ * Les quarante-six routes soumises au middleware partageaient cette
+ * reponse. Seize des dix-huit sites d appel du client lisent du JSON et
+ * levent donc bruyamment sur cette page ; les deux qui restent en
+ * prennent le corps en `blob`, ce qu une page HTML traverse sans rien
+ * casser, et ce sont les deux exports PDF. Un partner dont la session a
+ * expire obtenait ainsi un fichier nomme `prelude-<societe>.pdf` qui
+ * etait la page de connexion, telechargee comme un export reussi.
+ *
+ * C est la famille des six taches planifiees avec un cran de plus. La,
+ * l interception etait muette et la route paraissait active ; ici elle
+ * est habillee en succes et produit un artefact qui a la forme du
+ * livrable. Le critere se derive du chemin, propriete observable de la
+ * requete, et non d une liste de routes : la quarante-septieme route
+ * d API sera couverte sans que personne y pense.
+ */
+export function estRouteApi(pathname: string): boolean {
+  return pathname === '/api' || pathname.startsWith('/api/');
+}
+
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) return true;
   // Ressources Next/static, favicons, etc.
@@ -141,6 +172,15 @@ export async function middleware(req: NextRequest) {
 
   // A partir d ici : routes protegees.
   if (!user) {
+    // Le refus se dit dans la langue de l appelant. Un programme recoit
+    // un 401 qu il ne peut pas confondre avec un succes ; un lecteur
+    // recoit la page de connexion, avec le chemin d ou il vient.
+    if (estRouteApi(pathname)) {
+      return NextResponse.json(
+        { error: 'non authentifie', detail: 'Session absente ou expiree.' },
+        { status: 401 },
+      );
+    }
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
