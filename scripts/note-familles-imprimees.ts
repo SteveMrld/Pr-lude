@@ -37,16 +37,36 @@
 // toujours : une chaine qui nomme « Source Serif 4 » sort en Georgia si
 // la fonte n a pas ete chargee, et rien dans le style calcule ne le dit.
 //
+// LE CHROMIUM QUI IMPRIME SE CHOISIT, PARCE QUE CE N EST PAS LE MEME.
+// La premiere version disait, dans ce meme paragraphe, que son second
+// etage mesurait « les fontes du Chromium qui a produit CE PDF » et
+// qu un run en serverless serait « une mesure a refaire la-bas ». La
+// reserve etait juste et elle est restee une phrase : l instrument ne
+// savait interroger que sa propre route, donc la mesure qui comptait
+// etait celle qu il ne pouvait pas faire. En production le binaire est
+// `@sparticuz/chromium-min`, depouille de ses fontes systeme, et il
+// charge Source Serif 4 et Inter par un lien Google Fonts depuis une
+// fonction serverless ; en local il herite des fontes de la machine, si
+// bien qu une famille manquante y tombe sur Liberation sans rien casser.
+// Les deux supports peuvent donc rendre deux verdicts opposes sur le
+// meme document. `--export` fait produire le PDF par la route qu on
+// nomme, `--cookie` porte la session quand cette route est gardee.
+//
+// CE QUE LE VERDICT COUVRE ALORS, ET LES DEUX ETAGES CESSENT DE PARLER
+// DU MEME CODE. L etage 1 assemble le document avec le module de l arbre
+// de travail ; l etage 2, pointe ailleurs, le fait assembler par le code
+// deploye la-bas. Les deux ne coincident que si le sha deploye est celui
+// qu on lit, ce que cet instrument ne verifie pas et ne peut pas
+// verifier : il l imprime a cote de son verdict plutot que de le
+// supposer.
+//
 // CE QU IL NE COUVRE PAS. Il ne dit rien des tailles, des graisses, des
 // couleurs ni des marges : ce sont d autres axes, et un axe ajoute apres
-// coup en cache d autres. Il ne dit rien non plus de la mise en page. Et
-// son second etage mesure les fontes du Chromium qui a produit CE PDF :
-// un run en serverless, sans acces a Google Fonts, rendrait un autre
-// resultat, et c est une mesure a refaire la-bas plutot qu une conclusion
-// a transporter.
+// coup en cache d autres. Il ne dit rien non plus de la mise en page.
 //
 // Usage :
 //   npx tsx scripts/note-familles-imprimees.ts <url-base> <id-note> [sortie.pdf]
+//     [--export <url-base>] [--cookie <fichier>]
 // ============================================================
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
@@ -121,12 +141,54 @@ export function fontesDuPdf(pdf: Buffer): Array<{ famille: string; sousEnsembles
 const HOSTILE = "'AucuneFonteQuiExiste', monospace";
 const TEMOIN = '--jeton-de-controle-qui-n-existe-pas';
 
+/**
+ * Les options se separent des positionnels, et le nom de l option se
+ * conserve dans le resultat plutot que de se resoudre tout de suite.
+ *
+ * `exportBase` vaut null quand l option est absente, et non la base de
+ * lecture : l appelant decide du repli, et il doit pouvoir dire dans sa
+ * sortie si la route interrogee a ete choisie ou heritee. Un repli qui
+ * rend la meme valeur que sa source rendrait la source invisible, ce qui
+ * est exactement le defaut que la sonde traque par ailleurs.
+ */
+export function lireArguments(argv: string[]): {
+  base?: string;
+  idNote?: string;
+  sortie?: string;
+  exportBase: string | null;
+  cookie: string | null;
+} {
+  const positionnels: string[] = [];
+  let exportBase: string | null = null;
+  let cookie: string | null = null;
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === '--export') { exportBase = argv[i + 1] ?? null; i += 1; continue; }
+    if (argv[i] === '--cookie') { cookie = argv[i + 1] ?? null; i += 1; continue; }
+    positionnels.push(argv[i]);
+  }
+  return {
+    base: positionnels[0],
+    idNote: positionnels[1],
+    sortie: positionnels[2],
+    exportBase,
+    cookie,
+  };
+}
+
 async function main() {
-  const [base, idNote, sortie] = process.argv.slice(2);
+  const opts = lireArguments(process.argv.slice(2));
+  const { base, idNote, sortie } = opts;
   if (!base || !idNote) {
-    console.error('Usage : npx tsx scripts/note-familles-imprimees.ts <url-base> <id-note> [sortie.pdf]');
+    console.error(
+      'Usage : npx tsx scripts/note-familles-imprimees.ts <url-base> <id-note> [sortie.pdf]'
+      + ' [--export <url-base>] [--cookie <fichier>]',
+    );
     process.exit(2);
   }
+  const baseExport = opts.exportBase ?? base;
+  const enteteCookie = opts.cookie
+    ? readFileSync(opts.cookie, 'utf-8').trim().replace(/\s*\n\s*/g, '')
+    : null;
 
   const jetons = jetonsDeFamille(readFileSync('app/globals.css', 'utf-8'));
   if (jetons.length === 0) {
@@ -299,13 +361,34 @@ async function main() {
   // ---------------------------------------------------------------
   // ETAGE 2 : L EFFET, DANS LE PDF QUE LA ROUTE PRODUIT.
   // ---------------------------------------------------------------
-  const res = await fetch(`${base}/api/export-pdf`, {
+  const res = await fetch(`${baseExport}/api/export-pdf`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // La redirection ne se suit pas. Une route gardee repond 307 vers la
+    // page de connexion ; suivie, elle rendrait 200 et du HTML, que
+    // l instrument lirait comme un PDF sans fonte. Le refus de suivre
+    // fait dire au code ce qui s est passe, au lieu de le faire deviner
+    // au contenu.
+    redirect: 'manual',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(enteteCookie ? { Cookie: enteteCookie } : {}),
+    },
     body: JSON.stringify({ html, css, title: 'Sonde de familles', fileName: 'familles.pdf' }),
   });
   if (!res.ok) {
-    console.error(`\nLa route d export a rendu ${res.status} : ${await res.text()}`);
+    // Le corps se lit avant le code, parce qu une route gardee rend une
+    // redirection vers la page de connexion plutot qu une erreur : sans
+    // ce texte, un 307 se lirait comme une panne de l export alors que
+    // c est la session qui manque, et les deux appellent des reponses
+    // opposees.
+    console.error(
+      `\nLa route d export de ${baseExport} a rendu ${res.status} : ${(await res.text()).slice(0, 300)}`,
+    );
+    if (res.status === 307 || res.status === 302 || res.status === 401) {
+      console.error(
+        '  Ce code est celui d une route gardee. Passer une session avec --cookie <fichier>.',
+      );
+    }
     await browser.close();
     process.exit(1);
   }
@@ -313,8 +396,31 @@ async function main() {
   if (sortie) writeFileSync(sortie, pdf);
   await browser.close();
 
+  // Un document qui ne commence pas par `%PDF` n est pas un PDF, et le
+  // dire ici distingue un echec de l instrument d un echec de l objet.
+  // Sans ce controle, une page HTML rendue a la place du document
+  // sortirait plus loin en « aucune fonte lue », formule qui accuse le
+  // document alors que c est la reponse qui n en etait pas un.
+  if (pdf.subarray(0, 4).toString('latin1') !== '%PDF') {
+    console.error(
+      `\nLa reponse de ${baseExport} n est pas un PDF (${pdf.length} octets, type`
+      + ` ${res.headers.get('content-type') || 'inconnu'}). L instrument n a rien mesure.`,
+    );
+    process.exit(1);
+  }
+
   const fontes = fontesDuPdf(pdf);
-  console.log('\nETAGE 2, l effet : les fontes que le PDF embarque.\n');
+  console.log(
+    `\nETAGE 2, l effet : les fontes que le PDF embarque, produit par ${baseExport}`
+    + `${opts.exportBase ? ' (route choisie)' : ' (route heritee de la base de lecture)'}.\n`,
+  );
+  if (opts.exportBase) {
+    console.log(
+      '  Les deux etages ne parlent pas du meme code : l etage 1 a assemble le document avec le\n'
+      + '  module de l arbre de travail, l etage 2 le fait assembler par le code deploye sur cette\n'
+      + '  route. Le verdict ci-dessous ne vaut pour l arbre local que si le sha deploye est le sien.\n',
+    );
+  }
   if (fontes.length === 0) {
     console.error(
       '  Aucune fonte lue dans le PDF. Ce zero est un incident de l instrument et non un'
@@ -341,15 +447,33 @@ async function main() {
     + ` Absentes du PDF : ${manquantes.length ? manquantes.join(', ') : 'aucune'}.`,
   );
 
-  // Les fontes du systeme s impriment comme un fait distinct et ne font
-  // pas echouer : le recensement ci-dessus dit quelles chaines les
-  // demandent, et une chaine ecrite en dur plutot que par le jeton n est
-  // pas le meme defaut qu un jeton qui ne se resout pas.
-  const REPLIS_SYSTEME = /^(Times|Liberation|DejaVu|FreeSerif|Nimbus|Noto)/i;
-  const replis = fontes.filter(f => REPLIS_SYSTEME.test(f.famille));
+  // LE REPLI SE DEFINIT PAR CE QU ON N A PAS DEMANDE, ET NON PAR SON NOM.
+  // Cette ligne enumerait Times, Liberation, DejaVu, FreeSerif, Nimbus et
+  // Noto, c est-a-dire les fontes de la machine ou elle a ete ecrite. La
+  // premiere execution contre la route de production a rendu quarante-cinq
+  // sous-ensembles d Open Sans, seule fonte que `@sparticuz/chromium-min`
+  // embarque : la liste ne la connaissait pas, donc le releve s est tu sur
+  // le support ou il avait le plus a dire, et il s est tu en rendant
+  // CONFORME. Le critere est desormais une propriete des donnees, n etre
+  // pas parmi les familles que le lien charge, si bien qu un binaire dont
+  // on ignore les fontes entre dans la mesure sans qu on y pense.
+  //
+  // Ces fontes ne font toujours pas echouer, et la raison n a pas change :
+  // le recensement de l etage 1 dit quelles chaines les demandent, et une
+  // chaine ecrite en dur plutot que par le jeton n est pas le meme defaut
+  // qu un jeton qui ne se resout pas. Elles se comptent parce que leur
+  // volume est ce qui distingue un residu de monospace d une part entiere
+  // du document tombee hors des jetons.
+  const replis = fontes.filter(
+    f => !attendues.some(a => aplati(f.famille).startsWith(aplati(a))),
+  );
   if (replis.length) {
+    const total = replis.reduce((s, f) => s + f.sousEnsembles, 0);
+    const attendus = fontes.reduce((s, f) => s + f.sousEnsembles, 0) - total;
     console.log(
-      `\n  Fontes du systeme presentes : ${replis.map(f => `${f.famille} (${f.sousEnsembles})`).join(', ')}.`
+      `\n  Fontes hors du lien de l export, donc servies par le binaire qui imprime :`
+      + ` ${replis.map(f => `${f.famille} (${f.sousEnsembles})`).join(', ')}.`
+      + `\n  Elles portent ${total} sous-ensembles contre ${attendus} pour les familles chargees.`
       + ' Elles ne font pas echouer : ce sont les chaines du recensement qui ne passent pas par'
       + ' un jeton, et le monospace, qui n en a jamais eu.',
     );
