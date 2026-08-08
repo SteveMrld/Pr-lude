@@ -6592,6 +6592,7 @@ export default function HomeClient({
                 <ToileRetrospective
                   pipelineEnginesStatus={pipelineEnginesStatus}
                   statutDuRun={runStatusForToile}
+                  parcours={(result as any)?.meta?.parcours ?? null}
                 />
                 <div className="no-print">
                   <PipelineToilePanel

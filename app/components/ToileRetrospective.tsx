@@ -123,6 +123,13 @@ const VIDES: Record<string, { titre: string; corps: string }> = {
 export type ToileRetrospectiveProps = {
   pipelineEnginesStatus: Record<string, EntreeRecorder> | null | undefined;
   statutDuRun: string | null | undefined;
+  /**
+   * Le parcours du run, quand il a ete enregistre. Il commande le
+   * denominateur : le growth neutralise quatre moteurs, qui ne sont donc
+   * pas attendus. Absent sur les runs anterieurs au 8 aout 2026, ou il
+   * etait lu a l entree de la route et jamais persiste.
+   */
+  parcours?: 'early' | 'growth' | null;
 };
 
 export default function ToileRetrospective(props: ToileRetrospectiveProps) {
@@ -133,8 +140,9 @@ export default function ToileRetrospective(props: ToileRetrospectiveProps) {
       WAVE_BASED_TOPOLOGY.map(n => ({ id: n.id, deps: n.deps })),
       props.pipelineEnginesStatus,
       props.statutDuRun,
+      props.parcours,
     ),
-    [props.pipelineEnginesStatus, props.statutDuRun],
+    [props.pipelineEnginesStatus, props.statutDuRun, props.parcours],
   );
 
   const layout = useMemo(
@@ -189,7 +197,14 @@ export default function ToileRetrospective(props: ToileRetrospectiveProps) {
               moitie des noeuds n a pas ete relevee ne doit pas se lire
               comme une chaine a moitie tombee. */}
           <strong style={{ color: 'var(--ink)', fontWeight: 700 }}>{toile.instrumentes}</strong>
-          {' '}moteurs releves sur {toile.total}
+          {' '}moteurs releves sur {toile.total} attendus
+          {/* LE DENOMINATEUR DIT D OU IL VIENT. Sans parcours enregistre
+              il est celui de la topologie entiere, et un moteur
+              neutralise par doctrine y compte comme non mesure : le
+              lecteur doit pouvoir faire la difference. */}
+          {!toile.parcoursConnu && (
+            <span style={{ color: 'var(--muted-soft)' }}> (parcours non enregistre)</span>
+          )}
           {toile.dureeTotaleMs > 0 && (
             <> &middot; <strong style={{ color: 'var(--ink)', fontWeight: 700 }}>{libelleDuree(toile.dureeTotaleMs)}</strong> de calcul cumule</>
           )}

@@ -10,8 +10,13 @@ import {
   construireToileRetrospective,
   releveParNoeud,
   libelleDuree,
+  NEUTRALISES_EN_GROWTH,
   type NoeudTopologie,
 } from './retrospective';
+import { join as joinChemin } from 'path';
+const racineDepot = joinChemin(__dirname, '..', '..');
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { ENGINE_TO_RESULT_KEY } from './result-mapping';
 
 let pass = 0, fail = 0;
@@ -141,6 +146,62 @@ console.log('\n[Suite 5] la duree se retient quand elle a ete mesuree');
   check(libelleDuree(850) === '850 ms', 'les millisecondes se disent');
   check(libelleDuree(44164).endsWith(' s'), 'les secondes aussi');
   check(libelleDuree(289170) === '4 min 49', 'et les minutes se lisent en clair');
+}
+
+console.log('\n[Suite 6] le denominateur est ce qui est attendu, jamais ce qui a repondu');
+{
+  // LE CAS QUE STEVE POSE : un run ou un moteur ne depose rien doit
+  // afficher seize sur dix-sept et non seize sur seize.
+  const partiel = construireToileRetrospective(TOPO, {
+    extraction: { status: 'ok' }, team: { status: 'ok' },
+    market: { status: 'ok' }, benchmarks: { status: 'ok' },
+  }, 'completed', 'early');
+  check(partiel.instrumentes === 4 && partiel.total === 5,
+    'quatre mesures sur cinq moteurs attendus, et non quatre sur quatre');
+  check(partiel.parcoursConnu, 'le parcours est connu');
+
+  // Le parcours growth neutralise quatre moteurs : ils sortent du
+  // denominateur parce qu ils ne sont pas attendus, ce qui n est pas la
+  // meme chose que de sortir du denominateur parce qu ils n ont rien
+  // rendu.
+  const g = construireToileRetrospective(TOPO, { extraction: { status: 'ok' } }, 'completed', 'growth');
+  check(g.total === 3, 'en growth, team et pattern quittent le total attendu');
+  const e = construireToileRetrospective(TOPO, { extraction: { status: 'ok' } }, 'completed', 'early');
+  check(e.total === 5, 'en early ils y restent');
+  check(g.total < e.total, 'et le growth attend donc strictement moins que le early');
+
+  // Le second sens, celui qui compte : un parcours inconnu ne doit pas
+  // se faire passer pour un parcours connu. Le repli est le total
+  // declare, qui se trompe du cote qui montre un manque.
+  const inconnu = construireToileRetrospective(TOPO, { extraction: { status: 'ok' } }, 'completed', null);
+  check(inconnu.total === 5, 'sans parcours, le total est celui de la topologie entiere');
+  check(!inconnu.parcoursConnu, 'et la surface peut le dire plutot que de laisser lire un total exact');
+
+  // Un moteur hors parcours qui aurait depose une mesure ne doit pas
+  // gonfler le numerateur au-dela de son denominateur.
+  const debordant = construireToileRetrospective(TOPO, {
+    extraction: { status: 'ok' }, team: { status: 'ok' }, market: { status: 'ok' },
+    benchmarks: { status: 'ok' }, pattern: { status: 'ok' },
+  }, 'completed', 'growth');
+  check(debordant.instrumentes <= debordant.total,
+    'le numerateur ne depasse jamais le denominateur');
+
+  // La liste des neutralises se confronte a la route : une cinquieme
+  // neutralisation ajoutee demain doit faire rougir plutot que de
+  // fausser un compte en silence.
+  const route = readFileSync(join(racineDepot, 'app', 'api', 'analyze', 'route.ts'), 'utf-8');
+  const declares = NEUTRALISES_EN_GROWTH.filter(id => {
+    const attendu: Record<string, string> = {
+      team: 'teamPromise', pattern: 'buildSkippedPatternMatchingOutput',
+      blindspot: 'buildSkippedBlindspotOutput', causal: 'buildSkippedCausalOutput',
+    };
+    return route.includes(attendu[id]);
+  });
+  check(declares.length === NEUTRALISES_EN_GROWTH.length,
+    'chaque moteur declare neutralise en growth a bien sa branche dans la route');
+  const branches = (route.match(/if \(track === 'growth'\) \{/g) || []).length;
+  check(branches <= NEUTRALISES_EN_GROWTH.length,
+    `la route ne porte pas plus de branches growth que la liste n en declare (${branches})`);
 }
 
 console.log(`\n${pass} pass, ${fail} fail`);

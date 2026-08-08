@@ -91,8 +91,18 @@ export type ToileRetrospective = {
   vide: EtatVide;
   /** Combien de noeuds de la topologie portent une mesure. */
   instrumentes: number;
-  /** Combien la topologie en compte. */
+  /**
+   * Combien de moteurs etaient attendus sur ce parcours. Jamais le
+   * nombre de mesures recues : un total derive du numerateur ne peut
+   * pas signaler un manque.
+   */
   total: number;
+  /**
+   * Faux quand le parcours n a pas ete enregistre. Le total est alors
+   * celui de la topologie entiere, et la surface doit le dire plutot que
+   * de laisser lire un denominateur exact.
+   */
+  parcoursConnu: boolean;
   /** Somme des durees mesurees, en millisecondes. */
   dureeTotaleMs: number;
 };
@@ -166,6 +176,49 @@ function causesDirectes(
 
 export type NoeudTopologie = { id: string; deps: string[] };
 
+export type Parcours = 'early' | 'growth';
+
+/**
+ * Les moteurs que le parcours growth neutralise, lus dans la route.
+ *
+ * `team`, `pattern`, `blindspot` et `causal` y rendent une sortie de
+ * neutralisation au lieu d appeler le modele. Ils sont donc attendus en
+ * early et pas en growth, et c est cette difference qui fait le
+ * denominateur.
+ *
+ * La liste tranche plutot qu elle ne constate, et elle se date pour
+ * cette raison : le contenu d une neutralisation doctrinale ne se deduit
+ * d aucune propriete observable, il se decide. Le verrou la confronte
+ * neanmoins a la route, pour qu une cinquieme neutralisation ajoutee
+ * demain fasse rougir plutot que de fausser un compte en silence.
+ */
+export const NEUTRALISES_EN_GROWTH = ['team', 'pattern', 'blindspot', 'causal'] as const;
+
+/**
+ * Les moteurs attendus sur un parcours.
+ *
+ * LE DENOMINATEUR EST CE QUI EST ATTENDU, JAMAIS CE QUI A REPONDU. Un
+ * rapport dont le total se calcule sur ce qui a repondu est toujours
+ * complet, et il rassure d autant plus qu il est faux. Le pre-scan tient
+ * deja cette forme avec `totalTests = attendus.length`.
+ *
+ * Le parcours peut etre inconnu, et il l est sur les runs anterieurs au
+ * 8 aout 2026 : il etait lu a l entree de la route et jamais persiste.
+ * Le repli est alors le total declare, qui se trompe dans le sens qui
+ * montre un manque plutot que dans celui qui le cache.
+ */
+export function moteursAttendus(
+  topologie: NoeudTopologie[],
+  parcours: Parcours | null | undefined,
+): { ids: string[]; parcoursConnu: boolean } {
+  if (parcours !== 'growth' && parcours !== 'early') {
+    return { ids: topologie.map(n => n.id), parcoursConnu: false };
+  }
+  if (parcours === 'early') return { ids: topologie.map(n => n.id), parcoursConnu: true };
+  const hors = new Set<string>(NEUTRALISES_EN_GROWTH as readonly string[]);
+  return { ids: topologie.map(n => n.id).filter(id => !hors.has(id)), parcoursConnu: true };
+}
+
 /**
  * Construit la toile retrospective d une note.
  *
@@ -177,7 +230,10 @@ export function construireToileRetrospective(
   topologie: NoeudTopologie[],
   pipelineEnginesStatus: Record<string, EntreeRecorder> | null | undefined,
   statutDuRun: string | null | undefined,
+  parcours?: Parcours | null,
 ): ToileRetrospective {
+  const attendus = moteursAttendus(topologie, parcours);
+  const attendusSet = new Set(attendus.ids);
   const releve = releveParNoeud(pipelineEnginesStatus);
 
   const etats: Record<string, EtatNoeud> = {};
@@ -198,7 +254,12 @@ export function construireToileRetrospective(
     };
   });
 
-  const instrumentes = noeuds.filter(x => x.etat !== 'non-instrumente').length;
+  // Le numerateur ne compte que des moteurs attendus : un moteur hors
+  // parcours qui aurait depose une mesure ne doit pas gonfler le
+  // rapport au-dela de son propre denominateur.
+  const instrumentes = noeuds.filter(
+    x => x.etat !== 'non-instrumente' && attendusSet.has(x.id),
+  ).length;
   const dureeTotaleMs = noeuds.reduce((s, x) => s + (x.dureeMs || 0), 0);
 
   // LE VIDE SE QUALIFIE, IL NE SE CONSTATE PAS. Zero noeud mesure a
@@ -212,7 +273,12 @@ export function construireToileRetrospective(
     else vide = 'instrumentation-absente';
   }
 
-  return { noeuds, vide, instrumentes, total: topologie.length, dureeTotaleMs };
+  return {
+    noeuds, vide, instrumentes,
+    total: attendus.ids.length,
+    parcoursConnu: attendus.parcoursConnu,
+    dureeTotaleMs,
+  };
 }
 
 /** Libelle court d une duree, pour un noeud de quelques centimetres. */

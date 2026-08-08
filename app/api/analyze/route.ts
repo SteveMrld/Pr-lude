@@ -2295,6 +2295,19 @@ export async function POST(req: NextRequest) {
           //
           // Non bloquant par construction : une erreur de construction
           // du bulletin ne doit pas emporter une note aboutie.
+          // LE PARCOURS DESCEND EN BASE, ET IL NE LE FAISAIT PAS. Il
+          // etait lu a l entree de la route pour decider quels moteurs
+          // tournent, puis jete : absent des soixante-six lignes du
+          // corpus au 8 aout 2026. Sans lui, le denominateur du compteur
+          // de moteurs ne peut pas etre le nombre attendu sur ce
+          // parcours, puisque personne ne sait lequel a tourne, et la
+          // toile ne peut pas distinguer un moteur neutralise en growth
+          // d un moteur qui n a rien depose. Une decision prise a
+          // l entree et jamais ecrite est une decision perdue.
+          try {
+            (result as any).meta.parcours = track;
+          } catch { /* le parcours ne doit pas emporter une note aboutie */ }
+
           try {
             (result as any).meta.bulletin = construireBulletin(result);
           } catch (err: any) {
