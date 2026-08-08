@@ -3849,7 +3849,8 @@ ul, ol { list-style: none; }
 
   /* Adaptation des cards sombres du dashboard pour l impression sur papier blanc.
      Les sections .reco-card et autres blocs sombres sont basculees en fond clair
-     avec texte fonce pour rester lisibles en PDF. */
+     avec texte fonce pour rester lisibles en PDF.
+
      LE SELECTEUR UNIVERSEL APLATIT L ACCENT, ET C EST UN ARBITRAGE
      PLUTOT QU UN DEFAUT DE COPIE. Le `*` avec `!important` gagne contre
      toute couleur posee par un enfant, donc l ocre de trente-deux
