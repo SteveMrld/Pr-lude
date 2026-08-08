@@ -15,6 +15,13 @@
 // verdict a bouge. Cette derniere information remonte en tete, sur le
 // bouton lui-meme, parce qu elle doit se voir sans deplier.
 //
+// LA TETE EST LA PLUS RECENTE, ET CE N EST PAS UNE DESIGNATION. Aucune
+// instruction n est declaree faire foi : le repli les montre toutes, avec
+// leur date, leur verdict et leur score, precisement pour que le lecteur
+// voie ce qui a change plutot que de recevoir un choix qu on aurait fait
+// pour lui. L analyse de reference d un dossier est une piece du
+// multi-fonds, et le registre porte la question.
+//
 // LE PARCOURS MANQUE, ET CE N EST PAS UN OUBLI D AFFICHAGE. Il est un
 // parametre de la requete d analyse, lu a l entree de la route pour
 // decider quels moteurs tournent, et il n est ecrit nulle part : absent
@@ -65,7 +72,7 @@ export default function DossierGroupe(props: DossierGroupeProps) {
                 onClick={() => setOuvert(v => !v)}
                 aria-expanded={ouvert}
                 data-role="reprises"
-                title={`${n + 1} instructions de ce dossier`}
+                title={`${n + 1} instructions de ce dossier, la plus recente en tete. Aucune n est designee comme reference.`}
                 style={{
                   fontFamily: 'var(--sans)',
                   fontSize: 9.5,

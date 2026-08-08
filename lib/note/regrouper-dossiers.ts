@@ -49,7 +49,27 @@ export type DossierGroupe<T> = {
   nomEtabli: boolean;
   /** Du plus recent au plus ancien. */
   runs: T[];
-  /** Le plus recent, celui qui se lit en tete. */
+  /**
+   * L instruction la plus recente, celle qui se lit en tete.
+   *
+   * CE N EST PAS L ANALYSE DE REFERENCE DU DOSSIER, ET LA DISTINCTION
+   * DOIT SURVIVRE A CE COMMENTAIRE. Mettre la plus recente en tete est
+   * une convention d affichage : elle dit qu elle est la derniere, elle
+   * ne dit pas qu elle fait foi. Un registre de decisions ne peut pas
+   * laisser deviner laquelle compte, et sur les trois dossiers du corpus
+   * qui portent plusieurs instructions le verdict differe d une
+   * instruction a l autre : la question est donc reelle et elle n est pas
+   * repondue ici.
+   *
+   * Designer une reference demande de decider qui designe, ce qui n a pas
+   * de sens tant qu un dossier appartient a une personne et non a une
+   * organisation, `organization_id` etant nul sur les soixante-six lignes
+   * au 8 aout 2026. La piece appartient au chantier multi-fonds, et le
+   * registre porte la question.
+   *
+   * Le jour ou une reference sera designee, elle sera un champ et non un
+   * rang : ce nom-la devra le dire, et celui-ci restera ce qu il est.
+   */
   tete: T;
   /** Combien d instructions precedentes se replient dessous. */
   reprises: number;
@@ -80,6 +100,13 @@ function auPlusRecent(a: string | null | undefined, b: string | null | undefined
  * L ordre des groupes suit celui de leur tete, donc la liste reste
  * classee du dossier le plus recemment instruit au plus ancien, ce qui
  * est l ordre qu elle avait avant le regroupement.
+ *
+ * LE TRI PAR DATE EST UNE CONVENTION D AFFICHAGE. Il ne designe aucune
+ * instruction comme faisant foi ; voir le champ `tete`. Une convention
+ * qu on oublie d avoir choisie devient une regle que personne n a
+ * decidee, et le depot en porte deja un exemple avec le stade
+ * `in_review` affiche par defaut sur des dossiers ou personne ne l avait
+ * pose.
  */
 export function regrouperParDossier<T>(
   items: T[],

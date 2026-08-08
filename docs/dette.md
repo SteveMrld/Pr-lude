@@ -3497,3 +3497,51 @@ doit figurer, est un troisieme champ et non un prefixe.
 
 Ecrit ici plutot que tranche, parce qu'un nommage decide a la va-vite sur
 deux lignes du corpus se paierait sur toutes celles qui viendront.
+
+---
+
+## L'analyse de reference d'un dossier est une piece du multi-fonds
+
+Un registre de decisions ne peut pas laisser le lecteur deviner laquelle
+fait foi. Quand un dossier porte plusieurs instructions, l'une d'elles
+doit etre designee comme la reference, explicitement et par quelqu'un.
+La question est posee ici et n'est pas tranchee, parce qu'elle ne peut
+pas l'etre aujourd'hui.
+
+**Le fait qui la fonde, avec son denominateur.** Le corpus au 8 aout 2026
+porte soixante-six executions, qui se regroupent en quarante et un
+dossiers : trente-cinq n'ont qu'une instruction, six en ont plusieurs, et
+sur ces six le verdict a bouge trois fois. Le compte depend du fonds
+qu'on regarde, et il faut le dire plutot que de donner un chiffre nu :
+sur les trente-neuf executions du fonds qui sert de reference au
+chantier, dix-huit dossiers, dont quinze a une seule instruction et trois
+a plusieurs, et sur ces trois le verdict a bouge a chaque fois. Sur le
+second jeu, vingt-six dossiers dont un seul porte deux instructions.
+
+La proportion importe moins que ce qu'elle contient. Les dossiers a
+plusieurs runs sont peu nombreux et ce sont exactement ceux ou la
+question se pose, puisque leurs verdicts divergent : In Haircare porte
+treize instructions, Braincube huit, Hello Planet quatre, et sur les
+trois le verdict n'est pas le meme d'une instruction a l'autre. Rien
+dans les donnees ne dit laquelle compte.
+
+**Pourquoi la question ne se tranche pas aujourd'hui.** Designer une
+reference demande de decider qui designe. Cela n'a pas de sens tant qu'un
+dossier appartient a une personne et non a une organisation, et c'est
+l'etat actuel : `organization_id` est nul sur les soixante-six lignes,
+et les deux jeux du corpus se distinguent par leur `user_id`. Une
+designation posee maintenant serait un choix individuel qu'aucune regle
+de fonds ne fonde, et il faudrait la refaire le jour ou l'organisation
+devient le proprietaire. La piece appartient donc au chantier
+multi-fonds, avec la propriete du dossier et les droits qui vont avec.
+
+**Ce qui tient lieu de reponse en attendant, et qui n'en est pas une.**
+La liste affiche l'instruction la plus recente en tete et replie les
+autres. C'est une convention d'affichage et non une designation : elle ne
+dit pas que la derniere fait foi, elle dit qu'elle est la derniere. La
+distinction est ecrite dans le code du regroupement pour que personne ne
+la lise comme un arbitrage, parce qu'une convention qu'on oublie d'avoir
+choisie devient une regle que personne n'a decidee. C'est la meme famille
+que le stade `in_review` affiche par defaut sur trente-neuf dossiers ou
+personne ne l'avait pose : une valeur qui remplit un vide finit par se
+lire comme une mesure.
