@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# ============================================================
+# PRE-PUSH : un commit qui passe tsc n est pas un commit qui construit
+# ------------------------------------------------------------
+# Ecrit le 8 aout 2026, apres six heures de production rouge sur un
+# commit dont `npx tsc --noEmit` et les cent soixante-dix fichiers de la
+# suite deterministe etaient verts. Ils l etaient a bon droit : le
+# compilateur n ouvre pas les fichiers CSS, et aucun test ne rend de
+# page. Le defaut etait un commentaire pose hors de son bloc dans
+# `globals.css`, dont la prose entrait dans la cascade et faisait echouer
+# le minifieur.
+#
+# LA GARDE SE POSE ICI PLUTOT QUE DANS UNE REGLE ECRITE. Une regle qui
+# depend de celui qui l applique ne tient pas, et celle-ci avait deja ete
+# ecrite au registre le 7 aout sur une autre ligne du meme fichier. Ce
+# qui la porte est le seul dispositif qui voit cette classe de defaut,
+# `next build`, place a l endroit qu on ne peut pas oublier de traverser.
+#
+# CE QU ELLE COUTE ET CE QU ELLE NE COUVRE PAS. Deux a quatre minutes par
+# push. Elle etablit que le depot construit, jamais que la page s affiche
+# ni que le deploiement a reussi : ces deux-la se verifient apres, par
+# `scripts/verifier-deploiement.ts` et par les sondes de capture.
+#
+# Contournable par `git push --no-verify`, et c est voulu : une garde
+# qu on ne peut pas lever se fait debrancher au lieu de se contourner une
+# fois.
+# ============================================================
+set -e
+
+echo "pre-push : next build, parce que tsc ne lit pas le CSS."
+if ! npm run build > /tmp/prelude-pre-push.log 2>&1; then
+  echo ""
+  echo "BUILD ROUGE. Le push est refuse."
+  tail -30 /tmp/prelude-pre-push.log
+  echo ""
+  echo "Journal complet : /tmp/prelude-pre-push.log"
+  exit 1
+fi
+echo "pre-push : build vert."

@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx lib/engines/relevance-matrix.test.ts && tsx lib/engines/polymorphism.test.ts"
+    "test": "tsx lib/engines/relevance-matrix.test.ts && tsx lib/engines/polymorphism.test.ts",
+    "pousser": "git push origin main && tsx scripts/verifier-deploiement.ts",
+    "verifier-deploiement": "tsx scripts/verifier-deploiement.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

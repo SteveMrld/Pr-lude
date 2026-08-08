@@ -3284,3 +3284,67 @@ vingt-neuf. Le reliquat est l'arbitrage des cartes sombres, ou un
 selecteur universel en `!important` aplatit l'ocre de trente-deux
 elements. Il est date et commente dans la feuille : il attend une
 decision de design et non une correction.
+
+---
+
+## Un commit qui passe tsc n'est pas un commit qui construit
+
+Ecrit le 8 aout 2026, apres six heures de production rouge. Le commit
+fautif portait le correctif des polices du PDF, il avait passe `npx tsc
+--noEmit` et les cent soixante-dix fichiers de la suite deterministe, et
+il ne construisait pas. Le correctif n'a donc jamais tourne en
+production : il etait dans un depot qui ne se deployait plus.
+
+**Ce que la cause etablit, et elle est plus etroite que la lecon.** Un
+commentaire ajoute dans `globals.css` pour documenter un arbitrage avait
+ete pose apres le `*/` du bloc qui le precedait. Sa prose entrait dans la
+cascade comme des declarations, et le `!` de `!important` qu'elle citait
+faisait echouer le minifieur CSS a l'etape de production. Le meme defaut,
+sur une autre ligne du meme fichier, avait ete ecrit au registre la
+veille. Il s'est reproduit dans le commit qui documentait la regle, ce
+qui est le motif le plus tenace du depot : celui qui ecrit la regle est
+celui qui croit ne pas avoir besoin de l'appliquer.
+
+**La lecon porte sur la frontiere et pas sur le CSS.** Les deux
+verifications d'avant-commit lisent le depot par des chemins qui ne
+passent pas par le build. Le compilateur n'ouvre pas les fichiers `.css`,
+et il lit le contenu d'un litteral gabarit comme une chaine de
+caracteres. La suite deterministe ne rend aucune page. Aucun des deux ne
+resout un module, ne minifie une feuille, ni ne prerend une route. Ce
+qu'ils garantissent est reel et il s'arrete la.
+
+La meme frontiere se franchit dans l'autre sens, et cette forme-la est
+plus dangereuse parce qu'elle est invisible en local : un fichier present
+sur le disque et jamais pousse se resout parfaitement pour `tsc`, qui lit
+le repertoire de travail, et ne se resout pas pour le build, qui lit ce
+que le depot porte. Un fichier non pousse est un fichier non compile, et
+rien en local ne peut le dire, puisqu'en local il est la.
+
+**C'est la meme famille que le PDF en Times.** Un chemin que rien ne
+verifie parce que personne ne le regarde. Le PDF sortait, et il ne
+ressemblait a rien de fautif ; le depot compilait chez moi, et il ne
+ressemblait a rien de fautif. Dans les deux cas le dispositif existait
+entierement, il s'executait, et sa sortie n'entrait dans le champ
+d'aucune verification. La difference est que le PDF avait au moins un
+lecteur possible, alors que le build de production n'en a aucun par
+construction : il se passe ailleurs.
+
+**Ce qui la ferme, et a quel endroit.** Une regle ecrite dans un registre
+depend de celui qui l'applique, et celle-ci avait deja ete ecrite. La
+garde est donc posee la ou on ne peut pas oublier de passer, un `pre-push`
+qui execute `next build` et refuse le push quand il est rouge. Elle coute
+deux a quatre minutes par push et elle ferme les deux formes a la fois,
+puisque le build lit le meme arbre que celui qu'on s'apprete a envoyer.
+Elle reste levable par `--no-verify`, et c'est voulu : une garde qu'on ne
+peut pas lever se fait debrancher au lieu de se contourner une fois.
+
+**Ce qu'elle ne ferme pas, et qui demande un jeton.** Un build vert en
+local ne dit pas que l'hebergeur a deploye. `scripts/verifier-
+deploiement.ts` interroge l'etat des deploiements du sha qu'on vient de
+pousser, et non du dernier deploiement du depot, qui serait la mesure
+faite sur le mauvais objet quand deux pushes se suivent. Il distingue
+trois issues et non deux : vert, rouge, et le silence d'un sha sans
+deploiement rapporte, qui n'est ni l'un ni l'autre et qui a trois causes
+appelant trois reponses differentes. Sans jeton il rend son silence
+plutot que du vert, ce qui est la seule facon honnete de ne pas se
+prononcer.
