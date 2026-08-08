@@ -3597,3 +3597,43 @@ La forme generale se lit sans son cas : devant tout rapport affiche,
 demander d'ou vient le denominateur. S'il descend de la meme boucle que
 le numerateur, il ne mesure pas une couverture, il mesure sa propre
 existence.
+
+---
+
+## Le compteur nomme ce qu'il compte, et l'ecart d'instrumentation va dans les deux sens
+
+Le compteur de la toile annonce des moteurs releves sur des moteurs
+attendus. Il ne rassure pas sur un denominateur qu'il aurait fabrique :
+il declare son perimetre, et c'est le produit qui applique sa doctrine a
+lui-meme plutot qu'un aveu.
+
+**Le fait, mesure le 8 aout 2026 sur les vingt-cinq runs instrumentes du
+corpus, et il n'est pas celui qu'on croyait.** Il avait ete pose que
+quatorze moteurs sur trente-trois ne deposent jamais de mesure. Le releve
+en donne un tout autre ordre. Vingt et une clefs deposent au moins une
+fois. La table de pont en declare vingt, et une seule n'apparait jamais
+dans aucun releve : `benchmarks`.
+
+L'ecart va donc dans les deux sens, et c'est le second qui est
+interessant. Deux clefs deposent une mesure sans figurer dans aucune
+liste declaree, `valuation` et `indicators`. Un moteur declare et muet se
+cherche, puisque quelque chose manque a l'endroit ou on l'attend ; un
+moteur qui depose sans etre declare ne se cherche pas, puisque rien ne
+manque nulle part. C'est la dissymetrie du battement present et du
+battement absent, transposee a l'inventaire, et elle explique pourquoi la
+seconde moitie de l'ecart n'avait jamais ete relevee.
+
+**Ce que le compteur change.** Il ne comble aucune de ces deux lacunes,
+il cesse de les masquer. `benchmarks` apparait desormais en contour pale,
+non instrumente, sur toutes les toiles ; `valuation` et `indicators`
+restent invisibles, puisque la toile ne dessine que ce que la topologie
+declare, et cela reste a trancher.
+
+**Ce que la persistance du parcours debloque.** Elle est faite depuis le
+8 aout, dans `meta.parcours`, et elle ne servira que sur les runs a
+venir. Ce qu'elle rend possible tient en une ligne : un denominateur
+exact plutot que le total declare, donc un moteur neutralise par doctrine
+qui cesse de compter comme non mesure, une comparaison de couverture
+entre deux runs de parcours differents qui cesse d'etre un diff de
+perimetre, et la segmentation par parcours de tout releve de corpus, qui
+melange aujourd'hui deux populations sans le dire.
