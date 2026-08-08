@@ -3545,3 +3545,55 @@ choisie devient une regle que personne n'a decidee. C'est la meme famille
 que le stade `in_review` affiche par defaut sur trente-neuf dossiers ou
 personne ne l'avait pose : une valeur qui remplit un vide finit par se
 lire comme une mesure.
+
+---
+
+## Un denominateur derive du numerateur ne peut jamais signaler un manque
+
+Un rapport dont le total se calcule sur ce qui a repondu est toujours
+complet. Il rend `16/16` la ou seize moteurs sur dix-sept ont depose une
+mesure, et il rassure d'autant plus qu'il est faux : un lecteur y lit une
+couverture pleine, et le manque n'a aucun endroit ou apparaitre.
+
+La regle est ecrite le 8 aout 2026, et elle l'est avec sa verification
+plutot que sur une intuition, parce que la premiere formulation designait
+le mauvais coupable.
+
+**Le pre-scan est le modele et non le contre-exemple.** Il avait ete cite
+comme portant la faute ; il ne la porte pas. `totalTests` vaut
+`attendus.length`, c'est-a-dire la liste des tests que la these du fonds
+appelle sur ce dossier, six sans profil et jusqu'a dix avec. Un test qui
+n'a pas rendu ne sort pas du total : il devient `testOmis` et reste dans
+le denominateur. La forme est donc deja la bonne, et elle est la seule
+qui permette a un manque de se voir.
+
+**Le compteur de la toile suit la meme forme.** Il rend le nombre de
+moteurs qui ont depose une mesure sur le nombre de noeuds que la
+topologie declare, pas sur le nombre de mesures recues. Dix-huit sur
+dix-neuf se lit donc comme il faut le lire.
+
+**Ce qui manque n'est pas la forme mais le perimetre.** Le denominateur
+juste n'est ni le total declare ni le total recu : c'est le nombre de
+moteurs attendus sur ce parcours. Le parcours early en mobilise quatorze,
+le parcours growth en neutralise quatre, et un dossier ecarte au pre-scan
+n'en attend aucun. Or le parcours n'est ecrit nulle part : il est un
+parametre de la requete, lu a l'entree de la route pour decider quels
+moteurs tournent, et jamais persiste. Absent des soixante-six lignes du
+corpus. Le denominateur exact est donc hors d'atteinte sur les runs
+existants, et il le restera tant que la valeur ne descendra pas en base.
+
+Tant qu'il l'est, le total declare est le repli le moins mauvais, parce
+qu'il se trompe dans le sens qui montre un manque plutot que dans celui
+qui le cache : un moteur neutralise par doctrine y apparait comme non
+mesure, ce qui appelle une lecture, alors que l'exclure du total
+n'appellerait rien.
+
+**Un moteur qui n'a pas depose de mesure n'est pas un moteur absent.**
+C'est un moteur dont on ne sait rien, et c'est une information. Il entre
+donc dans le denominateur et la toile le montre en contour pale, distinct
+du moteur ecarte par doctrine, qui lui a bien ete decide.
+
+La forme generale se lit sans son cas : devant tout rapport affiche,
+demander d'ou vient le denominateur. S'il descend de la meme boucle que
+le numerateur, il ne mesure pas une couverture, il mesure sa propre
+existence.
