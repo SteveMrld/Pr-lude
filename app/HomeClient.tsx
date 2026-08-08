@@ -32,6 +32,7 @@ import VersionSelector from './components/VersionSelector';
 import { NoteSynthesisHeader } from './components/NoteSynthesisHeader';
 import { enrichProse, splitIntoParagraphs } from '@/lib/note-typography';
 import { sectionFallbackCopy } from '@/lib/note/section-fallback';
+import { poserLesTetesCourantes } from '@/lib/note/titre-courant';
 import { ENGINE_PICTOS } from './components/Pictos';
 import { Picto } from './components/Picto';
 import {
@@ -3234,7 +3235,33 @@ export default function HomeClient({
                     if (!mainEl) {
                       throw new Error('Zone de contenu non trouvee');
                     }
-                    const html = mainEl.outerHTML;
+
+                    // TITRE COURANT DU PDF.
+                    // ------------------------------------------------------------
+                    // Le bandeau collant de la note ne se dessine que sur la
+                    // premiere page d un document imprime par Chromium ; c est
+                    // une sonde du 7 aout 2026 qui l a mesure, et c est pourquoi
+                    // il n est meme pas monte en mode impression. Ce qui repete
+                    // un en-tete page apres page est l en-tete de tableau, seul
+                    // mecanisme que le moteur pagine offre et le seul qui puisse
+                    // porter un texte different par section.
+                    //
+                    // La transformation porte sur un CLONE et jamais sur le DOM
+                    // rendu : React possede celui-la, et deplacer ses noeuds sous
+                    // lui le ferait echouer au prochain rendu sur une erreur de
+                    // reconciliation sans rapport lisible avec l impression.
+                    const clone = mainEl.cloneNode(true) as HTMLElement;
+                    const tetes = poserLesTetesCourantes(clone, document);
+                    if (tetes === 0) {
+                      // Zero se dit plutot qu il ne se tait. Il ne veut pas dire
+                      // que la note n a pas de sections, il veut dire que le
+                      // clone n en portait aucune de nommee, et les deux
+                      // appellent des reponses opposees.
+                      console.warn(
+                        '[export-pdf] aucune section nommee dans le clone : le PDF sortira sans titre courant.',
+                      );
+                    }
+                    const html = clone.outerHTML;
 
                     // Recuperer tous les styles : <style> inline + feuilles externes
                     const styleSheets = Array.from(document.styleSheets);

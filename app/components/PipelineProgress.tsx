@@ -67,6 +67,35 @@ export default function PipelineProgress({
   const engineRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const lastScrolledRef = useRef<string | null>(null);
 
+  // PUBLICATION DE LA HAUTEUR DU BANDEAU.
+  // ------------------------------------------------------------
+  // Le titre courant de la note se colle sous ce bandeau, et sa hauteur
+  // n est pas une constante : elle depend du nombre de moteurs, du
+  // retour a la ligne des pastilles, et de la presence du compteur de
+  // duree. La recopier dans une valeur ecrite a la main aurait tenu
+  // jusqu au premier moteur ajoute, et rien ne l aurait signale : le
+  // titre courant se serait simplement retrouve a moitie sous le
+  // bandeau. La hauteur reelle est donc publiee sur la racine, et ce qui
+  // s en sert la lit.
+  const barreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = barreRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const poser = () => {
+      document.documentElement.style.setProperty(
+        '--barre-pipeline-height',
+        `${Math.round(el.getBoundingClientRect().height)}px`,
+      );
+    };
+    poser();
+    const ro = new ResizeObserver(poser);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty('--barre-pipeline-height');
+    };
+  }, []);
+
   useEffect(() => {
     if (!analyzing) return;
     // Trouve le dernier moteur en running (ou le dernier done s il n y a
@@ -104,6 +133,7 @@ export default function PipelineProgress({
 
   return (
     <div
+      ref={barreRef}
       style={{
         position: 'sticky',
         // Se colle SOUS l entete globale, jamais dessus. Les deux

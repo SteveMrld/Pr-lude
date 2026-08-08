@@ -578,6 +578,129 @@ ul, ol { list-style: none; }
   border-bottom: 1px solid var(--hairline-strong);
 }
 
+/* ============================================================
+   TITRE COURANT DE LA NOTE
+   ------------------------------------------------------------
+   Un bandeau qui porte le nom de la section en cours, et rien
+   d autre. Il repond au defaut mesure le 7 aout 2026 : six titres
+   de section pour quarante-huit mille pixels, donc une fenetre
+   d ecran sur cinq en contient un, et les quatre autres laissent
+   le lecteur sans orientation.
+
+   Il se colle SOUS l entete et SOUS la barre de pipeline. Le
+   decalage lit deux jetons plutot que d additionner deux valeurs
+   ecrites a la main : la hauteur de l entete, qu un jeton
+   gouverne, et celle de la barre de pipeline, que la barre publie
+   elle-meme puisqu elle depend du nombre de moteurs et du retour
+   a la ligne des pastilles. Le repli a zero couvre les pages ou
+   la barre n existe pas, ou le titre courant se colle alors
+   directement sous l entete.
+
+   Sa discretion est le sujet. Il porte la taille et l approche de
+   la legende, pas celles du nom de bloc : un bandeau qui pese
+   autant qu un titre de section entrerait en concurrence avec
+   lui au moment ou les deux sont visibles, c est-a-dire au
+   passage d une section a la suivante. Le filet du bas suffit a
+   le detacher du texte qui defile dessous.
+   ============================================================ */
+.note-titre-courant {
+  position: sticky;
+  top: calc(var(--app-header-height) + var(--barre-pipeline-height, 0px));
+  z-index: var(--z-colle);
+  background: var(--paper);
+  border-bottom: 1px solid var(--hairline);
+  padding: var(--note-space-2) 0;
+  margin-bottom: var(--note-space-4);
+  font-family: var(--sans);
+  font-size: var(--note-size-h4);
+  font-weight: var(--note-weight-h4);
+  letter-spacing: var(--note-tracking-h4);
+  text-transform: uppercase;
+  color: var(--muted);
+  /* Une seule ligne, toujours. Un nom de section qui passe a deux lignes
+     ferait bouger le seuil qui sert a determiner la section courante, ce
+     qui produirait une oscillation a la frontiere de deux sections. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Avant la premiere section, le bandeau reste dans le flux mais ne
+   montre rien : sa position sert de seuil de mesure au composant, donc
+   le retirer du flux ferait disparaitre la reference au moment ou elle
+   est calculee. Il devient invisible sans cesser d exister. */
+.note-titre-courant[data-vide='oui'] {
+  border-bottom-color: transparent;
+}
+
+/* ============================================================
+   LE MEME REPERE, SUR PAPIER
+   ------------------------------------------------------------
+   Une sonde du 7 aout 2026 a imprime, par Chromium 151, un
+   document de huit pages portant trois dispositifs. Un element
+   `position: sticky` s est dessine sur la page 1 et sur elle
+   seule. Un `<thead>` de tableau s est dessine sur les huit. Un
+   element `position: fixed` s est dessine sur les huit aussi,
+   mais il ne porte qu un contenu pour tout le document, donc il
+   ne peut pas nommer une section qui change.
+
+   Le bandeau collant est donc retire de l impression, et par
+   deux chemins qui ne ferment pas la meme chose. Le montage
+   l ecarte quand la note se rend en mode impression, ce qui
+   couvre l export ; cette regle-ci couvre l autre chemin, celui
+   du lecteur qui fait Ctrl-P sur la note a l ecran, ou le mode
+   impression n a jamais ete arme. Un repere qui nomme la
+   premiere section sur un document de trente pages est pire
+   qu aucun repere, puisqu il a l autorite d un repere.
+
+   Ce qui le remplace est l enveloppe en tableau posee sur le
+   clone exporte par `lib/note/titre-courant.ts`. Elle n existe
+   que la : la note a l ecran ne porte aucun de ces tableaux, et
+   les regles ci-dessous n atteignent donc rien tant qu on ne
+   sort pas un PDF.
+   ============================================================ */
+@media print {
+  .note-titre-courant {
+    display: none !important;
+  }
+}
+
+.note-tete-imprimee {
+  width: 100%;
+  border-collapse: collapse;
+  /* Le tableau est un artifice de pagination. Il ne doit rien ajouter
+     au rythme vertical que la section porte deja. */
+  margin: 0;
+}
+
+.note-tete-imprimee > tbody > tr > td {
+  padding: 0;
+  /* Une section fait plusieurs pages par construction. Lui interdire de
+     se couper ferait pousser la page entiere par un contenu qui ne peut
+     de toute facon pas tenir, ce qui produit des pages a moitie vides
+     sans rien sauver. */
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+/* L en-tete repete. Il porte la meme discretion que le bandeau
+   d ecran, aux memes jetons : c est le meme repere, pas un second
+   titre. Un en-tete qui pese autant que le titre de section
+   entrerait en concurrence avec lui sur la page ou les deux se
+   trouvent, c est-a-dire la premiere page de chaque section. */
+.note-tete-imprimee-titre {
+  text-align: left;
+  font-family: var(--sans);
+  font-size: var(--note-size-h4);
+  font-weight: var(--note-weight-h4);
+  letter-spacing: var(--note-tracking-h4);
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--hairline);
+  padding: 0 0 var(--note-space-2) 0;
+  margin: 0;
+}
+
 /* HEADER - Plus aere, filet fin, fond blanc. Marque PRELUDE
    sobre, sous-titre tagline en sans-serif. */
 .header {

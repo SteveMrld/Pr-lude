@@ -27,6 +27,7 @@ import { EnTeteDeNote } from './note/EnTeteDeNote';
 import { BandeauTrajectoire } from './note/BandeauTrajectoire';
 import { CartoucheRefutation } from './note/CartoucheRefutation';
 import { CouvertureEditoriale } from './note/CouvertureEditoriale';
+import { NoteTitreCourant } from './note/NoteTitreCourant';
 import {
   DIMENSION_KEYS,
   DIMENSION_LABELS,
@@ -734,6 +735,15 @@ export default function InvestmentNoteView({ result, analysisId, compactMode = f
       data-analysis-id={analysisId || ''}
       data-commit-sha={runCommitSha || ''}
     >
+      {/* TITRE COURANT. Le repere qui voyage avec le lecteur, faute de
+          quoi quatre fenetres d ecran sur cinq ne portent aucun nom de
+          section. Il ne se monte pas en mode impression : un element
+          colle ne se dessine que sur la premiere page d un PDF Chromium,
+          donc il y nommerait la premiere section et laisserait tout le
+          reste sans repere. Le pendant imprime est l enveloppe en
+          tableau posee sur le clone exporte, dans lib/note/titre-courant. */}
+      {!printMode && <NoteTitreCourant />}
+
       {/* TABLE DES MATIERES FLOTTANTE
           Sticky a droite sur desktop, donne une vue d ensemble des
           sections de la note et permet le saut direct via ancres. Cachee
