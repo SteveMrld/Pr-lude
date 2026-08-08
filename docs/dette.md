@@ -3417,3 +3417,83 @@ et non une mesure. Elle est plausible et elle n'est pas etablie. Elle
 s'ecrit ici comme non verifiee plutot que de circuler comme un fait, et
 elle se tranchera au premier export reel regarde, ce qui ne coute rien
 puisque le PDF est sous les yeux de celui qui l'exporte.
+
+---
+
+## Le nom affiche est le nom d'usage, la denomination sociale est un autre objet
+
+Arbitrage du 8 aout 2026, pose par Steve. Un partner cherche la societe,
+pas l'entite juridique qui la porte : le champ affiche dans une liste est
+le nom d'usage. La denomination sociale vivra dans le referentiel
+juridique quand il existera, et ce ne sont pas deux versions du meme
+champ, ce sont deux objets. C'est la raison pour laquelle le second ne se
+deduit pas du premier.
+
+**Ce que la regle peut faire aujourd'hui, et ce qu'elle ne peut pas.** Le
+corpus porte trente et un noms distincts sur soixante-six lignes. Quatre
+portent un suffixe de forme juridique, `OOGarden SAS`, `Tratel
+Affretement SASU`, `Made.com Design Limited`, `JM Bruneau SAS (Bruneau)`.
+Retirer ce suffixe se derive du texte et n'invente rien : il est ecrit en
+clair et il est le dernier mot. `nomDUsage` le fait, avec la garde qui
+evite de rendre une ligne vide quand le nom entier serait une forme.
+
+Le reste ne se derive pas, et la tentation est forte parce qu'elle a
+l'air facile. Cinq noms portent une parenthese, et trois d'entre eux se
+contredisent. Dans `JM Bruneau SAS (Bruneau)` la parenthese porte le nom
+d'usage. Dans `HEI (Hygiene et Environnement Industriel)` elle porte
+l'expansion, et c'est le sigle devant qui est le nom d'usage. Dans
+`Bemersive (EVABOX)` elle porte un produit, et ni l'un ni l'autre ne
+qualifie l'autre. Une regle qui prefererait la parenthese, ou la plus
+courte des deux parts, se tromperait sur au moins un de ces trois cas
+sans rien signaler, et ce qu'elle produirait serait lu comme un nom
+mesure. C'est la forme exacte du palliatif sur un axe qui ne se lit nulle
+part : l'information n'existe pas dans les donnees, donc un palliatif ne
+la degraderait pas, il l'inventerait.
+
+La regle attend donc son referentiel plutot que d'etre devinee, et le
+verrou l'ecrit dans les deux sens : il exige que le suffixe tombe, et il
+exige que la parenthese reste, y compris dans le cas ou elle porte
+visiblement le nom d'usage. La seconde assertion est celle qui empechera
+quelqu'un de completer la regle de bonne foi un jour ou il ne regardera
+que `JM Bruneau`.
+
+**La liste des formes juridiques est une liste ecrite a la main, et elle
+est legitime.** Elle ne constate pas, elle tranche : le contenu d'une
+liste de formes juridiques ne se deduit d'aucune propriete observable des
+donnees, il se decide. C'est le cas que la doctrine des listes reserve
+explicitement, et il se date pour cette raison.
+
+---
+
+## Une analyse de portefeuille porte le nom d'un dossier du portefeuille
+
+Cas mis de cote le 8 aout 2026, sans arbitrage, parce que le nommage
+qu'il appelle n'est pas tranche.
+
+Deux lignes du corpus s'appellent `Compagnie des Alpes - Portefeuille de
+6 parcs (Project Chamois)` et `Compagnie des Alpes - Portefeuille de 6
+parcs (Projet Chamois)`, a une lettre pres. Le champ de nom de societe y
+porte trois choses a la fois : la societe mere, la nature de l'objet
+instruit, et le nom de code du processus. Aucune des trois n'est le nom
+d'une societe, et l'objet instruit n'est pas une societe du tout.
+
+**Pourquoi c'est trompeur et pas seulement long.** Une liste qui range
+cette ligne entre `Braincube` et `Crowdaa` invite a la lire comme un
+dossier de societe, alors que l'instruction porte sur un ensemble
+d'actifs. Les grandeurs qui l'accompagnent n'ont pas le meme sens : un
+score de trajectoire, une classe d'actif, une fourchette de valorisation
+se lisent autrement sur six parcs que sur une societe. Et la variante
+d'une lettre entre les deux lignes suffit a les separer partout ou le
+regroupement se fait sur le nom, ce qui est le second symptome du meme
+defaut.
+
+**Ce qu'il faudrait porter, et qui ne se decide pas aujourd'hui.** Il
+manque un champ qui dise la nature de l'objet instruit, societe ou
+portefeuille, parce que c'est lui qui commande la lecture de tout le
+reste. Il manque un nom d'objet distinct du nom de code du processus, le
+premier etant ce qu'un partner reconnait et le second ce qui figure dans
+les documents de la banque d'affaires. Et le nom de la societe mere, s'il
+doit figurer, est un troisieme champ et non un prefixe.
+
+Ecrit ici plutot que tranche, parce qu'un nommage decide a la va-vite sur
+deux lignes du corpus se paierait sur toutes celles qui viendront.

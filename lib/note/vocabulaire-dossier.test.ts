@@ -27,6 +27,7 @@ import {
   VERDICT_ECARTE_PRESCAN,
   LIBELLE_SANS_NOM,
   nommerDossier,
+  nomDUsage,
 } from './vocabulaire-dossier';
 
 let pass = 0, fail = 0;
@@ -199,6 +200,32 @@ console.log('\n[Suite 5] le nom d un dossier dont l extraction n a pas abouti');
   check(
     nommerDossier('Braincube', null).provisoire === false,
     'et un nom etabli ne declare rien, faute de quoi la mention serait partout',
+  );
+
+  // LE CHAMP AFFICHE EST LE NOM D USAGE. Les cas viennent du corpus.
+  check(nomDUsage('OOGarden SAS') === 'OOGarden', 'la forme juridique se retire');
+  check(nomDUsage('Tratel Affretement SASU') === 'Tratel Affretement', 'y compris SASU');
+  check(nomDUsage('Made.com Design Limited') === 'Made.com Design', 'y compris une forme anglaise');
+  check(nommerDossier('OOGarden SAS', null).nom === 'OOGarden', 'et la ligne affiche le nom d usage');
+  // Le second sens, et c est celui qui evite de fabriquer. Un nom qui ne
+  // porte pas de forme juridique ne doit pas etre rogne, une forme au
+  // milieu du nom n est pas un suffixe, et un nom qui se reduirait a rien
+  // se garde entier plutot que de rendre une ligne vide.
+  check(nomDUsage('Braincube') === 'Braincube', 'un nom sans forme juridique ne bouge pas');
+  check(nomDUsage('ZargesTubesca Group') === 'ZargesTubesca Group', 'Group n est pas une forme juridique');
+  check(nomDUsage('SA Interim Conseil') === 'SA Interim Conseil', 'une forme en tete n est pas un suffixe');
+  check(nomDUsage('SAS') === 'SAS', 'un nom qui se reduirait a rien reste entier');
+  check(nomDUsage('') === '', 'une chaine vide reste vide');
+  // Ce que la regle ne fait PAS, et qui doit rester tel quel tant que le
+  // referentiel juridique n existe pas : la parenthese ne se tranche pas,
+  // parce que le corpus porte trois cas qui se contredisent.
+  check(
+    nomDUsage('JM Bruneau SAS (Bruneau)') === 'JM Bruneau SAS (Bruneau)',
+    'la parenthese ne se tranche pas, meme quand elle porte le nom d usage',
+  );
+  check(
+    nomDUsage('HEI (Hygiene et Environnement Industriel)') === 'HEI (Hygiene et Environnement Industriel)',
+    'ni quand elle porte l expansion, ou le sigle est le nom d usage',
   );
 }
 

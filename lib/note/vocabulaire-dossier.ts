@@ -371,11 +371,65 @@ export const LIBELLE_SANS_NOM = '(analyse en cours)';
  * qu il l est : elle le declare provisoire, a charge de l appelant de le
  * dire a l ecran plutot que de le laisser passer pour un nom.
  */
+/**
+ * Les formes juridiques qui suivent un nom sans en faire partie.
+ *
+ * LE CHAMP AFFICHE EST LE NOM D USAGE, PAS LA DENOMINATION SOCIALE.
+ * Arbitrage du 8 aout 2026 : un partner cherche la societe, pas l entite
+ * juridique qui la porte. La denomination sociale est un autre objet et
+ * elle vivra dans le referentiel juridique quand il existera ; ce ne sont
+ * pas deux versions du meme champ, et c est la raison pour laquelle la
+ * seconde ne se deduit pas de la premiere.
+ *
+ * CE QUE CETTE LISTE PEUT FAIRE, ET CE QU ELLE NE PEUT PAS. Retirer un
+ * suffixe de forme juridique se derive du texte : `OOGarden SAS` porte sa
+ * forme en clair et la retirer n invente rien. Le reste de la regle ne se
+ * derive pas des donnees d aujourd hui, parce que la colonne ne porte
+ * qu une chaine et ne distingue pas les deux objets. Le corpus en donne
+ * la preuve par deux cas qui se contredisent : dans `JM Bruneau SAS
+ * (Bruneau)` la parenthese porte le nom d usage, dans `HEI (Hygiene et
+ * Environnement Industriel)` elle porte l expansion et c est le sigle qui
+ * est le nom d usage, et dans `Bemersive (EVABOX)` elle porte un produit.
+ * Une regle qui prefererait la parenthese, ou la plus courte des deux
+ * parts, se tromperait sur au moins un de ces trois cas sans rien
+ * signaler. Elle attend donc le referentiel plutot que d etre devinee.
+ *
+ * La liste tranche et n inventorie pas : elle enumere des formes
+ * juridiques decidees, ce qui est le cas ou une liste ecrite a la main
+ * est legitime. Elle se date pour cette raison.
+ */
+const FORMES_JURIDIQUES = [
+  'SASU', 'SAS', 'SARL', 'SA', 'SCA', 'SNC', 'SCI',
+  'GmbH', 'AG', 'BV', 'NV', 'SpA', 'Srl', 'Oy', 'AB',
+  'Limited', 'Ltd', 'PLC', 'LLC', 'Inc', 'Corp',
+];
+
+/**
+ * Le nom d usage, c est-a-dire le nom prive de son suffixe de forme
+ * juridique quand il en porte un.
+ *
+ * Le suffixe ne se retire que s il est le dernier mot et qu il reste
+ * quelque chose devant : une societe dont le nom entier serait une forme
+ * juridique garde son nom, faute de quoi la ligne s afficherait vide.
+ */
+export function nomDUsage(nom: string): string {
+  const brut = String(nom || '').trim();
+  if (!brut) return brut;
+  for (const forme of FORMES_JURIDIQUES) {
+    const re = new RegExp(`\\s+${forme}\\.?$`, 'i');
+    if (re.test(brut)) {
+      const reste = brut.replace(re, '').trim();
+      if (reste.length > 1) return reste;
+    }
+  }
+  return brut;
+}
+
 export function nommerDossier(
   companyName: string | null | undefined,
   sourceFilename: string | null | undefined,
 ): { nom: string; provisoire: boolean } {
-  const nom = String(companyName || '').trim();
+  const nom = nomDUsage(String(companyName || '').trim());
   if (nom && nom !== LIBELLE_SANS_NOM) return { nom, provisoire: false };
   const fichier = String(sourceFilename || '').trim();
   if (fichier) {
