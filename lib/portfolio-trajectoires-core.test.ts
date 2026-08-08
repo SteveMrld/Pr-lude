@@ -78,6 +78,9 @@ function mockAnalysis(
     sourceFilename: null,
     status: null,
     failedEnginesCount: null,
+    // Null et non un objet a zero : ce jeu d essai ne porte pas de
+    // bulletin, et l absence de releve n est pas un releve sans reserve.
+    reserves: null,
     ...opts,
   };
 }

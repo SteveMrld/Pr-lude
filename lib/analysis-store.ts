@@ -191,6 +191,21 @@ export interface AnalysisSummary {
    * on ne pretend pas connaitre ce qu on n a pas mesure.
    */
   failedEnginesCount: number | null;
+  /**
+   * Ce que le bulletin de fiabilite de la note retient, reduit a ce qui
+   * se lit dans une liste : combien de reserves, et combien sont
+   * majeures. Le bulletin entier vit dans `result_json.meta.bulletin` et
+   * n est pas transporte, pour la meme raison que le JSONB des moteurs.
+   *
+   * NULL N EST PAS ZERO, ET C EST TOUT L ENJEU DE CE CHAMP. Le bulletin
+   * n est calcule que depuis le 5 aout 2026 et seulement par le chemin
+   * nominal du pipeline : au 8 aout il figure sur quatre lignes sur
+   * soixante-six. Un dossier sans bulletin n est pas un dossier sans
+   * reserve, c est un dossier dont les reserves n ont jamais ete
+   * relevees, et l interface doit rendre cette difference plutot que de
+   * faire lire le silence comme une absence de reserve.
+   */
+  reserves: { total: number; majeures: number } | null;
 }
 
 /**
@@ -1665,7 +1680,8 @@ export async function listAnalyses(
         verdict, verdict_confidence, global_score, blindspot_score,
         contrarian_score, coherence_score, user_notes, has_bloc2,
         in_portfolio, source_filename, status, pipeline_engines_status,
-        created_at, updated_at
+        created_at, updated_at,
+        bulletin:result_json->meta->bulletin
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
@@ -2052,6 +2068,28 @@ function rowToSummary(row: any): AnalysisSummary {
     // brut au client. Somme des statuts failed, failed-upstream, timeout,
     // empty_output. null preserve la distinction "pas mesure" contre "zero".
     failedEnginesCount: countFailedEngines(row.pipeline_engines_status),
+    reserves: resumerReserves(row.bulletin),
+  };
+}
+
+/**
+ * Reduit le bulletin de fiabilite d une note a ce qui se lit dans une
+ * liste. Rend null quand le bulletin est absent, ce qui n est pas la
+ * meme chose qu un bulletin sans reserve : le premier dit qu on n a rien
+ * releve, le second qu on a releve et trouve zero.
+ *
+ * La gravite majeure se compte a part parce qu elle seule change ce que
+ * le partner doit faire. Les gravites se lisent sur la reserve plutot
+ * que de s enumerer ici : une gravite ajoutee demain n a pas besoin de
+ * ce fichier pour etre comptee dans le total.
+ */
+export function resumerReserves(bulletin: any): { total: number; majeures: number } | null {
+  if (!bulletin || typeof bulletin !== 'object') return null;
+  const liste = Array.isArray(bulletin.reserves) ? bulletin.reserves : null;
+  if (!liste) return null;
+  return {
+    total: liste.length,
+    majeures: liste.filter((r: any) => r && r.gravite === 'majeure').length,
   };
 }
 
