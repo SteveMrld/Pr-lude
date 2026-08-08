@@ -17,13 +17,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import {
-  etatDuDossier,
-  libelleEtat,
-  presenterVerdict,
-  PRESENTATION_ETAT,
-  PALETTE_TON,
-} from '@/lib/note/vocabulaire-dossier';
+import DossierLigne from '@/app/components/DossierLigne';
 
 interface AnalysisSummary {
   id: string;
@@ -48,50 +42,13 @@ interface AnalysisSummary {
   sourceFilename: string | null;
   status: string | null;
   failedEnginesCount: number | null;
-}
-
-// ============================================================
-// Rendu de l etat d un dossier
-// ------------------------------------------------------------
-// CETTE FONCTION ENUMERAIT QUATRE STATUTS ET RETOURNAIT NULL SUR LE
-// RESTE. Le code en ecrit six, et `knockout` n etait pas dans les
-// quatre : un dossier ecarte au pre-scan ne recevait donc aucune
-// pastille et tombait dans le meme silence que les dossiers anterieurs
-// a la brique 3, pour lesquels le silence est voulu. Releve du 8 aout
-// 2026 : huit lignes sur trente-neuf sans pastille, dont six qui
-// disaient « on n a pas mesure » et deux « ce dossier a ete ecarte »,
-// qui sont deux choses opposees.
-//
-// La correspondance vit desormais dans `lib/note/vocabulaire-dossier`,
-// indexee par l union des statuts, donc le compilateur refuse un statut
-// ajoute sans traitement. La doctrine brique 4 est conservee et elle
-// est ramenee a son seul cas : ce qui n a pas ete mesure ne s affiche
-// pas, et c est `inconnu` qui le porte, pas le bout d une liste.
-// ============================================================
-function renderRunStatus(status: string | null, failedCount: number | null): {
-  label: string;
-  bg: string;
-  fg: string;
-  border: string;
-  visible: boolean;
-} | null {
-  // Un dossier abouti dont on n a jamais releve les moteurs ne pretend
-  // pas connaitre ce qu on n a pas trace. La condition porte sur la
-  // mesure absente et non sur le rang dans une liste.
-  if (failedCount === null && (status === null || status === 'completed')) {
-    return null;
-  }
-  const etat = etatDuDossier(status);
-  const presentation = PRESENTATION_ETAT[etat];
-  if (!presentation.visible) return null;
-  const palette = PALETTE_TON[presentation.ton];
-  return {
-    label: libelleEtat(etat, failedCount),
-    bg: palette.fond,
-    fg: palette.encre,
-    border: palette.bordure,
-    visible: true,
-  };
+  /**
+   * Ce que le bulletin de fiabilite retient, ou null quand il n a jamais
+   * ete releve. Null n est pas zero : le bulletin n existe que sur les
+   * runs depuis le 5 aout 2026, et un dossier sans bulletin n est pas un
+   * dossier sans reserve.
+   */
+  reserves: { total: number; majeures: number } | null;
 }
 
 interface Stats {
@@ -114,13 +71,20 @@ const STAGE_LABELS: Record<string, string> = {
 // Palette identite : voir WorkflowStageBadge.tsx pour le rationnel. La
 // progression va du gris muted vers l encre puis le vert, en passant par
 // l ocre mi-ton puis ocre porteur.
+// LE STADE SE LIT A L ENCRE, ET SEUL CELUI QUI AVANCE PORTE L OCRE.
+// Les six stades portaient six traitements dont un vert et un rouge, et
+// `in_review`, qui est le stade par defaut de tous les dossiers, sortait
+// en aplat ocre : il etait donc la chose la plus voyante de chaque ligne
+// alors qu il ne distingue rien, puisque les trente-neuf dossiers le
+// portent. L ocre est reserve aux deux stades qui signifient qu un
+// travail est engage, le reste reste a l encre.
 const STAGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  deposited: { bg: 'var(--hairline-soft)',     fg: 'var(--muted)',       border: 'var(--hairline)' },
-  in_review: { bg: 'var(--paper-warm)',        fg: 'var(--accent-mid)',  border: 'var(--accent-mid)' },
-  dd_field:  { bg: 'var(--accent-soft)',       fg: 'var(--accent)',      border: 'var(--accent)' },
-  ic_review: { bg: 'var(--paper-accent)',      fg: 'var(--ink)',         border: 'var(--ink)' },
-  signed:    { bg: 'var(--positif-soft)',   fg: 'var(--positif)',  border: 'var(--positif)' },
-  declined:  { bg: 'var(--warn-soft)',         fg: 'var(--warn)',        border: 'var(--warn)' },
+  deposited: { bg: 'transparent', fg: 'var(--muted-soft)', border: 'var(--hairline)' },
+  in_review: { bg: 'transparent', fg: 'var(--muted)',      border: 'var(--hairline)' },
+  dd_field:  { bg: 'var(--accent-soft)', fg: 'var(--accent)', border: 'var(--accent)' },
+  ic_review: { bg: 'transparent', fg: 'var(--accent)',    border: 'var(--accent-mid)' },
+  signed:    { bg: 'var(--accent)', fg: 'var(--paper)',   border: 'var(--accent)' },
+  declined:  { bg: 'transparent', fg: 'var(--muted-soft)', border: 'var(--hairline)' },
 };
 
 function formatRelative(iso: string): string {
@@ -621,290 +585,130 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
   onDelete: () => void;
   onStageChanged: () => void;
 }) {
+  // LA LIGNE EST CELLE DE L ACCUEIL. Elle vivait ici en propre, sur une
+  // grille de cinq colonnes, avec ses tables de libelles et de couleurs,
+  // et l accueil avait les siennes : les deux avaient diverge du
+  // producteur et pas de la meme facon. L historique ne garde donc que ce
+  // qu il a de plus, le stade d instruction et les actions, qu il passe
+  // en enfants.
   const date = new Date(analysis.createdAt);
   const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-
-  // LA TABLE ECRITE A LA MAIN CONNAISSAIT `investir-conditions`, qui
-  // n existe chez aucun producteur : le type `Verdict` du calculateur
-  // ecrit `investir avec conditions`, avec des espaces. Vingt-trois
-  // lignes sur trente-neuf tombaient donc dans le gris des inconnus,
-  // dont les douze qui portent un oui conditionnel. La presentation se
-  // derive maintenant du vocabulaire, et un verdict qu aucun producteur
-  // n ecrit se rend tel quel plutot que de se faire deviner.
-  const presentationVerdict = presenterVerdict(analysis.verdict);
-  const paletteVerdict = PALETTE_TON[presentationVerdict.ton];
-  // UN DOSSIER ECARTE AU PRE-SCAN PORTE LE MEME FAIT DEUX FOIS. Son
-  // statut vaut `knockout` et son verdict `not_recommended`, qui sont la
-  // meme decision ecrite par deux producteurs dans deux champs. Les deux
-  // pastilles rendaient donc les memes mots sur la meme ligne. La
-  // suppression se decide en comparant les libelles et non en nommant ce
-  // cas : deux champs qui se mettraient demain a dire la meme chose
-  // seraient traites sans qu on y pense, et un verdict qui apporte
-  // autre chose que l etat reste affiche.
-  const etatDeLaLigne = etatDuDossier(analysis.status);
-  const verdictRedondant =
-    presentationVerdict.libelle === libelleEtat(etatDeLaLigne, analysis.failedEnginesCount);
-  const verdictStyle = {
-    bg: paletteVerdict.fond,
-    fg: paletteVerdict.encre,
-    border: paletteVerdict.bordure,
-  };
-
   const stage = analysis.workflowStage || 'in_review';
 
-  return (
-    <div
+  const bouton = (fond: string, encre: string, bordure: string) => ({
+    padding: '5px 11px',
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase' as const,
+    color: encre,
+    border: `1px solid ${bordure}`,
+    background: fond,
+    textDecoration: 'none',
+    borderRadius: 6,
+    fontFamily: 'var(--sans)',
+    whiteSpace: 'nowrap' as const,
+    transition: 'all 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+  });
+
+  const compteur = (titre: string, texte: string, encre: string) => (
+    <span
+      title={titre}
       style={{
-        padding: '18px 22px',
-        borderBottom: isLast ? 'none' : '1px solid var(--hairline-soft)',
-        display: 'grid',
-        gridTemplateColumns: '2fr 1fr auto 1fr auto',
-        gap: 14,
-        alignItems: 'center',
-        transition: 'background 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+        fontFamily: 'var(--sans)',
+        fontSize: 9.5,
+        letterSpacing: '0.06em',
+        padding: '2px 6px',
+        color: encre,
+        border: `1px solid ${encre === 'var(--accent)' ? 'var(--accent)' : 'var(--hairline)'}`,
+        borderRadius: 999,
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--paper-accent)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 16.5, fontWeight: 700, letterSpacing: '-0.005em', color: 'var(--ink)' }}>
-            {analysis.companyName}
-          </div>
-          {analysis.versionsCount > 1 && (
-            <span style={{
-              fontFamily: 'var(--sans)',
-              fontSize: 9.5,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              padding: '3px 8px',
-              background: 'var(--hairline-soft)',
-              color: 'var(--muted)',
-              border: '1px solid var(--hairline)',
-              borderRadius: 999,
-              fontWeight: 600,
-            }}>
-              v{analysis.versionsCount}
+      {texte}
+    </span>
+  );
+
+  return (
+    <DossierLigne
+      id={analysis.id}
+      companyName={analysis.companyName}
+      verdict={analysis.verdict}
+      globalScore={analysis.globalScore}
+      status={analysis.status}
+      failedEnginesCount={analysis.failedEnginesCount}
+      reserves={analysis.reserves}
+      sector={analysis.sector}
+      country={analysis.country}
+      createdAtLabel={dateStr}
+      sourceFilename={analysis.sourceFilename}
+      derniere={isLast}
+      metaSupplementaire={
+        // LA VIGILANCE ET L ETAT DE DD QUALIFIENT LE DOSSIER, ILS NE LE
+        // DECLENCHENT PAS. Ils occupaient deux colonnes de la premiere
+        // ligne, ou ils repoussaient le nom jusqu a le faire passer a la
+        // ligne, et « Bloc 1 seul » y sortait en ocre sur trente lignes
+        // sur trente-neuf, c est-a-dire qu il criait une propriete que
+        // presque tous partagent. Ils descendent en seconde ligne, avec
+        // le reste de ce qui se lit une fois qu on s est arrete.
+        <>
+          {analysis.blindspotScore != null && (
+            <span style={{ color: 'var(--muted)' }}>
+              {' · '}vigilance <strong style={{ color: 'var(--ink-soft)', fontWeight: 700 }}>{Math.round(analysis.blindspotScore)}</strong>
             </span>
           )}
-          {analysis.openCommentsCount > 0 && (
-            <span
-              title={`${analysis.openCommentsCount} commentaire${analysis.openCommentsCount > 1 ? 's' : ''} non resolu${analysis.openCommentsCount > 1 ? 's' : ''}`}
-              style={{
-                fontSize: 9.5,
-                letterSpacing: '0.06em',
-                padding: '3px 8px',
-                background: 'var(--ocre-brule-soft)',
-                color: 'var(--ocre-brule)',
-                border: '1px solid var(--ocre-brule)',
-                borderRadius: 999,
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 3,
-                fontFamily: 'var(--sans)',
-              }}
-            >
-              ✎ {analysis.openCommentsCount}
+          {analysis.verdict !== 'refuser' && (
+            <span style={{ color: 'var(--muted-soft)' }}>
+              {' · '}{analysis.hasBloc2 ? 'DD complete' : 'Bloc 1 seul'}
             </span>
           )}
-          {/* LE VERDICT SE LIT AVEC LE NOM, ET NON DEUX COLONNES PLUS
-              LOIN. Il vivait dans la deuxieme colonne, donc en ordre de
-              lecture il venait apres le secteur et apres le nom du
-              fichier source, et il portait dix pixels quand ce nom en
-              portait dix et demi : la conclusion etait le plus petit
-              texte de la ligne, plus petite que le nom du PDF. Un
-              partner qui balaie sa liste cherche un verdict, pas un nom
-              de fichier. La pastille remonte donc sur la ligne du nom,
-              ou elle se lit dans le meme mouvement. */}
-          {!verdictRedondant && (
-            <span style={{
-              padding: '4px 11px',
-              fontSize: 11.5,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              fontWeight: 700,
-              background: verdictStyle.bg,
-              color: verdictStyle.fg,
-              border: `1px solid ${verdictStyle.border}`,
-              borderRadius: 999,
-              fontFamily: 'var(--sans)',
-              display: 'inline-block',
-            }}>
-              {presentationVerdict.libelle}
-            </span>
+        </>
+      }
+      marqueurs={
+        <>
+          {analysis.versionsCount > 1 && compteur(
+            `${analysis.versionsCount} versions`, `v${analysis.versionsCount}`, 'var(--muted)',
           )}
-          {/* Badge de statut de run. Distingue completed_with_gaps d un
-              run complet en un coup d oeil. Absent si le releve n existe
-              pas (dossier anterieur a la brique 3), doctrine brique 4. */}
-          {(() => {
-            const rs = renderRunStatus(analysis.status, analysis.failedEnginesCount);
-            if (!rs || !rs.visible) return null;
-            return (
-              <span
-                title={analysis.status || undefined}
-                style={{
-                  fontFamily: 'var(--sans)',
-                  // L etat sortait a 9,5 pixels, soit le plus petit texte
-                  // de la ligne, plus petit que le nom du fichier source.
-                  // Il doit se lire sans effort puisqu il porte l une des
-                  // deux grandeurs qu on vient chercher ; il passe donc
-                  // au-dessus du nom de fichier et reste sous le verdict,
-                  // qui est la conclusion.
-                  fontSize: 11,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  padding: '3px 9px',
-                  background: rs.bg,
-                  color: rs.fg,
-                  border: `1px solid ${rs.border}`,
-                  borderRadius: 999,
-                  fontWeight: 700,
-                }}
-              >
-                {rs.label}
-              </span>
-            );
-          })()}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--sans)', letterSpacing: '0.02em' }}>
-          {[analysis.sector, analysis.country, analysis.yearFounded].filter(Boolean).join(' · ')}
-        </div>
-        {/* Fichier source : identifie precisement quel deck a nourri ce run.
-            Deux runs d une meme entite avec deux fichiers differents sont
-            desormais distinguables sans avoir a ouvrir chaque dossier. */}
-        {analysis.sourceFilename && (
-          <div
-            title={analysis.sourceFilename}
-            style={{
-              fontSize: 10.5,
-              color: 'var(--muted-soft)',
-              fontFamily: 'var(--sans)',
-              marginTop: 3,
-              letterSpacing: '0.02em',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: 420,
-            }}
-          >
-            {analysis.sourceFilename}
-          </div>
-        )}
-      </div>
-      {/* La colonne que le verdict occupait porte desormais le score, la
-          seconde grandeur qu on vient chercher. Elle le prend a la
-          colonne suivante, qui garde ce qui se lit apres avoir decide de
-          s arreter sur la ligne : la vigilance, l etat de DD et la date. */}
-      <div>
-        {analysis.globalScore != null ? (
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--muted)' }}>
-            Score : <strong style={{
-              color: 'var(--accent)',
-              fontWeight: 700,
-              fontFamily: 'var(--serif)',
-              fontSize: 15.5,
-            }}>{Math.round(analysis.globalScore)}/100</strong>
-          </div>
-        ) : (
-          // Un score absent se dit. Laisser la case vide la rendrait
-          // indiscernable d une colonne qui n a pas fini de charger, et
-          // onze dossiers sur trente-neuf sont dans ce cas.
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--muted-soft)' }}>
-            Score non calcule
-          </div>
-        )}
-      </div>
-      <div>
+          {analysis.openCommentsCount > 0 && compteur(
+            `${analysis.openCommentsCount} commentaire(s) non resolu(s)`,
+            `${analysis.openCommentsCount} a traiter`,
+            'var(--accent)',
+          )}
+        </>
+      }
+    >
+      <div style={{ minWidth: 116 }}>
         <InlineStageEditor
           analysisId={analysis.id}
           currentStage={stage}
           onChanged={onStageChanged}
         />
         {analysis.workflowStageUpdatedAt && (
-          <div style={{
-            fontSize: 9,
-            color: 'var(--muted)',
-            marginTop: 3,
-            letterSpacing: 0,
-            textTransform: 'none',
-          }}>
+          <div style={{ fontSize: 9, color: 'var(--muted-soft)', marginTop: 2, letterSpacing: 0 }}>
             {formatRelative(analysis.workflowStageUpdatedAt)}
           </div>
         )}
       </div>
-      <div style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'var(--sans)' }}>
-        {analysis.blindspotScore != null && (
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-            Vigilance : <strong style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>{Math.round(analysis.blindspotScore)}</strong>
-          </div>
-        )}
-        {/* Indicateur d etat d instruction. Pour les dossiers refuses,
-            pas d indicateur (la DD n a pas de sens). Pour les autres,
-            on differencie ce qui est en attente d action (Bloc 1 seul)
-            de ce qui est complet (DD faite). Permet au partner de scanner
-            sa liste en un coup d oeil. */}
-        {analysis.verdict !== 'refuser' && (
-          <div style={{
-            display: 'inline-block',
-            marginTop: 6,
-            padding: '2px 7px',
-            fontSize: 9,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            borderRadius: 3,
-            background: analysis.hasBloc2
-              ? 'var(--positif-soft, rgba(43, 39, 33, 0.10))'
-              : 'var(--ocre-brule-soft)',
-            color: analysis.hasBloc2
-              ? 'var(--positif, var(--good))'
-              : 'var(--ocre-brule)',
-            border: `1px solid ${analysis.hasBloc2 ? 'var(--positif, var(--good))' : 'var(--ocre-brule)'}`,
-          }}>
-            {analysis.hasBloc2 ? 'DD complete' : 'Bloc 1 seul'}
-          </div>
-        )}
-        <div style={{
-          fontSize: 10.5,
-          color: 'var(--muted-soft)',
-          marginTop: 4,
-          letterSpacing: '0.04em',
-          fontFamily: 'var(--sans)',
-        }}>{dateStr}</div>
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {/* CTA direct pour lancer la DD. Visible uniquement si verdict ne
-            justifie pas un refus ET si la DD n a pas deja tourne. Le query
-            param ?action=dd ouvre automatiquement la zone d upload Data
-            Room sur la page d analyse, ce qui evite au partner de scroller
-            pour trouver le bandeau. C est le parcours le plus court entre
-            'je viens de recevoir les documents par email' et 'je peux les
-            uploader'. */}
+
+      <div style={{ display: 'flex', gap: 6 }}>
         {analysis.verdict !== 'refuser' && !analysis.hasBloc2 && (
           <Link
             href={`/dossiers/${analysis.id}?action=dd`}
-            style={{
-              padding: '7px 14px',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.10em',
-              textTransform: 'uppercase',
-              color: 'var(--ocre-brule)',
-              border: '1px solid var(--ocre-brule)',
-              background: 'var(--ocre-brule-soft)',
-              textDecoration: 'none',
-              borderRadius: 8,
-              fontFamily: 'var(--sans)',
-              transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
+            // L ocre s est retire de ce bouton : il figurait sur trente
+            // lignes sur trente-neuf, donc il ne distinguait rien et
+            // depensait l accent que la reserve et l etat degrade
+            // utilisent pour dire qu un dossier demande quelque chose.
+            style={bouton('transparent', 'var(--ink-soft)', 'var(--hairline)')}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--ocre-brule)';
+              e.currentTarget.style.background = 'var(--accent)';
               e.currentTarget.style.color = 'var(--paper)';
+              e.currentTarget.style.borderColor = 'var(--accent)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--ocre-brule-soft)';
-              e.currentTarget.style.color = 'var(--ocre-brule)';
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'var(--ink-soft)';
+              e.currentTarget.style.borderColor = 'var(--hairline)';
             }}
           >
             Lancer DD
@@ -912,20 +716,7 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
         )}
         <Link
           href={`/dossiers/${analysis.id}`}
-          style={{
-            padding: '7px 14px',
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.10em',
-            textTransform: 'uppercase',
-            color: 'var(--ink)',
-            border: '1px solid var(--hairline)',
-            background: 'var(--surface)',
-            textDecoration: 'none',
-            borderRadius: 8,
-            fontFamily: 'var(--sans)',
-            transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
+          style={bouton('var(--surface)', 'var(--ink)', 'var(--hairline)')}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--accent)';
             e.currentTarget.style.color = 'var(--paper)';
@@ -943,32 +734,17 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
           onClick={onDelete}
           aria-label="Supprimer l analyse"
           style={{
-            padding: '7px 11px',
-            fontSize: 14,
-            color: 'var(--muted)',
-            border: '1px solid var(--hairline)',
-            background: 'var(--surface)',
+            ...bouton('var(--surface)', 'var(--muted)', 'var(--hairline)'),
             cursor: 'pointer',
-            fontFamily: 'inherit',
-            borderRadius: 8,
+            fontSize: 13,
             lineHeight: 1,
-            transition: 'all 220ms cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--warn-soft)';
-            e.currentTarget.style.color = 'var(--warn)';
-            e.currentTarget.style.borderColor = 'var(--warn)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--surface)';
-            e.currentTarget.style.color = 'var(--muted)';
-            e.currentTarget.style.borderColor = 'var(--hairline)';
+            padding: '5px 9px',
           }}
         >
           ×
         </button>
       </div>
-    </div>
+    </DossierLigne>
   );
 }
 

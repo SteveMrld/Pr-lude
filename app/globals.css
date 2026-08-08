@@ -1143,73 +1143,27 @@ ul, ol { list-style: none; }
   transition: color var(--motion-fast);
 }
 .recents-link:hover { color: var(--accent); }
-.recents-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+/* LA GRILLE DE QUATRE CARTES A ETE REMPLACEE PAR UNE LISTE DENSE le
+   8 aout 2026. Un fonds regarde trente dossiers et non trois : quatre
+   cartes aerees occupaient la hauteur d une page pour quatre dossiers,
+   dont aucun ne portait son etat de run ni sa reserve de fiabilite. La
+   ligne elle-meme vit dans app/components/DossierLigne.tsx, partagee
+   avec l historique pour que les deux surfaces ne redivergent pas ; ce
+   bloc ne porte que ce qui l entoure. */
+.recents-liste {
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
 }
-.recents-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 18px 18px 16px;
-  border: 1px solid var(--hairline);
-  background: var(--paper);
-  text-decoration: none;
-  color: inherit;
-  transition: border-color var(--motion-fast), background var(--motion-fast);
-}
-.recents-card:hover {
-  border-color: var(--ink);
-  background: var(--paper-accent);
-}
-.recents-card-meta {
-  display: flex;
-  justify-content: space-between;
+.recents-note {
   font-family: var(--sans);
-  font-size: 10.5px;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.recents-card-sector { font-weight: 600; }
-.recents-card-name {
-  font-family: var(--serif);
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--ink);
-  margin: 0;
-}
-.recents-card-foot {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: auto;
-}
-.recents-card-score {
-  font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--ink);
-}
-.recents-card-score span {
   font-size: 11px;
-  color: var(--muted);
-  font-weight: 400;
-  margin-left: 1px;
+  line-height: 1.5;
+  color: var(--muted-soft);
+  letter-spacing: 0.02em;
+  margin-top: 10px;
+  max-width: 62ch;
 }
-.recents-card-verdict {
-  font-family: var(--sans);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: var(--radius-pill);
-  border: 1px solid currentColor;
-}
+
 /* LES QUATRE REGLES DE COULEUR DE VERDICT ONT ETE RETIREES LE 8 AOUT
    2026, ET LEUR COULEUR N EST PAS PERDUE : elle descend desormais de
    PALETTE_TON dans lib/note/vocabulaire-dossier, que cette carte et la
@@ -1225,10 +1179,6 @@ ul, ol { list-style: none; }
    non de porteuse de couleur. */
 @media (max-width: 880px) {
   .recents { padding: 0 24px; }
-  .recents-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 520px) {
-  .recents-grid { grid-template-columns: 1fr; }
 }
 
 .main { max-width: 1100px; margin: 0 auto; padding: 56px 40px 80px; }

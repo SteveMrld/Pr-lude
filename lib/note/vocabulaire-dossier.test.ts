@@ -25,6 +25,8 @@ import {
   classeVerdict,
   VERDICT_SOCLE_INSUFFISANT,
   VERDICT_ECARTE_PRESCAN,
+  LIBELLE_SANS_NOM,
+  nommerDossier,
 } from './vocabulaire-dossier';
 
 let pass = 0, fail = 0;
@@ -112,14 +114,21 @@ console.log('\n[Suite 2] chaque statut porte un etat, et l ignorance ne s habill
 
 console.log('\n[Suite 3] le compte de moteurs ne se fabrique pas');
 {
-  check(
-    libelleEtat('abouti-degrade', 3) === 'Abouti, 3 moteurs en lacune',
-    'un compte mesure s ecrit',
-  );
-  check(
-    libelleEtat('abouti-degrade', 1) === 'Abouti, 1 moteur en lacune',
-    'et le singulier se respecte',
-  );
+  // Les assertions portent sur la propriete et non sur le libelle exact.
+  // Elles comparaient une chaine entiere, donc elles rougissaient au
+  // moindre resserrage de la formulation en donnant a croire a une
+  // regression du compte. Ce qui doit tenir est que le compte mesure
+  // figure et que le nombre commande l accord, pas la phrase qui les
+  // porte.
+  const trois = libelleEtat('abouti-degrade', 3);
+  check(trois.includes('3'), 'un compte mesure figure dans le libelle');
+  check(/lacunes/.test(trois), 'et le pluriel s applique au-dela de un');
+  const une = libelleEtat('abouti-degrade', 1);
+  check(une.includes('1'), 'un compte de un figure aussi');
+  check(/lacune(?!s)/.test(une), 'et le singulier se respecte');
+  // La longueur compte, parce que ce libelle se lit trente fois a cote
+  // du nom du dossier et qu il concurrencait le nom lui-meme.
+  check(libelleEtat('abouti-degrade', 14).length <= 20, 'le libelle reste court a deux chiffres');
   // Le second sens : un compte non mesure ne devient pas zero, parce
   // qu un moteur en lacune dont on ignore le nombre et zero moteur en
   // lacune sont deux choses.
@@ -159,7 +168,33 @@ console.log('\n[Suite 4] le verdict se lit, et l inconnu ne se traduit pas');
   check(presenterVerdict(null).libelle === 'Verdict absent', 'et le dit plutot que de rester vide');
 }
 
-console.log('\n[Suite 5] la classe CSS ne peut plus se decouper');
+console.log('\n[Suite 5] le nom d un dossier dont l extraction n a pas abouti');
+{
+  // Le declare et le reel, sur la valeur que ce module repete pour ne
+  // pas faire entrer le magasin d analyses dans le bundle client.
+  const magasin = readFileSync(join(racine, 'lib', 'analysis-store.ts'), 'utf-8');
+  check(
+    magasin.includes(`LIBELLE_AVANT_EXTRACTION = '${LIBELLE_SANS_NOM}'`),
+    'le libelle d attente dit la meme chose que le magasin d analyses',
+  );
+  // LE CAS QUI A MOTIVE LA FONCTION : huit lignes sur trente-neuf
+  // portaient ce libelle, dont six marquees « pipeline tombe ».
+  const tombe = nommerDossier('(analyse en cours)', 'Project Woodpecker_Info Memo.pdf');
+  check(tombe.nom === 'Project Woodpecker_Info Memo', 'le fichier source remplace le libelle d attente');
+  check(tombe.provisoire, 'et le nom se declare provisoire');
+  check(!tombe.nom.includes('.pdf'), 'l extension ne nomme rien et se retire');
+  // Le second sens : un vrai nom ne doit jamais etre remplace, sinon la
+  // ligne afficherait un nom de fichier a la place d une societe.
+  const vrai = nommerDossier('Braincube', 'Project Woodpecker_Info Memo.pdf');
+  check(vrai.nom === 'Braincube', 'un nom extrait est conserve');
+  check(!vrai.provisoire, 'et il ne se declare pas provisoire');
+  // Les deux absences, qui ne doivent pas rendre une chaine vide : un
+  // vide se lit comme un defaut d affichage et non comme une absence.
+  check(nommerDossier(null, null).nom === 'Dossier sans nom', 'sans nom ni fichier, cela se dit');
+  check(nommerDossier('   ', '').provisoire, 'un nom blanc compte comme absent');
+}
+
+console.log('\n[Suite 6] la classe CSS ne peut plus se decouper');
 {
   // LE DEFAUT MESURE SUR LA PAGE VIVANTE : `verdict-investir avec
   // conditions` valait trois classes, dont une qui existait.

@@ -120,16 +120,62 @@ export type TonDossier = 'neutre' | 'attente' | 'acquis' | 'reserve' | 'ecarte' 
  */
 export type PaletteTon = { fond: string; encre: string; bordure: string };
 
+/**
+ * DEUX COULEURS, L ENCRE ET L OCRE, ET LA DISTINCTION SE FAIT PAR LE
+ * REMPLISSAGE PLUTOT QUE PAR LA TEINTE.
+ *
+ * La premiere version employait quatre teintes, dont le rouge anglais du
+ * refus et un `--positif` que la feuille definit a #2b2721, c est-a-dire
+ * un gris chaud tres fonce qui n a de positif que son nom. Quatre teintes
+ * dans une liste de trente lignes fabriquent un vitrail ou l oeil ne
+ * hierarchise plus rien.
+ *
+ * L ocre est reserve a ce qui demande quelque chose au partner, et son
+ * intensite dit combien : un aplat pour la position la plus engageante,
+ * un lavis pour celle qui pose des conditions, un simple filet pour celle
+ * qui demande du travail. Ce qui ne demande rien reste a l encre, et
+ * c est le cas du refus, qui est une decision close et non une alarme.
+ * Un refus peint en rouge reclame l attention qu il ne merite plus.
+ */
 export const PALETTE_TON: Record<TonDossier, PaletteTon> = {
-  neutre: { fond: 'var(--hairline-soft)', encre: 'var(--muted)', bordure: 'var(--hairline)' },
-  attente: { fond: 'var(--ocre-brule-soft)', encre: 'var(--ocre-brule)', bordure: 'var(--ocre-brule)' },
-  acquis: { fond: 'var(--positif-soft)', encre: 'var(--positif)', bordure: 'var(--positif)' },
+  neutre: { fond: 'transparent', encre: 'var(--muted-soft)', bordure: 'var(--hairline)' },
+  attente: { fond: 'transparent', encre: 'var(--accent)', bordure: 'var(--accent-mid)' },
+  acquis: { fond: 'var(--accent)', encre: 'var(--paper)', bordure: 'var(--accent)' },
   reserve: { fond: 'var(--accent-soft)', encre: 'var(--accent)', bordure: 'var(--accent)' },
-  // L ecartement est une decision et non une panne : il se distingue du
-  // rouge de l echec, qui appelle une reparation, alors que lui n en
-  // appelle aucune.
-  ecarte: { fond: 'var(--paper-accent)', encre: 'var(--ink-soft)', bordure: 'var(--hairline)' },
-  panne: { fond: 'var(--warn-soft)', encre: 'var(--warn)', bordure: 'var(--warn)' },
+  // L ecartement est une decision et non une panne : il ne reclame rien,
+  // donc il reste a l encre pale comme tout ce qui est clos.
+  ecarte: { fond: 'transparent', encre: 'var(--muted-soft)', bordure: 'var(--hairline)' },
+  panne: { fond: 'transparent', encre: 'var(--ink-soft)', bordure: 'var(--hairline)' },
+};
+
+/**
+ * LA PALETTE DES ETATS N EMPLOIE QUE DEUX COULEURS, L ENCRE ET L OCRE.
+ *
+ * Elle est distincte de celle des verdicts, et cette separation est
+ * l arbitrage plutot qu un detail d organisation. Un verdict est une
+ * position d instruction et il a droit au rouge anglais que la palette
+ * de l identite lui donne depuis l origine ; un etat de run n est pas
+ * une position, c est un fait technique, et lui donner une teinte propre
+ * ferait rentrer par la porte des etats la variete chromatique qu on
+ * vient de retirer ailleurs.
+ *
+ * Les cinq etats se distinguent donc par deux canaux et non par cinq
+ * teintes : un filet vertical en bord de ligne, dont la presence et la
+ * densite portent l urgence, et un libelle dont seule l encre change.
+ * L ocre est reserve a ce qui demande quelque chose au partner, un run
+ * tombe ou une note en lacune ; ce qui est clos ou acquis reste a
+ * l encre. Un dossier ecarte au pre-scan ne porte aucun filet, parce
+ * qu il ne demande rien : son absence de filet est elle-meme le signal.
+ */
+export type PaletteEtat = { filet: string; encre: string; fond: string };
+
+export const PALETTE_ETAT: Record<EtatDossier, PaletteEtat> = {
+  'en-instruction': { filet: 'var(--muted-soft)', encre: 'var(--muted)', fond: 'transparent' },
+  abouti: { filet: 'var(--hairline)', encre: 'var(--muted-soft)', fond: 'transparent' },
+  'abouti-degrade': { filet: 'var(--accent-mid)', encre: 'var(--accent)', fond: 'transparent' },
+  'ecarte-prescan': { filet: 'transparent', encre: 'var(--muted-soft)', fond: 'transparent' },
+  tombe: { filet: 'var(--accent)', encre: 'var(--accent)', fond: 'transparent' },
+  inconnu: { filet: 'transparent', encre: 'var(--muted-soft)', fond: 'transparent' },
 };
 
 export type PresentationEtat = {
@@ -175,9 +221,14 @@ export function libelleEtat(etat: EtatDossier, moteursEnLacune: number | null): 
   const base = PRESENTATION_ETAT[etat].libelle;
   if (etat !== 'abouti-degrade') return base;
   if (moteursEnLacune === null || moteursEnLacune === undefined || moteursEnLacune <= 0) {
-    return 'Abouti, moteurs en lacune';
+    return 'Abouti · lacunes';
   }
-  return `Abouti, ${moteursEnLacune} moteur${moteursEnLacune > 1 ? 's' : ''} en lacune`;
+  // Court, parce qu il se lit trente fois. « Abouti, 14 moteurs en
+  // lacune » faisait vingt-huit caracteres en capitales a cote du nom du
+  // dossier, ou il repoussait le verdict et concurrencait le nom
+  // lui-meme. Le mot « moteurs » ne discrimine rien : rien d autre n est
+  // compte en lacune dans cette ligne.
+  return `Abouti · ${moteursEnLacune} lacune${moteursEnLacune > 1 ? 's' : ''}`;
 }
 
 // ------------------------------------------------------------
@@ -279,4 +330,51 @@ export function classeVerdict(verdict: string | null | undefined): string {
 /** Le fragment de classe d un etat, par le meme mecanisme. */
 export function classeEtat(etat: EtatDossier): string {
   return `etat-${etat}`;
+}
+
+// ------------------------------------------------------------
+// LE NOM D UN DOSSIER QUAND L EXTRACTION N A PAS EU LIEU
+// ------------------------------------------------------------
+
+/**
+ * Le libelle qu une ligne porte entre sa creation et l extraction du nom
+ * de societe. Il vaut `LIBELLE_AVANT_EXTRACTION` dans le magasin
+ * d analyses ; la valeur est repetee ici pour ne pas faire entrer le
+ * magasin, et son client Supabase, dans le bundle du navigateur. Le
+ * verrou compare les deux.
+ */
+export const LIBELLE_SANS_NOM = '(analyse en cours)';
+
+/**
+ * Ce qu une ligne affiche a la place du nom quand l extraction n a
+ * jamais rendu.
+ *
+ * LE PLACEHOLDER SURVIT AUX RUNS QUI N ABOUTISSENT PAS, et il ment alors
+ * dans la seule direction qui compte. Releve du 8 aout 2026 : huit lignes
+ * sur trente-neuf portent « (analyse en cours) », dont six marquees
+ * « pipeline tombe » et deux « ecarte au pre-scan ». Le nom disait donc
+ * qu un calcul est en cours a dix centimetres d une pastille disant qu il
+ * s est arrete, et un partner qui balaie sa liste lit le nom avant la
+ * pastille.
+ *
+ * Le nom du fichier source prend sa place, parce qu il est renseigne sur
+ * les trente-neuf lignes et qu il identifie le dossier pour celui qui l a
+ * depose. Il n est pas le nom de la societe et la ligne ne pretend pas
+ * qu il l est : elle le rend a l encre du nom mais le declare provisoire,
+ * a charge de l appelant d en tirer ce qu il veut.
+ */
+export function nommerDossier(
+  companyName: string | null | undefined,
+  sourceFilename: string | null | undefined,
+): { nom: string; provisoire: boolean } {
+  const nom = String(companyName || '').trim();
+  if (nom && nom !== LIBELLE_SANS_NOM) return { nom, provisoire: false };
+  const fichier = String(sourceFilename || '').trim();
+  if (fichier) {
+    // L extension ne nomme rien et coute de la place sur une ligne dense.
+    return { nom: fichier.replace(/\.[A-Za-z0-9]{1,5}$/, ''), provisoire: true };
+  }
+  // Sans nom ni fichier, il reste a le dire plutot qu a laisser un vide
+  // que le lecteur prendrait pour un defaut d affichage.
+  return { nom: 'Dossier sans nom', provisoire: true };
 }

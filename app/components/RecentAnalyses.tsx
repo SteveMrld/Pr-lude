@@ -3,29 +3,51 @@
 // ============================================================
 // RECENT ANALYSES - dossiers recents sur l accueil
 // ------------------------------------------------------------
-// Affiche les quatre derniers dossiers analyses du fonds, sous le
-// hero depot. Donne au partner une accroche de continuite : il
-// peut reprendre un dossier en cours d instruction au lieu de
-// recommencer a zero a chaque session.
+// Les derniers dossiers du fonds, sous le hero depot, pour qu un
+// partner reprenne une instruction au lieu de recommencer a zero.
 //
-// Lecture seule, GET /api/analyses/list?limit=4. Si la persistence
-// est desactivee ou si l utilisateur n a aucun dossier, le composant
-// ne rend rien (etat vide propre, pas de placeholder bruyant). Chaque
-// carte pointe sur /dossiers/[id], l URL canonique de Phase 3.
+// C ETAIT UNE GRILLE DE QUATRE CARTES AEREES, ET CE N EST PLUS UNE
+// GRILLE. Un fonds regarde trente dossiers et non trois : les cartes
+// occupaient la hauteur d une page pour quatre dossiers, et aucune ne
+// portait l etat du run ni la reserve de fiabilite, c est-a-dire les
+// deux choses qui disent si un dossier demande quelque chose. La ligne
+// vit desormais dans DossierLigne, partagee avec l historique, parce
+// que deux surfaces qui rendent le meme objet chacune a sa facon
+// divergent, et que les deux avaient diverge.
+//
+// Lecture seule. Si la persistence est desactivee ou si l utilisateur
+// n a aucun dossier, le composant ne rend rien : un etat vide propre
+// plutot qu un placeholder bruyant.
 // ============================================================
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { presenterVerdict, classeVerdict, PALETTE_TON } from '@/lib/note/vocabulaire-dossier';
+import DossierLigne from './DossierLigne';
 
 interface RecentAnalysis {
   id: string;
   companyName: string;
   sector: string | null;
+  country: string | null;
   verdict: string;
   globalScore: number | null;
   createdAt: string;
+  status: string | null;
+  failedEnginesCount: number | null;
+  reserves: { total: number; majeures: number } | null;
+  sourceFilename: string | null;
 }
+
+/**
+ * Six lignes et non quatre cartes.
+ *
+ * Un fonds regarde trente dossiers et non trois, donc la densite vaut
+ * mieux que l espace : quatre cartes aerees occupaient la hauteur d une
+ * page pour quatre dossiers dont aucun ne portait son etat. Six lignes
+ * tiennent dans le tiers de cette hauteur, portent l etat, la reserve et
+ * le score, et laissent la place au reste de l accueil.
+ */
+const LIGNES_ACCUEIL = 6;
 
 // LA TABLE DE LIBELLES ET LA CLASSE CSS VIVAIENT ICI, ET LES DEUX
 // DIVERGEAIENT DU PRODUCTEUR. La table connaissait `investir-
@@ -61,12 +83,12 @@ export default function RecentAnalyses() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/analyses/list?limit=4')
+    fetch(`/api/analyses/list?limit=${LIGNES_ACCUEIL}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data?.enabled) return;
         const list = Array.isArray(data.analyses) ? data.analyses : [];
-        setAnalyses(list.slice(0, 4));
+        setAnalyses(list.slice(0, LIGNES_ACCUEIL));
       })
       .catch(() => {
         if (!cancelled) setAnalyses([]);
@@ -91,39 +113,39 @@ export default function RecentAnalyses() {
           Voir l historique complet →
         </Link>
       </div>
-      <div className="recents-grid">
-        {analyses.map((a) => (
-          <Link
+      <div className="recents-liste">
+        {analyses.map((a, i) => (
+          <DossierLigne
             key={a.id}
-            href={`/dossiers/${a.id}`}
-            className="recents-card"
-            prefetch={false}
-          >
-            <div className="recents-card-meta">
-              {a.sector && <span className="recents-card-sector">{a.sector}</span>}
-              <span className="recents-card-date">{formatRelative(a.createdAt)}</span>
-            </div>
-            <h3 className="recents-card-name">{a.companyName}</h3>
-            <div className="recents-card-foot">
-              {a.globalScore != null && (
-                <span className="recents-card-score">{a.globalScore}<span>/100</span></span>
-              )}
-              {(() => {
-                const p = presenterVerdict(a.verdict);
-                const palette = PALETTE_TON[p.ton];
-                return (
-                  <span
-                    className={`recents-card-verdict ${classeVerdict(a.verdict)}`}
-                    style={{ color: palette.encre, background: palette.fond }}
-                  >
-                    {p.libelle}
-                  </span>
-                );
-              })()}
-            </div>
-          </Link>
+            id={a.id}
+            companyName={a.companyName}
+            verdict={a.verdict}
+            globalScore={a.globalScore}
+            status={a.status}
+            failedEnginesCount={a.failedEnginesCount}
+            reserves={a.reserves}
+            sector={a.sector}
+            country={a.country}
+            createdAtLabel={formatRelative(a.createdAt)}
+            sourceFilename={a.sourceFilename}
+            derniere={i === analyses.length - 1}
+          />
         ))}
       </div>
+      {/* LE COMPTE DES DOSSIERS SANS RELEVE SE DIT UNE FOIS, ICI. Le
+          bulletin de fiabilite n existe que sur les runs recents, et la
+          ligne se tait quand il manque plutot que de repeter un aveu que
+          personne ne lirait. Le taire partout ferait lire ce silence
+          comme une absence de reserve ; il se dit donc au pied de la
+          liste, une seule fois, et il descend des donnees plutot que
+          d etre une phrase ecrite a la main. */}
+      {analyses.some((a) => !a.reserves) && (
+        <p className="recents-note">
+          Reserve de fiabilite relevee sur {analyses.filter((a) => a.reserves).length} de ces{' '}
+          {analyses.length} dossiers. Les autres sont anterieurs au releve, et leur silence ne dit
+          pas qu ils sont sans reserve.
+        </p>
+      )}
     </section>
   );
 }
