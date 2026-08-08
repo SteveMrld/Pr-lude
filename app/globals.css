@@ -75,8 +75,28 @@
   --signal: #a8541d;
   --signal-soft: #fbf4e6;
 
-  --serif: var(--font-serif), 'Charter', 'Cambria', 'Georgia', serif;
-  --sans: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  /* LES DEUX JETONS DE FAMILLE PORTENT LEUR REPLI DANS LE `var`, ET CE
+     N EST PAS UNE PRECAUTION. `--font-serif` et `--font-sans` sont poses
+     par next/font sur une classe de `<html>`. Le document que la route
+     d export assemble ne porte pas cette classe : les deux variables y
+     sont absentes, donc `var(--font-sans)` sans repli rend la valeur
+     invalide, donc `--sans` entier devient invalide, donc chaque
+     `font-family: var(--sans)` du depot est ignore et l element herite du
+     serif du corps.
+
+     Le releve du 8 aout 2026 le donne sur le repere imprime : famille
+     calculee « Times New Roman » la ou l ecran rend Inter. Le defaut ne
+     s arrete pas au repere, il touche tout ce que la note met en sans a
+     l impression, etiquettes de gravite comprises. Et il ne se voyait
+     pas, parce que le serif herite est celui qu on attend partout
+     ailleurs dans une note : une police de repli qui ressemble a la
+     police voulue est la garde inerte transposee a la typographie.
+
+     Le repli nomme les deux familles que la route charge deja par
+     Google Fonts, si bien qu il se resout la ou next/font n existe pas
+     et ne sert jamais la ou il existe. */
+  --serif: var(--font-serif, 'Source Serif 4'), 'Charter', 'Cambria', 'Georgia', serif;
+  --sans: var(--font-sans, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
   --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
 
   /* MOTION - durations et easings unifies (style Linear / Stripe).
@@ -609,20 +629,110 @@ ul, ol { list-style: none; }
   z-index: var(--z-colle);
   background: var(--paper);
   border-bottom: 1px solid var(--hairline);
-  padding: var(--note-space-2) 0;
+  padding: var(--note-space-2) 0 var(--note-space-3);
   margin-bottom: var(--note-space-4);
   font-family: var(--sans);
   font-size: var(--note-size-h4);
   font-weight: var(--note-weight-h4);
   letter-spacing: var(--note-tracking-h4);
   text-transform: uppercase;
-  color: var(--muted);
-  /* Une seule ligne, toujours. Un nom de section qui passe a deux lignes
-     ferait bouger le seuil qui sert a determiner la section courante, ce
-     qui produirait une oscillation a la frontiere de deux sections. */
+  /* L ENCRE PRINCIPALE ET NON L ENCRE DE LABEL. Le releve du 8 aout 2026
+     l a rendu illisible sur les trois vues : en gris de label, il pesait
+     moins que les titres de carte qu il surplombe, alors qu il doit
+     situer la page. Ce qui l empeche de dominer n est pas sa couleur,
+     c est sa taille et ses capitales : onze pixels espaces se lisent
+     comme un titre courant d imprime, jamais comme un titre. */
+  color: var(--ink);
+  /* LA BOITE NE ROGNE PAS, LE TEXTE ROGNE. Le degrade qui rend au texte
+     sa sortie vit dans un pseudo-element pose sous le bandeau, donc un
+     `overflow: hidden` sur la boite le decouperait et le rendrait
+     inerte. La troncature d un nom trop long descend d un cran, sur le
+     span, ou elle a de toute facon plus de sens : c est le texte qui se
+     tronque, pas le bandeau qui rogne ce qu il porte. */
+  overflow: visible;
+}
+
+/* Une seule ligne, toujours. Un nom de section qui passerait a deux
+   lignes ferait bouger le seuil qui sert a determiner la section
+   courante, ce qui produirait une oscillation a la frontiere de deux
+   sections : le bandeau grandit, le seuil descend, la section precedente
+   redevient courante, le bandeau retrecit, et ainsi de suite. */
+.note-titre-courant-texte {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* LA LIGNE COUPEE EN DEUX, ET POURQUOI CE N EST PAS UN DEFAUT DE FOND.
+   Le releve du 8 aout 2026 montrait une ligne de corps lisible a moitie
+   sous le bandeau, ce qui se lit comme un fond transparent. La mesure a
+   dit le contraire : le fond est opaque, il couvre toute la colonne, et
+   le test de pointage rend le bandeau au-dessus en tout point de sa
+   boite. Ce qu on voyait est le bord bas qui tranche net la ligne de
+   texte qui defile dessous, au pixel sur le filet.
+
+   Aucune opacite ne ferme cela, parce que ce n est pas une fuite : un
+   bandeau colle sur du texte en flux coupe toujours quelque chose, et la
+   seule question est de savoir si la coupe se lit comme un accident ou
+   comme un passage. Elle se lisait comme un accident parce que le filet
+   touchait les lettres tranchees. Le degrade rend au texte sa sortie :
+   il s efface en approchant du bandeau au lieu d etre guillotine, et la
+   coupe cesse d etre un evenement. */
+.note-titre-courant::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  /* LA HAUTEUR SE DERIVE DE CE QU ELLE EFFACE, ET IL LUI FAUT DEUX
+     LIGNES ET NON UNE. Un degre d une seule ligne place la transition
+     exactement sur les lettres de la ligne qui touche le filet : ses
+     glyphes vivent au milieu de la bande, donc a mi-opacite, et la
+     ligne se lit a moitie. C est le defaut qu on croyait fermer, rendu
+     plus doux et non retire. La mesure du 8 aout 2026 le donne sans
+     ambiguite : corps a 15,5 pixels et interligne a 1,78 font une ligne
+     de vingt-huit, et un degrade de vingt-huit laisse les glyphes entre
+     0,78 et 0,28 d encre.
+
+     La bande porte donc deux parties. Un plateau opaque, qui vaut la
+     PLUS HAUTE des lignes qui defilent, et non la ligne de corps : la
+     note fait passer sous le bandeau du corps a 15,5 sur 1,78 mais
+     aussi des paragraphes en exergue a 17 sur 1,85, et un plateau
+     regle sur la premiere laissait la seconde a mi-encre au ras du
+     filet. C est la constante derivee du mauvais objet, prise ici sur
+     un objet trop petit. Le `max` la fait descendre des deux couples
+     de jetons a la fois, donc elle suit celui qui grandit.
+
+     Puis un fondu de deux lignes de corps. Sa longueur ne se choisit
+     pas par gout : un fondu court concentre toute la transition sur les
+     lettres d une seule ligne, qui sort alors a mi-encre, ce qui est
+     exactement le defaut. L etaler sur deux lignes repartit la meme
+     transition sur deux fois plus de hauteur, si bien que la ligne la
+     plus contrastee de la bande sort a un quart d encre au lieu de la
+     moitie.
+
+     Ce que cela ne ferme pas se dit : un bandeau colle sur du texte en
+     flux a toujours une ligne en cours de transition, a une position
+     que le defilement decide. Le choix n est pas entre voir et ne pas
+     voir, il est entre une ligne tranchee et une ligne fondue. */
+  height: calc(
+    max(
+      var(--note-size-body) * var(--note-leading),
+      var(--note-size-lede) * var(--note-leading-dark)
+    )
+    + var(--note-size-body) * var(--note-leading) * 2
+  );
+  background: linear-gradient(
+    to bottom,
+    var(--paper) 0,
+    var(--paper) max(
+      var(--note-size-body) * var(--note-leading),
+      var(--note-size-lede) * var(--note-leading-dark)
+    ),
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 /* Avant la premiere section, le bandeau reste dans le flux mais ne
@@ -631,6 +741,15 @@ ul, ol { list-style: none; }
    est calculee. Il devient invisible sans cesser d exister. */
 .note-titre-courant[data-vide='oui'] {
   border-bottom-color: transparent;
+}
+
+/* Le degrade se tait avec le filet, et pour la meme raison. Avant la
+   premiere section il n y a rien a faire passer sous rien : le bandeau
+   est encore dans le flux, donc le degrade laverait le haut de la
+   couverture sans qu aucun texte ne soit en train de disparaitre
+   dessous. */
+.note-titre-courant[data-vide='oui']::after {
+  display: none;
 }
 
 /* ============================================================
@@ -695,7 +814,12 @@ ul, ol { list-style: none; }
   font-weight: var(--note-weight-h4);
   letter-spacing: var(--note-tracking-h4);
   text-transform: uppercase;
-  color: var(--muted);
+  /* La meme encre que le bandeau d ecran, et pour la meme raison. Les
+     deux sont le meme repere : les laisser diverger ferait du support le
+     critere de lisibilite, alors que c est sur papier que le repere sert
+     le plus, puisque le lecteur n y a ni sommaire ni defilement pour se
+     resituer. */
+  color: var(--ink);
   border-bottom: 1px solid var(--hairline);
   padding: 0 0 var(--note-space-2) 0;
   margin: 0;

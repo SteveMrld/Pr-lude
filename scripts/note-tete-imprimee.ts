@@ -39,6 +39,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { inflateSync } from 'zlib';
 
 import { ouvrirLaNote } from '../lib/controle/capture-note';
+import { assemblerDocumentExport } from '../lib/note/document-export';
 
 function env(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -219,17 +220,24 @@ async function main() {
   // l ecran, ou le mode impression n a jamais ete arme. C est ce second
   // chemin que cette mesure emprunte : la note est ouverte en mode ecran,
   // puis le media est bascule.
-  const displayEcran = await page.evaluate(`(function () {
+  const AXES_DE_LECTURE = ['fontSize', 'fontWeight', 'letterSpacing', 'textTransform', 'color'];
+  const lireBandeau = `(function () {
     var tc = document.querySelector('.note-titre-courant');
-    return tc ? getComputedStyle(tc).display : 'ABSENT';
-  })()`);
+    if (!tc) return { display: 'ABSENT' };
+    var cs = getComputedStyle(tc);
+    var out = { display: cs.display };
+    var axes = ${JSON.stringify(AXES_DE_LECTURE)};
+    for (var i = 0; i < axes.length; i++) out[axes[i]] = cs[axes[i]];
+    return out;
+  })()`;
+
+  const bandeauEcran = await page.evaluate(lireBandeau) as Record<string, string>;
   await page.emulateMediaType('print');
   await new Promise(r => setTimeout(r, 600));
-  const displayPrint = await page.evaluate(`(function () {
-    var tc = document.querySelector('.note-titre-courant');
-    return tc ? getComputedStyle(tc).display : 'ABSENT';
-  })()`);
+  const bandeauPrint = await page.evaluate(lireBandeau) as Record<string, string>;
   await page.emulateMediaType('screen');
+  const displayEcran = bandeauEcran.display;
+  const displayPrint = bandeauPrint.display;
 
   const bandeauEcarte = displayPrint === 'none' || displayPrint === 'ABSENT';
   console.log(
@@ -297,6 +305,79 @@ async function main() {
     }
     return { html: clone.outerHTML, css: regles.join('\n'), sections: noms };
   }, sourceJs);
+
+  // LES DEUX REPERES SONT UN SEUL REPERE, ET CELA SE LIT DANS LE DOCUMENT
+  // QUI S IMPRIME, PAS DANS LA PAGE QUI L ENVOIE. Le module partage
+  // garantissait deja qu ils nomment la meme section ; rien ne
+  // garantissait qu ils se lisent pareil.
+  //
+  // La premiere version de cette comparaison posait le clone dans la page
+  // vivante et y lisait le style calcule. Elle rendait « 5/5 axes
+  // identiques » pendant que le repere sortait en Times sur le PDF : la
+  // page vivante porte les variables de next/font, le document d export
+  // ne les porte pas, et `--sans` y devenait invalide. La mesure etait
+  // irreprochable et son objet etait faux, ce qu aucune relecture de sa
+  // methode ne pouvait dire. Elle se fait donc desormais dans le document
+  // assemble par le module de production, celui-la meme que la route
+  // envoie a Chromium.
+  const documentImprime = assemblerDocumentExport({ html, css, title: 'Sonde de titre courant' });
+  const pageImprimee = await browser.newPage();
+  await pageImprimee.setViewport({ width: 1240, height: 1754 });
+  await pageImprimee.setContent(documentImprime, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await pageImprimee.emulateMediaType('print');
+  await new Promise(r => setTimeout(r, 600));
+  const teteImprimee = await pageImprimee.evaluate(`(function () {
+    var t = document.querySelector('.note-tete-imprimee-titre');
+    if (!t) return { manquant: true };
+    var cs = getComputedStyle(t);
+    var out = { fontFamily: cs.fontFamily, familleDuCorps: getComputedStyle(document.body).fontFamily };
+    var axes = ${JSON.stringify(AXES_DE_LECTURE)};
+    for (var i = 0; i < axes.length; i++) out[axes[i]] = cs[axes[i]];
+    return out;
+  })()`) as Record<string, string>;
+  await pageImprimee.close();
+
+  if ((teteImprimee as any).manquant) {
+    console.error('Le repere imprime est introuvable dans le document d export : rien a comparer.');
+    process.exit(1);
+  }
+  const divergences = AXES_DE_LECTURE.filter(a => bandeauEcran[a] !== teteImprimee[a]);
+  console.log(
+    `Traitement des deux reperes : ${AXES_DE_LECTURE.length - divergences.length}/`
+    + `${AXES_DE_LECTURE.length} axes identiques, lus dans le document d export.`,
+  );
+  if (divergences.length > 0) {
+    for (const a of divergences) {
+      console.error(`  ${a} : ecran ${bandeauEcran[a]}, imprime ${teteImprimee[a]}`);
+    }
+    console.error(
+      'Les deux reperes se lisent differemment. Ils nomment la meme chose et doivent la'
+      + ' nommer de la meme facon, faute de quoi le support devient le critere de lisibilite.',
+    );
+    process.exit(1);
+  }
+
+  // LA FAMILLE SE VERIFIE PAR CE QU ELLE REFUSE, PAS PAR UNE EGALITE. Les
+  // deux supports ne peuvent pas rendre la meme chaine : l ecran resout
+  // `--font-sans` vers le nom genere par next/font, le document d export
+  // vers « Inter ». Comparer les deux chaines serait rouge a bon droit et
+  // pour rien. Ce qui doit etre refuse est que le repere imprime herite du
+  // corps, c est-a-dire que le jeton de sans n ait pas pris : c est
+  // exactement l etat du 8 aout 2026, et il ne se voyait pas parce que la
+  // police de repli ressemble a celle qu on attend partout ailleurs.
+  const familleHeritee = teteImprimee.fontFamily === teteImprimee.familleDuCorps;
+  console.log(
+    `Famille du repere imprime : ${teteImprimee.fontFamily.slice(0, 60)}`
+    + ` -> ${familleHeritee ? 'HERITEE DU CORPS' : 'propre'}.`,
+  );
+  if (familleHeritee) {
+    console.error(
+      'Le repere imprime porte la famille du corps : son jeton de sans ne s applique pas dans le'
+      + ' document d export. Un repli qui ressemble a la police voulue ne se remarque pas, et il'
+      + ' touche tout ce que la note met en sans a l impression, pas seulement ce repere.',
+    );
+    process.exit(1);
+  }
 
   await browser.close();
 

@@ -145,9 +145,20 @@ export default function PipelineProgress({
         // changement de padding de l entete.
         top: 'var(--app-header-height)',
         zIndex: 'var(--z-colle)',
-        background: 'rgba(255, 255, 255, 0.92)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        // UN FOND FRANC ET NON UN VERRE DEPOLI. Les captures du 8 aout
+        // 2026 rendaient le texte de la note lisible entre les pastilles,
+        // en haut a gauche : a 92 pour cent d opacite, huit pour cent
+        // d une encre quasi noire sur du blanc reste un gris qui se lit.
+        // Le flou d arriere-plan etait cense le couvrir, et il ne le
+        // couvre pas partout, puisqu il demande un compositeur que tous
+        // les contextes de rendu n offrent pas.
+        //
+        // C est cette dependance qui tranche, plus que le gout. Un effet
+        // qui se dessine dans un navigateur et pas dans le harnais rend
+        // la capture infidele, et la capture est la seule verification
+        // qui existe sur le chemin du CSS. Un ornement qui fait mentir
+        // l instrument coute plus qu il ne rend.
+        background: 'var(--paper)',
         borderBottom: '1px solid var(--hairline)',
         padding: '14px 20px 12px',
         marginBottom: 18,
