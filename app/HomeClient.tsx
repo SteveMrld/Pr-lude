@@ -22,6 +22,7 @@ import {
   bindTabTitleRestore,
 } from '@/lib/pipeline-notifier';
 import IcPackView from './components/IcPackView';
+import { collecterFeuillesDeStyle } from '@/lib/note/document-export';
 import StructurationEntreeSection from './components/StructurationEntreeSection';
 import { TrajectoryView } from './components/TrajectoryView';
 import type { AnalysisTrack } from './components/TrackSelector';
@@ -3263,22 +3264,10 @@ export default function HomeClient({
                     }
                     const html = clone.outerHTML;
 
-                    // Recuperer tous les styles : <style> inline + feuilles externes
-                    const styleSheets = Array.from(document.styleSheets);
-                    const cssRules: string[] = [];
-                    for (const sheet of styleSheets) {
-                      try {
-                        const rules = sheet.cssRules || sheet.rules;
-                        if (rules) {
-                          for (let i = 0; i < rules.length; i++) {
-                            cssRules.push(rules[i].cssText);
-                          }
-                        }
-                      } catch {
-                        // CORS sur certaines feuilles externes : on ignore
-                      }
-                    }
-                    const css = cssRules.join('\n');
+                    // Le CSS part par le collecteur partage : il lit le texte des
+                    // noeuds de style plutot que de re-serialiser les regles, qui
+                    // perd les raccourcis a var().
+                    const css = collecterFeuillesDeStyle(document);
 
                     const companyName = result?.extraction?.companyName || 'analyse';
                     const fileName = `prelude-${String(companyName).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;

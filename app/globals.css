@@ -3751,10 +3751,20 @@ ul, ol { list-style: none; }
     margin: 14mm 14mm 16mm 14mm;
   }
 
-  /* Reset general : couleurs print-friendly */
+  /* Reset general : couleurs print-friendly.
+
+     L ENCRE DESCEND DU JETON ET NON D UN LITTERAL. Elle valait #1a1a1a,
+     copie d une encre que la note ne connait pas : son jeton vaut
+     #14110d, et le bloc d impression ci-dessus epingle deja la palette
+     claire, donc `var(--ink)` y est defini quel que soit le theme de
+     l ecran. Le releve du 8 aout 2026 comptait cinquante-deux elements
+     qui heritaient de cette encre etrangere sur le PDF, plus les filets
+     qui suivent `currentColor`. L ecart est imperceptible et ce n est
+     pas la question : une valeur recopiee finit par diverger de sa
+     source, et le `!important` faisait gagner la copie. */
   body, html {
-    background: #ffffff !important;
-    color: #1a1a1a !important;
+    background: var(--paper) !important;
+    color: var(--ink) !important;
   }
 
   /* Note : un bloc precedent (commit 25) tentait de desactiver les
@@ -3831,19 +3841,27 @@ ul, ol { list-style: none; }
     background: #ffffff !important;
   }
 
-  /* Liens en noir et sans soulignement */
+  /* Liens a l encre de la note et sans soulignement */
   a {
-    color: #1a1a1a !important;
+    color: var(--ink) !important;
     text-decoration: none !important;
   }
 
   /* Adaptation des cards sombres du dashboard pour l impression sur papier blanc.
      Les sections .reco-card et autres blocs sombres sont basculees en fond clair
      avec texte fonce pour rester lisibles en PDF. */
+     LE SELECTEUR UNIVERSEL APLATIT L ACCENT, ET C EST UN ARBITRAGE
+     PLUTOT QU UN DEFAUT DE COPIE. Le `*` avec `!important` gagne contre
+     toute couleur posee par un enfant, donc l ocre de trente-deux
+     elements sort a l encre du corps sur le PDF. Le retirer rendrait
+     leur couleur d ecran a ces enfants, y compris ceux qui sont clairs
+     parce qu ils vivaient sur un fond sombre, et qui deviendraient
+     illisibles sur le fond clair impose ici. L arbitrage se garde et se
+     date : il attend une decision de design, pas une correction. */
   .reco-card,
   .reco-card * {
     background: #f8f7f4 !important;
-    color: #1a1a1a !important;
+    color: var(--ink) !important;
   }
   .reco-card .small-caps {
     opacity: 0.7 !important;

@@ -3142,3 +3142,145 @@ verifier plutot qu'a sentir. La verification due est une image, et la
 discipline de commit s'en trouve etendue sur ce chemin precis : tsc et
 les tests avant chaque commit, et une capture en plus quand le commit
 touche du style.
+
+---
+
+## Le seul document qui quitte la plateforme, et que rien ne regardait
+
+Ecrit le 8 aout 2026, apres la premiere lecture d'un PDF produit par
+l'export. Aucune capture de PDF n'existait avant ce jour. Les trois
+instruments du depot regardaient tous autre chose : le harnais de corpus
+compare du HTML rendu sans styles, le controle de conservation lit des
+regles dans du texte source, la passe d'images photographie l'ecran. Le
+document que le partner envoie au fonds n'entrait dans le champ d'aucun
+des trois, et il est le seul artefact qui quitte la plateforme.
+
+**Ce que la premiere lecture a rendu, en une journee.** Quatre defauts,
+tous loges dans le meme document, aucun visible depuis l'ecran. Le jeton
+`--sans` etait invalide dans le document d'export, parce qu'il descend
+d'une variable que next/font pose sur une classe de `<html>` que ce
+document ne porte pas : chaque `font-family: var(--sans)` de la note
+etait ignore a l'impression, et le repere de section sortait en Times.
+La collecte de la feuille par `cssText` detruisait cent cinquante et une
+declarations sur treize regles, dont les filets du cartouche de verdict
+de la couverture, qui perdait ses bords haut, droit et bas sur la
+premiere page. L'encre du corps etait ecrite en dur, deux fois, dans le
+gabarit du document et dans le bloc `@media print` de la feuille
+globale, a une valeur que la note ne connait pas. Et une regle de
+famille par element, ecrite pour garantir une fonte Unicode-safe,
+cassait l'heritage de cinquante-cinq elements, dont la ligne de meta du
+dossier, en sans a l'ecran et en serif sur le papier.
+
+**Le motif, et c'est celui des taches planifiees mortes.** Le dispositif
+d'export etait complet : une route, un Chromium, un lien de fontes
+Google, une attente explicite de `document.fonts.ready`, un commentaire
+qui explique pourquoi cette attente existe. Il tournait. Rien ne
+verifiait ce qu'il produisait. C'est la meme forme que les six taches
+planifiees interceptees par le middleware pendant huit semaines : le
+dispositif existe, il s'execute, et personne ne va lire sa sortie.
+
+**La difference tient a la dissymetrie, et elle joue ici dans l'autre
+sens.** Un cron mort ne produit rien, donc son silence est un evenement
+pour personne. L'export, lui, produit toujours un document, et un
+document qui ressemble a ce qu'on attend : du texte serif, des titres,
+des filets. Times a la place d'Inter sur un repere de section ne se lit
+pas comme un defaut, cela se lit comme de la typographie. C'est la garde
+inerte transposee au livrable : le manque franc se repare, le simulacre
+dure. Il a dure aussi longtemps qu'il y a eu des exports.
+
+**Ce que cela coute et ou.** Le PDF est le document montre au fonds,
+celui qu'on imprime avant un comite, celui qui circule sans la
+plateforme autour. Un defaut qui ne se voit qu'a l'impression est donc
+un defaut qui ne se voit que devant le client.
+
+---
+
+## Ce que la sonde de l'export couvre, et sur quels axes elle ne dit rien
+
+Deux instruments existent desormais sur le chemin du PDF, et ils ne se
+completent pas par hasard : ils echouent par des chemins differents.
+`scripts/note-tete-imprimee.ts` compte, page par page, sur combien de
+pages le repere de section se redessine. `scripts/note-familles-
+imprimees.ts`, ecrit le 8 aout 2026, se prononce sur les familles de
+fonte, en deux etages.
+
+**Ce que le second etablit.** Son premier etage porte sur la cause : il
+place, dans le document assemble par le module de production, un element
+sous un ancetre qui impose une famille hostile, et lui demande la
+famille par le jeton. Un jeton qui se resout donne sa chaine, un jeton
+invalide laisse l'element heriter de l'hostile. La discrimination se
+prouve dans les deux sens, un temoin reclamant un jeton inexistant
+devant rendre l'hostile. Ce detour n'est pas une precaution : le corps
+du document d'export declare exactement la chaine vers laquelle
+`--serif` se resout, donc un `--serif` invalide et un `--serif` valide
+rendent le meme resultat sur tout element qui herite. C'est la regle des
+jeux d'essai prise sur le produit, un repli qui rend la meme valeur que
+sa source rendant la source invisible a toute mesure. Sans element
+hostile, `--serif` n'etait pas verifiable a l'impression.
+
+Le verdict du 8 aout sur la note 5585f1c0 : les deux jetons se
+resolvent, le temoin discrimine, et le PDF embarque soixante-cinq
+sous-ensembles de Source Serif 4 et treize d'Inter. Le corps de la note
+sort donc dans sa fonte.
+
+**Ce que le meme releve rend au passage, et qui n'est pas ferme.** Le
+recensement des chaines calculees compte mille six cent vingt-trois
+elements portant du texte. Mille quatre cent soixante-trois passent par
+un jeton. Cent soixante passent par une chaine ecrite en place :
+cent dix-huit en `-apple-system, BlinkMacSystemFont, Segoe UI,
+sans-serif`, vingt-huit par les deux chaines du radar sectoriel, qui
+nomment « Source Serif Pro » et « Inter Condensed », fontes qui
+n'existent nulle part dans le produit, huit en `sans-serif` nu, cinq par
+une chaine monospace qui n'est pas celle du jeton, une sur le titre de
+note. Toutes tombent sur une fonte du systeme, et le PDF le confirme :
+il embarque vingt-huit sous-ensembles de Liberation et de DejaVu a cote
+des fontes de la note. Le depot porte quatre-vingt-dix sites de
+`font-family` sans jeton. Aucune garde ne les refuse.
+
+**Les axes, et pourquoi la liste ecrite a la main ne valait rien.** La
+premiere version du releve d'ecart entre supports portait vingt-quatre
+axes, ceux qu'on avait en tete le jour ou l'on cherchait une famille de
+fonte. Elle en trouvait onze qui divergent. La liste juste est celle que
+le moteur expose, et elle se demande a la page : cinq cent soixante-dix
+proprietes calculees, dont quatre-vingt-trois divergent entre l'ecran et
+l'impression. La liste ecrite a la main en nommait donc treize pour cent
+et en attrapait onze.
+
+Le detail vaut d'etre garde, parce qu'il separe le bruit du reste. Les
+tailles, les graisses, les interlignes, les approches, les
+transformations de casse, les fonds et les alignements ne divergent pas
+du tout : zero element sur mille six cent quatre-vingt-dix-huit. Ce qui
+diverge se range en quatre familles. Les jetons eux-memes, `--serif`,
+`--sans` et leurs sources next/font, sur la totalite des elements, ce
+qui est le defaut du jour devenu un axe observable. La geometrie,
+largeur, hauteur, origines de transformation, qui differe parce que la
+boite de page n'est pas la fenetre, et qui est du bruit. La pagination,
+`orphans`, `widows`, `break-inside`, `break-after`, posee par la feuille
+de base de l'export, et qui est voulue. Et les couleurs, soixante
+elements, tous expliques par deux arbitrages du bloc d'impression, les
+liens ramenes a l'encre et les cartes sombres aplaties.
+
+**Ce que ni l'un ni l'autre ne couvre, et qu'il faut dire.** La mise en
+page n'est mesuree nulle part : ou tombent les sauts de page, si un
+tableau deborde, si un titre se separe de sa section, rien ne le dit
+hors du repere de section. Aucune comparaison d'image du PDF page a page
+n'existe, et c'est l'etage qui avait ete chiffre le 7 aout a deux ou
+trois jours. Les deux sondes mesurent une note, celle qu'on leur nomme,
+jamais le corpus. Et surtout, elles mesurent le Chromium de cette
+machine : en production, `@sparticuz/chromium-min` est depouille de ses
+polices systeme, donc ce que deviennent les cent soixante elements sans
+jeton la-bas n'est pas mesure et ne se deduit pas d'ici.
+
+**L'encre du bloc d'impression, corrigee le meme jour.** Le bloc
+`@media print` de la feuille globale imposait `color: #1a1a1a
+!important` a `body, html`, aux liens et aux cartes de recommandation.
+La valeur etait une copie qui ne descendait de rien : le jeton vaut
+`#14110d`, et le bloc epingle deja la palette claire pour l'impression,
+donc `var(--ink)` y est defini quel que soit le theme de l'ecran. Le
+releve avant et apres : cent douze elements divergeaient sur la couleur,
+il en reste soixante ; quatre-vingt-cinq sur la couleur du filet gauche,
+il en reste trente-sept ; soixante-seize sur le filet bas, il en reste
+vingt-neuf. Le reliquat est l'arbitrage des cartes sombres, ou un
+selecteur universel en `!important` aplatit l'ocre de trente-deux
+elements. Il est date et commente dans la feuille : il attend une
+decision de design et non une correction.

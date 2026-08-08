@@ -198,7 +198,40 @@ segmente sur ces empreintes, deux instruments se seraient melanges dans
 le meme segment sans que rien ne le signale. Le cachet etait lu la ou
 la valeur est declaree, et non la ou elle est decidee.
 
-Les deux formes ont le meme squelette. Un dispositif de controle
+La troisieme forme est du 8 aout 2026 et elle donne a la seconde sa
+formule generale : la valeur declaree et la valeur decidee ne vivent pas
+au meme endroit, et un controle qui lit la premiere rend un verdict sans
+objet. La sonde de pagination comparait cinq axes du repere entre
+l ecran et l impression, et rendait « 5/5 axes identiques » pendant que
+le repere sortait en Times sur le PDF. Elle lisait le repere dans la
+page vivante, ou les variables de next/font existent ; le document que
+la route envoie a Chromium ne porte pas la classe qui les pose, si bien
+que `--sans` y etait invalide et que chaque `font-family: var(--sans)`
+de la note y etait ignore. La mesure etait exacte, ses cinq axes etaient
+les bons, et son support etait l endroit ou la famille est declaree
+plutot que celui ou elle est decidee.
+
+Le meme jour en a donne une seconde occurrence, et cette fois dans
+l instrument qui venait reparer la premiere. Pour savoir quelles fontes
+le PDF porte reellement, la lecture cherchait la clef `/BaseFont`, qui
+est celle du dictionnaire de fonte. Elle rendait neuf fontes, toutes de
+repli systeme, donc un verdict de non-conformite sur un document sain.
+Les fontes de la note y sont embarquees en Type 3, forme qui ne porte
+pas de `/BaseFont` par construction : leur nom ne vit que dans le
+descripteur, sous `/FontName`, ou le meme fichier en compte
+quatre-vingt-huit. La clef juste et la clef complete sont deux choses,
+et la premiere rend un resultat que rien ne signale comme partiel.
+
+Ce que ces deux occurrences ajoutent est le geste qui les evite, et il
+est le meme dans les deux cas : remonter de la grandeur a l endroit ou
+elle est arretee, plutot que de la lire ou elle est ecrite. Une famille
+de fonte est decidee dans le document imprime et non dans la page qui
+l envoie ; une fonte embarquee est decidee dans le descripteur et non
+dans le seul dictionnaire qu on connaissait. Le detour coute une lecture
+et il est le seul controle possible, puisque la methode, elle, ne porte
+aucune trace de la faute.
+
+Les trois formes ont le meme squelette. Un dispositif de controle
 n a de pouvoir que par sa difference avec ce qu il controle, et il perd
 ce pouvoir de deux facons : en partageant le mode de defaillance de son
 objet, ou en etant preleve en amont de l endroit ou l objet se decide.

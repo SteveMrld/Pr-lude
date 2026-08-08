@@ -17,6 +17,7 @@
 import React from 'react';
 import { computeTopRisks } from '@/lib/compute-top-risks';
 import { libelleMontant, libelleNature } from '@/lib/note/operation-vocabulary';
+import { collecterFeuillesDeStyle } from '@/lib/note/document-export';
 import {
   IC_VOTE_RESULTS,
   IC_VOTE_RESULT_LABELS,
@@ -177,21 +178,7 @@ export default function IcPackView({
       if (!icEl) throw new Error('Pack IC non trouve dans le DOM');
       const html = icEl.outerHTML;
 
-      const styleSheets = Array.from(document.styleSheets);
-      const cssRules: string[] = [];
-      for (const sheet of styleSheets) {
-        try {
-          const rules = sheet.cssRules || sheet.rules;
-          if (rules) {
-            for (let i = 0; i < rules.length; i++) {
-              cssRules.push(rules[i].cssText);
-            }
-          }
-        } catch {
-          // CORS sur certaines feuilles externes : on ignore
-        }
-      }
-      const css = cssRules.join('\n');
+      const css = collecterFeuillesDeStyle(document);
 
       const companyName = ext.companyName || 'analyse';
       const fileName = `prelude-ic-pack-${String(companyName).toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`;

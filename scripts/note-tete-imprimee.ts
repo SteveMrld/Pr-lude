@@ -270,11 +270,21 @@ async function main() {
   // plutot que par un retrait des annotations a l expression reguliere
   // n est pas une coquetterie : une expression enumere les ecritures que
   // son auteur avait sous les yeux, et le langage en permet d autres.
+  //
+  // DEUX MODULES ENTRENT, ET LE SECOND EST CELUI QUI COLLECTE LA FEUILLE.
+  // La sonde recopiait sa propre collecte, troisieme ecriture de la meme
+  // hypothese apres le bouton de la note et celui du pack IC. Trois
+  // ecritures partagent leurs defauts sans jamais se contredire : celle-ci
+  // serialisait les regles plutot que de lire le texte des noeuds, donc
+  // elle envoyait a la route la meme feuille amputee que la production, et
+  // aucune des deux ne pouvait reveler l autre.
   const ts = await import('typescript');
-  const sourceJs = ts.transpileModule(
-    readFileSync('lib/note/titre-courant.ts', 'utf-8'),
+  const transpiler = (chemin: string) => ts.transpileModule(
+    readFileSync(chemin, 'utf-8'),
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } },
   ).outputText;
+  const sourceJs = transpiler('lib/note/titre-courant.ts')
+    + '\n' + transpiler('lib/note/document-export.ts');
 
   const { html, css, sections } = await page.evaluate((src: string) => {
     const mod: any = {};
@@ -292,18 +302,7 @@ async function main() {
       noms.push((t.textContent || '').trim());
     });
 
-    const regles: string[] = [];
-    for (const sheet of Array.from(document.styleSheets)) {
-      try {
-        const rules = (sheet as CSSStyleSheet).cssRules;
-        if (!rules) continue;
-        for (let i = 0; i < rules.length; i++) regles.push(rules[i].cssText);
-      } catch {
-        // CORS sur certaines feuilles externes : on ignore, comme le fait
-        // le bouton d export.
-      }
-    }
-    return { html: clone.outerHTML, css: regles.join('\n'), sections: noms };
+    return { html: clone.outerHTML, css: (mod as any).collecterFeuillesDeStyle(document), sections: noms };
   }, sourceJs);
 
   // LES DEUX REPERES SONT UN SEUL REPERE, ET CELA SE LIT DANS LE DOCUMENT
