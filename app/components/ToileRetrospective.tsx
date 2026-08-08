@@ -36,7 +36,22 @@ import {
   type EntreeRecorder,
 } from '@/lib/pipeline-toile/retrospective';
 import { layoutTopology } from '@/lib/pipeline-toile/layout';
-import { WAVE_BASED_TOPOLOGY } from '@/lib/engines/pipeline-topology';
+import { GRAPHE_FLUX } from '@/lib/pipeline-toile/graphe-flux';
+
+// LA TOILE DESSINE LE FLUX, PAS L ORDONNANCEMENT. Elle rendait
+// `WAVE_BASED_TOPOLOGY`, dont les liens sont des barrieres de vague :
+// chaque moteur d une vague y attend toute la precedente, meme sans en
+// consommer la sortie. C etait une chronologie deguisee en graphe, et
+// elle montrait que les moteurs se succedent la ou il faut montrer
+// qu ils se passent leurs sorties. Le flux dit que Prelude lit un
+// document puis que chaque moteur travaille sur ce que les precedents
+// ont etabli, ce qui est ce qui le distingue d un prompt long.
+//
+// La cascade reste visible, mais dans les etats et non dans les fils :
+// quand un moteur de porte tombe, ses avals sortent eteints et la toile
+// le dit. Le lecteur voit la consequence sans qu on lui dessine le
+// mecanisme.
+const TOPOLOGIE = GRAPHE_FLUX.map(n => ({ id: n.id, deps: n.consomme }));
 
 /**
  * Le libelle d un moteur, en francais de partner et non en identifiant.
@@ -137,7 +152,7 @@ export default function ToileRetrospective(props: ToileRetrospectiveProps) {
 
   const toile = useMemo(
     () => construireToileRetrospective(
-      WAVE_BASED_TOPOLOGY.map(n => ({ id: n.id, deps: n.deps })),
+      TOPOLOGIE,
       props.pipelineEnginesStatus,
       props.statutDuRun,
       props.parcours,
@@ -146,7 +161,7 @@ export default function ToileRetrospective(props: ToileRetrospectiveProps) {
   );
 
   const layout = useMemo(
-    () => layoutTopology(WAVE_BASED_TOPOLOGY, { layerSpacing: 186, nodeSpacing: 52, marginX: 26, marginY: 26, nodeWidth: 150 }),
+    () => layoutTopology(TOPOLOGIE, { layerSpacing: 196, nodeSpacing: 50, marginX: 26, marginY: 26, nodeWidth: 150 }),
     [],
   );
 
@@ -280,7 +295,11 @@ export default function ToileRetrospective(props: ToileRetrospectiveProps) {
                 style={{ cursor: 'default' }}
               >
                 <title>
-                  {`${LIBELLES[n.id] || n.id} — ${t.libelle}${duree ? ` — ${duree}` : ''}${cause ? `\n${cause}` : ''}`}
+                  {`${LIBELLES[n.id] || n.id} — ${t.libelle}${duree ? ` — ${duree}` : ''}${cause ? `\n${cause}` : ''}${
+                    GRAPHE_FLUX.find(x => x.id === n.id)?.entreesNonEtablies
+                      ? '\nEntrees non etablies : son appel n est pas lisible depuis la route, donc aucun fil ne lui est invente.'
+                      : ''
+                  }`}
                 </title>
                 <rect
                   x={n.x - L / 2} y={n.y - H / 2} width={L} height={H} rx={3}
