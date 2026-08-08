@@ -3035,3 +3035,110 @@ L'estimation de deux heures donnee pour le controle de conservation ne
 vaut pas ici : elle portait sur un analyseur de litteraux, qui existe.
 Ce qui manque est un analyseur qui traverse le changement de support, et
 il n'a pas ete chiffre.
+
+---
+
+## Un instrument qui affiche la forme normalisee rend son resultat inutilisable
+
+Un instrument peut avoir raison sur le fait et se tromper sur ce qu'il en
+montre. Le compte est juste, la conclusion est juste, et la sortie ne
+permet pas d'agir, parce qu'elle donne la valeur telle que l'instrument
+l'a comprise et non telle que le code l'ecrit. Rien dans le resultat ne
+signale la substitution, puisque les deux formes designent la meme
+couleur.
+
+Le cas est du 7 aout 2026, pendant le retrait du vert. Le releve avait
+ete fait en classant les valeurs par teinte plutot que par nom, ce qui
+etait le bon geste : un vert peut s'appeler `--good`, `--success` ou ne
+rien s'appeler du tout, et une liste de noms aurait manque exactement les
+litteraux qu'on cherchait. Il rendait 36 valeurs vertes distinctes sur
+148 sites. Puis la mesure et `grep` se sont contredits sur quatorze
+sites : l'instrument les affichait, et chercher la valeur qu'il affichait
+dans les sources ne rendait aucune occurrence.
+
+Aucun des deux n'avait tort. L'instrument normalisait chaque couleur en
+notation hexadecimale pour pouvoir la classer par teinte, et il imprimait
+cette notation. Les quatorze sites portaient des `rgba`, avec leur canal
+d'opacite. Le fait etait etabli, le compte de quatorze etait juste, et la
+chaine imprimee n'existait nulle part dans le depot.
+
+C'est la regle du verbatim retournee contre l'outil qui mesure. La regle
+dit qu'une valeur acquise ailleurs que dans le raisonnement porte la
+trace de son acquisition, et que la valeur normalisee descend de ce qui
+est ecrit, jamais l'inverse. Elle avait ete formulee pour les nombres
+qu'un modele extrait d'un document. Elle vaut a l'identique pour un
+instrument qui lit un depot : normaliser est necessaire pour comparer, et
+c'est precisement pourquoi la forme normalisee ne peut pas etre la seule
+que la sortie porte.
+
+Ce que le defaut coute est particulier et vaut d'etre nomme. Un
+instrument faux se detecte, puisque sa conclusion est fausse. Celui-ci
+rendait une conclusion vraie dont on ne pouvait rien faire : chaque site
+annonce demandait de retrouver a la main quelle ecriture, parmi celles
+que le langage autorise pour cette couleur, se trouvait a cette ligne.
+Le seul signe fut la contradiction avec `grep`, et elle s'est d'abord
+lue comme une faute de `grep`. Sans elle, quatorze sites seraient sortis
+du perimetre en silence et le releve final aurait rendu zero valeur verte
+sur zero site en n'ayant pas regarde quatorze d'entre eux.
+
+En pratique, tout instrument qui normalise pour comparer imprime les deux
+formes, et celle qui sert a retrouver l'objet est celle qui est ecrite.
+La question a poser devant une sortie de mesure est celle-ci : avec ce
+qu'elle affiche, peut-on retrouver le site dans le depot. Quand la
+reponse est non, la mesure a etabli un fait sans le rendre opposable, ce
+qui est le meme etat qu'un chiffre sans son verbatim.
+
+---
+
+## tsc ne lit pas le CSS, et la garantie s'arrete a la frontiere
+
+La suite de types et la suite de tests peuvent etre entierement vertes
+sur un depot dont la note ne s'affiche plus. La raison n'est pas une
+lacune de couverture qu'on comblerait en ecrivant davantage : c'est que
+le CSS est, pour le compilateur, soit un fichier qu'il n'ouvre pas, soit
+une chaine de caracteres dont il ne lit pas le contenu. Sur ce chemin,
+aucune verification statique du depot ne dit quoi que ce soit, et la
+capture est la seule verification.
+
+Le cas est du 7 aout 2026. Un commentaire ferme trop tot dans
+`app/globals.css` a laisse la suite du texte entrer dans la cascade comme
+des declarations. `npx tsc --noEmit` est passe sans un mot, ce qui est
+correct : `globals.css` n'est pas un fichier TypeScript et le
+compilateur ne l'ouvre jamais. La suite deterministe est restee verte,
+ce qui est correct aussi, aucun test ne rendant de page. Le defaut n'a
+ete vu qu'en rouvrant une image.
+
+Les deux supports du CSS de ce depot echouent de la meme facon par deux
+chemins differents, et il faut les distinguer pour ne pas croire l'un
+protege par l'autre. Un fichier `.css` est hors du champ du compilateur,
+qui ne le lit pas. Un bloc `<style jsx>{\`...\`}</style>` vit dans un
+fichier `.tsx` que le compilateur lit bel et bien, mais son contenu est
+un litteral gabarit : une accolade en trop y est un caractere valide dans
+une chaine valide, donc le typage passe et la cascade casse a partir de
+cette ligne. Le premier cas est une absence de perimetre, le second une
+absence de profondeur, et aucun des deux ne rougit.
+
+Le controle de conservation du style ne ferme pas davantage, et sa limite
+est de perimetre plutot que de finesse. Il enumere les fichiers `.tsx` et
+en extrait les blocs `<style jsx>{` : `globals.css` n'entre pas dans son
+modele, donc il n'aurait rien dit de cet incident. Sa limite est deja
+ecrite dans son propre en-tete pour un autre motif, celui de ne pas
+prouver que le navigateur rend a l'identique. Elle se double ici d'une
+limite de perimetre, et les deux se cumulent : il borne le deplacement
+de regles ecrites dans les blocs qu'il connait, et rien d'autre.
+
+Ce qui reste est le rendu, et il faut l'assumer comme le seul organe
+plutot que comme un complement. Le releve du style calcule se prononce
+sur la cause en nommant le jeton qui diverge ; la comparaison d'images
+par empreinte se prononce sur l'effet sans dire pourquoi. C'est le meme
+partage en deux gardes que le chantier de hierarchie avait etabli, et
+c'est ici qu'il gagne sa raison la plus forte : sur le chemin du CSS,
+elles ne completent pas une garantie statique, elles la remplacent.
+
+En pratique, une modification qui touche une feuille de style ou un bloc
+`styled-jsx` n'est pas verifiee par un `tsc` vert, et l'annoncer comme
+telle est une affirmation sur un dispositif, donc une affirmation a
+verifier plutot qu'a sentir. La verification due est une image, et la
+discipline de commit s'en trouve etendue sur ce chemin precis : tsc et
+les tests avant chaque commit, et une capture en plus quand le commit
+touche du style.
