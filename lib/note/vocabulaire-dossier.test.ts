@@ -192,6 +192,14 @@ console.log('\n[Suite 5] le nom d un dossier dont l extraction n a pas abouti');
   // vide se lit comme un defaut d affichage et non comme une absence.
   check(nommerDossier(null, null).nom === 'Dossier sans nom', 'sans nom ni fichier, cela se dit');
   check(nommerDossier('   ', '').provisoire, 'un nom blanc compte comme absent');
+  // Le drapeau est ce sur quoi la ligne accroche sa declaration a
+  // l ecran. Sans lui, le nom de fichier passerait pour une societe qui
+  // s appellerait ainsi, ce qui est le defaut que la mention ferme.
+  check(nommerDossier(null, null).provisoire, 'l absence totale se declare aussi provisoire');
+  check(
+    nommerDossier('Braincube', null).provisoire === false,
+    'et un nom etabli ne declare rien, faute de quoi la mention serait partout',
+  );
 }
 
 console.log('\n[Suite 6] la classe CSS ne peut plus se decouper');

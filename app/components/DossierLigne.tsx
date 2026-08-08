@@ -208,6 +208,31 @@ export default function DossierLigne(props: DossierLigneProps) {
               {libelle}
             </span>
           )}
+          {identite.provisoire && (
+            // UNE LIGNE DONT LE NOM N A PAS PU ETRE ETABLI LE DECLARE.
+            // Le nom du fichier tient lieu d identifiant et il en a
+            // l apparence : sans cette mention, un lecteur le prendrait
+            // pour une societe qui s appellerait ainsi. La declaration
+            // est visible plutot que logee dans une infobulle, parce
+            // qu une reserve qui demande de survoler n est pas une
+            // reserve. Les dix lignes concernees sont des runs qui n ont
+            // jamais atteint l extraction, et non des noms perdus.
+            <span
+              data-role="nom-provisoire"
+              title="Le pipeline n a jamais atteint l extraction sur ce dossier : aucun nom de societe n a ete produit."
+              style={{
+                fontFamily: 'var(--sans)',
+                fontSize: 9.5,
+                letterSpacing: '0.07em',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+                color: 'var(--muted-soft)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              nom non extrait
+            </span>
+          )}
           {props.marqueurs}
         </div>
         <div

@@ -349,19 +349,27 @@ export const LIBELLE_SANS_NOM = '(analyse en cours)';
  * Ce qu une ligne affiche a la place du nom quand l extraction n a
  * jamais rendu.
  *
- * LE PLACEHOLDER SURVIT AUX RUNS QUI N ABOUTISSENT PAS, et il ment alors
- * dans la seule direction qui compte. Releve du 8 aout 2026 : huit lignes
- * sur trente-neuf portent « (analyse en cours) », dont six marquees
- * « pipeline tombe » et deux « ecarte au pre-scan ». Le nom disait donc
- * qu un calcul est en cours a dix centimetres d une pastille disant qu il
- * s est arrete, et un partner qui balaie sa liste lit le nom avant la
- * pastille.
+ * LE PLACEHOLDER SURVIT AUX RUNS QUI N ONT JAMAIS EXTRAIT, et la cause a
+ * ete etablie le 8 aout 2026 plutot que supposee. Dix lignes sur
+ * soixante-six le portent : six ont ete basculees par le cron de
+ * nettoyage apres etre restees coincees plus de trente minutes, deux
+ * n ont jamais demarre, deux ont ete ecartees par le pre-scan avant que
+ * le pipeline ne se lance. Aucune ne porte d extraction dans son
+ * document, et six n ont pas de document du tout.
  *
- * Le nom du fichier source prend sa place, parce qu il est renseigne sur
- * les trente-neuf lignes et qu il identifie le dossier pour celui qui l a
+ * Ce n est donc pas une donnee perdue entre le moteur et la ligne, et
+ * cela s ecrit ici parce que la conclusion inverse coutait un chantier.
+ * Le nom part en base des la fin de l extraction, par un appel non
+ * bloquant de la route d analyse, et la preuve tient dans deux lignes du
+ * corpus : elles sont en echec, elles ne portent pas d extraction dans
+ * leur document, et elles portent pourtant leur nom de societe. Le nom
+ * survit donc a un run qui echoue ensuite.
+ *
+ * Le nom du fichier source prend la place du placeholder, parce qu il est
+ * renseigne partout et qu il identifie le dossier pour celui qui l a
  * depose. Il n est pas le nom de la societe et la ligne ne pretend pas
- * qu il l est : elle le rend a l encre du nom mais le declare provisoire,
- * a charge de l appelant d en tirer ce qu il veut.
+ * qu il l est : elle le declare provisoire, a charge de l appelant de le
+ * dire a l ecran plutot que de le laisser passer pour un nom.
  */
 export function nommerDossier(
   companyName: string | null | undefined,
