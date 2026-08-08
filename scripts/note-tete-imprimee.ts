@@ -205,6 +205,56 @@ async function main() {
   await page.setViewport({ width: 1280, height: 1600 });
   await ouvrirLaNote(page, base, idNote);
 
+  // LE SECOND MECANISME, MESURE AVANT LE PREMIER. Le repere imprime n est
+  // la moitie de la reponse que si le repere d ecran s efface : un element
+  // collant ne se dessine que sur la premiere page d un PDF Chromium, donc
+  // laisse en place il nommerait la premiere section et laisserait le
+  // reste du document sous un repere faux, ce qui est pire que pas de
+  // repere du tout puisqu il en a l autorite.
+  //
+  // Deux chemins l ecartent et ils ne ferment pas la meme chose. Le
+  // montage ne rend pas le bandeau quand la note se rend en mode
+  // impression, ce qui couvre l export. La regle @media print couvre
+  // l autre chemin, celui du lecteur qui fait Ctrl-P sur la note a
+  // l ecran, ou le mode impression n a jamais ete arme. C est ce second
+  // chemin que cette mesure emprunte : la note est ouverte en mode ecran,
+  // puis le media est bascule.
+  const displayEcran = await page.evaluate(`(function () {
+    var tc = document.querySelector('.note-titre-courant');
+    return tc ? getComputedStyle(tc).display : 'ABSENT';
+  })()`);
+  await page.emulateMediaType('print');
+  await new Promise(r => setTimeout(r, 600));
+  const displayPrint = await page.evaluate(`(function () {
+    var tc = document.querySelector('.note-titre-courant');
+    return tc ? getComputedStyle(tc).display : 'ABSENT';
+  })()`);
+  await page.emulateMediaType('screen');
+
+  const bandeauEcarte = displayPrint === 'none' || displayPrint === 'ABSENT';
+  console.log(
+    `Bandeau d ecran : display ${displayEcran} en media screen, ${displayPrint} en media print`
+    + ` -> ${bandeauEcarte ? 'ecarte' : 'PRESENT A L IMPRESSION'}.`,
+  );
+  // L assertion se pose dans les deux sens. Un bandeau absent de l ecran
+  // satisferait la premiere moitie sans rien prouver : ce qui se verifie
+  // est qu il est la ou il sert et qu il part la ou il nuit.
+  if (displayEcran !== 'block') {
+    console.error(
+      `Le bandeau ne se rend pas a l ecran (display ${displayEcran}). La mesure d impression`
+      + ` ci-dessous ne bornerait alors rien, puisqu elle constaterait l absence d un element`
+      + ` qui n existe deja pas.`,
+    );
+    process.exit(1);
+  }
+  if (!bandeauEcarte) {
+    console.error(
+      'Le bandeau collant survit a l impression : il se dessinerait sur la premiere page seule'
+      + ' et nommerait la premiere section pour tout le document.',
+    );
+    process.exit(1);
+  }
+
   // LE MODULE DE PRODUCTION ENTRE DANS LA PAGE PAR SON SOURCE, transpile
   // par le compilateur du projet. Ni copie ni reecriture : une fixture
   // ecrite dans le meme systeme de croyance que le code qu elle teste
