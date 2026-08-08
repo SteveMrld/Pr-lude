@@ -708,6 +708,32 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
               ✎ {analysis.openCommentsCount}
             </span>
           )}
+          {/* LE VERDICT SE LIT AVEC LE NOM, ET NON DEUX COLONNES PLUS
+              LOIN. Il vivait dans la deuxieme colonne, donc en ordre de
+              lecture il venait apres le secteur et apres le nom du
+              fichier source, et il portait dix pixels quand ce nom en
+              portait dix et demi : la conclusion etait le plus petit
+              texte de la ligne, plus petite que le nom du PDF. Un
+              partner qui balaie sa liste cherche un verdict, pas un nom
+              de fichier. La pastille remonte donc sur la ligne du nom,
+              ou elle se lit dans le meme mouvement. */}
+          {!verdictRedondant && (
+            <span style={{
+              padding: '4px 11px',
+              fontSize: 11.5,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              background: verdictStyle.bg,
+              color: verdictStyle.fg,
+              border: `1px solid ${verdictStyle.border}`,
+              borderRadius: 999,
+              fontFamily: 'var(--sans)',
+              display: 'inline-block',
+            }}>
+              {presentationVerdict.libelle}
+            </span>
+          )}
           {/* Badge de statut de run. Distingue completed_with_gaps d un
               run complet en un coup d oeil. Absent si le releve n existe
               pas (dossier anterieur a la brique 3), doctrine brique 4. */}
@@ -719,10 +745,16 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
                 title={analysis.status || undefined}
                 style={{
                   fontFamily: 'var(--sans)',
-                  fontSize: 9.5,
+                  // L etat sortait a 9,5 pixels, soit le plus petit texte
+                  // de la ligne, plus petit que le nom du fichier source.
+                  // Il doit se lire sans effort puisqu il porte l une des
+                  // deux grandeurs qu on vient chercher ; il passe donc
+                  // au-dessus du nom de fichier et reste sous le verdict,
+                  // qui est la conclusion.
+                  fontSize: 11,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
-                  padding: '3px 8px',
+                  padding: '3px 9px',
                   background: rs.bg,
                   color: rs.fg,
                   border: `1px solid ${rs.border}`,
@@ -760,23 +792,27 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
           </div>
         )}
       </div>
+      {/* La colonne que le verdict occupait porte desormais le score, la
+          seconde grandeur qu on vient chercher. Elle le prend a la
+          colonne suivante, qui garde ce qui se lit apres avoir decide de
+          s arreter sur la ligne : la vigilance, l etat de DD et la date. */}
       <div>
-        {!verdictRedondant && (
-        <span style={{
-          padding: '5px 12px',
-          fontSize: 10,
-          letterSpacing: '0.10em',
-          textTransform: 'uppercase',
-          fontWeight: 700,
-          background: verdictStyle.bg,
-          color: verdictStyle.fg,
-          border: `1px solid ${verdictStyle.border}`,
-          borderRadius: 999,
-          fontFamily: 'var(--sans)',
-          display: 'inline-block',
-        }}>
-          {presentationVerdict.libelle}
-        </span>
+        {analysis.globalScore != null ? (
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--muted)' }}>
+            Score : <strong style={{
+              color: 'var(--accent)',
+              fontWeight: 700,
+              fontFamily: 'var(--serif)',
+              fontSize: 15.5,
+            }}>{Math.round(analysis.globalScore)}/100</strong>
+          </div>
+        ) : (
+          // Un score absent se dit. Laisser la case vide la rendrait
+          // indiscernable d une colonne qui n a pas fini de charger, et
+          // onze dossiers sur trente-neuf sont dans ce cas.
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--muted-soft)' }}>
+            Score non calcule
+          </div>
         )}
       </div>
       <div>
@@ -798,11 +834,6 @@ function AnalysisRow({ analysis, isLast, onDelete, onStageChanged }: {
         )}
       </div>
       <div style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'var(--sans)' }}>
-        {analysis.globalScore != null && (
-          <div style={{ fontFamily: 'var(--sans)' }}>
-            Score : <strong style={{ color: 'var(--accent)', fontWeight: 700, fontFamily: 'var(--serif)', fontSize: 14 }}>{Math.round(analysis.globalScore)}/100</strong>
-          </div>
-        )}
         {analysis.blindspotScore != null && (
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
             Vigilance : <strong style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>{Math.round(analysis.blindspotScore)}</strong>
